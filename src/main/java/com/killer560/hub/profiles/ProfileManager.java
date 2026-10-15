@@ -618,6 +618,8 @@ public final class ProfileManager {
                 com.killer560.hub.dungeonextras.BreakerAuraStore::reload,
                 com.killer560.hub.invsort.InventoryLayoutStore::reload,
                 com.killer560.hub.scoreboard.ScoreboardBackgroundImage::reload,
+                // The Dungeon Map's own checkmark sprites (killer560smod-livemap-checkmarks).
+                com.killer560.hub.livemap.MapMarks::reloadUserSprites,
                 com.killer560.hub.roomsim.SimSpeed::forgetSaved,
                 com.killer560.hub.roomsim.SimRoomCycle::forgetKeys,
                 com.killer560.hub.roomsim.SimBreakerState::forgetSecretCharges,

@@ -56,6 +56,9 @@ public final class LeapMapView {
             MapPainter.drawDoors(graphics, DungeonLayout.current(), cfg, ox, oy, ppu, -1);
             for (int gid = 0; gid < groups.size(); gid++) {
                 LiveMapFeature.RoomGroup group = groups.get(gid);
+                if (!MapPainter.isRevealed(group)) {
+                    continue; // the same map-item-only rule as the Dungeon Map: it drew every scanned room grey
+                }
                 MapPainter.drawRoom(graphics, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }
             MapPainter.drawLabels(graphics, font, cfg.getRoomLabels(), cfg, ox, oy, ppu);

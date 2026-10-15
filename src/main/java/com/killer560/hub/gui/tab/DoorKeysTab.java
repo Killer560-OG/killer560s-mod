@@ -76,6 +76,15 @@ public class DoorKeysTab extends BaseTab {
                 }
             });
         }
+        y += 22;
+
+        // killer560, 2026-10-15: "have a toggle for sphere or radius" - how the pickup range is drawn.
+        widgets.add(SettingsButtonWidget.cycling(rangeText(cfg), (btn, dir) -> {
+                    cfg.setRangeStyle(SettingsButtonWidget.step(cfg.getRangeStyle(), dir,
+                            DoorKeysConfig.RANGE_STYLE_NAMES.length));
+                    cfg.save();
+                    btn.setMessage(rangeText(cfg));
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -93,6 +102,10 @@ public class DoorKeysTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
+    }
+
+    private static Component rangeText(DoorKeysConfig cfg) {
+        return Component.literal("Pickup Range: " + DoorKeysConfig.RANGE_STYLE_NAMES[cfg.getRangeStyle()]);
     }
 
     private static Component thicknessText(DoorKeysConfig cfg) {

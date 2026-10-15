@@ -781,47 +781,47 @@ public final class ScoreCalculatorFeature {
      * drawing and the HUD box, so the box is always exactly these lines. Before the first estimate of a run the
      * numbers read "?" rather than the section vanishing; {@code demo} is the HUD editor's sample.
      *
-     * <p>Always exactly two rows (killer560, 2026-10-07: "Try to make it smaller and only take up 2 rows"): score,
-     * secrets for S+ and crypts, then deaths and the bonus kills as M (Mimic, Floor 6 and up), P (Prince) and B (the
-     * Murkbat bat), each a tick or a cross ("Abbreviate Mimic to M, Prince to P and Bat to B"). B carries a count when
-     * more than one player's bat bonus is known.
+     * <p>Always exactly two rows (killer560, 2026-10-07: "Try to make it smaller and only take up 2 rows"), laid out the
+     * way NoammAddons lays its map info out since 2026-10-15 ("Make the extra info overlay look more like noamm's ...
+     * right now there is lots of space to be used and it is used poorly"): the secrets as found / needed for S+ / the
+     * floor's total, and crypts; then score, deaths and the bonus kills as M (Mimic, Floor 6 and up), P (Prince) and B
+     * (the Murkbat bat), green when done and red when not ("Abbreviate Mimic to M, Prince to P and Bat to B"), split by
+     * bars. Each row is drawn centred under the map. B carries a count when more than one player's bat bonus is known.
      */
     public static List<String> mapInfoLines(boolean demo) {
         ScoreCalculator.Result r = demo ? new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+")
                 : currentResult();
         String score;
         String secrets;
+        int found = demo ? 54 : secretsFound;
         if (r == null) {
-            score = "§6Score §7?";
-            secrets = "§6Secrets §7?";
+            score = "§6Score: §7?";
+            secrets = "§6Secrets: §f" + found + "§7/?";
         } else {
             String sc = r.total() < 270 ? "§c" : r.total() < 300 ? "§e" : "§a";
-            score = "§6Score " + sc + r.total() + " §7(" + sc + r.rank() + "§7)";
-            int found = demo ? 54 : secretsFound;
-            if (r.secretsNeeded() < 0) {
-                secrets = "§6Secrets §f" + found + "§7/?";
-            } else if (r.secretsNeeded() == Integer.MAX_VALUE) {
-                secrets = "§6Secrets §f" + found + " §cno S+";
-            } else {
-                secrets = "§6Secrets " + (r.secretsRemaining() <= 0 ? "§a" : "§f") + found + "§7/" + r.secretsNeeded();
-            }
+            score = "§6Score: " + sc + r.total() + " §7(" + sc + r.rank() + "§7)";
+            String needed = r.secretsNeeded() < 0 ? "?" : r.secretsNeeded() == Integer.MAX_VALUE ? "§c-"
+                    : (r.secretsRemaining() <= 0 ? "§a" : "§b") + r.secretsNeeded();
+            String total = r.totalSecrets() > 0 ? "§7/§e" + r.totalSecrets() : "";
+            secrets = "§6Secrets: " + (r.secretsRemaining() <= 0 && r.secretsNeeded() >= 0 ? "§a" : "§f") + found
+                    + "§7/" + needed + total;
         }
         int c = demo ? 5 : getCrypts();
         int d = demo ? 0 : DungeonState.isInDungeon() ? deaths : 0;
-        String crypt = "§6Crypts " + (c >= 5 ? "§a" : "§f") + c + "§7/5";
+        String crypt = "§6Crypts: " + (c >= 5 ? "§a" : "§f") + c;
         boolean mimicFloor = demo || ScoreCalculator.floorNumber(DungeonState.getFloor()) >= 6;
         boolean m = demo || isMimicKilled();
         boolean p = !demo && isPrinceKilled();
         int b = demo ? 1 : batBonus();
-        String row2 = "§6Deaths " + (d > 0 ? "§c" : "§f") + d
-                + (mimicFloor ? "  §6M " + tick(m) : "")
-                + "  §6P " + tick(p)
-                + "  §6B " + tick(b > 0) + (b > 1 ? "§7x" + b : "");
-        return List.of(score + "  " + secrets + "  " + crypt, row2);
+        String bonus = (mimicFloor ? mark("M", m) + " §7| " : "") + mark("P", p) + " §7| " + mark("B", b > 0)
+                + (b > 1 ? "§7x" + b : "");
+        String row2 = score + "   §6Deaths: " + (d > 0 ? "§c" : "§f") + d + "   " + bonus;
+        return List.of(secrets + "   " + crypt, row2);
     }
 
-    private static String tick(boolean done) {
-        return done ? "§a✔" : "§c✘";
+    /** A bonus letter, green when it is done and red when not (NoammAddons' M | P | B). */
+    private static String mark(String letter, boolean done) {
+        return (done ? "§a" : "§c") + letter;
     }
 
     private static int parseInt(String s, int def) {

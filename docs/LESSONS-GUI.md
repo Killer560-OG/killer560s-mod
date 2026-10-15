@@ -461,3 +461,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   `SoundBufferLibrary.getCompleteBuffer` is answered from the folder by a second mixin, and the decoded `SoundBuffer` is kept
   per file because each one owns an OpenAL buffer that is only freed when the engine clears its library. An `Identifier` cannot
   hold capitals or spaces, so an imported file is named to the engine by a hashed key (`imported/s<hash>`).
+- **A setting that only touches a state the painter never draws does nothing.** Darken Unexplored multiplied only rooms in
+  `STATE_UNDISCOVERED`, and those are exactly the rooms `LiveMapHudElement.renderMap` skips; on the cheat jar every
+  world-scanned room was promoted to DISCOVERED first, so the slider could not reach a drawn pixel on either build
+  (killer560, 2026-10-15: "Darken Unexplored does not work"). `MapPainter.unexplored` now decides from the map item's own
+  tile states, and testkit 1015-sim-map-item-only reads the drawn fill at Darken 0 and 0.6.
+- **A half-width row with no partner keeps its switch halfway across the drawer.** `ModScreen.stackRows` widened only rows of
+  two or more, so a row whose partner was hidden (Door Keys' Show Tracer with the tracer off) or never planned (Names
+  Holding Leap) stopped in the middle. Lone plain rows now take the drawer's full width, stacked or not
+  (`widenLoneRows`); testkit 1015-ui-switch-align sweeps every drawer with each switch flipped.

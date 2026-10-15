@@ -301,6 +301,17 @@ public final class LiveMapFeature {
         // used to be built every tick in every world (FPS sweep, 2026-10-07). isInBoss is a plain read, so the order
         // of the tests changes nothing else.
         boolean scanning = inDungeon && !isInBoss() && !sim && !scanConsumers().isEmpty();
+        if (sim && inDungeon && !isInBoss()) {
+            // The sim publishes its floor instead of being scanned, but a dungeon map it holds in slot 9 is still read
+            // the way Hypixel's is (MapPainter.hideUnrevealed): the map then shows only what that item shows.
+            long now = System.currentTimeMillis();
+            if (now - lastScanAtMs >= 250) {
+                lastScanAtMs = now;
+                if (DungeonMapScanner.update(client)) {
+                    groupsDirty = true;
+                }
+            }
+        }
         if (!scanning) {
             return;
         }
@@ -1207,7 +1218,8 @@ public final class LiveMapFeature {
          * at GUI scale 2 (two at GUI 4), so it stays sharp. It grows and shrinks with Room Size and the HUD scale like
          * the map itself. History: full size until 2026-10-07 ("Crypts 0/5  Deaths 0" filled the map's whole width),
          * then 0.75 in four rows ("The text under the map should also be smaller and fit better"), then half size in two
-         * rows the same evening ("Try to make it smaller and only take up 2 rows").
+         * rows the same evening ("Try to make it smaller and only take up 2 rows"); 2026-10-15 the rows are centred and
+         * filled NoammAddons-style ("lots of space to be used and it is used poorly") at the same sharp half size.
          */
         private static final float EXTRA_TEXT_MAP = 240f;
 
@@ -1216,9 +1228,9 @@ public final class LiveMapFeature {
             return Math.min(1f, mapPx() / EXTRA_TEXT_MAP);
         }
 
-        /** One Extra Info row: a text line at {@link #extraTextScale()} and one unit between rows, rounded up. */
+        /** One Extra Info row: a line's glyphs (8 font units) at {@link #extraTextScale()} and one unit under it. */
         static int extraRow() {
-            return (int) Math.ceil(9 * extraTextScale()) + 1;
+            return (int) Math.ceil(8 * extraTextScale()) + 1;
         }
 
         /**
@@ -1270,11 +1282,11 @@ public final class LiveMapFeature {
             int row = extraRow();
             int lineY = y + EXTRA_GAP + 1;
             for (String line : lines) {
-                // Each row is its own band, row units tall: a line's text never reaches the next one's.
+                // Each row is its own band, row units tall, centred under the map like NoammAddons' (2026-10-15).
                 graphics.pose().pushMatrix();
-                graphics.pose().translate(x + EXTRA_SIDE, lineY);
+                graphics.pose().translate(x + w / 2f, lineY);
                 graphics.pose().scale(s, s);
-                graphics.text(font, line, 0, 0, 0xFFFFFFFF, cfg.isTextShadow());
+                graphics.text(font, line, -font.width(line) / 2, 0, 0xFFFFFFFF, cfg.isTextShadow());
                 graphics.pose().popMatrix();
                 lineY += row;
             }

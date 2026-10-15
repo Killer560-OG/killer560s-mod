@@ -46,6 +46,8 @@ public final class DoorKeysFeature {
     /** The circle's centre (on the ground under the key) and radius: {x, y, z, r}, or null. */
     private static volatile double[] ring = null;
     private static final int RING_SEGMENTS = 64;
+    /** How opaque the Sphere style's shading is: enough to see the edge of the range, not enough to hide the room. */
+    private static final float SPHERE_ALPHA = 0.22f;
     /** How far below the key the ground is looked for. */
     private static final int GROUND_SEARCH = 6;
 
@@ -135,10 +137,30 @@ public final class DoorKeysFeature {
         return new double[]{p.x, groundY + 0.02, p.z, radius};
     }
 
-    /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. */
+    /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. With the Sphere style this is still the
+     *  ground circle's numbers; {@link #pickupSphere()} is what is drawn. */
     public static double[] pickupRing() {
         double[] r = ring;
         return r == null ? null : r.clone();
+    }
+
+    /** For the testkit: the sphere the Sphere style draws, {x, y, z, radius} - centred on the key's stand, whose
+     *  position every pickup check measures his feet to - or null when no key is shown. */
+    public static double[] pickupSphere() {
+        Entity key = currentKey;
+        double[] r = ring;
+        if (key == null || r == null) {
+            return null;
+        }
+        Vec3 p = key.position();
+        return new double[]{p.x, p.y, p.z, r[3]};
+    }
+
+    /** For the testkit: the style the last frame drew ("radius", "sphere"), or "" before any. */
+    private static volatile String lastDrawn = "";
+
+    public static String lastDrawnStyle() {
+        return lastDrawn;
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -173,6 +195,21 @@ public final class DoorKeysFeature {
         Vec3 keyPos = currentKey.position();
         Vec3 target = new Vec3(Math.floor(keyPos.x) + 0.5, Math.floor(keyPos.y) + 0.5, Math.floor(keyPos.z) + 0.5);
         float thickness = cfg.getTracerThickness();
+        boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
+        if (sphere) {
+            // A see-through shaded ball of the pickup radius around the stand: step inside it and the key is his.
+            // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light grey of its name.
+            float[] c = currentColor[0] < 0.2f && currentColor[1] < 0.2f ? new float[]{0.75f, 0.75f, 0.8f} : currentColor;
+            WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, c[0], c[1], c[2], SPHERE_ALPHA);
+            points.clear();
+            for (int i = 0; i <= RING_SEGMENTS; i++) {
+                double a = Math.PI * 2.0 * i / RING_SEGMENTS;
+                points.add(new Vec3(keyPos.x + Math.cos(a) * circle[3], keyPos.y, keyPos.z + Math.sin(a) * circle[3]));
+            }
+            lastDrawn = "sphere";
+        } else {
+            lastDrawn = "radius";
+        }
 
         if (!cfg.isThroughWalls()) {
             WorldRenderUtils.renderLineStrip(context, points, currentColor[0], currentColor[1], currentColor[2], 1f, 2f);

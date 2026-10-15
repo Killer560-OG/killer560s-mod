@@ -181,8 +181,19 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     // ------------------------------------------------------------------------------------------- rendering
 
+    /** The Interactive Map (cheat) always paints the whole scanned floor: Funny Map is the Dungeon Map HUD's setting.
+     *  Its pathing needs every room, and a click on a room it does not draw could not be aimed. */
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        boolean before = MapPainter.beginFullScan();
+        try {
+            extractMap(graphics, mouseX, mouseY, partialTick);
+        } finally {
+            MapPainter.endFullScan(before);
+        }
+    }
+
+    private void extractMap(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         Minecraft client = Minecraft.getInstance();
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         cursorX = mouseX;

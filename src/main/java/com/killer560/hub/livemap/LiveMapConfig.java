@@ -61,35 +61,30 @@ public final class LiveMapConfig {
     // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
     // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same grey.
     private boolean colourByType = true;
-    private int colorNormal = 0xFF724318;
-    private int colorEntrance = 0xFF00FF00;
-    private int colorPuzzle = 0xFFB24CD8;
-    private int colorTrap = 0xFFD87F33;
-    private int colorMiniboss = 0xFFE5E533;
-    private int colorFairy = 0xFFF27FA5;
-    private int colorBlood = 0xFFFF0000;
-    private int colorRare = 0xFFB2B2B2;
-    private int colorUnopened = 0xFF414141;
-    private int colorWitherDoor = 0xFF101010;
     private float darkenUnopened = 0.4f;
     private int mapBackground = 0x99000000;
     private int mapBorderColor = 0xFFCC6600;
-    private boolean checkmarkSprites = true;
+    /** killer560, 2026-10-15: "Change checkmarks sprites to custom checkmark sprite so by default if it is off it uses
+     *  hypixels sprites. If it is on then it uses the one you created or they can make their own custom sprite." Off:
+     *  Hypixel's own marks (read off the map item, see {@link MapMarks}). On: {@link #checkmarkSource}. */
+    private boolean customCheckmarks = false;
+    /** With Custom Checkmark Sprite on: 0 the mod's own sprites, 1 his own PNGs ({@link MapMarks}). */
+    private int checkmarkSource = 0;
 
-    // ---- map themes (killer560, 2026-09-20: "map themes: switchable, including a custom one matching the mod's
-    // amber look. the recolour feature should be able to save a theme") - Real/Amber overwrite the 10 colours above
-    // with a fixed preset; Custom loads back whatever was last explicitly saved with saveCurrentAsCustomTheme(). ----
-    private int mapTheme = THEME_REAL;
-    private int customColorNormal = 0xFF724318;
-    private int customColorEntrance = 0xFF00FF00;
-    private int customColorPuzzle = 0xFFB24CD8;
-    private int customColorTrap = 0xFFD87F33;
-    private int customColorMiniboss = 0xFFE5E533;
-    private int customColorFairy = 0xFFF27FA5;
-    private int customColorBlood = 0xFFFF0000;
-    private int customColorRare = 0xFFB2B2B2;
-    private int customColorUnopened = 0xFF414141;
-    private int customColorWitherDoor = 0xFF101010;
+    // ---- the cheat build's Funny Map (killer560, 2026-10-15: "Funnymap the toggle should be in cheat version only and
+    // that means it scans for rooms ... if on it should have show mimic room as a toggle and a recolor option for it
+    // there. In the normal map it cannot scan for mimic") ----
+    private boolean funnyMap = false;
+    private boolean showMimicRoom = true;
+    /** Blended over the mimic room's own colour at this colour's alpha; 0x33 = NoammAddons' 20% red. */
+    private int mimicColor = 0x33FF0000;
+
+    // ---- map themes (killer560, 2026-10-15, see MapThemes): Real Map, each menu preset, Match Menu Theme, Custom. The
+    // room colours are not settings of their own any more; they are the active theme's palette. Only Custom's are his,
+    // as named schemes edited in MapSchemeEditorScreen. ----
+    private MapThemes.Theme mapTheme = MapThemes.Theme.REAL;
+    private final java.util.List<MapThemes.Scheme> schemes = new java.util.ArrayList<>();
+    private int activeScheme = 0;
 
     // ---- Interactive map (QUOI InteractiveMap visuals + NoammAddons icon options) ----
     private boolean interactiveMapEnabled = false;
@@ -190,35 +185,18 @@ public final class LiveMapConfig {
                 cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
 
                 cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
-                cfg.colorNormal = ConfigJson.getInt(obj, "colorNormal", 0xFF724318);
-                cfg.colorEntrance = ConfigJson.getInt(obj, "colorEntrance", 0xFF00FF00);
-                cfg.colorPuzzle = ConfigJson.getInt(obj, "colorPuzzle", 0xFFB24CD8);
-                cfg.colorTrap = ConfigJson.getInt(obj, "colorTrap", 0xFFD87F33);
-                cfg.colorMiniboss = ConfigJson.getInt(obj, "colorMiniboss", 0xFFE5E533);
-                cfg.colorFairy = ConfigJson.getInt(obj, "colorFairy", 0xFFF27FA5);
-                cfg.colorBlood = ConfigJson.getInt(obj, "colorBlood", 0xFFFF0000);
-                cfg.colorRare = ConfigJson.getInt(obj, "colorRare", 0xFFB2B2B2);
-                cfg.colorUnopened = ConfigJson.getInt(obj, "colorUnopened", 0xFF414141);
-                cfg.colorWitherDoor = ConfigJson.getInt(obj, "colorWitherDoor", 0xFF101010);
                 cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", 0.4f));
                 cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", 0x99000000);
                 cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
-                cfg.checkmarkSprites = ConfigJson.getBool(obj, "checkmarkSprites", true);
+                // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.
+                cfg.customCheckmarks = ConfigJson.getBool(obj, "customCheckmarks", false);
+                cfg.setCheckmarkSource(ConfigJson.getInt(obj, "checkmarkSource", 0));
 
-                cfg.mapTheme = ConfigJson.getInt(obj, "mapTheme", THEME_REAL);
-                if (cfg.mapTheme < 0 || cfg.mapTheme >= THEME_NAMES.length) {
-                    cfg.mapTheme = THEME_REAL;
-                }
-                cfg.customColorNormal = ConfigJson.getInt(obj, "customColorNormal", 0xFF724318);
-                cfg.customColorEntrance = ConfigJson.getInt(obj, "customColorEntrance", 0xFF00FF00);
-                cfg.customColorPuzzle = ConfigJson.getInt(obj, "customColorPuzzle", 0xFFB24CD8);
-                cfg.customColorTrap = ConfigJson.getInt(obj, "customColorTrap", 0xFFD87F33);
-                cfg.customColorMiniboss = ConfigJson.getInt(obj, "customColorMiniboss", 0xFFE5E533);
-                cfg.customColorFairy = ConfigJson.getInt(obj, "customColorFairy", 0xFFF27FA5);
-                cfg.customColorBlood = ConfigJson.getInt(obj, "customColorBlood", 0xFFFF0000);
-                cfg.customColorRare = ConfigJson.getInt(obj, "customColorRare", 0xFFB2B2B2);
-                cfg.customColorUnopened = ConfigJson.getInt(obj, "customColorUnopened", 0xFF414141);
-                cfg.customColorWitherDoor = ConfigJson.getInt(obj, "customColorWitherDoor", 0xFF101010);
+                cfg.funnyMap = ConfigJson.getBool(obj, "funnyMap", false);
+                cfg.showMimicRoom = ConfigJson.getBool(obj, "showMimicRoom", true);
+                cfg.mimicColor = ConfigJson.getInt(obj, "mimicColor", 0x33FF0000);
+
+                loadThemes(cfg, obj);
 
                 cfg.interactiveMapEnabled = ConfigJson.getBool(obj, "interactiveMapEnabled", false);
                 cfg.openKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "openKeyCode", -1));
@@ -261,6 +239,29 @@ public final class LiveMapConfig {
             }
         }
         instance = cfg;
+        migrateRoomPx(cfg);
+    }
+
+    /**
+     * killer560, 2026-10-15: "dont have a room size slider since they scroll to adjust it" - the Room Size slider is
+     * gone and the map is sized only by the HUD editor's scroll (its own HUD scale). A config still carrying a Room
+     * Size other than 16 has that folded into the map's HUD scale once, so the map stays the size he had it, and Room
+     * Size goes back to 16 where nothing can change it.
+     */
+    private static void migrateRoomPx(LiveMapConfig cfg) {
+        if (cfg.roomPx == 16) {
+            return;
+        }
+        try {
+            com.killer560.hub.hud.HudConfig hud = com.killer560.hub.hud.HudConfig.getInstance();
+            float scale = hud.getScale("live_map", 1f) * cfg.roomPx / 16f;
+            hud.setScale("live_map", Math.max(0.25f, Math.min(6f, scale)));
+            hud.save();
+        } catch (RuntimeException ignored) {
+            // HUD config unreadable: the map is simply drawn at Room Size 16
+        }
+        cfg.roomPx = 16;
+        cfg.save();
     }
 
     public void save() {
@@ -279,32 +280,29 @@ public final class LiveMapConfig {
             obj.addProperty("peekScale", peekScale);
 
             obj.addProperty("colourByType", colourByType);
-            obj.addProperty("colorNormal", colorNormal);
-            obj.addProperty("colorEntrance", colorEntrance);
-            obj.addProperty("colorPuzzle", colorPuzzle);
-            obj.addProperty("colorTrap", colorTrap);
-            obj.addProperty("colorMiniboss", colorMiniboss);
-            obj.addProperty("colorFairy", colorFairy);
-            obj.addProperty("colorBlood", colorBlood);
-            obj.addProperty("colorRare", colorRare);
-            obj.addProperty("colorUnopened", colorUnopened);
-            obj.addProperty("colorWitherDoor", colorWitherDoor);
             obj.addProperty("darkenUnopened", darkenUnopened);
             obj.addProperty("mapBackground", mapBackground);
             obj.addProperty("mapBorderColor", mapBorderColor);
-            obj.addProperty("checkmarkSprites", checkmarkSprites);
+            obj.addProperty("customCheckmarks", customCheckmarks);
+            obj.addProperty("checkmarkSource", checkmarkSource);
+            obj.addProperty("funnyMap", funnyMap);
+            obj.addProperty("showMimicRoom", showMimicRoom);
+            obj.addProperty("mimicColor", mimicColor);
 
-            obj.addProperty("mapTheme", mapTheme);
-            obj.addProperty("customColorNormal", customColorNormal);
-            obj.addProperty("customColorEntrance", customColorEntrance);
-            obj.addProperty("customColorPuzzle", customColorPuzzle);
-            obj.addProperty("customColorTrap", customColorTrap);
-            obj.addProperty("customColorMiniboss", customColorMiniboss);
-            obj.addProperty("customColorFairy", customColorFairy);
-            obj.addProperty("customColorBlood", customColorBlood);
-            obj.addProperty("customColorRare", customColorRare);
-            obj.addProperty("customColorUnopened", customColorUnopened);
-            obj.addProperty("customColorWitherDoor", customColorWitherDoor);
+            obj.addProperty("mapThemeName", mapTheme.name());
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            for (MapThemes.Scheme s : schemes) {
+                JsonObject o = new JsonObject();
+                o.addProperty("name", s.name);
+                com.google.gson.JsonArray cols = new com.google.gson.JsonArray();
+                for (int c : s.colors) {
+                    cols.add(c);
+                }
+                o.add("colors", cols);
+                arr.add(o);
+            }
+            obj.add("mapSchemes", arr);
+            obj.addProperty("activeScheme", activeScheme);
 
             obj.addProperty("interactiveMapEnabled", interactiveMapEnabled);
             obj.addProperty("openKeyCode", openKeyCode);
@@ -452,84 +450,54 @@ public final class LiveMapConfig {
         this.colourByType = v;
     }
 
-    public int getColorNormal() {
-        return colorNormal;
+    /** The palette the maps paint with right now: the active theme's, or the active Custom scheme's. Never changed by
+     *  the caller. */
+    public int[] palette() {
+        if (mapTheme == MapThemes.Theme.CUSTOM) {
+            MapThemes.Scheme s = activeSchemeOrNull();
+            return s == null ? MapThemes.REAL : s.colors;
+        }
+        return MapThemes.preset(mapTheme);
     }
 
-    public void setColorNormal(int v) {
-        this.colorNormal = v;
+    public int getColorNormal() {
+        return palette()[MapThemes.NORMAL];
     }
 
     public int getColorEntrance() {
-        return colorEntrance;
-    }
-
-    public void setColorEntrance(int v) {
-        this.colorEntrance = v;
+        return palette()[MapThemes.ENTRANCE];
     }
 
     public int getColorPuzzle() {
-        return colorPuzzle;
-    }
-
-    public void setColorPuzzle(int v) {
-        this.colorPuzzle = v;
+        return palette()[MapThemes.PUZZLE];
     }
 
     public int getColorTrap() {
-        return colorTrap;
-    }
-
-    public void setColorTrap(int v) {
-        this.colorTrap = v;
+        return palette()[MapThemes.TRAP];
     }
 
     public int getColorMiniboss() {
-        return colorMiniboss;
-    }
-
-    public void setColorMiniboss(int v) {
-        this.colorMiniboss = v;
+        return palette()[MapThemes.MINIBOSS];
     }
 
     public int getColorFairy() {
-        return colorFairy;
-    }
-
-    public void setColorFairy(int v) {
-        this.colorFairy = v;
+        return palette()[MapThemes.FAIRY];
     }
 
     public int getColorBlood() {
-        return colorBlood;
-    }
-
-    public void setColorBlood(int v) {
-        this.colorBlood = v;
+        return palette()[MapThemes.BLOOD];
     }
 
     public int getColorRare() {
-        return colorRare;
-    }
-
-    public void setColorRare(int v) {
-        this.colorRare = v;
+        return palette()[MapThemes.RARE];
     }
 
     public int getColorUnopened() {
-        return colorUnopened;
-    }
-
-    public void setColorUnopened(int v) {
-        this.colorUnopened = v;
+        return palette()[MapThemes.UNOPENED];
     }
 
     public int getColorWitherDoor() {
-        return colorWitherDoor;
-    }
-
-    public void setColorWitherDoor(int v) {
-        this.colorWitherDoor = v;
+        return palette()[MapThemes.WITHER_DOOR];
     }
 
     public float getDarkenUnopened() {
@@ -556,100 +524,221 @@ public final class LiveMapConfig {
         this.mapBorderColor = v;
     }
 
-    public boolean isCheckmarkSprites() {
-        return checkmarkSprites;
+    public boolean isCustomCheckmarks() {
+        return customCheckmarks;
     }
 
-    public void setCheckmarkSprites(boolean v) {
-        this.checkmarkSprites = v;
+    public void setCustomCheckmarks(boolean v) {
+        this.customCheckmarks = v;
     }
 
-    /** Puts every room/door colour back to the real dungeon map's own values. */
-    public void resetMapColours() {
-        colorNormal = 0xFF724318;
-        colorEntrance = 0xFF00FF00;
-        colorPuzzle = 0xFFB24CD8;
-        colorTrap = 0xFFD87F33;
-        colorMiniboss = 0xFFE5E533;
-        colorFairy = 0xFFF27FA5;
-        colorBlood = 0xFFFF0000;
-        colorRare = 0xFFB2B2B2;
-        colorUnopened = 0xFF414141;
-        colorWitherDoor = 0xFF101010;
+    public static final String[] CHECKMARK_SOURCE_NAMES = {"Mod Sprites", "Your Own"};
+
+    public int getCheckmarkSource() {
+        return checkmarkSource;
+    }
+
+    public void setCheckmarkSource(int v) {
+        this.checkmarkSource = v < 0 || v >= CHECKMARK_SOURCE_NAMES.length ? 0 : v;
+    }
+
+    // ---------------------------------------------------------------- funny map (cheat)
+
+    /** The setting as saved, whichever build reads it. */
+    public boolean isFunnyMapRaw() {
+        return funnyMap;
+    }
+
+    public void setFunnyMap(boolean v) {
+        this.funnyMap = v;
+    }
+
+    /** Whether the Dungeon Map may draw what the world scan found beyond what the dungeon map item shows. Cheat build
+     *  only: on the legit jar javac folds this to false. */
+    public boolean isFunnyMap() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && funnyMap;
+    }
+
+    public boolean isShowMimicRoomRaw() {
+        return showMimicRoom;
+    }
+
+    public void setShowMimicRoom(boolean v) {
+        this.showMimicRoom = v;
+    }
+
+    /** The cheat build's mimic SCAN (a trapped chest found before anyone opened it): Funny Map and Show Mimic Room. */
+    public boolean isMimicScan() {
+        return isFunnyMap() && showMimicRoom;
+    }
+
+    /** The mimic room's tint. The legit jar has no setting for it and always paints NoammAddons' 20% red. */
+    public int getMimicColor() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? mimicColor : 0x33FF0000;
+    }
+
+    public int getMimicColorRaw() {
+        return mimicColor;
+    }
+
+    public void setMimicColor(int v) {
+        this.mimicColor = v;
     }
 
     // ---------------------------------------------------------------- map themes
 
-    public static final int THEME_REAL = 0;
-    public static final int THEME_AMBER = 1;
-    public static final int THEME_CUSTOM = 2;
-    public static final String[] THEME_NAMES = {"Real Map", "Amber", "Custom"};
-
-    public int getMapTheme() {
+    public MapThemes.Theme getMapTheme() {
         return mapTheme;
     }
 
-    /** Recolouring subheader "Map Theme" cycle - Real and Amber overwrite the 10 room/door colours with a fixed
-     *  preset; Custom loads back whatever was last saved with {@link #saveCurrentAsCustomTheme()} (the real map's
-     *  own colours the first time, before anything has been saved). Caller still calls {@link #save()}. */
-    public void applyTheme(int theme) {
-        mapTheme = theme < 0 || theme >= THEME_NAMES.length ? THEME_REAL : theme;
-        switch (mapTheme) {
-            case THEME_AMBER -> {
-                // killer560, 2026-09-20: "a custom one matching the mod's amber look" - the mod's own accent/panel
-                // colours (SettingsButtonWidget/ModScreen: #CC6600, #FFAA00, #0D0D0D...) instead of the real map's
-                // rainbow of room-type colours. Blood stays reddish and trap stays warning-red so danger still reads
-                // as danger; everything else is a shade of amber/brown/gold.
-                colorNormal = 0xFF6B3A11;
-                colorEntrance = 0xFFFFAA00;
-                colorPuzzle = 0xFFCC6600;
-                colorTrap = 0xFFFF5555;
-                colorMiniboss = 0xFFFFDD88;
-                colorFairy = 0xFFF2C9A0;
-                colorBlood = 0xFF8B0000;
-                colorRare = 0xFFB2872B;
-                colorUnopened = 0xFF3D332B;
-                colorWitherDoor = 0xFF1A1A1A;
-            }
-            case THEME_CUSTOM -> {
-                colorNormal = customColorNormal;
-                colorEntrance = customColorEntrance;
-                colorPuzzle = customColorPuzzle;
-                colorTrap = customColorTrap;
-                colorMiniboss = customColorMiniboss;
-                colorFairy = customColorFairy;
-                colorBlood = customColorBlood;
-                colorRare = customColorRare;
-                colorUnopened = customColorUnopened;
-                colorWitherDoor = customColorWitherDoor;
-            }
-            default -> resetMapColours(); // Real Map
+    /** Picks a theme. Custom with no scheme saved yet starts one from the palette on screen. Caller saves. */
+    public void setMapTheme(MapThemes.Theme theme) {
+        MapThemes.Theme next = theme == null ? MapThemes.Theme.REAL : theme;
+        if (next == MapThemes.Theme.CUSTOM && schemes.isEmpty()) {
+            schemes.add(new MapThemes.Scheme("Scheme 1", palette()));
+            activeScheme = 0;
+        }
+        mapTheme = next;
+    }
+
+    /** Test and settings hook: the theme by its enum name ("REAL", "OCEAN", "CUSTOM"...). */
+    public void setMapThemeName(String name) {
+        setMapTheme(MapThemes.Theme.parse(name));
+    }
+
+    public java.util.List<MapThemes.Scheme> getSchemes() {
+        return java.util.Collections.unmodifiableList(schemes);
+    }
+
+    public int getActiveScheme() {
+        return schemes.isEmpty() ? -1 : Math.max(0, Math.min(activeScheme, schemes.size() - 1));
+    }
+
+    public MapThemes.Scheme activeSchemeOrNull() {
+        int i = getActiveScheme();
+        return i < 0 ? null : schemes.get(i);
+    }
+
+    /** Makes scheme {@code i} the one Custom paints with, and switches to Custom. Caller saves. */
+    public void useScheme(int i) {
+        if (i >= 0 && i < schemes.size()) {
+            activeScheme = i;
+            mapTheme = MapThemes.Theme.CUSTOM;
         }
     }
 
-    /** Recolouring subheader "Save Theme": snapshots the live palette into the Custom slot, so Real/Amber can be
-     *  tried without losing hand-picked colours - killer560, 2026-09-20: "the recolour feature should be able to
-     *  save a theme". */
-    public void saveCurrentAsCustomTheme() {
-        customColorNormal = colorNormal;
-        customColorEntrance = colorEntrance;
-        customColorPuzzle = colorPuzzle;
-        customColorTrap = colorTrap;
-        customColorMiniboss = colorMiniboss;
-        customColorFairy = colorFairy;
-        customColorBlood = colorBlood;
-        customColorRare = colorRare;
-        customColorUnopened = colorUnopened;
-        customColorWitherDoor = colorWitherDoor;
-        mapTheme = THEME_CUSTOM;
+    /** "New Custom Scheme": a new scheme starting from the palette on screen, made active (Custom). Caller saves.
+     *  @return its index */
+    public int newScheme() {
+        java.util.Set<String> taken = new java.util.HashSet<>();
+        for (MapThemes.Scheme s : schemes) {
+            taken.add(s.name);
+        }
+        int n = schemes.size() + 1;
+        while (taken.contains("Scheme " + n)) {
+            n++;
+        }
+        schemes.add(new MapThemes.Scheme("Scheme " + n, palette()));
+        activeScheme = schemes.size() - 1;
+        mapTheme = MapThemes.Theme.CUSTOM;
+        return activeScheme;
     }
 
-    /** A single room/door swatch was hand-edited directly - the palette is no longer exactly the Real or Amber
-     *  preset, so the theme cycle should say Custom (its saved colours are untouched until Save Theme is pressed). */
-    public void markCustomTheme() {
-        mapTheme = THEME_CUSTOM;
+    public void renameScheme(int i, String name) {
+        if (i >= 0 && i < schemes.size()) {
+            String n = MapThemes.cleanName(name);
+            schemes.get(i).name = n.isEmpty() ? "Scheme " + (i + 1) : n;
+        }
     }
 
+    public void setSchemeColor(int i, int slot, int argb) {
+        if (i >= 0 && i < schemes.size() && slot >= 0 && slot < MapThemes.COUNT) {
+            schemes.get(i).colors[slot] = argb | 0xFF000000;
+        }
+    }
+
+    /** Scheme {@code i}'s colours back to Hypixel's own. Caller saves. */
+    public void resetScheme(int i) {
+        if (i >= 0 && i < schemes.size()) {
+            System.arraycopy(MapThemes.REAL, 0, schemes.get(i).colors, 0, MapThemes.COUNT);
+        }
+    }
+
+    /** Deletes scheme {@code i}; with none left the map goes back to Real Map. Caller saves. */
+    public void deleteScheme(int i) {
+        if (i < 0 || i >= schemes.size()) {
+            return;
+        }
+        schemes.remove(i);
+        if (activeScheme >= i && activeScheme > 0) {
+            activeScheme--;
+        }
+        if (schemes.isEmpty()) {
+            activeScheme = 0;
+            if (mapTheme == MapThemes.Theme.CUSTOM) {
+                mapTheme = MapThemes.Theme.REAL;
+            }
+        }
+    }
+
+    /**
+     * Reads the theme and the saved schemes. A config from before 2026-10-15 has {@code mapTheme} 0 Real, 1 Amber or
+     * 2 Custom, the live colours as {@code colorNormal}... and the old Custom slot as {@code customColorNormal}...: a
+     * file whose theme was Custom, or whose live colours were hand-edited away from both stock presets, keeps them as
+     * "Scheme 1" (and a different saved Custom slot as "Saved Custom"), so nothing he picked is lost.
+     */
+    private static void loadThemes(LiveMapConfig cfg, JsonObject obj) {
+        if (obj.has("mapSchemes") && obj.get("mapSchemes").isJsonArray()) {
+            for (com.google.gson.JsonElement e : obj.getAsJsonArray("mapSchemes")) {
+                if (!e.isJsonObject()) {
+                    continue;
+                }
+                JsonObject o = e.getAsJsonObject();
+                int[] cols = MapThemes.real();
+                if (o.has("colors") && o.get("colors").isJsonArray()) {
+                    com.google.gson.JsonArray a = o.getAsJsonArray("colors");
+                    for (int k = 0; k < Math.min(a.size(), MapThemes.COUNT); k++) {
+                        try {
+                            cols[k] = a.get(k).getAsInt();
+                        } catch (RuntimeException ignored) {
+                            // a hand-edited entry that is not a number keeps Hypixel's colour
+                        }
+                    }
+                }
+                String name = o.has("name") && o.get("name").isJsonPrimitive() ? o.get("name").getAsString() : "";
+                name = MapThemes.cleanName(name);
+                cfg.schemes.add(new MapThemes.Scheme(name.isEmpty() ? "Scheme " + (cfg.schemes.size() + 1) : name, cols));
+            }
+            cfg.activeScheme = ConfigJson.getInt(obj, "activeScheme", 0);
+            cfg.mapTheme = MapThemes.Theme.parse(ConfigJson.getString(obj, "mapThemeName", "REAL"));
+        } else {
+            String[] keys = {"Normal", "Entrance", "Puzzle", "Trap", "Miniboss", "Fairy", "Blood", "Rare", "Unopened",
+                    "WitherDoor"};
+            int old = ConfigJson.getInt(obj, "mapTheme", 0);
+            int[] live = MapThemes.real();
+            int[] custom = MapThemes.real();
+            boolean anyCustom = false;
+            for (int k = 0; k < keys.length; k++) {
+                live[k] = ConfigJson.getInt(obj, "color" + keys[k], live[k]);
+                custom[k] = ConfigJson.getInt(obj, "customColor" + keys[k], custom[k]);
+                anyCustom |= custom[k] != MapThemes.REAL[k];
+            }
+            boolean liveIsStock = java.util.Arrays.equals(live, MapThemes.REAL)
+                    || java.util.Arrays.equals(live, MapThemes.AMBER);
+            if (old == 2 || !liveIsStock) {
+                cfg.schemes.add(new MapThemes.Scheme("Scheme 1", live));
+                cfg.mapTheme = MapThemes.Theme.CUSTOM;
+            } else {
+                cfg.mapTheme = old == 1 ? MapThemes.Theme.AMBER : MapThemes.Theme.REAL;
+            }
+            if (anyCustom && !java.util.Arrays.equals(custom, live)) {
+                cfg.schemes.add(new MapThemes.Scheme("Saved Custom", custom));
+            }
+        }
+        if (cfg.mapTheme == MapThemes.Theme.CUSTOM && cfg.schemes.isEmpty()) {
+            cfg.mapTheme = MapThemes.Theme.REAL;
+        }
+    }
     // ---------------------------------------------------------------- interactive map
 
     public boolean isInteractiveMapEnabled() {
