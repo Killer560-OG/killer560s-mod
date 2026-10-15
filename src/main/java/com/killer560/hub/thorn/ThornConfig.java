@@ -82,6 +82,10 @@ public final class ThornConfig {
     private float lineWidth = 2.0f;
     /** Cheat build only - see {@link #isThroughWalls()}. */
     private boolean throughWalls = false;
+    /** Cheat build only: every non-bat mob in the Thorn fight, through walls (killer560, 2026-10-15). */
+    private boolean allMobsThroughWalls = false;
+    /** Cheat build only: the bats of the Thorn fight, through walls (killer560, 2026-10-15). */
+    private boolean batsThroughWalls = false;
 
     // ---- Stun spots ----
     private boolean stunSpots = false;
@@ -137,6 +141,8 @@ public final class ThornConfig {
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.OUTLINE);
             cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2.0f));
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", false);
+            cfg.allMobsThroughWalls = ConfigJson.getBool(obj, "allMobsThroughWalls", false);
+            cfg.batsThroughWalls = ConfigJson.getBool(obj, "batsThroughWalls", false);
             cfg.stunSpots = ConfigJson.getBool(obj, "stunSpots", false);
             cfg.stunSpotLabels = ConfigJson.getBool(obj, "stunSpotLabels", true);
             cfg.stunSpotColor = ConfigJson.getInt(obj, "stunSpotColor", DEFAULT_STUN_SPOT_COLOR);
@@ -193,6 +199,8 @@ public final class ThornConfig {
             obj.addProperty("style", style.name());
             obj.addProperty("lineWidth", lineWidth);
             obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("allMobsThroughWalls", allMobsThroughWalls);
+            obj.addProperty("batsThroughWalls", batsThroughWalls);
             obj.addProperty("stunSpots", stunSpots);
             obj.addProperty("stunSpotLabels", stunSpotLabels);
             obj.addProperty("stunSpotColor", stunSpotColor);
@@ -255,7 +263,8 @@ public final class ThornConfig {
     public void setBowEsp(boolean v) { bowEsp = v; }
 
     public boolean isAnyEspEnabled() {
-        return isBearEspEnabled() || isMobEspEnabled() || isBowEspEnabled() || isThornEspEnabled();
+        return isBearEspEnabled() || isMobEspEnabled() || isBowEspEnabled() || isThornEspEnabled()
+                || isAllMobsThroughWalls() || isBatsThroughWalls();
     }
 
     public int getBearColor() { return bearColor; }
@@ -284,6 +293,16 @@ public final class ThornConfig {
     public boolean isThroughWalls() { return cheat() && throughWalls; }
     public boolean getThroughWallsRaw() { return throughWalls; }
     public void setThroughWalls(boolean v) { throughWalls = v; }
+
+    /** Every non-bat mob drawn through walls: its own switch, independent of the highlights above. Never true in the legit jar. */
+    public boolean isAllMobsThroughWalls() { return cheat() && allMobsThroughWalls && live(); }
+    public boolean getAllMobsThroughWallsRaw() { return allMobsThroughWalls; }
+    public void setAllMobsThroughWalls(boolean v) { allMobsThroughWalls = v; }
+
+    /** The bats drawn through walls. Never true in the legit jar. */
+    public boolean isBatsThroughWalls() { return cheat() && batsThroughWalls && live(); }
+    public boolean getBatsThroughWallsRaw() { return batsThroughWalls; }
+    public void setBatsThroughWalls(boolean v) { batsThroughWalls = v; }
 
     // ---- Stun spots ----
     public boolean isStunSpotsEnabled() { return stunSpots && live(); }

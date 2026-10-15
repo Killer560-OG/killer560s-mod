@@ -47,6 +47,8 @@ public final class ThornEspFeature {
     private static volatile Map<Integer, Integer> glowTargets = Map.of();
     /** Ids in {@link #targets} that are Spirit Bow stands (drawn with the ground box). */
     private static volatile Set<Integer> bowIds = Set.of();
+    /** Ids in {@link #targets} drawn through walls by the cheat-only All Mobs / Bats switches, whatever Through Walls says. */
+    private static volatile Set<Integer> forcedIds = Set.of();
 
     private ThornEspFeature() {
     }
@@ -65,6 +67,7 @@ public final class ThornEspFeature {
         targets = Map.of();
         glowTargets = Map.of();
         bowIds = Set.of();
+        forcedIds = Set.of();
     }
 
     /** Called every client tick while the Thorn fight is active. */
@@ -81,12 +84,29 @@ public final class ThornEspFeature {
         boolean wantBow = cfg.isBowEspEnabled();
         boolean wantThorn = cfg.isThornEspEnabled();
         boolean throughWalls = cfg.isThroughWalls();
+        boolean forceMobs = cfg.isAllMobsThroughWalls();
+        boolean forceBats = cfg.isBatsThroughWalls();
         Vec3 eye = client.player.getEyePosition();
         Map<Integer, Integer> found = new LinkedHashMap<>();
         java.util.HashSet<Integer> bows = new java.util.HashSet<>();
+        java.util.HashSet<Integer> forced = new java.util.HashSet<>();
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity == client.player || entity.isRemoved()) {
+                continue;
+            }
+            // Cheat build, killer560 2026-10-15: "show all mobs through walls (non bat) and one for bats". Each is its own
+            // switch and does not depend on the highlights below; it never waits for a line of sight.
+            if (entity instanceof Bat) {
+                if (forceBats && entity.isAlive() && !entity.isInvisible()) {
+                    found.put(entity.getId(), cfg.getMobColor());
+                    forced.add(entity.getId());
+                    continue;
+                }
+            } else if (forceMobs && isAnyMob(entity)) {
+                found.put(entity.getId(), entity instanceof Ghast ? cfg.getThornColor()
+                        : entity instanceof Player ? cfg.getBearColor() : cfg.getMobColor());
+                forced.add(entity.getId());
                 continue;
             }
             if (entity instanceof Player) {
@@ -112,7 +132,17 @@ public final class ThornEspFeature {
         Map<Integer, Integer> snapshot = Map.copyOf(found);
         targets = snapshot;
         bowIds = Set.copyOf(bows);
+        forcedIds = Set.copyOf(forced);
         glowTargets = cfg.getStyle() == ThornConfig.Style.GLOW ? snapshot : Map.of();
+    }
+
+    /** A living, visible mob that is not a bat, a stand or a player - or the Spirit Bear, which Hypixel makes a player. */
+    private static boolean isAnyMob(Entity entity) {
+        if (entity instanceof Player) {
+            return SpiritBearTracker.isSpiritBear(entity) && entity.isAlive();
+        }
+        return entity instanceof net.minecraft.world.entity.LivingEntity && !(entity instanceof ArmorStand)
+                && entity.isAlive() && !entity.isInvisible();
     }
 
     /** The wiki's six spirit animals by vanilla class (see class doc). */
@@ -156,6 +186,7 @@ public final class ThornEspFeature {
         float lineWidth = cfg.getLineWidth();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Set<Integer> bows = bowIds;
+        Set<Integer> forced = forcedIds;
         for (Map.Entry<Integer, Integer> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
             if (entity == null || entity.isRemoved()) {
@@ -168,10 +199,11 @@ public final class ThornEspFeature {
                 Vec3 lerped = entity.getPosition(partialTick);
                 box = entity.getBoundingBox().move(lerped.subtract(entity.position()));
             }
+            boolean walls = throughWalls || forced.contains(entity.getId());
             if (filled) {
-                ThornEspRenderer.filled(context, box, target.getValue(), throughWalls);
+                ThornEspRenderer.filled(context, box, target.getValue(), walls);
             }
-            ThornEspRenderer.outline(context, box, target.getValue(), lineWidth, throughWalls);
+            ThornEspRenderer.outline(context, box, target.getValue(), lineWidth, walls);
         }
     }
 

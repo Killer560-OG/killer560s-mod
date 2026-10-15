@@ -966,6 +966,8 @@ final class SettingTooltipsData {
         d.put("thorn esp style", "How Thorn highlights are drawn: Outline Box, Filled Box or Glow; left click cycles forward, right click back.");
         d.put("thorn esp line width", "Outline thickness for the Thorn highlight boxes, 1-10.");
         d.put("thorn esp through walls", "Thorn highlights also show targets behind walls (cheat build only).");
+        d.put("all mobs through walls", "Highlights every mob in the Thorn fight except bats, through walls, in the Spirit Mob color (cheat build only).");
+        d.put("bats through walls", "Highlights the bats in the Thorn fight through walls, in the Spirit Mob color (cheat build only).");
         d.put("stun spot waypoints", "Draws your saved stun spot waypoints during the F4/M4 boss.");
         d.put("stun spot color", "Opens a color picker for stun-spot waypoints.");
         d.put("stun spot labels", "Shows each stun spot's name above its box.");
