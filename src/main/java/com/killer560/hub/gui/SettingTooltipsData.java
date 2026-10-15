@@ -1871,7 +1871,7 @@ final class SettingTooltipsData {
         d.put("chat keybinds/key", "Click, then press a key or mouse button to bind it. Escape clears it.");
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
-        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Radius, a circle on the ground under the key; Sphere, a see-through ball around it - step inside and the key is yours.");
+        d.put("door keys/pickup range", "How the range you pick a key up from is drawn: Radius, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");

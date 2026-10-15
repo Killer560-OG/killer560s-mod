@@ -29,27 +29,29 @@ import com.killer560.hub.compat.McRender;
  * door keys are real {@code ArmorStand}s with a fixed real display name ("Wither Key"/"Blood Key") -
  * this polls real rendered entities each tick (the same real technique Weirdos/Blaze/Livid Solver
  * already use tonight) rather than porting noamm's own entity-metadata-packet hook, since polling needs
- * no new mixin at all for a check this cheap. Marks the real key with a circle on the ground of the radius it is picked
- * up from, and an optional tracer line from your eyes to it - never picks anything up.
+ * no new mixin at all for a check this cheap. Marks the real key with a circle at the key's own height of the radius it
+ * is picked up from (or a shaded sphere of it), and an optional tracer line from your eyes to it - never picks anything up.
  * <p>
  * The circle (killer560, 2026-10-09: "instead of the hitbox have it show a circle that is where you can pick it up
  * from; make sure it matches the new update"): Hypixel SkyBlock 0.27.2 (2026-10-06, hypixelskyblock.minecraft.wiki
  * Changelog/2026/October 6, "Folf Shard &amp; Dungeon Improvements") "Increased the pickup range of Wither Keys and
  * Blood Keys in the Catacombs by 5 blocks". Its radius is {@link DungeonKeys#pickupRange} of the Key Base Range setting
  * (Auto Clear tab, 1 block by default, which nothing published states) - the same number Auto Clear walks to, so the
- * two can never disagree. It lies on the first solid block under the key.
+ * two can never disagree.
+ * <p>
+ * killer560, 2026-10-15: "Radius is just a circle drawn at its height." The circle is centred on the key's stand at the
+ * stand's own height - the point every pickup check measures his feet to, and the sphere's equator - where until then it
+ * lay on the first solid block under the key.
  */
 public final class DoorKeysFeature {
 
     private static Entity currentKey = null;
     private static float[] currentColor = null;
-    /** The circle's centre (on the ground under the key) and radius: {x, y, z, r}, or null. */
+    /** The circle's centre (the key's stand, at its height) and radius: {x, y, z, r}, or null. */
     private static volatile double[] ring = null;
     private static final int RING_SEGMENTS = 64;
     /** How opaque the Sphere style's shading is: enough to see the edge of the range, not enough to hide the room. */
     private static final float SPHERE_ALPHA = 0.22f;
-    /** How far below the key the ground is looked for. */
-    private static final int GROUND_SEARCH = 6;
 
     private DoorKeysFeature() {
     }
@@ -120,25 +122,15 @@ public final class DoorKeysFeature {
         }
     }
 
-    /** The pickup circle for {@code key}: centred under it on the top of the first solid block below. */
+    /** The pickup circle for {@code key}: centred on its stand, at the stand's own height. */
     private static double[] ringFor(Minecraft client, Entity key) {
         Vec3 p = key.position();
-        net.minecraft.core.BlockPos.MutableBlockPos at = new net.minecraft.core.BlockPos.MutableBlockPos(
-                Math.floor(p.x), Math.floor(p.y), Math.floor(p.z));
-        double groundY = p.y;
-        for (int i = 0; i <= GROUND_SEARCH; i++) {
-            if (!client.level.getBlockState(at).isAir()) {
-                groundY = at.getY() + 1.0;
-                break;
-            }
-            at.move(0, -1, 0);
-        }
         double radius = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
-        return new double[]{p.x, groundY + 0.02, p.z, radius};
+        return new double[]{p.x, p.y, p.z, radius};
     }
 
-    /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. With the Sphere style this is still the
-     *  ground circle's numbers; {@link #pickupSphere()} is what is drawn. */
+    /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. With the Sphere style it is the sphere's
+     *  equator ({@link #pickupSphere()} is the ball). */
     public static double[] pickupRing() {
         double[] r = ring;
         return r == null ? null : r.clone();
@@ -201,12 +193,7 @@ public final class DoorKeysFeature {
             // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light grey of its name.
             float[] c = currentColor[0] < 0.2f && currentColor[1] < 0.2f ? new float[]{0.75f, 0.75f, 0.8f} : currentColor;
             WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, c[0], c[1], c[2], SPHERE_ALPHA);
-            points.clear();
-            for (int i = 0; i <= RING_SEGMENTS; i++) {
-                double a = Math.PI * 2.0 * i / RING_SEGMENTS;
-                points.add(new Vec3(keyPos.x + Math.cos(a) * circle[3], keyPos.y, keyPos.z + Math.sin(a) * circle[3]));
-            }
-            lastDrawn = "sphere";
+            lastDrawn = "sphere";   // the circle below is its equator
         } else {
             lastDrawn = "radius";
         }
