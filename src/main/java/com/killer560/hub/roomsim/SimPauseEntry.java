@@ -91,7 +91,7 @@ public final class SimPauseEntry {
                             // Straight to the picker. It opens the world it needs, so there is nothing to tear
                             // down here - and leaving the sim first would drop him to the title screen, which
                             // is the long way round this button exists to avoid.
-                            McCompat.setScreen(client, new SimMenuScreen(screen));
+                            McCompat.setScreen(client, SimMenuScreen.roomPicker(screen));
                         })
                 .bounds(x, y, width, 20)
                 .build();

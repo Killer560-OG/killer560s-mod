@@ -53,10 +53,11 @@ import com.killer560.hub.compat.McCompat;
  */
 public final class SimRoomCycle {
 
-    /** The three sets the menu offers. */
+    /** The three sets the menu offers, in the order it lists them (killer560, 2026-10-15: "Have the order be all rooms
+     *  no routes with routes."). */
     public enum Choice {
-        WITHOUT_ROUTES("Rooms Without Routes"),
         ALL("All Rooms"),
+        WITHOUT_ROUTES("Rooms Without Routes"),
         WITH_ROUTES("Rooms With Auto Routes");
 
         public final String label;
@@ -154,7 +155,7 @@ public final class SimRoomCycle {
     /** The "/next and /back only work in All Rooms" line, said when one is used anywhere else. */
     private static void sayOnlyInAllRooms() {
         ModChat.send("Sim", ModChat.text("/next and /back only work in All Rooms"),
-                ModChat.dim(" - Dungeon Sim > All Rooms (route practice)"));
+                ModChat.dim(" - Dungeon Sim > Route Practice"));
     }
 
     // ------------------------------------------------------------------------------------------- actions

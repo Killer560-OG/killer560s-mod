@@ -1,6 +1,5 @@
 package com.killer560.hub.runsummary;
 
-import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -36,20 +35,6 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
 
     private static final int ROW_H = 13;
     private static final int MAP_CELL = 9;
-
-    /** Room fill colours by the room database's own type string. */
-    private static final int ROOM_NORMAL = 0xFF8E7A5E;
-    private static final int ROOM_ENTRANCE = 0xFF2E9B3E;
-    private static final int ROOM_BLOOD = 0xFFB33A3A;
-    private static final int ROOM_PUZZLE = 0xFF9B4FD1;
-    private static final int ROOM_TRAP = 0xFFCC7722;
-    private static final int ROOM_MINIBOSS = 0xFFD8C13A;
-    private static final int ROOM_FAIRY = 0xFFE07FB8;
-    private static final int ROOM_UNKNOWN = 0xFF4A4A4A;
-    private static final int DOOR_COLOR = 0xFF5A4630;
-    private static final int DOOR_WITHER_COLOR = 0xFF2B2B2B;
-    private static final int DOOR_BLOOD_COLOR = 0xFFB33A3A;
-    private static final int DOOR_ENTRANCE_COLOR = 0xFF2E9B3E;
 
     private enum Mode { DUNGEONS, KUUDRA }
 
@@ -271,97 +256,16 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    /** The run summary's own lines, plus the party block the run log adds. */
+    /** The run summary's own lines, plus the party, rooms cleared and deaths (shared with the sim's run page). */
     private List<String> detailLines(RunRecord run) {
-        List<String> out = new ArrayList<>(RunSummaryFeature.summaryLines(run));
-        if (!run.party().isEmpty()) {
-            out.add("");
-            out.add("§6§lParty");
-            for (RunRecord.PartyMember member : run.party()) {
-                DungeonClass cls = member.dungeonClass() == null ? null : DungeonClass.byName(member.dungeonClass());
-                String classText = member.dungeonClass() == null ? "-" : member.dungeonClass()
-                        + (member.classLevel() >= 0 ? " " + member.classLevel() : "");
-                out.add("§7" + RunSummaryFeature.currentIgn(member) + " §f" + colorFor(cls) + classText
-                        + " §8| §7rooms §f" + member.roomsLabel()
-                        + " §8| §7secrets §f" + orDash(member.secrets())
-                        + " §8| §7deaths §f" + orDash(member.deaths()));
-            }
-        }
-        if (run.map() == null || run.map().isEmpty()) {
-            out.add("");
-            out.add("§7No map recorded (nothing was scanning the dungeon that run).");
-        }
-        return out;
-    }
-
-    private static String colorFor(DungeonClass cls) {
-        if (cls == null) {
-            return "§f";
-        }
-        return switch (cls) {
-            case MAGE -> "§9";
-            case TANK -> "§a";
-            case HEALER -> "§d";
-            case ARCHER -> "§c";
-            case BERSERKER -> "§6";
-        };
-    }
-
-    private static String orDash(int value) {
-        return value < 0 ? "-" : String.valueOf(value);
+        return RunDetails.lines(run);
     }
 
     /** The 11x11 grid the run finished on - rooms coloured by type, doors as their own darker cells. */
     private void drawMap(GuiGraphicsExtractor graphics, RunRecord.MapSnapshot map, int x, int y) {
-        int grid = RunRecord.MapSnapshot.GRID;
-        // The map keeps its own dark backdrop on every theme: the room colours are the map's, not the theme's.
-        graphics.fill(x - 2, y - 2, x + grid * MAP_CELL + 2, y + grid * MAP_CELL + 2, 0xFF050505);
-        graphics.outline(x - 3, y - 3, grid * MAP_CELL + 6, grid * MAP_CELL + 6, MenuStyle.BLACK);
-        graphics.outline(x - 2, y - 2, grid * MAP_CELL + 4, grid * MAP_CELL + 4, MenuStyle.ACCENT_EDGE);
-        for (int cell = 0; cell < grid * grid; cell++) {
-            int cx = x + (cell % grid) * MAP_CELL;
-            int cy = y + (cell / grid) * MAP_CELL;
-            int room = map.roomAt(cell);
-            if (room >= 0) {
-                RunRecord.MapRoom entry = map.room(room);
-                graphics.fill(cx, cy, cx + MAP_CELL - 1, cy + MAP_CELL - 1,
-                        entry == null ? ROOM_UNKNOWN : colorForRoom(entry.type()));
-                continue;
-            }
-            int door = map.doorAt(cell);
-            if (door == 0) {
-                continue;
-            }
-            int inset = 2;
-            int color = switch (door) {
-                case 2 -> DOOR_WITHER_COLOR;
-                case 3 -> DOOR_BLOOD_COLOR;
-                case 4 -> DOOR_ENTRANCE_COLOR;
-                default -> DOOR_COLOR;
-            };
-            graphics.fill(cx + inset, cy + inset, cx + MAP_CELL - 1 - inset, cy + MAP_CELL - 1 - inset, color);
-            if (map.lockedAt(cell)) {
-                graphics.outline(cx + inset - 1, cy + inset - 1, MAP_CELL - 1 - inset, MAP_CELL - 1 - inset, 0xFFFFAA00);
-            }
-        }
+        RunMapPainter.draw(graphics, map, x, y, MAP_CELL, 2);
         String caption = map.rooms().size() + " rooms";
-        MenuStyle.text(graphics, caption, x, y + grid * MAP_CELL + 4, MenuStyle.DIM);
-    }
-
-    private static int colorForRoom(String type) {
-        if (type == null) {
-            return ROOM_NORMAL;
-        }
-        return switch (type.toLowerCase(Locale.ROOT)) {
-            case "entrance" -> ROOM_ENTRANCE;
-            case "blood" -> ROOM_BLOOD;
-            case "puzzle" -> ROOM_PUZZLE;
-            case "trap" -> ROOM_TRAP;
-            case "miniboss", "mini_boss" -> ROOM_MINIBOSS;
-            case "fairy" -> ROOM_FAIRY;
-            case "normal" -> ROOM_NORMAL;
-            default -> ROOM_UNKNOWN;
-        };
+        MenuStyle.text(graphics, caption, x, y + RunRecord.MapSnapshot.GRID * MAP_CELL + 4, MenuStyle.DIM);
     }
 
     @Override

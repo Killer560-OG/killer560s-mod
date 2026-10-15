@@ -86,7 +86,25 @@ public record RunRecord(
      * {@code -1} in any count means "not tracked" (Run Stats was off, or the API never answered).
      */
     public record PartyMember(String uuid, String name, String dungeonClass, int classLevel,
-                              int soloRooms, int stackedRooms, int secrets, int deaths) {
+                              int soloRooms, int stackedRooms, int secrets, int deaths,
+                              /** Rooms Run Stats saw them clear alone, by name (empty when not tracked). */
+                              List<String> soloRoomNames,
+                              /** Rooms they were in with someone else when it cleared ("possible" clears). */
+                              List<String> stackedRoomNames,
+                              /** What killed them, one entry per death, as Hypixel's death line said it. */
+                              List<String> deathCauses) {
+
+        public PartyMember {
+            soloRoomNames = soloRoomNames == null ? List.of() : List.copyOf(soloRoomNames);
+            stackedRoomNames = stackedRoomNames == null ? List.of() : List.copyOf(stackedRoomNames);
+            deathCauses = deathCauses == null ? List.of() : List.copyOf(deathCauses);
+        }
+
+        /** A member as runs before 2026-10-15 recorded them: counts only, no room names or death causes. */
+        public PartyMember(String uuid, String name, String dungeonClass, int classLevel,
+                           int soloRooms, int stackedRooms, int secrets, int deaths) {
+            this(uuid, name, dungeonClass, classLevel, soloRooms, stackedRooms, secrets, deaths, null, null, null);
+        }
 
         /** "{@code 4}" when nobody stacked with them, otherwise "{@code 4-7}" - same shape Run Stats prints. */
         public String roomsLabel() {
@@ -97,8 +115,20 @@ public record RunRecord(
         }
     }
 
-    /** One room of a {@link MapSnapshot}: its name and its room-database type ("puzzle", "trap", ...). */
-    public record MapRoom(String name, String type) {
+    /**
+     * One room of a {@link MapSnapshot}: its name, its room-database type ("puzzle", "trap", ...) and the rotation the
+     * live map read for it in that run - the DATABASE rotation (0/90/180/270, the one {@code LiveMapFeature}'s
+     * {@code clayAndRotation} gives every solver), or {@link #UNKNOWN_ROTATION} when it never read one. Runs before
+     * 2026-10-15 never stored it, which is why a replayed floor came back with every room at rotation 0 and doors
+     * that did not meet (killer560: "those saved rooms did not save the proper orientation from the real run").
+     */
+    public record MapRoom(String name, String type, int rotation) {
+
+        public static final int UNKNOWN_ROTATION = -1;
+
+        public MapRoom(String name, String type) {
+            this(name, type, UNKNOWN_ROTATION);
+        }
     }
 
     /**
@@ -266,6 +296,9 @@ public record RunRecord(
                 e.addProperty("stackedRooms", p.stackedRooms());
                 e.addProperty("secrets", p.secrets());
                 e.addProperty("deaths", p.deaths());
+                putStrings(e, "soloRoomNames", p.soloRoomNames());
+                putStrings(e, "stackedRoomNames", p.stackedRoomNames());
+                putStrings(e, "deathCauses", p.deathCauses());
                 partyArray.add(e);
             }
             o.add("party", partyArray);
@@ -283,12 +316,39 @@ public record RunRecord(
                 if (r.type() != null) {
                     e.addProperty("type", r.type());
                 }
+                if (r.rotation() >= 0) {
+                    e.addProperty("rotation", r.rotation());
+                }
                 roomArray.add(e);
             }
             m.add("rooms", roomArray);
             o.add("map", m);
         }
         return o;
+    }
+
+    private static void putStrings(JsonObject into, String key, List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        JsonArray a = new JsonArray();
+        for (String v : values) {
+            a.add(v);
+        }
+        into.add(key, a);
+    }
+
+    private static List<String> getStrings(JsonObject from, String key) {
+        List<String> out = new ArrayList<>();
+        JsonArray a = ConfigJson.getArray(from, key);
+        if (a != null) {
+            for (JsonElement e : a) {
+                if (e != null && e.isJsonPrimitive()) {
+                    out.add(e.getAsString());
+                }
+            }
+        }
+        return out;
     }
 
     private static String joinInts(int[] values) {
@@ -369,7 +429,10 @@ public record RunRecord(
                             ConfigJson.getInt(p, "soloRooms", UNKNOWN_INT),
                             ConfigJson.getInt(p, "stackedRooms", UNKNOWN_INT),
                             ConfigJson.getInt(p, "secrets", UNKNOWN_INT),
-                            ConfigJson.getInt(p, "deaths", UNKNOWN_INT)));
+                            ConfigJson.getInt(p, "deaths", UNKNOWN_INT),
+                            getStrings(p, "soloRoomNames"),
+                            getStrings(p, "stackedRoomNames"),
+                            getStrings(p, "deathCauses")));
                 }
             }
         }
@@ -382,8 +445,11 @@ public record RunRecord(
                 for (JsonElement e : roomArray) {
                     if (e != null && e.isJsonObject()) {
                         JsonObject r = e.getAsJsonObject();
+                        int rotation = ConfigJson.getInt(r, "rotation", MapRoom.UNKNOWN_ROTATION);
                         rooms.add(new MapRoom(ConfigJson.getString(r, "name", "Unknown"),
-                                ConfigJson.getString(r, "type", null)));
+                                ConfigJson.getString(r, "type", null),
+                                rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270
+                                        ? rotation : MapRoom.UNKNOWN_ROTATION));
                     }
                 }
             }
