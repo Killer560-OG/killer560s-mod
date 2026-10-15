@@ -195,9 +195,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   testkit's `HypixelUseAfterClick` forces it on any jar (96-ar-1015-warpclick, -puzzleclick, 1015-sim-clickgap). Every use
   and block click logs one `[RightClick]` line (seq, item, slot, rotation, heard look, shift, screen, unpaired click, ray);
   a WARN line ending "takes this use as that click's second half" is the failure happening.
-  Two traps kept from the hold: a map hop that waited is aimed again from where he stands (he rests 0.05 below the planned
-  landing), and `updateDelays` must not let go of the forced sneak while `pendingInteract` waits, or the hop leaves as an
-  Instant Transmission. Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim.
+  Traps: the Interactive Map sends a hop while the last one is still in flight client-side, so its server ray is traced from
+  the planned spot (`mustTurnFirst(.., serverFeet, ..)`), and a waited hop is re-aimed only once he stands within a block of
+  its spot (re-aimed from the pre-landing position it flew 38 blocks off the plan, 1015-sim-clickgap); a path hop in flight
+  already turns to the next hop's look while a click is unpaired, so the landing tick still sends it; `updateDelays` must not
+  let go of the forced sneak while `pendingInteract` waits (Instant Transmission). The testkit pairs a right click's two
+  halves by the client's tick-end packet, not by server tick or movement packet (a standing client sends no movement packet).
+  Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
