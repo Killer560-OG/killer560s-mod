@@ -176,3 +176,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   vanilla as a swing a tick before the await opened, and one while Kill Mimic held the hands was never read (that branch
   of `tick` returned before `tickAction`). Both are taken now: held `EARLY_SKIP_TICKS` (10) for the next await, and Kill
   Mimic is stopped by the skip (96-ar-1015-earlyskip, -mimicskip, 2026-10-15).
+- **Hypixel ignores a use of the item he has just right-clicked a block with** (Mod Only Test, real Red Blue / Raccoon run,
+  2026-10-14 17:22-17:29). Six etherwarps sent one tick after a chest or lever click met their await, the AOTV already in
+  hand ("acted 1 tick(s) after firing (sneak went out in the firing tick's input packet)"), got "no landing after 61 ticks"
+  with no chat line, and each retry 3 s later landed; the one a tick after a click made with another item ("hotbar swap,
+  same tick") landed, as did every one a tick after a left-click skip. A refused warp says "There are blocks in the way!";
+  these said nothing, so the use was dropped, not judged. The window's length is not measured (only a 1-tick gap is in the
+  log). `util/BlockClickGap` now holds the warp's use until 4 ticks and 200 ms after a same-item block click (log
+  "holding the use - a block click"), the sim drops a same-item use within 2 server ticks of one, and the testkit's
+  `HypixelUseAfterClick` forces that on any jar (96-ar-1015-warpclick). If a held warp still gets no landing on Hypixel,
+  the window is longer than 4 ticks - raise `BlockClickGap.MIN_TICKS`.
