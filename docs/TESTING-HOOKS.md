@@ -25,14 +25,6 @@ Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-downl
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
 (`<override>/Killer560-OG/killer560s-mod/releases/download/`).
 
-## Accounts and proxy (`accounts/`, `proxy/`)
-
-- `-Dprismaccountswitcher.accountsFile=<path>` replaces Prism's real `accounts.json` for the account switcher.
-- `-Dprismaccountswitcher.universalProxyFile=<path>` replaces Prism's shared `prismaccountswitcher/universal-proxy.json`
-  (the Proxy Client's universal proxy). Without it a test client connects through whatever universal proxy is on for
-  real play; on 2026-10-15 that sent every test join to localhost through a SOCKS proxy and failed it. The testkit
-  points it at a file that does not exist.
-
 ## Price Tooltip (`pricetooltip/`)
 
 No property beyond the `hypixel` and `hysky` service overrides above, which it reads at every fetch. `PriceData.
@@ -65,7 +57,9 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
 - `-Dprismaccountswitcher.accountsFile=<path>` reads that file instead of Prism's real `accounts.json` (refresh tokens).
 - `-Dprismaccountswitcher.universalProxyFile=<path>` reads and writes the Universal proxy there instead of Prism's shared
   `prismaccountswitcher/universal-proxy.json`, which every instance reads; a case that presses Swap Accounts' Universal
-  switch needs it (testkit 1851 refuses to press it without). Read once, when `ProxyConfig` loads.
+  switch needs it (testkit 1851 refuses to press it without). Read once, when `ProxyConfig` loads. Without it a test
+  client also CONNECTS through whatever universal proxy is on for real play: on 2026-10-15 that failed every testkit join
+  to localhost with a ProxyConnectException, until the testkit set it for every run.
 
 ## Interactive Map warp count (`livemap/autoclear/EtherwarpPathfinder`)
 
