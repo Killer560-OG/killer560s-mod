@@ -114,8 +114,7 @@ public class NameChangerTab extends BaseTab {
         }
         y += 24;
         if (cfg.getOwnRank() == NameRank.Preset.CUSTOM) {
-            int plusW = 120;
-            EditBox rankField = new EditBox(font, contentX, y, contentWidth - plusW - gap, 18,
+            EditBox rankField = new EditBox(font, contentX, y, contentWidth, 18,
                     Component.literal("Rank text"));
             rankField.setMaxLength(NameRank.MAX_TEXT);
             rankField.setValue(cfg.getOwnRankCustomText());
@@ -126,12 +125,13 @@ public class NameChangerTab extends BaseTab {
                 preview.setMessage(previewLine());
             });
             widgets.add(rankField);
+            y += 24;
             widgets.add(SettingsButtonWidget.cycling(rankColorText("Plus Color", cfg.getOwnRankPlusColor()), (btn, dir) -> {
                         cfg.setOwnRankPlusColor(stepColor(cfg.getOwnRankPlusColor(), dir));
                         cfg.save();
                         preview.setMessage(previewLine());
                         btn.setMessage(rankColorText("Plus Color", cfg.getOwnRankPlusColor()));
-                    }).bounds(contentX + contentWidth - plusW, y, plusW, 18).build());
+                    }).bounds(contentX, y, contentWidth, 18).build());
             y += 24;
         }
 
