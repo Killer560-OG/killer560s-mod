@@ -121,6 +121,8 @@ public final class ModPaths {
 
         // ---- skyblock --------------------------------------------------------------------------------------------
         t.put("experiments", "skyblock/experiments");
+        // The profit trackers' shared Show Profit / Profit Data settings (killer560smod-profit-trackers.json, 2026-10-15).
+        t.put("profit-trackers", "skyblock/profit");
         t.put("auction", "skyblock/auction");
         t.put("bazaar-orders", "skyblock/auction");
         // The Bazaar screen's settings and recent products (killer560smod-bazaar.json, -bazaar-recent.json).

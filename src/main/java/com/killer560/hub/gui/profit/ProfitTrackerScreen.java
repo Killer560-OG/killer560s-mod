@@ -71,7 +71,8 @@ public abstract class ProfitTrackerScreen extends Screen implements MenuThemedSc
     /** A warning under the header (tracker switched off), or null. */
     protected abstract String note();
 
-    /** Clears what the filter selects (an all-null filter is everything). */
+    /** Clears what the filter selects (an all-null filter is everything); the screen passes what it shows
+     *  ({@link ProfitScope#resolve}). */
     protected abstract void reset(ProfitScope.Filter filter);
 
     /** What the account / profile / mod profile switches currently select (the tracker keeps and saves it). */
@@ -101,7 +102,7 @@ public abstract class ProfitTrackerScreen extends Screen implements MenuThemedSc
                     rebuildWidgets();
                 });
         addRenderableWidget(ProfitScopeBar.resetButton(panelX + 6, panelY + panelH - 26, 150, 18, resetArmedAt,
-                filter(), () -> reset(filter()), this::rebuildWidgets));
+                filter(), () -> reset(ProfitScope.resolve(filter())), this::rebuildWidgets));
     }
 
     @Override

@@ -429,6 +429,11 @@ public final class SimWorld {
             });
         }
         SimAbilities.reset();
+        // A new session has not started a run. SimRun is per-map state, reset by resetPerMapState on an unload - but
+        // only while SimState is still active there, and a leave that turned the sim off first (every testkit
+        // cleanup does) skipped it, so the last session's GO carried into this one and Wither Doors drew before
+        // /start (1721 on merged main, 2026-10-15).
+        SimRun.reset();
         // Score starts blank for every session. Totals come from the map once it is built; until then they are
         // zero, which reads as "unknown" rather than as a perfect run.
         SimScore.reset(0, 0);

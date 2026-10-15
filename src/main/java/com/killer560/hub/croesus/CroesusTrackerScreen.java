@@ -92,7 +92,7 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
         }
         // killer560, 2026-10-11: the reset turns red while it asks, and resets only what the switches select.
         addRenderableWidget(ProfitScopeBar.resetButton(resetX(), panelY + 6, RESET_W, 18, resetArmedAt,
-                CroesusProfitLog.view(), () -> CroesusProfitLog.reset(CroesusProfitLog.view()), () -> {
+                CroesusProfitLog.view(), CroesusProfitLog::resetView, () -> {
                     if (!floorsSeen().contains(floorFilter)) {
                         floorFilter = CroesusProfitLog.ALL;
                     }

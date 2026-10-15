@@ -86,7 +86,11 @@ public final class ProfileManager {
             "killer560smod-configversion.json",
             // Custom names while they are shared by every profile, and the Per-Profile Names switch itself (Name Changer,
             // 2026-10-15): the same in every profile by design, so no profile carries or changes it.
-            "killer560smod-namechanger-names.json"
+            "killer560smod-namechanger-names.json",
+            // The profit trackers' Show Profit (This Account / All Accounts) and Profit Data (Shared Across Profiles /
+            // Per Mod Profile) settings (2026-10-15): the same in every profile, like the profit logs they choose from,
+            // so applying a profile never changes which profit is shown.
+            "killer560smod-profit-trackers.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
@@ -780,6 +784,8 @@ public final class ProfileManager {
                 lastSyncedProfile = newName;
             }
             LOGGER.info("[Profiles] Renamed \"{}\" to \"{}\"{}", oldName, newName, wasActive ? " (active)" : "");
+            // Profit recorded under the old name is this profile's: the trackers follow the rename (Per Mod Profile).
+            com.killer560.hub.gui.profit.ProfitScope.renameModProfile(oldName, newName);
             return new Result(true, "§a[Profiles] Renamed \"" + oldName + "\" to \"" + newName + "\".");
         } catch (IOException e) {
             return new Result(false, "§cFailed to rename profile: " + e.getMessage());

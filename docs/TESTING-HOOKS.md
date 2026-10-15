@@ -45,6 +45,13 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
   Sorter tabs, the update and Discord buttons on the home tab, and the Shorts player's browser and sign-in
   windows (both of which then do nothing further).
 
+## Accounts and the Universal proxy (`accounts/core/PrismAccountStore`, `proxy/config/ProxyConfig`)
+
+- `-Dprismaccountswitcher.accountsFile=<path>` reads that file instead of Prism's real `accounts.json` (refresh tokens).
+- `-Dprismaccountswitcher.universalProxyFile=<path>` reads and writes the Universal proxy there instead of Prism's shared
+  `prismaccountswitcher/universal-proxy.json`, which every instance reads; a case that presses Swap Accounts' Universal
+  switch needs it (testkit 1851 refuses to press it without). Read once, when `ProxyConfig` loads.
+
 ## Interactive Map warp count (`livemap/autoclear/EtherwarpPathfinder`)
 
 - `-Dkiller560.test.checkFewest=true` makes every tile click plan itself a second time without the centre

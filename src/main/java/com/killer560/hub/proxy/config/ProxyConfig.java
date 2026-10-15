@@ -33,8 +33,19 @@ public final class ProxyConfig {
     /** Universal proxy (2026-09-15, killer560: "if I select it then it'll use that proxy no matter what instance or
      *  what the predefined one is"). Lives in Prism's shared data folder so every instance reads the same file;
      *  re-read whenever the file changes so toggling it in one instance applies to the others' next connection. */
-    private static final Path UNIVERSAL_PATH = com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
-            .resolve("prismaccountswitcher").resolve("universal-proxy.json");
+    private static final Path UNIVERSAL_PATH = universalPath();
+
+    /** Prism's shared {@code prismaccountswitcher/universal-proxy.json}, or {@code -Dprismaccountswitcher.universalProxyFile}
+     *  (test hook, docs/TESTING-HOOKS.md: the testkit presses the Universal switch, which must never write the real
+     *  shared file every instance reads). */
+    private static Path universalPath() {
+        String override = System.getProperty("prismaccountswitcher.universalProxyFile");
+        if (override != null && !override.isBlank()) {
+            return java.nio.file.Paths.get(override);
+        }
+        return com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
+                .resolve("prismaccountswitcher").resolve("universal-proxy.json");
+    }
     private static ProxyConfig universal;
     private static long universalMtime = Long.MIN_VALUE;
 
@@ -129,7 +140,7 @@ public final class ProxyConfig {
     }
 
     /**
-     * Called after this instance's proxy is saved from its editor ("Set Instance Proxy"): while the universal proxy is
+     * Called after this instance's proxy is saved from its editor ("Set Universal Proxy" on Swap Accounts): while the universal proxy is
      * ON, mirror the new settings into it so it can still be edited without a separate universal editor. Clearing the
      * instance address therefore also switches universal off. No-op while universal is OFF. Deliberately NOT called
      * from {@link #applyAccountProfile} - an account swap changes only this instance's proxy; universal still wins.

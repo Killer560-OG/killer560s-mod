@@ -66,8 +66,8 @@ final class SettingTooltipsData {
     private static void menuTheme(Map<String, String> d) {
         // Option A menu, 2026-10-12: the menu's colour presets and Custom colours (gui/tab/MenuThemeTab).
         d.put("menu theme", "The mod menu's colors: Amber (the default orange), Dark (neutral grays), Light (light panels, dark text) or Custom. The round button in the menu's header switches it too.");
-        d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
-        d.put("theme", "This screen's own colors. Theme Default follows the mod menu's theme; Amber, Dark, Light, Ocean or Custom (the menu's Custom colors) apply to this screen only. Left click goes to the next, right click back.");
+        d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean, Green or Custom. Left click goes to the next, right click back.");
+        d.put("theme", "This screen's own colors. Theme Default follows the mod menu's theme; Amber, Dark, Light, Ocean, Green or Custom (the menu's Custom colors) apply to this screen only. Left click goes to the next, right click back.");
         d.put("menu theme/animations", "How the mod menu moves: Smooth eases hovers, switches, the drawer, scrolling and opening; Reduced keeps only short color fades (nothing slides or grows); Off changes everything at once. Left click goes to the next, right click back.");
         d.put("menu theme/animation speed", "How fast the mod menu's animations run: Slow, Normal, Fast (the default) or Extra Fast. Drag or click the slider; it stops on each speed.");
         d.put("menu theme/accent", "Custom: the color of titles, selections, outlines and buttons. Changing any color switches the menu to Custom, started from the theme you were on.");
@@ -87,7 +87,7 @@ final class SettingTooltipsData {
         d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
         d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
         d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed, splash text and button panel below.");
-        d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Custom an aurora.");
+        d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Green fireflies in a forest, Custom an aurora.");
         d.put("menu theme/background", "Custom: the main menu's animated background. Theme Default is the theme's own.");
         d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
         d.put("menu theme/animation speed", "Custom: how fast the background moves.");
@@ -608,9 +608,6 @@ final class SettingTooltipsData {
         d.put("show in hotbar", "Also draws rarity backgrounds behind items in your hotbar.");
         d.put("home button/youtube", "Opens Killer560's YouTube channel.");
         d.put("home button/sweat mode", "Enters sweat mode.");
-        d.put("home button/reboot", "Closes the game and has Prism Launcher start this instance again once it has fully"
-                + " closed (an update waiting to install goes in first). In a server, press twice within 10 seconds."
-                + " Same as /reboot. Only works when Prism Launcher started the game.");
         d.put("home/sweat mode", "Click to enter sweat mode.");
         d.put("home/skyblock only", "Pauses every feature while you're not on Hypixel Skyblock or p3sim.");
         d.put("skyblock only", "Limits this feature to Hypixel Skyblock and p3sim.");
@@ -965,24 +962,26 @@ final class SettingTooltipsData {
         d.put("auto scale (monitor)", "Keeps every HUD element and menu of this mod the same size relative to your window on any monitor and at any GUI Scale, using a 2560x1440 screen at GUI Scale 3 as the reference (unchanged there). HUD Scale multiplies on top. ON by default; saved with profiles.");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
-        d.put("profile viewer/theme", "The colors /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("friends list/theme", "The colors the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("best friends/theme", "The colors /bestfriends draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("pet wheel/theme", "The colors the pet wheel draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for the wheel alone.");
-        d.put("auto update/theme", "The colors of the \"updated to\" popup. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for it alone.");
-        d.put("window layout/theme", "The colors of the Window Layout picker. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for it alone.");
-        d.put("bazaar/theme", "The colors the Bazaar draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
-        d.put("auction house/theme", "The colors the Auction House draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
-        d.put("inventory sorter/theme", "The colors the layouts menu (/invsort) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("custom items/theme", "The colors the Custom Items menu draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("storage search/theme", "The colors the Storage Search screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("croesus/theme", "The colors the Dungeon Profit screen (/croesus) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("experiments/theme", "The colors /profit and the Experimentation Table profit screen draw in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("run summary/theme", "The colors the Run Log (/log) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors for this screen alone.");
-        d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean or your Custom colors.");
+        d.put("profile viewer/theme", "The colors /pv draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("friends list/theme", "The colors the custom Friends List draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("best friends/theme", "The colors /bestfriends draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("pet wheel/theme", "The colors the pet wheel draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for the wheel alone.");
+        d.put("auto update/theme", "The colors of the \"updated to\" popup. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for it alone.");
+        d.put("window layout/theme", "The colors of the Window Layout picker. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for it alone.");
+        d.put("bazaar/theme", "The colors the Bazaar draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
+        d.put("auction house/theme", "The colors the Auction House draws in (its browser and its reskin of Hypixel's menus). Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone. Inventory Theme keeps the older flat look, which follows the Inventory Theme setting.");
+        d.put("inventory sorter/theme", "The colors the layouts menu (/invsort) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("custom items/theme", "The colors the Custom Items menu draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("storage search/theme", "The colors the Storage Search screen draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("croesus/theme", "The colors the Dungeon Profit screen (/croesus) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("experiments/theme", "The colors /profit and the Experimentation Table profit screen draw in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("run summary/theme", "The colors the Run Log (/log) draws in. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors for this screen alone.");
+        d.put("swap accounts theme", "The colors of the title screen's Swap Accounts page and its proxy and session login pages. Theme Default follows the mod menu's theme; or pick Amber, Dark, Light, Ocean, Green or your Custom colors.");
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");
+        d.put("show profit", "Whose profit every profit tracker (/profit) counts. This Account (the default): only what the Minecraft account you are logged in on recorded, so each account's profit is separate. All Accounts: every account added together. The Account switch on each /profit screen is this same setting and can also pick one other account.");
+        d.put("profit data", "Shared Across Profiles (the default): the profit trackers show what was recorded under any mod profile, so switching profile never hides your profit. Per Mod Profile: each mod profile shows only the profit recorded while it was the active one. Nothing is moved or lost either way.");
         d.put("per-profile names", "Off (the default): your custom names, rank and renames are one set shared by every profile. On: they are saved inside each profile like other settings.");
         d.put("rank", "The tag shown in front of your name: keep the original, remove it, pick a Hypixel rank, or make your own. Left click forward, right click back.");
         d.put("rank color", "Quickly recolors the rank tag with one of the 16 chat colors, or leaves the rank's own color.");
@@ -1369,7 +1368,7 @@ final class SettingTooltipsData {
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
         d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
-        d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Custom, or any theme you saved. Left click goes forward, right click back.");
+        d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Green, Custom, or any theme you saved. Left click goes forward, right click back.");
         d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
         // ---- Levers in the boss (Secret Aura tab) ----
         d.put("lights device", "Chooses which lights-device levers get flicked, and when (cheat build only).");
@@ -1798,7 +1797,8 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
         d.put("thorn (f4)/thorn highlights", "Colored boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
-        d.put("trajectories/bows", "Draws the arrow path and landing spot while you hold a bow.");
+        d.put("trajectories/bows", "Draws the arrow path and landing spot while you draw a normal bow.");
+        d.put("trajectories/shortbows", "Draws a shortbow's full-power arrow path whenever you hold one, no draw needed; one path per arrow, so three for a Terminator.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while you hold an Ender Pearl.");
         d.put("chat/translate", "Run /translate to change the language, or pick it below; all your messages are then sent in that language.");
         d.put("translate/language", "The language your chat is translated into; /language opens this picker.");
@@ -1831,7 +1831,7 @@ final class SettingTooltipsData {
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
         d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the grey question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
-        d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
+        d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");
         d.put("new custom scheme", "Makes a new Custom scheme from the colors on the map now, switches to it and opens it to edit. Every scheme is saved.");

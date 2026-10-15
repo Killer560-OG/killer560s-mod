@@ -98,6 +98,10 @@ public class ExperimentsTab extends BaseTab {
                                 com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
+        if (ExperimentsConfig.getInstance().isProfitTrackerEnabled()) {
+            // Shared by every profit tracker (killer560, 2026-10-15): whose profit, and whether mod profiles share it.
+            y = com.killer560.hub.gui.profit.ProfitScopeBar.settingsRows(widgets, contentX, y, contentWidth);
+        }
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("profit", contentX, y, contentWidth, 18));
         y += 22;
         widgets.add(com.killer560.hub.gui.ScreenThemes.overlayButton(com.killer560.hub.gui.OverlayThemes.START_BUTTONS,

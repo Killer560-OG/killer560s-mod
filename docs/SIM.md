@@ -2990,7 +2990,9 @@ file with the server's world: 602,745 blocks, 0 differ.
 - Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still
   active: `SimBreakerState`'s regrowing blocks survived a leave that turned the sim off before the disconnect, and the next
   world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
-  `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
+  `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`. Same shape for `SimRun`: a leave that turned the sim off first
+  skipped `resetPerMapState`, so the last session's GO said a fresh floor's run had started (1721, 2026-10-15); `onWorldLoaded`
+  resets it now.
 - `Level.isLoaded(pos)` is false for any y outside the level's build height (Hypixel's dungeon world starts at
   y 0). Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
 - The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
