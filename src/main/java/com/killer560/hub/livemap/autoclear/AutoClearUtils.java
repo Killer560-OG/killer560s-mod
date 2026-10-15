@@ -81,8 +81,18 @@ public final class AutoClearUtils {
      * Teleport Maze's end pad stranded Dungeon Autopilot. A trap room always refuses: no ability works in one.
      */
     public static boolean canPath(DungeonLayout layout) {
+        return canPath(layout, false);
+    }
+
+    /**
+     * {@link #canPath}, with {@code landing}: also while he is settling onto the block an etherwarp just put him on - an
+     * etherwarp lands him 0.05 above the block and he is "on the ground" only a tick or two later. A planned-ahead trip
+     * the tick a route ends on its own landing (Auto Secret) need not wait for that; its first warp is aimed again from
+     * exactly where he is (ClearExecutor.reaimFirstHop).
+     */
+    public static boolean canPath(DungeonLayout layout, boolean landing) {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || !player.onGround()) {
+        if (player == null || !player.onGround() && !(landing && settlingOnLanding(player))) {
             return false;
         }
         int room = layout.currentRoom();
@@ -107,6 +117,17 @@ public final class AutoClearUtils {
         // the only room it still caught was Arrow Trap - a NORMAL room - so the map did nothing while he stood in its
         // half (killer560, 2026-10-13: "interactive map does not work if i am in arrow trap").
         return true;
+    }
+
+    /** At most 0.1 above a block he can stand on and not rising: an etherwarp landing he has not dropped onto yet. */
+    private static boolean settlingOnLanding(LocalPlayer player) {
+        if (player.getDeltaMovement().y > 0.01) {
+            return false;
+        }
+        net.minecraft.core.BlockPos below = net.minecraft.core.BlockPos.containing(player.getX(), player.getY() - 0.1,
+                player.getZ());
+        double top = below.getY() + 1.0;
+        return player.getY() - top >= -0.001 && player.getY() - top <= 0.1 && TeleportUtils.landable(below);
     }
 
     /** A trap room: the room database says TRAP, or (a room it does not know) the name says Trap. */
@@ -198,7 +219,7 @@ public final class AutoClearUtils {
 
     /** QUOI {@code pathToDoor}. @return false when pathing couldn't start. */
     public static boolean pathToDoor(DungeonLayout layout, int door, boolean faceOnArrival) {
-        if (!canPath(layout)) {
+        if (!canPath(layout, true)) {
             return false;
         }
         // An open door's goal is the doorway itself (its floor block); a locked one's the spot in front of it on his side.
@@ -287,7 +308,7 @@ public final class AutoClearUtils {
      * else the etherwarpable block nearest the tile centre. Type 1 (route start ring) falls back to type 0.
      */
     public static boolean pathToRoom(DungeonLayout layout, int room, int tileIdx, int type) {
-        if (!canPath(layout) || (type != 0 && type != 1) || room < 0) {
+        if (!canPath(layout, true) || (type != 0 && type != 1) || room < 0) {
             return false;
         }
         Minecraft client = Minecraft.getInstance();

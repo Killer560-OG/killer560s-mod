@@ -717,7 +717,7 @@ public final class AutoSecretFeature {
                     + " walk out and start it again (a trap route should end outside the room)", false);
             return;
         }
-        if (here < 0 || !AutoClearUtils.canPath(layout)) {
+        if (here < 0 || !AutoClearUtils.canPath(layout, true)) {
             status = "Waiting to be able to path from here";
             if (phaseTicks == 100) {
                 LOGGER.info("[AutoSecret] can't path from here: room {} ({}), on ground {}", here, here >= 0 ? layout.name(here)
