@@ -20,8 +20,9 @@ import java.util.function.Supplier;
 
 /** Secret Aura settings, and since 2026-10-15 the Lever Aura's too (killer560: "make lever aura the setting go into
  *  secret aura and have a toggle for in boss or not"). Two features share the tab and each keeps its own switch
- *  ({@link #masterToggles}): Secret Aura, and In Boss - the F7/M7 P3 levers, which is what Lever Aura was (its Lights
- *  device and section-lever options sit under it). There is no separate Lever Aura tab any more.
+ *  ({@link #masterToggles}): Secret Aura, and In Boss - the F7/M7 P3 levers, which is what Lever Aura was (its section
+ *  lever options sit under it). There is no separate Lever Aura tab any more. The S2 Lights device is not here: it is its
+ *  own cheat tab since 2026-10-15 ({@link LightsDeviceTab}), with its own Aura and Triggerbot.
  *  <p>
  *  Secret Aura was split out of {@code CheatUtilsTab} 2026-09-21 into the "Secrets" folder. Still backed by
  *  {@link CheatUtilsConfig} - same JSON keys, unchanged. Cheat build only:
@@ -94,10 +95,6 @@ public class SecretAuraTab extends BaseTab {
 
         LeverAuraConfig lever = LeverAuraConfig.getInstance();
         Runnable saveLever = lever::save;
-        header(w, contentX, y, contentWidth, "Lights Device");
-        toggle(w, contentX, y, "Pre-Flick Lights Before S2", lever::isLightsPreFlickRaw, lever::setLightsPreFlick, null, saveLever);
-        toggle(w, contentX, y, "Finish Lights When S2 Opens", lever::isLightsFinishRaw, lever::setLightsFinish, null, saveLever);
-
         header(w, contentX, y, contentWidth, "Section Levers");
         toggle(w, contentX, y, "S2 Section Levers", lever::isSectionLeversRaw, lever::setSectionLevers, requestRebuild, saveLever);
         if (lever.isSectionLeversRaw()) {

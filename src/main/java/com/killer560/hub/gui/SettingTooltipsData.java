@@ -863,7 +863,7 @@ final class SettingTooltipsData {
         d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms.");
         d.put("talk to npcs", "Also right-clicks the three Weirdo NPCs so they speak.");
         d.put("secret aura", "Clicks nearby dungeon secrets for you (cheat build only).");
-        d.put("in boss", "Levers in the boss fight (F7/M7 P3). Turns on the Lights Device and Section Levers options below, and with Secret Aura on lets it click the other P3 and device levers too. Works with Secret Aura off (cheat build only).");
+        d.put("in boss", "Levers in the boss fight (F7/M7 P3). Turns on the S2 Section Levers options below, and with Secret Aura on lets it click the other P3 levers too. Works with Secret Aura off. The Lights device is its own Lights Device tab (cheat build only).");
         d.put("swing hand", "Swings your arm each time Secret Aura clicks something.");
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
@@ -945,11 +945,21 @@ final class SettingTooltipsData {
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
 
         // Lever Aura (the In Boss part of the Secret Aura tab since 2026-10-15)
-        d.put("pre-flick lights before s2", "Flicks each unlit Lights lever once in range before S2 opens.");
-        d.put("finish lights when s2 opens", "After S1 is cleared, flicks the last unlit Lights lever.");
         d.put("s2 section levers", "Flicks S2's two section levers once after S2 opens.");
         d.put("s2 section levers early", "Also flicks S2's section levers before S2 opens.");
-        d.put("secret aura/boss lever chat feedback", "Posts a local chat line for every boss lever flicked here (the Lights Device and Section Levers).");
+        d.put("secret aura/boss lever chat feedback", "Posts a local chat line for every S2 section lever flicked here.");
+        // Lights Device (its own cheat tab since 2026-10-15, out of In Boss)
+        d.put("lights device/lights aura", "Flicks the F7/M7 P3 S2 Lights device's six levers for you when they are in range, each at most once a run. Its own feature: Secret Aura and In Boss never touch these levers (cheat build only).");
+        d.put("lights device/pre-flick before s2", "Before S2 opens, flicks each unlit Lights lever once in range, so the device is lit when the section opens.");
+        d.put("lights device/finish when s2 opens", "After S1 is cleared, flicks an unlit Lights lever (the last one completes the device), or, with all six already lit, one lever to make the device register.");
+        d.put("lights device/aura range", "How far the Aura reaches, eyes to the lever's nearest point, 2.1-4.5 blocks. Checked again the moment each flick is sent.");
+        d.put("lights device/aura cps", "Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("lights device/aura swing hand", "Plays your arm swing each time the Aura flicks a lever.");
+        d.put("lights device/chat feedback", "Posts a local chat line for every lever the Aura flicks.");
+        d.put("lights device/lights triggerbot", "Flicks only the Lights lever your crosshair is on, by the same device rules (unlit levers before S2, then the finishing or activating flick), never moves your camera (cheat build only).");
+        d.put("lights device/triggerbot delay", "How long your crosshair must stay on a lever before it is flicked, 0-500 ms. Flicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
+        d.put("lights device/triggerbot cooldown", "The least time between two Triggerbot flicks, 0-2000 ms.");
+        d.put("lights device/triggerbot swing hand", "Plays your arm swing each time the Triggerbot flicks a lever.");
         // Thorn
         d.put("spirit bear hud", "Shows Spirit Bear kill progress, spawn countdown and status in the F4/M4 boss.");
         d.put("show overkill", "Adds an Overkill line under the Spirit Bear HUD for wasted spirit kills.");

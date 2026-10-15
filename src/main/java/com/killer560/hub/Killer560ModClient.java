@@ -251,6 +251,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
         com.killer560.hub.leveraura.LeverAuraFeature.register();
+        com.killer560.hub.lightsdevice.LightsDeviceFeature.register();
         com.killer560.hub.terminalaura.TerminalAuraFeature.register();
         com.killer560.hub.terminaltrigger.TerminalTriggerbotFeature.register();
         com.killer560.hub.autoroutes.AutoRoutesFeature.register();

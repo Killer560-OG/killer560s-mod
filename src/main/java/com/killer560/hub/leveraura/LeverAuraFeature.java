@@ -5,19 +5,15 @@ import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
-import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -30,170 +26,55 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
- * Lever Aura - F7/M7 P3 (Goldor) Section 2 lever automation, cheat build only. killer560's spec: "in s2 if I have
- * lever aura on it'll do each corner lever and the two in the middle if s2 isn't open yet. Then once s1 finishes if I
- * go into s2 it should flick any lever prioritizing levers that would complete the dev then if not click another lever
- * to activate the dev. Don't keep flicking, only flick it once."
+ * In Boss's own lever clicking (the Secret Aura tab's "In Boss", once the separate Lever Aura) - F7/M7 P3 Section 2's
+ * two section levers, cheat build only. The Lights device it used to flick as well is its own feature since 2026-10-15
+ * ({@code lightsdevice.LightsDeviceFeature}; killer560: "Make lights have its own aura trigger and own triggerbot stuff
+ * it should not be impacted by other auras"), so nothing here touches the six Lights levers any more.
  * <p>
- * "Each corner lever and the two in the middle" is the S2 Lights device: 6 levers on the wall at z=142 - corners
- * (58/62, 133/136) and middle (60, 134/135). All six powered = all lamps lit = device done; flicking a lit lever does
- * not turn its light off ("Levers don't turn off lights only on", hypixel.net/threads/5607893).
- * Coordinates: Skyblocker {@code skyblock/dungeon/device/LightsOn.java} (TOP_LEFT 62,136,142 ... BOTTOM_RIGHT
- * 58,133,142), identical to QUOI {@code SecretAura.kt}'s device lever list already in
- * {@code cheatutils.SecretAuraFeature#DEVICE_LEVERS}. S2's two section levers (27,124,127) and (23,132,138) are also
- * QUOI's (SecretAuraFeature#BOSS_LEVERS, the two inside Floor7Tracker's S2 box x 19..111, z 121..145).
+ * S2's two section levers (27,124,127) and (23,132,138) are QUOI's (SecretAuraFeature#BOSS_LEVERS, the two inside
+ * Floor7Tracker's S2 box x 19..111, z 121..145). Each is flicked while its "Not Activated" stand is above it - once after
+ * S2 opens, and optionally once more beforehand ("early"). The stand check stops any re-click after they activated.
+ * Section progress is {@link P3SectionTracker}'s, shared with the Lights Device; everything resets on a new run, and
+ * nothing happens past S2.
  * <p>
- * Behaviour:
- * <ul>
- * <li><b>Before S2 is open</b> (S1 not cleared yet): every UNLIT lights lever in range is flicked once (skip lit ones).
- * <li><b>S2 open</b> (S1 objectives "(n/n)" + "The gate has been destroyed!", tracked here from chat, so it also works on
- * p3sim.net where Goldor's opening line can be missing): if exactly one lever is unlit, that one is flicked (it
- * completes the device). If more are unlit, the nearest unlit one is flicked (each once - the last completes it). If
- * all six are already lit (pre-flicked), exactly ONE lever is flicked to make the now-active device register.
- * Once any S2-phase click was made, no "activation" click follows, and every S2 lever is clicked at most once.
- * The device is done on a "... completed a device! (x/y)" line while S2 is the active section.
- * <li>Optional: S2's two section levers, while their "Not Activated" stand is above them - once after S2 opens, and
- * optionally once more beforehand ("early"). The stand check stops any re-click after they activated.
- * <li>Everything resets on world change and on Goldor's "Who dares trespass" line; nothing happens past S2.
- * </ul>
  * Click is {@code SecretAuraFeature}'s: {@code gameMode.useItemOn} with a surface hit clipped from the eye, box range,
- * no line-of-sight check (SecretAura has none either), never with a screen open; a lever the reported look does not
- * reach gets the body (never the camera) turned to it a tick first (util/TurnFirst). Pacing is a CPS setting (1-20):
- * a lever must be in range for one gap before its first click, and clicks are spaced by 1000 / CPS ms with +-10%
- * jitter, scheduled from the previous click's due tick, at most one a tick.
+ * no line-of-sight check, never with a container open; a lever the reported look does not reach gets the body (never the
+ * camera) turned to it a tick first (util/TurnFirst). Pacing is a CPS setting (1-20): a lever must be in range for one
+ * gap before its first click, and clicks are spaced by 1000 / CPS ms with +-10% jitter, scheduled from the previous
+ * click's due tick, at most one a tick.
  */
 public final class LeverAuraFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-leveraura");
-    private static final String CHAT_TAG = "Lever Aura";
+    private static final String CHAT_TAG = "In Boss";
 
-    /** Skyblocker LightsOn.java / QUOI SecretAura.kt. */
-    private static final List<BlockPos> LIGHTS_LEVERS = List.of(
-            new BlockPos(62, 136, 142), new BlockPos(58, 136, 142),   // top corners
-            new BlockPos(60, 135, 142), new BlockPos(60, 134, 142),   // middle
-            new BlockPos(62, 133, 142), new BlockPos(58, 133, 142));  // bottom corners
     /** QUOI SecretAura.kt boss levers inside Section 2. */
     private static final List<BlockPos> S2_SECTION_LEVERS = List.of(
             new BlockPos(27, 124, 127), new BlockPos(23, 132, 138));
-
-    // Same completion regex as Floor7Tracker / QUOI REGEX_TERM_COMPLETED (optional trailing suffix from other mods).
-    // The name group is a REAL username, not any 16 characters.
-    //
-    // ".{1,16}" is anchored but still matches "[VIP] Bob: a" - twelve characters - so any player typing
-    // "a completed a terminal! (7/7)" forged a stage completion. For Fast Leap that means an automated leap
-    // in P3; for Lever Aura it advances or ends the section counter and levers get clicked out of sequence.
-    // A Minecraft name is letters, digits and underscore, which no chat prefix can be.
-    private static final Pattern TERM_COMPLETED =
-            Pattern.compile("^([A-Za-z0-9_]{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
-    private static final String GOLDOR_START = "[BOSS] Goldor: Who dares trespass into my domain?";
-    private static final String GATE_DESTROYED = "The gate has been destroyed!";
-    private static final String CORE_OPENING = "The Core entrance is opening!";
-    private static final String ACTIVATION_REASON = "lights: all lit, one activation flick";
-
-    // ---- P3 section tracking (own, chat-only; see class doc) ----
-    private static int section = 1;
-    private static int sectionCurrent = 0;
-    private static int sectionTotal = 0;
-    private static boolean sectionGate = false;
-    private static boolean lightsCompleted = false;
 
     // ---- click bookkeeping ----
     /** Levers clicked before S2 opened (per run). */
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
     private static final Set<Long> clickedS2 = new HashSet<>();
-    private static boolean lightsActivationClicked = false;
     private static final Map<Long, Long> inRangeSince = new HashMap<>();
     private static final Map<Long, Long> requiredDwell = new HashMap<>();
     /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
     private static double nextClickDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
     private static long turnStartTick = -1L;
-    private static Object lastLevel = null;
-    /** Whether Goldor's opening line was seen this run - p3sim.net can skip it (see {@link #onChat}). */
-    private static boolean sawGoldorStart = false;
+    private static int lastGeneration = Integer.MIN_VALUE;
+    private static int lastSection = 1;
 
     private LeverAuraFeature() {
     }
 
     public static void register() {
+        P3SectionTracker.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LeverAuraFeature.tick", LeverAuraFeature::tick));
-        ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
         LOGGER.info("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
-    }
-
-    // ------------------------------------------------------------------------------------------------------------
-    // Chat: section progress + lights completion
-    // ------------------------------------------------------------------------------------------------------------
-
-    static void onChat(String plain) {
-        if (plain == null || !DungeonState.isF7OrM7()) {
-            return;
-        }
-        plain = plain.trim();
-        if (GOLDOR_START.equals(plain)) {
-            resetRun("Goldor start");
-            sawGoldorStart = true;
-            return;
-        }
-        if (CORE_OPENING.equals(plain)) {
-            setSection(5, "core opening");
-            return;
-        }
-        if (GATE_DESTROYED.equals(plain)) {
-            sectionGate = true;
-            checkSectionAdvance("gate destroyed");
-            return;
-        }
-        Matcher m = TERM_COMPLETED.matcher(plain);
-        if (!m.matches()) {
-            return;
-        }
-        int cur = parse(m.group(4));
-        int tot = parse(m.group(5));
-        // p3sim.net (and a mid-run join) can skip Goldor's opening line: with no start line seen this world, the
-        // first objective line tells us P3 is running, so take the section from where the player is actually
-        // standing (Floor7Tracker's own S1..S4 boxes) instead of assuming S1 - otherwise the S2 "finish the
-        // device" behaviour never runs there. Same rule Floor7Tracker uses for its own phase inference.
-        if (!sawGoldorStart && section == 1 && sectionTotal == 0) {
-            Floor7Tracker.Stage at = Floor7Tracker.getStageAt();
-            if (at.number >= 2 && at.number <= 4) {
-                setSection(at.number, "inferred from position (no Goldor line seen)");
-            }
-        }
-        // Missed gate line fallback: this section was already complete and a line from a different count arrives.
-        if (sectionTotal > 0 && sectionCurrent == sectionTotal && (tot != sectionTotal || cur < sectionCurrent)) {
-            setSection(section + 1, "new section's objective line (" + cur + "/" + tot + ")");
-        }
-        sectionCurrent = cur;
-        sectionTotal = tot;
-        if (section == 2 && "device".equals(m.group(3)) && !lightsCompleted) {
-            // S2 has exactly one device - the Lights device.
-            lightsCompleted = true;
-        }
-        checkSectionAdvance("objective " + cur + "/" + tot);
-    }
-
-    private static void checkSectionAdvance(String why) {
-        if (section <= 3 && sectionGate && sectionTotal > 0 && sectionCurrent == sectionTotal) {
-            setSection(section + 1, why);
-        }
-    }
-
-    private static void setSection(int s, String why) {
-        if (s == section) {
-            return;
-        }
-        section = s;
-        sectionCurrent = 0;
-        sectionTotal = 0;
-        sectionGate = false;
-        inRangeSince.clear();
-        requiredDwell.clear();
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -206,9 +87,16 @@ public final class LeverAuraFeature {
     private static void tick(Minecraft client) {
         // First, always: a body turned for a flick is held for it and given back the tick after.
         TURN.tick(client.player);
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
-            resetRun("world change");
+        P3SectionTracker.poll(client);
+        if (P3SectionTracker.generation() != lastGeneration) {
+            lastGeneration = P3SectionTracker.generation();
+            resetRun();
+        }
+        int section = P3SectionTracker.section();
+        if (section != lastSection) {
+            lastSection = section;
+            inRangeSince.clear();
+            requiredDwell.clear();
         }
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
         String gate = null;
@@ -240,64 +128,9 @@ public final class LeverAuraFeature {
         String reason = null;
         Set<Long> inRangeNow = new HashSet<>();
 
-        // ---- Lights device ----
-        boolean lightsWanted = s2Open ? cfg.isLightsFinish() && !lightsCompleted : cfg.isLightsPreFlick();
-        if (lightsWanted) {
-            int unlitTotal = 0;
-            BlockPos nearestUnlit = null;
-            double nearestUnlitSq = Double.MAX_VALUE;
-            BlockPos nearestAny = null;
-            double nearestAnySq = Double.MAX_VALUE;
-            boolean allLevers = true;
-            for (BlockPos pos : LIGHTS_LEVERS) {
-                BlockState st = client.level.getBlockState(pos);
-                if (st.getBlock() != Blocks.LEVER) {
-                    allLevers = false; // chunk not loaded / not the device
-                    continue;
-                }
-                boolean lit = st.getValue(LeverBlock.POWERED);
-                if (!lit) {
-                    unlitTotal++;
-                }
-                // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
-                double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-                if (d > rangeSq) {
-                    continue;
-                }
-                long key = pos.asLong();
-                inRangeNow.add(key);
-                if (!dwellPassed(cfg, key, now)) {
-                    continue;
-                }
-                Set<Long> clicked = s2Open ? clickedS2 : clickedEarly;
-                if (clicked.contains(key)) {
-                    continue;
-                }
-                if (!lit && d < nearestUnlitSq) {
-                    nearestUnlitSq = d;
-                    nearestUnlit = pos;
-                }
-                if (d < nearestAnySq) {
-                    nearestAnySq = d;
-                    nearestAny = pos;
-                }
-            }
-            if (allLevers) {
-                if (nearestUnlit != null) {
-                    target = nearestUnlit;
-                    reason = s2Open
-                            ? (unlitTotal == 1 ? "lights: last unlit lever (completes device)" : "lights: unlit lever (" + unlitTotal + " unlit)")
-                            : "lights: pre-flick before S2 (" + unlitTotal + " unlit)";
-                } else if (s2Open && unlitTotal == 0 && clickedS2.isEmpty() && !lightsActivationClicked && nearestAny != null) {
-                    target = nearestAny;
-                    reason = ACTIVATION_REASON;
-                }
-            }
-        }
-
         // ---- S2 section levers ----
         boolean sectionWanted = s2Open ? cfg.isSectionLevers() : cfg.isSectionLeversEarly();
-        if (target == null && sectionWanted) {
+        if (sectionWanted) {
             double best = Double.MAX_VALUE;
             for (BlockPos pos : S2_SECTION_LEVERS) {
                 BlockState st = client.level.getBlockState(pos);
@@ -351,9 +184,6 @@ public final class LeverAuraFeature {
         // turned flick added its turn tick to the gap and 10 CPS measured about 8.
         long base = turnStartTick >= 0 ? turnStartTick : tick;
         turnStartTick = -1L;
-        if (ACTIVATION_REASON.equals(reason)) {
-            lightsActivationClicked = true;
-        }
         // CPS: each gap is 1000 / CPS ms with +-10% jitter (never a metronome), scheduled from the previous click's due
         // tick, not this one, so the average is the CPS set even when the gap is a fraction of a tick. One flick a tick
         // at most, so 20 is the ceiling; a flick the gate held back carries at most a tick of backlog.
@@ -362,27 +192,13 @@ public final class LeverAuraFeature {
 
     /** False when nothing went out this tick (no hit yet, or the body was turned to the lever first). */
     private static boolean click(Minecraft client, LeverAuraConfig cfg, BlockPos pos, String reason, boolean s2Open) {
-        BlockState st = client.level.getBlockState(pos);
-        Direction face = Direction.UP;
-        if (st.hasProperty(LeverBlock.FACE) && st.hasProperty(LeverBlock.FACING)) {
-            AttachFace attach = st.getValue(LeverBlock.FACE);
-            face = attach == AttachFace.WALL ? st.getValue(LeverBlock.FACING)
-                    : attach == AttachFace.CEILING ? Direction.DOWN : Direction.UP;
-        }
-        // A surface hit from the eye rather than the block's centre. The face below was already worked out
-        // from the lever's own attachment, which was the right instinct, but the POSITION was still a point
-        // inside the block - and that is what GrimAC flagged on Secret Aura (2026-09-28, PositionPlace at a
-        // distance the server itself accepted). See BlockHits.
+        // A surface hit from the eye rather than the block's centre: a point INSIDE the block is what GrimAC flagged on
+        // Secret Aura (2026-09-28, PositionPlace at a distance the server itself accepted). See BlockHits.
         BlockHitResult hit = com.killer560.hub.util.BlockHits.surface(client.level, pos,
                 client.player.getEyePosition());
         if (hit == null) {
-            // Skip the tick rather than send a hit no ray could produce.
-            //
-            // This used to fall back to Vec3.atCenterOf(pos) with the guessed face, which is precisely the
-            // shape that drew PositionPlace on Secret Aura at a distance the server itself accepted - the
-            // centre is a point INSIDE the block and no raycast returns it. The lever is deliberately not
-            // marked done here, so the next tick tries again once the geometry allows a real hit; marking it
-            // first was what made a skip impossible without losing the lever entirely.
+            // Skip the tick rather than send a hit no ray could produce; the lever is not marked done, so the next
+            // tick tries again once the geometry allows a real hit.
             return false;
         }
         // A lever the look the server was told about does not reach (behind him) gets the BODY turned to it first,
@@ -422,44 +238,28 @@ public final class LeverAuraFeature {
                 s -> s.getDisplayName() != null && "Not Activated".equals(s.getDisplayName().getString())).isEmpty();
     }
 
-    private static void resetRun(String why) {
-        section = 1;
-        sectionCurrent = 0;
-        sectionTotal = 0;
-        sectionGate = false;
-        sawGoldorStart = false;
-        lightsCompleted = false;
-        lightsActivationClicked = false;
+    private static void resetRun() {
         clickedEarly.clear();
         clickedS2.clear();
         inRangeSince.clear();
         requiredDwell.clear();
         nextClickDueTick = 0.0;
         turnStartTick = -1L;
+        lastSection = P3SectionTracker.section();
     }
 
-    private static int parse(String s) {
-        try {
-            return Integer.parseInt(s);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /** True while Lever Aura is on and owns {@code pos} (its click-once rules): the S2 Lights device levers always,
-     *  and S2's two section levers while Section Levers is on. {@code SecretAuraFeature} skips these so the two auras
-     *  can't both click the same lever inside the same second. */
+    /** True while In Boss is on and owns {@code pos} (its click-once rules): S2's two section levers while Section
+     *  Levers is on. {@code SecretAuraFeature} skips these so the two can't both click the same lever inside the same
+     *  second. The Lights levers are the Lights Device's, which Secret Aura leaves alone on its own rule. */
     public static boolean owns(BlockPos pos) {
         LeverAuraConfig cfg = LeverAuraConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return false;
-        }
-        return LIGHTS_LEVERS.contains(pos) || (cfg.isSectionLevers() && S2_SECTION_LEVERS.contains(pos));
+        return cfg.isSectionLevers() && S2_SECTION_LEVERS.contains(pos);
     }
 
     /** For the tab's status line. */
     public static Component statusText() {
+        int section = P3SectionTracker.section();
         String s = section >= 5 ? "Core open" : section > 2 ? "Past S2" : section == 2 ? "S2 open" : "S2 not open";
-        return Component.literal("§7Tracked: §f" + s + (lightsCompleted ? " §7| §aLights done" : ""));
+        return Component.literal("§7Tracked: §f" + s);
     }
 }

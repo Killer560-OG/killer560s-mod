@@ -152,7 +152,12 @@ public final class ActionGate {
         TERMINAL_SOLVER(Kind.SCREEN),
         /** Terminal Aura / Terminal Triggerbot right-clicking the terminal block in the world. */
         TERMINAL_AURA(Kind.WORLD),
-        /** Lever Aura (P3 / S2 levers). */
+        /** Lights Device's Triggerbot (the S2 Lights lever under the crosshair) and Aura (the Lights levers in range):
+         *  their own actors since 2026-10-15 (killer560: "it should not be impacted by other auras"), so no other aura's
+         *  claim is theirs and priority puts them ahead of Secret Aura. Wired in {@code lightsdevice.LightsDeviceFeature}. */
+        LIGHTS_TRIGGER(Kind.WORLD),
+        LIGHTS_AURA(Kind.WORLD),
+        /** In Boss (the old Lever Aura): S2's section levers. */
         LEVER_AURA(Kind.WORLD),
         /** Simon Says (Device) button clicking. */
         SIMON_SAYS(Kind.WORLD),
