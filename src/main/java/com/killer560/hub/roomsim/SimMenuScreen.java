@@ -150,7 +150,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     private void buildCycle() {
         int w = panelW - 40;
         int x = panelX + 20;
-        int y = panelY + 56;
+        int y = panelY + 42;
         boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
         cycleBuiltWithDatabase = ready;
         // All Rooms' own filters (killer560, 2026-10-07): the same Filters panel as the designer and Load a Room, on
@@ -169,8 +169,8 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         }
         // Keybinds: Next Room and Previous Room, the same as /next and /back, only inside the sim. Unbound by
         // default. Esc clears a bind; a mouse button can be one.
-        // Room under the buttons for the exclusion note (+2) and the KEYBINDS heading (+16), both drawn in render.
-        y += 30;
+        // Room under the buttons for the KEYBINDS heading, drawn in render.
+        y += 20;
         int half = (w - 6) / 2;
         // Previous Room on the left, Next Room on the right (killer560, 2026-10-13).
         addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Next Room", 1, SimRoomCycle.getNextKey()), b -> {
@@ -369,13 +369,8 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
                 rebuildWidgets();
             }
-            ScreenChrome.text(g, this.font.plainSubstrByWidth(
-                    "One room at a time - /next and /back step through the set", panelW - 40), panelX + 20, panelY + 42, MenuStyle.DIM);
-            int filters = SimRoomFilters.CYCLE.activeCount();
-            ScreenChrome.text(g, this.font.plainSubstrByWidth(filters == 0
-                    ? "No puzzles, Blood, Entrance, Fairy or 0-secret rooms"
-                    : filters + (filters == 1 ? " filter" : " filters") + " on - counts are after them", panelW - 40), panelX + 20, panelY + 56 + 3 * 24 + 2, MenuStyle.DIM);
-            ScreenChrome.section(g, "KEYBINDS (sim only)", panelX + 20, panelY + 56 + 3 * 24 + 16, panelX + panelW - 20, false);
+            // killer560 (2026-10-15): "remove the top text and the no puzzles blood text stuff."
+            ScreenChrome.section(g, "KEYBINDS (sim only)", panelX + 20, panelY + 42 + 3 * 24 + 6, panelX + panelW - 20, false);
         } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
             boolean needsDatabase = !SimRoomFilters.PICKER.isDefault();
             if (mode == Mode.ROOM && needsDatabase
