@@ -2,7 +2,7 @@ package com.killer560.hub.gui;
 
 /**
  * The mod menu's colour presets (killer560, 2026-10-12): Amber (the orange look, the default), Dark (neutral greys),
- * Light (light panels, dark text), Ocean (teal on navy) and Custom (five colours of his own, started from a preset). Every colour the menu
+ * Light (light panels, dark text), Ocean (teal on navy), Green (viridian) and Custom (five colours of his own, started from a preset). Every colour the menu
  * draws is derived from five base colours - accent, panel background, card background, text and the on-switch - by
  * {@link MenuStyle#use}, so a custom set gets the same bevels, wells, shadows and hover shades as a preset; a panel
  * lighter than mid grey gets the light treatment (grey outlines, soft shadows, no text shadow).
@@ -15,6 +15,9 @@ public enum MenuTheme {
     /** Teal on navy, the Custom set from the menu-a screenshots (killer560, 2026-10-13: "make that blue one also a
      *  custom preset"). */
     OCEAN("Ocean", 0xFF2EC4B6, 0xFF101820, 0xFF1B2733, 0xFFE8F1F2, 0xFF2EC4B6),
+    /** Viridian (#40826D) on deep green-teal (killer560, 2026-10-15). The shown name is {@link GreenTheme#NAME}; the
+     *  saved id stays GREEN whatever it is renamed to. */
+    GREEN(GreenTheme.NAME, GreenTheme.ACCENT, GreenTheme.PANEL, GreenTheme.CARD, GreenTheme.TEXT, GreenTheme.SWITCH_ON),
     CUSTOM("Custom", 0, 0, 0, 0, 0);
 
     public final String label;
@@ -73,6 +76,6 @@ public enum MenuTheme {
 
     /** The presets only (Custom excluded). */
     public static MenuTheme[] presets() {
-        return new MenuTheme[]{AMBER, DARK, LIGHT, OCEAN};
+        return new MenuTheme[]{AMBER, DARK, LIGHT, OCEAN, GREEN};
     }
 }

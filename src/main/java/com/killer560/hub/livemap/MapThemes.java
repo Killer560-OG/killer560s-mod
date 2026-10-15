@@ -50,6 +50,7 @@ public final class MapThemes {
         DARK("Dark"),
         LIGHT("Light"),
         OCEAN("Ocean"),
+        GREEN(com.killer560.hub.gui.GreenTheme.NAME),
         MATCH("Match Menu Theme"),
         CUSTOM("Custom");
 
@@ -90,6 +91,7 @@ public final class MapThemes {
             case DARK -> DARK_CACHE;
             case LIGHT -> LIGHT_CACHE;
             case OCEAN -> OCEAN_CACHE;
+            case GREEN -> GREEN_CACHE;
             case MATCH -> match();
             default -> REAL;
         };
@@ -98,6 +100,7 @@ public final class MapThemes {
     private static final int[] DARK_CACHE = derive(MenuTheme.DARK.base());
     private static final int[] LIGHT_CACHE = derive(MenuTheme.LIGHT.base());
     private static final int[] OCEAN_CACHE = derive(MenuTheme.OCEAN.base());
+    private static final int[] GREEN_CACHE = derive(MenuTheme.GREEN.base());
 
     /** The menu's own palette right now, re-derived only when the menu's theme or colours change. */
     private static int[] match() {
