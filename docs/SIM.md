@@ -2865,10 +2865,14 @@ change the size of the map like it should".
   indices stay `z * 6 + x`), and `Floor.across/down/cells` come from `MapPainter.floorRooms` - the live map's table, made
   public, so the sim and the map cannot disagree about a floor's size.
 - **Measured, `tools/layoutsim -Dsweep=true -Dbounded=true -Dseed=1`, 10 a combination (2,240 floors):** 0 floors with a
-  room outside the rectangle, 0 short of filling it, path length exact on all, F2-F7 0 failing anything. The small floors
-  cannot hold every slider value: E fails 161 of 280 and F1 45 of 280, all "puzzles != slider" (193) or "rooms < minimum"
-  (38) - E with Rooms to blood 8 places no 5th puzzle in any floor, F1 at 8 and 5 puzzles likewise. The rooms are where a
-  real floor has them; it is the asks that do not fit. The status line shows the puzzles actually placed.
+  room outside the rectangle, 0 short of filling it, 0 under the room minimum, path length exact on all, F3-F7 0 failing
+  anything. The small floors cannot hold every slider value: E fails 113 of 280, F1 45 and F2 1, every one "puzzles !=
+  slider" - E with Rooms to blood 8 places no 5th puzzle in any floor, F1 at 8 and 5 puzzles likewise. The rooms are where
+  a real floor has them; it is the asks that do not fit. The status line shows the puzzles actually placed.
+- **The path to blood must leave cells for the room minimum.** The first bounded build let the spine take two 2x2s on an
+  Entrance, leaving 8 of 16 cells for 8 more rooms: testkit 73 "ENTRANCE #16: only 10 room(s), wanted 11", and 38 of the
+  2,240 sweep floors (22% of E at Rooms to blood 4) a room short. `Spine.slack` caps the path's cells beyond one a room at
+  the floor's cells less its minimum; that went to 0, and the unbounded sweep is unchanged (0 failing either way).
 - **Those misses were a 2.3 s freeze.** `run` lays out 12 whole floors when every one misses, and an E with Rooms to blood
   8 costs ~190 ms a floor (the spine search spends its whole budget). `RETRY_BUDGET_NANOS` (400 ms) keeps the best floor
   found by then; an exact floor takes 3-40 ms and never meets it.
