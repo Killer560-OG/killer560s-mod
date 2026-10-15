@@ -25,9 +25,10 @@ import com.killer560.hub.compat.McCompat;
  * specific rooms. For the room generator let me choose which room I want. Let there be a search bar to search
  * for rooms and filters for things like puzzles I choose and amount and 2x2 and 1x1 or whatnot."
  *
- * <p>Three modes because they answer three different practice questions: run this map again, run something new,
- * or drill one room. The single-room mode is the one that gets used most while learning a room, so it is not
- * buried behind the map generator.
+ * <p>killer560 (2026-10-15): "remove the pick what to practice and if there is a better way of using this space then
+ * please use it." There is no in-between page any more: the four choices are a column down the left of one wide
+ * panel and the page they pick fills the rest, so the room list or the runs are on screen the moment the menu
+ * opens. It opens on the page it was last on ({@link SimMenuPrefs}). "Create a New Map" still opens the designer.
  */
 public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
@@ -48,20 +49,26 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private enum Mode {
-        HOME("Dungeon Sim"),
-        PREVIOUS("Load a Previous Run"),
-        ROOM("Load a Room"),
-        CYCLE("All Rooms (route practice)");
+        PREVIOUS("Load a Previous Run", "Previous Runs"),
+        ROOM("Load a Room", "Load a Room"),
+        CYCLE("All Rooms (route practice)", "Route Practice");
 
         final String title;
+        /** The label of its button in the left column. */
+        final String nav;
 
-        Mode(String title) {
+        Mode(String title, String nav) {
             this.title = title;
+            this.nav = nav;
         }
     }
 
+    /** The left column's "Create a New Map" button, which opens the designer rather than a page here. */
+    public static final String NEW_MAP_LABEL = "Create a New Map";
+
     private final Screen parent;
-    private Mode mode = Mode.HOME;
+    private final SimMenuPrefs prefs = SimMenuPrefs.load();
+    private Mode mode;
 
     private EditBox search;
     /** Kept across a visit to the Filters panel, which rebuilds this screen. */
@@ -83,58 +90,77 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     private int panelY;
     private int panelW;
     private int panelH;
+    /** The left column. */
+    private int navX;
+    private int navW;
+    /** The page area right of it. */
+    private int contentX;
+    private int contentY;
+    private int contentW;
 
     public SimMenuScreen(Screen parent) {
         super(Component.literal("Dungeon Sim"));
         this.parent = parent;
+        Mode remembered = Mode.ROOM;
+        for (Mode m : Mode.values()) {
+            if (m.name().equalsIgnoreCase(prefs.page)) {
+                remembered = m;
+            }
+        }
+        this.mode = remembered;
     }
 
     @Override
     protected void init() {
-        panelW = Math.min(this.width - 20, Math.max(340, Math.min((int) (this.width * 0.7), 560)));
-        panelH = Math.min(this.height - 20, Math.max(220, Math.min((int) (this.height * 0.8), 440)));
+        // Wide: the old 560-unit cap left most of a real monitor empty around a list of names.
+        panelW = Math.min(this.width - 16, Math.max(420, Math.min((int) (this.width * 0.92), 820)));
+        panelH = Math.min(this.height - 16, Math.max(240, Math.min((int) (this.height * 0.9), 500)));
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
+        navX = panelX + 8;
+        navW = Math.max(112, Math.min(150, panelW / 5));
+        contentX = navX + navW + 10;
+        contentY = panelY + ScreenChrome.HEADER_H + 10;
+        contentW = panelX + panelW - 8 - contentX;
         RoomLibrary.loadAsync();
         // See SimMapEditorScreen.init - the sim runs from the main menu, where nothing else starts this.
         com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
 
+        buildNav();
         switch (mode) {
-            case HOME -> buildHome();
             case PREVIOUS -> buildPrevious();
             case ROOM -> buildRoomPicker();
             case CYCLE -> buildCycle();
         }
     }
 
-    private void buildHome() {
-        int w = panelW - 40;
-        int x = panelX + 20;
-        int y = panelY + 60;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load a Previous Run"), b -> {
-            mode = Mode.PREVIOUS;
-            scroll = 0;
-            rebuildWidgets();
-        }).bounds(x, y, w, 22).build());
-        // killer560 (2026-09-29): "this screen needs to be the design the map screen. That should be the only
-        // one once you click create a new map." It goes straight there; the settings page it used to open in
-        // between is gone, and its Floor / Rooms to blood / Puzzles controls and its Generate moved onto the
-        // designer, so nothing it could do was lost.
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Create a New Map"), b ->
-                McCompat.setScreen(this.minecraft, new SimMapEditorScreen(this)))
-                .bounds(x, y + 30, w, 22).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load a Room"), b -> {
-            mode = Mode.ROOM;
-            scroll = 0;
-            rebuildWidgets();
-        }).bounds(x, y + 60, w, 22).build());
-        // Route practice: one room at a time out of a chosen set, stepped with /next and /back (SimRoomCycle).
-        // Until 2026-10-06 this pasted every captured room in one line across the grid.
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("All Rooms (route practice)"), b -> {
-            mode = Mode.CYCLE;
-            capturing = 0;
-            rebuildWidgets();
-        }).bounds(x, y + 90, w, 22).build());
+    /** The left column: the three pages, the designer, and Back. */
+    private void buildNav() {
+        int y = contentY;
+        for (Mode m : new Mode[]{Mode.PREVIOUS, null, Mode.ROOM, Mode.CYCLE}) {
+            if (m == null) {
+                // killer560 (2026-09-29): Create a New Map goes straight to the designer.
+                addRenderableWidget(SettingsButtonWidget.builder(Component.literal(NEW_MAP_LABEL), b ->
+                        McCompat.setScreen(this.minecraft, new SimMapEditorScreen(this)))
+                        .bounds(navX, y, navW, 20).build());
+            } else {
+                addRenderableWidget(SettingsButtonWidget.builder(Component.literal(m.nav), b -> showPage(m))
+                        .bounds(navX, y, navW, 20).build());
+            }
+            y += 24;
+        }
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
+                .bounds(navX, panelY + panelH - 28, navW, 20).build());
+    }
+
+    /** Switches page and remembers it. */
+    private void showPage(Mode m) {
+        mode = m;
+        scroll = 0;
+        capturing = 0;
+        prefs.page = m.name();
+        prefs.save();
+        rebuildWidgets();
     }
 
     /** Which route-practice key is waiting for a press: 0 none, 1 Next Room, 2 Previous Room. */
@@ -148,14 +174,15 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
      * rooms or rooms with auto routes", plus a keybinds section for Next Room / Previous Room.
      */
     private void buildCycle() {
-        int w = panelW - 40;
-        int x = panelX + 20;
-        int y = panelY + 42;
+        int w = contentW;
+        int x = contentX;
+        int y = contentY + 24;
         boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
         cycleBuiltWithDatabase = ready;
         // All Rooms' own filters (killer560, 2026-10-07): the same Filters panel as the designer and Load a Room, on
         // SimRoomFilters.CYCLE. The counts below are after them.
-        filtersButton(SimRoomFilters.CYCLE, "Narrows the rooms /next and /back step through.");
+        filtersButton(SimRoomFilters.CYCLE, "Narrows the rooms /next and /back step through.",
+                contentX + contentW - filtersWidth(), contentY);
         for (SimRoomCycle.Choice c : SimRoomCycle.Choice.values()) {
             String count = ready ? " (" + SimRoomCycle.roomsFor(c).size() + ")" : " §7(loading...)";
             var button = SettingsButtonWidget.builder(Component.literal(c.label + count), b -> {
@@ -182,7 +209,11 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                     capturing = 2;
                     b.setMessage(Component.literal("Previous Room: §ePress any key..."));
                 }).bounds(x, y, half, 20).build());
-        backButton();
+    }
+
+    /** The y of the route practice page's KEYBINDS heading. */
+    private int cycleKeybindsY() {
+        return contentY + 24 + 3 * 24 + 6;
     }
 
     private Component keyLabel(String label, int which, int code) {
@@ -217,13 +248,12 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     private void buildPrevious() {
         listed = SimRunHistory.savedRuns();
-        backButton();
     }
 
     private void buildRoomPicker() {
-        int x = panelX + 20;
-        int y = panelY + 56;
-        int right = panelX + panelW - 20;
+        int x = contentX;
+        int y = contentY;
+        int right = contentX + contentW;
         // killer560 (2026-10-07): "the single room should have the same filter option." The Routes, shape and
         // Puzzles buttons that sat here (2026-09-30, 2026-10-05) are rows of the shared Filters panel now, on
         // Load a Room's own SimRoomFilters.PICKER; the button sits beside the search box.
@@ -237,35 +267,21 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             refreshRoomList();
         });
         addRenderableWidget(search);
-        int active = SimRoomFilters.PICKER.activeCount();
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
-                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> McCompat.setScreen(this.minecraft,
-                        new SimRoomFilterScreen(this, SimRoomFilters.PICKER, "Narrows the Load a Room list.")))
-                .bounds(right - fw, y, fw, 18).build());
+        filtersButton(SimRoomFilters.PICKER, "Narrows the Load a Room list.", right - fw, y);
         refreshRoomList();
-        backButton();
     }
 
     private int filtersWidth() {
         return this.font.width("Filters (99)") + 12;
     }
 
-    /** A "Filters" button at the right of the title bar, opening the shared panel on {@code filter}. */
-    private void filtersButton(SimRoomFilter filter, String note) {
-        int fw = filtersWidth();
+    /** A "Filters" button opening the shared panel on {@code filter}. */
+    private void filtersButton(SimRoomFilter filter, String note, int x, int y) {
         int active = filter.activeCount();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
                 active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> McCompat.setScreen(this.minecraft,
                         new SimRoomFilterScreen(this, filter, note)))
-                .bounds(panelX + panelW - 8 - fw, panelY + 6, fw, 18).build());
-    }
-
-    private void backButton() {
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> {
-            mode = Mode.HOME;
-            scroll = 0;
-            rebuildWidgets();
-        }).bounds(panelX + 6, panelY + panelH - 26, 70, 20).build());
+                .bounds(x, y, filtersWidth(), 18).build());
     }
 
     /**
@@ -313,11 +329,11 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private int listTop() {
-        return mode == Mode.ROOM ? panelY + 80 : panelY + 56;
+        return mode == Mode.ROOM ? contentY + 24 : contentY;
     }
 
     private int listHeight() {
-        return panelY + panelH - 32 - listTop();
+        return panelY + panelH - 8 - listTop();
     }
 
     @Override
@@ -359,19 +375,19 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         themedBounds = new int[]{panelX, panelY, panelW, panelH};
         ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(g, panelX, panelY, panelW);
-        ScreenChrome.title(g, mode.title.toUpperCase(Locale.ROOT), panelX + 10, panelY + 11, false);
-        if (mode == Mode.HOME) {
-            String hint = RoomLibrary.roomCount() == 0
-                    ? "No rooms loaded - the shipped room library did not load"
-                    : "Pick what to practice";
-            ScreenChrome.text(g, hint, panelX + 20, panelY + 42, MenuStyle.DIM);
-        } else if (mode == Mode.CYCLE) {
+        ScreenChrome.title(g, "DUNGEON SIM", panelX + 10, panelY + 11, false);
+        String page = mode.title.toUpperCase(Locale.ROOT);
+        MenuStyle.text(g, page, panelX + panelW - 12 - this.font.width(page), panelY + 11, MenuStyle.DIM);
+        drawNav(g);
+        if (mode == Mode.CYCLE) {
             if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
                 rebuildWidgets();
             }
+            ScreenChrome.section(g, "ROUTE PRACTICE", contentX, contentY + 5, contentX + contentW - filtersWidth() - 8,
+                    false);
             // killer560 (2026-10-15): "remove the top text and the no puzzles blood text stuff."
-            ScreenChrome.section(g, "KEYBINDS (sim only)", panelX + 20, panelY + 42 + 3 * 24 + 6, panelX + panelW - 20, false);
-        } else if (mode == Mode.ROOM || mode == Mode.PREVIOUS) {
+            ScreenChrome.section(g, "KEYBINDS (sim only)", contentX, cycleKeybindsY(), contentX + contentW, false);
+        } else {
             boolean needsDatabase = !SimRoomFilters.PICKER.isDefault();
             if (mode == Mode.ROOM && needsDatabase
                     && com.killer560.hub.roomdatabase.RoomDatabase.isReady() != listedWithDatabase) {
@@ -379,14 +395,14 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             }
             int top = listTop();
             int h = listHeight();
-            ScreenChrome.well(g, panelX + 5, top - 1, panelW - 10, h + 2);
-            g.enableScissor(panelX + 6, top, panelX + panelW - 6, top + h);
+            ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
+            g.enableScissor(contentX, top, contentX + contentW, top + h);
             try {
                 if (listed.isEmpty()) {
                     String none = mode != Mode.ROOM ? "No saved runs yet"
                             : needsDatabase && !listedWithDatabase ? "Loading the room database..."
                             : "No rooms match";
-                    ScreenChrome.text(g, none, panelX + 14, top + 6, MenuStyle.DIM);
+                    ScreenChrome.text(g, none, contentX + 8, top + 6, MenuStyle.DIM);
                 }
                 for (int i = 0; i < listed.size(); i++) {
                     int rowY = top + i * 14 - scroll + 3;
@@ -397,27 +413,24 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                         continue;
                     }
                     String name = listed.get(i);
-                    boolean hover = mouseX >= panelX + 6 && mouseX < panelX + panelW - 6 && mouseY >= top
+                    boolean hover = mouseX >= contentX && mouseX < contentX + contentW && mouseY >= top
                             && mouseY < top + h && mouseY >= rowY - 3 && mouseY < rowY + 11;
                     if (hover) {
                         GuiRects rr = GuiRects.begin(g);
-                        ScreenChrome.row(rr, panelX + 6, rowY - 3, panelW - 12, 14, true, false, false);
+                        ScreenChrome.row(rr, contentX, rowY - 3, contentW, 14, true, false, false);
                         rr.submit();
                     }
-                    int nameRoom = panelW - 28;
+                    int nameRoom = contentW - 16;
                     if (mode == Mode.ROOM) {
-                        // Each room's Auto Routes at a glance: green node count when it has a route, a dim
-                        // "no routes" when it is one worth routing that has none, nothing for the rooms the
-                        // routes view leaves out (puzzles, Blood, Entrance, Fairy, 0 secrets).
                         String marker = routeMarker(name);
                         if (marker != null) {
                             int mw = this.font.width(marker);
                             int colour = SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
-                            MenuStyle.text(g, marker, panelX + panelW - 14 - mw, rowY, colour);
+                            MenuStyle.text(g, marker, contentX + contentW - 8 - mw, rowY, colour);
                             nameRoom -= mw + 8;
                         }
                     }
-                    MenuStyle.text(g, this.font.plainSubstrByWidth(name, nameRoom), panelX + 14, rowY,
+                    MenuStyle.text(g, this.font.plainSubstrByWidth(name, nameRoom), contentX + 8, rowY,
                             hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
                 }
             } finally {
@@ -425,6 +438,26 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             }
         }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
+    }
+
+    /** The left column's frame, the open page's marker, and the library line under the buttons. */
+    private void drawNav(GuiGraphicsExtractor g) {
+        GuiRects r = GuiRects.begin(g);
+        // A separator between the column and the page.
+        r.fill(contentX - 6, contentY, contentX - 5, panelY + panelH - 8, MenuStyle.alpha(MenuStyle.BLACK, 0x80));
+        int index = switch (mode) {
+            case PREVIOUS -> 0;
+            case ROOM -> 2;
+            case CYCLE -> 3;
+        };
+        int y = contentY + index * 24;
+        // The open page: an accent bar beside its button.
+        r.fill(navX - 4, y, navX - 2, y + 20, MenuStyle.OR);
+        r.submit();
+        String library = RoomLibrary.roomCount() == 0
+                ? "No rooms loaded"
+                : RoomLibrary.roomCount() + " rooms captured";
+        MenuStyle.text(g, this.font.plainSubstrByWidth(library, navW), navX, contentY + 4 * 24 + 4, MenuStyle.DIM);
     }
 
     @Override

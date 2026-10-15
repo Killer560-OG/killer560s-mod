@@ -155,7 +155,7 @@ public final class SimRoomCycle {
     /** The "/next and /back only work in All Rooms" line, said when one is used anywhere else. */
     private static void sayOnlyInAllRooms() {
         ModChat.send("Sim", ModChat.text("/next and /back only work in All Rooms"),
-                ModChat.dim(" - Dungeon Sim > All Rooms (route practice)"));
+                ModChat.dim(" - Dungeon Sim > Route Practice"));
     }
 
     // ------------------------------------------------------------------------------------------- actions

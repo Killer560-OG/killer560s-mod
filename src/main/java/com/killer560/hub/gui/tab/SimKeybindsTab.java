@@ -70,7 +70,7 @@ public class SimKeybindsTab extends BaseTab implements KeyCaptureTab {
         }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
         w.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                "§7Dungeon Sim only. Pick a set in Dungeon Sim > All Rooms (route practice)."),
+                "§7Dungeon Sim only. Pick a set in Dungeon Sim > Route Practice."),
                 Minecraft.getInstance().font));
         return w;
     }
