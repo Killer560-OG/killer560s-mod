@@ -127,7 +127,7 @@ public final class CompactorPreviewFeature {
 
     /** The container slot under the cursor, or null. */
     private static ItemStack hoveredStack() {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
         if (!(screen instanceof AbstractContainerScreen<?> container)) {
             return null;
         }

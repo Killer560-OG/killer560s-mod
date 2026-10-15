@@ -273,7 +273,7 @@ public final class SlotTextFeature {
         }
         int row = slot / 9;
         if (on.test(SlotTextType.SKILL_LEVEL) && title.startsWith("Your Skills")) {
-            if (row >= 1 && row <= 4 && !name.isBlank() && !name.equals("Dungeoneering") && !stack.is(Items.BLACK_STAINED_GLASS_PANE)) {
+            if (row >= 1 && row <= 4 && !name.isBlank() && !name.equals("Dungeoneering") && !stack.is(com.killer560.hub.compat.McItems.BLACK_STAINED_GLASS_PANE)) {
                 int sp = name.lastIndexOf(' ');
                 String last = sp < 0 ? "" : name.substring(sp + 1);
                 int level = isRoman(last) ? roman(last) : parseInt(last);
