@@ -1522,6 +1522,7 @@ final class SettingTooltipsData {
         d.put("run summary", "Records a summary of each finished dungeon run (splits, secrets, deaths, score) that you can reopen later.");
         d.put("don't repeat split timers", "Leaves the per-phase lines out of the summary when Split Timers already announces them.");
         d.put("announce personal bests", "Tells you in your own chat when a run beats your best time or score for that floor.");
+        d.put("pb minimum score", "A run only counts as a personal best if you finished it (boss defeated) with at least this Hypixel Team Score: S (270) or S+ (300). Wiped, abandoned or lower-scored runs never set or announce a best.");
         d.put("record device/terminal times", "Also saves when each device or terminal was completed, shown in a run's View page.");
         d.put("runs kept", "How many finished runs to keep, 5-500; the oldest are dropped first.");
         d.put("open last run", "Opens the full summary of the most recent finished run.");

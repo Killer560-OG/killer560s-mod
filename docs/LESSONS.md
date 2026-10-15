@@ -374,3 +374,5 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   by the Chunk Cache) or `isLive` (vanilla's answer, never a cached snapshot - `/mage`), once per chunk, and make a missing
   chunk mean UNKNOWN, not absent: chunk-loaded-1015 found it reading a shut wither door as opened, a crypt as opened (then
   done for the run), half a lid as a crypt, a box with no chest, and a wall the etherwarp ray flew through (testkit 1491).
+
+- **Hypixel prints the score block ("Team Score: N" and "> EXTRA STATS <") when a run is WIPED too**, so those lines do not mean the run was finished. Run Summary stored a 21 s wipe (score 2, D) as the fastest F7 and announced a personal best (killer560, 2026-10-15). The only line that proves a boss kill is "☠ Defeated X in ..." (`RunRecord.hypixelTime`); a PB now needs that plus Hypixel's own score at or above the PB Minimum Score. Personal bests are derived from stored runs, so the check lives in `RunRecord.countsForPb` and every best reads through it. Testkit 107-hx-runsummary-pb.
