@@ -176,6 +176,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // The sim's puzzles. Each owns its own arena and its own failure rule; they do nothing outside the sim.
         com.killer560.hub.roomsim.SimSecrets.register();
         com.killer560.hub.roomsim.SimRoomLevers.register();
+        com.killer560.hub.roomsim.SimRedstoneKey.register();
         // Creeper Beams draws a beam between the two ends of each pair it has joined.
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.registerRender();
         com.killer560.hub.roomsim.SimWhere.register();

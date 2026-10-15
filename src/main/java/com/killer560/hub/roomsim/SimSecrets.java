@@ -31,11 +31,9 @@ import com.killer560.hub.util.ModLog;
  * secret is not, and the waypoints are what he is practising against.
  *
  * <p><b>What is approximated.</b> Chests and bats are the real thing. An item secret is a dropped item, which
- * is faithful. A wither essence is Hypixel's own essence skull (see WITHER_MARKER); a redstone key is marked
- * with a distinctive block rather than modelled,
- * because what matters for a route is where you have to go and what you have to touch, and neither of those
- * needs the item to be genuine. Said plainly here rather than quietly, so a route practised around one is not
- * mistaken for a route practised around the real thing.
+ * is faithful. A wither essence is Hypixel's own essence skull (see WITHER_MARKER); a redstone key is Hypixel's key
+ * skull, picked up and put on its room's node on the server by {@link SimRedstoneKey} (since 2026-10-15; before that
+ * it was a lever standing in for it).
  */
 public final class SimSecrets {
 
@@ -75,8 +73,9 @@ public final class SimSecrets {
      */
     private static final net.minecraft.world.level.block.state.BlockState WITHER_MARKER =
             Blocks.PLAYER_HEAD.defaultBlockState();
+    /** A Redstone Key: a player head, dressed by {@link SimRedstoneKey#placeKey} (it was a lever until 2026-10-15). */
     private static final net.minecraft.world.level.block.state.BlockState KEY_MARKER =
-            Blocks.LEVER.defaultBlockState();
+            Blocks.PLAYER_HEAD.defaultBlockState();
 
     /** Hypixel's wither essence skull profile id - the first of the two {@code SecretsFeature} accepts. */
     private static final java.util.UUID ESSENCE_PROFILE_ID =
@@ -239,7 +238,12 @@ public final class SimSecrets {
         placed += items(level, entry.secretCoords.item, clayX, clayZ, dbRotation);
         placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER,
                 PLACED_WITHER);
-        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER, null);
+        // Hypixel's Redstone Key: a head wearing the key's profile, which SimRedstoneKey answers on the server.
+        java.util.Set<BlockPos> keys = new java.util.HashSet<>();
+        placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER, keys);
+        for (BlockPos key : keys) {
+            SimRedstoneKey.placeKey(level, key, room.name);
+        }
         // Loud only when something is wrong. A handful of real secrets do sit in a room's wall, so a couple
         // outside the tile box is normal; a whole room's worth means the clay corner for that rotation is
         // wrong, which is exactly the bug rotation introduced on 2026-09-29.
@@ -324,6 +328,7 @@ public final class SimSecrets {
         // The last floor's essences are gone with it, and a stale position would make a click on some unrelated
         // block on the new floor count a secret.
         PLACED_WITHER.clear();
+        SimRedstoneKey.clearKeys();
     }
 
     /**
@@ -539,7 +544,8 @@ public final class SimSecrets {
             }
             SimBuildQueue.touched(spot.getX(), spot.getZ());
             level.setBlockAndUpdate(spot, marker);
-            if (marker == WITHER_MARKER) {
+            // By the set, not the state: the essence and the key are both a plain player head.
+            if (record == PLACED_WITHER) {
                 dressAsEssence(level, spot);
             }
             if (record != null) {
