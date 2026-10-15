@@ -19,9 +19,29 @@ public final class MainMenuScenes {
     private MainMenuScenes() {
     }
 
+    /** Which background Amber's scene draws (killer560, 2026-10-15: "send me a quick video of it and I will tell you to
+     *  swap back or not"). NEW is {@link AmberForgeScene}; EMBERS is the original drifting embers, kept below. One line. */
+    public enum AmberScene { NEW, EMBERS }
+
+    public static final AmberScene AMBER_SCENE = AmberScene.NEW;
+
+    private static AmberScene amberScene = AMBER_SCENE;
+    private static long testClockMs = -1L;
+
+    /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
+    public static void setClockForTest(double ms) {
+        testClockMs = ms < 0 ? -1L : Math.round(ms);
+    }
+
+    /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
+    public static void setOldEmbersForTest(boolean old) {
+        amberScene = old ? AmberScene.EMBERS : AMBER_SCENE;
+    }
+
     /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. */
     static double clock(float speed) {
-        return (Util.getMillis() % 3_600_000L) / 1000.0 * speed;
+        long ms = testClockMs >= 0 ? testClockMs : Util.getMillis();
+        return (ms % 3_600_000L) / 1000.0 * speed;
     }
 
     public static void draw(GuiGraphicsExtractor g, int w, int h, MainMenuLook look) {
@@ -36,7 +56,13 @@ public final class MainMenuScenes {
         GuiRects r = GuiRects.begin(g);
         base(r, w, h, accent, panel, light);
         switch (look.scene()) {
-            case EMBERS -> embers(r, w, h, t, accent, look.density());
+            case EMBERS -> {
+                if (amberScene == AmberScene.NEW) {
+                    AmberForgeScene.draw(r, w, h, t, accent, look.density());
+                } else {
+                    embers(r, w, h, t, accent, look.density());
+                }
+            }
             case WATERFALL -> waterfall(r, w, h, t, accent, panel, text, look.density());
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
