@@ -2874,3 +2874,10 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
+- **A replayed run's rooms faced rotation 0 because the run never stored one** (killer560, 2026-10-15: "those saved rooms
+  did not save the proper orientation [...] no doors that are aligning properly"). `RunRecord.MapSnapshot` held room ids,
+  doors and names only, and `SimRunHistory` wrote rotation 0 into every cell. Each `MapRoom` now stores the DATABASE
+  rotation the live map read (`DungeonLayout.clayRotation`), and the replay pastes at that minus `RoomCaptureRotation`
+  (the inverse of `SimRoomIndex.add`), so the rebuilt `SimRoomIndex` rotation equals the recorded one; older runs pick the
+  turn whose `RoomDoors` doorways meet the map's doors. Testkit 97-sim-savedrun: every room back at its rotation (22/22 and
+  24/24 on two floors) and no new door-audit line; on the old jar 19 of 24 came back turned and 13 doors were unbacked.
