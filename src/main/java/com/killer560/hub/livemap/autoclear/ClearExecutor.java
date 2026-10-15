@@ -283,6 +283,7 @@ public final class ClearExecutor {
     /** QUOI {@code etherPath}: search on a background thread, then run the smoothed path. */
     public static void etherPath(BlockPos to, Runnable complete) {
         goalExact = false;
+        goalFastArrival = false;
         etherPath(to, -1, complete);
     }
 
@@ -294,11 +295,26 @@ public final class ClearExecutor {
      */
     public static void etherPathExact(BlockPos to, Runnable complete) {
         goalExact = true;
+        goalFastArrival = false;
+        etherPath(to, -1, complete);
+    }
+
+    /**
+     * {@link #etherPathExact} onto a route's start node (Auto Routes' {@code warpToStartNode}): the trip is over - its
+     * completion runs and {@link #isBusy} goes false - on the tick the server's position packet confirms the last
+     * landing ({@link #finishArrivalEarly}), not after the ~9-tick arrival settle. killer560, 2026-10-15: routes must go
+     * as fast as possible; that settle was the route waiting on the map for nothing once the landing was the server's.
+     */
+    public static void etherPathArrive(BlockPos to, Runnable complete) {
+        goalExact = true;
+        goalFastArrival = true;
         etherPath(to, -1, complete);
     }
 
     /** Set by {@link #etherPathExact}, read by every {@link #plan} for that goal (replans too). */
     private static boolean goalExact = false;
+    /** Set by {@link #etherPathArrive}: this goal ends on its confirmed landing, with no arrival settle. */
+    private static boolean goalFastArrival = false;
 
     /**
      * A map click on a tile: fewest warps to ANY landing in that tile at its floor height (see
@@ -307,6 +323,7 @@ public final class ClearExecutor {
      */
     public static void etherPathToTile(BlockPos to, int tileIdx, Runnable complete) {
         goalExact = false;
+        goalFastArrival = false;
         etherPath(to, tileIdx, complete);
     }
 
@@ -710,6 +727,40 @@ public final class ClearExecutor {
 
     private static final String[] AOTV = {"ASPECT_OF_THE_VOID"};
 
+    /**
+     * A queue planned ahead can be asked for on the very tick a warp landed him (the start node's route ended there at
+     * once), standing 0.05 above the block, and a marginal look planned from the block's own height did not land from
+     * there (2026-10-15, 144: "Failed from ..." and a fresh search) - as a route's own warp fired on its landing tick
+     * re-aims (LESSONS-AUTOMATION, chain timing). So, about to send its first warp: that warp aimed again from exactly
+     * where he is now at the landing block it was planned for (a look planned from a spot a few hundredths off can miss).
+     */
+    private static void reaimFirstHop(Minecraft client) {
+        List<ClearNode> current = nodes;
+        if (current == null || current.isEmpty() || !(current.get(0) instanceof ClearNode.EtherNode first)
+                || client.player == null) {
+            return;
+        }
+        Vec3 at = client.player.position();
+        if (at.distanceTo(first.pos) < 0.001) {
+            return;
+        }
+        Vec3 eye0 = new Vec3(first.pos.x, first.pos.y + TeleportUtils.eyeHeight(true), first.pos.z);
+        TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye0, first.yaw, first.pitch, 61.0);
+        if (!hit.succeeded() || hit.pos() == null) {
+            return;
+        }
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, hit.pos(), hopRange() + 1.0);
+        if (rot == null) {
+            return;
+        }
+        Vec3 look = TeleportUtils.getLook(rot.yaw(), rot.pitch()).scale(60.0);
+        List<ClearNode> swapped = new ArrayList<>(current);
+        swapped.set(0, new ClearNode.EtherNode(at, rot.yaw(), rot.pitch(), 0xFFA500, List.of(eye, eye.add(look))));
+        nodes = swapped;
+        position = null;
+    }
+
     // ------------------------------------------------------------------------------------------- held at the start
 
     /**
@@ -1006,6 +1057,7 @@ public final class ClearExecutor {
     private static int pendingHeldTicks;
 
     public static void cancel() {
+        goalFastArrival = false;
         if (awaiting != null) {
             awaiting = null;
             pathPending = false;
@@ -1127,7 +1179,7 @@ public final class ClearExecutor {
         applySneakFallback(client);
         tickPathSearch();
         tickReplan(client);
-        if (!checkLandings(client)) {
+        if (!checkLandingsOnce(client)) {
             return;
         }
         if (tickHold(client)) {
@@ -1139,6 +1191,9 @@ public final class ClearExecutor {
         if (issued.size() - confirmed >= MAX_LEAD) {
             waitReason = "the server did not answer " + (issued.size() - confirmed) + " warp(s)";
             return;
+        }
+        if (sendNow && issued.isEmpty()) {
+            reaimFirstHop(client);
         }
         if (position == null) {
             Vec3 p = client.player.position();
@@ -1170,31 +1225,89 @@ public final class ClearExecutor {
             return;
         }
         if (syncDelay++ > 9) {
-            syncDelay = 0;
-            Runnable callback = pendingCompletion;
-            pendingCompletion = null;
-            Vec3 expected = issued.isEmpty() ? null : issued.get(issued.size() - 1);
-            Vec3 at = client.player == null ? null : client.player.position();
-            if (expected != null && at != null && !landedOn(at, expected, 1.5, 3.0)) {
-                // The last landing was answered, but he is not there now: the goal is not reached, so the
-                // "arrived" behaviour (face the door, an auto's next step) must not run.
-                offPath(String.format(java.util.Locale.US, "ended %.1f blocks from the planned landing",
-                        horizontal(at, expected)), callback);
-                return;
-            }
-            issued.clear();
-            confirmed = 0;
-            goalTo = null;
-            goalComplete = null;
-            if (expected != null) {
-                arrivalSeq++;
-                arrivalMs = System.currentTimeMillis();
-                arrivalPos = at;
-            }
-            if (callback != null) {
-                callback.run();
-            }
+            completeArrival(client);
         }
+    }
+
+    /** The trip is over: its arrival counts and its completion runs - or, he is not on its last landing, it plans again. */
+    private static void completeArrival(Minecraft client) {
+        syncDelay = 0;
+        syncWaitTicks = 0;
+        Runnable callback = pendingCompletion;
+        pendingCompletion = null;
+        Vec3 expected = issued.isEmpty() ? null : issued.get(issued.size() - 1);
+        Vec3 at = client.player == null ? null : client.player.position();
+        if (expected != null && at != null && !landedOn(at, expected, 1.5, 3.0)) {
+            // The last landing was answered, but he is not there now: the goal is not reached, so the
+            // "arrived" behaviour (face the door, an auto's next step) must not run.
+            offPath(String.format(java.util.Locale.US, "ended %.1f blocks from the planned landing",
+                    horizontal(at, expected)), callback);
+            return;
+        }
+        issued.clear();
+        confirmed = 0;
+        goalTo = null;
+        goalComplete = null;
+        goalFastArrival = false;
+        if (expected != null) {
+            arrivalSeq++;
+            arrivalMs = System.currentTimeMillis();
+            arrivalPos = at;
+        }
+        if (callback != null) {
+            callback.run();
+        }
+    }
+
+    /** The tick {@link #checkLandings} last ran on, and what it said: it runs once a tick, whoever asks first. */
+    private static long landingsCheckedAt = Long.MIN_VALUE;
+    private static boolean landingsResult = true;
+
+    private static boolean checkLandingsOnce(Minecraft client) {
+        if (landingsCheckedAt != clientTicks) {
+            landingsCheckedAt = clientTicks;
+            landingsResult = checkLandings(client);
+        }
+        return landingsResult;
+    }
+
+    /**
+     * A trip of {@link #etherPathArrive} whose every warp has gone out ends NOW if the server has confirmed its last
+     * landing: the same landing check as every tick ({@link #checkLandings} - a packet that put him anywhere else is a
+     * correction and plans again, as always), then he must stand on that landing, then the completion runs. Auto Routes
+     * asks this at the start of its tick, so the start node he landed on arms on the very tick the landing is known -
+     * from the position the server put him at, never a predicted one. Client thread.
+     * @return true when the trip ended here
+     */
+    public static boolean finishArrivalEarly(Minecraft client) {
+        if (!goalFastArrival || syncDelay == 0 || client.player == null || pendingInteract != null
+                || (nodes != null && !nodes.isEmpty()) || issued.isEmpty()) {
+            return false;
+        }
+        if (!checkLandingsOnce(client) || confirmed < issued.size()) {
+            return false;
+        }
+        Vec3 expected = issued.get(issued.size() - 1);
+        Vec3 at = client.player.position();
+        if (!landedOn(at, expected, LAND_XZ, LAND_Y)) {
+            return false;
+        }
+        LOGGER.info("[Path] arrived: the server confirmed the last landing {} - no arrival settle", fmt(at));
+        lastFastArrivalTick = clientTicks;
+        // The hops' body turn goes back to his view now, before the route that arms next turns the body for its own
+        // first action this same tick. Left to this class's own tick (later in START) it undid the route's turn, and the
+        // route's warp went out with a rotation no movement packet reported: GrimAC BadPacketsJ (62-argrim-imwarp-run,
+        // 2026-10-15).
+        BODY.tick(client.player, false);
+        completeArrival(client);
+        return true;
+    }
+
+    /** {@link #clientTick} of the last trip {@link #finishArrivalEarly} ended, for the testkit. */
+    private static long lastFastArrivalTick = -1;
+
+    public static long lastFastArrivalTick() {
+        return lastFastArrivalTick;
     }
 
     // ------------------------------------------------------------------------------------------- keeping it honest

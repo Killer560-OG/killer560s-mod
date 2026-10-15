@@ -292,3 +292,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   server answered "No abilities in a trap room" and had him back inside, so the run stopped there (142's trap case,
   2026-10-15; before, a search's few ticks of delay let him slide clear). Auto Trap now counts him out 2.5 blocks past the
   edge (`AutoTrap.LEAVE_MARGIN`); the route's walk carries him there.
+- **The Interactive Map's arrival settle held every route start ~9 ticks.** Auto Routes stays inert while `ClearExecutor`
+  is busy (interlock 5), and a trip stayed busy for its whole post-landing settle, so a start node armed 11 ticks after the
+  trip's last warp (146, main, every room). A start-node warp (`ClearExecutor.etherPathArrive`) now ends on the tick the
+  server's packet confirms its last landing (`finishArrivalEarly`, asked by Auto Routes at the top of its tick): 2 ticks in
+  the sim. Two things the settle had hidden: he is still 0.05 above the block on that tick, so a planned-ahead first warp
+  is aimed again from where he is (a look planned from the block's height missed: "Failed from ..."), and `canPath`'s
+  on-ground rule held the next trip a tick or two (`canPath(layout, true)` accepts that settling). And the map's body turn must be handed back before the route turns the body for its first action that same tick: left to `ClearExecutor`'s own tick, later in START, it undid the route's turn and the warp drew GrimAC BadPacketsJ (62-argrim-imwarp-run).

@@ -70,6 +70,8 @@ public final class AutoRoutesFeature {
     /** Ticks after a teleport finishes before {@link #arrivedByTeleport} is dropped, to outlast LiveMap's room-identity lag. */
     private static final int TELEPORT_SETTLE_TICKS = 5;
     private static int teleportSettleTicks;
+    /** Ticks a start node that does not open with a warp waits after the map's warp onto it (the interact delay). */
+    private static int arrivalHoldTicks;
     private static boolean externalTeleport;
     /** The node the player is currently standing in (so a finished route doesn't instantly re-arm underfoot). */
     private static RouteNode latchedNode;
@@ -687,10 +689,22 @@ public final class AutoRoutesFeature {
         // block's own landing) was taken as is, he stood off the node, and Auto Secret skipped Silver Sword as "did not
         // arm" - the one near landing in 151 start-node warps logged. Now the room-by-room planner aims at the block
         // itself first, as for Auto Blaze's ledge chest.
-        ClearExecutor.etherPathExact(goal, () -> {
+        // The trip ends on the tick the server confirms its last landing (ClearExecutor.etherPathArrive), so the start node
+        // arms then, not ~9 ticks later (killer560, 2026-10-15: routes as fast as possible). A start stack that opens with
+        // a warp (warp into warp, as a route's own chain does) or a plain movement goes on that very tick; one that opens
+        // with a block or item action (a breaker, a boom, a use) keeps the interact delay a route keeps after a landing:
+        // a breaker fired on the landing tick broke nothing on the dedicated server (LESSONS-AUTOMATION, chain timing).
+        RouteNode first = route.stackOf(start).get(0);
+        // A turn, a walk, a jump or an unsneak sends nothing the server has to have the landing for first either.
+        boolean warpFirst = switch (first.type) {
+            case ETHERWARP, PATH, ROTATE, WALK, JUMP, UNSNEAK -> true;
+            default -> false;
+        };
+        ClearExecutor.etherPathArrive(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
             latchedNode = null; // landing ON the start node must arm it
+            arrivalHoldTicks = warpFirst ? 0 : AutoRoutesConfig.getInstance().getInteractDelayTicks();
         });
         chat(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
         return true;
@@ -879,6 +893,8 @@ public final class AutoRoutesFeature {
         }
         hidden = false;
 
+        // A start-node trip whose last landing the server has just confirmed ends now, so the node can arm this tick.
+        ClearExecutor.finishArrivalEarly(client);
         // Interlock 5: Blood Rush (or any Interactive Map teleport in flight) -> inert.
         // isSteering() covers the ticks a map goal spends QUEUED behind a cancelled path, where isBusy() is
         // false by design and a node underfoot would otherwise arm in the gap and steer against the warp that
@@ -917,6 +933,11 @@ public final class AutoRoutesFeature {
             // change, so the flag had nothing to clear it and start-only stayed enforced for one extra room
             // afterwards. Clear it once the teleport has settled instead (2026-09-16 review).
             arrivedByTeleport = false;
+        }
+        if (arrivalHoldTicks > 0) {
+            arrivalHoldTicks--;
+            gate("settling after the map's warp onto the start node (it does not open with a warp)");
+            return;
         }
         if (externalTeleport) {
             // Our start-node / Go-to warp ended without its completion callback (no path found): release the queue.
