@@ -229,3 +229,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Clear logged "etherwarp toward" before `startTrip`, which only turns the body back on that tick (Phase.RELEASE) and
   comes through again the next, so one trip was logged twice (131 case 9: 5 lines for 3 trips). It logs once the trip is
   really under way now.
+- A trap route that ends at the trap room's edge is not out of it for the next warp. Auto Trap stopped the route the moment
+  `roomAtWorld` left the trap, about a block and a half out; Auto Secret's planned-ahead warp then went at once and the sim's
+  server answered "No abilities in a trap room" and had him back inside, so the run stopped there (142's trap case,
+  2026-10-15; before, a search's few ticks of delay let him slide clear). Auto Trap now counts him out 2.5 blocks past the
+  edge (`AutoTrap.LEAVE_MARGIN`); the route's walk carries him there.
