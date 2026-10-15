@@ -208,3 +208,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
   and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
   within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
+
+- A one-node route starts and completes inside `RouteExecutor.start()`/`complete()` before any executor tick runs, so anything
+  that wants a route's progress (the Auto Routes Progress HUD, `RouteRunMemory.noteProgress`) must be told at start and at
+  completion as well as each tick, or a short route is never seen (102-sim-autosecret, 2026-10-15). The planners' queue for
+  that HUD is `autoroutes/RunPlan`, published by each planner at its own pick, never recomputed by the HUD.
