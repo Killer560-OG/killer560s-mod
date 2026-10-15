@@ -284,8 +284,9 @@ public final class RoomPredictor {
         if (HeldMap.available() && HeldMap.roomOpened(gridIdx)) {
             return false;
         }
+        // Inside the tile's own 31 blocks; standing in the doorway gap between two tiles is in neither.
         BlockPos c = DungeonLayout.cellCenter(gridIdx);
-        return !(Math.abs(client.player.getX() - (c.getX() + 0.5)) <= 16 && Math.abs(client.player.getZ() - (c.getZ() + 0.5)) <= 16);
+        return !(Math.abs(client.player.getX() - (c.getX() + 0.5)) < 15.5 && Math.abs(client.player.getZ() - (c.getZ() + 0.5)) < 15.5);
     }
 
     // ------------------------------------------------------------------------------------------------- candidates

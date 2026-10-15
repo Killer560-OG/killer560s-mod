@@ -54,7 +54,7 @@ public final class SpecialRoomGuess {
             switch (type) {
                 case "PUZZLE" -> puzzles++;
                 case "TRAP" -> trap = true;
-                case "CHAMPION" -> champion = true;
+                case "CHAMPION", "MINIBOSS", "YELLOW" -> champion = true;
                 default -> {
                 }
             }
