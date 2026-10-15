@@ -1106,6 +1106,50 @@ public final class ClearExecutor {
         }
     }
 
+    /** Uses this class sent itself (its hops, a node's click), counted from {@link com.killer560.hub.util.RightClick#usesSent}. */
+    private static int ownUses;
+    /** Uses another feature sent, as last counted, and how many of their landings may still be on the way. */
+    private static int foreignSeen;
+    private static int foreignCredit;
+    private static long foreignUntilMs;
+    private static long foreignLag;
+    /** Position packets read as another feature's landing rather than a correction, ever - the testkit reads it. */
+    private static int foreignLandings;
+
+    public static int foreignLandings() {
+        return foreignLandings;
+    }
+
+    /** Counts the uses other features (Auto Ice Fill's hops, a puzzle's chest warp, Auto Routes) sent since the last look. */
+    private static void collectForeignUses() {
+        int foreign = com.killer560.hub.util.RightClick.usesSent() - ownUses;
+        if (foreign > foreignSeen) {
+            foreignCredit = Math.min(foreignCredit + foreign - foreignSeen, 8);
+            foreignUntilMs = System.currentTimeMillis() + 2000L;
+            foreignLag = ServerLag.mark();
+        }
+        foreignSeen = foreign;
+    }
+
+    /**
+     * True (and one credit spent) when a use another feature of ours sent in the last ~2 s can account for this position
+     * packet: its own warp landing, which that feature judges, not a server correction of the map's trip. His Mod Only Test
+     * log (2026-10-15 15:54:08): a trip to Ice Fill had every landing answered and was in its arrival settle when Auto Ice
+     * Fill began hopping; each 1-block hop read as "the server moved you off the last landing", then "while waiting to plan
+     * again", 88 alarms in one crossing, and the replan of the old goal kept warping him back to the start while the chest
+     * claim warped him to the chest. A server move with no use of ours behind it still reports.
+     */
+    private static boolean anotherFeaturesLanding() {
+        collectForeignUses();
+        if (foreignCredit > 0 && System.currentTimeMillis() <= foreignUntilMs + ServerLag.msSince(foreignLag)) {
+            foreignCredit--;
+            foreignLandings++;
+            return true;
+        }
+        foreignCredit = 0;
+        return false;
+    }
+
     /**
      * Server position packets while a path is being SEARCHED or waits to be planned again, with no queue of ours
      * running: a correction (chat line + alarm, util/ServerCorrections) unless it is a late landing of the queue just
@@ -1127,6 +1171,11 @@ public final class ClearExecutor {
             if (ours >= packets) {
                 return true;
             }
+        }
+        if (anotherFeaturesLanding()) {
+            LOGGER.info("[Path] moved {} blocks {} by another feature's own warp - not a correction",
+                    String.format(java.util.Locale.US, "%.1f", moved), searching ? "while planning" : "while waiting to plan again");
+            return true;
         }
         serverCorrections++;
         String when = searching ? "while the path was being planned" : "while waiting to plan again";
@@ -1154,6 +1203,8 @@ public final class ClearExecutor {
     // ------------------------------------------------------------------------------------------- ticking
 
     private static void onTickStart(Minecraft client) {
+        // Every tick, so another feature's use is dated by when it went out, not by when a packet first asks about it.
+        collectForeignUses();
         hasSwappedThisTick = swappedOnTick == clientTicks;
         if (client.level != lastLevel) {
             lastLevel = client.level;
@@ -1231,12 +1282,20 @@ public final class ClearExecutor {
 
     /** The trip is over: its arrival counts and its completion runs - or, he is not on its last landing, it plans again. */
     private static void completeArrival(Minecraft client) {
+        completeArrival(client, false);
+    }
+
+    /** @param confirmedThere every landing was answered on the plan: he arrived, wherever another feature has put him since */
+    private static void completeArrival(Minecraft client, boolean confirmedThere) {
         syncDelay = 0;
         syncWaitTicks = 0;
         Runnable callback = pendingCompletion;
         pendingCompletion = null;
         Vec3 expected = issued.isEmpty() ? null : issued.get(issued.size() - 1);
         Vec3 at = client.player == null ? null : client.player.position();
+        if (confirmedThere && expected != null) {
+            at = expected;
+        }
         if (expected != null && at != null && !landedOn(at, expected, 1.5, 3.0)) {
             // The last landing was answered, but he is not there now: the goal is not reached, so the
             // "arrived" behaviour (face the door, an auto's next step) must not run.
@@ -1358,6 +1417,15 @@ public final class ClearExecutor {
                 positionPacketsSeen = packets;
                 if (lastGood != null && !landedOn(at, lastGood, LAND_XZ, LAND_Y)
                         && (before == null || at.distanceTo(before) >= CORRECTION_MIN_MOVE)) {
+                    if (confirmed >= issued.size() && anotherFeaturesLanding()) {
+                        // Every landing was answered: the trip got there. What moved him since is another feature's own
+                        // warp (Auto Ice Fill's first hop, a chest claim) - the trip ends as arrived, and nothing plans
+                        // its goal again over the top of that feature.
+                        LOGGER.info("[Path] arrived: every landing answered, then another feature's warp moved him {} - "
+                                + "not a correction", fmt(at));
+                        completeArrival(client, true);
+                        return false;
+                    }
                     serverCorrections++;
                     offPath(String.format(java.util.Locale.US, "the server moved you %.1f blocks off the last landing",
                             horizontal(at, lastGood)), null, true);
@@ -1601,7 +1669,14 @@ public final class ClearExecutor {
         double by = playerPos[1];
         double bz = playerPos[2];
         waitReason = "the sneak never reached the server";
-        if (node.execute(playerPos)) {
+        int usesBefore = com.killer560.hub.util.RightClick.usesSent();
+        boolean executed;
+        try {
+            executed = node.execute(playerPos);
+        } finally {
+            ownUses += com.killer560.hub.util.RightClick.usesSent() - usesBefore;
+        }
+        if (executed) {
             if (nodes == null) {
                 return; // cancelled inside execute
             }
@@ -1711,6 +1786,16 @@ public final class ClearExecutor {
         }
         // The body faces the hop for this tick's movement packet; only the camera stays still (see BODY).
         BODY.turn(player, yaw, pitch);
+        int usesBefore = com.killer560.hub.util.RightClick.usesSent();
+        try {
+            sendHop(client, player, yaw, pitch);
+        } finally {
+            ownUses += com.killer560.hub.util.RightClick.usesSent() - usesBefore;
+        }
+    }
+
+    /** The hop's right click itself: the block half when its look meets a block in reach, then the use. */
+    private static void sendHop(Minecraft client, LocalPlayer player, float yaw, float pitch) {
         com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[Path] Warp");
         // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
         // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction

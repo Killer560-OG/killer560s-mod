@@ -118,9 +118,44 @@ public final class RightClick {
         }
     }
 
+    /**
+     * The server has just teleported him ({@code ClientPacketListener.handleMovePlayer}, after vanilla applied it). Vanilla
+     * answers with an accept and a position-and-look packet it sends on the {@code Connection} directly, past the send
+     * tap above - so until the next ordinary movement packet this class still traced the server's ray from where he stood
+     * BEFORE the warp. A path's next hop a tick after a landing was then judged from the old spot ("meets nothing"), went
+     * bare while a chest click was unpaired, and the server - tracing from the landing - took it as the click's second
+     * half and dropped it: "no landing after 62 ticks", the rest of the path flown from the wrong place (his Mod Only
+     * Test log, 2026-10-15 15:55, Flags #13, #15 and three more). The packet vanilla just sent is his position and look as
+     * the client now has them, so that is what the server has heard. Client thread.
+     */
+    public static void onTeleportAnswered(LocalPlayer player) {
+        checkLevel(player);
+        if (player == null || player.isPassenger()) {
+            return; // a passenger's answer is a vehicle packet, not a position-and-look one
+        }
+        sentX = player.getX();
+        sentY = player.getY();
+        sentZ = player.getZ();
+        sentYaw = player.getYRot();
+        sentPitch = player.getXRot();
+        sentKnown = true;
+    }
+
+    /** Item uses and item-in-hand block clicks that have left this client, ever (only goes up) - whoever sent them. A
+     *  feature counts its own and reads the rest as another feature's (ClearExecutor: another feature's warp landing is
+     *  not a server correction of the map's trip). */
+    public static int usesSent() {
+        return usesSent;
+    }
+
+    private static int usesSent;
+
     /** A right click on a block is leaving. */
     public static void onUseOn(LocalPlayer player, ServerboundUseItemOnPacket p) {
         checkLevel(player);
+        if (!player.getItemInHand(p.getHand()).isEmpty()) {
+            usesSent++;
+        }
         // A click with an empty hand stores a verdict too, but one that cannot deny an item - and it replaces whatever an
         // earlier click stored. Only a click made with an item in hand can leave a use to be eaten (the one real warp a tick
         // after a click with another item, the Dungeon Breaker, landed: Grand Library 2026-10-14 17:29:35).
@@ -137,6 +172,7 @@ public final class RightClick {
      *  unpaired or was made in the last {@link #LOG_AFTER_CLICK_TICKS} ticks (and a WARN when the server pairs it). */
     public static void onUse(LocalPlayer player, ServerboundUseItemPacket p) {
         checkLevel(player);
+        usesSent++;
         BlockHitResult ray = serverRay(player, sentYaw, sentPitch);
         String rayText = ray == null ? "meets nothing in " + SERVER_TRACE + " (a right click in the air)"
                 : "meets " + blockName(player, ray.getBlockPos()) + " at " + ray.getBlockPos().toShortString()

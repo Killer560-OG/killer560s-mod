@@ -105,6 +105,25 @@ public final class SimRoomState {
      *         opinion and the map should decide for itself
      */
     public static int stateFor(String roomName) {
-        return roomName == null ? -1 : STATES.getOrDefault(roomName, -1);
+        if (roomName == null) {
+            return -1;
+        }
+        int state = STATES.getOrDefault(roomName, -1);
+        // A SOLVED PUZZLE IS A GREEN CHECKMARK, as on Hypixel's map. killer560 (2026-10-15): "make ice fill on sim show
+        // as complete once it reaches the end" - the tab line already read the puzzle's own isComplete, but nothing
+        // ever painted a sim puzzle room past the white checkmark it gets on entry, whichever puzzle it was. Asked of
+        // the puzzle itself (SimPuzzles.isRoomComplete) every time, so a reset or an Architect's First Draft puts it back.
+        if (state != STATE_FAILED && com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(roomName)) {
+            return STATE_GREEN;
+        }
+        return state;
+    }
+
+    /** {@code DungeonMapScanner.STATE_GREEN} - the green checkmark. Literal for the same reason as {@link #STATE_FAILED}. */
+    private static final int STATE_GREEN = 0;
+
+    /** Whether the map paints this sim room with the green checkmark (its puzzle solved). */
+    public static boolean isGreen(String roomName) {
+        return stateFor(roomName) == STATE_GREEN;
     }
 }

@@ -8,6 +8,7 @@
 		"AwaitEventsGameModeMixin",
 		"AwaitEventsPacketMixin",
 		"RightClickSendMixin",
+		"RightClickTeleportMixin",
 		"HeldUsePickMixin",
 		"KeyMappingKeyAccessor"
 	],
