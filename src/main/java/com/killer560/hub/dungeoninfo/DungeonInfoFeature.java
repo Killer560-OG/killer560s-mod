@@ -358,7 +358,11 @@ public final class DungeonInfoFeature {
             if (!HudVisibility.editorOpen()) {
                 HudSeen.markDrawn(id());
             }
-            graphics.text(Minecraft.getInstance().font, text, x, y, 0xFFFFFFFF, false);
+            int color = DungeonInfoConfig.getInstance().getTextColor();
+            if ((color >>> 24) == 0) {
+                color |= 0xFF000000;
+            }
+            graphics.text(Minecraft.getInstance().font, text, x, y, color, false);
         }
     }
 }

@@ -380,6 +380,7 @@ final class SettingTooltipsData {
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer now so you can see it on the HUD.");
         d.put("secrets hud", "Shows secrets found in your current room out of its total.");
+        d.put("secrets text color", "Opens a color picker for the Secrets HUD text; type or paste a hex color there.");
         d.put("mimic killed msg", "Sends the message below to party chat when the Mimic dies.");
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when a Prince is killed.");
