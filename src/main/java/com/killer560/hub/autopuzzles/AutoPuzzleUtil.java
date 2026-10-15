@@ -652,7 +652,13 @@ public final class AutoPuzzleUtil {
      *  callers treat as a permanent failure (burn the attempt, stop the room) - the opposite of "retry next tick".
      *  @return true at most once per client tick, mod-wide */
     public static boolean gateWorldClick() {
-        return ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD);
+        if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
+            return false;
+        }
+        // Every puzzle click claims this gate, so the click-only autos (Quiz, Three Weirdos) read as working too;
+        // they never move him, and 93-solve-quiz/-threeweirdos found them invisible to the hold (2026-10-15).
+        AutoPuzzleActivity.note("Puzzles");
+        return true;
     }
 
     /** The body turn for a puzzle click the reported look does not reach (util/TurnFirst); the camera never moves. */
