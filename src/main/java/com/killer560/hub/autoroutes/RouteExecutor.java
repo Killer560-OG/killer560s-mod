@@ -534,8 +534,60 @@ public final class RouteExecutor {
         return true;
     }
 
+    /** Routes run to their end, ever (only goes up), and the room of the last one: Auto Secret notices a route that
+     *  completed on the very tick it armed (a one-node route) by this, as it never sees it running. */
+    private static int completions;
+    private static String lastCompletedRoom;
+    /** {@link #execTicks} is per run; this is the client tick ({@code ClearExecutor.clientTick()}) of the last completion. */
+    private static long lastCompletedTick = -1;
+
+    public static int completions() {
+        return completions;
+    }
+
+    /**
+     * Where a run of {@code r} will leave him (feet, real world): the landing of the last teleport of the last node's
+     * stack, else the last node's own spot - or, on a recorded route that walks on past its last node, the path's end.
+     * Auto Secret plans the trip to the next room from here while the route still runs. Null for an empty route.
+     */
+    public static Vec3 predictedEnd(Route r, RouteCoords.Frame f) {
+        if (r == null || f == null) {
+            return null;
+        }
+        List<RouteNode> order = r.nodesInPathOrder();
+        RoutePath path = r.path();
+        Vec3 rel = null;
+        int lastIndex = -1;
+        if (!order.isEmpty()) {
+            RouteNode last = order.get(order.size() - 1);
+            lastIndex = last.pathIndex;
+            rel = last.relativePos();
+            for (RouteNode n : r.stackOf(last)) {
+                if (n.hasLanding && (n.type == RouteNode.Type.ETHERWARP || n.type == RouteNode.Type.USE_ITEM)) {
+                    rel = new Vec3(n.landingX, n.landingY, n.landingZ);
+                }
+            }
+        }
+        if (!path.isEmpty() && (rel == null || lastIndex < path.size() - 1)) {
+            RoutePath.Sample s = path.get(path.size() - 1);
+            rel = new Vec3(s.x(), s.y(), s.z());
+        }
+        return rel == null ? null : RouteCoords.toReal(f, rel);
+    }
+
+    public static String lastCompletedRoom() {
+        return lastCompletedRoom;
+    }
+
+    public static long lastCompletedTick() {
+        return lastCompletedTick;
+    }
+
     private static void complete() {
         justFinished = true;
+        completions++;
+        lastCompletedRoom = route.roomName();
+        lastCompletedTick = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick();
         RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
@@ -1428,6 +1480,28 @@ public final class RouteExecutor {
         stackTrigger = null;
         planSneak(finished);
         settleAfter(landed, cfg);
+        if (nothingFollows()) {
+            // killer560, 2026-10-15: "it needs to predict when it is going to finish auto routing a room that way the very
+            // next tick it starts etherwarping to the next room". The interact delay is the wait before the NEXT node; with
+            // none, the route is over now - it used to complete only after that delay and a tick of walk step, and Auto
+            // Secret's next warp waited for it.
+            settleTicks = 0;
+            chainAfterLanding = false;
+            complete();
+        }
+    }
+
+    /**
+     * Nothing is left for this run to fire after the node just finished: no stack, no node he landed in, no next node in
+     * order, no held walk, and on a recorded route no walk left to the end of the path.
+     */
+    private static boolean nothingFollows() {
+        if (!running || route == null || !stackQueue.isEmpty() || plannedNext != null || walkHoldYaw != null
+                || nextNode < ordered.size()) {
+            return false;
+        }
+        RoutePath path = route.path();
+        return path.isEmpty() || cursor >= path.size() - 1;
     }
 
     /**

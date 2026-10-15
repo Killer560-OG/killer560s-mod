@@ -323,6 +323,9 @@ public final class ClearExecutor {
         if (pathPending) {
             return;
         }
+        if (adoptPreplan(to, tileIdx, complete, player)) {
+            return;
+        }
         goalTo = to;
         goalTile = tileIdx;
         goalComplete = complete;
@@ -470,6 +473,181 @@ public final class ClearExecutor {
             }
         }
         return null;
+    }
+
+    // ------------------------------------------------------------------------------------------- planned ahead
+
+    /**
+     * A path searched before it is asked for (killer560, 2026-10-15: "it needs to predict when it is going to finish auto
+     * routing a room that way the very next tick it starts etherwarping to the next room"). Auto Secret searches the trip
+     * to the next room from where the route it is running will leave him, while the route runs; when that trip is then
+     * asked for, {@link #plan} runs it at once instead of searching again.
+     *
+     * @param to      the goal block ({@link #etherPath}/{@link #etherPathExact}), or the tile's fallback block
+     * @param tileIdx the tile of a tile trip ({@link #etherPathToTile}), -1 for a block
+     * @param from    where the plan starts (the feet position it was searched from)
+     */
+    private record Preplan(BlockPos to, int tileIdx, boolean exact, Vec3 from, List<EtherwarpPathfinder.Node> path,
+                           Object level, long madeMs) {
+    }
+
+    private static volatile Preplan preplan;
+    /** The queue now running was planned ahead: each hop goes out on the tick it is worked out (see {@link #onTickStart}). */
+    private static boolean sendNow = false;
+    /** The tick a pre-planned queue swapped to its item on: no use goes out on that tick (held-item first, use next). */
+    private static long swappedOnTick = Long.MIN_VALUE;
+    /** A pre-planned trip may wait at most this long for the request that matches it. */
+    private static final long PREPLAN_MAX_AGE_MS = 60_000L;
+
+    /** The client tick ({@link #onTickStart} counts it): the testkit and Auto Secret compare ticks with it. */
+    public static long clientTick() {
+        return clientTicks;
+    }
+
+    /**
+     * Keeps {@code path} (searched on the planner thread from {@code from}) for the next {@link #plan} of the same goal.
+     * Client thread. A newer offer replaces an older one.
+     */
+    public static void offerPreplan(Vec3 from, BlockPos to, int tileIdx, boolean exact, List<EtherwarpPathfinder.Node> path) {
+        Minecraft client = Minecraft.getInstance();
+        if (path == null || path.isEmpty() || client.level == null) {
+            return;
+        }
+        preplan = new Preplan(to, tileIdx, exact, from, List.copyOf(path), client.level, System.currentTimeMillis());
+        LOGGER.info("[Path] planned ahead: {} warp(s) from {} to {}{}", path.size(), fmt(from), to.toShortString(),
+                tileIdx >= 0 ? " (tile " + tileIdx + ")" : "");
+    }
+
+    /** Drops a path planned ahead (its goal is no longer wanted). */
+    public static void dropPreplan() {
+        preplan = null;
+    }
+
+    /** Whether a path planned ahead is waiting for {@code to}. */
+    public static boolean hasPreplanFor(BlockPos to, int tileIdx) {
+        Preplan p = preplan;
+        return p != null && (tileIdx >= 0 ? p.tileIdx() == tileIdx : p.tileIdx() < 0 && p.to().equals(to));
+    }
+
+    /**
+     * Runs the path planned ahead for this goal, if there is one and it still starts where he stands: within a third of a
+     * block of its start as planned, or else with its first warp aimed again from where he really is at the same landing
+     * block (a route's last node leaves him anywhere in its ring). Checked like any plan ({@link #implausible}).
+     * @return true when the queue started
+     */
+    private static boolean adoptPreplan(BlockPos to, int tileIdx, Runnable complete, LocalPlayer player) {
+        Preplan p = preplan;
+        if (p == null) {
+            return false;
+        }
+        boolean same = tileIdx >= 0 ? p.tileIdx() == tileIdx : p.tileIdx() < 0 && p.to().equals(to) && p.exact() == goalExact;
+        Minecraft client = Minecraft.getInstance();
+        if (!same || p.level() != client.level || System.currentTimeMillis() - p.madeMs() > PREPLAN_MAX_AGE_MS) {
+            if (!same) {
+                LOGGER.info("[Path] the path planned ahead was for {} - this trip goes to {}: searching", p.to().toShortString(),
+                        to.toShortString());
+            }
+            preplan = null;
+            return false;
+        }
+        preplan = null;
+        Vec3 at = player.position();
+        List<ClearNode> list = new ArrayList<>();
+        for (EtherwarpPathfinder.Node n : p.path()) {
+            list.add(ClearNode.toEther(n));
+        }
+        boolean reaimed = false;
+        if (at.distanceTo(p.from()) > 0.3) {
+            ClearNode first = list.get(0);
+            Vec3 eye0 = new Vec3(first.pos.x, first.pos.y + TeleportUtils.eyeHeight(true), first.pos.z);
+            TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye0, first.yaw, first.pitch, 61.0);
+            if (!hit.succeeded() || hit.pos() == null) {
+                LOGGER.info("[Path] the path planned ahead lands nowhere from its own start - searching");
+                return false;
+            }
+            Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+            TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, hit.pos(), hopRange() + 1.0);
+            if (rot == null) {
+                LOGGER.info("[Path] the path planned ahead started {} blocks from where you are and its first landing {}"
+                        + " cannot be seen from here - searching", String.format(java.util.Locale.ROOT, "%.1f",
+                        at.distanceTo(p.from())), hit.pos().toShortString());
+                return false;
+            }
+            Vec3 look = TeleportUtils.getLook(rot.yaw(), rot.pitch()).scale(60.0);
+            list.set(0, new ClearNode.EtherNode(at, rot.yaw(), rot.pitch(), 0xFFA500, List.of(eye, eye.add(look))));
+            reaimed = true;
+        }
+        String impossible = implausible(at, list, hopRange());
+        if (impossible != null) {
+            LOGGER.info("[Path] the path planned ahead does not hold from here ({}) - searching", impossible);
+            return false;
+        }
+        goalTo = to;
+        goalTile = tileIdx;
+        goalComplete = complete;
+        pressNanos = System.nanoTime();
+        lastPathFailed = false;
+        LOGGER.info("[Path] running {} warp(s) planned ahead from {} to {}{} - no search", list.size(), fmt(at), to,
+                reaimed ? String.format(java.util.Locale.ROOT, " (first warp aimed again: he stands %.2f from its planned"
+                        + " start)", at.distanceTo(p.from())) : "");
+        ModChat.send(CHAT, ModChat.text("Path planned ahead"), ModChat.dim(" (" + list.size() + " warps)"));
+        startQueue(list, complete);
+        sendNow = true;
+        compDelay = 0;
+        // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
+        if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV) && swapById(AOTV)) {
+            swappedOnTick = clientTicks + 1;
+        }
+        improveInBackground(list, to, tileIdx, DungeonLayout.capture());
+        return true;
+    }
+
+    private static final String[] AOTV = {"ASPECT_OF_THE_VOID"};
+
+    // ------------------------------------------------------------------------------------------- held at the start
+
+    /**
+     * Auto Secret's last-node wait (killer560, 2026-10-15: "It needs a wait timeout at the last node of 6 ticks at max if
+     * all secrets are not collected by the time it hits that node. If during those 6 ticks the room is fully cleared then
+     * it should leave the next tick"). While held, a queue that has not sent its first warp waits with the sneak down and
+     * the item in hand, so the warp goes on the very tick it is let go. Released by {@link #setHold}(false), by any cancel,
+     * or on its own after {@link #HOLD_MAX_TICKS}.
+     */
+    private static boolean hold = false;
+    private static int holdTicks = 0;
+    private static final int HOLD_MAX_TICKS = 40;
+
+    public static void setHold(boolean value) {
+        hold = value;
+        holdTicks = 0;
+    }
+
+    public static boolean isHeld() {
+        return hold;
+    }
+
+    /** @return true while the queue is held this tick (nothing else of it runs) */
+    private static boolean tickHold(Minecraft client) {
+        if (!hold) {
+            return false;
+        }
+        if (++holdTicks > HOLD_MAX_TICKS) {
+            LOGGER.info("[Path] a held queue was never let go - going after {} ticks", HOLD_MAX_TICKS);
+            hold = false;
+            return false;
+        }
+        List<ClearNode> current = nodes;
+        if (current == null || current.isEmpty() || !issued.isEmpty() || syncDelay != 0) {
+            return false;   // nothing waiting to start (or it already has): the hold only keeps a first warp back
+        }
+        ticksSinceProgress = 0;
+        waitReason = "held for the room's last secrets";
+        boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
+        active = current.get(0) instanceof ClearNode.EtherNode && !screen;   // the sneak, never under a container
+        if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
+            swappedOnTick = clientTicks;
+        }
+        return true;
     }
 
     /**
@@ -621,6 +799,10 @@ public final class ClearExecutor {
 
     private static void startQueue(List<ClearNode> path, Runnable complete) {
         stopImproving();
+        sendNow = false;
+        if (syncDelay != 0) {
+            finishSettleNow();
+        }
         nodes = new ArrayList<>(path);
         position = null;
         pendingInteract = null;
@@ -633,6 +815,33 @@ public final class ClearExecutor {
         positionPacketsSeen = positionPackets;
         ticksSinceProgress = 0;
         waitReason = null;
+    }
+
+    /**
+     * A new queue starts while the last trip still waits out its arrival settle (Auto Secret's next trip, asked for the
+     * tick the route on that trip's landing ended): that trip is over - its arrival counts and its completion runs now,
+     * instead of the new queue waiting behind the settle and the old completion being dropped by it.
+     */
+    private static void finishSettleNow() {
+        Runnable callback = pendingCompletion;
+        boolean owner = externalOwner;
+        Vec3 expected = issued.isEmpty() ? null : issued.get(issued.size() - 1);
+        syncDelay = 0;
+        syncWaitTicks = 0;
+        pendingCompletion = null;
+        issued.clear();
+        confirmed = 0;
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (expected != null && player != null && landedOn(player.position(), expected, 1.5, 3.0)) {
+            arrivalSeq++;
+            arrivalMs = System.currentTimeMillis();
+            arrivalPos = player.position();
+        }
+        LOGGER.info("[Path] the last trip's arrival settle was cut short by the next trip");
+        if (callback != null) {
+            callback.run();
+        }
+        externalOwner = owner;
     }
 
     /** Lets another feature run its own hop queue here while the Interactive Map's own toggles are off. */
@@ -693,6 +902,8 @@ public final class ClearExecutor {
     public static void cancel() {
         stopImproving();
         noteStrayWarps();
+        sendNow = false;
+        hold = false;
         goalTo = null;
         goalTile = -1;
         goalComplete = null;
@@ -781,7 +992,7 @@ public final class ClearExecutor {
 
     private static void onTickStart(Minecraft client) {
         clientTicks++;
-        hasSwappedThisTick = false;
+        hasSwappedThisTick = swappedOnTick == clientTicks;
         if (client.level != lastLevel) {
             lastLevel = client.level;
             reset();
@@ -809,6 +1020,9 @@ public final class ClearExecutor {
         if (!checkLandings(client)) {
             return;
         }
+        if (tickHold(client)) {
+            return;
+        }
         if (!canNext()) {
             return;
         }
@@ -821,6 +1035,12 @@ public final class ClearExecutor {
             position = new double[]{p.x, p.y, p.z};
         }
         handleQueue(position, nodes);
+        if (sendNow && pendingInteract != null && !hasSwappedThisTick) {
+            // A queue planned ahead sends each hop on the tick it is worked out rather than the next: the same START slot,
+            // ahead of this tick's movement packet, as the hop that would have gone next tick - one tick sooner, and the
+            // pace between hops unchanged. Not on a tick that swapped the item (held-item first, the use a tick later).
+            doInteract(client);
+        }
     }
 
     /** QUOI's server-tick handler, on client ticks: after the position packet, wait ~8 ticks, then complete. */
@@ -1053,6 +1273,8 @@ public final class ClearExecutor {
     /** Everything about the running queue except the goal (callers keep or drop that themselves). */
     private static void dropQueue() {
         noteStrayWarps();
+        sendNow = false;
+        hold = false;
         nodes = null;
         position = null;
         pendingInteract = null;
@@ -1090,6 +1312,9 @@ public final class ClearExecutor {
 
     private static void reset() {
         nodes = null;
+        sendNow = false;
+        hold = false;
+        preplan = null;
         syncDelay = 0;
         compDelay = 0;
         globalDelay = 0;

@@ -97,6 +97,26 @@ public final class RouteRunMemory {
         }
     }
 
+    /** The tick count secrets are stamped with ({@link AwaitEvents#now()}), for {@link #gotSince}. */
+    public static int clock() {
+        return AwaitEvents.now();
+    }
+
+    /**
+     * His secrets got at or after {@code sinceTick} ({@link #clock}) where {@code where} holds - Auto Secret counts what a
+     * route took in its room this way, on the tick it was taken, instead of waiting for the action bar's next "x/y".
+     */
+    public static int gotSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
+        check();
+        int n = 0;
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && g.pos() != null && where.test(g.pos())) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** A stable name for a node within its room's route: room, type and its relative spot. */
     static String nodeKey(Route route, RouteNode node) {
         Vec3 p = node.relativePos();

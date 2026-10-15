@@ -286,6 +286,10 @@ public final class AutoClearFeature {
         roomsCleared = 0;
         mobsKilled = 0;
         corrections = 0;
+        coverKey = null;
+        coverIds = null;
+        coverSpots = List.of();
+        coverMobs = List.of();
         planKey = Long.MIN_VALUE;
         positionPacketsSeen = positionPackets;
         executorCorrectionsSeen = ClearExecutor.serverCorrections();
@@ -528,7 +532,8 @@ public final class AutoClearFeature {
             return;
         }
         noMobTicks = 0;
-        Entity target = nearest(player, mobs);
+        planRepositions(client, player, mobs, cfg.getWeapon());
+        Entity target = pickTarget(player, mobs, cfg.getWeapon());
         if (target.getId() != targetId) {
             targetId = target.getId();
             targetName = target.getName().getString();
@@ -774,8 +779,11 @@ public final class AutoClearFeature {
             action = "landing";
             return;
         }
+        // A hop toward one mob is one reposition for one mob: only when the plan's block for it reaches that mob alone
+        // (a block reaching several is fewer repositions in all - killer560, 2026-10-15).
         boolean canHop = cfg.isHyperionHops() && hopsOffFor != targetId
-                && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
+                && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0
+                && coverCountFor(target) <= 1;
         if (cachedHops == -2) {
             cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) : -1;
         }
@@ -798,7 +806,8 @@ public final class AutoClearFeature {
                 return;
             }
         }
-        BlockPos spot = WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        BlockPos planned = coverSpotFor(target);
+        BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
         if (spot == null) {
             skippedMobs.add(targetId);
             say(ModChat.bad("Skipping "), ModChat.value(targetName),
@@ -814,8 +823,10 @@ public final class AutoClearFeature {
         }
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
-        LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {})", targetName,
-                target.blockPosition().toShortString(), spot.toShortString(), etherTicks, cachedHops);
+        LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
+                target.blockPosition().toShortString(), spot.toShortString(), etherTicks, cachedHops,
+                planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)" : " - nearest block to it");
+        repositions++;
         startTrip(client, player, () -> {
             ClearExecutor.etherPath(spot, null);
             return true;
@@ -1018,6 +1029,210 @@ public final class AutoClearFeature {
             }
         }
         return out;
+    }
+
+    // =========================================================================================== fewest repositions
+
+    /** The room's plan: the standing blocks to take, in order, and which mob ids each reaches. */
+    private static String coverKey = null;
+    private static String coverIds = null;
+    private static int coverAge = 0;
+    private static final int COVER_REPLAN_TICKS = 10;
+    private static List<BlockPos> coverSpots = List.of();
+    private static List<Set<Integer>> coverMobs = List.of();
+    /** Etherwarps toward mobs, ever (each is a reposition). */
+    private static int repositions = 0;
+
+    /** For the testkit: etherwarps toward mobs so far (only goes up). */
+    public static int repositions() {
+        return repositions;
+    }
+
+    /**
+     * killer560, 2026-10-15: "For rooms that need repositioning make sure that it always chooses the repositioning path
+     * that will require the least amount of total repositions in the room." The standing blocks around the room's starred
+     * mobs, each with the mobs its weapon reaches from there, and the fewest of them that reach every mob
+     * ({@link RepositionPlanner}). Planned again whenever a mob dies or moves a block.
+     */
+    private static void planRepositions(Minecraft client, LocalPlayer player, List<Entity> mobs,
+                                        AutoClearConfig.Weapon weapon) {
+        List<Entity> list = mobs.size() > 63 ? mobs.subList(0, 63) : mobs;
+        StringBuilder ids = new StringBuilder(weapon.name());
+        StringBuilder key = new StringBuilder();
+        for (Entity e : list) {
+            ids.append('|').append(e.getId());
+            key.append('|').append(e.blockPosition().asLong());
+        }
+        coverAge++;
+        boolean sameMobs = ids.toString().equals(coverIds);
+        // The same mobs where they were: nothing to plan. The same mobs moved: again at most every few ticks (walking
+        // mobs move a block every few ticks, and the plan is a few thousand block reads).
+        if (sameMobs && (key.toString().equals(coverKey) || coverAge < COVER_REPLAN_TICKS)) {
+            return;
+        }
+        coverIds = ids.toString();
+        coverKey = key.toString();
+        coverAge = 0;
+        long t0 = System.nanoTime();
+        java.util.Map<Long, Long> masks = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < list.size(); i++) {
+            AABB box = list.get(i).getBoundingBox();
+            BlockPos base = BlockPos.containing(box.getCenter());
+            for (int dx = -5; dx <= 5; dx++) {
+                for (int dz = -5; dz <= 5; dz++) {
+                    for (int dy = -5; dy <= 3; dy++) {
+                        BlockPos pos = base.offset(dx, dy, dz);
+                        long k = pos.asLong();
+                        if (masks.containsKey(k)) {
+                            continue;
+                        }
+                        Vec3 feet = new Vec3(pos.getX() + 0.5, pos.getY() + 1.0, pos.getZ() + 0.5);
+                        if (!reaches(weapon, feet, box)) {
+                            continue;
+                        }
+                        if (!TeleportUtils.etherwarpable(pos)) {
+                            masks.put(k, 0L);
+                            continue;
+                        }
+                        long m = 0;
+                        for (int j = 0; j < list.size(); j++) {
+                            if (reaches(weapon, feet, list.get(j).getBoundingBox())) {
+                                m |= 1L << j;
+                            }
+                        }
+                        masks.put(k, m);
+                    }
+                }
+            }
+        }
+        List<Long> keys = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<Long, Long> e : masks.entrySet()) {
+            if (e.getValue() != 0) {
+                keys.add(e.getKey());
+            }
+        }
+        long[] covers = new long[keys.size()];
+        double[][] spots = new double[keys.size()][];
+        for (int i = 0; i < keys.size(); i++) {
+            BlockPos p = BlockPos.of(keys.get(i));
+            covers[i] = masks.get(keys.get(i));
+            spots[i] = new double[]{p.getX() + 0.5, p.getY() + 1.0, p.getZ() + 0.5};
+        }
+        double[] from = {player.getX(), player.getY(), player.getZ()};
+        double[][] mobAt = new double[list.size()][];
+        for (int j = 0; j < list.size(); j++) {
+            mobAt[j] = new double[]{list.get(j).getX(), list.get(j).getY(), list.get(j).getZ()};
+        }
+        // Only the mobs some block reaches are planned for; the rest keep the per-mob search (and its skip).
+        long reached = 0;
+        for (long c : covers) {
+            reached |= c;
+        }
+        int n = list.size();
+        long all = n >= 63 ? -1L >>> 1 : (1L << n) - 1;
+        long[] trimmed = covers.clone();
+        if ((reached & all) != all) {
+            int[] map = new int[n];
+            int k = 0;
+            for (int j = 0; j < n; j++) {
+                map[j] = (reached & (1L << j)) != 0 ? k++ : -1;
+            }
+            for (int i = 0; i < covers.length; i++) {
+                long m = 0;
+                for (int j = 0; j < n; j++) {
+                    if ((covers[i] & (1L << j)) != 0 && map[j] >= 0) {
+                        m |= 1L << map[j];
+                    }
+                }
+                trimmed[i] = m;
+            }
+            n = k;
+        }
+        RepositionPlanner.Plan plan = RepositionPlanner.plan(trimmed, n, spots, from, 20_000_000L);
+        List<BlockPos> order = new java.util.ArrayList<>();
+        List<Set<Integer>> reach = new java.util.ArrayList<>();
+        if (plan != null) {
+            for (int i : plan.spots()) {
+                order.add(BlockPos.of(keys.get(i)));
+                Set<Integer> mobIds = new HashSet<>();
+                for (int j = 0; j < list.size(); j++) {
+                    if ((covers[i] & (1L << j)) != 0) {
+                        mobIds.add(list.get(j).getId());
+                    }
+                }
+                reach.add(mobIds);
+            }
+        }
+        coverSpots = order;
+        coverMobs = reach;
+        int old = RepositionPlanner.nearestMobFirst(covers, list.size(), spots, mobAt, from);
+        LOGGER.info(String.format(Locale.US, "[AutoClear] reposition plan for %s: %d block(s) reach all %d reachable starred"
+                        + " mob(s)%s (nearest mob first would take %d); %d candidate block(s), %.1f ms: %s", roomName,
+                order.size(), n, plan != null && plan.exact() ? ", fewest proved" : "", old, covers.length,
+                (System.nanoTime() - t0) / 1e6, describePlan(order, reach)));
+    }
+
+    private static String describePlan(List<BlockPos> order, List<Set<Integer>> reach) {
+        List<String> parts = new java.util.ArrayList<>();
+        for (int i = 0; i < order.size(); i++) {
+            parts.add(order.get(i).toShortString() + " x" + reach.get(i).size());
+        }
+        return parts.isEmpty() ? "none" : String.join(", ", parts);
+    }
+
+    private static boolean reaches(AutoClearConfig.Weapon weapon, Vec3 feet, AABB mob) {
+        return weapon == AutoClearConfig.Weapon.HYPERION ? WeaponReach.hyperionHits(feet, mob)
+                : WeaponReach.sceptreHits(feet, mob);
+    }
+
+    /** The plan's first block that reaches {@code mob}, or null. */
+    private static BlockPos coverSpotFor(Entity mob) {
+        for (int i = 0; i < coverSpots.size(); i++) {
+            if (coverMobs.get(i).contains(mob.getId())) {
+                return coverSpots.get(i);
+            }
+        }
+        return null;
+    }
+
+    /** How many mobs the plan's block for {@code mob} reaches (0 when it has none). */
+    private static int coverCountFor(Entity mob) {
+        for (int i = 0; i < coverSpots.size(); i++) {
+            if (coverMobs.get(i).contains(mob.getId())) {
+                return coverMobs.get(i).size();
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * The mob to go for: one the Hyperion's blast reaches from where he stands (no move at all), else one the plan's
+     * first block reaches (that block is the next reposition), else the nearest.
+     */
+    private static Entity pickTarget(LocalPlayer player, List<Entity> mobs, AutoClearConfig.Weapon weapon) {
+        if (weapon == AutoClearConfig.Weapon.HYPERION) {
+            List<Entity> now = new java.util.ArrayList<>();
+            for (Entity e : mobs) {
+                if (WeaponReach.hyperionHits(player.position(), e.getBoundingBox())) {
+                    now.add(e);
+                }
+            }
+            if (!now.isEmpty()) {
+                return nearest(player, now);
+            }
+        }
+        if (!coverSpots.isEmpty()) {
+            List<Entity> reached = new java.util.ArrayList<>();
+            for (Entity e : mobs) {
+                if (coverMobs.get(0).contains(e.getId())) {
+                    reached.add(e);
+                }
+            }
+            if (!reached.isEmpty()) {
+                return nearest(player, reached);
+            }
+        }
+        return nearest(player, mobs);
     }
 
     private static Entity nearest(LocalPlayer player, List<Entity> mobs) {

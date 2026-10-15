@@ -118,6 +118,24 @@ final class Autopilot {
         hudScore = "";
     }
 
+    static double routeSecondsPerNode() {
+        return routeSecondsPerNode;
+    }
+
+    /** The last decision's rooms as {@link RoomTour.Site}s (by candidate key), less {@code except}. */
+    static List<RoomTour.Site> sitesExcept(String except) {
+        List<RoomTour.Site> out = new ArrayList<>();
+        for (RoomTour.Site s : lastSites) {
+            if (!s.key().equals(except)) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
+    /** Every room candidate of the last decision as a site: where a trip into it lands and where its work leaves him. */
+    private static List<RoomTour.Site> lastSites = List.of();
+
     static void onBloodDoorOpened() {
         bloodOpened = true;
         LOGGER.info("[Autopilot] the blood door is open");
@@ -196,8 +214,16 @@ final class Autopilot {
             return finish(false, "300 score reached");
         }
 
-        AutopilotPlanner.Choice c = AutopilotPlanner.choose(party, cands);
+        AutopilotPlanner.Choice c = AutopilotPlanner.chooseTour(party, cands, tourTravel(), 3_000_000L);
         if (c != null) {
+            if (!c.tour().isEmpty()) {
+                List<String> t = new ArrayList<>();
+                for (AutopilotPlanner.Candidate k : c.tour()) {
+                    t.add(k.room());
+                }
+                LOGGER.info("[Autopilot] tour: {} | {} | trips: {} searched, {} estimated", String.join(" > ", t), c.why(),
+                        lastMatrix == null ? 0 : lastMatrix.searched(), lastMatrix == null ? 0 : lastMatrix.estimated());
+            }
             return begin(head, c, rooms);
         }
         LOGGER.info("{} | nothing left it can reach ({} candidate(s), none worth score)", head, cands.size());
@@ -455,12 +481,14 @@ final class Autopilot {
             AutoSecretFeature.sayAutopilot("Auto Clear is off - no room clears this run (Solo cannot reach 300 without them)");
         }
         List<Integer> rush = AutoClearFeature.bloodRushRooms(layout);
+        realTravel = realTravel(layout, rooms, dist);
         for (RoomStatus.Room r : rooms) {
             Integer steps = dist.get(r.room());
             if (steps == null) {
                 continue;   // behind a closed door
             }
-            double travel = travelSeconds(layout, r, steps);
+            Double real = realTravel.get(keyOf(r));
+            double travel = real != null ? real : travelSeconds(layout, r, steps);
             boolean mate = teammateInside(r);
             int rushIndex = rush == null ? -1 : rush.indexOf(r.room());
             String key = keyOf(r);
@@ -530,7 +558,110 @@ final class Autopilot {
             out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.KEY, key,
                     AutopilotScore.roomValue(s) * (none ? 2.0 : 0.5), secs, false, -1));
         }
+        // What the trips between them will be planned for while the next route runs (AutoSecretFeature.planAhead).
+        Map<String, RoomTour.Site> byKey = RoomTour.byKey(siteList);
+        List<RoomTour.Site> weighted = new ArrayList<>();
+        for (AutopilotPlanner.Candidate c : out) {
+            RoomTour.Site site = byKey.get(c.room());
+            if (site != null && c.gain() > 0) {
+                double travelTicks = 20.0 * travelByKey.getOrDefault(c.room(), 0.0);
+                weighted.add(new RoomTour.Site(site.key(), site.arrive(), site.tile(), site.exact(), site.leave(), c.gain(),
+                        Math.max(0, 20.0 * c.seconds() - travelTicks)));
+            }
+        }
+        lastSites = weighted;
         return out;
+    }
+
+    /** This decision's room sites (by candidate key) and the matrix of trips between them, for {@link #tourTravel}. */
+    private static List<RoomTour.Site> siteList = List.of();
+    private static RoomTour.Matrix lastMatrix;
+    private static Map<String, Double> realTravel = Map.of();
+    private static Map<String, Integer> siteIndex = Map.of();
+
+    /**
+     * The trip from here to each candidate room as the Interactive Map's planner searched it ({@link RoomTour}), in
+     * seconds - only rooms whose trip from here was searched; the rest keep the straight-line estimate. Also builds the
+     * rooms' sites and asks for the trips not searched yet.
+     */
+    private static Map<String, Double> realTravel(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        Minecraft client = Minecraft.getInstance();
+        List<RoomTour.Site> sites = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            if (!dist.containsKey(r.room()) || layout.currentRoom() == r.room()) {
+                continue;
+            }
+            RoomTour.Site site = null;
+            if (!"Unknown".equals(r.name()) && !r.isType("TRAP") && !r.isType("PUZZLE")) {
+                site = AutoSecretFeature.secretSite(layout, r, 0, keyOf(r));
+            }
+            if (site == null) {
+                site = tileSite(r);
+            }
+            if (site != null) {
+                sites.add(site);
+            }
+        }
+        siteList = sites;
+        Map<String, Integer> index = new java.util.HashMap<>();
+        for (int i = 0; i < sites.size(); i++) {
+            index.put(sites.get(i).key(), i);
+        }
+        siteIndex = index;
+        if (client.player == null || sites.isEmpty()) {
+            lastMatrix = null;
+            return Map.of();
+        }
+        net.minecraft.world.phys.Vec3 from = client.player.position();
+        if (!RoomTour.fromReady(from, sites)) {
+            RoomTour.request(from, sites, false, "Autopilot deciding from here");
+        }
+        lastMatrix = RoomTour.matrix(from, sites);
+        Map<String, Double> out = new java.util.HashMap<>();
+        for (int i = 0; i < sites.size(); i++) {
+            if (lastMatrix.fromSearched()[i]) {
+                out.put(sites.get(i).key(), lastMatrix.fromHere()[i] / 20.0);
+            }
+        }
+        return out;
+    }
+
+    /** A room's site by its map tile: a trip lands anywhere in the tile; its work leaves him about where he landed. */
+    private static RoomTour.Site tileSite(RoomStatus.Room r) {
+        BlockPos centre = DungeonLayout.cellCenter(r.mainTile());
+        BlockPos land = com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpableInTile(centre,
+                net.minecraft.world.phys.Vec3.atCenterOf(centre));
+        if (land == null) {
+            return null;
+        }
+        return new RoomTour.Site(keyOf(r), land, r.mainTile(), false,
+                new net.minecraft.world.phys.Vec3(land.getX() + 0.5, land.getY() + 1.05, land.getZ() + 0.5), 0, 0);
+    }
+
+    /** {@link AutopilotPlanner.Travel} over this decision's trips (seconds); a candidate without a site: its own estimate. */
+    private static AutopilotPlanner.Travel tourTravel() {
+        RoomTour.Matrix m = lastMatrix;
+        Map<String, Integer> index = siteIndex;
+        List<RoomTour.Site> sites = siteList;
+        return new AutopilotPlanner.Travel() {
+            @Override
+            public double fromHere(String key) {
+                return travelByKey.getOrDefault(key, 0.0);
+            }
+
+            @Override
+            public double between(String a, String b) {
+                Integer i = index.get(a);
+                Integer j = index.get(b);
+                if (m != null && i != null && j != null) {
+                    return m.between()[i][j] / 20.0;
+                }
+                if (i != null && j != null) {
+                    return RoomTour.estimate(sites.get(i).leave(), sites.get(j).arrive()) / 20.0;
+                }
+                return Math.max(travelByKey.getOrDefault(b, 0.0), 1.0);
+            }
+        };
     }
 
     /** The Auto Trap mode each trap candidate of the last decision would play, by {@link #keyOf}. */

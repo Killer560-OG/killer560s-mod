@@ -45,8 +45,19 @@ public final class AutopilotPlanner {
         }
     }
 
-    /** The pick, why, and every candidate in the order it was weighed (best first). */
-    public record Choice(Candidate pick, String why, List<Candidate> ranked) {
+    /** The pick, why, and every candidate in the order it was weighed (best first); {@code tour}: the order it plans to
+     *  take them in (by {@link #chooseTour}; empty from {@link #choose}). */
+    public record Choice(Candidate pick, String why, List<Candidate> ranked, List<Candidate> tour) {
+        public Choice(Candidate pick, String why, List<Candidate> ranked) {
+            this(pick, why, ranked, List.of());
+        }
+    }
+
+    /** Trip times between candidates, in seconds: from where he is to one, and from where one's work ends to another. */
+    public interface Travel {
+        double fromHere(String key);
+
+        double between(String fromKey, String toKey);
     }
 
     private static final Comparator<Candidate> BY_RATE = Comparator.comparingDouble(Candidate::rate).reversed()
@@ -85,6 +96,64 @@ public final class AutopilotPlanner {
         }
         return rest.isEmpty() ? null : new Choice(rest.get(0), "Party: no secrets left it can reach - nobody else is on this one",
                 ranked);
+    }
+
+    /**
+     * {@link #choose}'s pools and tiers, but within the tier the whole order counts, not the next action alone
+     * ({@link TourPlanner}: every candidate's score, by the second it is in, over the trips between them) - killer560,
+     * 2026-10-15: "spending 20 ticks etherwarping across a map for 2 secrets is less optimal than doing 2 1 secret rooms
+     * taking 5 ticks each". A key on the ground that is the best by rate is still taken first (it opens doors for the
+     * whole party). Each candidate's work is its seconds less its trip from here.
+     */
+    public static Choice chooseTour(boolean party, List<Candidate> all, Travel travel, long budgetNanos) {
+        Choice byRate = choose(party, all);
+        if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
+            return byRate;
+        }
+        Kind tier = byRate.pick().kind();
+        boolean secretTier = party && (tier == Kind.SECRET || tier == Kind.KEY);
+        List<Candidate> pool = new ArrayList<>();
+        for (Candidate c : byRate.ranked()) {
+            if (c.kind() == Kind.KEY || c.gain() <= 0) {
+                continue;
+            }
+            boolean secret = c.kind() == Kind.SECRET;
+            if (!party || secretTier == secret) {
+                pool.add(c);
+            }
+        }
+        if (pool.size() <= 1) {
+            return byRate;
+        }
+        int n = pool.size();
+        double[] fromHere = new double[n];
+        double[][] between = new double[n][n];
+        double[] weight = new double[n];
+        double[] work = new double[n];
+        for (int i = 0; i < n; i++) {
+            Candidate c = pool.get(i);
+            fromHere[i] = Math.max(0, travel.fromHere(c.room()));
+            weight[i] = c.gain();
+            work[i] = Math.max(0, c.seconds() - fromHere[i]);
+            for (int j = 0; j < n; j++) {
+                between[i][j] = i == j ? 0 : Math.max(0, travel.between(c.room(), pool.get(j).room()));
+            }
+        }
+        TourPlanner.Result res = TourPlanner.plan(fromHere, between, weight, work, budgetNanos);
+        List<Candidate> tour = new ArrayList<>();
+        for (int i : res.order()) {
+            tour.add(pool.get(i));
+        }
+        int[] rateOrder = new int[n];
+        for (int i = 0; i < n; i++) {
+            rateOrder[i] = i;   // the pool is in rate order already
+        }
+        double[] mine = TourPlanner.evaluate(res.order(), fromHere, between, weight, work);
+        double[] rate = TourPlanner.evaluate(rateOrder, fromHere, between, weight, work);
+        String why = String.format(java.util.Locale.US, "%s: best order for score by the second (score-weighted wait %.1f,"
+                        + " all in %.1f s; best-per-second-next %.1f, %.1f s)", party ? "Party, " + (secretTier
+                        ? "secrets first" : "nothing left but this tier") : "Solo", mine[0], mine[1], rate[0], rate[1]);
+        return new Choice(tour.get(0), why, byRate.ranked(), tour);
     }
 
     /** Blood First: the uncleared room furthest back on the rush path (a teammate's room left to them), or null. */
