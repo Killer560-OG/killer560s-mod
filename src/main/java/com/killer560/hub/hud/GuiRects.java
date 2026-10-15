@@ -61,6 +61,9 @@ public final class GuiRects {
 
     /** As {@code GuiGraphicsExtractor.fill(x0, y0, x1, y1, color)}. */
     public GuiRects fill(int x0, int y0, int x1, int y1, int color) {
+        if (com.killer560.hub.gui.MenuAnim.fade < 1f) {
+            color = com.killer560.hub.gui.MenuAnim.faded(color); // the mod menu fading (gui/MenuAnim)
+        }
         if (x0 < x1) {
             int t = x0;
             x0 = x1;
@@ -95,6 +98,10 @@ public final class GuiRects {
         }
         if (x0 == x1 || y0 == y1) {
             return this;
+        }
+        if (com.killer560.hub.gui.MenuAnim.fade < 1f) {
+            top = com.killer560.hub.gui.MenuAnim.faded(top);
+            bottom = com.killer560.hub.gui.MenuAnim.faded(bottom);
         }
         if (count == parts.length) {
             parts = Arrays.copyOf(parts, count * 2);

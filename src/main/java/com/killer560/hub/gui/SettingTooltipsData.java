@@ -68,6 +68,7 @@ final class SettingTooltipsData {
         d.put("menu theme", "The mod menu's colors: Amber (the default orange), Dark (neutral grays), Light (light panels, dark text) or Custom. The round button in the menu's header switches it too.");
         d.put("menu theme/menu theme", "Amber, Dark, Light, Ocean or Custom. Left click goes to the next, right click back.");
         d.put("theme", "This screen's own colors. Theme Default follows the mod menu's theme; Amber, Dark, Light, Ocean or Custom (the menu's Custom colors) apply to this screen only. Left click goes to the next, right click back.");
+        d.put("menu theme/animations", "How the mod menu moves: Smooth eases hovers, switches, the drawer, scrolling and opening; Reduced keeps only short color fades (nothing slides or grows); Off changes everything at once. Left click goes to the next, right click back.");
         d.put("menu theme/accent", "Custom: the color of titles, selections, outlines and buttons. Changing any color switches the menu to Custom, started from the theme you were on.");
         d.put("menu theme/panel background", "Custom: the menu's background. A light color turns on the light look (gray outlines, soft shadows, dark text expected).");
         d.put("menu theme/card background", "Custom: the feature cards and the boxes on Home.");

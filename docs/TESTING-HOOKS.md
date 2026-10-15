@@ -81,3 +81,13 @@ stands in for the relay's linked-supporter answer. The startup check (`tickStart
 ## Slot Text and Compactor Preview (`slottext/SlotTextFeature`, `compactorpreview/CompactorPreviewFeature`)
 
 No property. Both show only while their key is held in the key modes, and a harness key press never reaches the GLFW poll, so `keyHeldForTest` (static `Boolean`, null in play) on each feature stands in for the key. `SlotTextFeature.textFor(stack, menuTitle, slotIndex, playerSlot)` returns the text a slot would get under the live per-type switches; `CompactorPreviewFeature.contentsOf(stack)` and `augment(components, stack)` read a compactor's slots and add the grid (testkit 960-967).
+
+## Menu animation clock (`gui/MenuAnim`)
+
+- `-Dkiller560.test.menuAnimClock=instant` makes every mod menu animation instant (as Animations: Off) while no case
+  drives the clock. The gametest lockstep renders one frame per tick as fast as it can, and many cases read the very
+  frame after a click; on the wall clock they would read a fade half done. The testkit sets it for every run.
+- `MenuAnim.setClockForTest(ms)` fixes the clock (a negative value goes back to the real one), so a case can step it
+  1/30 s or 1/300 s per frame and compare (testkit 1590-1596). `ModScreen.animState()` / `cardAnimState(tab)` read the
+  animations; `ModScreen.allocProbe` adds up the bytes the render thread allocates inside each menu frame
+  (`allocBytes` / `allocFrames`).

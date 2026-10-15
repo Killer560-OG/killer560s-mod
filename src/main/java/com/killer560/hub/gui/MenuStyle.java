@@ -112,7 +112,9 @@ public final class MenuStyle {
      */
     public static void use() {
         int[] c = null;
-        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t && t.themeId() != null) {
+        if (!ModScreen.drawingClosed // a closed menu fading out over another screen keeps the menu's colours
+                && com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof MenuThemedScreen t
+                && t.themeId() != null) {
             c = MenuTheme.forScreen(t.themeId());
         }
         if (c == null) {
@@ -269,6 +271,12 @@ public final class MenuStyle {
         return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
+    /** {@code a} at 0, {@code b} at 1, mixed between (exactly a / b at the ends, so a settled animation draws the same
+     *  pixels as no animation). */
+    public static int ease(int a, int b, float t) {
+        return t <= 0f ? a : t >= 1f ? b : mix(a, b, t);
+    }
+
     /** Linear mix of two colours, alpha included. */
     public static int mix(int a, int b, float t) {
         int r = 0;
@@ -360,14 +368,23 @@ public final class MenuStyle {
 
     /** The on/off switch: a recessed pill, orange gradient + glow when on, with a bevelled knob. */
     public static void toggle(GuiRects r, int x, int y, boolean on, boolean hover) {
+        toggle(r, x, y, on ? 1f : 0f, on ? 1f : 0f, hover ? 1f : 0f);
+    }
+
+    /**
+     * The switch part way between off and on (gui/MenuAnim): {@code knob} places the knob (0 left .. 1 right),
+     * {@code colour} blends the track, glow and knob colours, {@code hover} the hover shade. At 0/1 it draws exactly
+     * the boolean switch's pixels.
+     */
+    public static void toggle(GuiRects r, int x, int y, float knob, float colour, float hover) {
         int w = SWITCH_W;
         int h = SWITCH_H;
-        if (on) {
-            glow(r, x, y, w, h, SW_ON_BOTTOM, hover ? 0x60 : 0x40);
+        if (colour > 0f) {
+            glow(r, x, y, w, h, SW_ON_BOTTOM, Math.round((0x40 + 0x20 * hover) * colour));
         }
         // pill: square ends softened by clipping a pixel off each corner
-        int top = on ? SW_ON_TOP : SW_OFF_TOP;
-        int bottom = on ? SW_ON_BOTTOM : SW_OFF_BOTTOM;
+        int top = colour <= 0f ? SW_OFF_TOP : colour >= 1f ? SW_ON_TOP : mix(SW_OFF_TOP, SW_ON_TOP, colour);
+        int bottom = colour <= 0f ? SW_OFF_BOTTOM : colour >= 1f ? SW_ON_BOTTOM : mix(SW_OFF_BOTTOM, SW_ON_BOTTOM, colour);
         r.fill(x + 1, y, x + w - 1, y + 1, BLACK);
         r.fill(x + 1, y + h - 1, x + w - 1, y + h, BLACK);
         r.fill(x, y + 1, x + 1, y + h - 1, BLACK);
@@ -376,24 +393,30 @@ public final class MenuStyle {
         r.fill(x + 1, y + 1, x + w - 1, y + 2, shadow(0x70));
         r.fill(x + 1, y + 2, x + 2, y + h - 1, shadow(0x50));
         int k = h - 2;
-        int kx = on ? x + w - 1 - k : x + 1;
+        int kx = x + 1 + Math.round(Math.max(0f, Math.min(1f, knob)) * (w - 2 - k));
         int ky = y + 1;
-        int knob = on ? KNOB : (hover ? mix(KNOB_OFF, TXT, 0.3f) : KNOB_OFF);
-        r.fill(kx + 1, ky, kx + k - 1, ky + k, knob);
-        r.fill(kx, ky + 1, kx + k, ky + k - 1, knob);
+        int offKnob = hover <= 0f ? KNOB_OFF : mix(KNOB_OFF, mix(KNOB_OFF, TXT, 0.3f), hover);
+        int knobColour = colour <= 0f ? offKnob : colour >= 1f ? KNOB : mix(offKnob, KNOB, colour);
+        r.fill(kx + 1, ky, kx + k - 1, ky + k, knobColour);
+        r.fill(kx, ky + 1, kx + k, ky + k - 1, knobColour);
         r.fill(kx + 1, ky, kx + k - 1, ky + 1, 0x60FFFFFF);
         r.fill(kx + 1, ky + k - 1, kx + k - 1, ky + k, shadow(0x4D));
     }
 
     /** A recessed pill holding a value (the cycling buttons): dark well, an orange-gradient face when {@code lit}. */
     public static void pill(GuiRects r, int x, int y, int w, int h, boolean lit, boolean hover) {
+        pill(r, x, y, w, h, lit, hover ? 1f : 0f);
+    }
+
+    /** {@link #pill} with an eased hover (0..1). */
+    public static void pill(GuiRects r, int x, int y, int w, int h, boolean lit, float hover) {
         r.outline(x, y, w, h, BLACK);
         if (lit) {
-            r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, hover ? OR_HOVER : OR_LIGHT, hover ? OR : OR_DARK);
+            r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, ease(OR_LIGHT, OR_HOVER, hover), ease(OR_DARK, OR, hover));
             r.fill(x + 1, y + 1, x + w - 1, y + 2, 0x60FFFFFF);
             r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, shadow(0x50));
         } else {
-            r.fill(x + 1, y + 1, x + w - 1, y + h - 1, hover ? PILL_BG_HOVER : PILL_BG);
+            r.fill(x + 1, y + 1, x + w - 1, y + h - 1, ease(PILL_BG, PILL_BG_HOVER, hover));
             r.fill(x + 1, y + 1, x + w - 1, y + 2, shadow(0xC0));
             r.fill(x + 1, y + 2, x + 2, y + h - 1, shadow(0x80));
         }
@@ -401,10 +424,15 @@ public final class MenuStyle {
 
     /** A raised button with the orange outline ring (.btn): dark-orange gradient face, black edge, orange ring outside. */
     public static void raisedButton(GuiRects r, int x, int y, int w, int h, boolean hover, boolean pressedLook) {
+        raisedButton(r, x, y, w, h, hover ? 1f : 0f, pressedLook ? 1f : 0f);
+    }
+
+    /** {@link #raisedButton} with an eased hover and press (0..1 each; press 1 is the pressed look). */
+    public static void raisedButton(GuiRects r, int x, int y, int w, int h, float hover, float press) {
         dropShadow(r, x, y, w, h, 2);
-        r.outline(x - 1, y - 1, w + 2, h + 2, hover ? OR : ACCENT_EDGE);
-        int top = pressedLook ? BTN_PRESSED_TOP : (hover ? BTN_HOVER_TOP : BTN_TOP);
-        int bottom = pressedLook ? BTN_PRESSED_BOTTOM : (hover ? BTN_HOVER_BOTTOM : BTN_BOTTOM);
+        r.outline(x - 1, y - 1, w + 2, h + 2, ease(ACCENT_EDGE, OR, hover));
+        int top = ease(ease(BTN_TOP, BTN_HOVER_TOP, hover), BTN_PRESSED_TOP, press);
+        int bottom = ease(ease(BTN_BOTTOM, BTN_HOVER_BOTTOM, hover), BTN_PRESSED_BOTTOM, press);
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
         r.outline(x, y, w, h, BLACK);
         r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
@@ -446,6 +474,11 @@ public final class MenuStyle {
 
     /** Slider track (recessed) with the filled part orange and a bevelled white knob. */
     public static void sliderTrack(GuiRects r, int x0, int x1, int cy, double t, boolean hover) {
+        sliderTrack(r, x0, x1, cy, t, hover ? 1f : 0f);
+    }
+
+    /** {@link #sliderTrack} with an eased knob hover. */
+    public static void sliderTrack(GuiRects r, int x0, int x1, int cy, double t, float hover) {
         int h = 4;
         int y = cy - h / 2;
         r.outline(x0, y, x1 - x0, h, BLACK);
@@ -460,11 +493,16 @@ public final class MenuStyle {
 
     /** An 8x8 rounded white knob with a black edge. */
     public static void knob(GuiRects r, int x, int y, boolean hover) {
+        knob(r, x, y, hover ? 1f : 0f);
+    }
+
+    /** {@link #knob} with an eased hover. */
+    public static void knob(GuiRects r, int x, int y, float hover) {
         int s = 8;
         r.fill(x + 2, y, x + s - 2, y + s, BLACK);
         r.fill(x, y + 2, x + s, y + s - 2, BLACK);
         r.fill(x + 1, y + 1, x + s - 1, y + s - 1, BLACK);
-        int face = hover ? KNOB_HOVER : KNOB;
+        int face = ease(KNOB, KNOB_HOVER, hover);
         r.fill(x + 2, y + 1, x + s - 2, y + s - 1, face);
         r.fill(x + 1, y + 2, x + s - 1, y + s - 2, face);
         r.fill(x + 2, y + s - 2, x + s - 2, y + s - 1, KNOB_EDGE);

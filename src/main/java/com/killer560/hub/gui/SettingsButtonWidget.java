@@ -32,7 +32,7 @@ import net.minecraft.network.chat.Component;
  *  {@code mouseClicked}, so every existing call site with no {@code secondaryPress} keeps behaving
  *  exactly as before (right-click on it simply does nothing, same as pre-2026-09-27). Only call sites
  *  that opt in with {@code .secondaryPress(...)} - the enum-cycling buttons - respond to right-click. */
-public final class SettingsButtonWidget extends AbstractWidget {
+public final class SettingsButtonWidget extends AbstractWidget implements MenuAnim.Animated {
 
     private static final int BORDER = 0xFF663D1A;
     private static final int BORDER_HOVER = 0xFFCC6600;
@@ -60,6 +60,19 @@ public final class SettingsButtonWidget extends AbstractWidget {
     private final OnPress onSecondaryPress;
     private final boolean primary;
     private final boolean danger;
+    /** Its animation in the mod menu (hover, switch, press, value); handed to its rebuilt copy by ModScreen. */
+    private final MenuAnim.RowAnim anim = new MenuAnim.RowAnim();
+
+    @Override
+    public MenuAnim.RowAnim anim() {
+        return anim;
+    }
+
+    @Override
+    public String animKey() {
+        Parts p = parts();
+        return "B|" + p.look() + "|" + p.label();
+    }
 
     private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean primary,
             boolean danger, int x, int y, int width, int height) {
@@ -258,7 +271,8 @@ public final class SettingsButtonWidget extends AbstractWidget {
     /** Whether a widget is being drawn inside the mod menu right now, where it takes the menu's row look. Elsewhere (the
      *  title screen, the AR editor, every other screen that uses this button) it keeps its plain box. */
     static boolean inMenu() {
-        return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
+        return ModScreen.drawingClosed
+                || com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof ModScreen;
     }
 
     /** Whether the open screen is one of the mod's screens drawn in the menu theme ({@link MenuThemedScreen}). There the
@@ -297,6 +311,8 @@ public final class SettingsButtonWidget extends AbstractWidget {
     /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */
     public void press() {
         if (active && visible && onPress != null) {
+            anim.pressed();
+            anim.valueDir = 1;
             onPress.onPress(this);
         }
     }
@@ -336,6 +352,10 @@ public final class SettingsButtonWidget extends AbstractWidget {
         int h = getHeight();
         var font = Minecraft.getInstance().font;
         boolean hover = isHovered && active;
+        // Eased in the menu (gui/MenuAnim): hover shades, a press flash, the switch's knob and colour.
+        anim.hover.set(hover ? 1f : 0f);
+        float hv = anim.hover.get();
+        float pr = anim.press.get();
         int textY = y0 + (h - 8) / 2;
         com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
         if (danger || primary || p.look() == Look.ACTION) {
@@ -343,47 +363,59 @@ public final class SettingsButtonWidget extends AbstractWidget {
             if (danger) {
                 MenuStyle.dangerButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hover);
             } else {
-                MenuStyle.raisedButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hover, primary);
+                MenuStyle.raisedButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hv, primary ? 1f : pr);
             }
             r.submit();
             String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
             if (MenuStyle.LIGHT) {
                 label = MenuStyle.lightReadable(label); // a §a / §7 label stays readable on a light theme
             }
-            int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0 : (hover || primary ? MenuStyle.OR_HOVER : MenuStyle.OR));
+            int color = !active ? MenuStyle.DIM2 : (danger ? 0xFFFFD0D0
+                    : MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, primary ? 1f : Math.max(hv, pr)));
             graphics.text(font, label, x0 + (w - font.width(label)) / 2, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;
         }
         if (p.look() == Look.HEADER) {
             MenuStyle.sectionBand(r, x0, y0 + 1, w, h - 2, getMessage().getString().contains("§c"));
-            if (hover) {
-                r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x10));
+            float band = Math.max(hv, pr);
+            if (band > 0f) {
+                r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x10 * band)));
             }
             r.submit();
             boolean red = getMessage().getString().contains("§c");
-            int color = red ? MenuStyle.RED_TITLE : (hover ? MenuStyle.OR_HOVER : MenuStyle.OR);
+            int color = red ? MenuStyle.RED_TITLE : MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, hv);
             graphics.text(font, p.on() ? "▼" : "▶", x0 + 5, textY, faded(color), MenuStyle.TEXT_SHADOW);
             graphics.text(font, net.minecraft.network.chat.Component.literal(p.label())
                     .withStyle(net.minecraft.ChatFormatting.BOLD), x0 + 16, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;
         }
-        // A setting row: faint hover band and a separator under it, label left, control right.
-        if (hover) {
-            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
+        // A setting row: faint hover band and a separator under it, label left, control right. A press washes the row
+        // in the accent for a moment.
+        if (hv > 0f) {
+            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x0E * hv)));
+        }
+        if (pr > 0f) {
+            r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.OR, Math.round(0x22 * pr)));
         }
         MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
         int[] c = controlBounds();
         switch (p.look()) {
-            case SWITCH -> MenuStyle.toggle(r, c[0], c[1], p.on(), hover);
-            case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, hover);
+            case SWITCH -> {
+                float on = p.on() ? 1f : 0f;
+                anim.on.set(on);
+                anim.onColour.set(on);
+                MenuStyle.toggle(r, c[0], c[1], anim.on.get(), anim.onColour.get(), hv);
+            }
+            case PILL -> MenuStyle.pill(r, c[0], c[1], c[2], c[3], false, hv);
             default -> {
-                r.outline(c[0], c[1], c[2], c[3], hover ? MenuStyle.OR2 : MenuStyle.BLACK);
+                r.outline(c[0], c[1], c[2], c[3], MenuStyle.ease(MenuStyle.BLACK, MenuStyle.OR2, hv));
                 r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + c[3] - 1, MenuStyle.PILL_BG);
                 r.fill(c[0] + 1, c[1] + 1, c[0] + c[2] - 1, c[1] + 2, MenuStyle.shadow(0xC0));
             }
         }
         r.submit();
-        int labelColor = !active ? MenuStyle.DIM2 : (p.dimLabel() ? MenuStyle.DIM : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT));
+        int labelColor = !active ? MenuStyle.DIM2 : (p.dimLabel() ? MenuStyle.DIM
+                : MenuStyle.ease(MenuStyle.TXT, MenuStyle.TXT_HOVER, hv));
         int labelMax = c[0] - x0 - 10;
         String label = p.label();
         if (!p.note().isEmpty() && font.width(label + " " + p.note()) <= labelMax) {
@@ -396,12 +428,22 @@ public final class SettingsButtonWidget extends AbstractWidget {
         if (p.look() == Look.PILL) {
             // The arrow on the half the mouse is over lights up: that half is what a click steps (pillStep).
             int half = hover ? pillHalf(mouseX, c) : 0;
-            graphics.text(font, "‹", c[0] + 3, vy, faded(half < 0 ? MenuStyle.OR_HOVER : hover ? MenuStyle.OR : MenuStyle.DIM2), false);
+            int arrow = MenuStyle.ease(MenuStyle.DIM2, MenuStyle.OR, hv);
+            graphics.text(font, "‹", c[0] + 3, vy, faded(half < 0 ? MenuStyle.OR_HOVER : arrow), false);
             graphics.text(font, "›", c[0] + c[2] - 3 - font.width("›"), vy,
-                    faded(half > 0 ? MenuStyle.OR_HOVER : hover ? MenuStyle.OR : MenuStyle.DIM2), false);
+                    faded(half > 0 ? MenuStyle.OR_HOVER : arrow), false);
+            // A new value fades in, sliding a few units in from the side it was stepped toward.
+            anim.value(p.value());
+            float in = anim.valueIn.get();
             String v = MenuStyle.ellipsize(p.value(), c[2] - 18);
-            graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2, vy, faded(hover ? MenuStyle.OR_HOVER : MenuStyle.OR),
-                    MenuStyle.TEXT_SHADOW);
+            int slide = in < 1f && MenuAnim.mode() == MenuAnim.Mode.SMOOTH ? Math.round((1f - in) * 4f) * anim.valueDir : 0;
+            float prevFade = MenuAnim.pushFade(0.2f + 0.8f * in);
+            try {
+                graphics.text(font, v, c[0] + (c[2] - font.width(v)) / 2 + slide, vy,
+                        faded(MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, hv)), MenuStyle.TEXT_SHADOW);
+            } finally {
+                MenuAnim.popFade(prevFade);
+            }
         } else if (p.look() == Look.CHIP) {
             Integer swatch = swatchColour();
             if (swatch != null) {
@@ -492,6 +534,8 @@ public final class SettingsButtonWidget extends AbstractWidget {
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
         if (onPress != null) {
+            anim.pressed();
+            anim.valueDir = 1;
             onPress.onPress(this);
         }
     }
@@ -531,12 +575,17 @@ public final class SettingsButtonWidget extends AbstractWidget {
                 return false;
             }
             playDownSound(Minecraft.getInstance().getSoundManager());
-            (event.button() == 1 || half < 0 ? onSecondaryPress : onPress).onPress(this);
+            boolean back = event.button() == 1 || half < 0;
+            anim.pressed();
+            anim.valueDir = back ? -1 : 1;
+            (back ? onSecondaryPress : onPress).onPress(this);
             return true;
         }
         if (onSecondaryPress != null && active && visible && event.button() == 1
                 && isMouseOver(event.x(), event.y())) {
             playDownSound(Minecraft.getInstance().getSoundManager());
+            anim.pressed();
+            anim.valueDir = -1;
             onSecondaryPress.onPress(this);
             return true;
         }

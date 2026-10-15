@@ -470,3 +470,13 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   two or more, so a row whose partner was hidden (Door Keys' Show Tracer with the tracer off) or never planned (Names
   Holding Leap) stopped in the middle. Lone plain rows now take the drawer's full width, stacked or not
   (`widenLoneRows`); testkit 1015-ui-switch-align sweeps every drawer with each switch flipped.
+- **A UI animation must start when the input happened, not at the next frame that notices it** (menu-anim, 2026-10-15). A
+  tween retargeted from the draw starts at that frame's time, so at 30 FPS a switch's knob ran 33 ms behind the same click
+  at 300 FPS (testkit 1590: 0.83 against 0.96 at 100 ms). `MenuAnim.input()` stamps clicks, keys and the wheel and a
+  change seen at the next frame starts from that stamp. Two draws at one clock value are one frame, or the stamp is lost.
+- **`now - Long.MIN_VALUE` overflows to a negative elapsed time.** The menu's "never started" sentinel made `progress()`
+  return 0, so a fresh menu's cards were drawn at opacity 0 and every drawer row at 25% - found because 1594's per-frame
+  allocation was 100 KB LOWER with Smooth than with Off (invisible text is never built). Guard the sentinel first.
+- **A closing animation cannot keep the screen open.** Escape must hand the game its input at once (testkit 942/986 check the
+  menu is gone right after the key), so the menu closes immediately and `MenuCloseFade` draws the closed ModScreen's
+  picture fading over whatever is next (a HUD layer with no screen, `ScreenEvents.afterExtract` over one).

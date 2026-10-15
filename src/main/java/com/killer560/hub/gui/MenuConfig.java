@@ -35,6 +35,8 @@ public final class MenuConfig {
     private final Set<String> favourites = new LinkedHashSet<>();
     /** The colour preset the menu draws in (killer560, 2026-10-12): Amber by default. */
     private MenuTheme theme = MenuTheme.AMBER;
+    /** The menu's Animations setting (killer560, 2026-10-15): Smooth by default. */
+    private MenuAnim.Mode animations = MenuAnim.Mode.SMOOTH;
     /** The preset the Custom colours were started from (what Reset puts back). */
     private MenuTheme customBase = MenuTheme.AMBER;
     /** Custom's five colours, in {@link MenuTheme.Slot} order. */
@@ -82,6 +84,9 @@ public final class MenuConfig {
                         .getAsJsonObject();
                 if (obj.has("theme")) {
                     cfg.theme = MenuTheme.parse(obj.get("theme").getAsString());
+                }
+                if (obj.has("animations")) {
+                    cfg.animations = MenuAnim.Mode.parse(obj.get("animations").getAsString());
                 }
                 if (obj.has("customBase")) {
                     MenuTheme b = MenuTheme.parse(obj.get("customBase").getAsString());
@@ -160,6 +165,7 @@ public final class MenuConfig {
             }
             obj.add("favourites", arr);
             obj.addProperty("theme", theme.name());
+            obj.addProperty("animations", animations.name());
             obj.addProperty("customBase", customBase.name());
             obj.add("custom", writeColours(custom));
             JsonArray saved = new JsonArray();
@@ -185,6 +191,14 @@ public final class MenuConfig {
     /** Changes whenever the theme or a custom colour changes (or the file is re-read). */
     public static int version() {
         return version;
+    }
+
+    public MenuAnim.Mode getAnimations() {
+        return animations;
+    }
+
+    public void setAnimations(MenuAnim.Mode mode) {
+        animations = mode == null ? MenuAnim.Mode.SMOOTH : mode;
     }
 
     public MenuTheme getTheme() {

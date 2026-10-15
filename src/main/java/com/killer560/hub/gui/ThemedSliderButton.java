@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Component;
  *  track ({@link #trackRange()}), not the whole row, so the knob lands where the mouse is. Too narrow for that, the
  *  label and value sit above a full-width track. A MenuThemedScreen (screen sweep C) gets the same row; elsewhere it keeps the old box.
  */
-public abstract class ThemedSliderButton extends AbstractSliderButton {
+public abstract class ThemedSliderButton extends AbstractSliderButton implements MenuAnim.Animated {
 
     private static final int TRACK_BG = 0xFF1A1A1A;
     private static final int TRACK_BORDER = 0xFF663D1A;
@@ -33,6 +33,21 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
 
     protected ThemedSliderButton(int x, int y, int width, int height, Component message, double value) {
         super(x, y, width, height, message, value);
+    }
+
+    /** Its animation in the mod menu (hover, the knob gliding to a clicked spot); handed to its rebuilt copy. */
+    private final MenuAnim.RowAnim anim = new MenuAnim.RowAnim();
+    /** Set by a click on the track: the knob glides to the new value. A drag (or a key) moves it with the mouse. */
+    private boolean clickJump;
+
+    @Override
+    public MenuAnim.RowAnim anim() {
+        return anim;
+    }
+
+    @Override
+    public String animKey() {
+        return "S|" + dragKey();
     }
 
     /** The message split at its first ':' into label and value ("Bar Width: 120" -> "Bar Width", "120"). */
@@ -127,12 +142,14 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
             int[] t = trackRange();
             float f = screenFactor();
             liveDrag = new LiveDrag(dragKey(), t[0] * (double) f, t[1] * (double) f);
+            clickJump = true;
             setValue(valueAt(event.x()));
         }
     }
 
     @Override
     protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
+        clickJump = false;
         if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen())) {
             setValue(dragValueAt(event.x()));
             return;
@@ -157,17 +174,29 @@ public abstract class ThemedSliderButton extends AbstractSliderButton {
             String[] s = split();
             int[] t = trackRange();
             boolean hover = isHovered;
+            anim.hover.set(hover ? 1f : 0f);
+            float hv = anim.hover.get();
+            // A click on the track glides the knob there; dragging follows the mouse exactly.
+            float v = (float) this.value;
+            if (v != anim.value.target()) {
+                if (clickJump && anim.value.placed()) {
+                    anim.value.set(v);
+                } else {
+                    anim.value.snap(v);
+                }
+            }
+            clickJump = false;
             com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
-            if (hover) {
-                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, 0x0E));
+            if (hv > 0f) {
+                r.fill(x0, y0, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x0E * hv)));
             }
             MenuStyle.separator(r, x0, x0 + w, y0 + h - 2);
             boolean row = rowLayout();
             int cy = row ? y0 + h / 2 - 1 : y0 + h - 6;
-            MenuStyle.sliderTrack(r, t[0], t[1], cy, this.value, hover);
+            MenuStyle.sliderTrack(r, t[0], t[1], cy, anim.value.get(), hv);
             r.submit();
             int textY = row ? y0 + (h - 8) / 2 : y0 + 1;
-            int labelColor = this.active ? (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT) : MenuStyle.DIM2;
+            int labelColor = this.active ? MenuStyle.ease(MenuStyle.TXT, MenuStyle.TXT_HOVER, hv) : MenuStyle.DIM2;
             if (row) {
                 graphics.text(font, MenuStyle.ellipsize(s[0], t[0] - x0 - 14), x0 + 4, textY, labelColor, MenuStyle.TEXT_SHADOW);
                 graphics.text(font, s[1], x0 + w - 4 - font.width(s[1]), textY, MenuStyle.DIM, MenuStyle.TEXT_SHADOW);
