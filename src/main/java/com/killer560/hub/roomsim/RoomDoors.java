@@ -339,6 +339,11 @@ public final class RoomDoors {
      * itself is the next column in. Tile centres sit {@code margin + TILE/2} in and every {@code TILE + 1}
      * after that, which is the same arithmetic {@link RoomPlacer} pastes with.
      */
+    /** {@link #of}'s measurement for a room that is not (yet) in the library - {@link RoomCapture}'s check. No cache. */
+    static Mask measure(RoomLibrary.Room room) {
+        return detect(room);
+    }
+
     private static Mask detect(RoomLibrary.Room room) {
         int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
         int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
