@@ -33,6 +33,28 @@ public enum DungeonClass {
         return (alpha << 24) | (color & 0x00FFFFFF);
     }
 
+    /** The nearest section-sign colour code to {@link #color()}: button labels in this GUI are such strings, and these
+     *  are the codes the rest of the mod's class-coloured text already uses. {@code null} (unknown) is grey. */
+    public static String colourCode(DungeonClass cls) {
+        if (cls == null) {
+            return "§7";
+        }
+        return switch (cls) {
+            case MAGE -> "§9";
+            case TANK -> "§a";
+            case HEALER -> "§d";
+            case ARCHER -> "§c";
+            case BERSERKER -> "§6";
+        };
+    }
+
+    /** One step round the ring None, Mage, Tank, Healer, Archer, Berserker (null = none): {@code dir} +1 forward, -1 back. */
+    public static DungeonClass step(DungeonClass current, int dir) {
+        DungeonClass[] all = values();
+        int i = Math.floorMod((current == null ? 0 : current.ordinal() + 1) + dir, all.length + 1);
+        return i == 0 ? null : all[i - 1];
+    }
+
     public static DungeonClass byName(String name) {
         for (DungeonClass c : values()) {
             if (c.name().equalsIgnoreCase(name) || c.displayName.equalsIgnoreCase(name)) {

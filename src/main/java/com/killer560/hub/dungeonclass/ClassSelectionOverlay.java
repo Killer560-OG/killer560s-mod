@@ -41,8 +41,9 @@ import com.killer560.hub.compat.McCompat;
  * <b>Assignment.</b> There is no real Hypixel mechanic for putting a class on someone else - each player picks
  * their own. So "drag and drop or click and it replaces/goes to that spot" is implemented as a local planning
  * tool over the mod's own existing "who is meant to be playing what" store, {@link ClassOverrides} (the exact
- * same one the Class Overrides tab already edits, and every class-coloured display in the mod already reads) -
- * not a second, throwaway assignment table. Interaction is click-based (the request explicitly offers it as an
+ * same one the Leap Order editor - {@code /leaporder}, {@code /class} - edits, and every class-coloured display in the
+ * mod already reads) - not a second, throwaway assignment table. The party bar ends in an "Edit Classes" chip that
+ * opens that editor over this screen (2026-10-15). Interaction is click-based (the request explicitly offers it as an
  * alternative to drag-and-drop): click a name in the top bar to pick it up, then click one of the five class
  * boxes to drop it there (or click the same box again to put it back down without moving it).
  */
@@ -58,6 +59,8 @@ public final class ClassSelectionOverlay {
     private static final int BAR_Y = 6;
     private static final int CHIP_H = 14;
     private static final int CHIP_GAP = 4;
+    /** Key of the bar's last chip, which opens the Leap Order editor (no player name can contain these characters). */
+    static final String EDITOR_CHIP = "<leap order>";
 
     private static AbstractContainerScreen<?> scannedScreen;
     private static final Map<DungeonClass, Slot> classSlots = new EnumMap<>(DungeonClass.class);
@@ -207,6 +210,17 @@ public final class ClassSelectionOverlay {
             chipBounds.put(name, new int[]{x, BAR_Y, x + chipW, BAR_Y + CHIP_H});
             x += chipW + CHIP_GAP;
         }
+        String edit = "Edit Classes";
+        int editW = font.width(edit) + 10;
+        graphics.fill(x, BAR_Y, x + editW, BAR_Y + CHIP_H, 0x60FF8A00);
+        graphics.outline(x, BAR_Y, editW, CHIP_H, 0xFFFF8A00);
+        graphics.text(font, edit, x + 5, BAR_Y + 3, 0xFFFFFFFF, false);
+        chipBounds.put(EDITOR_CHIP, new int[]{x, BAR_Y, x + editW, BAR_Y + CHIP_H});
+    }
+
+    /** The party bar's chip rectangles from the last frame, {@code [x0, y0, x1, y1]} by name (testkit). */
+    public static Map<String, int[]> chipBoundsForTest() {
+        return new LinkedHashMap<>(chipBounds);
     }
 
     private static void renderClassBoxes(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, Font font) {
@@ -276,6 +290,11 @@ public final class ClassSelectionOverlay {
         for (Map.Entry<String, int[]> e : chipBounds.entrySet()) {
             int[] b = e.getValue();
             if (mouseX >= b[0] && mouseX < b[2] && mouseY >= b[1] && mouseY < b[3]) {
+                if (EDITOR_CHIP.equals(e.getKey())) {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new com.killer560.hub.leapmenu.LeapOrderScreen(McCompat.screen(client)));
+                    return true;
+                }
                 pickedName = e.getKey().equalsIgnoreCase(pickedName) ? null : e.getKey();
                 return true;
             }

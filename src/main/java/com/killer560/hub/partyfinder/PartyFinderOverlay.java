@@ -362,38 +362,27 @@ public final class PartyFinderOverlay {
         String secretsShort = known ? shortenNumber(stats.secrets()) : "?";
 
         CompactMode mode = cfg.getCompactMode();
+        // Every style but None is a template in the placeholder language (Style 1 and 2 as they always were, now written
+        // out as templates, so "Load Built-in" can copy them into the Custom editor).
+        if (mode != CompactMode.NONE) {
+            Map<String, String> keys = new HashMap<>();
+            keys.put("RoleColor", role.colorCode);
+            keys.put("RoleSingle", String.valueOf(role.letter));
+            keys.put("RoleShort", role.shortName);
+            keys.put("Role", role.displayName);
+            keys.put("RoleName", role.displayName);
+            keys.put("NameColor", nameColor);
+            keys.put("Name", name);
+            keys.put("RoleLevel", roleLevel);
+            keys.put("Cata", cata);
+            keys.put("Secrets", secrets);
+            keys.put("SecretsShort", secretsShort);
+            keys.put("SecretAvg", avg2);
+            keys.put("SecretShortAvg", avg1);
+            keys.put("PB", pbCell);
+            return literal(applyTemplate(mode == CompactMode.CUSTOM ? cfg.getCustomStyle() : mode.template, keys));
+        }
         return switch (mode) {
-            case STYLE1 -> literal("&8[" + role.colorCode + role.letter + "&8] " + nameColor + name
-                    + " &8[&e" + roleLevel + " &7| &6" + cata + "&8] &8[&3" + secretsShort + " &7| &b" + avg1 + "&8]"
-                    + " &8[" + pbCell + "&8]");
-            case STYLE2 -> literal("&8[" + role.colorCode + role.letter + " &e" + roleLevel + "&8] " + nameColor + name
-                    + " &8[&6" + cata + " &7| &3" + secretsShort + " &7| &b" + avg1 + "&8]"
-                    + " " + pbCell);
-            case CUSTOM -> {
-                Map<String, String> keys = new HashMap<>();
-                keys.put("RoleColor", role.colorCode);
-                keys.put("RoleSingle", String.valueOf(role.letter));
-                keys.put("RoleShort", role.shortName);
-                keys.put("Role", role.displayName);
-                keys.put("RoleName", role.displayName);
-                keys.put("NameColor", nameColor);
-                keys.put("Name", name);
-                keys.put("RoleLevel", roleLevel);
-                keys.put("Cata", cata);
-                keys.put("Secrets", secrets);
-                keys.put("SecretsShort", secretsShort);
-                keys.put("SecretAvg", avg2);
-                keys.put("SecretShortAvg", avg1);
-                keys.put("PB", pbCell);
-                Matcher pm = PLACEHOLDER.matcher(cfg.getCustomStyle());
-                StringBuilder sb = new StringBuilder();
-                while (pm.find()) {
-                    String value = keys.get(pm.group(1));
-                    pm.appendReplacement(sb, Matcher.quoteReplacement(value != null ? value : pm.group()));
-                }
-                pm.appendTail(sb);
-                yield literal(sb.toString());
-            }
             case NONE -> {
                 // killer560 7.2 "the current style does not work": NONE is the default/unselected style, and
                 // it printed the raw fractional Cata level from the API ("45.87362...") instead of the whole
@@ -409,7 +398,36 @@ public final class PartyFinderOverlay {
                 }
                 yield original.copy().append(literal(suffix));
             }
+            default -> throw new IllegalStateException("templated style handled above");
         };
+    }
+
+    /** The placeholders a style template may use, in the order the Custom editor offers them. */
+    public static final List<String> PLACEHOLDERS = List.of("Name", "NameColor", "Role", "RoleShort", "RoleSingle",
+            "RoleColor", "RoleLevel", "Cata", "Secrets", "SecretsShort", "SecretAvg", "SecretShortAvg", "PB");
+
+    /** {@code template} with every known {@code $Placeholder} replaced; an unknown one is left as typed. */
+    static String applyTemplate(String template, Map<String, String> keys) {
+        Matcher pm = PLACEHOLDER.matcher(template == null ? "" : template);
+        StringBuilder sb = new StringBuilder();
+        while (pm.find()) {
+            String value = keys.get(pm.group(1));
+            pm.appendReplacement(sb, Matcher.quoteReplacement(value != null ? value : pm.group()));
+        }
+        pm.appendTail(sb);
+        return sb.toString();
+    }
+
+    /** The {@code $Words} in a template that are not placeholders (a typo prints as typed, so the editor flags it). */
+    public static List<String> unknownPlaceholders(String template) {
+        List<String> out = new ArrayList<>();
+        Matcher pm = PLACEHOLDER.matcher(template == null ? "" : template);
+        while (pm.find()) {
+            if (!PLACEHOLDERS.contains(pm.group(1)) && !pm.group(1).equals("RoleName") && !out.contains(pm.group())) {
+                out.add(pm.group());
+            }
+        }
+        return out;
     }
 
     /** The PB label for a clear below S (Hypixel's {@code fastest_time}), shown only in Both mode. */

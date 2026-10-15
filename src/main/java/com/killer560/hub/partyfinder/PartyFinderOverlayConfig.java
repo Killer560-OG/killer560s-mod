@@ -7,9 +7,17 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Persisted Party Finder Overlay settings ({@link PartyFinderOverlay}). The option set mirrors Devonian's
@@ -40,16 +48,38 @@ public final class PartyFinderOverlayConfig {
         }
     }
 
-    /** Devonian "Overview Compact". */
+    /** Devonian "Overview Compact", plus (2026-10-15) five more built-in styles. Every style but None and Custom is a
+     *  template in the same placeholder language Custom uses ({@link PartyFinderOverlay#PLACEHOLDERS}), which is also
+     *  what "Load Built-in" copies into the Custom editor to start from. The enum names are what is saved. */
     public enum CompactMode {
-        NONE("None"), STYLE1("Style 1"), STYLE2("Style 2"), CUSTOM("Custom");
+        NONE("None", null),
+        STYLE1("Style 1", "&8[$RoleColor$RoleSingle&8] $NameColor$Name &8[&e$RoleLevel &7| &6$Cata&8] "
+                + "&8[&3$SecretsShort &7| &b$SecretShortAvg&8] &8[$PB&8]"),
+        STYLE2("Style 2", "&8[$RoleColor$RoleSingle &e$RoleLevel&8] $NameColor$Name &8[&6$Cata &7| &3$SecretsShort "
+                + "&7| &b$SecretShortAvg&8] $PB"),
+        COMPACT("Compact", "$RoleColor$RoleSingle $NameColor$Name &7$RoleLevel &8| &6$Cata &8| $PB"),
+        MINIMAL("Minimal", "$NameColor$Name &8(&6$Cata&8) $PB"),
+        DETAILED("Detailed", "&8[$RoleColor$Role &e$RoleLevel&8] $NameColor$Name &8- &6Cata $Cata &8- &3$Secrets "
+                + "&7secrets &8(&b$SecretAvg&7 avg&8) &8- $PB"),
+        STAT_ROW("Stat Row", "$NameColor$Name &8>> &e$RoleLevel &7/ &6$Cata &7/ &3$SecretsShort &7/ "
+                + "&b$SecretShortAvg &7/ $PB"),
+        CLASS_TAG("Class Tag", "$RoleColor$RoleShort &8| $NameColor$Name &8| &6$Cata &8| &3$SecretsShort &8| $PB"),
+        CUSTOM("Custom", null);
 
         public final String label;
+        /** The style as a placeholder template; null for None (Hypixel's own line plus a suffix) and Custom. */
+        public final String template;
 
-        CompactMode(String label) {
+        CompactMode(String label, String template) {
             this.label = label;
+            this.template = template;
         }
     }
+
+    /** Most named custom styles kept, the longest name, and the longest template. */
+    public static final int MAX_SAVED_STYLES = 32;
+    public static final int MAX_STYLE_NAME = 24;
+    public static final int MAX_STYLE_LENGTH = 512;
 
     private static PartyFinderOverlayConfig instance;
 
@@ -70,6 +100,10 @@ public final class PartyFinderOverlayConfig {
     private PbMode pbMode = PbMode.BOTH;
     private CompactMode compactMode = CompactMode.NONE;
     private String customStyle = "";
+    /** Named custom styles (name -&gt; template), in the order they were first saved; {@link #activeStyle} is the one
+     *  last saved or loaded (the Custom editor's "Saved Style" button), "" when the text is not from one. */
+    private final Map<String, String> savedStyles = new LinkedHashMap<>();
+    private String activeStyle = "";
     private boolean rankNameColors = false;
 
     private PartyFinderOverlayConfig() {
@@ -101,6 +135,16 @@ public final class PartyFinderOverlayConfig {
                 cfg.pbMode = ConfigJson.getEnum(obj, "pbMode", PbMode.class, PbMode.BOTH);
                 cfg.compactMode = ConfigJson.getEnum(obj, "compactMode", CompactMode.class, CompactMode.NONE);
                 cfg.setCustomStyle(ConfigJson.getString(obj, "customStyle", ""));
+                if (obj.has("savedStyles") && obj.get("savedStyles").isJsonArray()) {
+                    for (JsonElement el : obj.getAsJsonArray("savedStyles")) {
+                        if (el.isJsonObject()) {
+                            cfg.putSaved(ConfigJson.getString(el.getAsJsonObject(), "name", ""),
+                                    ConfigJson.getString(el.getAsJsonObject(), "style", ""));
+                        }
+                    }
+                }
+                String active = ConfigJson.getString(obj, "activeStyle", "");
+                cfg.activeStyle = cfg.findSavedName(active) != null ? cfg.findSavedName(active) : "";
                 cfg.rankNameColors = ConfigJson.getBool(obj, "rankNameColors", false);
             } catch (Exception ignored) {
                 // unreadable file - defaults
@@ -127,6 +171,15 @@ public final class PartyFinderOverlayConfig {
             obj.addProperty("pbMode", pbMode.name());
             obj.addProperty("compactMode", compactMode.name());
             obj.addProperty("customStyle", customStyle);
+            JsonArray saved = new JsonArray();
+            savedStyles.forEach((name, text) -> {
+                JsonObject entry = new JsonObject();
+                entry.addProperty("name", name);
+                entry.addProperty("style", text);
+                saved.add(entry);
+            });
+            obj.add("savedStyles", saved);
+            obj.addProperty("activeStyle", activeStyle);
             obj.addProperty("rankNameColors", rankNameColors);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -247,7 +300,119 @@ public final class PartyFinderOverlayConfig {
     }
 
     public void setCustomStyle(String customStyle) {
-        this.customStyle = customStyle == null ? "" : customStyle;
+        String t = customStyle == null ? "" : customStyle;
+        this.customStyle = t.length() > MAX_STYLE_LENGTH ? t.substring(0, MAX_STYLE_LENGTH) : t;
+    }
+
+    // ---- named custom styles (2026-10-15: "a better way for them to make and save a custom style") ----
+
+    /** A style name: control characters and edges stripped, at most {@link #MAX_STYLE_NAME} long; null when nothing is left. */
+    public static String cleanStyleName(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.replaceAll("\\p{Cntrl}", "").strip();
+        if (t.length() > MAX_STYLE_NAME) {
+            t = t.substring(0, MAX_STYLE_NAME).strip();
+        }
+        return t.isEmpty() ? null : t;
+    }
+
+    private String findSavedName(String name) {
+        if (name == null) {
+            return null;
+        }
+        for (String n : savedStyles.keySet()) {
+            if (n.equalsIgnoreCase(name.strip())) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    private void putSaved(String rawName, String text) {
+        String name = cleanStyleName(rawName);
+        if (name == null || text == null || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(name) == null) {
+            return;
+        }
+        String existing = findSavedName(name);
+        savedStyles.put(existing != null ? existing : name,
+                text.length() > MAX_STYLE_LENGTH ? text.substring(0, MAX_STYLE_LENGTH) : text);
+    }
+
+    /** The saved style names, in the order they were first saved. */
+    public List<String> savedStyleNames() {
+        return new ArrayList<>(savedStyles.keySet());
+    }
+
+    /** The template saved under {@code name} (case-insensitive), or null. */
+    public String savedStyle(String name) {
+        String n = findSavedName(name);
+        return n == null ? null : savedStyles.get(n);
+    }
+
+    /** The saved style the Custom editor is on, or "" when its text is not from one. */
+    public String getActiveStyle() {
+        return activeStyle;
+    }
+
+    /** Saves {@code text} under {@code name} (replacing a style of that name, whatever its case), makes it the active
+     *  one and the current custom text. @return false for a bad name or a full list. */
+    public boolean saveStyle(String name, String text) {
+        String clean = cleanStyleName(name);
+        if (clean == null || text == null || text.isBlank()
+                || savedStyles.size() >= MAX_SAVED_STYLES && findSavedName(clean) == null) {
+            return false;
+        }
+        putSaved(clean, text);
+        activeStyle = findSavedName(clean);
+        setCustomStyle(text);
+        return true;
+    }
+
+    /** Makes the style saved as {@code name} the current custom text and selects Custom. @return false when none. */
+    public boolean loadStyle(String name) {
+        String n = findSavedName(name);
+        if (n == null) {
+            return false;
+        }
+        activeStyle = n;
+        setCustomStyle(savedStyles.get(n));
+        compactMode = CompactMode.CUSTOM;
+        return true;
+    }
+
+    /** Forgets the style saved as {@code name}; the current text stays. @return false when there was none. */
+    public boolean deleteStyle(String name) {
+        String n = findSavedName(name);
+        if (n == null) {
+            return false;
+        }
+        savedStyles.remove(n);
+        if (n.equals(activeStyle)) {
+            activeStyle = "";
+        }
+        return true;
+    }
+
+    /** Leaves the active saved style without touching the text (the editor's "no saved style" step). */
+    public void clearActiveStyle() {
+        activeStyle = "";
+    }
+
+    /** Edits made to the text no longer match the saved style it came from: the editor marks it. */
+    public boolean isActiveStyleModified() {
+        return !activeStyle.isEmpty() && !customStyle.equals(savedStyles.get(activeStyle));
+    }
+
+    /** Copies a built-in style's template into the custom text (the editor's "Load Built-in"), selecting Custom. */
+    public void startFromBuiltIn(CompactMode mode) {
+        if (mode == null || mode.template == null) {
+            return;
+        }
+        activeStyle = "";
+        setCustomStyle(mode.template);
+        compactMode = CompactMode.CUSTOM;
     }
 
     public boolean isRankNameColors() {

@@ -47,7 +47,7 @@ public class LeapMenuTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Custom Leap Menu and the Leap Message are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled");
+        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled", "Class Selection Overlay");
     }
 
     @Override
@@ -56,7 +56,8 @@ public class LeapMenuTab extends BaseTab {
         int y = contentY;
 
         y = buildCustomMenuSection(widgets, contentX, y, contentWidth, requestRebuild);
-        buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
+        y = buildLeapMessageSection(widgets, contentX, y, contentWidth, requestRebuild);
+        buildClassSelectionSection(widgets, contentX, y, contentWidth);
         com.killer560.hub.gui.ScreenThemes.append(widgets, LeapOrderScreen.THEME_ID, contentX, contentWidth, y);
 
         return widgets;
@@ -137,7 +138,29 @@ public class LeapMenuTab extends BaseTab {
         return y + SECTION_GAP;
     }
 
-    private void buildLeapMessageSection(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
+    /** Class Selection (killer560, 2026-10-15): the Class Overrides tab is gone - a player's class is set in the Leap Order
+     *  editor ({@code /leaporder}, {@code /class}), and the overlay on Hypixel's class-selection screen writes the same
+     *  picks. Its switch moved here from that tab. */
+    private void buildClassSelectionSection(List<AbstractWidget> widgets, int x, int y, int width) {
+        widgets.add(sectionHeader(x, y, width, "Class Selection", false));
+        y += HEADER_H;
+        int half = (width - GAP) / 2;
+        int rightX = x + half + GAP;
+        int rightW = Math.max(1, width - half - GAP);
+        com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig overlay =
+                com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Class Selection Overlay", overlay.isEnabledRaw()), btn -> {
+                    overlay.setEnabled(!overlay.isEnabledRaw());
+                    overlay.save();
+                    btn.setMessage(onOff("Class Selection Overlay", overlay.isEnabledRaw()));
+                }).bounds(x, y, half, ROW).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Classes"), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    client.setScreenAndShow(new LeapOrderScreen(McCompat.screen(client)));
+                }).bounds(rightX, y, rightW, ROW).build());
+    }
+
+    private int buildLeapMessageSection(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild) {
         widgets.add(sectionHeader(x, y, width, "Leap Message", false));
         y += HEADER_H;
 
@@ -192,6 +215,7 @@ public class LeapMenuTab extends BaseTab {
 
         widgets.add(FastLeapSection.label(x, y, Math.max(1, width),
                 "§7{name} becomes the IGN you leapt to"));
+        return y + ROW + SECTION_GAP;
     }
 
     private static StringWidget sectionHeader(int x, int y, int width, String title, boolean cheatOnly) {

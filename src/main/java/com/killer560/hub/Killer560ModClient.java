@@ -447,6 +447,14 @@ public class Killer560ModClient implements ClientModInitializer {
                                     ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
                                     return 1;
                                 })))));
+        // killer560, 2026-10-15: "have it use the /leaporder process. Also have /class which opens the same menu to edit the
+        // same things" - both bare commands open the Leap Order editor, the one place a player's class is set.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            dispatcher.register(ClientCommands.literal("leaporder")
+                    .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
+            dispatcher.register(ClientCommands.literal("class")
+                    .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
+        });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("killer560")
                         .executes(context -> {
@@ -466,14 +474,12 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("bugreport")
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
-                        // directly rather than going through the mod menu's Dungeon folder.
+                        // directly rather than going through the mod menu's Dungeon folder. "/killer560 class" is the
+                        // same screen (2026-10-15), as are the bare /leaporder and /class registered below.
                         .then(ClientCommands.literal("leaporder")
-                                .executes(context -> {
-                                    Minecraft client = Minecraft.getInstance();
-                                    client.execute(() -> client.setScreenAndShow(
-                                            new com.killer560.hub.leapmenu.LeapOrderScreen(McCompat.screen(client))));
-                                    return 1;
-                                }))
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
+                        .then(ClientCommands.literal("class")
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
                         // Real, working data-gathering tool for the Mapping tab's placeholders - see
                         // MappingFeature's class doc. Dumps whatever map you're holding right now.
                         .then(ClientCommands.literal("mapdump")

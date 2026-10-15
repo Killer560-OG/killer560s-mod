@@ -346,3 +346,12 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   every 250 ms and merges anything new (testkit 736 adds a reward to an already-scanned page).
 - **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
   2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
+- **Class picks live in the Leap Order's file** (leap-queue-1015, 2026-10-15): the Class Overrides tab and
+  `killer560smod-classoverrides.json` are gone; picks are the `classPicks` array of `killer560smod-leapmenu.json`
+  (`LeapMenuConfig.pickOf/setPick/clearPick/allPicks`), and `dungeonclass/ClassOverrides` is only the static front every
+  feature already read through (no `getInstance()`, no `load()`, nothing of its own in `reloadAllConfigs`).
+  `LeapMenuConfig.load()` moves an old file in (a pick already there wins, saved first, then the old file is deleted);
+  a profile saved before that puts the file back and the next `LeapMenuConfig.load()` migrates it again, so applying a
+  profile must keep reloading `LeapMenuConfig`. A pick stored with a UUID that `PlayerNames` cannot map back to its
+  name is invisible to `classOf(name)` (the lookup is UUID first, then the typed name) - testkit 1072 calls
+  `PlayerNames.noteKnown` for its uuid entry.
