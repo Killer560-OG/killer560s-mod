@@ -61,6 +61,8 @@ public final class MobEspConfig {
     /** What the default used to be, so the one-time migration below only touches an untouched setting. */
     private static final int LEGACY_STARRED_GOLD = 0xFFFFD700;
     public static final int DEFAULT_BAT_COLOR = 0xFF55FF55;
+    /** Blood Mobs (killer560, 2026-10-15: "blood mob ESP ... will highlight them red"). */
+    public static final int DEFAULT_BLOOD_COLOR = 0xFFFF0000;
     public static final int DEFAULT_WITHER_COLOR = 0xFFFF0000;
     public static final float MIN_LINE_WIDTH = 1.0f;
     public static final float MAX_LINE_WIDTH = 10.0f;
@@ -74,6 +76,9 @@ public final class MobEspConfig {
 
     private boolean starredMobs = false;
     private boolean bats = false;
+    /** The Watcher's blood mobs (the ones Blood Camp tracks), highlighted like starred mobs, wherever they walk. */
+    private boolean bloodMobs = false;
+    private int bloodColor = DEFAULT_BLOOD_COLOR;
     /** Cheat build only (was Cheat Utils' Wither ESP) - see {@link #isWithersEnabled()}. */
     private boolean withers = false;
     /** killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him." One setting for both
@@ -139,6 +144,8 @@ public final class MobEspConfig {
                 migrated = true;
             }
             cfg.bats = ConfigJson.getBool(obj, "bats", false);
+            cfg.bloodMobs = ConfigJson.getBool(obj, "bloodMobs", false);
+            cfg.bloodColor = ConfigJson.getInt(obj, "bloodColor", DEFAULT_BLOOD_COLOR);
 
             if (obj.has("starredColor")) {
                 cfg.starredColor = ConfigJson.getInt(obj, "starredColor", DEFAULT_STARRED_COLOR);
@@ -232,6 +239,8 @@ public final class MobEspConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("starredMobs", starredMobs);
             obj.addProperty("bats", bats);
+            obj.addProperty("bloodMobs", bloodMobs);
+            obj.addProperty("bloodColor", bloodColor);
             obj.addProperty("withers", withers);
             obj.addProperty("witherTracer", witherTracer);
             obj.addProperty("witherTracerThickness", witherTracerThickness);
@@ -265,6 +274,11 @@ public final class MobEspConfig {
     public boolean isBatsEnabled() { return bats && com.killer560.hub.util.SkyblockGate.allows(); }
     public boolean getBatsRaw() { return bats; }
     public void setBats(boolean v) { bats = v; }
+    public boolean isBloodMobsEnabled() { return bloodMobs && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getBloodMobsRaw() { return bloodMobs; }
+    public void setBloodMobs(boolean v) { bloodMobs = v; }
+    public int getBloodColor() { return bloodColor; }
+    public void setBloodColor(int v) { bloodColor = v; }
 
     /** Cheat build only, same as the Cheat Utils Wither ESP it replaces - a legit jar never reports true. */
     public boolean isWithersEnabled() { return cheat() && esp && com.killer560.hub.util.SkyblockGate.allows(); }
@@ -289,7 +303,7 @@ public final class MobEspConfig {
     public void setWitherHighlight(boolean v) { witherHighlight = v; }
 
     public boolean isAnyEnabled() {
-        return isStarredMobsEnabled() || isBatsEnabled() || isWithersEnabled() || isWitherHighlightEnabled();
+        return isStarredMobsEnabled() || isBatsEnabled() || isBloodMobsEnabled() || isWithersEnabled() || isWitherHighlightEnabled();
     }
 
     // ---- Colours ----

@@ -203,8 +203,10 @@ public final class BloodCampFeature {
 
     private static boolean isActive() {
         // Every floor's Blood Room, never the boss fight - NoammAddons' own gate. This used to be F7/M7 only,
-        // which is why it worked in F7 and silently did nothing everywhere else.
-        return BloodCampConfig.getInstance().isEnabled() && DungeonState.isInDungeon()
+        // which is why it worked in F7 and silently did nothing everywhere else. The tracking also runs for Dungeon
+        // ESP's Blood Mobs (it highlights the mobs found here), even with Blood Camp itself off.
+        return (BloodCampConfig.getInstance().isEnabled() || com.killer560.hub.mobesp.MobEspConfig.getInstance()
+                .isBloodMobsEnabled()) && DungeonState.isInDungeon()
                 && !com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
@@ -243,7 +245,7 @@ public final class BloodCampFeature {
      *  own doc comment. */
     public static void onMoveEntity(ClientboundMoveEntityPacket packet, Level level) {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
-        if (!cfg.isEnabled() || !isActive()) {
+        if (!isActive()) {
             return;
         }
         if (packet.getXa() == 0 && packet.getYa() == 0 && packet.getZa() == 0) {
@@ -435,6 +437,10 @@ public final class BloodCampFeature {
 
         long now = client.level.getGameTime();
         int pingMs = pingMs(client);
+        tagBloodMobs(client, now);
+        if (!cfg.isEnabled()) {
+            return; // tracking for the Blood Mob ESP only
+        }
         tickSounds(cfg, now, pingMs);
         confirmHits(client, now);
 
@@ -658,6 +664,14 @@ public final class BloodCampFeature {
 
         // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
         // denial leaves the mob as it was, so it is simply clicked on the next tick it allows.
+        // killer560, 2026-10-15: "range only blood mobs, because if you do any mob, you could end up hitting mobs
+        // outside of the room" - a click (beam, arrow or hit) only goes when nothing but the target is in its way.
+        Entity firing = triggerTarget != null ? (triggerHit != null ? triggerHit : nearestMob(client, triggerData.endVector))
+                : auraMob != null ? auraMob : fillerMob;
+        if ((fillerNow || triggerTarget != null || auraMob != null) && !lineOfFireClear(client, firing)) {
+            lineOfFireBlocks++;
+            return;
+        }
         if (fillerNow && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             Entity melee = lookTarget(client, reach);
             Click kind = click(client, melee == fillerMob ? fillerMob : null);
@@ -777,6 +791,99 @@ public final class BloodCampFeature {
         return kind;
     }
 
+    // ---- Blood mobs, by identity ---------------------------------------------------------------------------------
+
+    /**
+     * Entity ids of the Watcher's blood mobs: the mob that stands on a tracked trip's landing spot as the trip ends.
+     * Kept for as long as the entity is alive, wherever it walks (killer560, 2026-10-15: "they walk out of the room"),
+     * cleared with the level. The Aura, the Trigger Bot and Dungeon ESP's Blood Mobs only ever act on these
+     * (killer560: "don't have it attack any mob, range only blood mobs").
+     */
+    private static final Set<Integer> BLOOD_IDS = new java.util.HashSet<>();
+    /** A trip's mob is taken when it is due within this many ticks (or later): the moment it lands. */
+    private static final double TAG_WITHIN_TICKS = 10.0;
+    private static int lineOfFireBlocks;
+
+    public static Set<Integer> bloodMobIds() {
+        return Set.copyOf(BLOOD_IDS);
+    }
+
+    public static int lineOfFireBlocks() {
+        return lineOfFireBlocks;
+    }
+
+    static boolean isBloodMob(Entity e) {
+        return isAttackableMob(e) && BLOOD_IDS.contains(e.getId());
+    }
+
+    private static void tagBloodMobs(Minecraft client, long now) {
+        BLOOD_IDS.removeIf(id -> {
+            Entity e = client.level.getEntity(id);
+            return e == null || e.isRemoved() || !e.isAlive();
+        });
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
+            if (data.endVector == null || remainingTicks(data, now) > TAG_WITHIN_TICKS
+                    || remainingTicks(data, now) <= -RETRY_STALE_TICKS) {
+                continue;
+            }
+            if (data.mobId >= 0 && BLOOD_IDS.contains(data.mobId)) {
+                continue;
+            }
+            AABB search = new AABB(data.endVector, data.endVector).inflate(TARGET_SEARCH_RADIUS);
+            Entity best = null;
+            double bestD = Double.MAX_VALUE;
+            for (Entity c : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
+                if (watcherEntityId != null && c.getId() == watcherEntityId) {
+                    continue;
+                }
+                double d = c.position().distanceToSqr(data.endVector);
+                if (d < bestD) {
+                    bestD = d;
+                    best = c;
+                }
+            }
+            if (best != null) {
+                data.mobId = best.getId();
+                BLOOD_IDS.add(best.getId());
+            }
+        }
+    }
+
+    /**
+     * Whether a click aimed along his body's look would only meet {@code target}: no other living thing that is not a
+     * blood mob inside the Blood Room within 0.6 blocks of the line, from his eye out to the first block (or 48 blocks)
+     * - past the target too, because a beam or an arrow carries on. Real players are not in the way (nothing of his
+     * hits them). The Watcher is in the way.
+     */
+    static boolean lineOfFireClear(Minecraft client, Entity target) {
+        Vec3 eye = client.player.getEyePosition();
+        Vec3 dir = Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot());
+        double len = blockDistance(client, eye, dir, AIM_RANGE);
+        Vec3 end = eye.add(dir.scale(len));
+        for (Entity e : client.level.getEntities(client.player, new AABB(eye, end).inflate(1.0),
+                x -> x instanceof LivingEntity && !(x instanceof ArmorStand) && x.isAlive()
+                        && !(x instanceof Player && x.getUUID().version() == 4))) {
+            if (e == target) {
+                continue;
+            }
+            if (!e.getBoundingBox().inflate(0.6).clip(eye, end).isPresent() && !e.getBoundingBox().inflate(0.6).contains(eye)) {
+                continue;
+            }
+            if (!isBloodMob(e) || !inRoomTile(client, e.position())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
+    private static boolean inRoomTile(Minecraft client, Vec3 p) {
+        Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
+        return watcher != null && roomTile(p.x) == roomTile(watcher.getX()) && roomTile(p.z) == roomTile(watcher.getZ())
+                && Math.abs(p.y - watcher.getY()) < 40.0;
+    }
+
     /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
     private static long lastClickTick = Long.MIN_VALUE / 2;
     /** Testkit: the cap in force last tick, Aura attacks sent, the floor mob the Aura last aimed at (-1 none), and
@@ -828,7 +935,7 @@ public final class BloodCampFeature {
         double cx = com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(watcher.getX());
         double cz = com.killer560.hub.livemap.LiveMapFeature.START_Z + 32.0 * roomTile(watcher.getZ());
         AABB room = new AABB(cx - 16, watcher.getY() - 40, cz - 16, cx + 16, watcher.getY() + 40, cz + 16);
-        for (Entity mob : client.level.getEntities(client.player, room, BloodCampFeature::isAttackableMob)) {
+        for (Entity mob : client.level.getEntities(client.player, room, BloodCampFeature::isBloodMob)) {
             if (mob.getId() == watcherEntityId) {
                 continue;
             }
@@ -1046,7 +1153,7 @@ public final class BloodCampFeature {
         AABB search = new AABB(end, end).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestD = Double.MAX_VALUE;
-        for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
+        for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isBloodMob)) {
             double d = candidate.position().distanceToSqr(end);
             if (d < bestD) {
                 bestD = d;
@@ -1251,7 +1358,7 @@ public final class BloodCampFeature {
         AABB search = new AABB(predicted, predicted).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
+        for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isBloodMob)) {
             Vec3 hit = candidate.getBoundingBox().inflate(AIM_INFLATE).clip(eyes, end).orElse(null);
             if (hit == null) {
                 continue;
