@@ -47,7 +47,7 @@ public class MobEspTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Starred Mob and Bat hitboxes, the Wither Boss Highlight and the cheat ESP are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Starred Mobs", "Bats", "Wither Boss Highlight", "ESP");
+        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Wither Boss Highlight", "ESP");
     }
 
     @Override
@@ -68,6 +68,11 @@ public class MobEspTab extends BaseTab {
         y += 22;
         targetRow(widgets, contentX, col2X, y, colW, "Bats", cfg::getBatsRaw, cfg::setBats,
                 "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR);
+        y += 22;
+        // killer560, 2026-10-15: "add in blood mob ESP, which is the same as starred mob ESP just for blood mobs and
+        // will highlight them red". Same style and rules as the rows above; never limited by Range or Room Scoped.
+        targetRow(widgets, contentX, col2X, y, colW, "Blood Mobs", cfg::getBloodMobsRaw, cfg::setBloodMobs,
+                "Blood Mob", cfg::getBloodColor, cfg::setBloodColor, MobEspConfig.DEFAULT_BLOOD_COLOR);
         y += 26;
 
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {

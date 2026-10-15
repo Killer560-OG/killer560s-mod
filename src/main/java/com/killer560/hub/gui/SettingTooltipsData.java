@@ -437,6 +437,7 @@ final class SettingTooltipsData {
         d.put("send now", "Sends this row's score message to party chat right now.");
         d.put("starred mobs", "Highlights starred mobs and minibosses during dungeon clear.");
         d.put("bats", "Highlights secret bats during dungeon clear.");
+        d.put("blood mobs", "Highlights the Watcher's blood mobs (red by default) for as long as they live, even if they walk out of the Blood Room.");
         d.put("wither bosses", "Cheat build: highlights the F7/M7 wither bosses through walls.");
         d.put("line width", "Thickness of the drawn lines and box outlines.");
         d.put("range", "Maximum distance in blocks this feature reaches.");

@@ -115,6 +115,14 @@ public final class MobEspFeature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(MobEspFeature::render);
     }
 
+    /** Testkit: entity id -> ARGB of every box target drawn this tick (glow targets included). */
+    public static Map<Integer, Integer> drawnColors() {
+        Map<Integer, Integer> out = new HashMap<>();
+        boxTargets.forEach((id, b) -> out.put(id, b.argb()));
+        out.putAll(glowTargets);
+        return out;
+    }
+
     /** Glow mixin hook: whether this entity should get the vanilla glow outline. */
     public static boolean shouldGlow(Entity entity) {
         Map<Integer, Integer> targets = glowTargets; // per entity per frame: no boxed id when nothing glows
@@ -141,7 +149,7 @@ public final class MobEspFeature {
         }
         boolean hasWorld = client.level != null && client.player != null;
         // Cheapest gates first: a disabled feature must not reach DungeonState/LiveMap at all (FPS pass).
-        boolean anyRaw = (cfg.getStarredMobsRaw() || cfg.getBatsRaw() || cfg.getWithersRaw()
+        boolean anyRaw = (cfg.getStarredMobsRaw() || cfg.getBatsRaw() || cfg.getBloodMobsRaw() || cfg.getWithersRaw()
                 || cfg.getWitherHighlightRaw()) && com.killer560.hub.util.SkyblockGate.allows();
         if (!hasWorld || !anyRaw) {
             if (!boxTargets.isEmpty() || !glowTargets.isEmpty() || !tracerTargets.isEmpty()) {
@@ -155,6 +163,12 @@ public final class MobEspFeature {
         boolean inBoss = LiveMapFeature.isInBoss();
         boolean wantStars = cfg.isStarredMobsEnabled() && inDungeon && !inBoss;
         boolean wantBats = cfg.isBatsEnabled() && inDungeon && !inBoss;
+        // Blood Mobs (killer560, 2026-10-15): the Watcher's mobs, by identity (BloodCampFeature tracks them from the
+        // moment they land), drawn like starred mobs - same style, same line-of-sight rule, through walls with ESP on -
+        // but wherever they are: no Range or Room Scoped limit ("there's a chance they walk out of the room").
+        Set<Integer> bloodIds = cfg.isBloodMobsEnabled() && inDungeon && !inBoss
+                ? com.killer560.hub.bloodcamp.BloodCampFeature.bloodMobIds() : Set.of();
+        boolean wantBlood = !bloodIds.isEmpty();
         boolean witherActive = (cfg.getWithersRaw() || cfg.getWitherHighlightRaw())
                 && WitherEspFeature.isWitherBossActive(client);
         boolean wantWitherEsp = witherActive && cfg.isWithersEnabled();
@@ -164,7 +178,7 @@ public final class MobEspFeature {
         if (!wantStars) {
             standToMob.clear();
         }
-        if (!wantStars && !wantBats && !wantWitherEsp && !wantWitherHighlight) {
+        if (!wantStars && !wantBats && !wantBlood && !wantWitherEsp && !wantWitherHighlight) {
             losCache.clear();
             clearTargets();
             return;
@@ -192,9 +206,17 @@ public final class MobEspFeature {
         int stars = 0;
         int bats = 0;
         int withers = 0;
+        int bloodDrawn = 0;
 
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity == client.player) {
+                continue;
+            }
+            if (wantBlood && bloodIds.contains(entity.getId())) {
+                if (accept(client, eye, entity, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
+                        foundBoxes, foundGlows, cfg.getBloodColor())) {
+                    bloodDrawn++;
+                }
                 continue;
             }
             if (witherActive && entity instanceof WitherBoss && WitherEspFeature.isRealWither(entity)) {
