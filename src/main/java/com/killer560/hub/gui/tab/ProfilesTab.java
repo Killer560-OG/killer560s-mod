@@ -204,12 +204,6 @@ public class ProfilesTab extends BaseTab {
                             requestRebuild.run();
                         }).bounds(b0, rowY, bw, BTN_H).build());
             }
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Rename"), btn -> {
-                        armedDelete = null;
-                        renaming = profile;
-                        renameText = profile;
-                        requestRebuild.run();
-                    }).bounds(b0, cy + 20, 54, 12).build());
             widgets.add(SettingsButtonWidget.builder(Component.literal("Export"), btn -> {
                         armedDelete = null;
                         // Zipped into the share folder, which then opens (2026-10-08).
@@ -229,6 +223,13 @@ public class ProfilesTab extends BaseTab {
                         ModOverlayMessage.show(result.message(), 3000);
                         requestRebuild.run();
                     }).bounds(b0 + 2 * (bw + 5), rowY, bw, BTN_H).danger(armed).build());
+            // After Delete so the card's widgets stay panel, Load, Export, Delete in that order (testkit 618 reads them so).
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Rename"), btn -> {
+                        armedDelete = null;
+                        renaming = profile;
+                        renameText = profile;
+                        requestRebuild.run();
+                    }).bounds(b0, cy + 20, 54, 12).build());
         }
         return widgets;
     }
