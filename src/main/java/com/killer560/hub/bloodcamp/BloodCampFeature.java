@@ -821,6 +821,23 @@ public final class BloodCampFeature {
             Entity e = client.level.getEntity(id);
             return e == null || e.isRemoved() || !e.isAlive();
         });
+        // By name, every 5 ticks (killer560, 2026-10-15): a blood mob that landed while he was too far away for the
+        // client to see its trip still has its name tag - see BloodMobNames.
+        if (now % 5 == 0) {
+            for (Entity e : client.level.entitiesForRendering()) {
+                if (e instanceof ArmorStand stand && stand.hasCustomName()) {
+                    String plain = com.killer560.hub.util.ChatObserver.stripCodes(stand.getName().getString()).trim();
+                    if (BloodMobNames.isBloodTag(plain)) {
+                        Entity mob = BloodMobNames.mobFor(client, stand);
+                        if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId)) {
+                            BLOOD_IDS.add(mob.getId());
+                        }
+                    }
+                } else if (BloodMobNames.isNamedNpc(client, e)) {
+                    BLOOD_IDS.add(e.getId());
+                }
+            }
+        }
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
             BloodMobState data = entry.getValue();
             if (data.endVector == null || remainingTicks(data, now) > TAG_WITHIN_TICKS
