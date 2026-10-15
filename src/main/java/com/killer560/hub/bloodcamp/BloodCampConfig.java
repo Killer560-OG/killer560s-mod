@@ -63,6 +63,9 @@ public final class BloodCampConfig {
     /** Aura: turn the body only, the camera stays where his mouse puts it (killer560, 2026-10-15: "have an option for
      *  aura to put you into freecam mode"). */
     private boolean auraFreecam = false;
+    /** Never Miss (killer560, 2026-10-15: "attacks the tick it detects the mob is actually there not just when it thinks
+     *  it will spawn"): the first click waits for a living mob on the spot, in reach and in sight, not the timer. */
+    private boolean neverMiss = false;
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
@@ -109,6 +112,7 @@ public final class BloodCampConfig {
             // due moment, this counts from the kill timer he sees, so the old number would not mean the same click.
             cfg.setTriggerOffsetTicks(ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS));
             cfg.auraFreecam = ConfigJson.getBool(obj, "auraFreecam", false);
+            cfg.neverMiss = ConfigJson.getBool(obj, "neverMiss", false);
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
@@ -136,6 +140,7 @@ public final class BloodCampConfig {
             obj.addProperty("autoDetectLag", autoDetectLag);
             obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
             obj.addProperty("auraFreecam", auraFreecam);
+            obj.addProperty("neverMiss", neverMiss);
             obj.addProperty("killPopup", killPopup);
             obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
             obj.addProperty("timerTextScale", timerTextScale);
@@ -245,6 +250,15 @@ public final class BloodCampConfig {
 
     public void setTriggerOffsetTicks(int ticks) {
         this.triggerOffsetTicks = Math.max(MIN_TRIGGER_OFFSET_TICKS, Math.min(MAX_TRIGGER_OFFSET_TICKS, ticks));
+    }
+
+    /** Never Miss: the Trigger Bot's and the Aura's first click goes the tick the mob is really there, not on the timer. */
+    public boolean isNeverMiss() {
+        return neverMiss;
+    }
+
+    public void setNeverMiss(boolean neverMiss) {
+        this.neverMiss = neverMiss;
     }
 
     /** Aura in freecam mode: the camera stays with his mouse while the aura turns his body. */

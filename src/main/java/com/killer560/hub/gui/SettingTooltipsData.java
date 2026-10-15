@@ -1870,8 +1870,9 @@ final class SettingTooltipsData {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
             // Chest. Inside the constant, so a legit jar carries none of these strings.
-            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it, and clicks again if the hit missed (cheat build only; only in the Blood Room; needs Blood Camp on).");
-            d.put("auto blood camp/aura", "Turns you toward the blood mob due next, at its chest, with a human-looking mouse movement; moving your mouse takes over (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it and can see it, and clicks again if the hit missed - never faster than your weapon's attack speed (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/aura", "Turns you toward the next blood mob you can see, at its chest, with a human-looking mouse movement, and hits it in reach until it dies - mobs already on the floor too - at your weapon's attack speed. Moving your mouse takes over (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: below 0 clicks late, above 0 early. -1 by default.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
