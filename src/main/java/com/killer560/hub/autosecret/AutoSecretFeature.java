@@ -909,7 +909,9 @@ public final class AutoSecretFeature {
             if (tourWaitTicks == 0) {
                 RoomTour.request(from, sites, false, true, "deciding from here");
             }
-            if (tourWaitTicks++ < TOUR_WAIT_TICKS) {
+            // Worth a few ticks only once the floor graph is warm (its searches are milliseconds then); before that the
+            // straight-line estimate decides at once.
+            if (com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.graphWarm() && tourWaitTicks++ < TOUR_WAIT_TICKS) {
                 status = "Working out the room order";
                 return null;
             }

@@ -225,6 +225,9 @@ final class RoomTour {
                 run(from, snapshot, planAhead, travelOnly, why, layout, cfg, range, gen);
             } catch (Throwable t) {
                 LOGGER.warn("[AutoSecret] room order: the trip search failed: {}", t.toString());
+                if (planAhead) {
+                    ClearExecutor.preplanFailed();
+                }
             } finally {
                 busy = false;
             }
@@ -259,7 +262,9 @@ final class RoomTour {
                 if (gen != generation) {
                     return;
                 }
-                if (System.nanoTime() > deadline) {
+                // A trip search of the map's own goes first (the planner thread is shared), and on a cold floor graph a
+                // search can take a second: then the straight-line estimate stands in until the graph is warm.
+                if (System.nanoTime() > deadline || ClearExecutor.tripSearchWaiting() || !EtherwarpPathfinder.graphWarm()) {
                     skipped++;
                     continue;
                 }
@@ -281,6 +286,7 @@ final class RoomTour {
         TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
         int[] order = legacyOrder ? byWeight(m) : res.order();
         Site next = sites.get(order[0]);
+        ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
         List<EtherwarpPathfinder.Node> path = next.tile() >= 0
                 ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
                 : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
@@ -289,13 +295,12 @@ final class RoomTour {
                 path == null ? "no" : String.valueOf(path.size()), describe(sites, order)));
         Minecraft.getInstance().execute(() -> {
             if (gen != generation) {
+                ClearExecutor.preplanFailed();
                 return;
             }
             aheadPick = next.key();
             aheadFrom = from;
-            if (path != null && !path.isEmpty()) {
-                ClearExecutor.offerPreplan(from, next.arrive(), next.tile(), next.exact(), path);
-            }
+            ClearExecutor.offerPreplan(from, next.arrive(), next.tile(), next.exact(), path);
         });
     }
 

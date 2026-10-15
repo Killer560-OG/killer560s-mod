@@ -332,6 +332,23 @@ public final class ClearExecutor {
         if (adoptPreplan(to, tileIdx, complete, player)) {
             return;
         }
+        Inflight f = inflight;
+        if (f != null && awaiting == null && (tileIdx >= 0 ? f.tileIdx() == tileIdx
+                : f.tileIdx() < 0 && f.to().equals(to) && f.exact() == goalExact)
+                && player.position().distanceTo(f.from()) <= 3.0) {
+            // Its path is being searched ahead on the planner thread right now: a second search would only queue
+            // behind it. This trip takes that path the moment it comes (offerPreplan).
+            awaiting = new Awaiting(to, tileIdx, goalExact, complete, generation);
+            goalTo = to;
+            goalTile = tileIdx;
+            goalComplete = complete;
+            pathPending = true;
+            pendingGen = generation;
+            pathPendingTicks = 0;
+            lastPathFailed = false;
+            LOGGER.info("[Path] the path to {} is being planned ahead - this trip waits for it", to.toShortString());
+            return;
+        }
         goalTo = to;
         goalTile = tileIdx;
         goalComplete = complete;
@@ -517,16 +534,92 @@ public final class ClearExecutor {
     public static void offerPreplan(Vec3 from, BlockPos to, int tileIdx, boolean exact, List<EtherwarpPathfinder.Node> path) {
         Minecraft client = Minecraft.getInstance();
         if (path == null || path.isEmpty() || client.level == null) {
+            inflight = null;
+            if (awaiting != null) {
+                releaseAwaiting("the search planning ahead found nothing");
+            }
             return;
         }
         preplan = new Preplan(to, tileIdx, exact, from, List.copyOf(path), client.level, System.currentTimeMillis());
+        inflight = null;
         LOGGER.info("[Path] planned ahead: {} warp(s) from {} to {}{}", path.size(), fmt(from), to.toShortString(),
                 tileIdx >= 0 ? " (tile " + tileIdx + ")" : "");
+        if (awaiting != null) {
+            Awaiting a = awaiting;
+            awaiting = null;
+            if (a.gen() == pendingGen) {
+                pathPending = false;
+            }
+            if (a.gen() == generation && client.player != null) {
+                goalExact = a.exact();
+                if (!adoptPreplan(a.to(), a.tileIdx(), a.complete(), client.player)) {
+                    plan(a.to(), a.tileIdx(), a.complete());
+                }
+            }
+        }
     }
 
     /** Drops a path planned ahead (its goal is no longer wanted). */
     public static void dropPreplan() {
         preplan = null;
+        inflight = null;
+        if (awaiting != null) {
+            releaseAwaiting("the path planned ahead was dropped");
+        }
+    }
+
+    /** A goal whose path is being planned ahead right now (on the planner thread), from where. */
+    private record Inflight(BlockPos to, int tileIdx, boolean exact, Vec3 from) {
+    }
+
+    private static volatile Inflight inflight;
+
+    /** A trip asked for while the path planned ahead for it was still being searched: it takes that path when it comes. */
+    private record Awaiting(BlockPos to, int tileIdx, boolean exact, Runnable complete, int gen) {
+    }
+
+    private static Awaiting awaiting;
+
+    /**
+     * The planner thread has picked the goal it is planning ahead for: a trip to it asked for before the search is done
+     * waits for that search instead of queueing a second one behind it. Any thread (posted to the client thread).
+     */
+    public static void preplanStarted(Vec3 from, BlockPos to, int tileIdx, boolean exact) {
+        Minecraft.getInstance().execute(() -> inflight = new Inflight(to, tileIdx, exact, from));
+    }
+
+    /** The search planning ahead found nothing (or was abandoned): a trip waiting on it searches for itself. */
+    public static void preplanFailed() {
+        Minecraft.getInstance().execute(() -> {
+            inflight = null;
+            if (awaiting != null) {
+                releaseAwaiting("the search planning ahead found nothing");
+            }
+        });
+    }
+
+    /** The trip that was waiting on a search planning ahead plans for itself after all. Client thread. */
+    private static void releaseAwaiting(String why) {
+        Awaiting a = awaiting;
+        awaiting = null;
+        if (a == null) {
+            return;
+        }
+        if (a.gen() == pendingGen) {
+            pathPending = false;
+        }
+        if (a.gen() != generation) {
+            return;
+        }
+        LOGGER.info("[Path] {} - searching", why);
+        goalExact = a.exact();
+        plan(a.to(), a.tileIdx(), a.complete());
+    }
+
+    /** Whether a trip search of the map is queued or running ({@link #etherPath} and its kin): searches planning ahead
+     *  for later give way to it. Any thread. */
+    public static boolean tripSearchWaiting() {
+        return pathPending && awaiting == null;
     }
 
     /** Whether a path planned ahead is waiting for {@code to}. */
@@ -906,6 +999,10 @@ public final class ClearExecutor {
     private static int pendingHeldTicks;
 
     public static void cancel() {
+        if (awaiting != null) {
+            awaiting = null;
+            pathPending = false;
+        }
         stopImproving();
         noteStrayWarps();
         sendNow = false;
@@ -1263,7 +1360,11 @@ public final class ClearExecutor {
             pathPendingTicks = 0;
             return;
         }
-        if (++pathPendingTicks > PATH_SEARCH_LIMIT_TICKS) {
+        if (awaiting != null && ++pathPendingTicks > 60) {
+            releaseAwaiting("the search planning ahead took over 3 s");
+            return;
+        }
+        if (awaiting == null && ++pathPendingTicks > PATH_SEARCH_LIMIT_TICKS) {
             LOGGER.warn("[Path] the path search did not answer in {} ticks - dropped", PATH_SEARCH_LIMIT_TICKS);
             generation++;
             pathPending = false;
@@ -1316,6 +1417,8 @@ public final class ClearExecutor {
     }
 
     private static void reset() {
+        awaiting = null;
+        inflight = null;
         nodes = null;
         sendNow = false;
         hold = false;
