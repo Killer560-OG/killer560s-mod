@@ -92,7 +92,7 @@ public final class ModPaths {
         }
 
         for (String terminal : new String[]{"terminal", "teammelody", "goldor", "i4", "p3nav", "simonsays",
-                "leveraura", "arrowalign"}) {
+                "leveraura", "lightsdevice", "arrowalign"}) {
             t.put(terminal, "dungeons/terminals");
         }
 

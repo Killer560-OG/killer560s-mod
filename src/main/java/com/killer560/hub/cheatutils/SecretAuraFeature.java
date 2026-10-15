@@ -51,7 +51,9 @@ import com.killer560.hub.compat.McCompat;
  * mid-solve checks, 2026-10-12). QUOI's conditional Ice Path / Ice Fill / Teleport Maze
  * checks need room-relative coordinates, so those rooms are skipped entirely instead (conservative).
  * <li>Boss: nothing, unless "In Boss" is on - then ONLY QUOI's hardcoded F7 P3 levers (with a
- * "Not Activated" stand above) and unpowered device levers.
+ * "Not Activated" stand above). Never the six S2 Lights levers, in boss or not, on an F7/M7 run: they are the Lights
+ * Device's own feature since 2026-10-15 ({@code lightsdevice.LightsDeviceFeature}, killer560: "it should not be impacted
+ * by other auras"), so Secret Aura neither clicks them nor competes for them, whatever either switch says.
  * <li>Never while a screen is open (QUOI "In container" default off), while sneaking (optional), or while
  * holding a configured item.
  * </ul>
@@ -63,14 +65,11 @@ public final class SecretAuraFeature {
     private static final long RETRY_AFTER_MS = 1000;
     private static final int MAX_ATTEMPTS = 2;
 
-    // QUOI SecretAura.kt - F7 P3 levers and device levers.
+    // QUOI SecretAura.kt - F7 P3 levers. QUOI's device levers (the S2 Lights device) are the Lights Device's.
     private static final Set<BlockPos> BOSS_LEVERS = Set.of(
             new BlockPos(94, 124, 113), new BlockPos(106, 124, 113), new BlockPos(27, 124, 127),
             new BlockPos(23, 132, 138), new BlockPos(14, 122, 55), new BlockPos(2, 122, 55),
             new BlockPos(86, 128, 46), new BlockPos(84, 121, 34));
-    private static final Set<BlockPos> DEVICE_LEVERS = Set.of(
-            new BlockPos(62, 136, 142), new BlockPos(62, 133, 142), new BlockPos(60, 134, 142),
-            new BlockPos(60, 135, 142), new BlockPos(58, 133, 142), new BlockPos(58, 136, 142));
 
     private static final Set<String> SKIP_ROOMS = Set.of("Three Weirdos", "Teleport Maze", "Ice Path", "Ice Fill");
     private static final Set<String> NO_LEVER_ROOMS = Set.of("Water Board", "Tic Tac Toe");
@@ -335,6 +334,10 @@ public final class SecretAuraFeature {
     private static String classify(Minecraft client, CheatUtilsConfig cfg, BlockPos pos, BlockState state,
                                    boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
         Block block = state.getBlock();
+        // The Lights Device's levers, in boss or not (a missed boss latch would read them as room levers).
+        if (block == Blocks.LEVER && DungeonState.isF7OrM7() && com.killer560.hub.lightsdevice.LightsDeviceFeature.isLightsLever(pos)) {
+            return null;
+        }
         if (inBoss) {
             return block == Blocks.LEVER && isBossLeverClickable(client, pos, state) ? "bossLever" : null;
         }
@@ -416,15 +419,12 @@ public final class SecretAuraFeature {
                 && client.level.getBlockState(pos.below()).getBlock() != Blocks.REDSTONE_BLOCK;
     }
 
-    /** QUOI {@code isBossBlock}: P3 lever with a "Not Activated" stand above, or an unpowered device lever. */
+    /** QUOI {@code isBossBlock}: P3 lever with a "Not Activated" stand above (the Lights levers never reach here). */
     private static boolean isBossLeverClickable(Minecraft client, BlockPos pos, BlockState state) {
-        // Lever Aura owns the S2 Lights levers (and, with its Section Levers option on, S2's two section levers)
-        // while it's on - don't double-click them here: its whole point is clicking each of them exactly once.
+        // In Boss's own lever clicking owns S2's two section levers while its Section Levers option is on - don't
+        // double-click them here: its whole point is clicking each of them exactly once.
         if (com.killer560.hub.leveraura.LeverAuraFeature.owns(pos)) {
             return false;
-        }
-        if (DEVICE_LEVERS.contains(pos)) {
-            return state.hasProperty(LeverBlock.POWERED) && !state.getValue(LeverBlock.POWERED);
         }
         if (!BOSS_LEVERS.contains(pos)) {
             return false;

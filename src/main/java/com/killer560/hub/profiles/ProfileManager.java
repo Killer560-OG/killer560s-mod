@@ -551,6 +551,8 @@ public final class ProfileManager {
                 com.killer560.hub.ticktimers.TickTimersConfig::load,
                 com.killer560.hub.trajectories.TrajectoriesConfig::load,
                 com.killer560.hub.leveraura.LeverAuraConfig::load,
+                // After LeverAuraConfig: an old In Boss file's Lights keys migrate into this one as that loads.
+                com.killer560.hub.lightsdevice.LightsDeviceConfig::load,
                 com.killer560.hub.terminalaura.TerminalAuraConfig::load,
                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
                 com.killer560.hub.autoroutes.AutoRoutesConfig::load,
