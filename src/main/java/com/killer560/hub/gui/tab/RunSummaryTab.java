@@ -87,6 +87,14 @@ public class RunSummaryTab extends BaseTab {
                 }).bounds(contentX + half(contentWidth) + GAP, y, half(contentWidth), ROW).build());
         y += ROW + GAP;
 
+        widgets.add(SettingsButtonWidget.cycling(pbMinText(cfg), (btn, dir) -> {
+            cfg.setPbMinScore(cfg.getPbMinScore() >= RunSummaryConfig.PB_MIN_SPLUS
+                    ? RunSummaryConfig.PB_MIN_S : RunSummaryConfig.PB_MIN_SPLUS);
+            cfg.save();
+            btn.setMessage(pbMinText(cfg));
+        }).bounds(contentX, y, contentWidth, ROW).build());
+        y += ROW + GAP;
+
         if (cfg.isChatSummary()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Don't Repeat Split Timers", cfg.isAvoidDuplicateChat()), btn -> {
                         cfg.setAvoidDuplicateChat(!cfg.isAvoidDuplicateChat());
@@ -249,6 +257,11 @@ public class RunSummaryTab extends BaseTab {
 
     private static StringWidget label(int x, int y, int width, String text) {
         return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
+    }
+
+    private static Component pbMinText(RunSummaryConfig cfg) {
+        return Component.literal("PB Minimum Score: §6" + (cfg.getPbMinScore() >= RunSummaryConfig.PB_MIN_SPLUS
+                ? "S+ (300)" : "S (270)"));
     }
 
     private static Component onOff(String label, boolean value) {

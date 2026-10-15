@@ -42,6 +42,10 @@ public final class RunSummaryConfig {
     /** Include device/lever/terminal completion times in the stored record and the summary view. */
     private boolean recordDeviceTimes = true;
     private int maxRuns = DEFAULT_RUNS;
+    /** A run only counts for a personal best at or above this Hypixel Team Score: S (270) or S+ (300). */
+    public static final int PB_MIN_S = 270;
+    public static final int PB_MIN_SPLUS = 300;
+    private int pbMinScore = PB_MIN_S;
 
     private RunSummaryConfig() {
     }
@@ -69,6 +73,7 @@ public final class RunSummaryConfig {
             cfg.announcePersonalBests = ConfigJson.getBool(obj, "announcePersonalBests", true);
             cfg.recordDeviceTimes = ConfigJson.getBool(obj, "recordDeviceTimes", true);
             cfg.maxRuns = clampRuns(ConfigJson.getInt(obj, "maxRuns", DEFAULT_RUNS));
+            cfg.pbMinScore = clampPbMin(ConfigJson.getInt(obj, "pbMinScore", PB_MIN_S));
             instance = cfg;
         } catch (Exception e) {
             instance = new RunSummaryConfig();
@@ -85,9 +90,14 @@ public final class RunSummaryConfig {
             obj.addProperty("announcePersonalBests", announcePersonalBests);
             obj.addProperty("recordDeviceTimes", recordDeviceTimes);
             obj.addProperty("maxRuns", maxRuns);
+            obj.addProperty("pbMinScore", pbMinScore);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    private static int clampPbMin(int value) {
+        return value >= PB_MIN_SPLUS ? PB_MIN_SPLUS : PB_MIN_S;
     }
 
     private static int clampRuns(int value) {
@@ -138,6 +148,14 @@ public final class RunSummaryConfig {
 
     public void setRecordDeviceTimes(boolean recordDeviceTimes) {
         this.recordDeviceTimes = recordDeviceTimes;
+    }
+
+    public int getPbMinScore() {
+        return pbMinScore;
+    }
+
+    public void setPbMinScore(int pbMinScore) {
+        this.pbMinScore = clampPbMin(pbMinScore);
     }
 
     public int getMaxRuns() {

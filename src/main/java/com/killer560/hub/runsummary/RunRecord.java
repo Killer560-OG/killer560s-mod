@@ -192,6 +192,16 @@ public record RunRecord(
         return estimatedScore >= 0 ? estimatedScore : UNKNOWN_INT;
     }
 
+    /**
+     * True when this run was actually FINISHED: the boss was defeated (Hypixel's "Defeated X in ..." line was seen,
+     * so {@link #hypixelTime} is set) and Hypixel's own Team Score arrived and reached {@code minScore}. A wipe, a
+     * death-ended run, a warp out or a run with only the mod's estimate never qualifies (2026-10-15: a solo F7 that
+     * ended in a wipe, score 2 (D), announced "Personal best! Fastest time").
+     */
+    public boolean countsForPb(int minScore) {
+        return hypixelTime != null && !hypixelTime.isBlank() && hypixelScore >= minScore;
+    }
+
     public String effectiveRank() {
         if (hypixelScore >= 0 && hypixelRank != null) {
             return hypixelRank;

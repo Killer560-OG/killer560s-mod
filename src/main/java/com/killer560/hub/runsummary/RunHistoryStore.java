@@ -89,6 +89,9 @@ public final class RunHistoryStore {
                 }
             }
             trim();
+            if (repairBogusBests()) {
+                saveAsync();
+            }
             LOGGER.info("[RunSummary] Loaded {} run(s) from {}", RUNS.size(), FILE);
         } catch (Exception e) {
             // Same rule as CroesusProfitLog: the next save() would overwrite an unreadable history, so keep
@@ -104,6 +107,44 @@ public final class RunHistoryStore {
             }
             RUNS.clear();
         }
+    }
+
+    private static int pbMin() {
+        return RunSummaryConfig.getInstance().getPbMinScore();
+    }
+
+    /**
+     * One-time self-repair (2026-10-15): clears the stored "*PB*" marks on any run that was never completed or scored
+     * below S (270) - a wiped run once saved itself as a fastest time. The runs stay in the history; they simply stop
+     * counting, since bests are derived from {@link RunRecord#countsForPb}. Idempotent, so it just runs on every load.
+     *
+     * @return true when something was cleared and the file needs rewriting
+     */
+    static boolean repairBogusBests() {
+        boolean changed = false;
+        for (int i = 0; i < RUNS.size(); i++) {
+            RunRecord r = RUNS.get(i);
+            if ((r.bestTime() || r.bestScore()) && !r.countsForPb(RunSummaryConfig.PB_MIN_S)) {
+                RUNS.set(i, new RunRecord(r.startedAtMs(), r.endedAtMs(), r.floor(), r.masterMode(), r.totalMs(),
+                        r.hypixelTime(), r.hypixelNewRecord(), r.splits(), r.devices(), r.secretsFound(),
+                        r.totalSecrets(), r.crypts(), r.deaths(), r.puzzlesFailed(), r.puzzleCount(),
+                        r.estimatedScore(), r.estimatedRank(), r.hypixelScore(), r.hypixelRank(), r.dungeonClass(),
+                        r.partySize(), r.chestProfit(), r.chestCount(), false, false, r.party(), r.map()));
+                LOGGER.info("[RunSummary] Cleared a personal-best mark from an unfinished or sub-S run ({} {})",
+                        r.floorLabel(), RunRecord.formatTime(r.totalMs()));
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /** Test hook: replaces the in-memory history without touching disk, then runs the repair. */
+    public static synchronized boolean setRunsForTest(List<RunRecord> runs) {
+        RUNS.clear();
+        RUNS.addAll(runs);
+        loaded = true;
+        boolean changed = repairBogusBests();
+        return changed;
     }
 
     private static void ensureLoaded() {
@@ -126,9 +167,12 @@ public final class RunHistoryStore {
         String key = floorKey(record);
         long previousBestTime = bestTimeMs(key);
         int previousBestScore = bestScore(key);
-        boolean beatTime = record.totalMs() > 0 && (previousBestTime <= 0 || record.totalMs() < previousBestTime);
-        boolean beatScore = record.effectiveScore() >= 0
-                && (previousBestScore < 0 || record.effectiveScore() > previousBestScore);
+        // Only a completed run at or above the minimum score can be a personal best at all.
+        boolean eligible = record.countsForPb(pbMin());
+        boolean beatTime = eligible && record.totalMs() > 0
+                && (previousBestTime <= 0 || record.totalMs() < previousBestTime);
+        boolean beatScore = eligible && record.hypixelScore() >= 0
+                && (previousBestScore < 0 || record.hypixelScore() > previousBestScore);
         RunRecord stored = new RunRecord(record.startedAtMs(), record.endedAtMs(), record.floor(),
                 record.masterMode(), record.totalMs(), record.hypixelTime(), record.hypixelNewRecord(),
                 record.splits(), record.devices(), record.secretsFound(), record.totalSecrets(), record.crypts(),
@@ -183,7 +227,7 @@ public final class RunHistoryStore {
         ensureLoaded();
         long best = -1L;
         for (RunRecord r : RUNS) {
-            if (floorKey(r).equals(floorKey) && r.totalMs() > 0 && (best < 0 || r.totalMs() < best)) {
+            if (floorKey(r).equals(floorKey) && r.countsForPb(pbMin()) && r.totalMs() > 0 && (best < 0 || r.totalMs() < best)) {
                 best = r.totalMs();
             }
         }
@@ -195,8 +239,8 @@ public final class RunHistoryStore {
         ensureLoaded();
         int best = -1;
         for (RunRecord r : RUNS) {
-            if (floorKey(r).equals(floorKey) && r.effectiveScore() > best) {
-                best = r.effectiveScore();
+            if (floorKey(r).equals(floorKey) && r.countsForPb(pbMin()) && r.hypixelScore() > best) {
+                best = r.hypixelScore();
             }
         }
         return best;
@@ -207,13 +251,16 @@ public final class RunHistoryStore {
         ensureLoaded();
         Map<String, long[]> out = new LinkedHashMap<>();
         for (RunRecord r : RUNS) {
+            if (!r.countsForPb(pbMin())) {
+                continue;
+            }
             String key = floorKey(r);
             long[] entry = out.computeIfAbsent(key, k -> new long[]{-1L, -1L});
             if (r.totalMs() > 0 && (entry[0] < 0 || r.totalMs() < entry[0])) {
                 entry[0] = r.totalMs();
             }
-            if (r.effectiveScore() > entry[1]) {
-                entry[1] = r.effectiveScore();
+            if (r.hypixelScore() > entry[1]) {
+                entry[1] = r.hypixelScore();
             }
         }
         return out;
