@@ -96,7 +96,9 @@ public final class EtherwarpFeature {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !DungeonState.isInDungeon()) {
+        // Highlight Blocks is this feature's own switch and ships ON, so with no waypoint saved anywhere it still
+        // looked the room up and allocated every frame of every dungeon (95-perf-features, 2026-10-15).
+        if (client.player == null || EtherwarpWaypointsStore.all().isEmpty() || !DungeonState.isInDungeon()) {
             return;
         }
         // "Make it so they only appear in that room and you cannot see them outside of that room."
