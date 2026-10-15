@@ -42,10 +42,10 @@ import com.killer560.hub.compat.McCompat;
  *   resume ("walk back over and do the tictactoe again" - nothing further needed for that: the click logic below
  *   simply keeps going once the trip is over, for as many rounds as the room actually needs).</li>
  * </ul>
- * <b>Not implemented</b> - "walk out of the room once it is done": this codebase has no verified doorway/exit
- * coordinate for the Tic Tac Toe room (unlike Boulder/Teleport Maze, which both have one in
- * {@code AutoClearUtils.ROOM_OVERRIDES}); inventing one would risk walking into a wall or a void gap, so this was
- * left out rather than guessed - see the mod-wide honesty rule on puzzle coordinates.
+ * <p>2026-10-15 (killer560): it etherwarps onto the block right in front of the board ({@link #boardSpot}) rather than
+ * walking, the chest trip is "Grab Secret" - one etherwarp next to the secret, Secret Aura's click, one etherwarp back -
+ * and Walk Out When Done waits for the game to be over ({@link TicTacToeSolverFeature#isGameOver}), not for a board on
+ * which the computer has yet to reply.
  */
 final class AutoTicTacToe {
 
@@ -146,10 +146,13 @@ final class AutoTicTacToe {
                     LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping in front of the board onto {}",
                             AutoPuzzleUtil.fmt(spot));
                     return;
-                } else if (AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
+                } else {
+                    // Pathing or the Interactive Map off (nothing else refuses with no path running): once only.
                     roomSpotAttempted = true;
-                    LOGGER.info("[AutoPuzzles] TicTacToe: Interactive Map to {} in front of the board",
-                            AutoPuzzleUtil.fmt(spot));
+                    if (AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
+                        LOGGER.info("[AutoPuzzles] TicTacToe: Interactive Map to {} in front of the board",
+                                AutoPuzzleUtil.fmt(spot));
+                    }
                 }
             }
         }
@@ -164,9 +167,7 @@ final class AutoTicTacToe {
         }
         // WALK OUT WHEN THE BOARD IS DONE.
         //
-        // "Finished" is read as: the solver has no move left, and we have placed at least one this visit. The
-        // second half matters - the solver also has no move while it cannot read the board at all, on the tick
-        // you walk in, and walking out then would leave the puzzle untouched.
+        // "Finished" is the game being over (see below), and at least one placed this visit.
         //
         // The destination is not a hand-measured exit. There is no verified doorway coordinate for this room
         // and inventing one walks you into a wall, which is why this was left unbuilt until now;
