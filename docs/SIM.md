@@ -2894,10 +2894,13 @@ from y64 to y86, which also took:
   Pirate, Spider, Well, Withermancer): open air top to bottom, no frame. Generated floors leave L rooms out, so only a
   drawn or pinned L could be joined there.
 
-In a built floor (testkit 1446, main jar): Mage pinned, 22 and 25 of 30 planned F7s joined a neighbour through Mage N1;
-Quad Lava pinned, 23 and 20 of 30 through E0. The built door cut 25 solid capture blocks out of Mage (stone and terracotta,
-a tunnel under the opening) and 23 out of Quad Lava's wall (cobblestone walls, cyan terracotta - the tunnel comes out in
-the room, but through what Hypixel has as solid wall). Now `RoomDoors` takes only the window at `DOOR_FLOOR_Y` (69)
+In a built floor (testkit 1446, main jar, three runs): Mage pinned, 21-25 of 30 planned F7s joined a neighbour through
+Mage N1; Quad Lava pinned, 20-23 of 30 through E0. The built door cut 25 solid capture blocks out of Mage - a 3-deep
+tunnel at y69..72 that ends in stone (nothing walkable 4..6 blocks in; Mage's open space starts at y72) - and 23 out of
+Quad Lava's three-thick east wall (cobblestone walls, cyan terracotta: the tunnel comes out in the room, but through what
+Hypixel has as solid wall). On the fixed jar: 0 of 30 each, and every door of both rooms walkable with 0 blocks carved.
+A test lesson from writing it: a "can walk on" probe that allows drops must require the shaft above the landing to be
+clear, or it "drops" through solid stone into a cave and calls a dead end walkable. Now `RoomDoors` takes only the window at `DOOR_FLOOR_Y` (69)
 with at least 8 of its 11 frame blocks wall, and `SimDoors` carves and seals at that floor instead of searching the
 seam column: the four `findFloor` bugs of 2026-09-30 were all the search finding the wrong surface, and with every
 real doorway at one height there is nothing to search for. FloorBench mirrors it. `tools/layoutsim -Dsweep=true -Dseed=1
