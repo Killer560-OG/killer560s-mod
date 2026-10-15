@@ -412,3 +412,16 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   pressed. Overlays over the game (`OverlayThemes`, setting "Menu Theme") use the same list but "Default" means the overlay's
   own look and `OverlayThemes.of(id)` is null there; `MenuStyle.snapshot` derives a palette without leaving the menu's statics
   changed. Testkit 1421 walks `OverlayThemes.ids()`.
+
+- **`FormattedCharSequence.forward(String, Style)` does NOT apply formatting codes**: it iterates characters, so "§6X"
+  draws a literal "§6". Vanilla's `getVisualOrder` reads them with `StringDecomposer.iterateFormatted`. `HudTextCache`'s
+  left-to-right fast path (no ICU Bidi for text below U+0590 under a left-to-right language) first used `forward` and
+  testkit 95-perf-fixes, which compares every glyph and style with vanilla's, caught it; it now wraps
+  `iterateFormatted(text, Style.EMPTY, sink)` (2026-10-15).
+- **`HudElementRegistry.drawAt` resolves the position, scale and pose BEFORE the element's render finds its feature
+  off**, about 2 us per element per frame; Health and Mana Bars' Predefined layout was built every frame with the
+  feature off (20 us, 2 KB). `HudInGameRenderer` now skips an element whose `isEnabledInSettings()` is false (its
+  sixteen renders gate on that same setting - check a new element's before adding it to that list) and draws no stat
+  readout while the feature is off (95-perf-features, 2026-10-15). Other `drawAt` callers still pay it: the Auto Clear
+  status and Autopilot HUDs build their lines without testing the setting `isEnabledInSettings()` reads, so a skip
+  inside `drawAt` itself could change what they show.
