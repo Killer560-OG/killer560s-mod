@@ -638,6 +638,11 @@ public final class ClearExecutor {
         externalOwner = value;
     }
 
+    /** What a hop that returned false is waiting for (the stall message names it). */
+    static void setWaitReason(String reason) {
+        waitReason = reason;
+    }
+
     public static void queueInteract(float yaw, float pitch) {
         pendingInteract = new float[]{yaw, pitch};
     }

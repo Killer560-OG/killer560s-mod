@@ -669,7 +669,8 @@ public final class AutoI4Feature {
         }
         // Clicking only once the device has started, holding the bow, with no menu open.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
-                || now < nextClickAtMs) {
+                || now < nextClickAtMs
+                || com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoI4] Shot")) {
             return;
         }
         if (shot != null && settled && !cfg.isAutoI4Rotate() && !fireNoRotate(client, player, shot)) {

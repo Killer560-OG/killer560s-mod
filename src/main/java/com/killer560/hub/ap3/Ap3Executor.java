@@ -1326,6 +1326,12 @@ public final class Ap3Executor {
         HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         BlockHitResult b = hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK ? bh : null;
+        // A plain item use (nothing under the ray) is dropped by Hypixel right after a block click with the same item
+        // (util/BlockClickGap): held, finishAct's SWAP_TIMEOUT still bounds it.
+        if (b == null && node.type == Ap3Node.Type.USE
+                && com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AP3] Use")) {
+            return;
+        }
         actFired = true;
         switch (node.type) {
             case BLOCK -> {

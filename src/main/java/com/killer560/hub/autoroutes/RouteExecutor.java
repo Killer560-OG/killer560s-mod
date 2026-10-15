@@ -2131,15 +2131,7 @@ public final class RouteExecutor {
             // Hypixel ignores a use of the item he has just right-clicked a block with: every warp sent a tick after a
             // chest or lever click (Secret Aura's or his) met its await got no landing on 2026-10-14 (util/BlockClickGap).
             // Held, sneak down, until the gap has passed - then it goes as usual.
-            int clickHold = com.killer560.hub.util.BlockClickGap.ticksLeft(player.getMainHandItem());
-            if (clickHold > 0) {
-                if (warpClickHeldTicks == 0) {
-                    LOGGER.info("[AutoRoutes] Etherwarp: holding the use - a block click at {} {} tick(s) ago with the same "
-                                    + "item (Hypixel drops a use that soon after one), {} tick(s) to go",
-                            com.killer560.hub.util.BlockClickGap.lastClickPos() == null ? "?"
-                                    : com.killer560.hub.util.BlockClickGap.lastClickPos().toShortString(),
-                            com.killer560.hub.util.BlockClickGap.ticksSinceClick(), clickHold);
-                }
+            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Etherwarp")) {
                 warpClickHeldTicks++;
                 return false;
             }
@@ -2411,6 +2403,10 @@ public final class RouteExecutor {
             }
             if (node.item == null) {
                 clickBlockByHand(client, player, node);
+                return;
+            }
+            // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): held, then it goes.
+            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Use node")) {
                 return;
             }
             actionOrigin = player.position();

@@ -2,6 +2,7 @@ package com.killer560.hub.util;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
 
 /**
  * Hypixel drops an item use that arrives right after a right click on a BLOCK made with the same item in hand.
@@ -17,6 +18,12 @@ import net.minecraft.world.item.ItemStack;
  * <p>
  * Fed by {@code AwaitEventsGameModeMixin} at RETURN of {@code MultiPlayerGameMode.useItemOn} (every block click the
  * client sends - vanilla's and every feature's). Client thread only.
+ * <p>
+ * Every feature that sends an item use of its own asks {@link #holdUse} first and sends nothing that tick when it says
+ * true (Auto Routes' warps, use nodes and Kill Mimic; the Interactive Map's hops - so Auto Clear, Auto Secret, Autopilot,
+ * Blood Rush and every puzzle warp; Auto Puzzles' rotated shots; AP3's plain use; Fast Leap; Auto Fairy Souls' pearl;
+ * Mask Swapper's rod; Auto I4 and the Goldor Triggerbot). Held-key uses (a crypt node's held right click) are not asked: the
+ * key press is vanilla's startUseItem, which clicks the block under the crosshair, not an item use.
  */
 public final class BlockClickGap {
 
@@ -29,6 +36,10 @@ public final class BlockClickGap {
     private static long clickNanos;
     private static ItemStack clickItem = ItemStack.EMPTY;
     private static BlockPos clickPos;
+    private static final Logger LOGGER = ModLog.get("killer560smod-blockclickgap");
+    /** The click and feature the hold was last logged for, so one hold is one line. */
+    private static long loggedClickTick = Long.MIN_VALUE;
+    private static String loggedWho;
 
     private BlockClickGap() {
     }
@@ -54,6 +65,26 @@ public final class BlockClickGap {
         long nanosLeft = MIN_NANOS - (System.nanoTime() - clickNanos);
         int byTime = nanosLeft <= 0 ? 0 : (int) Math.ceil(nanosLeft / 50_000_000.0);
         return Math.max(byTicks, byTime);
+    }
+
+    /**
+     * The one question every item-use sender asks before it sends: true = a block click with this same item was made
+     * too recently, send nothing this tick and ask again next one (nothing may be advanced on a true). Logs one line per
+     * hold, the same wording for every feature; {@code who} is the feature's log prefix, e.g. "[AutoRoutes] Etherwarp".
+     */
+    public static boolean holdUse(ItemStack held, String who) {
+        int left = ticksLeft(held);
+        if (left <= 0) {
+            return false;
+        }
+        if (loggedClickTick != clickTick || !who.equals(loggedWho)) {
+            loggedClickTick = clickTick;
+            loggedWho = who;
+            LOGGER.info("{}: holding the use - a block click at {} {} tick(s) ago with the same item (Hypixel drops a use "
+                            + "that soon after one), {} tick(s) to go", who, clickPos == null ? "?" : clickPos.toShortString(),
+                    ticksSinceClick(), left);
+        }
+        return true;
     }
 
     /** Ticks since the last block click (any item), or -1 when there was none in the last 40. */

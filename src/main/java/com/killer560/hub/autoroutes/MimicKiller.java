@@ -155,6 +155,10 @@ public final class MimicKiller {
                 if (sneakDown || turning) {
                     return;
                 }
+                // The chest click that armed this may have been made with this same item (util/BlockClickGap).
+                if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Kill Mimic")) {
+                    return;
+                }
                 use(client, player);
                 if (mode == AutoRoutesConfig.KillMimic.HYPERION) {
                     // Once: Wither Impact straight down implodes where he stands.
@@ -182,7 +186,8 @@ public final class MimicKiller {
                     }
                     return;
                 }
-                if (AwaitEvents.now() - lastUseTick >= delay) {
+                if (AwaitEvents.now() - lastUseTick >= delay
+                        && !com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Kill Mimic")) {
                     use(client, player);
                 }
             }

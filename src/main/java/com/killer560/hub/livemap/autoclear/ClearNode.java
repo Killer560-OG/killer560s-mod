@@ -78,6 +78,12 @@ public abstract class ClearNode {
                 return cancel();
             }
         }
+        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): the hop waits, the
+        // queue stays as it is (Auto Secret's chest click, a puzzle's button with the same AOTV in hand).
+        if (com.killer560.hub.util.BlockClickGap.holdUse(client.player.getMainHandItem(), "[Path] Warp")) {
+            ClearExecutor.setWaitReason("a block click with the same item a moment ago");
+            return false;
+        }
         Vec3 from = new Vec3(playerPos[0], playerPos[1] + TeleportUtils.eyeHeight(sneak), playerPos[2]);
         TeleportUtils.RaycastResult res = raycast.cast(from);
         if (!res.succeeded() || res.pos() == null) {

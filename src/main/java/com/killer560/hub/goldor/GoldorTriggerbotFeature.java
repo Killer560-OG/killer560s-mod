@@ -160,6 +160,12 @@ public final class GoldorTriggerbotFeature {
                 return;
             }
         }
+        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap); a held shot is
+        // carried like a gate-denied one (the due time stays).
+        if (cfg.getClickType() != GoldorTriggerbotConfig.ClickType.ATTACK
+                && com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[Goldor] Shot")) {
+            return;
+        }
         // The one-interaction-per-tick gate, checked after the interval has elapsed and before anything is sent
         // or rolled: a denied tick must leave the aim and the due time exactly where they are.
         if (!ActionGate.tryAct(GATE_ACTOR)) {

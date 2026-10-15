@@ -115,8 +115,13 @@ public final class AutoPuzzleUtil {
     /** Right-click the held item with the given rotation on the use packet only (see class doc).
      *  Passes through {@link ActionGate}; callers MUST treat false as "nothing was sent this tick" and must not
      *  advance any cooldown / stage / one-shot state on it.
-     *  @return false if the gate held this tick back (nothing sent) */
+     *  @return false if the gate or the block-click gap held this tick back (nothing sent) */
     public static boolean useItemRotated(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch) {
+        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): nothing is sent, and
+        // nothing claimed, until the gap has passed - the caller sees the same false as a gate-denied tick.
+        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoPuzzles] Use")) {
+            return false;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
             return false;
         }
