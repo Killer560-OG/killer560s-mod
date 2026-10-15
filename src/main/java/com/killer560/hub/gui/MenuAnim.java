@@ -14,8 +14,9 @@ package com.killer560.hub.gui;
  * only, nothing moves or grows) or Off (every tween is already at its target).
  *
  * <p>Test hooks (docs/TESTING-HOOKS.md): {@link #setClockForTest} fixes the clock; {@code -Dkiller560.test.menuAnimClock=ticks}
- * makes it advance 50 ms per client tick instead of with the wall clock, because the gametest lockstep renders one frame
- * per tick as fast as it can - a wall-clock fade would be caught half done by any screenshot taken a few ticks later.
+ * makes it advance one SECOND per client tick instead of with the wall clock, so every animation has finished by the
+ * tick after it started. The gametest lockstep renders one frame per tick as fast as it can, so a wall-clock fade would
+ * be caught half done by any screenshot a few ticks later; the animation cases drive the clock themselves.
  */
 public final class MenuAnim {
 
@@ -62,12 +63,33 @@ public final class MenuAnim {
     private static long testClockNanos = -1L;
     private static long ticks;
     private static long frameNanos = System.nanoTime();
+    private static long prevFrameNanos = frameNanos;
+    private static long eventNanos = Long.MIN_VALUE;
     private static long frames;
 
     /** Samples the clock for this frame. Call once at the top of a frame that draws animated parts. */
     public static void frame() {
-        frameNanos = clockNanos();
+        long now = clockNanos();
+        if (now != frameNanos) {
+            // only a frame that moved the clock moves "the previous frame" (two draws in one instant are one frame)
+            prevFrameNanos = frameNanos;
+            frameNanos = now;
+        }
         frames++;
+    }
+
+    /**
+     * Marks the moment of an input event (a click, a key, the wheel). A change it causes starts animating from THAT
+     * moment, not from the next frame: at 30 FPS the next frame can be 33 ms later, and an animation that started there
+     * would be 33 ms behind the same one at 300 FPS (testkit 1590 measured exactly that before this existed).
+     */
+    public static void input() {
+        eventNanos = clockNanos();
+    }
+
+    /** When a change seen now happened: the input event since the last frame that caused it, or this frame. */
+    public static long changeTime() {
+        return eventNanos >= prevFrameNanos ? eventNanos : frameNanos;
     }
 
     private static long clockNanos() {
@@ -75,7 +97,7 @@ public final class MenuAnim {
             return testClockNanos;
         }
         if (TICK_CLOCK) {
-            return ticks * 50_000_000L;
+            return ticks * 1_000_000_000L;
         }
         return System.nanoTime();
     }
@@ -95,6 +117,7 @@ public final class MenuAnim {
     public static void setClockForTest(double ms) {
         testClockNanos = ms < 0 ? -1L : Math.round(ms * 1_000_000.0);
         frameNanos = clockNanos();
+        prevFrameNanos = Math.min(prevFrameNanos, frameNanos);
     }
 
     /** Advances the ticks clock (registered only under {@code killer560.test.menuAnimClock=ticks}). */
@@ -131,8 +154,12 @@ public final class MenuAnim {
     }
 
     /** Eased progress (0..1) of something that started at {@code startNanos} and lasts {@code ms} ({@code motion} as in
-     *  {@link #durationNanos}); 1 once it is done, or when the setting makes it instant. */
+     *  {@link #durationNanos}); 1 once it is done, when the setting makes it instant, or when {@code startNanos} is
+     *  {@link Long#MIN_VALUE} (never started). */
     public static float progress(long startNanos, int ms, boolean motion) {
+        if (startNanos == Long.MIN_VALUE) {
+            return 1f; // never started: settled (and frameNanos - MIN_VALUE would overflow)
+        }
         long d = durationNanos(ms, motion);
         if (d <= 0L) {
             return 1f;
@@ -221,7 +248,7 @@ public final class MenuAnim {
             }
             from = get();
             to = target;
-            start = frameNanos;
+            start = changeTime();
             duration = durationNanos(ms, motion);
         }
 
@@ -238,7 +265,7 @@ public final class MenuAnim {
             placed = true;
             from = fromValue;
             to = target;
-            start = frameNanos;
+            start = changeTime();
             duration = durationNanos(ms, motion);
         }
 

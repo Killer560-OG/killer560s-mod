@@ -621,7 +621,7 @@ public class ModScreen extends Screen {
         if (now == before) {
             return;
         }
-        long t = MenuAnim.now();
+        long t = MenuAnim.changeTime();
         if (before == null) {
             drawerOpenedAt = t;
             closingPane = null;
@@ -1025,7 +1025,7 @@ public class ModScreen extends Screen {
         boolean switched = ctx != gridContext;
         if (switched) {
             if (gridContext != Integer.MIN_VALUE) {
-                gridContextAt = MenuAnim.now();
+                gridContextAt = MenuAnim.changeTime();
             }
             gridContext = ctx;
             gridScrollShown.snap(gridScroll);
@@ -1067,6 +1067,7 @@ public class ModScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        MenuAnim.input();
         if (paletteOpen) {
             layoutPalette();
         }
@@ -1099,6 +1100,7 @@ public class ModScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent keyEvent) {
+        MenuAnim.input();
         KeyCaptureTab listening = findListeningKeyCaptureTab();
         if (listening != null) {
             listening.onKeyCaptured(keyEvent.key());
@@ -1172,6 +1174,7 @@ public class ModScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        MenuAnim.input();
         // A tab waiting for a bind eats the next mouse press too, so a bind can be a mouse button (killer560,
         // 2026-09-20). Checked before anything else so the click doesn't also press what is under the cursor.
         KeyCaptureTab listening = findListeningKeyCaptureTab();
@@ -1458,6 +1461,33 @@ public class ModScreen extends Screen {
         return null;
     }
 
+    /** Testkit: {@code tab}'s card animation as of the last frame - {hover, knob, on colour, selected, press, x, y, w,
+     *  lift} (x, y in grid-content units, before scroll) - or null when it has never been laid out. */
+    public float[] cardAnimState(BaseTab tab) {
+        CardAnim a = cardAnims.get(tab);
+        if (a == null) {
+            return null;
+        }
+        return new float[]{a.hover.get(), a.knob.get(), a.on.get(), a.sel.get(), a.press.get(), a.x.get(), a.y.get(),
+                a.w.get(), a.lift.get()};
+    }
+
+    /** Testkit: the menu's own animations at the current clock - {open fade, open grow, drawer slide (1 hidden .. 0 in
+     *  place), drawer fade, drawn drawer scroll, drawn grid scroll, page fade, closing drawer (1 while one slides out),
+     *  sidebar selection y, drawer title switch knob, tooltip fade (0 when none is up), the drawer's (or page's) rows'
+     *  opacity as last drawn}. */
+    public float[] animState() {
+        float slide = openFeature == null ? 1f : 1f - MenuAnim.progress(drawerOpenedAt, MenuAnim.DRAWER_MS, true);
+        float dfade = openFeature == null ? 0f : MenuAnim.progress(drawerOpenedAt, MenuAnim.DRAWER_MS, false);
+        boolean closing = closingPane != null && MenuAnim.progress(closingAt, MenuAnim.DRAWER_MS, false) < 1f;
+        return new float[]{MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, false),
+                MenuAnim.progress(openedAt, MenuAnim.OPEN_MS, true), slide, dfade, scrollShown.get(),
+                gridScrollShown.get(), MenuAnim.progress(gridContextAt, MenuAnim.CATEGORY_MS, false), closing ? 1f : 0f,
+                sideSelY.get(), drawerKnob.get(),
+                tooltipShownAt == Long.MIN_VALUE ? 0f : MenuAnim.progress(tooltipShownAt, MenuAnim.TOOLTIP_MS, false),
+                contentPane == null ? 0f : contentPane.alpha};
+    }
+
     /** Scrolls the grid so {@code tab}'s card is in view (no drawer change). */
     public void revealCard(BaseTab tab) {
         scrollGridTo(tab);
@@ -1633,8 +1663,29 @@ public class ModScreen extends Screen {
 
     // ---- rendering -------------------------------------------------------------------------------------------------
 
+    /** Testkit: when set, the bytes the render thread allocates inside each menu frame are added up (1594). */
+    public static boolean allocProbe;
+    public static long allocBytes;
+    public static long allocFrames;
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        if (!allocProbe || drawingClosed) {
+            draw(g, mouseX, mouseY, partialTick);
+            return;
+        }
+        com.sun.management.ThreadMXBean mx = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory
+                .getThreadMXBean();
+        long before = mx.getCurrentThreadAllocatedBytes();
+        try {
+            draw(g, mouseX, mouseY, partialTick);
+        } finally {
+            allocBytes += mx.getCurrentThreadAllocatedBytes() - before;
+            allocFrames++;
+        }
+    }
+
+    private void draw(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         if (!drawingClosed) {
             MenuAnim.frame();
         }
@@ -2400,7 +2451,7 @@ public class ModScreen extends Screen {
         }
         // The menu is gone at once (whatever comes next takes input now); its fade out is drawn over it (MenuCloseFade).
         if (MenuAnim.mode() != MenuAnim.Mode.OFF) {
-            closedAt = MenuAnim.now();
+            closedAt = MenuAnim.changeTime();
             MenuCloseFade.start(this);
         }
         McCompat.setScreen(this.minecraft, parent);
