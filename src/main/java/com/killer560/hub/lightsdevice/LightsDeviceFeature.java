@@ -84,6 +84,8 @@ public final class LightsDeviceFeature {
     private static boolean activationClicked = false;
     /** "aura 62, 136, 142" / "trigger ..." for every flick this session, newest last (the tab and testkit read it). */
     private static final List<String> recent = new ArrayList<>();
+    /** Flicks this session, never reset (with {@link #recentFlicks}, which keeps only the last 32). */
+    private static int flickCount = 0;
     private static int lastGeneration = Integer.MIN_VALUE;
     private static int lastSection = 1;
 
@@ -372,6 +374,7 @@ public final class LightsDeviceFeature {
         if (swing) {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
+        flickCount++;
         recent.add(who + " " + pos.toShortString());
         while (recent.size() > HISTORY) {
             recent.remove(0);
@@ -394,6 +397,11 @@ public final class LightsDeviceFeature {
     /** Every flick this session, "aura x, y, z" or "trigger x, y, z", oldest first (at most the last 32). */
     public static List<String> recentFlicks() {
         return List.copyOf(recent);
+    }
+
+    /** How many flicks went out this session. */
+    public static int flickCount() {
+        return flickCount;
     }
 
     /** For the tab's status line. */
