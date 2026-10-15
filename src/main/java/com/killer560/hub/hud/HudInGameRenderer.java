@@ -60,7 +60,10 @@ public final class HudInGameRenderer {
         Minecraft client = Minecraft.getInstance();
         // Before the gate: a frame that draws no readout must not leave last frame's boxes for the held-item name.
         com.killer560.hub.playerstats.StatElements.beginFrame();
-        if (!hudAllowed(client)) {
+        // Every readout's render returns at once while Health and Mana Bars is off, but drawAt still asked each one
+        // for its Predefined position first, and that built the whole StatLayout every frame: 29 us and 2 KB a frame
+        // with the feature off (95-perf-features, 2026-10-15).
+        if (!hudAllowed(client) || !com.killer560.hub.playerstats.PlayerStatsConfig.getInstance().isEnabled()) {
             return;
         }
         // Health and Mana Bars' Predefined layout reads values and vanilla rows that change between frames.

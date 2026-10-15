@@ -17,7 +17,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
@@ -263,29 +262,55 @@ public final class LagDisplayFeature {
         private record Line(String text, int color) {
         }
 
+        // The lines only change when a shown number does, so they are built once per change rather than every frame
+        // and again for width()/height() (String.format's Formatter each time: 23 us and 2.5 KB a frame,
+        // 95-perf-features 2026-10-15). Render thread only.
+        private static List<Line> cachedLines = List.of();
+        private static long cachedKey = Long.MIN_VALUE;
+        private static int cachedFlags = -1;
+
         private static List<Line> lines() {
             LagDisplayConfig cfg = LagDisplayConfig.getInstance();
-            List<Line> out = new ArrayList<>();
             boolean colored = cfg.isColorByValue();
-
-            if (cfg.isShowTps()) {
-                double t = tps();
-                out.add(new Line(t < 0 ? "TPS: -" : String.format(Locale.US, "TPS: %.1f", t),
-                        colored && t >= 0 ? tpsColor(t) : COLOR_PLAIN));
+            int flags = (cfg.isShowTps() ? 1 : 0) | (cfg.isShowPing() ? 2 : 0) | (cfg.isShowFps() ? 4 : 0)
+                    | (cfg.isShowCps() ? 8 : 0) | (colored ? 16 : 0);
+            // TPS in tenths (what is shown), or -1; the other values are small whole numbers.
+            long tpsTenths = (flags & 1) != 0 ? tenths(tps()) : 0;
+            long ping = (flags & 2) != 0 ? ping() : 0;
+            long fps = (flags & 4) != 0 ? Minecraft.getInstance().getFps() : 0;
+            long cpsL = (flags & 8) != 0 ? cps(LEFT_CLICKS) : 0;
+            long cpsR = (flags & 8) != 0 ? cps(RIGHT_CLICKS) : 0;
+            // Packed key: tps 10 bits, ping 16, fps 16, cps 2 x 8 (each clamped; a clamp only costs a rebuild).
+            long key = (Math.min(tpsTenths + 1, 1023)) | (Math.min(ping + 1, 65535) << 10)
+                    | (Math.min(fps, 65535) << 26) | (Math.min(cpsL, 255) << 42) | (Math.min(cpsR, 255) << 50);
+            if (key == cachedKey && flags == cachedFlags && tpsTenths < 1022 && ping < 65534 && fps < 65535
+                    && cpsL < 255 && cpsR < 255) {
+                return cachedLines;
             }
-            if (cfg.isShowPing()) {
-                int ping = ping();
+            List<Line> out = new ArrayList<>(4);
+            if ((flags & 1) != 0) {
+                out.add(new Line(tpsTenths < 0 ? "TPS: -" : "TPS: " + tpsTenths / 10 + "." + tpsTenths % 10,
+                        colored && tpsTenths >= 0 ? tpsColor(tpsTenths / 10.0) : COLOR_PLAIN));
+            }
+            if ((flags & 2) != 0) {
                 out.add(new Line(ping < 0 ? "Ping: -" : "Ping: " + ping + "ms",
-                        colored && ping >= 0 ? pingColor(ping) : COLOR_PLAIN));
+                        colored && ping >= 0 ? pingColor((int) ping) : COLOR_PLAIN));
             }
-            if (cfg.isShowFps()) {
-                int fps = Minecraft.getInstance().getFps();
-                out.add(new Line("FPS: " + fps, colored ? fpsColor(fps) : COLOR_PLAIN));
+            if ((flags & 4) != 0) {
+                out.add(new Line("FPS: " + fps, colored ? fpsColor((int) fps) : COLOR_PLAIN));
             }
-            if (cfg.isShowCps()) {
-                out.add(new Line("CPS: " + cps(LEFT_CLICKS) + " | " + cps(RIGHT_CLICKS), COLOR_PLAIN));
+            if ((flags & 8) != 0) {
+                out.add(new Line("CPS: " + cpsL + " | " + cpsR, COLOR_PLAIN));
             }
+            cachedLines = out;
+            cachedKey = key;
+            cachedFlags = flags;
             return out;
+        }
+
+        /** {@code t} rounded to tenths as %.1f shows it (half up), or -1 for "unknown". */
+        private static long tenths(double t) {
+            return t < 0 ? -1 : Math.round(t * 10.0);
         }
 
         /** 20 TPS is perfect; Hypixel dungeons feel fine down to ~18, get choppy under 15, and under 10
