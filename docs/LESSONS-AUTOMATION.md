@@ -182,28 +182,33 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   vanilla as a swing a tick before the await opened, and one while Kill Mimic held the hands was never read (that branch
   of `tick` returned before `tickAction`). Both are taken now: held `EARLY_SKIP_TICKS` (10) for the next await, and Kill
   Mimic is stopped by the skip (96-ar-1015-earlyskip, -mimicskip, 2026-10-15).
-- **Hypixel ignores a use of the item he has just right-clicked a block with** (Mod Only Test, real Red Blue / Raccoon run,
-  2026-10-14 17:22-17:29). Six etherwarps sent one tick after a chest or lever click met their await, the AOTV already in
-  hand ("acted 1 tick(s) after firing (sneak went out in the firing tick's input packet)"), got "no landing after 61 ticks"
-  with no chat line, and each retry 3 s later landed; the one a tick after a click made with another item ("hotbar swap,
-  same tick") landed, as did every one a tick after a left-click skip. A refused warp says "There are blocks in the way!";
-  these said nothing, so the use was dropped, not judged. The window's length is not measured (only a 1-tick gap is in the
-  log). `util/BlockClickGap` now holds the warp's use until 4 ticks and 200 ms after a same-item block click (log
-  "holding the use - a block click"), the sim drops a same-item use within 2 server ticks of one, and the testkit's
-  `HypixelUseAfterClick` forces that on any jar (96-ar-1015-warpclick). If a held warp still gets no landing on Hypixel,
-  the window is longer than 4 ticks - raise `BlockClickGap.MIN_TICKS`.
-  **Every item-use sender asks `BlockClickGap.holdUse(item, "[Feature] what")` first** (one helper, one log line; true = send
-  nothing and advance nothing): Auto Routes warp / use node / Kill Mimic, `ClearExecutor.doInteract` (every Interactive Map hop,
-  so Auto Clear, Auto Secret, Autopilot, Blood Rush, puzzle trips), `AutoPuzzleUtil.useItemRotated`, AP3's plain use, Fast Leap,
-  the pearl hopper, Mask Swapper's rod, Auto I4, the Goldor Triggerbot. Held-key uses (a crypt node's held right click) are not
-  asked - that is vanilla's startUseItem clicking the block under the crosshair. Three traps found doing it (1015-sim-clickgap):
-  (1) the click is fed from the OUTGOING `ServerboundUseItemOnPacket` (`BlockClickGapSendMixin`), not from RETURN of
-  `useItemOn`: in the sim Fabric's UseBlockCallback answers SUCCESS at the head for an ability item and RETURN never runs, so a
-  plain AOTV block click was invisible. (2) A map hop is planned from a landing 1.05 up and he rests 0.05 lower after a few
-  ticks, so a held hop is aimed again from where he stands (`getEtherwarpDirection`), and replans quietly when no ray is left;
-  unheld hops go a tick after the landing and never saw it. (3) `updateDelays` let go of the forced sneak 2 ticks after the
-  last hop was queued, so a last hop held longer left as an Instant Transmission 24 blocks off - it now waits for
-  `pendingInteract`. Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim itself.
+- **Hypixel's 1.8 server pairs a bare item use with the last unpaired right click on a block** (CraftBukkit 1.8
+  `PlayerInteractManager.firedInteract/interactResult`, face-255 branch of `PlayerConnection.a(PacketPlayInBlockPlace)`). A
+  block click stores its verdict; a use traces 4.5 blocks along the look the server LAST HEARD in a movement packet (a 1.8
+  use carries no rotation; a 26.1 use's own rotation does not count for this trace), and if that ray meets a block while a
+  verdict is stored, the use is taken as the click's second half: no ability, no chat line, verdict cleared. A modern
+  client's chest/lever/skull click is one packet, so its verdict stays stored. Evidence, Mod Only Test 2026-10-14
+  17:22-17:29: all six "no landing after 61 ticks" warps came a tick after a chest or lever click with the AOTV held, and
+  their retries landed (verdict gone); along the warps' OWN looks Red Blue #5 and #6 meet nothing within 4.5 (raytraced
+  against the room capture), so the server traced the look the chest was clicked with - Auto Routes turned the body and sent
+  the use in the same tick, so the movement packet with the warp's look went after it. The 2026-10-15 fix that held every
+  use 4 ticks after a same-item click (`BlockClickGap`) was wrong and is gone: it still sent with the old look. Sneak timing
+  was ruled out (four warps with sneak in the firing tick and no click before them landed). `util/RightClick` now, for every
+  item-use sender: `mustTurnFirst` (unpaired click AND the heard look's ray meets a block AND the use's look not yet heard ->
+  turn the body, send next tick; Auto Routes turns on the firing tick while the sneak goes out, so it costs nothing) and
+  `beforeUse`/`beforePlainUse` (the use's look meets a block within reach -> send vanilla's click on that block first, so the
+  use pairs with it). A click with an empty hand counts as harmless (and replaces an earlier verdict): the one real warp
+  a tick after a click made with another item (Grand Library 17:29:35, Dungeon Breaker) landed. The sim models the pairing (`SimAbilities.takenAsClickHalf`, heard look from `SimUseLookMixin`) and the
+  testkit's `HypixelUseAfterClick` forces it on any jar (96-ar-1015-warpclick, -puzzleclick, 1015-sim-clickgap). Every use
+  and block click logs one `[RightClick]` line (seq, item, slot, rotation, heard look, shift, screen, unpaired click, ray);
+  a WARN line ending "takes this use as that click's second half" is the failure happening.
+  Traps: the Interactive Map sends a hop while the last one is still in flight client-side, so its server ray is traced from
+  the planned spot (`mustTurnFirst(.., serverFeet, ..)`), and a waited hop is re-aimed only once he stands within a block of
+  its spot (re-aimed from the pre-landing position it flew 38 blocks off the plan, 1015-sim-clickgap); a path hop in flight
+  already turns to the next hop's look while a click is unpaired, so the landing tick still sends it; `updateDelays` must not
+  let go of the forced sneak while `pendingInteract` waits (Instant Transmission). The testkit pairs a right click's two
+  halves by the client's tick-end packet, not by server tick or movement packet (a standing client sends no movement packet).
+  Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 

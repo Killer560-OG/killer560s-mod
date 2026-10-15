@@ -115,11 +115,17 @@ public final class AutoPuzzleUtil {
     /** Right-click the held item with the given rotation on the use packet only (see class doc).
      *  Passes through {@link ActionGate}; callers MUST treat false as "nothing was sent this tick" and must not
      *  advance any cooldown / stage / one-shot state on it.
-     *  @return false if the gate or the block-click gap held this tick back (nothing sent) */
+     *  @return false if the gate held this tick back, or the server must hear the look first (util/RightClick): nothing sent */
     public static boolean useItemRotated(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch) {
-        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): nothing is sent, and
-        // nothing claimed, until the gap has passed - the caller sees the same false as a gate-denied tick.
-        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoPuzzles] Use")) {
+        // A right click on a block may be waiting on the server for its second half while the server's look meets a block
+        // (util/RightClick): a use now would be taken as that click's end. The body turns to the use's look now (camera
+        // held), nothing is sent or claimed - the caller sees the same false as a gate-denied tick - and it goes next tick.
+        if (com.killer560.hub.util.RightClick.mustTurnFirst(player, targetYaw, targetPitch, "[AutoPuzzles] Use")) {
+            ViewFreeze.hold(player.getYRot(), player.getXRot());
+            float turnYaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
+            player.setYRot(turnYaw);
+            player.setYHeadRot(turnYaw);
+            player.setXRot(Mth.clamp(targetPitch, -90f, 90f));
             return false;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
@@ -155,6 +161,7 @@ public final class AutoPuzzleUtil {
         // The visible cost is that he ends a shot facing the target. His CAMERA does not move - ViewFreeze
         // above holds the view - but his body does, so a walk started right after a shot sets off in the new
         // direction. That is the same trade rotateCamera already makes.
+        com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[AutoPuzzles] Use");
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         return true;
     }

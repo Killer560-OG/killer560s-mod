@@ -448,13 +448,10 @@ public final class MaskSwapper {
     }
 
     private static void rodCast(Minecraft client, LocalPlayer player, long now) {
-        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap).
-        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[MaskSwapper] Rod")) {
-            return;
-        }
         if (!ActionGate.tryAct(WORLD_ACTOR)) {
             return;
         }
+        com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[MaskSwapper] Rod");
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         lastPhoenixRodThrowMs = now;
         ModChat.send(CHAT, ModChat.text("Threw the rod for "), ModChat.value("Phoenix"));

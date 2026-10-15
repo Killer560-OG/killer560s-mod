@@ -6,7 +6,8 @@
 	"client": [
 		"SimFovMixin",
 		"SimPlayerInfoPacketAccessor",
-		"SimStaticWaterMixin"
+		"SimStaticWaterMixin",
+		"SimUseLookMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

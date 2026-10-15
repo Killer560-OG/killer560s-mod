@@ -649,7 +649,7 @@ public final class ClearExecutor {
 
     /**
      * Queues the next hop's use. {@code from} is the feet position the look was worked out from and {@code block} the
-     * etherwarp block it lands on (null for a non-sneaking teleport): a hop held back by util/BlockClickGap is aimed again
+     * etherwarp block it lands on (null for a non-sneaking teleport): a hop held back by util/RightClick is aimed again
      * from where he stands when it goes (he falls while he waits - the hop is planned from a landing 1.05 up), the way Auto
      * Routes' {@code reaimIfMoved} does.
      */
@@ -667,7 +667,7 @@ public final class ClearExecutor {
     private static final int MAX_HELD_REPLANS = 2;
 
     /**
-     * The hop held back by util/BlockClickGap has no ray to its block from where he rests now (he stands 0.05 lower than
+     * The hop held back by util/RightClick has no ray to its block from where he rests now (he stands 0.05 lower than
      * the landing it was planned from, and a marginal aim does not survive that). Nothing was sent for it, so this is not a
      * correction: the goal is planned again from here, no alarm and no chat line - at most {@link #MAX_HELD_REPLANS} times a
      * goal, then the planned look goes as it stands. False = no goal to plan again (a list another feature built), or the
@@ -694,7 +694,7 @@ public final class ClearExecutor {
         replanWaitTicks = 0;
         return true;
     }
-    /** Ticks the queued hop has been held back by util/BlockClickGap. */
+    /** Ticks the queued hop has waited for the server to hear its look (util/RightClick). */
     private static int pendingHeldTicks;
 
     public static void cancel() {
@@ -1208,18 +1208,15 @@ public final class ClearExecutor {
             return;
         }
         LocalPlayer player = client.player;
-        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): the hop stays
-        // queued, canNext lets no further one be queued behind it, and it goes on the first tick the gap has passed. Checked
-        // here, where the packet is sent, so a click made between the hop being worked out and being sent is seen too.
-        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[Path] Warp")) {
-            waitReason = "a block click with the same item a moment ago";
-            pendingHeldTicks++;
-            return;
-        }
-        pendingInteract = null;
+        // A hop that waited a tick is aimed again from where he stands when it goes: it is planned from a landing 1.05 up
+        // and he rests 0.05 lower a few ticks later (Auto Routes' reaimIfMoved does the same).
         if (pendingHeldTicks > 0 && pendingBlock != null && pendingFrom != null) {
             Vec3 at = player.position();
-            if (at.distanceTo(pendingFrom) > 0.05) {
+            // Only once he is ON the planned spot (resting a little off it). Further off he has not landed client-side
+            // yet - a hop goes on from the prediction while the last one is in flight - and the server already has him
+            // there, so the planned look is the right one (aimed from the old spot it sent 1015-sim-clickgap's hops off
+            // the plan, 2026-10-15).
+            if (at.distanceTo(pendingFrom) > 0.05 && at.distanceTo(pendingFrom) < 1.0) {
                 Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
                 TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, pendingBlock, hopRange() + 1.0);
                 if (rot != null) {
@@ -1227,14 +1224,33 @@ public final class ClearExecutor {
                             pendingHeldTicks, fmt(at), String.format(java.util.Locale.ROOT, "%.2f", at.distanceTo(pendingFrom)),
                             pendingBlock.toShortString());
                     interact = new float[]{rot.yaw(), rot.pitch()};
+                    pendingInteract = interact;
+                    pendingFrom = at;
                 } else if (replanHeldHop(at)) {
+                    pendingInteract = null;
                     return;
                 } else {
                     LOGGER.info("[Path] Warp: held {} tick(s), no ray from {} lands on {} - sending the planned look",
                             pendingHeldTicks, fmt(at), pendingBlock.toShortString());
+                    pendingFrom = at;
                 }
             }
         }
+        // Same direction as the target, expressed relative to the running (unwrapped) yaw.
+        float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
+        float pitch = Mth.clamp(interact[1], -90f, 90f);
+        // A right click on a block may be waiting on the server for its second half, and the server's look meets a block
+        // (util/RightClick): the hop would be taken as that click's end and not warp. The body faces the hop now, so this
+        // tick's movement packet tells the server, and it goes next tick; canNext queues nothing behind it meanwhile.
+        // From where the server has him: the planned spot, which the client may not have seen him land on yet.
+        Vec3 serverFeet = pendingFrom != null && player.position().distanceTo(pendingFrom) >= 1.0 ? pendingFrom : null;
+        if (com.killer560.hub.util.RightClick.mustTurnFirst(player, serverFeet, yaw, pitch, "[Path] Warp")) {
+            BODY.turn(player, yaw, pitch);
+            waitReason = "the server hearing the hop's look first (a block click is unpaired)";
+            pendingHeldTicks++;
+            return;
+        }
+        pendingInteract = null;
         pendingHeldTicks = 0;
         // Never a hop from inside a trap room (killer560, 2026-10-06: "it shouldn't be able to etherwarp in trap - just
         // to enter it"): a path may land him in one, but the next hop does not go out from there.
@@ -1247,11 +1263,9 @@ public final class ClearExecutor {
             ModChat.send(CHAT, ModChat.bad("Stopped: "), ModChat.text("in a trap room - no etherwarp from inside one"));
             return;
         }
-        // Same direction as the target, expressed relative to the running (unwrapped) yaw.
-        float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
-        float pitch = Mth.clamp(interact[1], -90f, 90f);
         // The body faces the hop for this tick's movement packet; only the camera stays still (see BODY).
         BODY.turn(player, yaw, pitch);
+        com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[Path] Warp");
         // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
         // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction
         // one a tick there too.
@@ -1277,7 +1291,7 @@ public final class ClearExecutor {
     }
 
     private static void updateDelays() {
-        // Not while the last hop is still waiting to be sent (util/BlockClickGap): letting go of the forced sneak under it
+        // Not while the last hop is still waiting to be sent (util/RightClick): letting go of the forced sneak under it
         // sent the hop as an Instant Transmission, 24 blocks off the plan.
         if (compDelay > 0 && pendingInteract == null && --compDelay == 0) {
             active = false;
@@ -1296,7 +1310,7 @@ public final class ClearExecutor {
             return false;
         }
         if (pendingInteract != null) {
-            return false;   // a hop is still waiting to be sent (util/BlockClickGap): never queue another behind it
+            return false;   // a hop is still waiting to be sent (util/RightClick): never queue another behind it
         }
         if (compDelay == 0) {
             active = false;

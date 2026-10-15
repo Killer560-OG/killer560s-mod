@@ -7,7 +7,7 @@
 		"AutoRoutesInputMixin",
 		"AwaitEventsGameModeMixin",
 		"AwaitEventsPacketMixin",
-		"BlockClickGapSendMixin",
+		"RightClickSendMixin",
 		"HeldUsePickMixin",
 		"KeyMappingKeyAccessor"
 	],

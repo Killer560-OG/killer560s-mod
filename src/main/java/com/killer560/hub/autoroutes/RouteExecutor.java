@@ -217,8 +217,8 @@ public final class RouteExecutor {
     private static double nextWarpAt = Double.NEGATIVE_INFINITY;
     /** Ticks the warp under way has waited for the pace (for its "acted" line). */
     private static int warpPacedTicks;
-    /** Ticks this warp's use was held after a block click made with the same item (util/BlockClickGap). */
-    private static int warpClickHeldTicks;
+    /** Ticks this warp's use waited for the server to hear its look first, a block click being unpaired (util/RightClick). */
+    private static int warpTurnFirstTicks;
 
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
@@ -2106,7 +2106,7 @@ public final class RouteExecutor {
     private static boolean tickWarp(Minecraft client, LocalPlayer player, RouteNode node) {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
-            warpClickHeldTicks = 0;
+            warpTurnFirstTicks = 0;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -2123,6 +2123,14 @@ public final class RouteExecutor {
         }
         if (step == Step.AIM) {
             wantSneak = true;
+            // A right click on a block may be waiting on the server for its second half (util/RightClick): the server
+            // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.
+            // Turned here, while the sneak is still on its way to the server, it costs no tick.
+            if (!AutoRoutesConfig.getInstance().isLegitMode()
+                    && com.killer560.hub.util.RightClick.mustTurnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
+                turnBody(player, player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()),
+                        Mth.clamp(warpPitch, -90f, 90f));
+            }
             // QUOI ClearExecutor's rule, kept: never use before the SERVER has the sneak, or the warp is a plain AOTV
             // hop. lastSentInput is what the last ServerboundPlayerInputPacket said, and that packet was sent before
             // anything this tick sends, so the server applies the sneak first (handlePlayerInput -> setShiftKeyDown).
@@ -2152,13 +2160,6 @@ public final class RouteExecutor {
                 warpPacedTicks++;
                 return false;
             }
-            // Hypixel ignores a use of the item he has just right-clicked a block with: every warp sent a tick after a
-            // chest or lever click (Secret Aura's or his) met its await got no landing on 2026-10-14 (util/BlockClickGap).
-            // Held, sneak down, until the gap has passed - then it goes as usual.
-            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Etherwarp")) {
-                warpClickHeldTicks++;
-                return false;
-            }
             // The use goes out now, from where the server has him now: aim from here if he moved since the aim was
             // worked out. Obvious mode puts the look in the use packet itself, so it simply goes; legit mode turns the
             // camera to it first (aimReady's settle, or its timeout).
@@ -2171,6 +2172,15 @@ public final class RouteExecutor {
                 aimAt(warpYaw, warpPitch, node);
                 return false;
             }
+            // Every warp sent a tick after a chest or lever click met its await got no landing on Hypixel (2026-10-14):
+            // the server traced the use along the look Secret Aura clicked the chest with, met the chest, and took the
+            // use as the click's second half (util/RightClick). So when a block click is unpaired the server hears this
+            // look first - turned on the firing tick above when the sneak was not yet out, which costs nothing; only a
+            // warp that would otherwise go on the click's own tick waits, one tick.
+            if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
+                warpTurnFirstTicks++;
+                return false;
+            }
             if (hopIndex < 0 && newBlockInLine(client, player, node)) {
                 return false;
             }
@@ -2180,8 +2190,8 @@ public final class RouteExecutor {
             useHeldItem(client, player, warpYaw, warpPitch, false);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
-                    + (warpClickHeldTicks > 0 ? " (held " + warpClickHeldTicks + " tick(s) after a block click with the "
-                    + "same item)" : "")
+                    + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
+                    + "look - a block click was unpaired)" : "")
                     + " (sneak " + (hopIndex > 0 ? "held from the last warp" : sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
@@ -2192,6 +2202,18 @@ public final class RouteExecutor {
         }
         if (step == Step.CONFIRM) {
             wantSneak = true;
+            // A block click is unpaired on the server (util/RightClick): while this hop is in flight the body already turns
+            // to the NEXT hop's look - its use has gone and its own look was reported last tick - so the server has heard
+            // that look by the time he lands and the next hop goes on the landing tick, not one later.
+            if (stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < node.pathHops.size()
+                    && !AutoRoutesConfig.getInstance().isLegitMode() && com.killer560.hub.util.RightClick.unpaired()) {
+                RouteNode.PathHop next = node.pathHops.get(hopIndex + 1);
+                float nextYaw = RouteCoords.toRealYaw(frame, next.yaw());
+                if (!com.killer560.hub.util.RightClick.heard(player, nextYaw, next.pitch())) {
+                    turnBody(player, player.getYRot() + Mth.wrapDegrees(nextYaw - player.getYRot()),
+                            Mth.clamp(next.pitch(), -90f, 90f));
+                }
+            }
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
@@ -2429,8 +2451,8 @@ public final class RouteExecutor {
                 clickBlockByHand(client, player, node);
                 return;
             }
-            // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): held, then it goes.
-            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Use node")) {
+            // A block click may be unpaired on the server (util/RightClick): the use's look reaches it first.
+            if (turnFirst(player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, "[AutoRoutes] Use node")) {
                 return;
             }
             actionOrigin = player.position();
@@ -2665,9 +2687,6 @@ public final class RouteExecutor {
         }
         float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
         if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
-            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Bat")) {
-                return true;
-            }
             batLastUse = stepTicks;
             useHeldItem(client, player, yaw, pitch, false);
             LOGGER.info("[AutoRoutes] Node #{} BAT: Spirit Sceptre use at the bat (yaw {}, pitch {}, {} blocks)",
@@ -3328,6 +3347,11 @@ public final class RouteExecutor {
                 }
             }
             if (!result.consumesAction()) {
+                if (!blockInteraction) {
+                    // An etherwarp: the block half of a vanilla right click first when the server needs it (util/RightClick).
+                    com.killer560.hub.util.RightClick.beforeUse(client, player, player.getYRot(), player.getXRot(),
+                            "[AutoRoutes] Use");
+                }
                 client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
             }
             player.swing(InteractionHand.MAIN_HAND);
@@ -3343,6 +3367,9 @@ public final class RouteExecutor {
         // (AutoPuzzleUtil.useItemRotated). The body is put back to the held view a tick after the last use
         // (tickView), so the camera ends where he left it.
         turnBody(player, yaw, pitch);
+        // When a block click is unpaired on the server and this look (which the server already has - turnFirst) meets a
+        // block within reach, the click on that block goes first, as a vanilla right click sends it (util/RightClick).
+        com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[AutoRoutes] Use");
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level,
                     sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
@@ -3350,6 +3377,23 @@ public final class RouteExecutor {
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
         player.swing(InteractionHand.MAIN_HAND);
+    }
+
+    /**
+     * {@link com.killer560.hub.util.RightClick#mustTurnFirst} for a use at {@code yaw}/{@code pitch}: true = send nothing this
+     * tick. Obvious mode turns the body to the look now, so this tick's movement packet tells the server; legit mode uses
+     * at the live camera, which it reports itself, so it only waits for that.
+     */
+    static boolean turnFirst(LocalPlayer player, float yaw, float pitch, String who) {
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        if (!com.killer560.hub.util.RightClick.mustTurnFirst(player, legit ? player.getYRot() : yaw,
+                legit ? player.getXRot() : pitch, who)) {
+            return false;
+        }
+        if (!legit) {
+            turnBody(player, player.getYRot() + Mth.wrapDegrees(yaw - player.getYRot()), Mth.clamp(pitch, -90f, 90f));
+        }
+        return true;
     }
 
     /** The route's body turns, camera held ({@link com.killer560.hub.util.BodyAim}, shared with the Interactive Map's

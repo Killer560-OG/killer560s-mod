@@ -49,8 +49,6 @@ public final class EnderPearlHopper {
     private static Vec3 expectedLanding;
     private static Runnable pendingDone;
     private static int waitTicks;
-    /** The last throw was held back by util/BlockClickGap, so the next tick tries again instead of waiting for the 20-tick retry. */
-    private static boolean throwHeld;
     private static Vec3 throwOrigin;
 
     private EnderPearlHopper() {
@@ -194,19 +192,16 @@ public final class EnderPearlHopper {
         if (AutoWalker.aimError() > 2.0f) {
             return;
         }
-        if (waitTicks == 4 || waitTicks % 20 == 0 || throwHeld) {
+        if (waitTicks == 4 || waitTicks % 20 == 0) {
             int slot = hotbarSlot();
             if (slot < 0) {
                 finish();
                 return;
             }
             player.getInventory().setSelectedSlot(slot);
-            // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): the throw is
-            // held, and goes on the first tick the gap has passed instead of waiting for the next 20-tick retry.
-            throwHeld = com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoFairySouls] Pearl");
-            if (!throwHeld) {
-                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-            }
+            // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
+            com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoFairySouls] Pearl");
+            client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
         // No client-side teleport trick here (unlike Etherwarp) - the server moves us once the real pearl entity
         // lands, so a real position jump away from the throw spot is the only reliable "it landed" signal.

@@ -400,20 +400,15 @@ public final class LeapManager {
             finish(a, Result.FAILURE, "the leap item is no longer held");
             return;
         }
-        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap).
-        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[FastLeap] Leap")) {
-            if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
-                finish(a, Result.FAILURE, "the leap use was held back too long after a block click");
-            }
-            return;
-        }
         if (!ActionGate.tryAct(ActionGate.Actor.LEAP_USE)) {
             if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
                 finish(a, Result.FAILURE, "no free tick to use the leap");
             }
             return;
         }
-        // action { PlayerUtils.interact() }
+        // action { PlayerUtils.interact() } - as a vanilla right click reaches Hypixel when a block click is unpaired
+        // (util/RightClick): the click on the block under the crosshair first, then the use.
+        com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[FastLeap] Leap");
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         a.usedItem = true;
         logStep("use");
