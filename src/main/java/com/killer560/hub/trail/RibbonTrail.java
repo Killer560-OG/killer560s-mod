@@ -47,8 +47,6 @@ public final class RibbonTrail {
     public static final int MAX_POINTS = 256;
     /** Blocks between two laid points. */
     public static final double SPACING = 0.2;
-    /** A jump further than this between frames (a teleport, an AOTV) starts a new ribbon instead of a long streak. */
-    private static final double TELEPORT = 6.0;
     /** The band's middle as a share of eye height (1.62 standing gives 0.75, so a 1-block band runs 0.25 to 1.25). */
     private static final double MIDDLE = 0.463;
     /** The band's bottom never goes below this, however tall it is. */
@@ -63,6 +61,8 @@ public final class RibbonTrail {
     private final double[] ry = new double[MAX_POINTS];
     private final double[] rz = new double[MAX_POINTS];
     private final long[] rt = new long[MAX_POINTS];
+    /** True for the first point of a piece that starts after a teleport in Break mode (no band joins it to the one before). */
+    private final boolean[] rbreak = new boolean[MAX_POINTS];
     private int head = 0;
     private int count = 0;
     private ClientLevel lastLevel;
@@ -79,6 +79,11 @@ public final class RibbonTrail {
     private final double[] pz = new double[MAX_POINTS + 1];
     private final float[] age = new float[MAX_POINTS + 1];
     private final float[] along = new float[MAX_POINTS + 1];
+    private final boolean[] brk = new boolean[MAX_POINTS + 1];
+    private double lastFeetX;
+    private double lastFeetY;
+    private double lastFeetZ;
+    private boolean hasLastFeet = false;
 
     /** Two vertices (bottom, top) per point, each x y z r g b a, in world space. */
     private final float[] verts = new float[(MAX_POINTS + 1) * 2 * 7];
@@ -89,6 +94,9 @@ public final class RibbonTrail {
     private long framesDrawn = 0;
     private int lastPointCount = 0;
     private double lastLength = 0;
+    private int lastBreaks = 0;
+    private int lastSegments = 0;
+    private int teleports = 0;
 
     RibbonTrail() {
     }
@@ -115,6 +123,21 @@ public final class RibbonTrail {
 
     public static void clear() {
         LOCAL.reset();
+    }
+
+    /** Teleports (a jump past {@link TeleportMode#MIN_JUMP} in one frame) your ribbon has seen since it was last cleared. */
+    public static int teleportsSeen() {
+        return LOCAL.teleports;
+    }
+
+    /** Gaps (Break mode teleports) in your ribbon's last drawn frame. */
+    public static int lastBreaks() {
+        return LOCAL.lastBreaks;
+    }
+
+    /** Quads in your ribbon's last drawn frame: one per joined pair of points, none across a gap. */
+    public static int lastSegments() {
+        return LOCAL.lastSegments;
     }
 
     /** Your ribbon's last drawn vertices (see {@link #vertices()}). */
@@ -155,13 +178,18 @@ public final class RibbonTrail {
 
     void reset() {
         hasBack = false;
+        hasLastFeet = false;
+        teleports = 0;
+        lastBreaks = 0;
+        lastSegments = 0;
         head = 0;
         count = 0;
         lastPointCount = 0;
         lastLength = 0;
     }
 
-    private void push(double x, double y, double z, long t) {
+    private void push(double x, double y, double z, long t, boolean gap) {
+        rbreak[head] = gap;
         rx[head] = x;
         ry[head] = y;
         rz[head] = z;
@@ -183,6 +211,12 @@ public final class RibbonTrail {
      * person with Show In First Person off).
      */
     void draw(LevelRenderContext context, Player player, TrailSpec spec, int[] fadeEnds, boolean hidden) {
+        draw(context, player, spec, fadeEnds, hidden, RibbonTrailConfig.getInstance().getTeleportMode());
+    }
+
+    /** As above, with {@code onTeleport} deciding what the ribbon does across a teleport (see {@link TeleportMode}). */
+    void draw(LevelRenderContext context, Player player, TrailSpec spec, int[] fadeEnds, boolean hidden,
+              TeleportMode onTeleport) {
         Minecraft client = Minecraft.getInstance();
         ClientLevel level = client.level;
         if (level != lastLevel) {
@@ -198,6 +232,19 @@ public final class RibbonTrail {
 
         float partial = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 feet = player.getPosition(partial);
+        // A teleport moves him a long way in one frame. The leash goes with him, so "behind" keeps its direction and the
+        // anchor moves by exactly the jump.
+        boolean teleported = hasLastFeet
+                && TeleportMode.isTeleport(dist(lastFeetX, lastFeetY, lastFeetZ, feet.x, feet.y, feet.z));
+        if (teleported && hasBack) {
+            leashX += feet.x - lastFeetX;
+            leashZ += feet.z - lastFeetZ;
+            teleports++;
+        }
+        lastFeetX = feet.x;
+        lastFeetY = feet.y;
+        lastFeetZ = feet.z;
+        hasLastFeet = true;
         // Behind him, not inside his body (killer560, 2026-10-13: from the side the red end showed in front of his
         // legs). "Behind" comes from a point on a short leash dragged after his feet: it always lies back along the way
         // he came, swings round smoothly as he turns (so the points laid on the way keep the band continuous), and
@@ -224,20 +271,26 @@ public final class RibbonTrail {
 
         // Lay points every SPACING blocks along the way from the newest point to the anchor.
         if (count == 0) {
-            push(ax, ay, az, now);
+            push(ax, ay, az, now, false);
         } else {
             int n = idx(count - 1);
             double lx = rx[n], ly = ry[n], lz = rz[n];
             double dx = ax - lx, dy = ay - ly, dz = az - lz;
             double d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (d > TELEPORT) {
-                reset();
-                push(ax, ay, az, now);
+            if (teleported && onTeleport == TeleportMode.BREAK) {
+                push(ax, ay, az, now, true);
+            } else if (teleported) {
+                // Connect and Arc: a bridge of points from where he left to where he landed, ending on the anchor.
+                int steps = TeleportMode.bridgeSteps(d, SPACING);
+                for (int i = 1; i <= steps; i++) {
+                    double t = i / (double) steps;
+                    push(lx + dx * t, ly + dy * t + onTeleport.lift(t, d), lz + dz * t, now, false);
+                }
             } else if (d >= SPACING) {
                 double ux = dx / d, uy = dy / d, uz = dz / d;
                 int steps = (int) Math.min(MAX_POINTS, Math.floor(d / SPACING));
                 for (int i = 1; i <= steps; i++) {
-                    push(lx + ux * SPACING * i, ly + uy * SPACING * i, lz + uz * SPACING * i, now);
+                    push(lx + ux * SPACING * i, ly + uy * SPACING * i, lz + uz * SPACING * i, now, false);
                 }
             }
         }
@@ -260,6 +313,7 @@ public final class RibbonTrail {
             py[n] = ry[k];
             pz[n] = rz[k];
             age[n] = (now - rt[k]) / (float) lifeMs;
+            brk[n] = rbreak[k] && i > 0;
             n++;
         }
         if (n == 0 || dist(px[n - 1], py[n - 1], pz[n - 1], ax, ay, az) > 1.0e-3) {
@@ -267,6 +321,7 @@ public final class RibbonTrail {
             py[n] = ay;
             pz[n] = az;
             age[n] = 0f;
+            brk[n] = false;
             n++;
         }
         if (n < 2) {
@@ -274,14 +329,17 @@ public final class RibbonTrail {
             lastLength = 0;
             return;
         }
-        smooth(px, py, pz, n);
-        smooth(px, py, pz, n);
+        smooth(px, py, pz, n, brk);
+        smooth(px, py, pz, n, brk);
 
         // Arc length from the tail, normalised: 0 at the tail, 1 at the anchor.
         double total = 0;
         along[0] = 0f;
         for (int i = 1; i < n; i++) {
-            total += dist(px[i - 1], py[i - 1], pz[i - 1], px[i], py[i], pz[i]);
+            // A gap (Break mode) adds no length: the colours run on across it as if the pieces were one band.
+            if (!brk[i]) {
+                total += dist(px[i - 1], py[i - 1], pz[i - 1], px[i], py[i], pz[i]);
+            }
             along[i] = (float) total;
         }
         if (total < 0.05) {
@@ -309,6 +367,14 @@ public final class RibbonTrail {
             o = put(o, x, (float) (py[i] + top), z, r, g, bl, alpha);
         }
         vertPoints = n;
+        int breaks = 0;
+        for (int i = 1; i < n; i++) {
+            if (brk[i]) {
+                breaks++;
+            }
+        }
+        lastBreaks = breaks;
+        lastSegments = n - 1 - breaks;
         lastPointCount = n;
         lastLength = total;
         framesDrawn++;
@@ -330,6 +396,9 @@ public final class RibbonTrail {
     private void emit(PoseStack.Pose pose, VertexConsumer buffer) {
         Matrix4f m = pose.pose();
         for (int i = 0; i + 1 < vertPoints; i++) {
+            if (brk[i + 1]) {
+                continue;
+            }
             int l0 = i * 14, r0 = l0 + 7, l1 = l0 + 14, r1 = l0 + 21;
             v(buffer, m, l0);
             v(buffer, m, r0);
@@ -382,14 +451,20 @@ public final class RibbonTrail {
         return r << 16 | g << 8 | bl;
     }
 
-    /** One [1 2 1] / 4 pass over the interior points; the two ends stay where they are. */
-    private static void smooth(double[] x, double[] y, double[] z, int n) {
+    /** One [1 2 1] / 4 pass over the interior points; the two ends, and the ends of each piece split by a gap, stay put. */
+    private static void smooth(double[] x, double[] y, double[] z, int n, boolean[] gap) {
         if (n < 3) {
             return;
         }
         double prevX = x[0], prevY = y[0], prevZ = z[0];
         for (int i = 1; i < n - 1; i++) {
             double cx = x[i], cy = y[i], cz = z[i];
+            if (gap[i] || gap[i + 1]) {
+                prevX = cx;
+                prevY = cy;
+                prevZ = cz;
+                continue;
+            }
             x[i] = (prevX + 2 * cx + x[i + 1]) * 0.25;
             y[i] = (prevY + 2 * cy + y[i + 1]) * 0.25;
             z[i] = (prevZ + 2 * cz + z[i + 1]) * 0.25;

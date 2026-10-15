@@ -45,6 +45,7 @@ public final class TrailConfig {
     private int opacityPercent = 60;
     private boolean fadeOut = true;
     private boolean showInFirstPerson = true;
+    private TeleportMode teleportMode = TeleportMode.CONNECT;
 
     private TrailConfig() {
     }
@@ -113,6 +114,15 @@ public final class TrailConfig {
         showInFirstPerson = v;
     }
 
+    /** What the squares do across a teleport (an etherwarp, an AOTV): a gap, a line of squares or an arc of them. */
+    public TeleportMode getTeleportMode() {
+        return teleportMode;
+    }
+
+    public void setTeleportMode(TeleportMode v) {
+        teleportMode = v == null ? TeleportMode.CONNECT : v;
+    }
+
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new TrailConfig();
@@ -130,6 +140,11 @@ public final class TrailConfig {
                     ConfigJson.getInt(obj, "opacityPercent", cfg.opacityPercent)));
             cfg.fadeOut = ConfigJson.getBool(obj, "fadeOut", cfg.fadeOut);
             cfg.showInFirstPerson = ConfigJson.getBool(obj, "showInFirstPerson", cfg.showInFirstPerson);
+            try {
+                cfg.teleportMode = TeleportMode.parse(obj.has("teleportMode") ? obj.get("teleportMode").getAsString() : null,
+                        cfg.teleportMode);
+            } catch (Exception ignored) {
+            }
             instance = cfg;
             if (obj.has("style")) {
                 // A file from before 2026-10-14, when the ribbon was this tab's Style. Its ribbon settings move to the
@@ -157,6 +172,7 @@ public final class TrailConfig {
             obj.addProperty("opacityPercent", opacityPercent);
             obj.addProperty("fadeOut", fadeOut);
             obj.addProperty("showInFirstPerson", showInFirstPerson);
+            obj.addProperty("teleportMode", teleportMode.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

@@ -139,6 +139,13 @@ public class RibbonTrailTab extends BaseTab {
             y[0] += 22;
         }
 
+        w.add(SettingsButtonWidget.cycling(teleportLabel(cfg), (btn, dir) -> {
+                    cfg.setTeleportMode(SettingsButtonWidget.step(cfg.getTeleportMode(), dir));
+                    cfg.save();
+                    btn.setMessage(teleportLabel(cfg));
+                }).bounds(x, y[0], width, 18).build());
+        y[0] += 22;
+
         toggle(w, x, y[0], width, "Show In First Person", cfg::isShowInFirstPerson, v -> {
             cfg.setShowInFirstPerson(v);
             cfg.save();
@@ -195,6 +202,10 @@ public class RibbonTrailTab extends BaseTab {
 
     private static Component opacityLabel(RibbonTrailConfig cfg) {
         return Component.literal("Opacity: " + cfg.getOpacityPercent() + "%");
+    }
+
+    private static Component teleportLabel(RibbonTrailConfig cfg) {
+        return Component.literal("On Teleport: " + cfg.getTeleportMode().label());
     }
 
     private static Component colorModeLabel(RibbonTrailConfig cfg) {

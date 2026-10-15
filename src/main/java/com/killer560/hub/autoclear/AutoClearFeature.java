@@ -347,6 +347,7 @@ public final class AutoClearFeature {
         singleRoom = null;
         onDone = null;
         onGiveUp = null;
+        com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR);
     }
 
     // =========================================================================================== ticking
@@ -585,6 +586,7 @@ public final class AutoClearFeature {
             finish("the uncleared rooms left are behind doors it does not open");
             return -1;
         }
+        publishPlan(layout, c.room(), AutoClearTargets.ordered(layout, candidates));
         if (c.door() >= 0) {
             // Nothing else reachable: the wither door on the way is the only thing left before it can go on.
             openDoor(layout, c.door(), layout.name(c.room()));
@@ -596,6 +598,29 @@ public final class AutoClearFeature {
                 rush != null && rush.contains(c.room()) ? "on the blood rush" : "off the blood rush",
                 AutoClearTargets.ordered(layout, candidates).stream().map(layout::name).toList());
         return c.room();
+    }
+
+    /**
+     * Publishes the queue this pick came from for the Auto Routes Progress HUD ({@link com.killer560.hub.autoroutes.RunPlan}):
+     * the room picked first, then the rest in {@link AutoClearTargets#ordered} order. The pick is not always the head of
+     * that order (the head may be behind a door that stays shut), so it is moved to the front rather than assumed.
+     */
+    private static void publishPlan(DungeonLayout layout, int picked, List<Integer> order) {
+        List<String> names = new java.util.ArrayList<>();
+        names.add(layout.name(picked));
+        for (int r : order) {
+            if (r != picked) {
+                names.add(layout.name(r));
+            }
+        }
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR, names,
+                roomsCleared);
+    }
+
+    /** The rooms Auto Clear plans to do, the one under way first (empty when it is not running). For the testkit. */
+    public static List<String> plannedRooms() {
+        var plan = com.killer560.hub.autoroutes.RunPlan.of(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR);
+        return plan == null ? List.of() : plan.rooms();
     }
 
     // ---- wither doors (killer560, 2026-10-06: only when opening one is the only thing left before it can progress) ----

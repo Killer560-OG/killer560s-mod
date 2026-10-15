@@ -2086,6 +2086,7 @@ final class SettingTooltipsData {
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the squares are.");
         d.put("trail/fade toward tail", "Squares fade out the older they get.");
+        d.put("trail/on teleport", "What the squares do when you teleport (an etherwarp, an AOTV). Break leaves a gap, Connect lays a line of squares between where you left and where you landed, Arc lays them along a curve that rises between them. Left click goes forward, right click back.");
         d.put("trail/show in first person", "Whether the squares are drawn while you are in first person. Third person always shows them.");
         d.put("ribbon trail/ribbon trail", "Draws one smooth upright band streaming behind you, like a Roblox trail, colored from you to its tail and fading out at the end. Works alongside the squares Trail. Supporters can share it.");
         d.put("ribbon trail/ribbon height", "How tall the band stands behind you, in blocks.");
@@ -2096,6 +2097,9 @@ final class SettingTooltipsData {
         d.put("ribbon trail/head color", "The ribbon's color right behind you.");
         d.put("ribbon trail/middle color", "The ribbon's color halfway along.");
         d.put("ribbon trail/tail color", "The ribbon's color at its far end, where it fades out.");
+        d.put("auto routes/progress hud", "A movable HUD: the room you are in, how much of its route is done and the node count. While Auto Clear, Auto Secret or Dungeon Autopilot runs it shows that run instead: the total percent done at the top, the room it is on, and the rooms it will do next in the order it chose them. Move it in the HUD editor.");
+        d.put("auto routes/progress rooms", "How many upcoming rooms the Progress HUD lists after the one under way. Any more show as a +N more line.");
+        d.put("ribbon trail/on teleport", "What the ribbon does when you teleport (an etherwarp, an AOTV). Break leaves a gap, Connect draws a straight band between where you left and where you landed, Arc draws a curved band that rises between them. Left click goes forward, right click back.");
         d.put("ribbon trail/show in first person", "Whether the ribbon is drawn while you are in first person. Third person always shows it.");
         // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
         // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for

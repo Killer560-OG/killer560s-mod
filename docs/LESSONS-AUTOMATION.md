@@ -216,3 +216,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   memory also carries between cases: call `forgetRunMemory` first or the node says "its bat was already killed".
 - No real Hypixel BAT-node run exists in his logs yet (every `Node #N BAT` line in Mod Only Test is a sim run), so "a bat already
   alive on arrival is never killed" is NOT reproduced: the sim kills and counts one (96-ar-1015-batpresent passes on main).
+- A one-node route starts and completes inside `RouteExecutor.start()`/`complete()` before any executor tick runs, so anything
+  that wants a route's progress (the Auto Routes Progress HUD, `RouteRunMemory.noteProgress`) must be told at start and at
+  completion as well as each tick, or a short route is never seen (102-sim-autosecret, 2026-10-15). The planners' queue for
+  that HUD is `autoroutes/RunPlan`, published by each planner at its own pick, never recomputed by the HUD.
