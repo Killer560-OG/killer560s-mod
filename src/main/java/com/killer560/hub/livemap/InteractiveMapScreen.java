@@ -242,6 +242,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
                 MapPainter.drawReportedLabel(graphics, font, cfg.getRoomLabels(), cfg, rr, ox, oy, ppu);
             }
+            PredictedRoomsPainter.draw(graphics, font, cfg, ox, oy, ppu);
             List<InteractiveMapFeature.MapPlayer> players = InteractiveMapFeature.playersCached(client);
             InteractiveMapFeature.MapPlayer hoveredPlayer = null;
             boolean names = cfg.getPlayerNames() == 2 || (cfg.getPlayerNames() == 1 && holdingLeap(client));

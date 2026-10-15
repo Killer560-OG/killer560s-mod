@@ -16,8 +16,8 @@ import java.nio.file.Path;
  * highlight the closest wither door, cheat should have an option to show every wither door/blood door.
  * Make them red and the closest one green once you get a key and a different color than the other ones."
  * <p>
- * The master toggle and the two Wither colors work in both builds - only "Show All Doors" (draw every
- * locked Wither/Blood door instead of just the closest Wither door, through walls) is cheat-only,
+ * Everything works in both builds except "Show All Doors" (every locked Wither/Blood door in the loaded world,
+ * known before the map shows it, drawn through walls; without it only what the held map shows is drawn), cheat-only,
  * gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} the same way
  * {@code doorkeys.DoorKeysConfig.isThroughWalls()} gates its own ESP option. Ships fully OFF.
  */
@@ -83,10 +83,15 @@ public final class WitherDoorsConfig {
     /** Cheat build only: draw every locked Wither door and the Blood door, not just the closest Wither
      *  door. Ships OFF - the legit jar can never set this true regardless of a hand-edited config file. */
     private boolean showAllDoors = false;
-    /** Cheat build only: highlight the door into the Fairy room on the blood-rush path until anyone enters Fairy
-     *  ({@link FairyDoor}). Ships ON - killer560 asked for it as part of Wither Doors (2026-10-07). */
+    /** Highlight the door into the Fairy room. With Show All Doors (cheat): the one on the blood-rush path, from the
+     *  start, until anyone enters Fairy ({@link FairyDoor}). Without it (both builds, since 2026-10-15): only once the
+     *  held map and his own eyes say it is the Fairy door ({@link MapDoors}). Ships ON - killer560 asked for it as part
+     *  of Wither Doors (2026-10-07). */
     private boolean fairyDoor = true;
     private int fairyDoorColor = DEFAULT_FAIRY_DOOR_COLOR;
+    /** Waypoint labels ("Wither Door", "Blood Door", "Fairy Door") over the doors the held map shows, readable through
+     *  walls like a waypoint's. killer560, 2026-10-15: "it would be waypoint style". Ships ON. */
+    private boolean doorLabels = true;
 
     private WitherDoorsConfig() {
     }
@@ -120,6 +125,7 @@ public final class WitherDoorsConfig {
             cfg.showAllDoors = ConfigJson.getBool(obj, "showAllDoors", cfg.showAllDoors);
             cfg.fairyDoor = ConfigJson.getBool(obj, "fairyDoor", cfg.fairyDoor);
             cfg.fairyDoorColor = ConfigJson.getInt(obj, "fairyDoorColor", cfg.fairyDoorColor);
+            cfg.doorLabels = ConfigJson.getBool(obj, "doorLabels", cfg.doorLabels);
             instance = cfg;
         } catch (Exception e) {
             instance = new WitherDoorsConfig();
@@ -144,6 +150,7 @@ public final class WitherDoorsConfig {
             obj.addProperty("showAllDoors", showAllDoors);
             obj.addProperty("fairyDoor", fairyDoor);
             obj.addProperty("fairyDoorColor", fairyDoorColor);
+            obj.addProperty("doorLabels", doorLabels);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -254,9 +261,10 @@ public final class WitherDoorsConfig {
         return isShowAllDoors();
     }
 
-    /** Cheat-gated, like Show All Doors: the path to Blood is not something the legit build shows. */
+    /** Both builds since 2026-10-15. The legit build only ever gets the held-map inference ({@link MapDoors}): the
+     *  path-to-Blood version needs Show All Doors, which is cheat-gated. */
     public boolean isFairyDoor() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && fairyDoor;
+        return fairyDoor;
     }
 
     public boolean isFairyDoorRaw() {
@@ -265,6 +273,14 @@ public final class WitherDoorsConfig {
 
     public void setFairyDoor(boolean fairyDoor) {
         this.fairyDoor = fairyDoor;
+    }
+
+    public boolean isDoorLabels() {
+        return doorLabels;
+    }
+
+    public void setDoorLabels(boolean doorLabels) {
+        this.doorLabels = doorLabels;
     }
 
     public int getFairyDoorColor() {

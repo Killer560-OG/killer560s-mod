@@ -244,8 +244,9 @@ public final class LiveMapFeature {
     private static String scanConsumers() {
         StringBuilder sb = new StringBuilder();
         if (LiveMapConfig.getInstance().isEnabled()) sb.append("LiveMap,");
-        if (com.killer560.hub.witherdoors.WitherDoorsConfig.getInstance().isEnabled()
-                && com.killer560.hub.witherdoors.WitherDoorsConfig.getInstance().isFairyDoor()) sb.append("FairyDoor,");
+        // Wither Doors reads the held map (its doors, the Fairy door) and the layout whenever it is on (2026-10-15).
+        if (com.killer560.hub.witherdoors.WitherDoorsConfig.getInstance().isEnabled()) sb.append("WitherDoors,");
+        if (com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance().isAnyOn()) sb.append("PredictiveRooms,");
         if (SecretWaypointsConfig.getInstance().isEnabled()) sb.append("SecretWaypoints,");
         if (BoulderSolverConfig.getInstance().isEnabled()) sb.append("Boulder,");
         if (QuizSolverConfig.getInstance().isEnabled()) sb.append("Quiz,");
@@ -1395,6 +1396,8 @@ public final class LiveMapFeature {
             for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
                 MapPainter.drawReportedLabel(graphics, client.font, cfg.getRoomLabels(), cfg, rr, ox, oy, ppu);
             }
+            // Predictive Rooms and the Special Room Guess, over tiles the map does not already name (2026-10-15).
+            PredictedRoomsPainter.draw(graphics, client.font, cfg, ox, oy, ppu);
 
             // Real arrow/head markers at the exact world position instead of a whole cell filled yellow. The list is
             // cached per tick - it used to run a fresh level.players() party scan every frame.

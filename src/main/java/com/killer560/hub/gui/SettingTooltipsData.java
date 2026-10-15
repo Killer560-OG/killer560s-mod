@@ -2043,7 +2043,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/held item name", "The item name vanilla shows over the hotbar when you switch slot. Hidden Over Bars: hidden only where it would cover one of these bars or texts. Hidden: always hidden. Shown: always shown.");
         d.put("slot binds/show binds", "Whether bound-slot borders are always drawn or only while your mouse is over one.");
         d.put("slot binds/border color", "Color of the border and line drawn on bound slots.");
-        d.put("wither doors/enabled", "Highlights the nearest locked Wither door, turning green once you have a Wither Key.");
+        d.put("wither doors/enabled", "Highlights the Wither and Blood doors your dungeon map shows, once the run has started. The nearest Wither door turns green once you have a Wither Key.");
         d.put("wither doors/wither door color", "Color of a locked Wither door you have no key for.");
         d.put("wither doors/wither door (key) color", "Color the nearest Wither door turns once you have a Wither Key.");
         d.put("wither doors/style", "Outline draws the door's edges (the original look), Fill shades the whole door, Filled Outline does both.");
@@ -2051,11 +2051,14 @@ final class SettingTooltipsData {
         d.put("wither doors/fill color", "Same as Outline: the fill takes the door's current color, so locked and key-held stay apart. Custom: one fill color for every door.");
         d.put("wither doors/custom fill color", "The fill color used when Fill Color is set to Custom.");
         d.put("wither doors/render distance", "How far away a door can be and still be highlighted, 32-256 blocks.");
-        d.put("wither doors/show all doors", "Also highlights every other locked Wither door and the Blood door, and draws the highlights through walls (cheat build only).");
-        d.put("wither doors/blood door color", "Color of the locked Blood door while you lack the Blood Key (cheat build only).");
-        d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key (cheat build only).");
-        d.put("wither doors/fairy door", "Also highlights the door into the Fairy room on the path to Blood, until you or any teammate enters Fairy or that door opens (cheat build only).");
-        d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above (cheat build only).");
+        d.put("wither doors/show all doors", "Highlights every locked Wither door and the Blood door in the loaded world, before your map shows them and before the run starts, through walls. The Fairy door is then the one on the path to Blood from the start (cheat build only).");
+        d.put("wither doors/blood door color", "Color of the locked Blood door while you lack the Blood Key.");
+        d.put("wither doors/blood door (key) color", "Color the Blood door turns once you have the Blood Key.");
+        d.put("wither doors/fairy door", "Highlights the door into the Fairy room once you know it is one: your map draws it like a Wither door but you have seen its doorway is empty. Clears when you or a teammate enter Fairy.");
+        d.put("wither doors/fairy door color", "Color of the Fairy door highlight. Style and fill follow the settings above.");
+        d.put("predictive rooms/predictive rooms", "Names a room you have not entered from what you have seen of it through a doorway, matched against the rooms the mod knows. Only the tiles it is sure of are filled in; the rest stay \"?\". It never reads blocks you could not see.");
+        d.put("predictive rooms/special room guess", "Splits an unopened one-tile room on your map into the colors of the special rooms it can still be (Puzzle, Trap, Miniboss), from what your map shows.");
+        d.put("wither doors/door labels", "Puts a waypoint label (\"Wither Door 34m\") over each highlighted door, readable through walls.");
         d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/bonzo", "Whether you own Bonzo's Mask; controls its HUD timer and Auto Swap.");
         d.put("mask invincibility/phoenix", "Whether you own a Phoenix Pet; controls its HUD timer and Auto Swap.");
