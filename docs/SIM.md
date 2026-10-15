@@ -409,6 +409,8 @@ because returning y71 left the chest sitting in the opening.
 Over three runs of scenario 81 after the third fix the five-blocks-up pattern is gone and impassable doorways
 went from 2, 1, 1 of 8 to 1, 1, 0 of 8. What is left is the cluster below.
 
+(Since 2026-10-15 the carve does not search at all: every doorway is at y69, see "Doorways are at one height".)
+
 ## The single-room load never published its own map, and the build timer lied about it
 
 Two separate things behind "if i load only a single room make sure it wipes everything else on the map first
@@ -2870,7 +2872,37 @@ things were:
   A top-layer block over air outside the seam is now kept (`SimDoors.KEPT_TRIM`, 38-47 a floor); 80/81/855 still pass.
 - Unverified lead from the same offline sweep (captures alone, not a built floor): Entrance W0, Mage N1 and Quad Lava
   E0 measure their doorway at y72-77 while the seam column's floor reads y69, which would put a carve there 3 blocks
-  into solid stone below the real opening. Check in a build before acting on it.
+  into solid stone below the real opening. Checked in a build the same day: none of the three is a doorway - see the
+  next section.
+
+## Doorways are at one height, and the openings above it are not doors (2026-10-15, sim-doorheight-1015)
+
+Every perimeter doorway in the shipped library (277 in 135 captures; 276 in his Mod Only Test library) measures its 3x4
+window at exactly y69..72, never 68 or 70, and every one has wall on both sides of the opening (8 of 8) and a lintel
+over it (3 of 3) - the same fixed height Hypixel's doors have on the 32-block grid. `RoomDoors` searched any opening
+from y64 to y86, which also took:
+- **Entrance W0** (y76 up): the top of the back staircase, open to the sky. Already dropped by the Entrance-only
+  "lowest wins" rule, so harmless; that rule is gone now, the height rule covers it.
+- **Mage N1** (y72..87, 17 wide, no wall at all): Mage's capture is not Mage on its second tile. That tile's centre
+  column hashes to ALTAR's core in the room database (Mage tile 0 is Mage's own), and the capture has a full air sheet at
+  x=32 with walls at x=31/33 and a 3-wide doorway between them - two separate rooms, stitched. The "doorway" is Altar's
+  interior running on. Mage is NOT flagged by `RoomTileAudit` (it compares tiles block for block, not by core), so it is
+  placed; with the height rule it has one doorway (W0) and is a dead end. Re-capturing Mage is the real fix.
+- **Quad Lava E0** (y77..80): a 5x4 red terracotta panel in a three-thick decorated east wall; red terracotta is in the
+  doorway set as a shut blood door.
+- **Twenty open edges of L rooms' empty quarters** (two each in Altar, Chambers, Dino Site, Lava Ravine, Layers, Melon,
+  Pirate, Spider, Well, Withermancer): open air top to bottom, no frame. Generated floors leave L rooms out, so only a
+  drawn or pinned L could be joined there.
+
+In a built floor (testkit 1446, main jar): Mage pinned, 22 and 25 of 30 planned F7s joined a neighbour through Mage N1;
+Quad Lava pinned, 23 and 20 of 30 through E0. The built door cut 25 solid capture blocks out of Mage (stone and terracotta,
+a tunnel under the opening) and 23 out of Quad Lava's wall (cobblestone walls, cyan terracotta - the tunnel comes out in
+the room, but through what Hypixel has as solid wall). Now `RoomDoors` takes only the window at `DOOR_FLOOR_Y` (69)
+with at least 8 of its 11 frame blocks wall, and `SimDoors` carves and seals at that floor instead of searching the
+seam column: the four `findFloor` bugs of 2026-09-30 were all the search finding the wrong surface, and with every
+real doorway at one height there is nothing to search for. FloorBench mirrors it. `tools/layoutsim -Dsweep=true -Dseed=1
+-Dnorecency=true` 10 per combination (2,240 floors): 0 failures before and after; fill-pass warnings 267 -> 339 (Mage
+and Quad Lava have fewer doorways to grow from), unchecked carves 7 -> 5.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
