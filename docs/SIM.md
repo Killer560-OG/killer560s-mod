@@ -2852,6 +2852,26 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
 
+## Deuces' doorway: cold braziers and a carve that cut doorway trim (2026-10-15, sim-deuces-1015)
+
+killer560's Hypixel shot of Deuces (the doorway into Altar under the secret chest) against the sim. Read back from the
+built level (testkit 1433), the sim matched `Dueces.json` block for block there; the geometry was never wrong. Two
+things were:
+- **The capture's braziers were cold.** A brazier is a hopper with fire on it; all 16 of Deuces' hoppers have air on
+  top in the capture, and across the library 1,099 of 1,471 hoppers do (372 have fire), with the same placement
+  signature either way (wall-mounted and hanging 961 vs 285) and rooms holding both. Fire is the block a player punches
+  out, and RoomDatabase already leaves it out of its core hash, so a capture keeps whatever was still lit.
+  `RoomBraziers` relights every hopper with air above it at library load (never in the wall plane or seam), so the
+  paste and the build audit see one answer. If he ever sees a hopper on Hypixel that is NOT lit, this rule is the
+  thing to narrow.
+- **The doorway carve removed each room's top trim.** `carveDoorway` clears 3 wide x 4 high x 3 deep into each room;
+  a room's own doorway is already open, so inside the room all it took was the top layer one block in from the wall:
+  stairs pairs, iron-bar rows, slabs - 157 blocks over 65 doorways in 31 rooms (tool sweep of the shipped captures).
+  A top-layer block over air outside the seam is now kept (`SimDoors.KEPT_TRIM`, 38-47 a floor); 80/81/855 still pass.
+- Unverified lead from the same offline sweep (captures alone, not a built floor): Entrance W0, Mage N1 and Quad Lava
+  E0 measure their doorway at y72-77 while the seam column's floor reads y69, which would put a carve there 3 blocks
+  into solid stone below the real opening. Check in a build before acting on it.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
