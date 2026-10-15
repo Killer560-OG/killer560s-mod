@@ -44,8 +44,8 @@ final class RoomTour {
     static final double UNREACHABLE_TICKS = 2000;
     /** A trip's from-row is looked up from a searched start within this many blocks of where he stands. */
     private static final double FROM_MATCH = 3.0;
-    /** The planner-thread budget of one request's searches. */
-    private static final long SEARCH_BUDGET_NANOS = 400_000_000L;
+    /** The planner-thread budget of all of one request's searches (in slices; the rest is estimated). */
+    private static final long TOTAL_BUDGET_NANOS = 3_000_000_000L;
 
     /**
      * One room to go to.
@@ -111,15 +111,33 @@ final class RoomTour {
         return best;
     }
 
-    /** Straight-line trip estimate (the old one): the distance over the hop range, a quarter longer for walls. */
-    static double estimate(Vec3 from, BlockPos to) {
+    /** Warps an estimated trip takes for each room it crosses on the map: about what the searched trips took (2026-10-15,
+     *  145's floors: 13 warps for 6 rooms, 19 for 9, 3 for 2) - walls send a trip round by the doors. */
+    static final double WARPS_PER_ROOM = 2.0;
+
+    /**
+     * A trip not searched yet: the more of the straight distance over the hop range (a quarter longer for walls) and
+     * {@link #WARPS_PER_ROOM} for every room of the map's path between the two rooms.
+     */
+    static double estimate(Vec3 from, BlockPos to, DungeonLayout layout) {
         double dx = from.x - (to.getX() + 0.5);
         double dz = from.z - (to.getZ() + 0.5);
         double d = Math.sqrt(dx * dx + dz * dz);
         if (d < 2.0) {
             return 0;
         }
-        int warps = Math.max(1, (int) Math.ceil(d * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
+        double warps = Math.max(1, Math.ceil(d * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
+        if (layout != null) {
+            int a = layout.roomAtWorld(from.x, from.z);
+            int b = layout.roomAtWorld(to.getX() + 0.5, to.getZ() + 0.5);
+            if (a >= 0 && b >= 0 && a != b) {
+                List<com.killer560.hub.livemap.autoclear.DungeonMapPathfinder.RoomStep> path =
+                        com.killer560.hub.livemap.autoclear.DungeonMapPathfinder.findPath(layout, a, b, false);
+                if (path != null) {
+                    warps = Math.max(warps, WARPS_PER_ROOM * (path.size() - 1));
+                }
+            }
+        }
         return TRIP_FIXED_TICKS + TICKS_PER_WARP * warps;
     }
 
@@ -128,7 +146,7 @@ final class RoomTour {
         return ticks >= UNREACHABLE_TICKS ? ticks : Math.max(0, ticks - TRIP_FIXED_TICKS);
     }
 
-    /** Whether every trip from {@code from} into {@code sites} has been searched. */
+    /** Whether every trip from {@code from} into {@code sites}, and between them, has been searched. */
     static boolean fromReady(Vec3 from, List<Site> sites) {
         String lk = nearestLeave(from);
         Map<String, Double> row = lk == null ? null : COST.get(lk);
@@ -138,6 +156,12 @@ final class RoomTour {
         for (Site s : sites) {
             if (!row.containsKey(s.arriveKey())) {
                 return false;
+            }
+            Map<String, Double> out = COST.get(leaveKey(s.leave()));
+            for (Site t : sites) {
+                if (t != s && (out == null || !out.containsKey(t.arriveKey()))) {
+                    return false;
+                }
             }
         }
         return true;
@@ -155,14 +179,14 @@ final class RoomTour {
     }
 
     static Matrix matrix(Vec3 from, List<Site> sites) {
-        return matrix(from, sites, false);
+        return matrix(from, sites, false, DungeonLayout.capture());
     }
 
     /**
      * @param travelOnly the trips' warp ticks only, without the {@link #TRIP_FIXED_TICKS} every trip pays alike - Auto
      *                   Secret's "secrets per tick of travel"; Dungeon Autopilot weighs whole seconds (work included)
      */
-    static Matrix matrix(Vec3 from, List<Site> sites, boolean travelOnly) {
+    static Matrix matrix(Vec3 from, List<Site> sites, boolean travelOnly, DungeonLayout layout) {
         int n = sites.size();
         double[] fromHere = new double[n];
         double[][] between = new double[n][n];
@@ -183,7 +207,7 @@ final class RoomTour {
                 fromSearched[i] = true;
                 searched++;
             } else {
-                fromHere[i] = travelOnly ? variable(estimate(from, s.arrive())) : estimate(from, s.arrive());
+                fromHere[i] = travelOnly ? variable(estimate(from, s.arrive(), layout)) : estimate(from, s.arrive(), layout);
                 estimated++;
             }
             Map<String, Double> out = COST.getOrDefault(leaveKey(s.leave()), Map.of());
@@ -192,7 +216,7 @@ final class RoomTour {
                     continue;
                 }
                 Double b = out.get(sites.get(j).arriveKey());
-                double t = b != null ? b : estimate(s.leave(), sites.get(j).arrive());
+                double t = b != null ? b : estimate(s.leave(), sites.get(j).arrive(), layout);
                 between[i][j] = travelOnly ? variable(t) : t;
             }
         }
@@ -201,107 +225,156 @@ final class RoomTour {
 
     /**
      * Searches (on the planner thread) the trips from {@code from} into every site and between the sites, those not
-     * searched yet. With {@code planAhead}: then picks the next room from {@code from} by {@link TourPlanner} and searches
-     * that trip in full ({@link ClearExecutor#offerPreplan}). Client thread.
+     * searched yet - in slices of {@link #SLICE_NANOS}, each queued behind whatever the planner thread has waiting, so a
+     * trip of the map's own never waits long for it. With {@code planAhead}: then picks the next room from {@code from}
+     * by {@link TourPlanner} and searches that trip in full ({@link ClearExecutor#offerPreplan}). Client thread.
      */
     static void request(Vec3 from, List<Site> sites, boolean planAhead, boolean travelOnly, String why) {
         Minecraft client = Minecraft.getInstance();
         if (from == null || client.level == null || busy && !planAhead) {
             return;
         }
-        List<Site> snapshot = List.copyOf(sites);
-        DungeonLayout layout = DungeonLayout.capture();
-        EtherwarpPathfinder.PathConfig cfg = ClearExecutor.pathConfig();
-        double range = ClearExecutor.hopRange();
-        int gen = generation;
         if (planAhead) {
             aheadPick = null;
             aheadFrom = null;
             ClearExecutor.dropPreplan();
         }
         busy = true;
-        ClearExecutor.onPlanner(() -> {
+        new Job(from, List.copyOf(sites), planAhead, travelOnly, why, DungeonLayout.capture(), ClearExecutor.pathConfig(),
+                ClearExecutor.hopRange(), generation).submit();
+    }
+
+    /** One slice of a request's searches on the planner thread at most this long, then it queues again. */
+    private static final long SLICE_NANOS = 30_000_000L;
+
+    /** A request's searches, run a slice at a time on the planner thread. */
+    private static final class Job implements Runnable {
+        final Vec3 from;
+        final List<Site> sites;
+        final boolean planAhead;
+        final boolean travelOnly;
+        final String why;
+        final DungeonLayout layout;
+        final EtherwarpPathfinder.PathConfig cfg;
+        final double range;
+        final int gen;
+        final List<Vec3> starts = new ArrayList<>();
+        final long t0 = System.nanoTime();
+        int k;
+        int j;
+        int searches;
+        int skipped;
+        int slices;
+
+        Job(Vec3 from, List<Site> sites, boolean planAhead, boolean travelOnly, String why, DungeonLayout layout,
+            EtherwarpPathfinder.PathConfig cfg, double range, int gen) {
+            this.from = from;
+            this.sites = sites;
+            this.planAhead = planAhead;
+            this.travelOnly = travelOnly;
+            this.why = why;
+            this.layout = layout;
+            this.cfg = cfg;
+            this.range = range;
+            this.gen = gen;
+            // The trips from here first: the next choice depends on them most.
+            starts.add(from);
+            LEAVES.put(leaveKey(from), from);
+            for (Site s : sites) {
+                LEAVES.putIfAbsent(leaveKey(s.leave()), s.leave());
+                starts.add(s.leave());
+            }
+        }
+
+        void submit() {
+            ClearExecutor.onPlanner(this);
+        }
+
+        @Override
+        public void run() {
             try {
-                run(from, snapshot, planAhead, travelOnly, why, layout, cfg, range, gen);
+                if (step()) {
+                    finish();
+                    busy = false;
+                } else {
+                    submit();   // the rest after whatever was queued meanwhile (a trip of the map's own first)
+                }
             } catch (Throwable t) {
                 LOGGER.warn("[AutoSecret] room order: the trip search failed: {}", t.toString());
                 if (planAhead) {
                     ClearExecutor.preplanFailed();
                 }
-            } finally {
                 busy = false;
             }
-        });
-    }
+        }
 
-    /** Planner thread. */
-    private static void run(Vec3 from, List<Site> sites, boolean planAhead, boolean travelOnly, String why,
-                            DungeonLayout layout,
-                            EtherwarpPathfinder.PathConfig cfg, double range, int gen) {
-        long t0 = System.nanoTime();
-        long deadline = t0 + SEARCH_BUDGET_NANOS;
-        String fromKey = leaveKey(from);
-        LEAVES.put(fromKey, from);
-        int searches = 0;
-        int skipped = 0;
-        // The trips from here first: the next choice depends on them most.
-        List<Vec3> starts = new ArrayList<>();
-        starts.add(from);
-        for (Site s : sites) {
-            LEAVES.putIfAbsent(leaveKey(s.leave()), s.leave());
-            starts.add(s.leave());
-        }
-        for (int k = 0; k < starts.size(); k++) {
-            Vec3 start = starts.get(k);
-            Map<String, Double> row = COST.computeIfAbsent(leaveKey(start), x -> new ConcurrentHashMap<>());
-            for (int j = 0; j < sites.size(); j++) {
-                Site to = sites.get(j);
-                if (k > 0 && k - 1 == j || row.containsKey(to.arriveKey())) {
-                    continue;
+        /** One slice. @return true when every search is done (or left to the estimate) */
+        private boolean step() {
+            slices++;
+            long sliceEnd = System.nanoTime() + SLICE_NANOS;
+            boolean warm = EtherwarpPathfinder.graphWarm();
+            for (; k < starts.size(); k++, j = 0) {
+                Vec3 start = starts.get(k);
+                Map<String, Double> row = COST.computeIfAbsent(leaveKey(start), x -> new ConcurrentHashMap<>());
+                for (; j < sites.size(); j++) {
+                    Site to = sites.get(j);
+                    if (k > 0 && k - 1 == j || row.containsKey(to.arriveKey())) {
+                        continue;
+                    }
+                    if (gen != generation) {
+                        return true;
+                    }
+                    // On a cold floor graph one search can take a second: the estimate stands in until it is warm.
+                    if (!warm || System.nanoTime() - t0 > TOTAL_BUDGET_NANOS) {
+                        skipped++;
+                        continue;
+                    }
+                    // A trip of the map's own that is waiting goes first; the rest in the next slice.
+                    if (System.nanoTime() > sliceEnd || ClearExecutor.tripSearchWaiting()) {
+                        return false;
+                    }
+                    List<EtherwarpPathfinder.Node> path = to.tile() >= 0
+                            ? EtherwarpPathfinder.findDungeonPathToTile(start, to.arrive(), to.tile(), cfg, range, layout)
+                            : EtherwarpPathfinder.findDungeonPath(start, to.arrive(), cfg, range, layout, false);
+                    searches++;
+                    row.put(to.arriveKey(), path == null ? UNREACHABLE_TICKS
+                            : path.isEmpty() ? 0 : TRIP_FIXED_TICKS + TICKS_PER_WARP * path.size());
                 }
-                if (gen != generation) {
-                    return;
-                }
-                // A trip search of the map's own goes first (the planner thread is shared), and on a cold floor graph a
-                // search can take a second: then the straight-line estimate stands in until the graph is warm.
-                if (System.nanoTime() > deadline || ClearExecutor.tripSearchWaiting() || !EtherwarpPathfinder.graphWarm()) {
-                    skipped++;
-                    continue;
-                }
-                List<EtherwarpPathfinder.Node> path = to.tile() >= 0
-                        ? EtherwarpPathfinder.findDungeonPathToTile(start, to.arrive(), to.tile(), cfg, range, layout)
-                        : EtherwarpPathfinder.findDungeonPath(start, to.arrive(), cfg, range, layout, false);
-                searches++;
-                row.put(to.arriveKey(), path == null ? UNREACHABLE_TICKS
-                        : path.isEmpty() ? 0 : TRIP_FIXED_TICKS + TICKS_PER_WARP * path.size());
             }
+            return true;
         }
-        double ms = (System.nanoTime() - t0) / 1e6;
-        LOGGER.info(String.format(Locale.US, "[AutoSecret] room order: searched %d trip(s) between %d room(s) in %.0f ms"
-                + "%s (%s)", searches, sites.size(), ms, skipped > 0 ? ", " + skipped + " left to the estimate" : "", why));
-        if (!planAhead || sites.isEmpty() || gen != generation) {
-            return;
-        }
-        Matrix m = matrix(from, sites, travelOnly);
-        TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
-        int[] order = legacyOrder ? byWeight(m) : res.order();
-        Site next = sites.get(order[0]);
-        ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
-        List<EtherwarpPathfinder.Node> path = next.tile() >= 0
-                ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
-                : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
-        LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"
-                        + " order %s", from.x, from.y, from.z, next.key(), next.arriveKey(),
-                path == null ? "no" : String.valueOf(path.size()), describe(sites, order)));
-        Minecraft.getInstance().execute(() -> {
-            if (gen != generation) {
-                ClearExecutor.preplanFailed();
+
+        /** Planner thread: everything searched - log it, and plan the next trip ahead if asked. */
+        private void finish() {
+            double ms = (System.nanoTime() - t0) / 1e6;
+            LOGGER.info(String.format(Locale.US, "[AutoSecret] room order: searched %d trip(s) between %d room(s) in %.0f ms"
+                            + " (%d slice(s))%s (%s)", searches, sites.size(), ms, slices,
+                    skipped > 0 ? ", " + skipped + " left to the estimate" : "", why));
+            if (!planAhead || sites.isEmpty() || gen != generation) {
                 return;
             }
-            aheadPick = next.key();
-            aheadFrom = from;
-            ClearExecutor.offerPreplan(from, next.arrive(), next.tile(), next.exact(), path);
-        });
+            Matrix m = matrix(from, sites, travelOnly, layout);
+            TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
+            int[] order = legacyOrder ? byWeight(m) : res.order();
+            Site next = sites.get(order[0]);
+            ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
+            List<EtherwarpPathfinder.Node> path = next.tile() >= 0
+                    ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
+                    : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
+            LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"
+                            + " order %s | %s", from.x, from.y, from.z, next.key(), next.arriveKey(),
+                    path == null ? "no" : String.valueOf(path.size()), describe(sites, order),
+                    compare(m, order, byWeight(m), "most unfound first")));
+            Minecraft.getInstance().execute(() -> {
+                if (gen != generation) {
+                    ClearExecutor.preplanFailed();
+                    return;
+                }
+                aheadPick = next.key();
+                aheadFrom = from;
+                ClearExecutor.offerPreplan(from, next.arrive(), next.tile(), next.exact(), path);
+            });
+        }
     }
 
     static String describe(List<Site> sites, int[] order) {

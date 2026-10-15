@@ -576,6 +576,7 @@ final class Autopilot {
     /** This decision's room sites (by candidate key) and the matrix of trips between them, for {@link #tourTravel}. */
     private static List<RoomTour.Site> siteList = List.of();
     private static RoomTour.Matrix lastMatrix;
+    private static DungeonLayout lastLayout;
     private static Map<String, Double> realTravel = Map.of();
     private static Map<String, Integer> siteIndex = Map.of();
 
@@ -616,7 +617,8 @@ final class Autopilot {
         if (!RoomTour.fromReady(from, sites)) {
             RoomTour.request(from, sites, false, false, "Autopilot deciding from here");
         }
-        lastMatrix = RoomTour.matrix(from, sites);
+        lastLayout = layout;
+        lastMatrix = RoomTour.matrix(from, sites, false, layout);
         Map<String, Double> out = new java.util.HashMap<>();
         for (int i = 0; i < sites.size(); i++) {
             if (lastMatrix.fromSearched()[i]) {
@@ -657,7 +659,7 @@ final class Autopilot {
                     return m.between()[i][j] / 20.0;
                 }
                 if (i != null && j != null) {
-                    return RoomTour.estimate(sites.get(i).leave(), sites.get(j).arrive()) / 20.0;
+                    return RoomTour.estimate(sites.get(i).leave(), sites.get(j).arrive(), lastLayout) / 20.0;
                 }
                 return Math.max(travelByKey.getOrDefault(b, 0.0), 1.0);
             }

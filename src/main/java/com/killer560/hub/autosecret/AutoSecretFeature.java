@@ -917,7 +917,7 @@ public final class AutoSecretFeature {
             }
         }
         tourWaitTicks = 0;
-        RoomTour.Matrix m = RoomTour.matrix(from, sites, true);
+        RoomTour.Matrix m = RoomTour.matrix(from, sites, true, layout);
         TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 3_000_000L);
         int[] idx = res.order();
         if (ahead != null) {
