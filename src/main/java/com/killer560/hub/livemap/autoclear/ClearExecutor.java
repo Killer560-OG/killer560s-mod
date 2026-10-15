@@ -169,7 +169,13 @@ public final class ClearExecutor {
     private ClearExecutor() {
     }
 
+    /** The client tick is counted first of all START handlers, so every feature reads the same tick number in it. */
+    private static final net.minecraft.resources.Identifier TICK_COUNT_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "client_tick_count");
+
     public static void register() {
+        ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(TICK_COUNT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        ClientTickEvents.START_CLIENT_TICK.register(TICK_COUNT_PHASE, client -> clientTicks++);
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickStart", ClearExecutor::onTickStart));
         // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
         // the end of the tick; the name is left alone so every reference to it keeps working.
@@ -499,7 +505,7 @@ public final class ClearExecutor {
     /** A pre-planned trip may wait at most this long for the request that matches it. */
     private static final long PREPLAN_MAX_AGE_MS = 60_000L;
 
-    /** The client tick ({@link #onTickStart} counts it): the testkit and Auto Secret compare ticks with it. */
+    /** The client tick, counted before any other START handler runs: the testkit and Auto Secret compare ticks with it. */
     public static long clientTick() {
         return clientTicks;
     }
@@ -596,7 +602,7 @@ public final class ClearExecutor {
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
         if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV) && swapById(AOTV)) {
-            swappedOnTick = clientTicks + 1;
+            swappedOnTick = clientTicks;   // asked for from a START handler: no use goes out this same tick
         }
         improveInBackground(list, to, tileIdx, DungeonLayout.capture());
         return true;
@@ -991,7 +997,6 @@ public final class ClearExecutor {
     // ------------------------------------------------------------------------------------------- ticking
 
     private static void onTickStart(Minecraft client) {
-        clientTicks++;
         hasSwappedThisTick = swappedOnTick == clientTicks;
         if (client.level != lastLevel) {
             lastLevel = client.level;

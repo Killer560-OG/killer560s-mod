@@ -213,6 +213,14 @@ public final class AutoSecretFeature {
         return new String[]{"[" + mode + "] " + Autopilot.hudAction(), Autopilot.hudScore() + (why.isEmpty() ? "" : " | " + why)};
     }
 
+    /**
+     * For the testkit (145-sim-autosecret-order): {@code true} takes the rooms most unfound first, as Auto Secret did
+     * before 2026-10-15, so one floor can be run both ways and the two compared.
+     */
+    public static void testLegacyOrder(boolean legacy) {
+        RoomTour.legacyOrder = legacy;
+    }
+
     /** For the testkit: rooms to treat as having a teammate in them. */
     public static void testSetTeammateRooms(java.util.Collection<String> names) {
         Autopilot.testSetTeammateRooms(names);
@@ -856,7 +864,7 @@ public final class AutoSecretFeature {
                 routed.add(r);
             }
         }
-        List<RoomStatus.Room> order = tourOrder(layout, routed);
+        List<RoomStatus.Room> order = RoomTour.legacyOrder ? routed : tourOrder(layout, routed);
         if (order == null) {
             return true;   // the trips from here are being searched (a few ticks at most)
         }
@@ -891,7 +899,7 @@ public final class AutoSecretFeature {
             if (s == null) {
                 rest.add(r);
             } else {
-                sites.add(s);
+                sites.add(new RoomTour.Site(s.key(), s.arrive(), s.tile(), s.exact(), s.leave(), s.weight(), 0));
                 withSite.add(r);
             }
         }
@@ -899,7 +907,7 @@ public final class AutoSecretFeature {
         String ahead = RoomTour.aheadPick(from);
         if (ahead == null && !RoomTour.fromReady(from, sites)) {
             if (tourWaitTicks == 0) {
-                RoomTour.request(from, sites, false, "deciding from here");
+                RoomTour.request(from, sites, false, true, "deciding from here");
             }
             if (tourWaitTicks++ < TOUR_WAIT_TICKS) {
                 status = "Working out the room order";
@@ -907,7 +915,7 @@ public final class AutoSecretFeature {
             }
         }
         tourWaitTicks = 0;
-        RoomTour.Matrix m = RoomTour.matrix(from, sites);
+        RoomTour.Matrix m = RoomTour.matrix(from, sites, true);
         TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 3_000_000L);
         int[] idx = res.order();
         if (ahead != null) {
@@ -990,7 +998,7 @@ public final class AutoSecretFeature {
         }
         LOGGER.info(String.format(Locale.US, "[AutoSecret] planning ahead from the end of %s's route (%.1f %.1f %.1f):"
                 + " %d room(s) to choose from", r.name(), end.x, end.y, end.z, sites.size()));
-        RoomTour.request(end, sites, true, "while " + r.name() + "'s route runs");
+        RoomTour.request(end, sites, true, !pilot, "while " + r.name() + "'s route runs");
     }
 
     /** Rooms Auto Secret could secret next: eligible, reachable, other than {@code except}. */
@@ -1016,7 +1024,8 @@ public final class AutoSecretFeature {
         for (RoomStatus.Room r : rooms) {
             RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
             if (s != null) {
-                out.add(s);
+                // Auto Secret alone: secrets per tick of travel - every route takes as long whatever the order.
+                out.add(new RoomTour.Site(s.key(), s.arrive(), s.tile(), s.exact(), s.leave(), s.weight(), 0));
             }
         }
         return out;

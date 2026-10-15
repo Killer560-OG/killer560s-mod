@@ -614,7 +614,7 @@ final class Autopilot {
         }
         net.minecraft.world.phys.Vec3 from = client.player.position();
         if (!RoomTour.fromReady(from, sites)) {
-            RoomTour.request(from, sites, false, "Autopilot deciding from here");
+            RoomTour.request(from, sites, false, false, "Autopilot deciding from here");
         }
         lastMatrix = RoomTour.matrix(from, sites);
         Map<String, Double> out = new java.util.HashMap<>();

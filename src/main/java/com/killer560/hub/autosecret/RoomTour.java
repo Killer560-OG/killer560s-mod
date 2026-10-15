@@ -63,6 +63,9 @@ final class RoomTour {
         }
     }
 
+    /** For the testkit (145-sim-autosecret-order): take the rooms most unfound first, as before 2026-10-15. */
+    static volatile boolean legacyOrder;
+
     /** The trips searched this run: leave point key -> arrive key -> ticks. */
     private static final Map<String, Map<String, Double>> COST = new ConcurrentHashMap<>();
     /** The leave points searched from, by key. */
@@ -120,6 +123,11 @@ final class RoomTour {
         return TRIP_FIXED_TICKS + TICKS_PER_WARP * warps;
     }
 
+    /** A trip's ticks less the part every trip pays alike. */
+    static double variable(double ticks) {
+        return ticks >= UNREACHABLE_TICKS ? ticks : Math.max(0, ticks - TRIP_FIXED_TICKS);
+    }
+
     /** Whether every trip from {@code from} into {@code sites} has been searched. */
     static boolean fromReady(Vec3 from, List<Site> sites) {
         String lk = nearestLeave(from);
@@ -147,6 +155,14 @@ final class RoomTour {
     }
 
     static Matrix matrix(Vec3 from, List<Site> sites) {
+        return matrix(from, sites, false);
+    }
+
+    /**
+     * @param travelOnly the trips' warp ticks only, without the {@link #TRIP_FIXED_TICKS} every trip pays alike - Auto
+     *                   Secret's "secrets per tick of travel"; Dungeon Autopilot weighs whole seconds (work included)
+     */
+    static Matrix matrix(Vec3 from, List<Site> sites, boolean travelOnly) {
         int n = sites.size();
         double[] fromHere = new double[n];
         double[][] between = new double[n][n];
@@ -163,11 +179,11 @@ final class RoomTour {
             work[i] = s.work();
             Double c = row.get(s.arriveKey());
             if (c != null) {
-                fromHere[i] = c;
+                fromHere[i] = travelOnly ? variable(c) : c;
                 fromSearched[i] = true;
                 searched++;
             } else {
-                fromHere[i] = estimate(from, s.arrive());
+                fromHere[i] = travelOnly ? variable(estimate(from, s.arrive())) : estimate(from, s.arrive());
                 estimated++;
             }
             Map<String, Double> out = COST.getOrDefault(leaveKey(s.leave()), Map.of());
@@ -176,7 +192,8 @@ final class RoomTour {
                     continue;
                 }
                 Double b = out.get(sites.get(j).arriveKey());
-                between[i][j] = b != null ? b : estimate(s.leave(), sites.get(j).arrive());
+                double t = b != null ? b : estimate(s.leave(), sites.get(j).arrive());
+                between[i][j] = travelOnly ? variable(t) : t;
             }
         }
         return new Matrix(fromHere, between, weight, work, searched, estimated, fromSearched);
@@ -187,7 +204,7 @@ final class RoomTour {
      * searched yet. With {@code planAhead}: then picks the next room from {@code from} by {@link TourPlanner} and searches
      * that trip in full ({@link ClearExecutor#offerPreplan}). Client thread.
      */
-    static void request(Vec3 from, List<Site> sites, boolean planAhead, String why) {
+    static void request(Vec3 from, List<Site> sites, boolean planAhead, boolean travelOnly, String why) {
         Minecraft client = Minecraft.getInstance();
         if (from == null || client.level == null || busy && !planAhead) {
             return;
@@ -205,7 +222,7 @@ final class RoomTour {
         busy = true;
         ClearExecutor.onPlanner(() -> {
             try {
-                run(from, snapshot, planAhead, why, layout, cfg, range, gen);
+                run(from, snapshot, planAhead, travelOnly, why, layout, cfg, range, gen);
             } catch (Throwable t) {
                 LOGGER.warn("[AutoSecret] room order: the trip search failed: {}", t.toString());
             } finally {
@@ -215,7 +232,8 @@ final class RoomTour {
     }
 
     /** Planner thread. */
-    private static void run(Vec3 from, List<Site> sites, boolean planAhead, String why, DungeonLayout layout,
+    private static void run(Vec3 from, List<Site> sites, boolean planAhead, boolean travelOnly, String why,
+                            DungeonLayout layout,
                             EtherwarpPathfinder.PathConfig cfg, double range, int gen) {
         long t0 = System.nanoTime();
         long deadline = t0 + SEARCH_BUDGET_NANOS;
@@ -259,15 +277,16 @@ final class RoomTour {
         if (!planAhead || sites.isEmpty() || gen != generation) {
             return;
         }
-        Matrix m = matrix(from, sites);
+        Matrix m = matrix(from, sites, travelOnly);
         TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
-        Site next = sites.get(res.first());
+        int[] order = legacyOrder ? byWeight(m) : res.order();
+        Site next = sites.get(order[0]);
         List<EtherwarpPathfinder.Node> path = next.tile() >= 0
                 ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
                 : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
         LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"
                         + " order %s", from.x, from.y, from.z, next.key(), next.arriveKey(),
-                path == null ? "no" : String.valueOf(path.size()), describe(sites, res.order())));
+                path == null ? "no" : String.valueOf(path.size()), describe(sites, order)));
         Minecraft.getInstance().execute(() -> {
             if (gen != generation) {
                 return;
