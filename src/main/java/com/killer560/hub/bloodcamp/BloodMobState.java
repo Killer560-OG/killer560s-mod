@@ -27,6 +27,22 @@ final class BloodMobState {
     boolean killSoundDone = false;
     /** The exact position the trip's first move packet gave the stand (testkit comparison only). */
     Vec3 firstPacketExact;
+    /** Trigger Bot clicks this trip (the first plus any retries after a miss), the tick of the last, whether it was an
+     *  attack (an entity under the crosshair in reach) or a swing on air, and the entity it attacked. */
+    int clicks;
+    long lastClickTick;
+    boolean lastClickAttacked;
+    int lastAttackedId = -1;
+    /** Ticks after a click before the next retry may go (rolled per click: a human's re-click is not metronomic). */
+    int retryGap;
+    /** The mob took damage or died: the trip is done, the aura moves on and nothing is clicked again. */
+    boolean confirmed;
+    /** Out of retries (or out of time) without a hit. */
+    boolean gaveUp;
+    /** Where on the mob the aura aims, as a small fixed offset rolled per trip (fraction of the box). */
+    float aimJitterX;
+    float aimJitterY;
+    float aimJitterZ;
 
     BloodMobState(Vec3 startVec, long startedAtTick, boolean firstSpawn) {
         restart(startVec, startedAtTick, firstSpawn);
@@ -45,5 +61,16 @@ final class BloodMobState {
         this.triggerBotClicked = false;
         this.startSoundDone = false;
         this.killSoundDone = false;
+        this.clicks = 0;
+        this.lastClickTick = 0L;
+        this.lastClickAttacked = false;
+        this.lastAttackedId = -1;
+        this.retryGap = 0;
+        this.confirmed = false;
+        this.gaveUp = false;
+        java.util.concurrent.ThreadLocalRandom r = java.util.concurrent.ThreadLocalRandom.current();
+        this.aimJitterX = (r.nextFloat() * 2f - 1f) * 0.12f;
+        this.aimJitterY = (r.nextFloat() * 2f - 1f) * 0.06f;
+        this.aimJitterZ = (r.nextFloat() * 2f - 1f) * 0.12f;
     }
 }

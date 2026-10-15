@@ -967,6 +967,37 @@ public final class LiveMapFeature {
         }
     }
 
+    /**
+     * The type of the room he is standing in, as the map draws it ("BLOOD", "NORMAL", "PUZZLE", ...: the room database's
+     * type once identified, else the dungeon map item's colour), or null when the map does not know: no player, boss,
+     * outside the grid, not part of a known room, or neither identified nor coloured on the map item. Unlike the
+     * painter's {@code roomType} this never falls back to "NORMAL" as a guess. Blood Camp's room gate.
+     */
+    public static String currentRoomType() {
+        int idx = currentRoomIndex();
+        if (idx < 0) {
+            return null;
+        }
+        RoomGroup group = groupAt(idx);
+        if (group == null) {
+            return null;
+        }
+        if (group.entry != null && group.entry.type != null && !group.entry.type.isEmpty()) {
+            return group.entry.type.toUpperCase(java.util.Locale.ROOT);
+        }
+        return switch (DungeonMapScanner.roomColorAt(group.mainIdx)) {
+            case 18 -> "BLOOD";
+            case 82 -> "FAIRY";
+            case 34 -> "RARE";
+            case 74 -> "CHAMPION";
+            case 66 -> "PUZZLE";
+            case 62 -> "TRAP";
+            case 30 -> "ENTRANCE";
+            case 63, 85 -> "NORMAL";
+            default -> null;
+        };
+    }
+
     public static RoomEntry currentRoomEntry() {
         int idx = currentRoomIndex();
         return idx < 0 ? null : roomEntryAt(idx);
