@@ -93,7 +93,15 @@ public final class SlotTextFeature {
         };
     }
 
+    /** Test hook (docs/TESTING-HOOKS.md): when non-null it replaces the polled key state, because a harness key press
+     *  never reaches the GLFW poll. Always null in play. */
+    public static volatile Boolean keyHeldForTest;
+
     private static boolean keyHeld(int code) {
+        Boolean forced = keyHeldForTest;
+        if (forced != null) {
+            return forced;
+        }
         Minecraft mc = Minecraft.getInstance();
         return mc != null && KeyUtil.isBindDown(mc.getWindow(), code);
     }
@@ -133,6 +141,11 @@ public final class SlotTextFeature {
             graphics.text(font, e.text(), 0, 0, e.color(), true);
             pose.popMatrix();
         }
+    }
+
+    /** {@link #compute} with the live per-type switches; ignores the show rule. Public for the tests. */
+    public static List<Entry> textFor(ItemStack stack, String title, int slotIndex, boolean playerSlot) {
+        return compute(stack, title, slotIndex, playerSlot, SlotTextConfig.getInstance()::isTypeEnabled);
     }
 
     private static List<Entry> entriesFor(ItemStack stack, String title, int slotIndex, boolean playerSlot) {

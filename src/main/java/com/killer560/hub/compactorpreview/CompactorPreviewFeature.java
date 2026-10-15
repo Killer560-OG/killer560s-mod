@@ -106,9 +106,17 @@ public final class CompactorPreviewFeature {
         if (cfg.isSkyblockOnly() && !SkyblockGate.allows()) {
             return false;
         }
+        Boolean forced = keyHeldForTest;
+        if (forced != null) {
+            return modeAllows(cfg.getMode(), forced);
+        }
         Minecraft mc = Minecraft.getInstance();
         return modeAllows(cfg.getMode(), mc != null && KeyUtil.isBindDown(mc.getWindow(), cfg.getKeyCode()));
     }
+
+    /** Test hook (docs/TESTING-HOOKS.md): when non-null it replaces the polled key state, because a harness key press
+     *  never reaches the GLFW poll. Always null in play. */
+    public static volatile Boolean keyHeldForTest;
 
     /** The mode rule on its own, public for the tests. */
     public static boolean modeAllows(CompactorPreviewConfig.Mode mode, boolean keyHeld) {
