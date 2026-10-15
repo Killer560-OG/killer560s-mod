@@ -690,11 +690,16 @@ public final class AutoRoutesFeature {
         // arm" - the one near landing in 151 start-node warps logged. Now the room-by-room planner aims at the block
         // itself first, as for Auto Blaze's ledge chest.
         // The trip ends on the tick the server confirms its last landing (ClearExecutor.etherPathArrive), so the start node
-        // arms then, not ~9 ticks later (killer560, 2026-10-15: routes as fast as possible). Only a start stack that opens
-        // with a warp goes on that very tick - warp into warp, as a route's own chain does; anything else (a breaker, a
-        // boom, a use) keeps the interact delay a route keeps after a landing (LESSONS-AUTOMATION, chain timing).
+        // arms then, not ~9 ticks later (killer560, 2026-10-15: routes as fast as possible). A start stack that opens with
+        // a warp (warp into warp, as a route's own chain does) or a plain movement goes on that very tick; one that opens
+        // with a block or item action (a breaker, a boom, a use) keeps the interact delay a route keeps after a landing:
+        // a breaker fired on the landing tick broke nothing on the dedicated server (LESSONS-AUTOMATION, chain timing).
         RouteNode first = route.stackOf(start).get(0);
-        boolean warpFirst = first.type == RouteNode.Type.ETHERWARP || first.type == RouteNode.Type.PATH;
+        // A turn, a walk, a jump or an unsneak sends nothing the server has to have the landing for first either.
+        boolean warpFirst = switch (first.type) {
+            case ETHERWARP, PATH, ROTATE, WALK, JUMP, UNSNEAK -> true;
+            default -> false;
+        };
         ClearExecutor.etherPathArrive(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
