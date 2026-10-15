@@ -183,6 +183,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Creeper Beams draws a beam between the two ends of each pair it has joined.
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.registerRender();
         com.killer560.hub.roomsim.SimWhere.register();
+        // /mage (dev builds only): re-captures the room he stands in into the sim's room library.
+        com.killer560.hub.roomsim.RoomCapture.register();
         com.killer560.hub.roomsim.puzzles.SimBlazePuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.register();
         com.killer560.hub.roomsim.puzzles.SimQuizPuzzle.register();

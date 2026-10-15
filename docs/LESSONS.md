@@ -355,3 +355,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   profile must keep reloading `LeapMenuConfig`. A pick stored with a UUID that `PlayerNames` cannot map back to its
   name is invisible to `classOf(name)` (the lookup is UUID first, then the typed name) - testkit 1072 calls
   `PlayerNames.noteKnown` for its uuid entry.
+- **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2: `iconst_1; ireturn`), and a chunk the client
+  does not have reads as an empty chunk, all air. So "is this chunk loaded?" on the client must ask the chunk SOURCE:
+  `level.getChunkSource().hasChunk(x, z)` (vanilla's answer even with the Chunk Cache on, `ChunkCacheChunkSourceMixin`).
+  `/mage`'s first version asked the level and captured a forgotten chunk as a hole, which its own tile check then called
+  "matches no room" (testkit 1490, 2026-10-15). `DoorScanner`, `SecretWaypointsFeature`, `CryptScanner` and
+  `AutoPuzzleUtil` still ask `level.hasChunk` on the client.

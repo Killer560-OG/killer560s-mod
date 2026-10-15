@@ -34,8 +34,9 @@ import com.killer560.hub.util.ModLog;
  * the first time a room is entered. Each room records which of its 31x31-per-tile columns have been read, and is
  * only finished when all of them have.
  *
- * <p>Read-only since 2026-10-04: the Room Recorder that wrote these captures was removed and lives at git tag
- * {@code room-recorder-last} (see docs/SIM.md). Nothing here writes a room any more.
+ * <p>The Room Recorder that wrote these captures was removed on 2026-10-04 and lives at git tag
+ * {@code room-recorder-last} (see docs/SIM.md). Since 2026-10-15 the one writer is {@link RoomCapture} (the
+ * {@code /mage} command): a whole room read at once, validated, and written through {@link #writeCapture}.
  */
 public final class RoomLibrary {
 
@@ -750,6 +751,124 @@ public final class RoomLibrary {
             }
         }
         return n;
+    }
+
+    /** The user library folder, where a disk capture beats the shipped copy of the same room. */
+    public static Path libraryDir() {
+        return DIR;
+    }
+
+    /** A room's file name in the library, the shape every capture has been saved under ({@code Arrow_Trap.json}). */
+    static String safeName(String name) {
+        return name.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    /** A new, empty capture at this footprint and y band, for {@link RoomCapture}. */
+    static Room newCapture(String name, int sizeX, int sizeZ, int minY, int maxY) {
+        return new Room(name, sizeX, sizeZ, minY, maxY);
+    }
+
+    /**
+     * Where {@link #writeCapture} put a room, and where the file it replaced went (null when there was none).
+     */
+    public record Written(Path file, Path backup) {
+    }
+
+    /**
+     * Writes one capture into the user library ({@link #DIR}), restored from the Room Recorder's {@code saveAll}
+     * (tag {@code room-recorder-last}) for one room. A file already there is never overwritten silently: it is moved to
+     * {@code <name>.json.bak-<yyyyMMdd-HHmmss>} first. The shipped copy in the jar is untouched; a usable disk room wins
+     * over it at the next load ({@link #mergeBundled}).
+     */
+    static synchronized Written writeCapture(Room r) throws java.io.IOException {
+        Files.createDirectories(DIR);
+        Path f = DIR.resolve(safeName(r.name) + ".json");
+        Path backup = null;
+        if (Files.exists(f)) {
+            String stamp = java.time.LocalDateTime.now().format(
+                    java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            backup = f.resolveSibling(f.getFileName() + ".bak-" + stamp);
+            Files.move(f, backup, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        Path tmp = f.resolveSibling(f.getFileName() + ".tmp");
+        Files.writeString(tmp, new com.google.gson.GsonBuilder().setPrettyPrinting().create().toJson(toJson(r)),
+                StandardCharsets.UTF_8);
+        Files.move(tmp, f, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        return new Written(f, backup);
+    }
+
+    /** Reads one capture file the way the library does, or null when it cannot be read. For the round-trip check. */
+    public static Room readFile(Path f) {
+        try {
+            return fromJson(JsonParser.parseString(Files.readString(f, StandardCharsets.UTF_8)).getAsJsonObject());
+        } catch (Exception e) {
+            LOGGER.warn("Could not read room file {} ({})", f.getFileName(), e.getClass().getSimpleName());
+            return null;
+        }
+    }
+
+    /** Shorts to gzipped base64. Big-endian, so the encoding does not depend on the machine that wrote it. */
+    private static String encodeShorts(short[] values) {
+        try {
+            var raw = new java.io.ByteArrayOutputStream();
+            try (var gz = new java.util.zip.GZIPOutputStream(raw);
+                 var out = new java.io.DataOutputStream(gz)) {
+                for (short v : values) {
+                    out.writeShort(v);
+                }
+            }
+            return java.util.Base64.getEncoder().encodeToString(raw.toByteArray());
+        } catch (Exception e) {
+            LOGGER.warn("Could not compress a room's blocks", e);
+            return "";
+        }
+    }
+
+    /** One bit per column rather than one byte, since it is a boolean array of a thousand or so. */
+    private static String encodeBits(boolean[] values) {
+        byte[] packed = new byte[(values.length + 7) / 8];
+        for (int i = 0; i < values.length; i++) {
+            if (values[i]) {
+                packed[i >> 3] |= (byte) (1 << (i & 7));
+            }
+        }
+        return java.util.Base64.getEncoder().encodeToString(packed);
+    }
+
+    /**
+     * The file form of a room, as the Room Recorder wrote it (tag {@code room-recorder-last}): TRIMMED to the y range
+     * that holds anything but air, palette strings, gzipped big-endian block shorts, one bit per seen column.
+     */
+    private static JsonObject toJson(Room r) {
+        JsonObject o = new JsonObject();
+        o.addProperty("name", r.name);
+        o.addProperty("sizeX", r.sizeX);
+        o.addProperty("sizeZ", r.sizeZ);
+        int lo = r.contentMinY();
+        int hi = r.contentMaxY();
+        if (lo > hi || lo < r.minY || hi > r.maxY) {
+            lo = r.minY;
+            hi = r.minY;   // nothing captured: keep one layer so the arithmetic stays valid
+        }
+        o.addProperty("minY", lo);
+        o.addProperty("maxY", hi);
+        JsonArray pal = new JsonArray();
+        for (String p : r.palette) {
+            pal.add(p);
+        }
+        o.add("palette", pal);
+        int layer = r.sizeX * r.sizeZ;
+        short[] trimmed = new short[layer * (hi - lo + 1)];
+        System.arraycopy(r.blocks, (lo - r.minY) * layer, trimmed, 0, trimmed.length);
+        o.addProperty("blocksZ", encodeShorts(trimmed));
+        o.addProperty("seenZ", encodeBits(r.seenColumn));
+        o.addProperty("margin", r.margin);
+        JsonArray spawns = new JsonArray();
+        for (String m : r.mobSpawns) {
+            spawns.add(m);
+        }
+        o.add("mobSpawns", spawns);
+        return o;
     }
 
     private static void decodeShorts(String encoded, short[] into) {

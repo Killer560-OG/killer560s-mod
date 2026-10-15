@@ -2960,6 +2960,21 @@ real doorway at one height there is nothing to search for. FloorBench mirrors it
 -Dnorecency=true` 10 per combination (2,240 floors): 0 failures before and after; fill-pass warnings 267 -> 339 (Mage
 and Quad Lava have fewer doorways to grow from), unchecked carves 7 -> 5.
 
+## /mage: re-capturing one room from a real dungeon (2026-10-15, mage-capture-1015)
+
+The Mage fix the doorway section above asks for. `roomsim/RoomCapture` (dev builds only) restores the Room Recorder's
+read-and-save half for ONE room, from tag `room-recorder-last`: the footprint from the live map's tiles (refused unless
+they fit the room database's shape - the recorder's worst damage came from a mis-grouped box), every chunk of it loaded
+(asked of the chunk source - `ClientLevel.hasChunk` is always true), every block of every y of the level in WORLD
+orientation (as every shipped capture was; `RoomCaptureRotation` finds the turn), y taken back by `SimAltitude` in the
+sim. Then the check the recorder never had: each tile's centre column must hash to the room in the room database
+(`RoomDatabase.coreOfColumn`, as `RoomLShape` uses) and there must be a doorway at y 69..72. The shipped Mage fails it on
+tile 1,0 ("Altar"). A good capture goes to the user library through `RoomLibrary.writeCapture` (the file it replaces
+kept as `.bak-<stamp>`), is read back block for block, and the library reloads; a usable disk room wins over the jar's.
+Only `/mage` is exposed; `captureCurrent(client, name)` takes any room. Testkit 1490 builds Mage in the sim, checks every
+refusal, swaps the stitched tile's centre column for the good one's so the room validates, and compares the decoded
+file with the server's world: 602,745 blocks, 0 differ.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
