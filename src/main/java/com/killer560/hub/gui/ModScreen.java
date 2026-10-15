@@ -2638,7 +2638,6 @@ public class ModScreen extends Screen {
     }
 
     private static final String HOME_PROFILES = "Profiles";
-    private static final String HOME_REBOOT = "Reboot";
     private static final String HOME_SWEAT = "Sweat Mode";
 
     /** Home's quick button label under the mouse, or null. Its tooltip is SettingTooltipsData's "home button/<label>". */
@@ -2672,12 +2671,31 @@ public class ModScreen extends Screen {
         return null;
     }
 
+    /** Home's version line (killer560, 2026-10-15): the mod version and the variant only - no Minecraft version, no build. */
+    public String versionLine() {
+        return "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant();
+    }
+
+    /** Labels of Home's quick buttons, in order. For the testkit. */
+    public List<String> homeButtonLabels() {
+        List<String> out = new ArrayList<>();
+        for (Item it : items) {
+            if (it.kind == ItemKind.BLOCK && it.block instanceof HeroBlock hero) {
+                for (HomeButton b : hero.buttons()) {
+                    out.add(b.label());
+                }
+            }
+        }
+        return out;
+    }
+
     /** Home's top box: the build, the update channel and its last result, and the quick buttons. */
     private final class HeroBlock implements Block {
 
         private List<HomeButton> buttons() {
             List<HomeButton> b = new ArrayList<>();
-            // killer560 (2026-10-14): his channel at the top, and Sweat Mode right next to Check Updates - nine, a full 3x3.
+            // killer560 (2026-10-14): his channel at the top, and Sweat Mode right next to Check Updates. 2026-10-15: Reboot
+            // came off (the /reboot command stays), leaving eight - a 4x2 grid.
             b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
             b.add(new HomeButton("Edit HUD", () -> {
                 Minecraft client = Minecraft.getInstance();
@@ -2692,12 +2710,11 @@ public class ModScreen extends Screen {
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
-            b.add(new HomeButton(HOME_REBOOT, com.killer560.hub.reboot.RebootFeature::pressButton));
             return b;
         }
 
         private int cols(int w) {
-            return w >= 420 ? 3 : 2;
+            return w >= 400 ? 4 : 2;
         }
 
         @Override
@@ -2727,9 +2744,7 @@ public class ModScreen extends Screen {
             }
             r.submit();
             MenuStyle.text(g, "WELCOME BACK", x + 8, y + 4, MenuStyle.OR2);
-            String mc = com.killer560.hub.autoupdate.BuildInfo.minecraft();
-            String line1 = "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
-                    + (mc == null ? "" : " · Minecraft " + mc) + " · build " + com.killer560.hub.autoupdate.BuildInfo.shortCommit();
+            String line1 = versionLine();
             MenuStyle.text(g, MenuStyle.ellipsize(line1, w - 20), x + 10, y + 21, MenuStyle.TXT);
             String line2 = "Updates: " + com.killer560.hub.gui.tab.AutoUpdateTab.statusLine();
             MenuStyle.text(g, MenuStyle.ellipsize(line2, w - 20), x + 10, y + 33, MenuStyle.DIM);

@@ -24,7 +24,7 @@ import java.util.Locale;
 
 /**
  * /reboot (killer560, 2026-10-13: "is it possible to make the command /reboot that closes the game and will reboot it
- * once it is fully closed?"), also the Reboot button on the menu's Home page.
+ * once it is fully closed?"). (Home's Reboot button was removed 2026-10-15.)
  *
  * <p>Only a game Prism Launcher (or PolyMC / MultiMC) started can be restarted: the game process's PARENT must be the
  * launcher, and the game folder must be an instance's {@code minecraft} folder, whose parent folder name is the
@@ -181,15 +181,6 @@ public final class RebootFeature {
             return;
         }
         reboot(d);
-    }
-
-    /** Home's Reboot button: the first press is /reboot, a second press inside the confirmation window confirms. */
-    public static void pressButton() {
-        if (confirmUntil != 0 && System.currentTimeMillis() <= confirmUntil) {
-            confirm();
-        } else {
-            request();
-        }
     }
 
     private static boolean needsConfirm(Minecraft client) {
