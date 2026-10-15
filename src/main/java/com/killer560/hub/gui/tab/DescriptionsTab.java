@@ -26,7 +26,7 @@ public class DescriptionsTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "Show or hide the card descriptions and the HUD editor hints.";
+        return "Hide card and editor descriptions.";
     }
 
     @Override

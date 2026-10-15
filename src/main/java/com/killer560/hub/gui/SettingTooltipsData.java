@@ -21,6 +21,7 @@ final class SettingTooltipsData {
         crosshair(d);
         autoSecret(d);
         menuTheme(d);
+        clickSounds(d);
         colourPicker(d);
     }
 
@@ -31,6 +32,20 @@ final class SettingTooltipsData {
         d.put("color picker/set default", "Puts this setting's own default color back.");
         d.put("color picker/done", "Closes the picker. The color is already saved as you change it.");
         d.put("color picker/alpha", "How see-through the color is. A pasted color without alpha keeps this value.");
+    }
+
+    private static void clickSounds(Map<String, String> d) {
+        // killer560, 2026-10-15: the menu click sound and the Descriptions switches (clicksound/, gui/tab/ClickSoundsTab, DescriptionsTab).
+        d.put("click sounds", "The sound every button click makes. Default is Minecraft's own click; the presets are short original sounds; Import adds your own .ogg.");
+        d.put("click sounds/click sound", "Default (Minecraft's click), a preset (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep) or an .ogg you imported. Left click goes to the next and plays it, right click back.");
+        d.put("click sounds/vanilla screens", "Off: only this mod's menus use the sound. On: Minecraft's own screens (Options, the title screen, Mod Menu...) use it too.");
+        d.put("click sounds/click volume", "How loud the chosen click is, 0-100%. It is also scaled by your Minecraft master volume.");
+        d.put("click sounds/preview", "Plays the chosen click once.");
+        d.put("click sounds/open sound folder", "Opens the folder your imported .ogg files live in. Drop a short Ogg Vorbis file in (under 1 MB), then step Click Sound to it.");
+        d.put("click sounds/import from clipboard", "Copy an .ogg file's path (Shift + right click it in Explorer, Copy as path) then press this: the file is checked, copied into the sound folder and chosen.");
+        d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
+        d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");
+        d.put("descriptions/show editor descriptions", "Off hides the hint line at the top of the HUD editor (drag, resize, scroll, Esc). The line saying why the editor is empty stays.");
     }
 
     private static void menuTheme(Map<String, String> d) {

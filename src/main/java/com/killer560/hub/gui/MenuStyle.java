@@ -544,6 +544,35 @@ public final class MenuStyle {
         return cut + "...";
     }
 
+    /** True when {@code s} word-wraps into at most {@code maxLines} lines of {@code width} with nothing cut or ellipsized. */
+    public static boolean fits(String s, int width, int maxLines) {
+        if (s == null || s.isBlank()) {
+            return true;
+        }
+        Font f = font();
+        if (maxLines <= 0 || width < 8) {
+            return false;
+        }
+        int lines = 1;
+        int lineW = 0;
+        int space = f.width(" ");
+        for (String word : s.trim().split("\\s+")) {
+            int ww = f.width(word);
+            if (ww > width) {
+                return false;
+            }
+            if (lineW == 0) {
+                lineW = ww;
+            } else if (lineW + space + ww <= width) {
+                lineW += space + ww;
+            } else {
+                lines++;
+                lineW = ww;
+            }
+        }
+        return lines <= maxLines;
+    }
+
     /** Word-wrapped lines of plain {@code s} at {@code width}, at most {@code maxLines}; the last one ellipsized. */
     public static List<String> wrap(String s, int width, int maxLines) {
         Font f = font();

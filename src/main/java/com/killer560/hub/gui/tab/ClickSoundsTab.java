@@ -32,7 +32,7 @@ public class ClickSoundsTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "Pick the sound every click makes: presets or your own .ogg.";
+        return "Pick the click sound or add yours.";
     }
 
     @Override

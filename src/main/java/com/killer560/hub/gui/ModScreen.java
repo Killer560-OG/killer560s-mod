@@ -124,8 +124,8 @@ public class ModScreen extends Screen {
     private final List<Item> items = new ArrayList<>();
     private int gridContentH;
     private int gridMax;
-    private static final int CARD_H = 66;
-    private static final int CARD_MIN_W = 104;
+    private static final int CARD_H = FeatureCards.CARD_H;
+    private static final int CARD_MIN_W = FeatureCards.CARD_MIN_W;
     private static final int GAP = 6;
     private static final int GRID_PAD = 6;
 
@@ -1674,17 +1674,15 @@ public class ModScreen extends Screen {
             MenuStyle.toggle(r, sw[0], sw[1] - (it.y - y), state, swHover);
         }
         r.submit();
-        int nameW = w - 14 - (state != null ? MenuStyle.SWITCH_W + 4 : 0);
-        List<String> name = MenuStyle.wrap(tab.name, nameW, 2);
+        FeatureCards.CardText text = FeatureCards.cardText(tab, w, h, state != null);
         int ty = y + 6;
         int nameColour = tab.isCheatOnly() ? MenuStyle.RED_TITLE : (hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
-        for (String line : name) {
+        for (String line : text.name()) {
             MenuStyle.text(g, line, x + 7, ty, nameColour);
             ty += 10;
         }
         ty += 2;
-        int descLines = DescriptionConfig.getInstance().isShowMenu() ? Math.max(0, (y + h - 14 - ty) / 10) : 0;
-        for (String line : MenuStyle.wrap(FeatureCards.description(tab), w - 14, descLines)) {
+        for (String line : text.desc()) {
             MenuStyle.flat(g, line, x + 7, ty, MenuStyle.DIM);
             ty += 10;
         }
@@ -1884,9 +1882,11 @@ public class ModScreen extends Screen {
                     key = it.tab;
                     text = cardTooltip(it.tab);
                     if (text == null && it.kind == ItemKind.CARD) {
-                        text = FeatureCards.description(it.tab);
-                        if (text != null && text.length() < 60) {
-                            text = null; // short enough to read on the card itself
+                        // The card carries a short line; the longer text is the hover. With the line hidden, hover
+                        // shows it too, so a card is never left with nothing to say what it does.
+                        text = FeatureCards.longDescription(it.tab);
+                        if (text == null && !DescriptionConfig.getInstance().isShowMenu()) {
+                            text = FeatureCards.description(it.tab);
                         }
                     }
                     break;
