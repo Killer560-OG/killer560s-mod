@@ -282,7 +282,7 @@ public final class MainMenuTitleLayout {
                 if (sim == null) {
                     sim = new DungeonSimButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
                             Component.literal("Dungeon Sim"), btn -> McCompat.setScreen(Minecraft.getInstance(),
-                                    new com.killer560.hub.roomsim.SimMenuScreen(screen)));
+                                    com.killer560.hub.roomsim.SimMenuScreen.open(screen)));
                     // killer560 (2026-09-28, and again on 2026-09-30): "the button for the sim still doesnt
                     // load in like the other buttons do." It fades with them now, and nothing here does it.
                     //

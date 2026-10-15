@@ -14,7 +14,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * What the Dungeon Sim menu remembers between opens: the page it was last on and how each list is sorted.
+ * What the Dungeon Sim menu remembers between opens: how each list is sorted. The page it was last on is session memory
+ * only ({@link SimMenuNav}): a fresh game opens on the designer (killer560, 2026-10-15).
  *
  * <p>Read from disk every time the menu opens (never held across screens), so a profile that swaps this file is
  * simply what the next open shows - nothing to refresh in {@code ProfileManager}.
@@ -46,8 +47,6 @@ public final class SimMenuPrefs {
         }
     }
 
-    /** The page the menu opens on: PREVIOUS, ROOM or CYCLE. */
-    public String page = "ROOM";
     public RoomSort roomSort = RoomSort.NAME;
     public boolean roomDescending = false;
     public RunSort runSort = RunSort.NEWEST;
@@ -62,7 +61,6 @@ public final class SimMenuPrefs {
         try {
             if (Files.exists(FILE)) {
                 JsonObject o = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8)).getAsJsonObject();
-                p.page = ConfigJson.getString(o, "page", p.page);
                 p.roomSort = ConfigJson.getEnum(o, "roomSort", RoomSort.class, p.roomSort);
                 p.roomDescending = ConfigJson.getBool(o, "roomDescending", p.roomDescending);
                 p.runSort = ConfigJson.getEnum(o, "runSort", RunSort.class, p.runSort);
@@ -76,7 +74,6 @@ public final class SimMenuPrefs {
 
     public void save() {
         JsonObject o = new JsonObject();
-        o.addProperty("page", page);
         o.addProperty("roomSort", roomSort.name());
         o.addProperty("roomDescending", roomDescending);
         o.addProperty("runSort", runSort.name());

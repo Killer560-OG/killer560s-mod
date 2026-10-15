@@ -58,12 +58,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
     /**
      * A list row: two lines with a gap between them and around them. It was 22 with the lines 9 apart, i.e. touching
-     * (killer560, 2026-10-15: "make there be a hair more spacing for the text it is really crammed").
+     * (killer560, 2026-10-15: "make there be a hair more spacing for the text it is really crammed"). 3 units between
+     * the lines (27/15 gave 2), so the gap still shows at a small Auto Scale where 2 units can round to no pixel at all.
      */
-    private static final int ROW_H = 27;
+    private static final int ROW_H = 28;
     /** The second line's offset in a row; the first is at {@link #ROW_TEXT1}. */
     private static final int ROW_TEXT1 = 4;
-    private static final int ROW_TEXT2 = 15;
+    private static final int ROW_TEXT2 = 16;
 
     /** The label lines of the last frame, "Name|0/6;Name|0/4;", for the gametest to read back. */
     private static volatile String labelsDrawn = "";
@@ -73,7 +74,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         return labelsDrawn;
     }
 
-    private final Screen parent;
+    /** What the menu closes back to (the title screen, the game). Re-pointed when the session's designer is reopened. */
+    private Screen parent;
 
     /** Anchor cell -> room name. A multi-tile room appears once, at its top-left. */
     private final Map<Integer, String> placements = new LinkedHashMap<>();
@@ -180,6 +182,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         this.parent = parent;
     }
 
+    void setParent(Screen parent) {
+        this.parent = parent;
+    }
+
+    /** The shared frame and left column (SimMenuNav); this screen is the menu's Create a New Map page. */
+    private SimMenuNav nav;
+
     @Override
     protected void init() {
         RoomLibrary.loadAsync();
@@ -193,20 +202,28 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // tell a puzzle from an ordinary room while being asked for three of them, and could not see which
         // rooms are L-shaped to exclude them (SimFloorGen.shapeOf reads the same entry).
         RoomDatabase.ensureLoading();
-        panelW = Math.min(this.width - 40, 640);
-        // One row taller than it was: the generator settings moved onto this screen.
-        panelH = Math.min(this.height - 40, 366);
-        panelX = (this.width - panelW) / 2;
-        panelY = (this.height - panelH) / 2;
+        // The Dungeon Sim menu's frame and left column (killer560, 2026-10-15): this is the menu's first page, and
+        // Previous Runs, Load a Room and Route Practice stay one click away in the column.
+        nav = new SimMenuNav(this.width, this.height);
+        SimMenuNav.shown(SimMenuNav.Page.DESIGNER);
+        panelX = nav.panelX;
+        panelY = nav.panelY;
+        panelW = nav.panelW;
+        panelH = nav.panelH;
+        nav.addItems(this::addRenderableWidget, SimMenuNav.Page.DESIGNER, parent, null);
+        int cx = nav.contentX;
+        int cw = nav.contentW;
 
-        // The grid is square and takes the left half; the list takes the rest.
-        int gridArea = Math.min(panelH - 144, (panelW - 30) / 2);
+        // The grid is square and takes the left half of the page; the list takes the rest. Its height stops above the
+        // status line, which stops above the two button rows.
+        int top = listTop();
+        int gridArea = Math.min(rowAY() - 8 - 12 - top, (cw - 14) / 2);
         // Floor of 8, not 14. At 14 the grid could not shrink far enough to clear the settings row on a
         // short window - scenario 83 measured the grid's bottom at y 170 against a button top of y 168 at a
         // 240-unit window height. A cramped grid is better than one drawn over the controls.
         areaSize = Math.max(8, gridArea / GRID) * GRID;
-        areaX = panelX + 14;
-        areaY = panelY + 66;
+        areaX = cx;
+        areaY = top;
         // Only the floor's own rectangle is drawn (killer560, 2026-10-15: "Changing this button did not change the
         // size of the map like it should"), scaled up to the square the 6x6 takes, the way the dungeon map fits a
         // small floor to its frame.
@@ -214,15 +231,15 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         gridX = areaX + (areaSize - cell * floor.across) / 2;
         gridY = areaY + (areaSize - cell * floor.down) / 2;
         listX = areaX + areaSize + 14;
-        listW = panelX + panelW - 12 - listX;
+        listW = cx + cw - listX;
 
         // The room filters (killer560, 2026-10-06: "have a filter section where i can filter based on things like
         // puzzles, room size, secrets in a room, etc."), beside the search box. They open as a popup screen rather
         // than a panel here, because this screen has no free space at a small window. They narrow the list, Fill
-        // (which draws from the list) and Generate - see SimRoomFilters.
-        int active = SimRoomFilters.activeCount();
+        // (which draws from the list) and Generate - see SimRoomFilters. Lit while any chip is chosen, counting them.
+        int chosen = SimRoomFilters.DESIGNER.selectedCount();
         int filtersW = this.font.width("Filters (99)") + 12;
-        search = new ThemedEditBox(this.font, listX, panelY + 44, Math.max(20, listW - filtersW - 4), 16,
+        search = new ThemedEditBox(this.font, listX, nav.contentY, Math.max(20, listW - filtersW - 4), 18,
                 Component.literal("Search"));
         ((ThemedEditBox) search).hint("Search rooms...");
         search.setValue(searchText);
@@ -233,19 +250,19 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         });
         addRenderableWidget(search);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
-                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> {
+                chosen == 0 ? "Filters" : "Filters (" + chosen + ")"), b -> {
                     panel = Panel.ROOMS;
                     McCompat.setScreen(this.minecraft, new SimRoomFilterScreen(this));
-                }).bounds(listX + listW - filtersW, panelY + 44, filtersW, 16).build());
+                }).bounds(listX + listW - filtersW, nav.contentY, filtersW, 18).toggle(chosen > 0).build());
 
 
         // Row A - the random floor: its settings and the button that builds one.
-        int ay = panelY + panelH - 52;
-        int aAvail = panelW - 28 - 18;
+        int ay = rowAY();
+        int aAvail = cw - 18;
         int wFloor = aAvail * 24 / 100;
         int wSlider = aAvail * 27 / 100;
         int wGen = aAvail - wFloor - wSlider * 2;
-        int ax = panelX + 14;
+        int ax = cx;
         addRenderableWidget(SettingsButtonWidget.cycling(
                 Component.literal("§6" + floor.label), (b, dir) -> {
                     floor = SettingsButtonWidget.step(floor, dir);
@@ -275,12 +292,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 .bounds(ax, ay, wGen, 20).build());
 
         // Row B - the drawn floor: the drawing tools, and Play for what is on the grid.
-        int by = panelY + panelH - 26;
+        int by = rowAY() + 24;
         // Save went (killer560, 2026-10-15: "Remove the save and load buttons in exchange for one load button"): Play
-        // records the floor in the Load list itself, so there is nothing to name or save by hand.
-        int count = 5;
-        int bw = (panelW - 28 - 6 * (count - 1)) / count;
-        int bx = panelX + 14;
+        // records the floor in the Load list itself, so there is nothing to name or save by hand. Back went too: the
+        // left column's Back closes the menu, and its entries are the way to the other pages.
+        int count = 4;
+        int bw = (cw - 6 * (count - 1)) / count;
+        int bx = cx;
 
         // Clear takes the GENERATION off first, and only wipes the drawing if there is no generation to take
         // off. killer560 (2026-09-29): "also had a button to clear the current generation". Two steps rather
@@ -323,12 +341,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b ->
-                McCompat.setScreen(this.minecraft, parent)).bounds(bx, by, bw, 20).build());
-        bx += bw + 6;
-
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aPlay"), b -> play())
-                .bounds(bx, by, bw, 20).build());
+                .bounds(bx, by, bw, 20).primary().build());
 
         refilter();
         rebuildOccupancy();
@@ -749,7 +763,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }
 
         // The list.
-        int top = panelY + 66;
+        int top = listTop();
         int bottom = listBottom();
         if (mx >= listX && mx < listX + listW && my >= top && my < bottom) {
             int row = (int) ((my - top + scroll) / ROW_H);
@@ -775,7 +789,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double dx, double dy) {
         if (mouseX >= listX) {
-            int visible = listBottom() - (panelY + 66);
+            int visible = listBottom() - listTop();
             int max = Math.max(0, listed.size() * ROW_H - visible);
             scroll = Math.max(0, Math.min(max, scroll - (int) (dy * ROW_H)));
             return true;
@@ -787,11 +801,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar; the grid and the room list are
         // recessed wells, list rows hover / select like the menu's, every colour from the active theme.
-        ScreenChrome.backdrop(g, this.width, this.height);
         themedBounds = new int[]{panelX, panelY, panelW, panelH};
-        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
-        ScreenChrome.headerBar(g, panelX, panelY, panelW);
-        ScreenChrome.title(g, "DESIGN A MAP", panelX + 10, panelY + 11, false);
+        nav.drawFrame(g, this.width, this.height);
         // The type filters read the room database; a list built before it loaded is rebuilt the moment it does.
         if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
             refilter();
@@ -800,7 +811,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // right"). The Filters button still says how many filters are on.
         // Where the map name box was (Save went, 2026-10-15): which floor the grid is, and its size.
         ScreenChrome.text(g, fit(floor.label + "  ·  " + floor.across + " x " + floor.down + " rooms",
-                floor.label, areaSize), areaX, panelY + 48, MenuStyle.DIM);
+                floor.label, areaSize), areaX, nav.contentY + 5, MenuStyle.DIM);
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
 
@@ -858,7 +869,17 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      * overlaps the top layer of things").
      */
     private int listBottom() {
-        return panelY + panelH - 58;
+        return rowAY() - 8;
+    }
+
+    /** The top of the grid and of the room list: under the search row. Read by the testkit. */
+    public int listTop() {
+        return nav.contentY + 24;
+    }
+
+    /** The y of the upper button row (floor, sliders, Generate); the lower row (Clear, Fill, Load, Play) is 24 below. */
+    private int rowAY() {
+        return nav.contentBottom - 20 - 24;
     }
 
     /** Map units to screen pixels: one grid cell is the live map's room-plus-gap pitch. */
@@ -1049,7 +1070,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-        int top = panelY + 66;
+        int top = listTop();
         int bottom = listBottom();
         ScreenChrome.well(g, listX - 1, top - 1, listW + 2, bottom - top + 2);
         g.enableScissor(listX, top, listX + listW, bottom);
@@ -1096,6 +1117,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     : !SimRoomFilters.isDefault() ? "no rooms match the filters" : "no rooms match";
             MenuStyle.text(g, empty, listX + 8, top + 8, MenuStyle.DIM);
         }
+    }
+
+    @Override
+    public void onClose() {
+        McCompat.setScreen(this.minecraft, parent);
     }
 
     @Override
