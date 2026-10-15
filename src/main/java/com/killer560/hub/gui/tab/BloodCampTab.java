@@ -84,7 +84,8 @@ public class BloodCampTab extends BaseTab {
 
                 @Override
                 protected void applyValue() {
-                    cfg.setTimerTextScale(minScale + (float) this.value * (maxScale - minScale));
+                    // tenths, the precision the label shows (so the knob stops on each one)
+                    cfg.setTimerTextScale(Math.round((minScale + (float) this.value * (maxScale - minScale)) * 10f) / 10f);
                     cfg.save();
                 }
             });

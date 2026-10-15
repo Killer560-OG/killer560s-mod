@@ -480,3 +480,11 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **A closing animation cannot keep the screen open.** Escape must hand the game its input at once (testkit 942/986 check the
   menu is gone right after the key), so the menu closes immediately and `MenuCloseFade` draws the closed ModScreen's
   picture fading over whatever is next (a HUD layer with no screen, `ScreenEvents.afterExtract` over one).
+- **A slider's knob position must come from what was SAVED, not from the mouse** (menu-anim-2, 2026-10-15). 160 menu sliders
+  each round in their own `applyValue` (whole numbers, steps of 25 or 50k, tenths, a list) and none told the widget, so
+  the knob rested wherever the mouse left it: testkit 1598 found 186 knobs resting between two values on main. Rather
+  than give 160 sites a step count, `ThemedSliderButton.setValue` (vanilla's mouse and key paths both call it) asks
+  `ModScreen.twinSliderValue`: the tab is built again off-screen and the same row's constructor turns the saved
+  setting into the knob position, used only when its text matches. The same sweep found a label showing the unsnapped
+  drag ("Width: 0.51x" saved as 0.50) and two sliders storing more precision than they show (Turn Speed, Timer Text
+  Scale): a slider must save what its label says.
