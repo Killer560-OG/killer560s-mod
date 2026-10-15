@@ -29,7 +29,7 @@ public abstract class MainMenuTitleScreenMixin {
             return color;
         }
         killer560smod$footerAlpha = (color >>> 24) & 0xFF;
-        return MainMenuTheme.argb(MainMenuTheme.DIM, killer560smod$footerAlpha);
+        return MainMenuTheme.argb(com.killer560.hub.mainmenu.MainMenuChrome.dimColour(), killer560smod$footerAlpha);
     }
 
     @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
@@ -46,7 +46,8 @@ public abstract class MainMenuTitleScreenMixin {
             }
             TitleScreen self = (TitleScreen) (Object) this;
             graphics.text(Minecraft.getInstance().font, MainMenuTheme.modTag(), 2, self.height - 20,
-                    MainMenuTheme.argb(MainMenuTheme.ORANGE, alpha));
+                    MainMenuTheme.argb(com.killer560.hub.mainmenu.MainMenuChrome.modTagColour(), alpha),
+                    !com.killer560.hub.gui.MenuStyle.LIGHT);
         } catch (Throwable t) {
             MainMenuTheme.fail("mod tag", t);
         }

@@ -424,6 +424,8 @@ public final class ProfileManager {
                 com.killer560.hub.gui.MenuConfig::load,
                 com.killer560.hub.gui.RecentColours::load,
                 com.killer560.hub.gui.ScreenThemes::load,
+                // The Themes tab's Font setting (2026-10-15).
+                com.killer560.hub.fonts.FontConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.trail.RibbonTrailConfig::load,
@@ -610,6 +612,9 @@ public final class ProfileManager {
                 com.killer560.hub.roomsim.SimBreakerState::forgetSecretCharges,
                 // DVD runtimes hold the OLD DvdEntry objects; rebuild them from the new ones.
                 com.killer560.hub.dvd.DvdFeature::reloadFromConfig,
+                // Imported fonts ride in profiles (killer560smod-fonts/): list them again and rebuild the chosen one.
+                com.killer560.hub.fonts.FontChoices::rescan,
+                com.killer560.hub.fonts.CustomFonts::markDirty,
                 // Borderless is applied to the real window once; follow a changed setting.
                 () -> {
                     if (window) {

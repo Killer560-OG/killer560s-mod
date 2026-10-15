@@ -1,0 +1,18 @@
+Fonts bundled with Killer560's Mod (the Font setting in the menu's Themes tab).
+
+Every font here is licensed under the SIL Open Font License, Version 1.1, which allows it to be bundled and
+redistributed with software as long as the font is not sold on its own and its license travels with it. Each font's
+full license text, with its copyright line, is in the file named beside it. None of the fonts has been modified.
+They were taken from the Google Fonts repository (github.com/google/fonts, ofl/ folder) on 2026-10-15.
+
+  Lato-Regular.ttf          Lato            Copyright (c) 2010-2014 Lukasz Dziedzic, Reserved Font Name "Lato"
+                                            License: Lato-OFL.txt (SIL OFL 1.1)
+  SpaceMono-Regular.ttf     Space Mono      Copyright 2016 The Space Mono Project Authors
+                                            License: SpaceMono-OFL.txt (SIL OFL 1.1)
+  VT323-Regular.ttf         VT323           Copyright 2011 The VT323 Project Authors
+                                            License: VT323-OFL.txt (SIL OFL 1.1)
+  PressStart2P-Regular.ttf  Press Start 2P  Copyright 2012 The Press Start 2P Project Authors,
+                                            Reserved Font Name "Press Start 2P"
+                                            License: PressStart2P-OFL.txt (SIL OFL 1.1)
+
+Fonts a player imports (the Open Fonts Folder button) are read from their own config folder and are never bundled.

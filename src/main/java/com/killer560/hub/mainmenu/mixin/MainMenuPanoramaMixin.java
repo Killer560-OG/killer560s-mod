@@ -33,6 +33,8 @@ public abstract class MainMenuPanoramaMixin {
             }
             try {
                 MainMenuTheme.drawBackground(graphics, screen.width, screen.height);
+                // The panel behind the buttons and the footer band, under the logo and every widget (2026-10-15).
+                com.killer560.hub.mainmenu.MainMenuChrome.drawUnderlay(graphics, screen);
                 ci.cancel();
             } catch (Throwable t) {
                 MainMenuTheme.fail("background", t);

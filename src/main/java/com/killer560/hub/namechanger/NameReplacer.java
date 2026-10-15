@@ -133,7 +133,12 @@ public final class NameReplacer {
 
     private static boolean isModMenuScreen(Object screen) {
         String name = screen.getClass().getName();
-        return name.startsWith("com.killer560.hub.gui.")
+        // The main menu and the Swap Accounts screens show the account's real name (killer560, 2026-10-15: "Do not have
+        // the custom ign color work on this page").
+        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
+            return true;
+        }
+        return name.startsWith("com.killer560.hub.gui.") || name.startsWith("com.killer560.hub.accounts.gui.")
                 || name.startsWith("com.killer560.hub.hud.HudEditorScreen")
                 || name.startsWith("com.killer560.hub.scoreboard.ScoreboardEditorScreen");
     }

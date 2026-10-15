@@ -22,7 +22,8 @@ public abstract class MainMenuCopyrightMixin {
         }
         try {
             boolean hovered = ((AbstractWidget) (Object) this).isHoveredOrFocused();
-            return MainMenuTheme.argb(hovered ? MainMenuTheme.LIGHT_ORANGE : MainMenuTheme.DIM, (color >>> 24) & 0xFF);
+            return MainMenuTheme.argb(hovered ? com.killer560.hub.mainmenu.MainMenuChrome.accentLightColour()
+                    : com.killer560.hub.mainmenu.MainMenuChrome.dimColour(), (color >>> 24) & 0xFF);
         } catch (Throwable t) {
             MainMenuTheme.fail("copyright", t);
             return color;

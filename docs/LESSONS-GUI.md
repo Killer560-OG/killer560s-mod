@@ -398,6 +398,20 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   never stale: the probe in 1322 showed McRender's camera equal to the main camera every frame. 36 other registrations
   still use AFTER_TRANSLUCENT_FEATURES.
 
+- **A font scoped to one screen must be decided per text render state, not per frame.** GUI text is measured while a
+  screen lays out and draws, but PREPARED later, after every screen and the HUD have submitted (`GuiTextRenderState.
+  ensurePrepared`, javap 26.1.2 and 26.2), so a "menu font on" flag held only while the mod screen draws would measure in
+  one font and draw in the other. The Font setting's Mod Menu Only (`fonts/FontScope`) has each state remember, as it is
+  made, whether it was made inside a mod screen, and replays that around its own preparation; the glyph swap itself is a
+  ModifyReturnValue on `Font.getGlyphSource(FontDescription)`, where every width and glyph lookup goes. Testkit 1561/1562
+  read each state's prepared bounds: Mod Menu Only changed 49 of 53 menu texts and 0 of 13 Options texts (2026-10-15).
+- **A custom FontSet that borrows the default font's providers must be dropped at `FontManager.apply`.** That reload closes
+  the old providers (unifont's buffers included), so a set still holding them reads freed glyph data; `fonts/CustomFonts`
+  drops at apply's HEAD and rebuilds at the next tick (testkit 1562 reloads resources with a font on).
+- **Every vanilla button label is drawn with a drop shadow, whatever the screen wants.** `GuiGraphicsExtractor$
+  RenderingTextCollector.accept` builds its GuiTextRenderState with `dropShadow = true` (javap 26.1.2 and 26.2), so dark
+  text on the Light theme's title screen smeared; `mainmenu/mixin/MainMenuLabelShadowMixin` turns it off there (1565).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
