@@ -140,7 +140,10 @@ public final class RightClick {
         String clickText = !unpaired ? "no unpaired block click"
                 : "unpaired block click at " + (clickPos == null ? "?" : clickPos.toShortString()) + " with " + clickItem
                 + " " + (ActionGate.currentTick() - clickTick) + " tick(s) ago";
-        boolean pairs = unpaired && ray != null;
+        // Its own block half sent this same tick (vanilla's two-packet right click, or beforeUse's): the halves pair as
+        // they should. An older click: the use is eaten.
+        boolean sameTick = unpaired && clickTick == ActionGate.currentTick();
+        boolean pairs = unpaired && ray != null && !sameTick;
         if (pairs) {
             barePairedUses++;
         }
@@ -149,7 +152,7 @@ public final class RightClick {
                 player.getInventory().getSelectedSlot() + 1, p.getYRot(), p.getXRot(), sentLook(),
                 player.getLastSentInput().shift(), screen(), clickText, rayText,
                 pairs ? " -> Hypixel takes this use as that click's second half: no ability, it replays the click's verdict"
-                        : "");
+                        : sameTick && ray != null ? " -> pairs with its own block half (one right click)" : "");
         if (pairs) {
             LOGGER.warn(line);
         } else if (unpaired || ActionGate.currentTick() - clickTick <= LOG_AFTER_CLICK_TICKS) {
