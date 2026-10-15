@@ -95,7 +95,34 @@ public final class SimTicTacToePuzzle {
     /** Hooks the click that places the player's O. Call once from {@code Killer560ModClient#onInitializeClient},
      *  alongside the other {@code roomsim} {@code register()} calls (wiring not done here - see the class doc of
      *  the caller in the handoff, and this file's own restriction on which files it may touch). */
+    /**
+     * Client ticks between his mark and the computer's, as on Hypixel. The sim used to paint both in one server tick, so
+     * the solver never saw the board with his mark down and no reply - the very board Auto Tic Tac Toe's walk-out read
+     * as "finished" on Hypixel (Mod Only Test 2026-10-14 17:26:00: walked out after the first click). His three later
+     * clicks there came 3 s apart against the auto's 0.5 s gap, so a reply takes up to about 2.5 s; 30 ticks is 1.5 s,
+     * an estimate, not a measurement.
+     */
+    public static final int REPLY_TICKS = 30;
+    private static volatile Integer pendingReply = null;
+    private static int replyTicksLeft = 0;
+
     public static void register() {
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (pendingReply == null || --replyTicksLeft > 0) {
+                return;
+            }
+            Integer reply = pendingReply;
+            pendingReply = null;
+            if (!built || complete || board[reply] != EMPTY || !SimState.canAct(client)) {
+                return;
+            }
+            board[reply] = COMPUTER;
+            MinecraftServer server = client.getSingleplayerServer();
+            if (server != null) {
+                paintCell(server, reply, COMPUTER);
+            }
+            finishIfOver();
+        });
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
@@ -104,8 +131,8 @@ public final class SimTicTacToePuzzle {
                 return InteractionResult.PASS;
             }
             Integer index = CELL_INDEX.get(hitResult.getBlockPos());
-            if (index == null || !built || complete || board[index] != EMPTY) {
-                return InteractionResult.PASS;
+            if (index == null || !built || complete || board[index] != EMPTY || pendingReply != null) {
+                return InteractionResult.PASS; // not his turn while the computer's reply is pending
             }
             onPlayerClick(client, index);
             // PASS for the room's own button, so vanilla still presses it - the depress and the click are what
@@ -370,6 +397,7 @@ public final class SimTicTacToePuzzle {
     }
 
     public static void forget() {
+        pendingReply = null;
         boundAnchor = null;
         cellPos = null;
         paintPos = null;
@@ -398,6 +426,7 @@ public final class SimTicTacToePuzzle {
                 });
             }
         }
+        pendingReply = null;
         cellPos = null;
         paintPos = null;
         boundAnchor = null;
@@ -413,19 +442,17 @@ public final class SimTicTacToePuzzle {
         board[index] = PLAYER;
         int score = getScore(board);
         boolean full = isFull(board);
-        Integer replyIndex = null;
-        if (score == 0 && !full) {
-            replyIndex = getBestMove(board, false);
-            if (replyIndex != null) {
-                board[replyIndex] = COMPUTER;
-            }
-        }
         MinecraftServer server = client.getSingleplayerServer();
         if (server != null) {
             // Painting the mark IS taking the button away - they are the same block now.
             paintCell(server, index, PLAYER);
+        }
+        if (score == 0 && !full) {
+            Integer replyIndex = getBestMove(board, false);
             if (replyIndex != null) {
-                paintCell(server, replyIndex, COMPUTER);
+                pendingReply = replyIndex;
+                replyTicksLeft = REPLY_TICKS;
+                return;
             }
         }
         finishIfOver();

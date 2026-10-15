@@ -1256,7 +1256,7 @@ final class SettingTooltipsData {
         d.put("auto boulder", "Cheat build: with Secret Aura (and its Chests option) on, runs along the roof to the bars and lets the aura take the chest; otherwise walks down the stairs, presses only the solver's buttons and opens the chest. Then walks back out so you can etherwarp.");
         d.put("auto water board", "Cheat build: etherwarps to the puzzle start, then flips the levers in the solved order.");
         d.put("auto tic tac toe", "Cheat build: walks to the play spot, then plays the best Tic Tac Toe square on your turn.");
-        d.put("aura chest", "Cheat build: after the first move, walks to the room's secret chest and auras it, then returns to play.");
+        d.put("grab secret", "Cheat build: right after the first move, etherwarps as close to the room's secret chest as it can, lets Secret Aura take it (or opens it itself if the aura will not), then etherwarps back in front of the board.");
         d.put("auto teleport maze", "Cheat build: walks the Teleport Maze pads to the exit, then auras the nearest chest on the final pad.");
         d.put("auto ice fill", "Cheat build: walks the Ice Fill path for you.");
         d.put("shoot cooldown", "Cheat build: minimum wait between bow shots for the bow puzzles.");
