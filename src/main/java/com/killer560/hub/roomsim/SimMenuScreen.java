@@ -257,8 +257,12 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         // killer560 (2026-10-07): "the single room should have the same filter option." The Routes, shape and
         // Puzzles buttons that sat here (2026-09-30, 2026-10-05) are rows of the shared Filters panel now, on
         // Load a Room's own SimRoomFilters.PICKER; the button sits beside the search box.
+        // killer560 (2026-10-15): "have a sort button as well as filter for things like secret count room size, ect."
+        // Sort beside the search, and the rows used most (Size, Secrets, Kind) out on the page as well as in the
+        // panel - the same SimRoomFilters.PICKER, so the two always agree.
         int fw = filtersWidth();
-        search = new ThemedEditBox(this.font, x, y, right - x - fw - 4, 18, Component.literal("Search"));
+        int sw = sortWidth();
+        search = new ThemedEditBox(this.font, x, y, right - x - fw - sw - 8, 18, Component.literal("Search"));
         ((ThemedEditBox) search).hint("Search rooms...");
         search.setValue(searchText);
         search.setResponder(v -> {
@@ -267,8 +271,120 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             refreshRoomList();
         });
         addRenderableWidget(search);
+        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(sortLabel()), (b, dir) -> {
+            setRoomSort(SettingsButtonWidget.step(prefs.roomSort, dir), null);
+        }).bounds(right - fw - sw - 4, y, sw, 18).build());
         filtersButton(SimRoomFilters.PICKER, "Narrows the Load a Room list.", right - fw, y);
+        quickFilters(x, y + 22, right);
         refreshRoomList();
+    }
+
+    /**
+     * Sorts the room list by {@code sort}; {@code descending} null takes that key's natural direction (counts biggest
+     * first). Saved, so the list comes back sorted the same way.
+     */
+    private void setRoomSort(SimMenuPrefs.RoomSort sort, Boolean descending) {
+        prefs.roomSort = sort;
+        prefs.roomDescending = descending != null ? descending : defaultDescending(sort);
+        prefs.save();
+        scroll = 0;
+        rebuildWidgets();
+    }
+
+    /** The second row: the Size chips, then Secrets and Kind, wrapping onto another line if the page is narrow. */
+    private void quickFilters(int x, int y, int right) {
+        SimRoomFilter f = SimRoomFilters.PICKER;
+        List<SettingsButtonWidget> chips = new ArrayList<>();
+        for (String size : SimRoomFilter.SIZES) {
+            boolean on = f.hasSize(size);
+            chips.add(SettingsButtonWidget.builder(Component.literal((on ? "§6" : "") + size), b -> {
+                f.toggleSize(size);
+                scroll = 0;
+                rebuildWidgets();
+            }).bounds(0, 0, Math.max(26, this.font.width(size) + 10), 18).build());
+        }
+        int lastSize = chips.size() - 1;
+        chips.add(SettingsButtonWidget.cycling(Component.literal("Secrets: " + f.secrets().label), (b, dir) -> {
+            f.setSecrets(SettingsButtonWidget.step(f.secrets(), dir));
+            scroll = 0;
+            rebuildWidgets();
+        }).bounds(0, 0, this.font.width("Secrets: 4 or more") + 12, 18).build());
+        chips.add(SettingsButtonWidget.cycling(Component.literal("Kind: " + kindValue()), (b, dir) -> {
+            stepKind(dir);
+            scroll = 0;
+            rebuildWidgets();
+        }).bounds(0, 0, this.font.width("Kind: Champion") + 12, 18).build());
+        int cx = x;
+        int cy = y;
+        quickRows = 1;
+        for (int i = 0; i < chips.size(); i++) {
+            SettingsButtonWidget chip = chips.get(i);
+            if (cx > x && cx + chip.getWidth() > right) {
+                cx = x;
+                cy += 22;
+                quickRows++;
+            }
+            chip.setX(cx);
+            chip.setY(cy);
+            addRenderableWidget(chip);
+            cx += chip.getWidth() + (i == lastSize ? 10 : 3);
+        }
+    }
+
+    /** How many lines the quick filters took, for where the list starts. */
+    private int quickRows = 1;
+
+    /** The Kind chip's value: Any, the one kind chosen, or how many when the panel chose several. */
+    private String kindValue() {
+        List<String> chosen = new ArrayList<>();
+        for (String k : SimRoomFilter.KINDS) {
+            if (SimRoomFilters.PICKER.hasKind(k)) {
+                chosen.add(k);
+            }
+        }
+        if (chosen.isEmpty()) {
+            return "Any";
+        }
+        return chosen.size() == 1 ? SimRoomFilter.kindLabel(chosen.get(0)) : chosen.size() + " kinds";
+    }
+
+    /** Any -> each kind on its own -> Any. Several kinds chosen in the panel step on from Any. */
+    private void stepKind(int dir) {
+        SimRoomFilter f = SimRoomFilters.PICKER;
+        int current = -1;
+        int chosen = 0;
+        for (int i = 0; i < SimRoomFilter.KINDS.size(); i++) {
+            if (f.hasKind(SimRoomFilter.KINDS.get(i))) {
+                current = i;
+                chosen++;
+            }
+        }
+        if (chosen > 1) {
+            current = -1;
+        }
+        int next = SettingsButtonWidget.step(current + 1, dir, SimRoomFilter.KINDS.size() + 1) - 1;
+        for (String k : SimRoomFilter.KINDS) {
+            if (f.hasKind(k)) {
+                f.toggleKind(k);
+            }
+        }
+        if (next >= 0) {
+            f.toggleKind(SimRoomFilter.KINDS.get(next));
+        }
+    }
+
+    private int sortWidth() {
+        return this.font.width("Sort: Secrets ▼") + 14;
+    }
+
+    private String sortLabel() {
+        return "Sort: " + prefs.roomSort.label + (prefs.roomDescending ? " ▼" : " ▲");
+    }
+
+    /** Counts read best biggest first; names, types and sizes smallest first. */
+    private static boolean defaultDescending(SimMenuPrefs.RoomSort sort) {
+        return sort == SimMenuPrefs.RoomSort.SECRETS || sort == SimMenuPrefs.RoomSort.CRYPTS
+                || sort == SimMenuPrefs.RoomSort.ROUTES;
     }
 
     private int filtersWidth() {
@@ -303,8 +419,40 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             }
             out.add(name);
         }
+        out.sort(roomOrder(prefs.roomSort, prefs.roomDescending));
         listed = out;
         listedWithDatabase = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
+    }
+
+    /** Tiles a shape covers, so Size sorts 1x1 < 1x2 < 1x3 = L < 1x4 = 2x2. */
+    private static int shapeTiles(String shape) {
+        return switch (shape) {
+            case "1x2" -> 2;
+            case "1x3", "L" -> 3;
+            case "1x4", "2x2" -> 4;
+            default -> 1;
+        };
+    }
+
+    /**
+     * The order the room list is in. Every key falls back to the name, so rooms that tie (most share a size) stay
+     * alphabetical whichever way the key runs.
+     */
+    static java.util.Comparator<String> roomOrder(SimMenuPrefs.RoomSort sort, boolean descending) {
+        java.util.Comparator<String> byName = String.CASE_INSENSITIVE_ORDER;
+        java.util.Comparator<String> key = switch (sort) {
+            case NAME -> byName;
+            case TYPE -> java.util.Comparator.comparing(SimRoomFilter::kindKey);
+            case SIZE -> java.util.Comparator.<String>comparingInt(n -> shapeTiles(SimRoomFilter.shapeKey(n)))
+                    .thenComparing(SimRoomFilter::shapeKey);
+            case SECRETS -> java.util.Comparator.comparingInt(SimRoomFilter::secretsOf);
+            case CRYPTS -> java.util.Comparator.comparingInt(SimRoomFilter::cryptsOf);
+            case ROUTES -> java.util.Comparator.comparingInt(SimRoomRoutes::routeNodes);
+        };
+        if (descending) {
+            key = key.reversed();
+        }
+        return sort == SimMenuPrefs.RoomSort.NAME ? key : key.thenComparing(byName);
     }
 
     /** The text at the right of a room's row, or null for a room the routes view leaves out and has no route. */
@@ -328,18 +476,95 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return screen;
     }
 
-    private int listTop() {
-        return mode == Mode.ROOM ? contentY + 24 : contentY;
+    // ------------------------------------------------------------------------------------------- the room list
+
+    private static final int ROW_H = 14;
+    private static final int HEAD_H = 13;
+
+    /** One column of the room list; {@code key} is what clicking its heading sorts by. */
+    private record Col(SimMenuPrefs.RoomSort key, String label, int x, int w, boolean right) {
     }
 
-    private int listHeight() {
-        return panelY + panelH - 8 - listTop();
+    /** The well the room list sits in: its top, below the search row and the quick filters. */
+    private int roomWellTop() {
+        return contentY + 22 + quickRows * 22 + 2;
+    }
+
+    /** Where the first room row starts, under the column headings. */
+    private int roomRowsTop() {
+        return roomWellTop() + HEAD_H;
+    }
+
+    private int roomRowsHeight() {
+        return panelY + panelH - 8 - roomRowsTop();
+    }
+
+    /**
+     * The columns, laid out right to left so the name gets whatever is left. killer560 (2026-10-15): "you have so
+     * much space can you make better use of it on this page" - the type, size, secrets, crypts and routes that used to
+     * be one "no routes" word at the far end of each row. A narrow page drops Type and Crypts first.
+     */
+    private List<Col> columns() {
+        boolean wide = contentW >= 380;
+        int right = contentX + contentW - 10;
+        List<Col> out = new ArrayList<>();
+        int[] w = {64, 40, 46, 30, 64};
+        SimMenuPrefs.RoomSort[] keys = {SimMenuPrefs.RoomSort.ROUTES, SimMenuPrefs.RoomSort.CRYPTS,
+                SimMenuPrefs.RoomSort.SECRETS, SimMenuPrefs.RoomSort.SIZE, SimMenuPrefs.RoomSort.TYPE};
+        String[] labels = {"Routes", "Crypts", "Secrets", "Size", "Type"};
+        for (int i = 0; i < keys.length; i++) {
+            if (!wide && (keys[i] == SimMenuPrefs.RoomSort.CRYPTS || keys[i] == SimMenuPrefs.RoomSort.TYPE)) {
+                continue;
+            }
+            right -= w[i];
+            boolean alignRight = keys[i] != SimMenuPrefs.RoomSort.TYPE && keys[i] != SimMenuPrefs.RoomSort.SIZE;
+            out.add(new Col(keys[i], labels[i], right, w[i] - 6, alignRight));
+        }
+        out.add(new Col(SimMenuPrefs.RoomSort.NAME, "Name", contentX + 8, right - contentX - 14, false));
+        java.util.Collections.reverse(out);
+        return out;
+    }
+
+    /** {x, y, w, h} of room row {@code index} as drawn now (it may be scrolled out of the well). For the testkit. */
+    public int[] roomRowBounds(int index) {
+        return new int[]{contentX, roomRowsTop() + index * ROW_H - scroll, contentW - 6, ROW_H};
+    }
+
+    /** {x, y, w, h} of the visible part of the room list (the rows, under the headings). For the testkit. */
+    public int[] roomListBounds() {
+        return new int[]{contentX, roomRowsTop(), contentW, roomRowsHeight()};
+    }
+
+    /** {x, y, w, h} of a column heading ("NAME", "SECRETS"...), or null when the page has no such column. */
+    public int[] columnHeaderBounds(String key) {
+        for (Col c : columns()) {
+            if (c.key().name().equalsIgnoreCase(key)) {
+                return new int[]{c.x(), roomWellTop(), c.w(), HEAD_H};
+            }
+        }
+        return null;
+    }
+
+    /** The room under a point, or -1. Only a point on a real row counts - not the empty well, not beside it. */
+    private int roomAt(double mx, double my) {
+        int top = roomRowsTop();
+        if (mx < contentX || mx >= contentX + contentW - 6 || my < top || my >= top + roomRowsHeight()) {
+            return -1;
+        }
+        int row = (int) Math.floor((my - top + scroll) / ROW_H);
+        return row >= 0 && row < listed.size() ? row : -1;
+    }
+
+    private int maxScroll() {
+        if (mode == Mode.ROOM) {
+            return Math.max(0, listed.size() * ROW_H - roomRowsHeight());
+        }
+        return Math.max(0, listed.size() * ROW_H - (panelY + panelH - 8 - contentY));
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        int max = Math.max(0, listed.size() * 14 - listHeight());
-        scroll = Math.max(0, Math.min(max, scroll - (int) Math.round(scrollY * 28)));
+        scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.round(scrollY * ROW_H * 2)));
         return true;
     }
 
@@ -350,16 +575,31 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button()));
             return true;
         }
-        if ((mode == Mode.ROOM || mode == Mode.PREVIOUS) && !listed.isEmpty()) {
-            double my = event.y();
-            int row = (int) ((my - listTop() + scroll) / 14);
-            if (my >= listTop() && my <= listTop() + listHeight() && row >= 0 && row < listed.size()) {
-                String picked = listed.get(row);
-                if (mode == Mode.ROOM) {
-                    SimBuilder.buildSingleRoom(this.minecraft, picked);
-                } else {
-                    SimRunHistory.load(this.minecraft, picked);
+        if (mode == Mode.ROOM && event.button() == 0) {
+            // A heading sorts by its column; the same one again turns the order round.
+            if (event.y() >= roomWellTop() && event.y() < roomRowsTop()) {
+                for (Col c : columns()) {
+                    if (event.x() >= c.x() - 3 && event.x() < c.x() + c.w() + 3) {
+                        setRoomSort(c.key(), c.key() == prefs.roomSort ? !prefs.roomDescending : null);
+                        return true;
+                    }
                 }
+            }
+            // killer560 (2026-10-15): "my mouse can be all the way out to the right side of the page not hovering
+            // anything and it will still select a room if i click and it only should if i am on the right room."
+            // The old test looked at the y alone, so any x on the screen picked the row at that height.
+            int row = roomAt(event.x(), event.y());
+            if (row >= 0) {
+                SimBuilder.buildSingleRoom(this.minecraft, listed.get(row));
+                McCompat.setScreen(this.minecraft, null);
+                return true;
+            }
+        }
+        if (mode == Mode.PREVIOUS && !listed.isEmpty() && event.x() >= contentX && event.x() < contentX + contentW) {
+            double my = event.y();
+            int row = (int) ((my - contentY + scroll) / ROW_H);
+            if (my >= contentY && my < panelY + panelH - 8 && row >= 0 && row < listed.size()) {
+                SimRunHistory.load(this.minecraft, listed.get(row));
                 McCompat.setScreen(this.minecraft, null);
                 return true;
             }
@@ -379,65 +619,147 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         String page = mode.title.toUpperCase(Locale.ROOT);
         MenuStyle.text(g, page, panelX + panelW - 12 - this.font.width(page), panelY + 11, MenuStyle.DIM);
         drawNav(g);
-        if (mode == Mode.CYCLE) {
-            if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
-                rebuildWidgets();
-            }
-            ScreenChrome.section(g, "ROUTE PRACTICE", contentX, contentY + 5, contentX + contentW - filtersWidth() - 8,
-                    false);
-            // killer560 (2026-10-15): "remove the top text and the no puzzles blood text stuff."
-            ScreenChrome.section(g, "KEYBINDS (sim only)", contentX, cycleKeybindsY(), contentX + contentW, false);
-        } else {
-            boolean needsDatabase = !SimRoomFilters.PICKER.isDefault();
-            if (mode == Mode.ROOM && needsDatabase
-                    && com.killer560.hub.roomdatabase.RoomDatabase.isReady() != listedWithDatabase) {
-                refreshRoomList();
-            }
-            int top = listTop();
-            int h = listHeight();
-            ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
-            g.enableScissor(contentX, top, contentX + contentW, top + h);
-            try {
-                if (listed.isEmpty()) {
-                    String none = mode != Mode.ROOM ? "No saved runs yet"
-                            : needsDatabase && !listedWithDatabase ? "Loading the room database..."
-                            : "No rooms match";
-                    ScreenChrome.text(g, none, contentX + 8, top + 6, MenuStyle.DIM);
+        switch (mode) {
+            case CYCLE -> {
+                if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
+                    rebuildWidgets();
                 }
-                for (int i = 0; i < listed.size(); i++) {
-                    int rowY = top + i * 14 - scroll + 3;
-                    if (rowY > top + h) {
-                        break;
-                    }
-                    if (rowY + 14 < top) {
-                        continue;
-                    }
-                    String name = listed.get(i);
-                    boolean hover = mouseX >= contentX && mouseX < contentX + contentW && mouseY >= top
-                            && mouseY < top + h && mouseY >= rowY - 3 && mouseY < rowY + 11;
-                    if (hover) {
-                        GuiRects rr = GuiRects.begin(g);
-                        ScreenChrome.row(rr, contentX, rowY - 3, contentW, 14, true, false, false);
-                        rr.submit();
-                    }
-                    int nameRoom = contentW - 16;
-                    if (mode == Mode.ROOM) {
-                        String marker = routeMarker(name);
-                        if (marker != null) {
-                            int mw = this.font.width(marker);
-                            int colour = SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
-                            MenuStyle.text(g, marker, contentX + contentW - 8 - mw, rowY, colour);
-                            nameRoom -= mw + 8;
-                        }
-                    }
-                    MenuStyle.text(g, this.font.plainSubstrByWidth(name, nameRoom), contentX + 8, rowY,
-                            hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
-                }
-            } finally {
-                g.disableScissor();
+                ScreenChrome.section(g, "ROUTE PRACTICE", contentX, contentY + 5,
+                        contentX + contentW - filtersWidth() - 8, false);
+                // killer560 (2026-10-15): "remove the top text and the no puzzles blood text stuff."
+                ScreenChrome.section(g, "KEYBINDS (sim only)", contentX, cycleKeybindsY(), contentX + contentW, false);
             }
+            case ROOM -> drawRoomList(g, mouseX, mouseY);
+            case PREVIOUS -> drawRunList(g, mouseX, mouseY);
         }
         super.extractRenderState(g, mouseX, mouseY, partialTick);
+    }
+
+    private void drawRoomList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        boolean needsDatabase = !SimRoomFilters.PICKER.isDefault() || prefs.roomSort != SimMenuPrefs.RoomSort.NAME;
+        boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
+        if (needsDatabase && ready != listedWithDatabase) {
+            refreshRoomList();
+        }
+        int wellTop = roomWellTop();
+        int top = roomRowsTop();
+        int h = roomRowsHeight();
+        ScreenChrome.well(g, contentX - 1, wellTop - 1, contentW + 2, h + HEAD_H + 2);
+        List<Col> cols = columns();
+        // The headings: the sorted one in the accent with its arrow, the rest dim; each one sorts.
+        GuiRects hr = GuiRects.begin(g);
+        hr.fill(contentX, top - 1, contentX + contentW, top, MenuStyle.alpha(MenuStyle.BLACK, 0x80));
+        hr.submit();
+        for (Col c : cols) {
+            boolean sorted = c.key() == prefs.roomSort;
+            String label = (c.key() == SimMenuPrefs.RoomSort.NAME ? c.label() + " (" + listed.size() + ")" : c.label())
+                    + (sorted ? (prefs.roomDescending ? " ▼" : " ▲") : "");
+            boolean hot = mouseY >= wellTop && mouseY < top && mouseX >= c.x() - 3 && mouseX < c.x() + c.w() + 3;
+            int colour = sorted ? MenuStyle.OR : hot ? MenuStyle.TXT_HOVER : MenuStyle.DIM;
+            int lw = this.font.width(label);
+            MenuStyle.text(g, label, c.right() ? c.x() + c.w() - lw : c.x(), wellTop + 3, colour);
+        }
+        int hovered = roomAt(mouseX, mouseY);
+        g.enableScissor(contentX, top, contentX + contentW, top + h);
+        try {
+            if (listed.isEmpty()) {
+                String none = needsDatabase && !listedWithDatabase ? "Loading the room database..." : "No rooms match";
+                ScreenChrome.text(g, none, contentX + 8, top + 6, MenuStyle.DIM);
+            }
+            int first = Math.max(0, scroll / ROW_H);
+            GuiRects rr = GuiRects.begin(g);
+            for (int i = first; i < listed.size(); i++) {
+                int rowY = top + i * ROW_H - scroll;
+                if (rowY > top + h) {
+                    break;
+                }
+                ScreenChrome.row(rr, contentX, rowY, contentW - 6, ROW_H, i == hovered, false, i % 2 == 1);
+            }
+            rr.submit();
+            for (int i = first; i < listed.size(); i++) {
+                int rowY = top + i * ROW_H - scroll;
+                if (rowY > top + h) {
+                    break;
+                }
+                drawRoomRow(g, cols, listed.get(i), rowY + 3, i == hovered, ready);
+            }
+        } finally {
+            g.disableScissor();
+        }
+        if (maxScroll() > 0) {
+            ScreenChrome.scrollbar(g, contentX + contentW - 5, top, h, scroll, maxScroll(), h);
+        }
+    }
+
+    private void drawRoomRow(GuiGraphicsExtractor g, List<Col> cols, String name, int y, boolean hover, boolean ready) {
+        for (Col c : cols) {
+            String text;
+            int colour = MenuStyle.TXT;
+            switch (c.key()) {
+                case NAME -> {
+                    text = name;
+                    colour = hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT;
+                }
+                case TYPE -> {
+                    String kind = SimRoomFilter.kindKey(name);
+                    text = !ready ? "-" : SimRoomFilter.kindLabel(kind) + (SimRoomFilter.isRare(name) ? " *" : "");
+                    colour = ready ? kindColour(kind) : MenuStyle.DIM;
+                }
+                case SIZE -> text = SimRoomFilter.shapeKey(name);
+                case SECRETS -> text = ready ? String.valueOf(SimRoomFilter.secretsOf(name)) : "-";
+                case CRYPTS -> text = ready ? String.valueOf(SimRoomFilter.cryptsOf(name)) : "-";
+                case ROUTES -> {
+                    // Each room's Auto Routes at a glance: green node count when it has a route, a dim "no routes"
+                    // when it is one worth routing that has none, a dash for the rooms the routes view leaves out
+                    // (puzzles, Blood, Entrance, Fairy, 0 secrets).
+                    String marker = routeMarker(name);
+                    text = marker == null ? "-" : marker;
+                    colour = SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
+                }
+                default -> text = "";
+            }
+            String fitted = this.font.plainSubstrByWidth(text, c.w());
+            int x = c.right() ? c.x() + c.w() - this.font.width(fitted) : c.x();
+            MenuStyle.text(g, fitted, x, y, colour);
+        }
+    }
+
+    /** A kind's colour in the list: the dungeon map's room colours, made readable on the theme. */
+    private static int kindColour(String kind) {
+        return switch (kind) {
+            case "PUZZLE" -> ScreenChrome.readable(0xFFB67FE8);
+            case "TRAP" -> ScreenChrome.readable(0xFFE89A45);
+            case "CHAMPION" -> ScreenChrome.readable(0xFFE5D25A);
+            case "BLOOD" -> ScreenChrome.readable(0xFFE05A5A);
+            case "ENTRANCE" -> ScreenChrome.readable(0xFF55C46A);
+            case "FAIRY" -> ScreenChrome.readable(0xFFF29AD0);
+            default -> MenuStyle.TXT;
+        };
+    }
+
+    private void drawRunList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        int top = contentY;
+        int h = panelY + panelH - 8 - top;
+        ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
+        g.enableScissor(contentX, top, contentX + contentW, top + h);
+        try {
+            if (listed.isEmpty()) {
+                ScreenChrome.text(g, "No saved runs yet", contentX + 8, top + 6, MenuStyle.DIM);
+            }
+            for (int i = 0; i < listed.size(); i++) {
+                int rowY = top + i * ROW_H - scroll;
+                if (rowY > top + h) {
+                    break;
+                }
+                boolean hover = mouseX >= contentX && mouseX < contentX + contentW && mouseY >= Math.max(top, rowY)
+                        && mouseY < Math.min(top + h, rowY + ROW_H);
+                ScreenChrome.row(g, contentX, rowY, contentW, ROW_H, hover, false, i % 2 == 1);
+                MenuStyle.text(g, this.font.plainSubstrByWidth(listed.get(i), contentW - 16), contentX + 8, rowY + 3,
+                        hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+            }
+        } finally {
+            g.disableScissor();
+        }
     }
 
     /** The left column's frame, the open page's marker, and the library line under the buttons. */
