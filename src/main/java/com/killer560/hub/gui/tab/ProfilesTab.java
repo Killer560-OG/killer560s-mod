@@ -34,13 +34,16 @@ public class ProfilesTab extends BaseTab {
     /** The profile whose Delete was pressed once and now reads "Confirm" (cleared by any other action on the page). */
     private static String armedDelete;
     private static long armedAt;
+    /** The profile whose Rename was pressed and is being edited in place on its card, and the text typed so far. */
+    private static String renaming;
+    private static String renameText = "";
     /** How long a "Confirm" stays armed: past it (or on coming back to the page later) Delete asks again. */
     private static final long ARM_MS = 10_000L;
 
     private static final int CARD_MIN_W = 190;
     private static final int GAP = 8;
     private static final int HEADER_H = 58;
-    private static final int NEW_H = 62;
+    private static final int NEW_H = 52;
     private static final int CARD_H = 58;
     private static final int BTN_H = 16;
 
@@ -59,6 +62,9 @@ public class ProfilesTab extends BaseTab {
 
         String active = ProfileManager.getActiveProfile();
         List<String> profiles = ProfileManager.listProfiles();
+        if (renaming != null && !profiles.contains(renaming)) {
+            renaming = null;
+        }
         if (armedDelete != null && (!profiles.contains(armedDelete)
                 || System.currentTimeMillis() - armedAt > ARM_MS)) {
             armedDelete = null;
@@ -70,10 +76,9 @@ public class ProfilesTab extends BaseTab {
         // two seconds and refreshes this list.
         String importLabel = "Import Profile (Open Folder)";
         int importW = font.width(importLabel) + 16;
-        ProfileManager.ProfileInfo activeInfo = active == null ? null : ProfileManager.info(active);
         widgets.add(new PaintedPanel(x, y, w, HEADER_H,
                 Component.literal("Active profile: " + (active != null ? active : "none")),
-                (g, px, py, pw, ph, hov) -> paintHeader(g, px, py, pw, ph, active, activeInfo, importW)));
+                (g, px, py, pw, ph, hov) -> paintHeader(g, px, py, pw, ph, active, importW)));
         widgets.add(SettingsButtonWidget.builder(Component.literal(importLabel), btn -> {
                     armedDelete = null;
                     try {
@@ -152,20 +157,50 @@ public class ProfilesTab extends BaseTab {
         for (int i = 0; i < profiles.size(); i++) {
             String profile = profiles.get(i);
             boolean isActive = profile.equals(active);
-            ProfileManager.ProfileInfo info = ProfileManager.info(profile);
             int cx = x + (i % cols) * (cw + GAP);
             int cy = y + (i / cols) * (CARD_H + GAP);
             widgets.add(new PaintedPanel(cx, cy, cw, CARD_H, Component.literal(profile),
-                    (g, px, py, pw, ph, hov) -> paintCard(g, px, py, pw, ph, hov, profile, isActive, info)));
+                    (g, px, py, pw, ph, hov) -> paintCard(g, px, py, pw, ph, hov, profile, isActive, profile.equals(renaming))));
 
             int bw = (cw - 16 - 2 * 5) / 3;
             int rowY = cy + CARD_H - BTN_H - 8;
             int b0 = cx + 8;
+            if (profile.equals(renaming)) {
+                // Rename in place (killer560, 2026-10-15: "make a way to edit the name of them"): the name becomes a box,
+                // Enter or Save renames, Cancel (or Escape elsewhere) leaves it as it was.
+                EditBox box = new EditBox(font, cx + 8 + 4, cy + 6, cw - 16 - 8, 12, Component.literal("New name"));
+                box.setBordered(false);
+                box.setMaxLength(32);
+                box.setTextColor(MenuStyle.TXT);
+                box.setTextShadow(MenuStyle.TEXT_SHADOW);
+                box.setValue(renameText);
+                box.setResponder(text -> renameText = text);
+                widgets.add(box);
+                int half = (cw - 16 - 5) / 2;
+                widgets.add(SettingsButtonWidget.builder(Component.literal("Save"), btn -> {
+                            ProfileManager.Result result = ProfileManager.renameProfile(profile, renameText);
+                            if (!result.success()) {
+                                ModOverlayMessage.show(result.message(), 4000);
+                                return;
+                            }
+                            renaming = null;
+                            requestRebuild.run();
+                        }).bounds(b0, rowY, half, BTN_H).primary().build());
+                widgets.add(SettingsButtonWidget.builder(Component.literal("Cancel"), btn -> {
+                            renaming = null;
+                            requestRebuild.run();
+                        }).bounds(b0 + half + 5, rowY, half, BTN_H).build());
+                continue;
+            }
             if (!isActive) {
                 widgets.add(SettingsButtonWidget.builder(Component.literal("Load"), btn -> {
                             armedDelete = null;
+                            // The success line ("Applied N setting file(s) ...") is only logged now (killer560, 2026-10-15:
+                            // "Dont show this text on screen whenver I profile swap"); a failure still shows.
                             ProfileManager.Result result = ProfileManager.applyProfile(profile);
-                            ModOverlayMessage.show(result.message(), 5000);
+                            if (!result.success()) {
+                                ModOverlayMessage.show(result.message(), 5000);
+                            }
                             requestRebuild.run();
                         }).bounds(b0, rowY, bw, BTN_H).build());
             }
@@ -188,6 +223,13 @@ public class ProfilesTab extends BaseTab {
                         ModOverlayMessage.show(result.message(), 3000);
                         requestRebuild.run();
                     }).bounds(b0 + 2 * (bw + 5), rowY, bw, BTN_H).danger(armed).build());
+            // After Delete so the card's widgets stay panel, Load, Export, Delete in that order (testkit 618 reads them so).
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Rename"), btn -> {
+                        armedDelete = null;
+                        renaming = profile;
+                        renameText = profile;
+                        requestRebuild.run();
+                    }).bounds(b0, cy + 20, 54, 12).build());
         }
         return widgets;
     }
@@ -202,8 +244,7 @@ public class ProfilesTab extends BaseTab {
         r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
     }
 
-    private static void paintHeader(GuiGraphicsExtractor g, int x, int y, int w, int h, String active,
-                                    ProfileManager.ProfileInfo info, int importW) {
+    private static void paintHeader(GuiGraphicsExtractor g, int x, int y, int w, int h, String active, int importW) {
         GuiRects r = GuiRects.begin(g);
         box(r, x, y, w, h);
         // the accent bar beside the name
@@ -216,8 +257,6 @@ public class ProfilesTab extends BaseTab {
         if (active != null) {
             String name = MenuStyle.ellipsize(active, (int) (textMax / scale));
             MenuStyle.gradientText(g, name, x + 12, y + 21, scale, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
-            String sub = "Setting changes save into it" + changedText(info);
-            MenuStyle.text(g, MenuStyle.ellipsize(sub, textMax), x + 12, y + 41, MenuStyle.DIM);
         } else {
             g.pose().pushMatrix();
             g.pose().translate(x + 12, y + 21);
@@ -238,8 +277,6 @@ public class ProfilesTab extends BaseTab {
             MenuStyle.flat(g, "New profile name...", x + 15, y + 27, MenuStyle.DIM2);
         }
         MenuStyle.text(g, "NEW PROFILE", x + 8, y + 4, MenuStyle.OR2);
-        MenuStyle.flat(g, MenuStyle.ellipsize("Save copies your current settings; Blank starts with every setting off. "
-                + "Neither switches to it.", w - 20), x + 10, y + h - 14, MenuStyle.DIM);
     }
 
     private static void paintHeading(GuiGraphicsExtractor g, int x, int y, int w, int h, int count) {
@@ -261,7 +298,7 @@ public class ProfilesTab extends BaseTab {
     }
 
     private static void paintCard(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean hover, String name,
-                                  boolean isActive, ProfileManager.ProfileInfo info) {
+                                  boolean isActive, boolean isRenaming) {
         Font font = MenuStyle.font();
         String badge = "ACTIVE";
         int badgeW = font.width(badge) + 10;
@@ -280,46 +317,24 @@ public class ProfilesTab extends BaseTab {
         }
         r.submit();
         int nameMax = w - 16 - (isActive ? badgeW + 6 : 0);
-        MenuStyle.text(g, Component.literal(MenuStyle.ellipsize(name, nameMax - 4)).withStyle(ChatFormatting.BOLD),
-                x + 8, y + 8, hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+        if (isRenaming) {
+            GuiRects well = GuiRects.begin(g);
+            MenuStyle.well(well, x + 8, y + 4, w - 16, 16, MenuStyle.WELL_DEEP);
+            well.submit();
+            return;
+        } else {
+            MenuStyle.text(g, Component.literal(MenuStyle.ellipsize(name, nameMax - 4)).withStyle(ChatFormatting.BOLD),
+                    x + 8, y + 8, hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+        }
         if (isActive) {
             int colour = MenuStyle.luminance(MenuStyle.OR) > 0.55f ? 0xFF160C02 : 0xFFFFFFFF;
             g.text(font, badge, x + w - 8 - badgeW + 5, y + 8, colour, false);
         }
-        String sub = (info.lastChangedMs() > 0 ? "Saved " + ago(info.lastChangedMs()) : "Never saved")
-                + " · " + (info.files() == 1 ? "1 file" : info.files() + " files");
-        MenuStyle.flat(g, MenuStyle.ellipsize(sub, w - 16), x + 8, y + 21, MenuStyle.DIM);
         if (isActive) {
             // where Load sits on the other cards
             int bw = (w - 16 - 2 * 5) / 3;
             String in = "In use";
             MenuStyle.flat(g, in, x + 8 + (bw - font.width(in)) / 2, y + h - BTN_H - 8 + 4, MenuStyle.OR2);
         }
-    }
-
-    private static String changedText(ProfileManager.ProfileInfo info) {
-        return info == null || info.lastChangedMs() <= 0 ? "" : " · last saved " + ago(info.lastChangedMs());
-    }
-
-    /** "just now", "5 min ago", "3 h ago", "yesterday", "4 days ago", or the date. */
-    static String ago(long ms) {
-        long s = Math.max(0L, (System.currentTimeMillis() - ms) / 1000L);
-        if (s < 60) {
-            return "just now";
-        }
-        if (s < 3600) {
-            return (s / 60) + " min ago";
-        }
-        if (s < 86400) {
-            return (s / 3600) + " h ago";
-        }
-        long d = s / 86400;
-        if (d == 1) {
-            return "yesterday";
-        }
-        if (d < 30) {
-            return d + " days ago";
-        }
-        return new java.text.SimpleDateFormat("d MMM yyyy").format(new java.util.Date(ms));
     }
 }

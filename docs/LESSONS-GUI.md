@@ -426,3 +426,16 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   pressed. Overlays over the game (`OverlayThemes`, setting "Menu Theme") use the same list but "Default" means the overlay's
   own look and `OverlayThemes.of(id)` is null there; `MenuStyle.snapshot` derives a palette without leaving the menu's statics
   changed. Testkit 1421 walks `OverlayThemes.ids()`.
+- **Name Changer: a command line is never restyled, and the suggestions list is not an edit box (2026-10-15).** `NameReplacer`'s
+  Scanner now ignores any line whose first visible glyph is `/` (it also covers a command echoed in chat), and
+  `NameChangerCommandSuggestionsMixin` suppresses replacement while `CommandSuggestions` draws its list and usage hint - those
+  are drawn outside `EditBox`, so the edit-box suppression never reached them. Matched by method name with a `CallbackInfo`-only
+  handler so it serves both Minecraft versions (testkit 1550 fails on the old jar: `/<ign>` came back as `/Zed`).
+- **A rank tag is replaced with the name, not on its own (2026-10-15).** The scanner tracks `[LETTERS+] ` glyph by glyph and
+  extends a match of your own name back over a tag that sits directly in front of it, only when the tag is 2..12 letters/`+`
+  (so a Skyblock level `[285]` is never taken); `Entry.rankReplacement` carries the new tag. Hypixel sends the tag in several
+  Component parts, so it cannot be matched as one string - 1551 feeds it as `[MVP` + `++` + `] ` + name.
+- **Custom names live in `killer560smod-namechanger-names.json`, outside every profile (2026-10-15).** It is in
+  `ProfileManager.EXCLUDED_FILES` and also holds the Per-Profile Names switch, so the switch is the same in every profile. With
+  the switch on, the names go in the profile's own `killer560smod-namechanger.json` as before. An install from before the split
+  finds no names file on its first load and moves the names its profile file holds into it (1552).

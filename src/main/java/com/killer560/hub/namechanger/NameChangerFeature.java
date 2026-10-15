@@ -137,8 +137,14 @@ public final class NameChangerFeature {
         // Priority order: own name, then manual mappings, then randomized others (first entry wins on duplicates).
         // The Name Changer toggle gates own name and renames; Randomize Others (Nickhider tab) stands alone.
         boolean nameChanger = cfg.isEnabled();
-        if (nameChanger && cfg.isOwnNameEnabled() && NameTable.isValidName(own) && !cfg.getOwnDisplayName().isEmpty()) {
-            entries.add(new NameTable.Entry(own, ownStyled(cfg), false));
+        if (nameChanger && cfg.isOwnNameEnabled() && NameTable.isValidName(own)) {
+            // A rank on its own (no display name typed) still swaps the tag; the name itself is then left as it is.
+            String rank = NameRank.build(cfg);
+            if (!cfg.getOwnDisplayName().isEmpty()) {
+                entries.add(new NameTable.Entry(own, ownStyled(cfg), false, rank));
+            } else if (rank != null) {
+                entries.add(new NameTable.Entry(own, own, false, rank));
+            }
         }
         if (nameChanger && cfg.isMappingsEnabled()) {
             for (NameChangerConfig.Mapping m : cfg.mappings()) {
@@ -239,12 +245,14 @@ public final class NameChangerFeature {
      *  colours), or your real IGN when no display name is typed, as a styled Component. */
     public static net.minecraft.network.chat.Component ownPreview() {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
+        Minecraft mc = Minecraft.getInstance();
+        String own = mc == null || mc.getUser() == null ? "" : mc.getUser().getName();
+        String rank = NameRank.build(cfg);
         if (cfg.getOwnDisplayName().isEmpty()) {
-            Minecraft mc = Minecraft.getInstance();
-            String own = mc == null || mc.getUser() == null ? "" : mc.getUser().getName();
-            return net.minecraft.network.chat.Component.literal(own);
+            return rank == null ? net.minecraft.network.chat.Component.literal(own)
+                    : NameColor.toComponent(rank + own);
         }
-        return NameColor.toComponent(ownStyled(cfg));
+        return NameColor.toComponent((rank == null ? "" : rank) + ownStyled(cfg));
     }
 
     /**

@@ -26,6 +26,14 @@ public final class NameChangerConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-namechanger.json");
+    /**
+     * Where your custom names live while they are shared by every profile (killer560, 2026-10-15: "make it so custom names
+     * are shared across all profiles no matter what they are always the same. Or a toggle to not share"). It is never part
+     * of a profile ({@code ProfileManager.EXCLUDED_FILES}), so loading, saving or exporting a profile cannot change it,
+     * and it also holds the toggle itself, which is why that toggle is the same in every profile.
+     */
+    private static final Path NAMES_PATH =
+            ModPaths.config("killer560smod-namechanger-names.json");
 
     private static NameChangerConfig instance;
 
@@ -73,6 +81,16 @@ public final class NameChangerConfig {
      *  means that letter keeps the name's normal colour (flat or fade). Entries past the name's length are
      *  kept, so shortening and re-lengthening the name does not lose them. */
     private final List<Integer> ownCharColors = new ArrayList<>();
+    /** Rank tag before your own name (killer560, 2026-10-15) - see {@link NameRank}. */
+    private NameRank.Preset ownRank = NameRank.Preset.DEFAULT;
+    /** Picked colour for the rank's brackets and text ({@link NameColor#NONE} = the rank's own colour). */
+    private int ownRankColor = NameColor.NONE;
+    /** Picked colour for the rank's {@code +} signs ({@link NameColor#NONE} = the rank's own, or the text colour). */
+    private int ownRankPlusColor = NameColor.NONE;
+    private String ownRankCustomText = "";
+    /** "Per-Profile Names": when on, custom names ride in each profile like every other setting; off (the default) they
+     *  are one set shared by every profile. Stored in the names file, outside the profiles, so it is one switch. */
+    private boolean perProfileNames = false;
     private boolean mappingsEnabled = true;
     private final List<Mapping> mappings = new ArrayList<>();
     /** Gives every other player (tab list + loaded players) a stable random fake name for this session. */
@@ -96,109 +114,182 @@ public final class NameChangerConfig {
         return version;
     }
 
+    private static JsonObject readObject(Path path) {
+        if (!Files.exists(path)) {
+            return null;
+        }
+        try {
+            return JsonParser.parseString(Files.readString(path, StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public static void load() {
         NameChangerConfig cfg = new NameChangerConfig();
-        if (Files.exists(CONFIG_PATH)) {
+        JsonObject main = readObject(CONFIG_PATH);
+        JsonObject names = readObject(NAMES_PATH);
+        if (main != null) {
             try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.ownNameEnabled = ConfigJson.getBool(obj, "ownNameEnabled", true);
-                cfg.ownDisplayName = ConfigJson.getString(obj, "ownDisplayName", "");
-                if (obj.has("ownColor")) {
-                    cfg.ownColor = ConfigJson.getInt(obj, "ownColor", NameColor.NONE);
-                } else {
-                    // Pre-colour-picker config (killer560, 2026-09-20: "instead of using color codes I select
-                    // a color for it") - lift the typed &/§ colour code out of the name so his current setup
-                    // keeps looking the same with the new picker.
-                    NameColor.Migrated migrated = NameColor.migrate(cfg.ownDisplayName);
-                    cfg.ownDisplayName = migrated.text();
-                    cfg.ownColor = migrated.argb();
-                }
-                cfg.ownColorFadeEnabled = ConfigJson.getBool(obj, "ownColorFadeEnabled", false);
-                cfg.ownBold = ConfigJson.getBool(obj, "ownBold", false);
-                cfg.ownColorFadeTo = ConfigJson.getInt(obj, "ownColorFadeTo", NameColor.NONE);
-                cfg.ownAnimation = NameAnimation.Mode.fromWire(ConfigJson.getString(obj, "ownAnimation", "off"));
-                cfg.ownAnimationSpeed = NameAnimation.clampSpeed(
-                        ConfigJson.getDouble(obj, "ownAnimationSpeed", NameAnimation.DEFAULT_SPEED));
-                JsonArray charColors = ConfigJson.getArray(obj, "ownCharColors");
-                if (charColors != null) {
-                    for (JsonElement el : charColors) {
-                        try {
-                            cfg.ownCharColors.add(el == null || el.isJsonNull() ? NameColor.NONE : el.getAsInt());
-                        } catch (Exception ignored) {
-                            cfg.ownCharColors.add(NameColor.NONE);
-                        }
-                        if (cfg.ownCharColors.size() >= MAX_CHAR_COLORS) {
-                            break;
-                        }
-                    }
-                }
-                cfg.mappingsEnabled = ConfigJson.getBool(obj, "mappingsEnabled", true);
-                cfg.randomizeOthers = ConfigJson.getBool(obj, "randomizeOthers", false);
-                cfg.randomizedName = ConfigJson.getBool(obj, "randomizedName", false);
-                cfg.randomBaseName = ConfigJson.getString(obj, "randomBaseName", "");
-                JsonArray arr = ConfigJson.getArray(obj, "mappings");
-                if (arr != null) {
-                    for (JsonElement el : arr) {
-                        try {
-                            if (el == null || !el.isJsonObject()) {
-                                continue;
-                            }
-                            JsonObject m = el.getAsJsonObject();
-                            String display = ConfigJson.getString(m, "display", "");
-                            int color = ConfigJson.getInt(m, "color", NameColor.NONE);
-                            if (!m.has("color")) {
-                                NameColor.Migrated migrated = NameColor.migrate(display);
-                                display = migrated.text();
-                                color = migrated.argb();
-                            }
-                            cfg.mappings.add(new Mapping(ConfigJson.getString(m, "real", ""), display, color));
-                        } catch (Exception ignored) {
-                            // Skip just this malformed row.
-                        }
-                    }
-                }
+                cfg.enabled = ConfigJson.getBool(main, "enabled", false);
+                cfg.ownNameEnabled = ConfigJson.getBool(main, "ownNameEnabled", true);
+                cfg.mappingsEnabled = ConfigJson.getBool(main, "mappingsEnabled", true);
+                cfg.randomizeOthers = ConfigJson.getBool(main, "randomizeOthers", false);
+                cfg.randomizedName = ConfigJson.getBool(main, "randomizedName", false);
+                cfg.randomBaseName = ConfigJson.getString(main, "randomBaseName", "");
             } catch (Exception e) {
                 cfg = new NameChangerConfig();
             }
         }
+        cfg.perProfileNames = names != null && ConfigJson.getBool(names, "perProfileNames", false);
+        // Where the names come from: the profile's own file when they are per-profile; otherwise the shared names file.
+        // A first start on this version has no names file yet, so the names the profile file still holds become the
+        // shared set (they are what he has now) and the file is written below.
+        boolean sharedFilePresent = names != null && names.has("namesStored");
+        JsonObject source = cfg.perProfileNames ? main : (sharedFilePresent ? names : main);
+        if (source != null) {
+            try {
+                cfg.readNames(source);
+            } catch (Exception e) {
+                cfg.clearNames();
+            }
+        }
         instance = cfg;
         version++;
+        if (!cfg.perProfileNames && !sharedFilePresent && main != null) {
+            cfg.save();
+        }
+    }
+
+    /** Puts every custom-name setting back to its default (not the feature toggles). */
+    private void clearNames() {
+        ownDisplayName = "";
+        ownColor = NameColor.NONE;
+        ownColorFadeEnabled = false;
+        ownColorFadeTo = NameColor.NONE;
+        ownBold = false;
+        ownAnimation = NameAnimation.Mode.OFF;
+        ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
+        ownCharColors.clear();
+        ownRank = NameRank.Preset.DEFAULT;
+        ownRankColor = NameColor.NONE;
+        ownRankPlusColor = NameColor.NONE;
+        ownRankCustomText = "";
+        mappings.clear();
+    }
+
+    private void readNames(JsonObject obj) {
+        clearNames();
+        ownDisplayName = ConfigJson.getString(obj, "ownDisplayName", "");
+        if (obj.has("ownColor")) {
+            ownColor = ConfigJson.getInt(obj, "ownColor", NameColor.NONE);
+        } else {
+            // Pre-colour-picker config (killer560, 2026-09-20: "instead of using color codes I select
+            // a color for it") - lift the typed &/§ colour code out of the name so his current setup
+            // keeps looking the same with the new picker.
+            NameColor.Migrated migrated = NameColor.migrate(ownDisplayName);
+            ownDisplayName = migrated.text();
+            ownColor = migrated.argb();
+        }
+        ownColorFadeEnabled = ConfigJson.getBool(obj, "ownColorFadeEnabled", false);
+        ownBold = ConfigJson.getBool(obj, "ownBold", false);
+        ownColorFadeTo = ConfigJson.getInt(obj, "ownColorFadeTo", NameColor.NONE);
+        ownAnimation = NameAnimation.Mode.fromWire(ConfigJson.getString(obj, "ownAnimation", "off"));
+        ownAnimationSpeed = NameAnimation.clampSpeed(
+                ConfigJson.getDouble(obj, "ownAnimationSpeed", NameAnimation.DEFAULT_SPEED));
+        ownRank = NameRank.Preset.fromWire(ConfigJson.getString(obj, "ownRank", "default"));
+        ownRankColor = ConfigJson.getInt(obj, "ownRankColor", NameColor.NONE);
+        ownRankPlusColor = ConfigJson.getInt(obj, "ownRankPlusColor", NameColor.NONE);
+        ownRankCustomText = NameRank.cleanText(ConfigJson.getString(obj, "ownRankCustomText", ""));
+        JsonArray charColors = ConfigJson.getArray(obj, "ownCharColors");
+        if (charColors != null) {
+            for (JsonElement el : charColors) {
+                try {
+                    ownCharColors.add(el == null || el.isJsonNull() ? NameColor.NONE : el.getAsInt());
+                } catch (Exception ignored) {
+                    ownCharColors.add(NameColor.NONE);
+                }
+                if (ownCharColors.size() >= MAX_CHAR_COLORS) {
+                    break;
+                }
+            }
+        }
+        JsonArray arr = ConfigJson.getArray(obj, "mappings");
+        if (arr != null) {
+            for (JsonElement el : arr) {
+                try {
+                    if (el == null || !el.isJsonObject()) {
+                        continue;
+                    }
+                    JsonObject m = el.getAsJsonObject();
+                    String display = ConfigJson.getString(m, "display", "");
+                    int color = ConfigJson.getInt(m, "color", NameColor.NONE);
+                    if (!m.has("color")) {
+                        NameColor.Migrated migrated = NameColor.migrate(display);
+                        display = migrated.text();
+                        color = migrated.argb();
+                    }
+                    mappings.add(new Mapping(ConfigJson.getString(m, "real", ""), display, color));
+                } catch (Exception ignored) {
+                    // Skip just this malformed row.
+                }
+            }
+        }
+    }
+
+    private void writeNames(JsonObject obj) {
+        obj.addProperty("ownDisplayName", ownDisplayName);
+        obj.addProperty("ownColor", ownColor);
+        obj.addProperty("ownColorFadeEnabled", ownColorFadeEnabled);
+        obj.addProperty("ownBold", ownBold);
+        obj.addProperty("ownColorFadeTo", ownColorFadeTo);
+        obj.addProperty("ownAnimation", ownAnimation.wire);
+        obj.addProperty("ownAnimationSpeed", ownAnimationSpeed);
+        obj.addProperty("ownRank", ownRank.name());
+        obj.addProperty("ownRankColor", ownRankColor);
+        obj.addProperty("ownRankPlusColor", ownRankPlusColor);
+        obj.addProperty("ownRankCustomText", ownRankCustomText);
+        JsonArray charColors = new JsonArray();
+        for (Integer c : ownCharColors) {
+            charColors.add(c == null ? NameColor.NONE : c);
+        }
+        obj.add("ownCharColors", charColors);
+        JsonArray arr = new JsonArray();
+        for (Mapping m : mappings) {
+            JsonObject o = new JsonObject();
+            o.addProperty("real", m.real);
+            o.addProperty("display", m.display);
+            o.addProperty("color", m.color);
+            arr.add(o);
+        }
+        obj.add("mappings", arr);
     }
 
     public void save() {
         version++;
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
+            // The profile's file: the toggles, and the names too only when they are per-profile.
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("ownNameEnabled", ownNameEnabled);
-            obj.addProperty("ownDisplayName", ownDisplayName);
-            obj.addProperty("ownColor", ownColor);
-            obj.addProperty("ownColorFadeEnabled", ownColorFadeEnabled);
-            obj.addProperty("ownBold", ownBold);
-            obj.addProperty("ownColorFadeTo", ownColorFadeTo);
-            obj.addProperty("ownAnimation", ownAnimation.wire);
-            obj.addProperty("ownAnimationSpeed", ownAnimationSpeed);
-            JsonArray charColors = new JsonArray();
-            for (Integer c : ownCharColors) {
-                charColors.add(c == null ? NameColor.NONE : c);
-            }
-            obj.add("ownCharColors", charColors);
             obj.addProperty("mappingsEnabled", mappingsEnabled);
             obj.addProperty("randomizeOthers", randomizeOthers);
             obj.addProperty("randomizedName", randomizedName);
             obj.addProperty("randomBaseName", randomBaseName);
-            JsonArray arr = new JsonArray();
-            for (Mapping m : mappings) {
-                JsonObject o = new JsonObject();
-                o.addProperty("real", m.real);
-                o.addProperty("display", m.display);
-                o.addProperty("color", m.color);
-                arr.add(o);
+            if (perProfileNames) {
+                writeNames(obj);
             }
-            obj.add("mappings", arr);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
+            // The shared file: the per-profile switch, and the names themselves while they are shared.
+            JsonObject shared = new JsonObject();
+            shared.addProperty("perProfileNames", perProfileNames);
+            if (!perProfileNames) {
+                shared.addProperty("namesStored", true);
+                writeNames(shared);
+            }
+            Files.createDirectories(NAMES_PATH.getParent());
+            Files.writeString(NAMES_PATH, GSON.toJson(shared), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
@@ -288,6 +379,53 @@ public final class NameChangerConfig {
 
     public void setOwnAnimationSpeed(double speed) {
         this.ownAnimationSpeed = NameAnimation.clampSpeed(speed);
+        version++;
+    }
+
+    public NameRank.Preset getOwnRank() {
+        return ownRank;
+    }
+
+    public void setOwnRank(NameRank.Preset rank) {
+        this.ownRank = rank == null ? NameRank.Preset.DEFAULT : rank;
+        version++;
+    }
+
+    public int getOwnRankColor() {
+        return ownRankColor;
+    }
+
+    public void setOwnRankColor(int argb) {
+        this.ownRankColor = argb;
+        version++;
+    }
+
+    public int getOwnRankPlusColor() {
+        return ownRankPlusColor;
+    }
+
+    public void setOwnRankPlusColor(int argb) {
+        this.ownRankPlusColor = argb;
+        version++;
+    }
+
+    public String getOwnRankCustomText() {
+        return ownRankCustomText;
+    }
+
+    public void setOwnRankCustomText(String text) {
+        this.ownRankCustomText = NameRank.cleanText(text);
+        version++;
+    }
+
+    public boolean isPerProfileNames() {
+        return perProfileNames;
+    }
+
+    /** Switching keeps the names as they are on screen: the {@link #save()} that follows writes them to wherever they now
+     *  live (the profile, or the shared file). */
+    public void setPerProfileNames(boolean perProfileNames) {
+        this.perProfileNames = perProfileNames;
         version++;
     }
 
@@ -381,6 +519,10 @@ public final class NameChangerConfig {
         ownAnimation = NameAnimation.Mode.OFF;
         ownAnimationSpeed = NameAnimation.DEFAULT_SPEED;
         ownCharColors.clear();
+        ownRank = NameRank.Preset.DEFAULT;
+        ownRankColor = NameColor.NONE;
+        ownRankPlusColor = NameColor.NONE;
+        ownRankCustomText = "";
         version++;
     }
 
