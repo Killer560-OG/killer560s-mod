@@ -141,6 +141,11 @@ public final class AutoBoulder {
     private static long lastPressMs = 0L;
     private static long buttonMissingSinceMs = 0L;
     private static long pushStartMs = 0L;
+    /** util/ServerLag readings taken with stageStartMs, pushStartMs and buttonMissingSinceMs: each wait measures the
+     *  time the server has had ({@code ServerLag.serverMsSince}), so a server stall never runs one out (2026-10-15). */
+    private static long stageLag = 0L;
+    private static long pushLag = 0L;
+    private static long buttonLag = 0L;
     private static boolean sawSolution = false;
     /** Physical S/A/D/jump: armed once seen up, so a key already held when it started is not a takeover. */
     private static final boolean[] keyArmed = new boolean[4];
@@ -313,6 +318,7 @@ public final class AutoBoulder {
         engagedMs = System.currentTimeMillis();
         stage = Stage.NEED_CHEST;
         stageStartMs = engagedMs;
+        stageLag = com.killer560.hub.util.ServerLag.mark();
         correction = false;
         KeyMapping[] keys = ownKeys(client);
         for (int i = 0; i < keys.length; i++) {
@@ -532,7 +538,7 @@ public final class AutoBoulder {
             turnToward(client, player, dir[0], dir[1]);
         }
         long wait = AURA_WAIT_BASE_MS + AutoPuzzlesConfig.getInstance().getBoulderDelayMs();
-        if (System.currentTimeMillis() - stageStartMs > wait) {
+        if (com.killer560.hub.util.ServerLag.serverMsSince(stageStartMs, stageLag) > wait) {
             LOGGER.info("[AutoPuzzles] Boulder: Secret Aura has not taken the chest in {} ms - opening it by looking at it",
                     wait);
             advance(Stage.TO_CHEST, "opening it himself");
@@ -555,6 +561,7 @@ public final class AutoBoulder {
     private static void push(Minecraft client, LocalPlayer player) {
         if (pushStartMs == 0L) {
             pushStartMs = System.currentTimeMillis();
+            pushLag = com.killer560.hub.util.ServerLag.mark();
         }
         BlockPos next = BoulderSolverFeature.getNextClick();
         if (next != null) {
@@ -574,6 +581,7 @@ public final class AutoBoulder {
                 // in reach and in sight". He walks in first (the nearest spot inside the tile, as he would), and the
                 // solver's wait starts there. Same on Hypixel: the map lands on the doorway there too.
                 pushStartMs = System.currentTimeMillis();
+                pushLag = com.killer560.hub.util.ServerLag.mark();
                 if (walking) {
                     tickWalk(client, player);
                     return;
@@ -589,7 +597,7 @@ public final class AutoBoulder {
                 }
                 return;
             }
-            if (sawSolution || System.currentTimeMillis() - pushStartMs > SOLVER_WAIT_MS) {
+            if (sawSolution || com.killer560.hub.util.ServerLag.serverMsSince(pushStartMs, pushLag) > SOLVER_WAIT_MS) {
                 stopWalk(client, null);
                 advance(Stage.TO_CHEST, sawSolution ? "every box the solver named was pushed (" + presses
                         + " press(es))" : "the solver read no known arrangement in " + SOLVER_WAIT_MS + " ms");
@@ -603,7 +611,8 @@ public final class AutoBoulder {
             releaseKeys(client);
             if (buttonMissingSinceMs == 0L) {
                 buttonMissingSinceMs = System.currentTimeMillis();
-            } else if (System.currentTimeMillis() - buttonMissingSinceMs > BUTTON_WAIT_MS) {
+                buttonLag = com.killer560.hub.util.ServerLag.mark();
+            } else if (com.killer560.hub.util.ServerLag.serverMsSince(buttonMissingSinceMs, buttonLag) > BUTTON_WAIT_MS) {
                 giveUp(client, "the button at " + AutoPuzzleUtil.fmt(next) + " never appeared ("
                         + client.level.getBlockState(next).getBlock() + " there)");
                 return;
@@ -1198,6 +1207,7 @@ public final class AutoBoulder {
         LOGGER.info("[AutoPuzzles] Boulder: {} -> {} ({})", stage, next, why);
         stage = next;
         stageStartMs = System.currentTimeMillis();
+        stageLag = com.killer560.hub.util.ServerLag.mark();
         loggedWait = null;
         replans = 0;
         stalledTicks = 0;

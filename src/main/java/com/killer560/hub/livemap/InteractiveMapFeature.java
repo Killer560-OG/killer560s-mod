@@ -323,6 +323,8 @@ public final class InteractiveMapFeature {
     private static MapGoal pendingGoal = null;
     private static int pendingGoalCell = -1;
     private static int pendingGoalTicks = 0;
+    /** util/ServerLag reading when the goal was queued: a server stall since then extends its timeout. */
+    private static long pendingGoalLag = 0L;
 
     /**
      * killer560, 2026-09-29: "If I click a different room mid path then it goes doesn't have to be a double click
@@ -366,6 +368,7 @@ public final class InteractiveMapFeature {
         pendingGoal = goal;
         pendingGoalCell = cell;
         pendingGoalTicks = PENDING_GOAL_TIMEOUT_TICKS;
+        pendingGoalLag = com.killer560.hub.util.ServerLag.mark();
     }
 
     private static void tickPendingGoal(Minecraft client) {
@@ -391,7 +394,7 @@ public final class InteractiveMapFeature {
             goal.run(layout, layout.roomOfCell(cell), cell);
             return;
         }
-        if (--pendingGoalTicks <= 0) {
+        if (--pendingGoalTicks + com.killer560.hub.util.ServerLag.ticksSince(pendingGoalLag) <= 0) {
             pendingGoal = null;
             pendingGoalCell = -1;
             ModChat.send(CHAT, ModChat.bad("Could not start from here"));

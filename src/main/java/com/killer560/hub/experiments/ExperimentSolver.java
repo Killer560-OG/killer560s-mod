@@ -225,7 +225,7 @@ final class ExperimentSolver {
     /** Ceiling on the lag Adaptive Timeout adds, so a dead connection (no pings at all, every millisecond
      *  of which reads as stall) still gives up eventually rather than waiting forever. */
     private static final long SUPERPAIRS_MAX_LAG_EXTENSION_MS = 5000;
-    /** {@link ServerLagSensor#lagMs()} at the moment the awaited click was sent; the difference from the
+    /** {@link com.killer560.hub.util.ServerLag#lagMs()} at the moment the awaited click was sent; the difference from the
      *  current reading is how long the server has stalled while this click waited. */
     private long superpairsLagAtSendMs;
     /** Real timestamp the most recently SENT Superpairs click actually went out - per killer560's explicit
@@ -888,7 +888,7 @@ final class ExperimentSolver {
     private long superpairsConfirmTimeoutMs() {
         long timeout = SUPERPAIRS_CONFIRM_TIMEOUT_MS;
         if (ExperimentsConfig.getInstance().isSuperpairsAdaptiveTimeout()) {
-            long lagSinceSend = ServerLagSensor.lagMs() - superpairsLagAtSendMs;
+            long lagSinceSend = com.killer560.hub.util.ServerLag.lagMs() - superpairsLagAtSendMs;
             timeout += Math.max(0, Math.min(SUPERPAIRS_MAX_LAG_EXTENSION_MS, lagSinceSend));
         }
         return timeout;
@@ -899,7 +899,7 @@ final class ExperimentSolver {
             superpairsClickSent = true;
             superpairsAwaitingConfirmSinceMs = sentAtMs;
             superpairsLastClickSentAtMs = sentAtMs;
-            superpairsLagAtSendMs = ServerLagSensor.lagMs();
+            superpairsLagAtSendMs = com.killer560.hub.util.ServerLag.lagMs();
         }
     }
 

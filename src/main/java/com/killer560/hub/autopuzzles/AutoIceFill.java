@@ -77,6 +77,8 @@ final class AutoIceFill {
     private static boolean awaitingRegen = false;
     /** Ticks spent in the current recovery phase (waiting, then getting back on). */
     private static int recoveryTicks = 0;
+    /** util/ServerLag on a recovery's first tick: a server stall extends the regenerate/return timeouts by its length. */
+    private static long recoveryLag = 0L;
     /** Breaks recovered from in this room; past {@link #MAX_RECOVERIES} it stops rather than loop. */
     private static int recoveries = 0;
     /** True when a recovery could not finish; the auto stays off until he leaves the room. */
@@ -421,12 +423,14 @@ final class AutoIceFill {
      */
     private static void recover(Minecraft client, LocalPlayer player, AutoPuzzlesConfig cfg) {
         int s = recovering;
-        recoveryTicks++;
+        if (++recoveryTicks == 1) {
+            recoveryLag = com.killer560.hub.util.ServerLag.mark();
+        }
         if (awaitingRegen) {
             int fresh = freshTiles(client, s);
             int total = sectionTiles.get(s).size();
             if (fresh < total) {
-                if (recoveryTicks >= REGEN_TIMEOUT_TICKS) {
+                if (recoveryTicks >= REGEN_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(recoveryLag)) {
                     giveUp(client, "section " + (s + 1) + " did not regenerate in " + REGEN_TIMEOUT_TICKS / 20
                             + "s (" + fresh + " of " + total + " tiles back)");
                     return;
@@ -469,7 +473,7 @@ final class AutoIceFill {
             }
             mapWalkOurs = false;
         }
-        if (recoveryTicks >= RETURN_TIMEOUT_TICKS) {
+        if (recoveryTicks >= RETURN_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(recoveryLag)) {
             giveUp(client, "could not get back onto section " + (s + 1) + "'s start in "
                     + RETURN_TIMEOUT_TICKS / 20 + "s");
             return;

@@ -186,7 +186,7 @@ public final class ExperimentsFeature {
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register(
                 (client, screen, w, h) -> onScreenOpened(screen));
         // Superpairs' Adaptive Timeout extends its confirm wait by however long the server stalls.
-        ServerLagSensor.register();
+        com.killer560.hub.util.ServerLag.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", ExperimentsProfitTracker::tick));

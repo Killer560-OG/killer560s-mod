@@ -6,6 +6,7 @@ import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ServerCorrections;
+import com.killer560.hub.util.ServerLag;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -121,6 +122,12 @@ public final class ClearExecutor {
     private static volatile int positionPackets = 0;
     private static int positionPacketsSeen = 0;
     private static int ticksSinceProgress = 0;
+    /** {@link ServerLag#mark()} when the queue last made progress (and when the arrival sync began): a server stall
+     *  since then extends {@link #STALL_TICKS} (and the sync fallback) by its length, so a lagging server is never
+     *  read as "warp N never landed" (killer560, 2026-10-15). */
+    private static long progressLag = 0L;
+    private static long syncLag = 0L;
+    private static long strayLag = 0L;
     /** Why the queue is not moving this tick, for the message when it gives up. */
     private static String waitReason = null;
     /** The goal of the Interactive Map path being run, so a path that went wrong can be planned again. */
@@ -729,6 +736,7 @@ public final class ClearExecutor {
         if (unanswered > 0) {
             strayWarps = unanswered;
             strayUntilMs = System.currentTimeMillis() + 2000L;
+            strayLag = ServerLag.mark();
         }
     }
 
@@ -746,7 +754,7 @@ public final class ClearExecutor {
         if (moved < CORRECTION_MIN_MOVE) {
             return false;
         }
-        if (strayWarps > 0 && System.currentTimeMillis() <= strayUntilMs) {
+        if (strayWarps > 0 && System.currentTimeMillis() <= strayUntilMs + ServerLag.msSince(strayLag)) {
             int ours = Math.min(strayWarps, packets);
             strayWarps -= ours;
             LOGGER.info("[Path] {} landing(s) of the dropped path arrived while planning - not a correction", ours);
@@ -829,7 +837,10 @@ public final class ClearExecutor {
         // 40-tick fallback stays for a server that sends nothing at all; checkLandings gives up on an unanswered
         // warp after STALL_TICKS, well before it.
         boolean answered = issued.isEmpty() ? positionPacketSeen : confirmed >= issued.size();
-        if (syncDelay == 1 && (answered || ++syncWaitTicks > 40)) {
+        if (syncDelay == 1 && syncWaitTicks == 0) {
+            syncLag = ServerLag.mark();
+        }
+        if (syncDelay == 1 && (answered || ++syncWaitTicks > 40 + ServerLag.ticksSince(syncLag))) {
             syncDelay = 2;
             syncWaitTicks = 0;
         }
@@ -941,13 +952,17 @@ public final class ClearExecutor {
                 return false;
             }
         }
-        ticksSinceProgress++;
+        if (ticksSinceProgress++ == 0) {
+            progressLag = ServerLag.mark();
+        }
         boolean offStart = issued.isEmpty() && waitReason != null && waitReason.startsWith("not on");
         if (offStart && ticksSinceProgress > OFF_START_TICKS && client.player.onGround()) {
             offPath(waitReason, null);
             return false;
         }
-        if (ticksSinceProgress > STALL_TICKS) {
+        // A server stall since the last progress is not the warp failing: the deadline grows by the stall (0 when
+        // the server keeps time, so the normal case is exactly STALL_TICKS).
+        if (ticksSinceProgress > STALL_TICKS + ServerLag.ticksSince(progressLag)) {
             offPath(confirmed < issued.size() ? "warp " + (confirmed + 1) + " never landed"
                     : waitReason != null ? waitReason : "nothing moved for a second", null);
             return false;

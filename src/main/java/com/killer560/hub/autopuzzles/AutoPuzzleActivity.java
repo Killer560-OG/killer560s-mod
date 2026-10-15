@@ -21,6 +21,8 @@ public final class AutoPuzzleActivity {
     private static int ticks;
     private static int lastMark = Integer.MIN_VALUE / 2;
     private static String what = "";
+    /** util/ServerLag at the last mark: a server stall since then (the puzzle's answer is late) extends the grace. */
+    private static long markLag;
     private static Object level;
 
     private AutoPuzzleActivity() {
@@ -38,12 +40,13 @@ public final class AutoPuzzleActivity {
     /** An auto puzzle is driving him this tick. Public for the testkit, which stands in for a puzzle with it. */
     public static void note(String tag) {
         lastMark = ticks;
+        markLag = com.killer560.hub.util.ServerLag.mark();
         what = tag == null ? "" : tag;
     }
 
     /** True while an auto puzzle marked itself within the last {@link #GRACE_TICKS} ticks. */
     public static boolean isWorking() {
-        return ticks - lastMark <= GRACE_TICKS;
+        return ticks - lastMark <= GRACE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(markLag);
     }
 
     /** The auto that marked last, for chat and log lines ("Auto Water"). */
