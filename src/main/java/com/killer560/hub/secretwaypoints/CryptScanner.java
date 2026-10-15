@@ -177,7 +177,8 @@ public final class CryptScanner {
      * Every crypt and prince inside {@code [minX, minZ, maxX, maxZ]}, at any height.
      *
      * <p>Chunk sections whose palette cannot hold a slab, gold or sea lantern are skipped, the same treatment as
-     * the lever scan; only chunks the client already has are read.
+     * the lever scan; only chunks the client already has are read, and a find that reaches into a chunk it does not
+     * have is left out until it can be read whole ({@link #whole}).
      */
     public static List<Found> scan(Level level, int[] bounds) {
         List<Found> out = new ArrayList<>();
@@ -191,7 +192,7 @@ public final class CryptScanner {
         List<BlockPos> lidPrinces = new ArrayList<>();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
-                if (!level.hasChunk(cx, cz)) {
+                if (!com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)) {
                     continue;
                 }
                 var chunk = level.getChunk(cx, cz);
@@ -252,7 +253,10 @@ public final class CryptScanner {
             }
         }
         for (List<BlockPos> group : groups(princeBlocks, false)) {
-            out.add(found(Type.PRINCE, group));
+            Found f = found(Type.PRINCE, group);
+            if (whole(level, f)) {
+                out.add(f);
+            }
         }
 
         // Crypts: lid-shaped slab runs that do not belong to a prince.
@@ -276,9 +280,23 @@ public final class CryptScanner {
             if (touchesAny(run, princeBlocks)) {
                 continue;
             }
+            if (!whole(level, f)) {
+                continue;
+            }
             out.add(f);
         }
         return out;
+    }
+
+    /**
+     * Whether every chunk this find (and the block ring around it) lies in is loaded. A tomb that runs into a chunk the
+     * client does not have reads as cut off there - that chunk is air - so what is left is the wrong shape and the
+     * wrong anchor: a 4x4 lid half in an unloaded chunk passes as a 2x4 crypt keyed on the wrong block, and its real
+     * self arrives later as a second one. Such a find is unknown, not found; the next scan sees it whole.
+     */
+    private static boolean whole(Level level, Found f) {
+        return com.killer560.hub.util.ClientChunks.allLoaded(level, f.minX() - 1, f.minZ() - 1, f.maxX() + 1,
+                f.maxZ() + 1);
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {

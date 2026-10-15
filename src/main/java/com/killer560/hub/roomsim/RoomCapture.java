@@ -158,13 +158,14 @@ public final class RoomCapture {
         // Every chunk the footprint touches, loaded for real. Asked of the CHUNK SOURCE, never the level:
         // ClientLevel.hasChunk is hard-wired to return true (javap 26.1.2), and a chunk the client does not have reads
         // as an empty chunk - all air - so asking the level would capture a missing chunk as a hole in the room.
-        // ChunkSource.hasChunk is vanilla's answer even with the Chunk Cache on (ChunkCacheChunkSourceMixin).
+        // ClientChunks.isLive is ChunkSource.hasChunk, vanilla's answer even with the Chunk Cache on
+        // (ChunkCacheChunkSourceMixin): a capture must not be read from a cached snapshot that may be stale.
         List<String> unloaded = new ArrayList<>();
         int chunks = 0;
         for (int cx = originX >> 4; cx <= (originX + sizeX - 1) >> 4; cx++) {
             for (int cz = originZ >> 4; cz <= (originZ + sizeZ - 1) >> 4; cz++) {
                 chunks++;
-                if (!level.getChunkSource().hasChunk(cx, cz)) {
+                if (!com.killer560.hub.util.ClientChunks.isLive(level, cx, cz)) {
                     unloaded.add(towards(client, (cx << 4) + 8, (cz << 4) + 8));
                 }
             }

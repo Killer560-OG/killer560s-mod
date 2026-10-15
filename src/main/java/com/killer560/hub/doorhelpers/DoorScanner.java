@@ -42,6 +42,9 @@ public final class DoorScanner {
     /** null = cell not scanned yet (unloaded / no roof); NOT_A_DOOR marks a scanned non-door odd cell. */
     private static final Object NOT_A_DOOR = new Object();
     private static final Object[] cells = new Object[GRID * GRID];
+    /** Each door cell's lock as last READ. A wither or blood door whose chunk the client has let go of reads as air
+     *  - "opened" - so while its chunk is not loaded the last real reading stands (a door never re-locks). */
+    private static final boolean[] lastLocked = new boolean[GRID * GRID];
     private static Object lastLevel = null;
     private static int ticksUntilScan = 0;
 
@@ -50,6 +53,7 @@ public final class DoorScanner {
 
     public static void reset() {
         Arrays.fill(cells, null);
+        Arrays.fill(lastLocked, false);
         ticksUntilScan = 0;
     }
 
@@ -77,7 +81,7 @@ public final class DoorScanner {
                 }
                 int wx = START + gx * HALF_ROOM;
                 int wz = START + gz * HALF_ROOM;
-                if (!client.level.hasChunk(wx >> 4, wz >> 4)) {
+                if (!com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, wx, wz)) {
                     continue;
                 }
                 int height = topLayer(client, mutable, wx, wz);
@@ -91,6 +95,7 @@ public final class DoorScanner {
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
                             : DoorType.NORMAL;
                     cells[idx] = new Door(wx, wz, type);
+                    lastLocked[idx] = type == DoorType.WITHER || type == DoorType.BLOOD;
                 } else {
                     cells[idx] = NOT_A_DOOR;
                 }
@@ -131,8 +136,29 @@ public final class DoorScanner {
         return 0;
     }
 
-    /** QUOI {@code OdonDoor.locked}. */
+    /** QUOI {@code OdonDoor.locked}, except that a door whose chunk is not loaded keeps its last real reading (see
+     *  {@link #lastLocked}). */
     public static boolean isLocked(Minecraft client, Door door) {
+        int gx = Math.floorDiv(door.x() - START, HALF_ROOM);
+        int gz = Math.floorDiv(door.z() - START, HALF_ROOM);
+        if (gx < 0 || gx >= GRID || gz < 0 || gz >= GRID || cells[gx + gz * GRID] != door) {
+            return readLocked(client, door);
+        }
+        return lockedAt(client, gx + gz * GRID);
+    }
+
+    private static boolean lockedAt(Minecraft client, int idx) {
+        if (!(cells[idx] instanceof Door door) || (door.type() != DoorType.WITHER && door.type() != DoorType.BLOOD)
+                || client.level == null) {
+            return false;
+        }
+        if (com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, door.x(), door.z())) {
+            lastLocked[idx] = readLocked(client, door);
+        }
+        return lastLocked[idx];
+    }
+
+    private static boolean readLocked(Minecraft client, Door door) {
         if (door.type() != DoorType.WITHER && door.type() != DoorType.BLOOD) {
             return false;
         }
@@ -142,8 +168,8 @@ public final class DoorScanner {
     /** QUOI {@code ScanUtils.scannedDoors.filter { it.locked }}. */
     public static List<Door> lockedDoors(Minecraft client) {
         List<Door> out = new ArrayList<>();
-        for (Object cell : cells) {
-            if (cell instanceof Door door && isLocked(client, door)) {
+        for (int idx = 0; idx < cells.length; idx++) {
+            if (cells[idx] instanceof Door door && lockedAt(client, idx)) {
                 out.add(door);
             }
         }

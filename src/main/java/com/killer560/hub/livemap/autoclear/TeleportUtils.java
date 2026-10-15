@@ -326,7 +326,10 @@ public final class TeleportUtils {
             int cx = ((int) x) >> 4;
             int cz = ((int) z) >> 4;
             if (cx != lastChunkX || cz != lastChunkZ) {
-                chunk = level.getChunk(cx, cz);
+                // On the client getChunk never returns null: a chunk it does not have comes back as the empty chunk,
+                // all air, and the ray went straight through whatever wall is really there. Unknown is no landing.
+                chunk = !level.isClientSide() || com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)
+                        ? level.getChunk(cx, cz) : null;
                 lastChunkX = cx;
                 lastChunkZ = cz;
             }
@@ -424,7 +427,10 @@ public final class TeleportUtils {
             int cx = ((int) x) >> 4;
             int cz = ((int) z) >> 4;
             if (cx != lastChunkX || cz != lastChunkZ) {
-                chunk = level.getChunk(cx, cz);
+                // On the client getChunk never returns null: a chunk it does not have comes back as the empty chunk,
+                // all air, and the ray went straight through whatever wall is really there. Unknown is no landing.
+                chunk = !level.isClientSide() || com.killer560.hub.util.ClientChunks.isLoaded(level, cx, cz)
+                        ? level.getChunk(cx, cz) : null;
                 lastChunkX = cx;
                 lastChunkZ = cz;
             }

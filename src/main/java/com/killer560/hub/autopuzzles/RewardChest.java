@@ -61,6 +61,8 @@ final class RewardChest {
     private boolean clickedAwaitingScreen = false;
     private int hops = 0;
     private String lastNote = "";
+    /** The last {@link #pick} could not see the whole chest box: part of it is not loaded on the client. */
+    private boolean unloaded = false;
 
     /**
      * @param anchorRel room-relative {x, y, z} of where the reward chest is (the nearest chest to it is taken first)
@@ -115,6 +117,7 @@ final class RewardChest {
         clickedAwaitingScreen = false;
         hops = 0;
         lastNote = "";
+        unloaded = false;
     }
 
     private void note(String what) {
@@ -158,7 +161,10 @@ final class RewardChest {
         if (target == null) {
             target = pick(client, cr);
             if (target == null) {
-                if (ticks > LOOK_TICKS) {
+                if (unloaded) {
+                    // Unknown, not "none": a chunk the client does not have reads as air. Never give up on that.
+                    note("part of the chest area is not loaded yet - waiting for it");
+                } else if (ticks > LOOK_TICKS) {
                     finish(opened.isEmpty() ? "no reward chest appeared in the room in " + LOOK_TICKS / 20 + " s"
                             : "no other reward chest");
                 } else {
@@ -269,8 +275,14 @@ final class RewardChest {
 
     /** The unopened chest nearest the anchor, or null. */
     private BlockPos pick(Minecraft client, int[] cr) {
-        List<BlockPos> chests = new ArrayList<>(AutoPuzzleUtil.chestsInRoom(client.level, cr, boxRel[0], boxRel[1],
-                boxRel[2], boxRel[3], boxRel[4], boxRel[5]));
+        List<BlockPos> found = AutoPuzzleUtil.chestsInRoom(client.level, cr, boxRel[0], boxRel[1],
+                boxRel[2], boxRel[3], boxRel[4], boxRel[5]);
+        if (found == null) {
+            unloaded = true;
+            return null;
+        }
+        unloaded = false;
+        List<BlockPos> chests = new ArrayList<>(found);
         Vec3 anchor = Vec3.atCenterOf(PuzzleCoords.real(anchorRel[0], anchorRel[1], anchorRel[2], cr));
         BlockPos best = null;
         double bestD = Double.MAX_VALUE;

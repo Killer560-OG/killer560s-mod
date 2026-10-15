@@ -140,6 +140,7 @@ public final class AutoBoulder {
     /** Until when a landing at the doorway may still start the auto (a teleport, then settling onto the floor). */
     private static long doorCheckUntilMs = 0L;
     private static boolean noChestWarned = false;
+    private static boolean unloadedWarned = false;
     private static int scanCooldown = 0;
     private static boolean sawContainer = false;
     private static int presses = 0;
@@ -432,7 +433,18 @@ public final class AutoBoulder {
             }
             scanCooldown = 20;
             BlockPos bestRel = null;
-            for (BlockPos real : AutoPuzzleUtil.chestsInRoom(client.level, cr, -1, 60, -1, 31, 75, 31)) {
+            java.util.List<BlockPos> found = AutoPuzzleUtil.chestsInRoom(client.level, cr, -1, 60, -1, 31, 75, 31);
+            if (found == null) {
+                // Part of the room is not loaded on the client: unknown, not "no chest" - and never the furthest of
+                // the chests that happen to be loaded. Ask again on the next scan.
+                if (!unloadedWarned) {
+                    unloadedWarned = true;
+                    LOGGER.info("[AutoPuzzles] Boulder: part of the room is not loaded yet - looking for the chest again "
+                            + "every 20 ticks");
+                }
+                return;
+            }
+            for (BlockPos real : found) {
                 BlockPos r = PuzzleCoords.relative(real, cr);
                 if (bestRel == null || r.getZ() > bestRel.getZ()) {
                     bestRel = r;
@@ -1273,6 +1285,7 @@ public final class AutoBoulder {
         stageStartMs = 0L;
         loggedWait = null;
         noChestWarned = false;
+        unloadedWarned = false;
         scanCooldown = 0;
         sawContainer = false;
         presses = 0;

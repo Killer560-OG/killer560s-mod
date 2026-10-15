@@ -1415,12 +1415,14 @@ final class Ap3RouteRunner {
             for (int bx = bx0; bx <= bx1; bx++) {
                 for (int bz = bz0; bz <= bz1; bz++) {
                     // isLoaded(pos) is "inside build height" AND "horizontally in bounds" AND "chunk loaded".
+                    // NOT level.hasChunkAt, which this hoist first used: on a ClientLevel that is hard-wired true, so a
+                    // column in a chunk the client does not have was read as air (ClientChunks).
                     // Only the first depends on y; the other two depend on bx/bz alone, so asking per column
                     // instead of per block drops this from one test per block to one per column. With the
                     // default 32-block scan pad that is a ~78x78 footprint over a band of 15+, so it was about
                     // 91,000 calls where 6,084 do the same job - and this runs on the client thread, which is
                     // most of what he feels as the route taking a moment to appear.
-                    if (!level.hasChunkAt(bx, bz)) {
+                    if (!com.killer560.hub.util.ClientChunks.isLoadedAt(level, bx, bz)) {
                         continue;
                     }
                     for (int y = bandLo; y <= bandHi; y++) {
@@ -1498,7 +1500,7 @@ final class Ap3RouteRunner {
             // Same hoist as readBoxes: the chunk half of isLoaded depends only on bx/bz, and this is called
             // once per half-block cell (~24,600 of them for a default-pad snapshot), each walking the whole
             // band. One test per column instead of one per block in the column.
-            if (!level.hasChunkAt(bx, bz)) {
+            if (!com.killer560.hub.util.ClientChunks.isLoadedAt(level, bx, bz)) {
                 return;
             }
             for (int y = bandHi; y >= bandLo; y--) {

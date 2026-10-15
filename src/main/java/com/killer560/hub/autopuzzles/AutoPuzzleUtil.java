@@ -595,6 +595,10 @@ public final class AutoPuzzleUtil {
      * floor shift and the room's rotation; the same call finds the same chest on Hypixel and in the sim. Asks each
      * chunk section's palette first ({@code maybeHas}), the way Secret Waypoints' lever scan does, so a room with no
      * chest costs a handful of palette checks rather than ~20,000 block reads.
+     *
+     * <p>Returns {@code null} - "not known yet, ask again" - when any chunk under the box is not loaded on the client.
+     * A missing chunk reads as air, so a partial answer would be a confident "no chest there" (Reward Chest gave up with
+     * "no reward chest appeared") or the wrong chest (Boulder takes the furthest one it can see).
      */
     public static java.util.List<BlockPos> chestsInRoom(Level level, int[] clayAndRotation, int relMinX, int relMinY,
                                                         int relMinZ, int relMaxX, int relMaxY, int relMaxZ) {
@@ -606,12 +610,12 @@ public final class AutoPuzzleUtil {
         int maxY = Math.max(a.getY(), b.getY());
         int minZ = Math.min(a.getZ(), b.getZ());
         int maxZ = Math.max(a.getZ(), b.getZ());
+        if (!com.killer560.hub.util.ClientChunks.allLoaded(level, minX, minZ, maxX, maxZ)) {
+            return null;
+        }
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
         for (int cx = minX >> 4; cx <= maxX >> 4; cx++) {
             for (int cz = minZ >> 4; cz <= maxZ >> 4; cz++) {
-                if (!level.hasChunk(cx, cz)) {
-                    continue;
-                }
                 net.minecraft.world.level.chunk.LevelChunk chunk = level.getChunk(cx, cz);
                 int x0 = Math.max(minX, cx << 4);
                 int x1 = Math.min(maxX, (cx << 4) + 15);
