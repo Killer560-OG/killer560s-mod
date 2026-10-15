@@ -128,6 +128,13 @@ public final class StorageOverlayConfig {
         this.theme = theme == null ? PanelTheme.AMBER : theme;
     }
 
+    /** What the overlay draws in: the menu theme picked under Menu Theme (killer560, 2026-10-15), or - on Default - the
+     *  Overlay Theme's Amber / Dark / Light exactly as before. */
+    public com.killer560.hub.gui.PanelColours colours() {
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.STORAGE_OVERLAY);
+        return menu == null ? theme.colours() : com.killer560.hub.gui.PanelColours.fromMenu(menu);
+    }
+
     public float getScale() {
         return scale;
     }

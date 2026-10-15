@@ -63,6 +63,12 @@ public enum PanelTheme {
         this.invAccent = invAccent;
     }
 
+    /** These values as {@link PanelColours}, what the drawing code reads (the same record a menu theme gives). */
+    public PanelColours colours() {
+        return new PanelColours(panelBg, border, hoverBorder, activeBorder, text, cellBg, cellLine, viewportBg, buttonHoverBg,
+                highlightRgb, invPanelBg, invSlotBg, invAccent, this == AMBER);
+    }
+
     /** Amber, Dark, Light, then Amber again - what a click on the setting's button does. */
     public PanelTheme next() {
         PanelTheme[] all = values();

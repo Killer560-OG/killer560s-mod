@@ -46,6 +46,11 @@ public class StorageOverlayTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(themeText());
                 }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        // Menu Theme (2026-10-15): Default keeps the Overlay Theme above; anything else draws in the mod menu's colours.
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.STORAGE_OVERLAY,
+                contentX, y, 220, 20));
         y += 26;
 
         double scaleNormalized = (StorageOverlayConfig.getInstance().getScale() - StorageOverlayConfig.MIN_SCALE)
