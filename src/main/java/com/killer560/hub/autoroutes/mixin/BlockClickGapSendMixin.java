@@ -27,6 +27,11 @@ public abstract class BlockClickGapSendMixin {
     @Inject(method = "send", at = @At("HEAD"), require = 0)
     private void killer560smod$blockClickGap(Packet<?> packet, CallbackInfo ci) {
         try {
+            // A use of ours as it leaves the client (a held key's block click, or a plain item use): what a sceptre BAT
+            // node counts its first downward uses by. Not the game mode's calls - the sim's callback answers those at the head.
+            if (packet instanceof ServerboundUseItemOnPacket || packet instanceof net.minecraft.network.protocol.game.ServerboundUseItemPacket) {
+                com.killer560.hub.autoroutes.AwaitEvents.onUseSent();
+            }
             if (packet instanceof ServerboundUseItemOnPacket useOn) {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null && mc.isSameThread()) {
