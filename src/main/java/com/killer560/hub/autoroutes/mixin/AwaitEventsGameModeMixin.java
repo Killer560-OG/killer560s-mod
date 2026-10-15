@@ -31,8 +31,6 @@ public abstract class AwaitEventsGameModeMixin {
                                                CallbackInfoReturnable<InteractionResult> cir) {
         try {
             if (cir.getReturnValue() != InteractionResult.FAIL && hit != null) {
-                // Hypixel drops a use of this item for a moment after it (util/BlockClickGap).
-                com.killer560.hub.util.BlockClickGap.onBlockClick(player.getItemInHand(hand), hit.getBlockPos());
                 AwaitEvents.onLocalBlockClick(hit.getBlockPos());
             }
         } catch (RuntimeException ignored) {

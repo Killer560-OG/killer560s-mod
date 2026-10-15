@@ -87,7 +87,8 @@ public abstract class ClearNode {
             return cancel();
         }
         // An etherwarp hop says which block it expects, so the sim can tell a hop that landed off-plan.
-        ClearExecutor.queueInteract(yaw, pitch);
+        ClearExecutor.queueInteract(yaw, pitch, new Vec3(playerPos[0], playerPos[1], playerPos[2]),
+                sneak ? res.pos() : null);
         playerPos[0] = res.pos().getX() + 0.5;
         playerPos[1] = res.pos().getY() + yOff;
         playerPos[2] = res.pos().getZ() + 0.5;

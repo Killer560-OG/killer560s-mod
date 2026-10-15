@@ -302,6 +302,7 @@ public final class ClearExecutor {
             return;
         }
         replans = 0;
+        heldReplans = 0;
         plan(to, tileIdx, complete);
     }
 
@@ -493,6 +494,7 @@ public final class ClearExecutor {
         goalTile = -1;
         goalComplete = null;
         replans = 0;
+        heldReplans = 0;
         replanPending = false;
         startQueue(path, complete);
     }
@@ -638,9 +640,55 @@ public final class ClearExecutor {
         externalOwner = value;
     }
 
-    public static void queueInteract(float yaw, float pitch) {
+    /**
+     * Queues the next hop's use. {@code from} is the feet position the look was worked out from and {@code block} the
+     * etherwarp block it lands on (null for a non-sneaking teleport): a hop held back by util/BlockClickGap is aimed again
+     * from where he stands when it goes (he falls while he waits - the hop is planned from a landing 1.05 up), the way Auto
+     * Routes' {@code reaimIfMoved} does.
+     */
+    public static void queueInteract(float yaw, float pitch, Vec3 from, BlockPos block) {
         pendingInteract = new float[]{yaw, pitch};
+        pendingFrom = from;
+        pendingBlock = block;
+        pendingHeldTicks = 0;
     }
+
+    private static Vec3 pendingFrom;
+    private static BlockPos pendingBlock;
+    /** Quiet re-plans this goal has made for a held hop that had no ray left ({@link #MAX_HELD_REPLANS} at most). */
+    private static int heldReplans;
+    private static final int MAX_HELD_REPLANS = 2;
+
+    /**
+     * The hop held back by util/BlockClickGap has no ray to its block from where he rests now (he stands 0.05 lower than
+     * the landing it was planned from, and a marginal aim does not survive that). Nothing was sent for it, so this is not a
+     * correction: the goal is planned again from here, no alarm and no chat line - at most {@link #MAX_HELD_REPLANS} times a
+     * goal, then the planned look goes as it stands. False = no goal to plan again (a list another feature built), or the
+     * cap: the caller sends the planned look.
+     */
+    private static boolean replanHeldHop(Vec3 at) {
+        if (goalTo == null || heldReplans >= MAX_HELD_REPLANS) {
+            return false;
+        }
+        heldReplans++;
+        LOGGER.info("[Path] Warp: held {} tick(s), no ray from {} lands on {} - planning the goal again from here ({}/{})",
+                pendingHeldTicks, fmt(at), pendingBlock.toShortString(), heldReplans, MAX_HELD_REPLANS);
+        if (!issued.isEmpty()) {
+            issued.remove(issued.size() - 1);   // the hop that never went out: its landing is not coming
+        }
+        BlockPos to = goalTo;
+        int tile = goalTile;
+        Runnable complete = goalComplete;
+        dropQueue();
+        goalTo = to;
+        goalTile = tile;
+        goalComplete = complete;
+        replanPending = true;
+        replanWaitTicks = 0;
+        return true;
+    }
+    /** Ticks the queued hop has been held back by util/BlockClickGap. */
+    private static int pendingHeldTicks;
 
     public static void cancel() {
         stopImproving();
@@ -1150,9 +1198,29 @@ public final class ClearExecutor {
         // here, where the packet is sent, so a click made between the hop being worked out and being sent is seen too.
         if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[Path] Warp")) {
             waitReason = "a block click with the same item a moment ago";
+            pendingHeldTicks++;
             return;
         }
         pendingInteract = null;
+        if (pendingHeldTicks > 0 && pendingBlock != null && pendingFrom != null) {
+            Vec3 at = player.position();
+            if (at.distanceTo(pendingFrom) > 0.05) {
+                Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+                TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, pendingBlock, hopRange() + 1.0);
+                if (rot != null) {
+                    LOGGER.info("[Path] Warp: held {} tick(s), aimed again from {} ({} off the planned spot) at {}",
+                            pendingHeldTicks, fmt(at), String.format(java.util.Locale.ROOT, "%.2f", at.distanceTo(pendingFrom)),
+                            pendingBlock.toShortString());
+                    interact = new float[]{rot.yaw(), rot.pitch()};
+                } else if (replanHeldHop(at)) {
+                    return;
+                } else {
+                    LOGGER.info("[Path] Warp: held {} tick(s), no ray from {} lands on {} - sending the planned look",
+                            pendingHeldTicks, fmt(at), pendingBlock.toShortString());
+                }
+            }
+        }
+        pendingHeldTicks = 0;
         // Never a hop from inside a trap room (killer560, 2026-10-06: "it shouldn't be able to etherwarp in trap - just
         // to enter it"): a path may land him in one, but the next hop does not go out from there.
         DungeonLayout layout = DungeonLayout.current();
@@ -1194,7 +1262,9 @@ public final class ClearExecutor {
     }
 
     private static void updateDelays() {
-        if (compDelay > 0 && --compDelay == 0) {
+        // Not while the last hop is still waiting to be sent (util/BlockClickGap): letting go of the forced sneak under it
+        // sent the hop as an Instant Transmission, 24 blocks off the plan.
+        if (compDelay > 0 && pendingInteract == null && --compDelay == 0) {
             active = false;
             activeNode = null;
         }

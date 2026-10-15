@@ -16,8 +16,8 @@ import org.slf4j.Logger;
  * is vanilla's own right-click cadence, {@code rightClickDelay} 4, and at least 200 ms of real time so a client
  * catching up on ticks cannot squeeze it.
  * <p>
- * Fed by {@code AwaitEventsGameModeMixin} at RETURN of {@code MultiPlayerGameMode.useItemOn} (every block click the
- * client sends - vanilla's and every feature's). Client thread only.
+ * Fed by {@code BlockClickGapSendMixin} from the {@code ServerboundUseItemOnPacket} as it leaves the client (every block
+ * click the client sends - vanilla's, every feature's and the sim's own). Client thread only.
  * <p>
  * Every feature that sends an item use of its own asks {@link #holdUse} first and sends nothing that tick when it says
  * true (Auto Routes' warps, use nodes and Kill Mimic; the Interactive Map's hops - so Auto Clear, Auto Secret, Autopilot,
