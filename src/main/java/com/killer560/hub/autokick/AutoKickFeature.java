@@ -130,7 +130,7 @@ public final class AutoKickFeature {
             return;
         }
         waiting.put(name.toLowerCase(Locale.ROOT), new Pending(name, floor, System.currentTimeMillis()));
-        PartyFinderStatsApi.request(List.of(name));
+        PartyFinderStatsApi.requestHot(List.of(name));
     }
 
     private static void tick() {
