@@ -32,7 +32,6 @@ public final class OverlayThemes {
     public static final String ITEM_BROWSER = "item_browser";
     public static final String TERMINAL_SOLVER = "terminal_solver";
     public static final String START_BUTTONS = "start_buttons";
-    public static final String MAIN_MENU = "main_menu";
 
     /** id -> the feature's name, in the order the testkit and the docs list them. */
     private static final Map<String, String> NAMES = new LinkedHashMap<>();
@@ -46,7 +45,6 @@ public final class OverlayThemes {
         NAMES.put(LEAP_MENU, "Leap Menu");
         NAMES.put(ITEM_BROWSER, "Item Browser");
         NAMES.put(TERMINAL_SOLVER, "Terminal Solver panels");
-        NAMES.put(MAIN_MENU, "Themed Main Menu");
     }
 
     /** Every overlay with a Menu Theme setting. */
