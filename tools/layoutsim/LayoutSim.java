@@ -192,10 +192,19 @@ public final class LayoutSim {
 
     /** Name, minimum rooms, cell target - SimFloorGen.Floor, which the offline stub does not carry. */
     private static final Object[][] FLOORS = {
-            {"E", 11, 19}, {"F1", 13, 22}, {"F2", 15, 26}, {"F3", 16, 27},
-            {"F4", 19, 33}, {"F5", 21, 36}, {"F6", 19, 33}, {"F7", 21, 36}};
+            {"E", 11, 19, 4, 4}, {"F1", 13, 22, 4, 5}, {"F2", 15, 26, 5, 5}, {"F3", 16, 27, 5, 5},
+            {"F4", 19, 33, 6, 5}, {"F5", 21, 36, 6, 6}, {"F6", 19, 33, 6, 6}, {"F7", 21, 36, 6, 6}};
+
+    /**
+     * -Dbounded=true: each floor inside its real {across, down} rectangle (MapPainter.floorRooms), filling it, as
+     * SimFloorGen.plan lays floors out since sim-designer-1015. Off: the old anywhere-on-the-6x6 cell targets.
+     */
+    private static final boolean BOUNDED = Boolean.getBoolean("bounded");
+    private static int boundW = 6;
+    private static int boundH = 6;
 
     private static int DROPPED;
+    private static final Map<String, int[]> BY_COMBO = new LinkedHashMap<>();
     private static final Map<Integer, Integer> PUZZLE_DIFF = new TreeMap<>();
     private static final Map<String, Integer> PUZZLE_DOORS = new TreeMap<>();
     private static final Map<Integer, Integer> TRAP_DOORS = new TreeMap<>();
@@ -203,7 +212,7 @@ public final class LayoutSim {
     private static final String[] FAILS = {"path length != slider", "fairy not on path", "wither doors != path",
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
             "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
-            "trap with != 2 doors (info)"};
+            "trap with != 2 doors (info)", "room outside floor rectangle"};
 
     private static void sweep(Map<String, RoomLibrary.Room> rooms, int perCombo, boolean noRecency)
             throws Exception {
@@ -234,6 +243,11 @@ public final class LayoutSim {
             String fname = (String) fl[0];
             int minRooms = (Integer) fl[1];
             int wantCells = Math.max(minRooms, Math.min((Integer) fl[2], 36));
+            boundW = BOUNDED ? (Integer) fl[3] : 6;
+            boundH = BOUNDED ? (Integer) fl[4] : 6;
+            if (BOUNDED) {
+                wantCells = boundW * boundH;
+            }
             for (int k = 2; k <= 8; k++) {
                 for (int puzzles = 2; puzzles <= 5; puzzles++) {
                     for (int n = 0; n < perCombo; n++) {
@@ -244,6 +258,11 @@ public final class LayoutSim {
                         SimFloorLayout.Floor f;
                         String pinKind = System.getProperty("pin");
                         String pinRoom = System.getProperty("pinroom");
+                        // -Dclamp=true: only the combinations the designer's sliders allow on this floor.
+                        if (Boolean.getBoolean("clamp") && (k > SimFloorLayout.maxRoomsToBlood(boundW, boundH)
+                                || puzzles > SimFloorLayout.maxPuzzles(boundW, boundH, k))) {
+                            continue;
+                        }
                         if (System.getProperty("only") != null && !System.getProperty("only").equals(fname)
                                 || Integer.getInteger("slider", k) != k
                                 || Integer.getInteger("puzzles", puzzles) != puzzles) {
@@ -253,7 +272,7 @@ public final class LayoutSim {
                             Map<Integer, String> pinned = new HashMap<>();
                             pinned.put(Integer.getInteger("pincell", 14), pinRoom);
                             SimFloorLayout.PinnedFloor pf = SimFloorLayout.generate(usable, minRooms, wantCells,
-                                    puzzles, k + offset, pinned, rng);
+                                    puzzles, k + offset, pinned, rng, boundW, boundH);
                             f = pf.floor();
                             if (!pf.unusedPins().isEmpty()) {
                                 DROPPED++;
@@ -273,15 +292,17 @@ public final class LayoutSim {
                                 }
                             }
                             Map<Integer, String> pinned = new HashMap<>();
-                            pinned.put(rng.nextInt(36), names.get(rng.nextInt(names.size())));
+                            pinned.put(rng.nextInt(boundH) * 6 + rng.nextInt(boundW),
+                                    names.get(rng.nextInt(names.size())));
                             SimFloorLayout.PinnedFloor pf = SimFloorLayout.generate(usable, minRooms, wantCells,
-                                    puzzles, k + offset, pinned, rng);
+                                    puzzles, k + offset, pinned, rng, boundW, boundH);
                             f = pf.floor();
                             if (!pf.unusedPins().isEmpty()) {
                                 DROPPED++;
                             }
                         } else {
-                            f = SimFloorLayout.generate(usable, minRooms, wantCells, puzzles, k + offset, rng);
+                            f = SimFloorLayout.generate(usable, minRooms, wantCells, puzzles, k + offset, null, rng,
+                                    boundW, boundH).floor();
                         }
                         boolean[] bad = judge(f, k, puzzles, minRooms, wantCells, lengthHist);
                         total++;
@@ -300,6 +321,10 @@ public final class LayoutSim {
                         int[] fr = byFloor.computeIfAbsent(fname, x -> new int[2]);
                         fr[0]++;
                         fr[1] += any ? 1 : 0;
+                        int[] cm = BY_COMBO.computeIfAbsent(fname + " blood " + k + " puzzles " + puzzles,
+                                x -> new int[2]);
+                        cm[0]++;
+                        cm[1] += any ? 1 : 0;
                         if (any && dumped < Integer.getInteger("dump", 0)) {
                             dumped++;
                             StringBuilder why = new StringBuilder();
@@ -346,6 +371,15 @@ public final class LayoutSim {
         for (var e : byFloor.entrySet()) {
             System.out.printf("  %s: %d, %d%n", e.getKey(), e.getValue()[0], e.getValue()[1]);
         }
+        if (Boolean.getBoolean("matrix")) {
+            // -Dmatrix=true: every floor x Rooms to blood x Puzzles combination that failed anything.
+            System.out.println("combinations failing (floors, failing):");
+            for (var e : BY_COMBO.entrySet()) {
+                if (e.getValue()[1] > 0) {
+                    System.out.printf("  %s: %d, %d%n", e.getKey(), e.getValue()[0], e.getValue()[1]);
+                }
+            }
+        }
         System.out.println("path length minus slider -> floors (-99 = no path): " + lengthHist);
         System.out.println("puzzles placed minus slider -> floors: " + PUZZLE_DIFF);
         System.out.println("puzzle rooms with != 1 door (name:doors -> count): " + PUZZLE_DOORS);
@@ -386,6 +420,8 @@ public final class LayoutSim {
                 }
             }
             traps += "TRAP".equals(t) ? 1 : 0;
+            bad[13] |= p.originX() < 0 || p.originZ() < 0 || p.originX() + p.cellsX() > boundW
+                    || p.originZ() + p.cellsZ() > boundH;
             for (int a = 0; a < p.cellsX(); a++) {
                 for (int b = 0; b < p.cellsZ(); b++) {
                     owner[(p.originZ() + b) * g + p.originX() + a] = i;

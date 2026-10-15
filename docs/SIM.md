@@ -2854,6 +2854,59 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
 
+## Every floor fills its real rectangle; the designer's Load list (2026-10-15, sim-designer-1015)
+
+killer560, of a Floor 1 in the designer: "If i generate with it already set then it will generate less rooms but it still
+needs to be in that square style. Right now as you can see they are sporadically placed." And the floor button "did not
+change the size of the map like it should".
+
+- **`Floor.cells` was grown anywhere on the 6x6.** The smaller floors' targets (E 19, F1 22, F2 26...) were an inference
+  from F7's cells-per-room, laid out with no bound, so an F1 was 22 cells scattered over 36 slots (and Entrance's 19 did not
+  even fit its real 4x4). Now `SimFloorLayout.generate(..., across, down)` keeps every bounds check, the entrance seat, the
+  fill passes and the cell target inside the floor's rectangle at the grid's north-west corner (a per-thread bound; cell
+  indices stay `z * 6 + x`), and `Floor.across/down/cells` come from `MapPainter.floorRooms` - the live map's table, made
+  public, so the sim and the map cannot disagree about a floor's size.
+- **Measured, `tools/layoutsim -Dsweep=true -Dbounded=true -Dseed=1`, 10 a combination (2,240 floors):** 0 floors with a
+  room outside the rectangle, 0 short of filling it, 0 under the room minimum, path length exact on all, F3-F7 0 failing
+  anything. The small floors cannot hold every slider value: E fails 113 of 280, F1 45 and F2 1, every one "puzzles !=
+  slider" - E with Rooms to blood 8 places no 5th puzzle in any floor, F1 at 8 and 5 puzzles likewise. The rooms are where
+  a real floor has them; it is the asks that do not fit. The status line shows the puzzles actually placed.
+- **The path to blood must leave cells for the room minimum.** The first bounded build let the spine take two 2x2s on an
+  Entrance, leaving 8 of 16 cells for 8 more rooms: testkit 73 "ENTRANCE #16: only 10 room(s), wanted 11", and 38 of the
+  2,240 sweep floors (22% of E at Rooms to blood 4) a room short. `Spine.slack` caps the path's cells beyond one a room at
+  the floor's cells less its minimum; that went to 0, and the unbounded sweep is unchanged (0 failing either way).
+- **Those misses were a 2.3 s freeze.** `run` lays out 12 whole floors when every one misses, and an E with Rooms to blood
+  8 costs ~190 ms a floor (the spine search spends its whole budget). `RETRY_BUDGET_NANOS` (400 ms) keeps the best floor
+  found by then; an exact floor takes 3-40 ms and never meets it.
+- **The designer** draws only the floor's rectangle, scaled into the square the 6x6 takes; the floor button regenerates a
+  generated floor at once and takes off pinned rooms that no longer fit. Its Play now sets `SimState.setFloorLabel` as
+  `SimFloorGen.generate` always did (the designer's floors played as F7 for the mimic rule and the sidebar).
+- **Save is gone; Play records.** `SimMapHistory` (`killer560smod-sim-map-history.json`, newest first, 200 kept, in
+  `ProfileData.EXCLUDED_NAMES` as history) keeps every floor played from the designer: a generated one by its map code
+  (so it rebuilds with its rotations and doors - the reason a generated floor is never replayed from the grid), a drawn one
+  by its cells. A code already listed is not listed again. `SimMapPresets` and its Save went; the old
+  `killer560smod-simmaps.json` stays on disk, unread.
+- **The sliders stop at what the floor holds** (coordinator, same day: "so nothing silently under-delivers").
+  `SimFloorLayout.maxPuzzles(across, down, roomsToBlood)` / `maxRoomsToBlood` hold the measured table and
+  `SimFloorGen.Floor.maxPuzzles/maxRoomsToBlood` read it; the designer's Rooms to blood stops at the floor's top, Puzzles'
+  top follows Rooms to blood as it is dragged (`SimSlider.setMax` clamps the value with it), the floor button clamps
+  both, Random draws inside them, and `planWith` holds every other caller to them. Measured with the new
+  `tools/layoutsim -Dmatrix=true` (failing floor x Rooms to blood x Puzzles combinations), then `-Dclamp=true` (only
+  what the sliders allow): Entrance holds 6 to blood and 4/4/3/3/2 puzzles at 2..6, Floor 1 5 puzzles up to 4 to blood
+  then 4/4/3/2, Floors 2-3 4 puzzles at 8, Floors 4-7 everything. The tails are rare and needed seeds: E 2/5 was 2 of
+  150 short and F1 5/5 1 of 40 and 1 of 60 before they were taken out; clamped, 3 seeds x 11,880 floors gave 0. If a
+  floor still misses, the designer's status line leads with "short of the sliders".
+- Played floors are kept as Generated or Drawn, and the old Save file's designs were brought in once as "Saved design"
+  (dated by the file's mtime, F7, puzzles unknown = -1); a `migratedPresets` flag in the history file keeps a deleted
+  one deleted, and the old file is never written.
+- Testkit: `75-sim-designer-sliders` (tops per floor, clamping on the floor button, Generate at each floor's top and at
+  2 to blood delivers exactly, Puzzles following Rooms to blood - all by real mouse on the sliders' drawn tracks),
+  `75-sim-designer-floors` (the real floor button through all 8 floors with a plan up, then Generate at each:
+  regenerated, every slot of the real rectangle filled, nothing outside), `75-sim-designer-load` (no Save; a real Play of
+  a generated Entrance, then Load lists exactly it with today's date drawn and not a seeded real run or an old design;
+  re-read from disk; row lines >= 2 px apart; clicking the row restores the floor), `75-sim-designer-count` (no "N of M
+  rooms" in a frame's text runs).
+
 ## Deuces' doorway: cold braziers and a carve that cut doorway trim (2026-10-15, sim-deuces-1015)
 
 killer560's Hypixel shot of Deuces (the doorway into Altar under the secret chest) against the sim. Read back from the

@@ -56,7 +56,14 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     /** Room slots per side. The 11x11 cell grid holds rooms on even cells, so six of them. */
     private static final int GRID = (com.killer560.hub.livemap.DungeonLayout.GRID + 1) / 2;
 
-    private static final int ROW_H = 22;
+    /**
+     * A list row: two lines with a gap between them and around them. It was 22 with the lines 9 apart, i.e. touching
+     * (killer560, 2026-10-15: "make there be a hair more spacing for the text it is really crammed").
+     */
+    private static final int ROW_H = 27;
+    /** The second line's offset in a row; the first is at {@link #ROW_TEXT1}. */
+    private static final int ROW_TEXT1 = 4;
+    private static final int ROW_TEXT2 = 15;
 
     /** The label lines of the last frame, "Name|0/6;Name|0/4;", for the gametest to read back. */
     private static volatile String labelsDrawn = "";
@@ -99,15 +106,15 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private final List<String> listed = new ArrayList<>();
     private String selected;
     /** What Save will call this design. Survives a widget rebuild. */
-    private String mapName = "My Dungeon";
-    private EditBox nameBox;
     private Panel panel = Panel.ROOMS;
+    /** The Load list: floors he played from here ({@link SimMapHistory}), newest first, as {@link #listed} shows them. */
+    private final List<SimMapHistory.Entry> history = new ArrayList<>();
     private EditBox search;
     /** The search box's text, kept here because a rebuild (and coming back from the filters) makes a new box. */
     private String searchText = "";
     private int scroll;
     private String status = "";
-    /** Usable rooms in the library, the "M" of the header's "N of M rooms". */
+    /** Usable rooms in the library (no longer drawn - the header count went, 2026-10-15; the testkit reads it). */
     private int roomTotal;
     /** Whether the room database had loaded when {@link #listed} was built; the type filters need it. */
     private boolean listedWithDatabase;
@@ -161,6 +168,10 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private int cell;
     private int gridX;
     private int gridY;
+    /** The square the grid is drawn in: an F7's whole 6x6, and a smaller floor centred in it at a bigger cell. */
+    private int areaX;
+    private int areaY;
+    private int areaSize;
     private int listX;
     private int listW;
 
@@ -193,10 +204,16 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Floor of 8, not 14. At 14 the grid could not shrink far enough to clear the settings row on a
         // short window - scenario 83 measured the grid's bottom at y 170 against a button top of y 168 at a
         // 240-unit window height. A cramped grid is better than one drawn over the controls.
-        cell = Math.max(8, gridArea / GRID);
-        gridX = panelX + 14;
-        gridY = panelY + 66;
-        listX = gridX + cell * GRID + 14;
+        areaSize = Math.max(8, gridArea / GRID) * GRID;
+        areaX = panelX + 14;
+        areaY = panelY + 66;
+        // Only the floor's own rectangle is drawn (killer560, 2026-10-15: "Changing this button did not change the
+        // size of the map like it should"), scaled up to the square the 6x6 takes, the way the dungeon map fits a
+        // small floor to its frame.
+        cell = Math.max(8, areaSize / Math.max(floor.across, floor.down));
+        gridX = areaX + (areaSize - cell * floor.across) / 2;
+        gridY = areaY + (areaSize - cell * floor.down) / 2;
+        listX = areaX + areaSize + 14;
         listW = panelX + panelW - 12 - listX;
 
         // The room filters (killer560, 2026-10-06: "have a filter section where i can filter based on things like
@@ -221,12 +238,6 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     McCompat.setScreen(this.minecraft, new SimRoomFilterScreen(this));
                 }).bounds(listX + listW - filtersW, panelY + 44, filtersW, 16).build());
 
-        // The map's name, like the field in Ashfall's Dungeon Maker. Save uses it; Load fills it in.
-        nameBox = new ThemedEditBox(this.font, gridX, panelY + 44, cell * GRID, 16, Component.literal("Name"));
-        ((ThemedEditBox) nameBox).hint("Map name...");
-        nameBox.setValue(mapName);
-        nameBox.setResponder(v -> mapName = v);
-        addRenderableWidget(nameBox);
 
         // Row A - the random floor: its settings and the button that builds one.
         int ay = panelY + panelH - 52;
@@ -238,15 +249,26 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         addRenderableWidget(SettingsButtonWidget.cycling(
                 Component.literal("§6" + floor.label), (b, dir) -> {
                     floor = SettingsButtonWidget.step(floor, dir);
+                    floorChanged();
                     rebuildWidgets();
                 }).bounds(ax, ay, wFloor, 20).build());
         ax += wFloor + 6;
+        // Both sliders stop at what this floor can hold (SimFloorGen.Floor.maxRoomsToBlood / maxPuzzles), and Puzzles
+        // follows Rooms to blood as it moves: a long path and many puzzles compete for a small floor's few cells, and a
+        // floor that silently came out a puzzle short was the alternative (coordinator, 2026-10-15).
+        clampSliders();
+        SimSlider[] puzzlesRef = new SimSlider[1];
         addRenderableWidget(new SimSlider(ax, ay, wSlider, "Rooms to blood",
-                SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD, roomsToBlood,
-                v -> roomsToBlood = v));
+                SimFloorGen.MIN_ROOMS_TO_BLOOD, floor.maxRoomsToBlood(), roomsToBlood,
+                v -> {
+                    roomsToBlood = v;
+                    if (puzzlesRef[0] != null) {
+                        puzzlesRef[0].setMax(puzzlesTop());
+                    }
+                }));
         ax += wSlider + 6;
-        addRenderableWidget(new SimSlider(ax, ay, wSlider, "Puzzles",
-                SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
+        puzzlesRef[0] = addRenderableWidget(new SimSlider(ax, ay, wSlider, "Puzzles",
+                SimFloorGen.MIN_PUZZLES, puzzlesTop(), puzzleCount,
                 v -> puzzleCount = v));
         ax += wSlider + 6;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> preview())
@@ -254,7 +276,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
         // Row B - the drawn floor: the drawing tools, and Play for what is on the grid.
         int by = panelY + panelH - 26;
-        int count = 6;
+        // Save went (killer560, 2026-10-15: "Remove the save and load buttons in exchange for one load button"): Play
+        // records the floor in the Load list itself, so there is nothing to name or save by hand.
+        int count = 5;
         int bw = (panelW - 28 - 6 * (count - 1)) / count;
         int bx = panelX + 14;
 
@@ -291,15 +315,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 .bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), b -> saveMap())
-                .bounds(bx, by, bw, 20).build());
-        bx += bw + 6;
-
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load"), b -> {
             panel = panel == Panel.MAPS ? Panel.ROOMS : Panel.MAPS;
             scroll = 0;
             refilter();
-            status = panel == Panel.MAPS ? "pick a saved map" : "";
+            status = panel == Panel.MAPS ? "pick a floor you played" : "";
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
@@ -319,9 +339,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         listed.clear();
         String q = search == null ? "" : search.getValue().trim().toLowerCase(Locale.ROOT);
         if (panel == Panel.MAPS) {
-            for (String name : SimMapPresets.names()) {
-                if (q.isEmpty() || name.toLowerCase(Locale.ROOT).contains(q)) {
-                    listed.add(name);
+            history.clear();
+            for (SimMapHistory.Entry e : SimMapHistory.entries()) {
+                String title = historyTitle(e);
+                if (q.isEmpty() || title.toLowerCase(Locale.ROOT).contains(q)
+                        || e.dateText().contains(q)) {
+                    history.add(e);
+                    listed.add(title);
                 }
             }
             return;
@@ -406,7 +430,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         int[] size = footprintOf(name, 0);
         int ax = slot % GRID;
         int az = slot / GRID;
-        if (ax + size[0] > GRID || az + size[1] > GRID) {
+        if (ax + size[0] > floor.across || az + size[1] > floor.down) {
             return false;
         }
         for (int dx = 0; dx < size[0]; dx++) {
@@ -439,7 +463,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         java.util.Collections.shuffle(pool);
         int added = 0;
         for (int slot = 0; slot < GRID * GRID; slot++) {
-            if (occupiedBy.containsKey(slot)) {
+            if (occupiedBy.containsKey(slot) || slot % GRID >= floor.across || slot / GRID >= floor.down) {
                 continue;
             }
             for (String name : pool) {
@@ -454,52 +478,55 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         status = "filled " + added + " cell(s)";
     }
 
-    private void saveMap() {
-        if (placements.isEmpty()) {
-            status = "nothing to save";
-            return;
-        }
-        String name = nameBox == null ? mapName : nameBox.getValue();
-        if (name == null || name.isBlank()) {
-            status = "give the map a name first";
-            return;
-        }
-        SimMapPresets.put(name, placements);
-        status = "saved \"" + name.trim() + "\"";
+    /** "Floor 1 · Generated" / "· Drawn" / "My Dungeon · Saved design" - a Load row's first line, what search matches. */
+    private static String historyTitle(SimMapHistory.Entry e) {
+        return e.title();
     }
 
-    private void loadMap(String name) {
+    /** Puts a floor from the Load list back on the grid, at its own floor size, ready for Play. */
+    private void loadEntry(SimMapHistory.Entry e) {
         planStale();
         clearRotations();
         pinned.clear();
-        Map<Integer, String> saved = SimMapPresets.get(name);
-        if (saved == null) {
-            status = "could not read \"" + name + "\"";
-            return;
-        }
         placements.clear();
-        // Only rooms still in the library. A preset naming one he has since lost would otherwise sit on the
-        // grid looking placeable and be dropped at Play, which is a worse way to find out.
-        int dropped = 0;
-        for (Map.Entry<Integer, String> e : saved.entrySet()) {
-            RoomLibrary.Room r = RoomLibrary.get(e.getValue());
-            if (r == null || !r.usable()) {
-                dropped++;
-                continue;
+        int lost = 0;
+        for (SimFloorGen.Floor f : SimFloorGen.Floor.values()) {
+            if (f.code.equals(e.floorCode())) {
+                floor = f;
             }
-            placements.put(e.getKey(), e.getValue());
-            pinned.put(e.getKey(), e.getValue());
         }
-        rebuildOccupancy();
-        mapName = name;
-        if (nameBox != null) {
-            nameBox.setValue(name);
+        if (e.generated()) {
+            MapCode.Decoded decoded;
+            try {
+                decoded = MapCode.decode(e.code());
+            } catch (RuntimeException ex) {
+                decoded = null;
+            }
+            if (decoded == null) {
+                status = "could not read that floor";
+                return;
+            }
+            showPlan(new SimFloorGen.Planned(decoded, e.code(), e.puzzles(), -1, 0, List.of(), List.of(), List.of(),
+                    null));
+        } else {
+            int dropped = 0;
+            for (Map.Entry<Integer, String> c : e.cells().entrySet()) {
+                RoomLibrary.Room r = RoomLibrary.get(c.getValue());
+                if (r == null || !r.usable()) {
+                    dropped++;
+                    continue;
+                }
+                placements.put(c.getKey(), c.getValue());
+                pinned.put(c.getKey(), c.getValue());
+            }
+            rebuildOccupancy();
+            lost = dropped;
         }
         panel = Panel.ROOMS;
         scroll = 0;
-        refilter();
-        status = dropped == 0 ? "loaded \"" + name + "\""
-                : "loaded \"" + name + "\" - " + dropped + " room(s) are no longer captured";
+        status = lost > 0 ? "loaded - " + lost + " room(s) are no longer captured"
+                : "loaded " + historyTitle(e) + " from " + e.dateText();
+        rebuildWidgets();   // the grid's size follows the floor it was played on
     }
 
     /** A slider value, or a fresh draw from {@code min..max} when that value is {@link SimSlider#RANDOM}. */
@@ -520,6 +547,55 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         generated = null;
     }
 
+    /** The Puzzles slider's top: what this floor holds at the Rooms to blood set, or at its longest when that is Random. */
+    private int puzzlesTop() {
+        return floor.maxPuzzles(roomsToBlood == SimSlider.RANDOM ? floor.maxRoomsToBlood() : roomsToBlood);
+    }
+
+    /** Brings both slider values within this floor's limits (Random stays Random). */
+    private void clampSliders() {
+        if (roomsToBlood != SimSlider.RANDOM) {
+            roomsToBlood = Math.min(roomsToBlood, floor.maxRoomsToBlood());
+        }
+        if (puzzleCount != SimSlider.RANDOM) {
+            puzzleCount = Math.min(puzzleCount, puzzlesTop());
+        }
+    }
+
+    /**
+     * The floor button moved: the grid becomes that floor's rectangle, and a generated floor is laid out again at once.
+     *
+     * <p>killer560 (2026-10-15): "if the map is already generated and I press this button then it needs to regenerate
+     * automatically." His own rooms that no longer fit the smaller rectangle are taken off and counted, rather than
+     * left standing outside the grid where Play would still build them.
+     */
+    private void floorChanged() {
+        clampSliders();
+        int before = pinned.size();
+        pinned.keySet().removeIf(key -> {
+            int[] fp = footprintOf(pinned.get(key), 0);
+            return key % GRID + fp[0] > floor.across || key / GRID + fp[1] > floor.down;
+        });
+        int dropped = before - pinned.size();
+        for (Integer key : new ArrayList<>(placements.keySet())) {
+            int[] fp = footprintOf(placements.get(key), rotations.getOrDefault(key, 0));
+            if (key % GRID + fp[0] > floor.across || key / GRID + fp[1] > floor.down) {
+                placements.remove(key);
+                rotations.remove(key);
+            }
+        }
+        if (generated != null) {
+            preview();
+            if (dropped > 0) {
+                status = "took off " + dropped + " room(s) outside " + floor.label + " · " + status;
+            }
+            return;
+        }
+        rebuildOccupancy();
+        status = floor.label + ": " + floor.across + "x" + floor.down
+                + (dropped > 0 ? " · took off " + dropped + " room(s) outside it" : "");
+    }
+
     /** Forget the rotations too - they belong to the plan that is being dropped. */
     private void clearRotations() {
         rotations.clear();
@@ -531,8 +607,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private void preview() {
         // A slider parked at the far right means "pick for me", and the pick is drawn INSIDE the slider's own
         // range, so random can never produce a floor the slider could not have been set to by hand.
-        int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES);
-        int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD);
+        clampSliders();
+        int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, floor.maxRoomsToBlood());
+        int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, floor.maxPuzzles(blood));
         // The rooms HE placed go in as PINS, so Generate builds around them instead of over them.
         // killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in
         // generating a map around the room."
@@ -544,6 +621,35 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             status = "could not lay out that floor";   // plan() has already said why, in chat
             return;
         }
+        showPlan(planned);
+        // Pins that could not be used are named, not swallowed - he put them there on purpose.
+        String pins = "";
+        if (!planned.unusedPins().isEmpty()) {
+            pins = " · dropped " + planned.unusedPins().size() + " pin(s)";
+        } else if (!planned.keptPins().isEmpty()) {
+            pins = " · kept " + planned.keptPins().size();
+        }
+        // Short. It sits under the grid, and the long form ran on into the room list.
+        // The puzzles actually placed, not the slider's ask - the filters can allow fewer.
+        status = planned.decoded().nameTable().length + " rooms · " + planned.placedPuzzles() + " puzzles · blood "
+                + planned.bloodDistance() + pins;
+        // A filter note goes FIRST: the status line is trimmed to the space under the grid, and "filters too
+        // strict" is the part he must not miss (it is also in chat in full).
+        String note = planned.filterNote();
+        // The sliders stop where the floor is measured to hold what they ask, but a rare floor can still miss: say so
+        // first rather than let it pass as asked (coordinator, 2026-10-15: "so nothing silently under-delivers").
+        if (note == null && (planned.placedPuzzles() < puzzles || planned.bloodDistance() != blood)) {
+            status = "short of the sliders (" + puzzles + " puzzles, " + blood + " to blood) · " + status;
+        }
+        if (note != null && !"filtered".equals(note)) {
+            status = note + " · " + status;
+        } else if (note != null) {
+            status = "filtered · " + status;
+        }
+    }
+
+    /** Puts a laid-out floor on the grid as the plan Play builds - a fresh Generate, or one from the Load list. */
+    private void showPlan(SimFloorGen.Planned planned) {
         generated = planned;
         placements.clear();   // `pinned` is deliberately NOT cleared: Clear restores it
         rotations.clear();
@@ -564,31 +670,18 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             }
         }
         rebuildOccupancy();
-        // Pins that could not be used are named, not swallowed - he put them there on purpose.
-        String pins = "";
-        if (!planned.unusedPins().isEmpty()) {
-            pins = " · dropped " + planned.unusedPins().size() + " pin(s)";
-        } else if (!planned.keptPins().isEmpty()) {
-            pins = " · kept " + planned.keptPins().size();
-        }
-        // Short. It sits under the grid, and the long form ran on into the room list.
-        // The puzzles actually placed, not the slider's ask - the filters can allow fewer.
-        status = planned.decoded().nameTable().length + " rooms · " + planned.placedPuzzles() + " puzzles · blood "
-                + planned.bloodDistance() + pins;
-        // A filter note goes FIRST: the status line is trimmed to the space under the grid, and "filters too
-        // strict" is the part he must not miss (it is also in chat in full).
-        String note = planned.filterNote();
-        if (note != null && !"filtered".equals(note)) {
-            status = note + " · " + status;
-        } else if (note != null) {
-            status = "filtered · " + status;
-        }
     }
 
     private void play() {
         // A generated plan wins over the drawing, because it carries rotations the drawing cannot.
         if (generated != null) {
             String code = generated.code();
+            // Which floor this is, as SimFloorGen.generate sets it - the mimic rule and the sidebar read it.
+            SimState.setFloorLabel(floor.code);
+            // Into the Load list, dated, before the world opens (killer560, 2026-10-15: "Any map generated and played
+            // will show there with a date of when it was created").
+            SimMapHistory.recordGenerated(floor.code, floor.label, code, generated.decoded().nameTable().length,
+                    generated.placedPuzzles());
             SimWorld.open(this.minecraft, code, c -> SimBuilder.build(c, code), "Generating " + floor.label);
             return;
         }
@@ -596,8 +689,14 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             status = "press Generate, or place a room first";
             return;
         }
+        Map<Integer, String> drawing = new LinkedHashMap<>(placements);
         int built = SimFloorGen.buildExplicit(this.minecraft, placements);
         if (built > 0) {
+            int puzzles = 0;
+            for (String name : drawing.values()) {
+                puzzles += "PUZZLE".equals(SimFloorGen.typeOf(name)) ? 1 : 0;
+            }
+            SimMapHistory.recordDrawn(floor.code, floor.label, drawing, puzzles);
             McCompat.setScreen(this.minecraft, null);
         }
     }
@@ -608,7 +707,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         double my = event.y();
 
         // The grid.
-        if (mx >= gridX && mx < gridX + cell * GRID && my >= gridY && my < gridY + cell * GRID) {
+        if (mx >= gridX && mx < gridX + cell * floor.across && my >= gridY && my < gridY + cell * floor.down) {
             int gx = (int) ((mx - gridX) / cell);
             int gz = (int) ((my - gridY) / cell);
             int slot = gz * GRID + gx;
@@ -657,11 +756,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             if (row >= 0 && row < listed.size()) {
                 if (panel == Panel.MAPS) {
                     if (event.button() == 1) {
-                        SimMapPresets.remove(listed.get(row));
+                        SimMapHistory.remove(history.get(row));
                         refilter();
-                        status = "deleted that saved map";
+                        status = "deleted that floor from the list";
                     } else {
-                        loadMap(listed.get(row));
+                        loadEntry(history.get(row));
                     }
                 } else {
                     selected = listed.get(row);
@@ -697,15 +796,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
             refilter();
         }
-        if (panel == Panel.ROOMS) {
-            // "N of M rooms" in the header bar, right-aligned: the only free space that never meets a control.
-            String count = listed.size() + " of " + roomTotal + " rooms"
-                    + (SimRoomFilters.isDefault() ? "" : " (filtered)");
-            int maxW = panelW - 20 - this.font.width("DESIGN A MAP") - 10;
-            String shownCount = this.font.width(count) <= maxW ? count : listed.size() + "/" + roomTotal;
-            MenuStyle.text(g, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
-                    SimRoomFilters.isDefault() ? MenuStyle.DIM : MenuStyle.OR);
-        }
+        // No "N of M rooms" in the header bar any more (killer560, 2026-10-15: "Remove the 134 of 134 rooms in the top
+        // right"). The Filters button still says how many filters are on.
+        // Where the map name box was (Save went, 2026-10-15): which floor the grid is, and its size.
+        ScreenChrome.text(g, fit(floor.label + "  ·  " + floor.across + " x " + floor.down + " rooms",
+                floor.label, areaSize), areaX, panelY + 48, MenuStyle.DIM);
         drawGrid(g, mouseX, mouseY);
         drawList(g, mouseX, mouseY);
 
@@ -724,7 +819,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                         ? "click a room, then a cell · right-click a cell to remove"
                         : status,
                 status.isEmpty() ? "click a room, then a cell" : null,
-                listX - 8 - gridX), gridX, gridY + cell * GRID + 4, MenuStyle.DIM);
+                listX - 8 - areaX), areaX, areaY + areaSize + 4, MenuStyle.DIM);
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
 
@@ -780,8 +875,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         int[] fp = footprintOf(name, rotations.getOrDefault(key, 0));
         int ax = key % GRID;
         int az = key / GRID;
-        int w = Math.min(GRID, ax + fp[0]) - ax;
-        int h = Math.min(GRID, az + fp[1]) - az;
+        int w = Math.min(floor.across, ax + fp[0]) - ax;
+        int h = Math.min(floor.down, az + fp[1]) - az;
         int pitch = com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS;
         int size = com.killer560.hub.livemap.MapPainter.ROOM_SIZE_UNITS;
         return new int[]{
@@ -792,13 +887,16 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-        int size = cell * GRID;
+        int sizeW = cell * floor.across;
+        int sizeH = cell * floor.down;
         GuiRects well = GuiRects.begin(g);
-        MenuStyle.well(well, gridX - 1, gridY - 1, size + 2, size + 2, MenuStyle.WELL);
+        MenuStyle.well(well, gridX - 1, gridY - 1, sizeW + 2, sizeH + 2, MenuStyle.WELL);
         int line = MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.10f);
-        for (int i = 1; i < GRID; i++) {
-            well.fill(gridX + i * cell, gridY, gridX + i * cell + 1, gridY + size, line);
-            well.fill(gridX, gridY + i * cell, gridX + size, gridY + i * cell + 1, line);
+        for (int i = 1; i < floor.across; i++) {
+            well.fill(gridX + i * cell, gridY, gridX + i * cell + 1, gridY + sizeH, line);
+        }
+        for (int i = 1; i < floor.down; i++) {
+            well.fill(gridX, gridY + i * cell, gridX + sizeW, gridY + i * cell + 1, line);
         }
         well.submit();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
@@ -846,7 +944,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     com.killer560.hub.livemap.MapPainter.labelShadow(labelCfg, textColour, colourFor(name)));
         }
         labelsDrawn = drawnNow.toString();
-        if (mouseX >= gridX && mouseX < gridX + size && mouseY >= gridY && mouseY < gridY + size) {
+        if (mouseX >= gridX && mouseX < gridX + sizeW && mouseY >= gridY && mouseY < gridY + sizeH) {
             int gx = (mouseX - gridX) / cell;
             int gz = (mouseY - gridY) / cell;
             g.outline(gridX + gx * cell, gridY + gz * cell, cell, cell, MenuStyle.OR);
@@ -969,27 +1067,34 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 rr.submit();
             }
             if (panel == Panel.MAPS) {
-                Map<Integer, String> saved = SimMapPresets.get(name);
+                SimMapHistory.Entry e = history.get(i);
                 g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, MenuStyle.OR);
-                MenuStyle.text(g, name, listX + 10, y + 3, MenuStyle.TXT);
-                MenuStyle.text(g, (saved == null ? 0 : saved.size()) + " room(s), right-click to delete",
-                        listX + 10, y + 12, MenuStyle.DIM);
+                MenuStyle.text(g, name, listX + 10, y + ROW_TEXT1, MenuStyle.TXT);
+                // The date he made it on the right of the first line, where a long title cannot run into it.
+                String date = e.dateText();
+                MenuStyle.text(g, date, listX + listW - 6 - this.font.width(date), y + ROW_TEXT1, MenuStyle.OR);
+                // A saved design brought in from the old Save file has no puzzle count recorded (-1).
+                String counts = e.rooms() + " rooms" + (e.puzzles() >= 0 ? "  ·  " + e.puzzles() + " puzzles" : "");
+                MenuStyle.text(g, fit(counts + "  ·  right-click to delete", counts, listW - 16),
+                        listX + 10, y + ROW_TEXT2, MenuStyle.DIM);
                 continue;
             }
             g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, colourFor(name));
-            MenuStyle.text(g, name, listX + 10, y + 3, isSelected ? MenuStyle.OR : MenuStyle.TXT);
+            MenuStyle.text(g, name, listX + 10, y + ROW_TEXT1, isSelected ? MenuStyle.OR : MenuStyle.TXT);
             RoomEntry entry = RoomDatabase.lookupByName(name);
             String sub = SimFloorGen.typeOf(name).toLowerCase(Locale.ROOT);
             if (entry != null) {
                 sub += "  ·  " + (entry.shape == null ? "?" : entry.shape)
                         + "  ·  " + entry.secrets + " secrets";
             }
-            MenuStyle.text(g, sub, listX + 10, y + 12, MenuStyle.DIM);
+            MenuStyle.text(g, sub, listX + 10, y + ROW_TEXT2, MenuStyle.DIM);
         }
         g.disableScissor();
         if (listed.isEmpty()) {
-            MenuStyle.text(g, panel == Panel.ROOMS && !SimRoomFilters.isDefault() ? "no rooms match the filters"
-                    : "no rooms match", listX + 8, top + 8, MenuStyle.DIM);
+            String empty = panel == Panel.MAPS
+                    ? (searchText.isBlank() ? "no floors yet - Generate, then Play" : "no floors match")
+                    : !SimRoomFilters.isDefault() ? "no rooms match the filters" : "no rooms match";
+            MenuStyle.text(g, empty, listX + 8, top + 8, MenuStyle.DIM);
         }
     }
 

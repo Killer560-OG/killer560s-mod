@@ -28,11 +28,11 @@ public final class SimSlider extends ThemedSliderButton {
 
     private final String label;
     private final int min;
-    private final int max;
+    private int max;
     private final IntConsumer onChange;
 
     /** The top of the TRACK, which is one past the top of the range - that last stop is {@link #RANDOM}. */
-    private final int track;
+    private int track;
 
     public SimSlider(int x, int y, int width, String label, int min, int max, int value, IntConsumer onChange) {
         super(x, y, width, 20, Component.empty(), fraction(value, min, max + 1));
@@ -56,6 +56,27 @@ public final class SimSlider extends ThemedSliderButton {
     }
 
     /** @return the chosen number, or {@link #RANDOM} when the handle is at the far right */
+    /** The top value, which can move (the designer's Puzzles slider follows Rooms to blood and the floor). */
+    public int max() {
+        return max;
+    }
+
+    /**
+     * Moves the top to {@code newMax}: a value above it comes down to it (and is reported, so the caller's copy follows);
+     * Random stays Random, now drawn from the new range.
+     */
+    public void setMax(int newMax) {
+        int v = intValue();
+        this.max = Math.max(min, newMax);
+        this.track = this.max + 1;
+        if (v != RANDOM && v > this.max) {
+            v = this.max;
+            onChange.accept(v);
+        }
+        this.value = fraction(v, min, track);
+        updateMessage();
+    }
+
     public int intValue() {
         int raw = (int) Math.round(min + this.value * (track - min));
         return raw > max ? RANDOM : raw;

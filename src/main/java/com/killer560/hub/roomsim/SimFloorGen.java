@@ -76,6 +76,12 @@ public final class SimFloorGen {
      * The smaller floors are NOT measured - they are that same 36/21 cells-per-room ratio applied to each
      * floor's measured room count and capped at the grid, so they are an inference and the floor logger is
      * still the thing that would correct them.
+     *
+     * <p><b>Since 2026-10-15 every floor fills its own rectangle</b>, {@link #across} x {@link #down} at the grid's
+     * north-west corner - the live map's table ({@code MapPainter.floorRooms}: E 4x4, F1 4x5, F2/F3 5x5, F4 6x5,
+     * F5-F7 6x6), so the two cannot disagree. killer560, of a designer Floor 1: "it will generate less rooms but it
+     * still needs to be in that square style. Right now as you can see they are sporadically placed." The inferred
+     * {@code cells} above had been grown anywhere on the 6x6 (and Entrance's 19 did not even fit its real 16).
      */
     public enum Floor {
         ENTRANCE("Entrance", "E", 11, 19),
@@ -99,14 +105,34 @@ public final class SimFloorGen {
         public final String code;
         /** Fewest rooms the floor may have. Other code reads this, and scenario 73 asserts it. */
         public final int rooms;
-        /** Room slots of the 6x6 grid to fill - what the generator actually aims at. */
+        /**
+         * Room slots to fill - what the generator actually aims at: the whole {@link #across} x {@link #down}
+         * rectangle, as on a real floor. (The second constructor argument is the old 6x6-anywhere inference, kept
+         * for the record and for tools/layoutsim's unbounded mode.)
+         */
         public final int cells;
+        /** The floor's width and depth in room slots, from the grid's north-west corner. */
+        public final int across;
+        public final int down;
 
-        Floor(String label, String code, int rooms, int cells) {
+        /** The longest Rooms to blood this floor can be relied on to hold - the designer slider's top. */
+        public int maxRoomsToBlood() {
+            return Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, SimFloorLayout.maxRoomsToBlood(across, down)));
+        }
+
+        /** The most puzzles this floor holds with {@code roomsToBlood} rooms to blood - the Puzzles slider's top. */
+        public int maxPuzzles(int roomsToBlood) {
+            return Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, SimFloorLayout.maxPuzzles(across, down, roomsToBlood)));
+        }
+
+        Floor(String label, String code, int rooms, int oldCells) {
             this.label = label;
             this.code = code;
             this.rooms = rooms;
-            this.cells = cells;
+            int[] size = com.killer560.hub.livemap.MapPainter.floorRooms(code);
+            this.across = size[0];
+            this.down = size[1];
+            this.cells = across * down;
         }
     }
 
@@ -257,7 +283,8 @@ public final class SimFloorGen {
             }
         }
         java.util.function.Predicate<String> keep = n -> allow.test(n) || pinnedLower.contains(n.toLowerCase(Locale.ROOT));
-        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(floor.maxPuzzles(
+                Math.max(MIN_ROOMS_TO_BLOOD, Math.min(floor.maxRoomsToBlood(), roomsToBlood))), puzzles));
         int allowedPuzzles = 0;
         for (Map.Entry<String, RoomLibrary.Room> e : usableRooms().entrySet()) {
             int[] fp = cellFootprint(e.getValue());
@@ -329,18 +356,20 @@ public final class SimFloorGen {
         }
         usable = capChampions(usable, pinned);
 
-        int wantRooms = Math.min(floor.rooms, ROOM_GRID * ROOM_GRID);
+        int wantRooms = Math.min(floor.rooms, floor.cells);
         int wantCells = Math.max(wantRooms, Math.min(floor.cells, ROOM_GRID * ROOM_GRID));
-        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
         // Counted his way: "the max is 8 if you do not count blood green room or fairy." So the path is the
         // Entrance, exactly this many rooms with the Fairy among them, and Blood - SimFloorLayout lays it first.
         // (This used to pass slider + 1 as a blood DEPTH, which had no room on it for the fairy.)
-        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood));
+        // Both within what THIS floor holds (Floor.maxRoomsToBlood / maxPuzzles); the designer's sliders never go
+        // past them, and any other caller is held to them here rather than handed a floor that falls short.
+        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(floor.maxRoomsToBlood(), roomsToBlood));
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(floor.maxPuzzles(wantDistance), puzzles));
 
         // The "recently used rooms" memory survives restarts now - see SimRecencyStore.
         SimRecencyStore.ensureLoaded();
         SimFloorLayout.PinnedFloor pinnedOut = SimFloorLayout.generate(
-                usable, wantRooms, wantCells, wantPuzzles, wantDistance, pinned, RNG);
+                usable, wantRooms, wantCells, wantPuzzles, wantDistance, pinned, RNG, floor.across, floor.down);
         if (pinnedOut != null) {
             SimRecencyStore.save();
         }
