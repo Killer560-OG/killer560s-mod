@@ -404,3 +404,14 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+
+- **Slot Text and Compactor Preview hook points (2026-10-15, javap 26.1.2 and 26.2).** Text over an item goes right after the
+  one `GuiGraphicsExtractor.itemDecorations(Font, ItemStack, int, int, String)` call in `AbstractContainerScreen.extractSlot`
+  (the rarity and search fills use the `Slot.isFake` call before the item instead). A grid inside an item tooltip is a
+  `ClientTooltipComponent` added by a `@ModifyVariable` on the list argument of `GuiGraphicsExtractor.tooltip(Font, List, int, int,
+  ClientTooltipPositioner, Identifier)`; hand it a COPY, vanilla's list may be immutable. A Personal Compactor/Deletor keeps its
+  slots in custom data as `personal_compact_<n>` / `personal_deletor_<n>` strings holding a SkyBlock id (read from Skyblocker's
+  open source and cross-checked with the wiki's slot counts, not yet seen on a live item).
+- A harness key press never reaches `InputConstants.isKeyDown` (it polls GLFW), so a hold-key mode needs a test hook
+  (`keyHeldForTest`, docs/TESTING-HOOKS.md). And an inventory screenshot diff must not look at the whole frame: the
+  player model turns with the cursor and changed 602 px in testkit 961's first run; diff only the slot grid.
