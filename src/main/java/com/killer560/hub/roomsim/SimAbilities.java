@@ -194,7 +194,10 @@ public final class SimAbilities {
                 && (clicked instanceof net.minecraft.world.level.block.ButtonBlock
                 || clicked instanceof net.minecraft.world.level.block.LeverBlock
                 || clicked instanceof net.minecraft.world.level.block.ChestBlock
-                || com.killer560.hub.secrets.SecretsFeature.isWitherEssence(level, hit.getBlockPos()));
+                || com.killer560.hub.secrets.SecretsFeature.isWitherEssence(level, hit.getBlockPos())
+                // The Redstone Key, and its node once the key is found: a click places or takes it, never an ability.
+                || com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(level, hit.getBlockPos())
+                || SimRedstoneKey.isReadyNode(hit.getBlockPos()));
     }
 
     /**

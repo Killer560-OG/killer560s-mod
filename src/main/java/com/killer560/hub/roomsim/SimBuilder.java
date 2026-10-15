@@ -522,6 +522,7 @@ public final class SimBuilder {
                 // Plates' boarded wall. Same moment as the puzzles and for the same reason: the blocks
                 // have to be standing before anything can be bound to them.
                 SimRoomLevers.armFloor(level);
+                SimRedstoneKey.armFloor(level);
                 int still = 0;
                 StringBuilder gone = new StringBuilder();
                 for (var cp : SimSecrets.PLACED_CHESTS) {
@@ -1844,6 +1845,7 @@ public final class SimBuilder {
                 // nobody armed has no board to read.
                 SimRoomPuzzles.armFloor(level);
                 SimRoomLevers.armFloor(level);
+                SimRedstoneKey.armFloor(level);
                 SimPrince.scan(level);
                 SimMimic.chooseForMap(level);
                 SimScore.reset(Math.max(0, secrets), 1);

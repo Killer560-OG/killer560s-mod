@@ -434,6 +434,7 @@ public final class SimWorld {
         SimScore.reset(0, 0);
         SimMimic.reset();
         SimRoomLevers.forget();
+        SimRedstoneKey.forget();
         SimSecretItems.reset();
         SimTerminator.reset();
         SimArchitect.reset();
@@ -516,6 +517,7 @@ public final class SimWorld {
         SimRun.reset();
         SimMimic.reset();
         SimRoomLevers.forget();
+        SimRedstoneKey.forget();
         SimBreakerState.reset();
         SimSidebar.reset();
         SimTabList.reset();
