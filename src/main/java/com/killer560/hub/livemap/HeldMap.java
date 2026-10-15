@@ -28,6 +28,7 @@ public final class HeldMap {
     public static final int STATE_NOT_SHOWN = DungeonMapScanner.STATE_UNDISCOVERED;
 
     private static final int GRID = DungeonLayout.GRID;
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
 
     /** Sim stand-in: rooms (by layout room id) someone has stood in this floor. */
     private static final Set<Integer> SIM_VISITED = new HashSet<>();
@@ -174,13 +175,15 @@ public final class HeldMap {
             }
         }
         if (client.player != null && layout.currentRoom() >= 0 && insideRoom(layout, layout.currentRoom(),
-                client.player.getX(), client.player.getZ())) {
-            SIM_VISITED.add(layout.currentRoom());
+                client.player.getX(), client.player.getZ()) && SIM_VISITED.add(layout.currentRoom())) {
+            LOGGER.info("[HeldMap] sim: {} opened (you at {}, {})", layout.name(layout.currentRoom()),
+                    Math.round(client.player.getX()), Math.round(client.player.getZ()));
         }
         for (LiveMapReads.Mate m : LiveMapReads.teammates(client)) {
             int r = layout.roomAtWorld(m.x(), m.z());
-            if (r >= 0 && insideRoom(layout, r, m.x(), m.z())) {
-                SIM_VISITED.add(r);
+            if (r >= 0 && insideRoom(layout, r, m.x(), m.z()) && SIM_VISITED.add(r)) {
+                LOGGER.info("[HeldMap] sim: {} opened ({} at {}, {})", layout.name(r), m.name(), Math.round(m.x()),
+                        Math.round(m.z()));
             }
         }
     }

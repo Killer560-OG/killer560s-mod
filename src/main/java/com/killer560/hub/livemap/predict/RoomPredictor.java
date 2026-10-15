@@ -89,6 +89,7 @@ public final class RoomPredictor {
     private static int[] obsBlock = new int[4096];
     private static int[] obsTile = new int[4096];
     private static float[] obsEye = new float[4096 * 3];
+    private static float[] obsHit = new float[4096 * 3];
     private static int obsCount = 0;
     private static final Map<Long, Integer> OBS_INDEX = new HashMap<>();
     private static final int[] EVIDENCE = new int[TILES * TILES];
@@ -228,12 +229,12 @@ public final class RoomPredictor {
                 if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) {
                     continue;
                 }
-                record(client, bhr.getBlockPos(), eye, floor);
+                record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
             }
         }
     }
 
-    private static void record(Minecraft client, BlockPos pos, Vec3 eye, int[] floor) {
+    private static void record(Minecraft client, BlockPos pos, Vec3 eye, Vec3 hitAt, int[] floor) {
         int tx = Math.floorDiv(pos.getX() - ORIGIN, TILE_PITCH);
         int tz = Math.floorDiv(pos.getZ() - ORIGIN, TILE_PITCH);
         if (tx < 0 || tz < 0 || tx >= floor[0] || tz >= floor[1]) {
@@ -260,6 +261,7 @@ public final class RoomPredictor {
             obsBlock = Arrays.copyOf(obsBlock, n);
             obsTile = Arrays.copyOf(obsTile, n);
             obsEye = Arrays.copyOf(obsEye, n * 3);
+            obsHit = Arrays.copyOf(obsHit, n * 3);
         }
         int t = tz * TILES + tx;
         obsPos[obsCount] = key;
@@ -268,6 +270,9 @@ public final class RoomPredictor {
         obsEye[obsCount * 3] = (float) eye.x;
         obsEye[obsCount * 3 + 1] = (float) eye.y;
         obsEye[obsCount * 3 + 2] = (float) eye.z;
+        obsHit[obsCount * 3] = (float) hitAt.x;
+        obsHit[obsCount * 3 + 1] = (float) hitAt.y;
+        obsHit[obsCount * 3 + 2] = (float) hitAt.z;
         OBS_INDEX.put(key, obsCount);
         obsCount++;
         if (!ignored(block)) {
@@ -585,12 +590,14 @@ public final class RoomPredictor {
         return i == null ? null : BLOCK_NAMES.get(obsBlock[i]);
     }
 
-    /** Test hook: every seen block with the eye it was seen from, {bx, by, bz, ex, ey, ez}. */
+    /** Test hook: every seen block with the eye it was seen from and where the ray met it,
+     *  {bx, by, bz, ex, ey, ez, hx, hy, hz}. */
     public static List<double[]> observations() {
         List<double[]> out = new ArrayList<>(obsCount);
         for (int i = 0; i < obsCount; i++) {
             BlockPos p = BlockPos.of(obsPos[i]);
-            out.add(new double[]{p.getX(), p.getY(), p.getZ(), obsEye[i * 3], obsEye[i * 3 + 1], obsEye[i * 3 + 2]});
+            out.add(new double[]{p.getX(), p.getY(), p.getZ(), obsEye[i * 3], obsEye[i * 3 + 1], obsEye[i * 3 + 2],
+                    obsHit[i * 3], obsHit[i * 3 + 1], obsHit[i * 3 + 2]});
         }
         return out;
     }
