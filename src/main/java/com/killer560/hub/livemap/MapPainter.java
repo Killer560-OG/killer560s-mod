@@ -65,7 +65,7 @@ public final class MapPainter {
      * published extent instead ({@link #gridExtent}). Unknown or unparseable floor: 6x6, the largest, so nothing
      * can fall outside it.
      */
-    static int[] floorRooms(String floor) {
+    public static int[] floorRooms(String floor) {
         int number = -1;
         if (floor != null && !floor.isEmpty()) {
             if (floor.equals("E")) {

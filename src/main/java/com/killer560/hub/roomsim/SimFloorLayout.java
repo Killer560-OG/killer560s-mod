@@ -50,6 +50,34 @@ public final class SimFloorLayout {
     /** The room grid inside {@link com.killer560.hub.livemap.DungeonLayout}'s 11x11. */
     public static final int GRID = (com.killer560.hub.livemap.DungeonLayout.GRID + 1) / 2;
 
+    /**
+     * The part of the {@link #GRID}x{@link #GRID} a floor may use, {@code {across, down}} from the north-west corner.
+     *
+     * <p>killer560 (2026-10-15), of a Floor 1 laid out in the designer: "it will generate less rooms but it still needs
+     * to be in that square style. Right now as you can see they are sporadically placed." A real floor fills its own
+     * rectangle (Entrance 4x4, F1 4x5, F2/F3 5x5, F4 6x5, F5-F7 6x6 - {@code MapPainter.floorRooms}); the layout used
+     * to grow a smaller floor's cell count anywhere on the 6x6. Cell indices stay {@code z * GRID + x}; only the
+     * bounds change, per thread, for the one {@link #generate} call that set them.
+     */
+    private static final ThreadLocal<int[]> BOUNDS = ThreadLocal.withInitial(() -> new int[]{GRID, GRID});
+
+    private static int gw() {
+        return BOUNDS.get()[0];
+    }
+
+    private static int gh() {
+        return BOUNDS.get()[1];
+    }
+
+    private static boolean inside(int x, int z) {
+        int[] b = BOUNDS.get();
+        return x >= 0 && z >= 0 && x < b[0] && z < b[1];
+    }
+
+    private static boolean insideCell(int cell) {
+        return inside(cell % GRID, cell / GRID);
+    }
+
     /** One room, placed. {@code rotation} is degrees clockwise, as {@link RoomPlacer#paste} takes it. */
     public record Placement(String name, int rotation, int originX, int originZ,
                             int cellsX, int cellsZ, int depth, String type) {
@@ -248,6 +276,22 @@ public final class SimFloorLayout {
     }
 
     /**
+     * The same, inside the floor's own {@code across x down} rectangle at the grid's north-west corner (a real
+     * floor's size, {@code MapPainter.floorRooms}); nothing is placed outside it. {@code wantCells} is capped to it.
+     */
+    public static PinnedFloor generate(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
+                                       int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng,
+                                       int across, int down) {
+        int[] before = BOUNDS.get();
+        BOUNDS.set(new int[]{Math.max(1, Math.min(GRID, across)), Math.max(1, Math.min(GRID, down))});
+        try {
+            return run(usable, minRooms, Math.min(wantCells, gw() * gh()), puzzles, roomsToBlood, pinned, rng);
+        } finally {
+            BOUNDS.set(before);
+        }
+    }
+
+    /**
      * How many whole floors {@link #run} lays out before settling for the one that misses the fewest of its
      * exact requirements ({@link #shortfalls}). Each one is the full attempt loop plus the finishing passes.
      *
@@ -262,6 +306,15 @@ public final class SimFloorLayout {
     private static final int FLOOR_RETRIES = 12;
     private static final int PINNED_FLOOR_RETRIES = 4;
 
+    /**
+     * Past this, {@link #run} keeps the best floor it has rather than laying out another. The designer plans on the
+     * render thread, and since floors keep to their real rectangle (sim-designer-1015) a request the small floors
+     * cannot hold - Entrance's 4x4 with Rooms to blood 8 - missed on all 12 whole floors at ~190 ms each: a 2.3 s
+     * freeze on every press (tools/layoutsim -Dbounded=true -Donly=E -Dslider=8). An exact floor takes 3-40 ms
+     * and is never cut short by this.
+     */
+    private static final long RETRY_BUDGET_NANOS = 400_000_000L;
+
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                    int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
@@ -275,7 +328,13 @@ public final class SimFloorLayout {
         int refused = resolvePinsRefused(pinned, usable);
         PinnedFloor best = null;
         int bestMissed = Integer.MAX_VALUE;
+        long started = System.nanoTime();
         for (int t = 0; t < tries; t++) {
+            if (best != null && System.nanoTime() - started > RETRY_BUDGET_NANOS) {
+                LOGGER.info("Sim floor: stopped after {} whole floor(s), {} ms", t,
+                        (System.nanoTime() - started) / 1_000_000);
+                break;
+            }
             PinnedFloor out = runOnce(pool, usable, minRooms, wantCells, puzzles, roomsToBlood, pinned, rng);
             if (out == null) {
                 continue;
@@ -346,8 +405,8 @@ public final class SimFloorLayout {
         if (floor.rooms().size() < minRooms) {
             out.add(floor.rooms().size() + " of " + minRooms + " rooms");
         }
-        if (cellsOf(floor) < Math.min(wantCells, GRID * GRID)) {
-            out.add(cellsOf(floor) + " of " + Math.min(wantCells, GRID * GRID) + " cells");
+        if (cellsOf(floor) < Math.min(wantCells, gw() * gh())) {
+            out.add(cellsOf(floor) + " of " + Math.min(wantCells, gw() * gh()) + " cells");
         }
         // More puzzles pinned than the slider asks for is his choice, and the floor has exactly those.
         if (puzzlesOn != Math.max(pinnedPuzzles, Math.min(puzzles, puzzlesInPool))) {
@@ -599,7 +658,7 @@ public final class SimFloorLayout {
     private static Floor fillGaps(Floor floor, List<Candidate> pool, int wantCells, int minRooms, int puzzles,
                                   List<String> pinnedNames,
                                   Random rng) {
-        int target = Math.min(wantCells, GRID * GRID);
+        int target = Math.min(wantCells, gw() * gh());
         int before = cellsOf(floor);
         if (before >= target && floor.rooms().size() >= minRooms) {
             return floor;
@@ -722,14 +781,14 @@ public final class SimFloorLayout {
                 return Integer.MAX_VALUE;
             }
             int free = 0;
-            for (int o : occupied) {
-                free += o < 0 ? 1 : 0;
+            for (int cell = 0; cell < occupied.length; cell++) {
+                free += occupied[cell] < 0 && insideCell(cell) ? 1 : 0;
             }
             return Math.max(1, free - (owed - 1));
         }
 
         private Placement at(int x, int z) {
-            if (x < 0 || z < 0 || x >= GRID || z >= GRID || occupied[z * GRID + x] < 0) {
+            if (!inside(x, z) || occupied[z * GRID + x] < 0) {
                 return null;
             }
             return rooms.get(occupied[z * GRID + x]);
@@ -738,7 +797,7 @@ public final class SimFloorLayout {
         /** Step 1, for the first empty cell that takes a room. */
         boolean strictOnce() {
             for (int cell = 0; cell < GRID * GRID; cell++) {
-                if (occupied[cell] >= 0) {
+                if (occupied[cell] >= 0 || !insideCell(cell)) {
                     continue;
                 }
                 int cx = cell % GRID;
@@ -775,7 +834,7 @@ public final class SimFloorLayout {
         /** @param puzzles whether a puzzle neighbour may be swapped out too - the last step, after the carve */
         boolean rewireOnce(boolean puzzles) {
             for (int cell = 0; cell < GRID * GRID; cell++) {
-                if (occupied[cell] >= 0) {
+                if (occupied[cell] >= 0 || !insideCell(cell)) {
                     continue;
                 }
                 int cx = cell % GRID;
@@ -859,7 +918,7 @@ public final class SimFloorLayout {
 
         boolean carveOnce(boolean checked) {
             for (int cell = 0; cell < GRID * GRID; cell++) {
-                if (occupied[cell] >= 0) {
+                if (occupied[cell] >= 0 || !insideCell(cell)) {
                     continue;
                 }
                 int cx = cell % GRID;
@@ -1143,7 +1202,7 @@ public final class SimFloorLayout {
         for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
             int nx = door[0] + RoomDoors.DX[door[2]];
             int nz = door[1] + RoomDoors.DZ[door[2]];
-            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID || occupied[nz * GRID + nx] < 0) {
+            if (!inside(nx, nz) || occupied[nz * GRID + nx] < 0) {
                 continue;
             }
             Placement nb = rooms.get(occupied[nz * GRID + nx]);
@@ -1181,7 +1240,7 @@ public final class SimFloorLayout {
         for (int[] door : RoomDoors.doorCells(m, ox, oz)) {
             int nx = door[0] + RoomDoors.DX[door[2]];
             int nz = door[1] + RoomDoors.DZ[door[2]];
-            boolean inGrid = nx >= 0 && nz >= 0 && nx < GRID && nz < GRID;
+            boolean inGrid = inside(nx, nz);
             Placement nb = inGrid && occupied[nz * GRID + nx] >= 0 ? rooms.get(occupied[nz * GRID + nx]) : null;
             // A puzzle being placed takes the first door it meets and no other; nothing links into a puzzle.
             boolean puzzleHasDoor = isOneDoor(c.type()) && depth != Integer.MAX_VALUE;
@@ -1378,8 +1437,8 @@ public final class SimFloorLayout {
             }
             int cellX = slot % GRID;
             int cellZ = slot / GRID;
-            if (slot < 0 || cellZ >= GRID) {
-                rejected.add(name + " - cell " + slot + " is not on the " + GRID + "x" + GRID + " grid");
+            if (slot < 0 || !inside(cellX, cellZ)) {
+                rejected.add(name + " - cell " + slot + " is not on the " + gw() + "x" + gh() + " grid");
                 continue;
             }
             if (!seen.add(name.toLowerCase(Locale.ROOT))) {
@@ -1397,7 +1456,7 @@ public final class SimFloorLayout {
             boolean fitsSomewhere = false;
             for (int r = 0; r < 4 && !fitsSomewhere; r++) {
                 RoomDoors.Mask m = c.byRotation()[r];
-                fitsSomewhere = cellX + m.tilesX() <= GRID && cellZ + m.tilesZ() <= GRID;
+                fitsSomewhere = cellX + m.tilesX() <= gw() && cellZ + m.tilesZ() <= gh();
             }
             if (!fitsSomewhere) {
                 rejected.add(name + " - its " + c.byRotation()[0].tilesX() + "x" + c.byRotation()[0].tilesZ()
@@ -1433,7 +1492,7 @@ public final class SimFloorLayout {
             rot[i] = -1;
             for (int r : order) {
                 RoomDoors.Mask m = p.candidate().byRotation()[r];
-                if (p.cellX() + m.tilesX() > GRID || p.cellZ() + m.tilesZ() > GRID
+                if (p.cellX() + m.tilesX() > gw() || p.cellZ() + m.tilesZ() > gh()
                         || !free(taken, p.cellX(), p.cellZ(), m.tilesX(), m.tilesZ())) {
                     continue;
                 }
@@ -1456,7 +1515,7 @@ public final class SimFloorLayout {
         for (int[] door : RoomDoors.doorCells(m, p.cellX(), p.cellZ())) {
             int nx = door[0] + RoomDoors.DX[door[2]];
             int nz = door[1] + RoomDoors.DZ[door[2]];
-            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+            if (!inside(nx, nz)) {
                 continue;
             }
             if (nx >= p.cellX() && nx < p.cellX() + m.tilesX()
@@ -1864,12 +1923,12 @@ public final class SimFloorLayout {
             while (true) {
                 entranceRotation = rng.nextInt(4);
                 em = entrance.byRotation()[entranceRotation];
-                ex = rng.nextBoolean() ? 0 : GRID - em.tilesX();
-                ez = rng.nextInt(Math.max(1, GRID - em.tilesZ() + 1));
+                ex = rng.nextBoolean() ? 0 : gw() - em.tilesX();
+                ez = rng.nextInt(Math.max(1, gh() - em.tilesZ() + 1));
                 if (rng.nextBoolean()) {
                     int swap = ex;
-                    ex = rng.nextInt(Math.max(1, GRID - em.tilesX() + 1));
-                    ez = swap == 0 ? 0 : GRID - em.tilesZ();
+                    ex = rng.nextInt(Math.max(1, gw() - em.tilesX() + 1));
+                    ez = swap == 0 ? 0 : gh() - em.tilesZ();
                 }
                 // With nothing pinned the edge is always free, so this is the one draw it always was and the
                 // random stream is unchanged. With pins it can land on one, and then it is re-drawn.
@@ -2055,7 +2114,7 @@ public final class SimFloorLayout {
                 Stub stub = stubs.get(si);
                 int tx = stub.cellX + RoomDoors.DX[stub.side];
                 int tz = stub.cellZ + RoomDoors.DZ[stub.side];
-                if (tx < 0 || tz < 0 || tx >= GRID || tz >= GRID || occupied[tz * GRID + tx] >= 0) {
+                if (!inside(tx, tz) || occupied[tz * GRID + tx] >= 0) {
                     stubs.remove(si);
                     continue;
                 }
@@ -2286,7 +2345,7 @@ public final class SimFloorLayout {
                 for (int[] door : RoomDoors.doorCells(m, p.originX(), p.originZ())) {
                     int nx = door[0] + RoomDoors.DX[door[2]];
                     int nz = door[1] + RoomDoors.DZ[door[2]];
-                    if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                    if (!inside(nx, nz)) {
                         continue;
                     }
                     int neighbour = occupied[nz * GRID + nx];
@@ -2379,7 +2438,7 @@ public final class SimFloorLayout {
         for (int[] door : RoomDoors.doorCells(mask, originX, originZ)) {
             int nx = door[0] + RoomDoors.DX[door[2]];
             int nz = door[1] + RoomDoors.DZ[door[2]];
-            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+            if (!inside(nx, nz)) {
                 continue;
             }
             int neighbour = occupied[nz * GRID + nx];
@@ -2525,7 +2584,7 @@ public final class SimFloorLayout {
             for (int[] door : RoomDoors.doorCells(from, fromOx, fromOz)) {
                 int tx = door[0] + RoomDoors.DX[door[2]];
                 int tz = door[1] + RoomDoors.DZ[door[2]];
-                if (tx < 0 || tz < 0 || tx >= GRID || tz >= GRID) {
+                if (!inside(tx, tz)) {
                     continue;
                 }
                 int need = (door[2] + 2) % 4;
@@ -2657,7 +2716,7 @@ public final class SimFloorLayout {
                 }
                 int nx = door[0] + RoomDoors.DX[door[2]];
                 int nz = door[1] + RoomDoors.DZ[door[2]];
-                if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                if (!inside(nx, nz)) {
                     continue;
                 }
                 if (nx >= ox && nx < ox + m.tilesX() && nz >= oz && nz < oz + m.tilesZ()) {
@@ -2926,7 +2985,7 @@ public final class SimFloorLayout {
             }
             int nx = door[0] + RoomDoors.DX[door[2]];
             int nz = door[1] + RoomDoors.DZ[door[2]];
-            if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+            if (!inside(nx, nz)) {
                 seal++;
             } else if (occupied[nz * GRID + nx] >= 0) {
                 if (hasStub(stubs, nx, nz, (door[2] + 2) % 4)) {
@@ -2985,7 +3044,7 @@ public final class SimFloorLayout {
             for (int s = 0; s < 4; s++) {
                 int nx = cx + RoomDoors.DX[s];
                 int nz = cz + RoomDoors.DZ[s];
-                if (nx < 0 || nz < 0 || nx >= GRID || nz >= GRID) {
+                if (!inside(nx, nz)) {
                     continue;
                 }
                 long nk = cellKey(nx, nz);
@@ -2999,7 +3058,7 @@ public final class SimFloorLayout {
                 for (int t = 0; t < 4 && !reachable; t++) {
                     int ox = nx + RoomDoors.DX[t];
                     int oz = nz + RoomDoors.DZ[t];
-                    if (ox < 0 || oz < 0 || ox >= GRID || oz >= GRID) {
+                    if (!inside(ox, oz)) {
                         continue;
                     }
                     long ok = cellKey(ox, oz);
@@ -3021,7 +3080,7 @@ public final class SimFloorLayout {
     }
 
     private static boolean fits(int[] occupied, int originX, int originZ, int w, int h) {
-        if (originX < 0 || originZ < 0 || originX + w > GRID || originZ + h > GRID) {
+        if (originX < 0 || originZ < 0 || originX + w > gw() || originZ + h > gh()) {
             return false;
         }
         for (int a = 0; a < w; a++) {
