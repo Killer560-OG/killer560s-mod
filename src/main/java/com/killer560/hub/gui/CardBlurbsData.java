@@ -171,7 +171,7 @@ final class CardBlurbsData {
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("SmoothTeleportTab", "Glides the camera.");
-        d.put("TrajectoriesTab", "Bow and pearl flight paths.");
+        d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
         d.put("ShortsTab", "Shorts in a window.");
         d.put("WaypointRoutesTab", "Ordered area waypoints.");
         d.put("WindowLayoutTab", "Tiles Minecraft windows.");

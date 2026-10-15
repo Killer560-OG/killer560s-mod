@@ -43,11 +43,18 @@ public class TrajectoriesTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Bows", cfg.isShowBows()));
                 }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Shortbows", cfg.isShowShortbows()), btn -> {
+                    cfg.setShowShortbows(!cfg.isShowShortbows());
+                    cfg.save();
+                    btn.setMessage(onOff("Shortbows", cfg.isShowShortbows()));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 26;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Ender Pearls", cfg.isShowPearls()), btn -> {
                     cfg.setShowPearls(!cfg.isShowPearls());
                     cfg.save();
                     btn.setMessage(onOff("Ender Pearls", cfg.isShowPearls()));
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(col2aX, y, col2W, 18).build());
         y += 26;
 
         double rangeNormalized = (cfg.getRange() - 5) / 115.0;
