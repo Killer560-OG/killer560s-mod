@@ -77,3 +77,7 @@ before the network call, so it reads the same offline) and `attempts()` counts t
 stands in for the relay's linked-supporter answer. The startup check (`tickStartupCheck`, first try 10 s in, retries
 30 s doubling to 15 min) reports `startupCheckState()`, and `onStartupMe(MeResult)` feeds it a made-up answer. `RemoteTrails.tracked()`, `lastDrawnTrails()`, `framesDrawn()`,
 `ribbonState(uuid)` and `squareCount(uuid)` say what other players' trails were kept and drawn (testkit 1036-1039).
+
+## Slot Text and Compactor Preview (`slottext/SlotTextFeature`, `compactorpreview/CompactorPreviewFeature`)
+
+No property. Both show only while their key is held in the key modes, and a harness key press never reaches the GLFW poll, so `keyHeldForTest` (static `Boolean`, null in play) on each feature stands in for the key. `SlotTextFeature.textFor(stack, menuTitle, slotIndex, playerSlot)` returns the text a slot would get under the live per-type switches; `CompactorPreviewFeature.contentsOf(stack)` and `augment(components, stack)` read a compactor's slots and add the grid (testkit 960-967).

@@ -22,7 +22,7 @@ Open the menu in game with `/killer560`: every feature is a card with its own on
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
-**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Custom Enchant Colors, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Storage Item Search, Storage Overlay
+**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Compactor Preview, Custom Enchant Colors, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Item Value Tooltip, Listing Helper, Loadout Keybinds, Pet Wheel, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Slot Text, Storage Item Search, Storage Overlay
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, GIF Player, Health and Mana Bars, No Fire, Object Hider, Pathfinding †, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
