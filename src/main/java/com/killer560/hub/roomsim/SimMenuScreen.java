@@ -156,6 +156,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     /** Switches page and remembers it. */
     private void showPage(Mode m) {
         mode = m;
+        detail = null;
         scroll = 0;
         capturing = 0;
         prefs.page = m.name();
@@ -244,10 +245,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             return true;
         }
         return super.keyPressed(event);
-    }
-
-    private void buildPrevious() {
-        listed = SimRunHistory.savedRuns();
     }
 
     private void buildRoomPicker() {
@@ -556,15 +553,19 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private int maxScroll() {
-        if (mode == Mode.ROOM) {
-            return Math.max(0, listed.size() * ROW_H - roomRowsHeight());
-        }
-        return Math.max(0, listed.size() * ROW_H - (panelY + panelH - 8 - contentY));
+        return Math.max(0, listed.size() * ROW_H - roomRowsHeight());
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        scroll = Math.max(0, Math.min(maxScroll(), scroll - (int) Math.round(scrollY * ROW_H * 2)));
+        int step = (int) Math.round(scrollY * ROW_H * 2);
+        if (mode == Mode.PREVIOUS && detail != null) {
+            detailScroll = Math.max(0, Math.min(detailMaxScroll(), detailScroll - step));
+        } else if (mode == Mode.PREVIOUS) {
+            scroll = Math.max(0, Math.min(runsMaxScroll(), scroll - step));
+        } else {
+            scroll = Math.max(0, Math.min(maxScroll(), scroll - step));
+        }
         return true;
     }
 
@@ -595,12 +596,12 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                 return true;
             }
         }
-        if (mode == Mode.PREVIOUS && !listed.isEmpty() && event.x() >= contentX && event.x() < contentX + contentW) {
-            double my = event.y();
-            int row = (int) ((my - contentY + scroll) / ROW_H);
-            if (my >= contentY && my < panelY + panelH - 8 && row >= 0 && row < listed.size()) {
-                SimRunHistory.load(this.minecraft, listed.get(row));
-                McCompat.setScreen(this.minecraft, null);
+        if (mode == Mode.PREVIOUS && detail == null && event.button() == 0) {
+            int i = runAt(event.x(), event.y());
+            if (i >= 0) {
+                detail = runs.get(i);
+                detailScroll = 0;
+                rebuildWidgets();
                 return true;
             }
         }
@@ -737,28 +738,250 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         };
     }
 
+    // ------------------------------------------------------------------------------------------- saved runs
+
+    /** The saved runs as listed, in the chosen order. */
+    private List<com.killer560.hub.runsummary.RunRecord> runs = List.of();
+    /** The run whose detail page is open, or null for the list. */
+    private com.killer560.hub.runsummary.RunRecord detail;
+    private int detailScroll;
+
+    private static final int THUMB_CELL = 4;
+    private static final int CARD_H = 56;
+    private static final int CARD_GAP = 6;
+
+    /**
+     * killer560 (2026-10-15): "this page should have a small pic of the dungeon map with the info and it can be sorted
+     * a different way to look better as well [...] i should click onto run then it shows more detail about said run."
+     * Cards: the map as a thumbnail beside floor, score, time, date, party and secrets; Sort (Newest, Oldest, Best Score,
+     * Fastest, Floor) and Floor beside each other above them. A card opens the run's own page; Load This Run is there.
+     */
+    private void buildPrevious() {
+        if (detail != null) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("< Runs"), b -> {
+                detail = null;
+                detailScroll = 0;
+                rebuildWidgets();
+            }).bounds(contentX, contentY, 60, 18).build());
+            com.killer560.hub.runsummary.RunRecord run = detail;
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load This Run"), b -> {
+                SimRunHistory.load(this.minecraft, run);
+                McCompat.setScreen(this.minecraft, null);
+            }).bounds(contentX + contentW - 100, contentY, 100, 18).primary().build());
+            return;
+        }
+        List<String> floors = SimRunHistory.floors();
+        if (!floors.contains(prefs.runFloor)) {
+            prefs.runFloor = "All";
+        }
+        runs = SimRunHistory.runs(prefs.runSort, prefs.runFloor);
+        int sw = this.font.width("Sort: Best Score") + 14;
+        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Sort: " + prefs.runSort.label), (b, dir) -> {
+            prefs.runSort = SettingsButtonWidget.step(prefs.runSort, dir);
+            prefs.save();
+            scroll = 0;
+            rebuildWidgets();
+        }).bounds(contentX, contentY, sw, 18).build());
+        int fw = this.font.width("Floor: M7 (Master)") + 14;
+        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Floor: " + prefs.runFloor), (b, dir) -> {
+            List<String> all = SimRunHistory.floors();
+            int i = Math.max(0, all.indexOf(prefs.runFloor));
+            prefs.runFloor = all.get(SettingsButtonWidget.step(i, dir, all.size()));
+            prefs.save();
+            scroll = 0;
+            rebuildWidgets();
+        }).bounds(contentX + sw + 4, contentY, fw, 18).build());
+    }
+
+    private int cardsTop() {
+        return contentY + 24;
+    }
+
+    private int cardsHeight() {
+        return panelY + panelH - 8 - cardsTop();
+    }
+
+    /** Two columns of cards when the page is wide enough for two readable ones. */
+    private int cardColumns() {
+        return contentW - 6 >= 2 * 300 + CARD_GAP ? 2 : 1;
+    }
+
+    private int cardWidth() {
+        int cols = cardColumns();
+        return (contentW - 6 - (cols - 1) * CARD_GAP) / cols;
+    }
+
+    /** {x, y, w, h} of run card {@code i} as drawn now (it may be scrolled out of view). For the testkit too. */
+    public int[] runCardBounds(int i) {
+        int cols = cardColumns();
+        int w = cardWidth();
+        return new int[]{contentX + (i % cols) * (w + CARD_GAP), cardsTop() + (i / cols) * (CARD_H + CARD_GAP) - scroll,
+                w, CARD_H};
+    }
+
+    /** {x, y, w, h} of card {@code i}'s map thumbnail (the grid itself, inside its 1-unit backdrop). */
+    public int[] runThumbBounds(int i) {
+        int[] c = runCardBounds(i);
+        return new int[]{c[0] + 6, c[1] + 6, com.killer560.hub.runsummary.RunMapPainter.size(THUMB_CELL),
+                com.killer560.hub.runsummary.RunMapPainter.size(THUMB_CELL)};
+    }
+
+    /** The runs as listed, in order. For the testkit. */
+    public List<com.killer560.hub.runsummary.RunRecord> listedRuns() {
+        return List.copyOf(runs);
+    }
+
+    /** The run whose page is open, or null. For the testkit. */
+    public com.killer560.hub.runsummary.RunRecord detailRun() {
+        return detail;
+    }
+
+    /** The open run page's text, § codes included. For the testkit. */
+    public List<String> detailLines() {
+        return detail == null ? List.of() : com.killer560.hub.runsummary.RunDetails.lines(detail);
+    }
+
+    private int runAt(double mx, double my) {
+        if (my < cardsTop() || my >= cardsTop() + cardsHeight()) {
+            return -1;
+        }
+        for (int i = 0; i < runs.size(); i++) {
+            int[] c = runCardBounds(i);
+            if (mx >= c[0] && mx < c[0] + c[2] && my >= c[1] && my < c[1] + c[3]) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private int runsMaxScroll() {
+        int rows = (runs.size() + cardColumns() - 1) / cardColumns();
+        return Math.max(0, rows * (CARD_H + CARD_GAP) - CARD_GAP - cardsHeight());
+    }
+
     private void drawRunList(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-        int top = contentY;
-        int h = panelY + panelH - 8 - top;
-        ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
+        if (detail != null) {
+            drawRunDetail(g);
+            return;
+        }
+        int top = cardsTop();
+        int h = cardsHeight();
+        String count = runs.size() + (runs.size() == 1 ? " run" : " runs");
+        MenuStyle.text(g, count, contentX + contentW - this.font.width(count), contentY + 5, MenuStyle.DIM);
+        if (runs.isEmpty()) {
+            ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
+            String none = SimRunHistory.runs().isEmpty()
+                    ? "No saved runs yet - runs with a map are saved by Run Summary"
+                    : "No runs on " + prefs.runFloor;
+            ScreenChrome.text(g, this.font.plainSubstrByWidth(none, contentW - 16), contentX + 8, top + 6, MenuStyle.DIM);
+            return;
+        }
+        int hovered = runAt(mouseX, mouseY);
         g.enableScissor(contentX, top, contentX + contentW, top + h);
         try {
-            if (listed.isEmpty()) {
-                ScreenChrome.text(g, "No saved runs yet", contentX + 8, top + 6, MenuStyle.DIM);
-            }
-            for (int i = 0; i < listed.size(); i++) {
-                int rowY = top + i * ROW_H - scroll;
-                if (rowY > top + h) {
-                    break;
+            GuiRects r = GuiRects.begin(g);
+            for (int i = 0; i < runs.size(); i++) {
+                int[] c = runCardBounds(i);
+                if (c[1] > top + h || c[1] + c[3] < top) {
+                    continue;
                 }
-                boolean hover = mouseX >= contentX && mouseX < contentX + contentW && mouseY >= Math.max(top, rowY)
-                        && mouseY < Math.min(top + h, rowY + ROW_H);
-                ScreenChrome.row(g, contentX, rowY, contentW, ROW_H, hover, false, i % 2 == 1);
-                MenuStyle.text(g, this.font.plainSubstrByWidth(listed.get(i), contentW - 16), contentX + 8, rowY + 3,
-                        hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+                ScreenChrome.card(r, c[0], c[1], c[2], c[3], i == hovered);
+            }
+            r.submit();
+            for (int i = 0; i < runs.size(); i++) {
+                int[] c = runCardBounds(i);
+                if (c[1] > top + h || c[1] + c[3] < top) {
+                    continue;
+                }
+                drawRunCard(g, runs.get(i), c, i == hovered);
             }
         } finally {
             g.disableScissor();
+        }
+        if (runsMaxScroll() > 0) {
+            ScreenChrome.scrollbar(g, contentX + contentW - 5, top, h, scroll, runsMaxScroll(), h);
+        }
+    }
+
+    private void drawRunCard(GuiGraphicsExtractor g, com.killer560.hub.runsummary.RunRecord run, int[] c, boolean hover) {
+        int[] thumb = {c[0] + 6, c[1] + 6};
+        com.killer560.hub.runsummary.RunMapPainter.draw(g, run.map(), thumb[0], thumb[1], THUMB_CELL, 1);
+        int tx = thumb[0] + com.killer560.hub.runsummary.RunMapPainter.size(THUMB_CELL) + 9;
+        int tw = c[0] + c[2] - 6 - tx;
+        String score = run.effectiveScore() >= 0 ? String.valueOf(run.effectiveScore()) : "-";
+        String rank = run.effectiveRank() == null ? "" : " §7(" + run.effectiveRank() + ")";
+        String time = run.hypixelTime() != null ? run.hypixelTime()
+                : com.killer560.hub.runsummary.RunRecord.formatTime(run.totalMs());
+        String best = run.bestTime() || run.bestScore() ? " §a*PB*" : "";
+        List<String> lines = new ArrayList<>();
+        lines.add("§6" + run.floorLabel() + "  §fscore §6" + score + rank + "  §f" + time + best);
+        lines.add("§7" + run.dateText() + "  §8|  §7" + run.map().rooms().size() + " rooms");
+        List<String> names = new ArrayList<>();
+        for (com.killer560.hub.runsummary.RunRecord.PartyMember m : run.party()) {
+            names.add(com.killer560.hub.runsummary.RunSummaryFeature.currentIgn(m));
+        }
+        lines.add(names.isEmpty() ? "§7Party: -" : "§7Party: §f" + String.join(", ", names));
+        String secrets = run.secretsFound() >= 0
+                ? run.secretsFound() + (run.totalSecrets() > 0 ? "/" + run.totalSecrets() : "") : "-";
+        lines.add("§f" + secrets + " §7secrets  §f" + (run.crypts() >= 0 ? run.crypts() : "-") + " §7crypts  §f"
+                + (run.deaths() >= 0 ? run.deaths() : "-") + " §7deaths");
+        int y = c[1] + 6;
+        for (String line : lines) {
+            MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(line, tw)), tx, y,
+                    hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+            y += 11;
+        }
+    }
+
+    /** The run page: the map large on the left, everything the run recorded beside it, scrolling. */
+    private int detailMapCell() {
+        int areaH = panelY + panelH - 8 - cardsTop() - 16;
+        int byWidth = (int) (contentW * 0.4) / RunRecordGrid.GRID;
+        return Math.max(6, Math.min(14, Math.min(byWidth, areaH / RunRecordGrid.GRID)));
+    }
+
+    /** The 11 of the run map's 11x11, without importing the record into every line above. */
+    private static final class RunRecordGrid {
+        static final int GRID = com.killer560.hub.runsummary.RunRecord.MapSnapshot.GRID;
+    }
+
+    private int detailTextX() {
+        return contentX + 6 + RunRecordGrid.GRID * detailMapCell() + 12;
+    }
+
+    private int detailMaxScroll() {
+        int lines = detailLines().size();
+        return Math.max(0, lines * 10 + 8 - cardsHeight());
+    }
+
+    private void drawRunDetail(GuiGraphicsExtractor g) {
+        int top = cardsTop();
+        int h = cardsHeight();
+        ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
+        int cell = detailMapCell();
+        com.killer560.hub.runsummary.RunMapPainter.draw(g, detail.map(), contentX + 6, top + 6, cell, 2);
+        MenuStyle.text(g, detail.map().rooms().size() + " rooms", contentX + 6,
+                top + 6 + RunRecordGrid.GRID * cell + 5, MenuStyle.DIM);
+        int tx = detailTextX();
+        int tw = contentX + contentW - 8 - tx;
+        g.enableScissor(tx, top, contentX + contentW, top + h);
+        try {
+            int y = top + 6 - detailScroll;
+            for (String line : detailLines()) {
+                if (y > top + h) {
+                    break;
+                }
+                if (!line.isEmpty() && y + 10 >= top) {
+                    MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(line, tw)), tx, y,
+                            MenuStyle.TXT);
+                }
+                y += 10;
+            }
+        } finally {
+            g.disableScissor();
+        }
+        if (detailMaxScroll() > 0) {
+            ScreenChrome.scrollbar(g, contentX + contentW - 5, top, h, detailScroll, detailMaxScroll(), h);
         }
     }
 
