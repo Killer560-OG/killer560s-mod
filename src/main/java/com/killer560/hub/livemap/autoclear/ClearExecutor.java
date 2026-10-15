@@ -638,11 +638,6 @@ public final class ClearExecutor {
         externalOwner = value;
     }
 
-    /** What a hop that returned false is waiting for (the stall message names it). */
-    static void setWaitReason(String reason) {
-        waitReason = reason;
-    }
-
     public static void queueInteract(float yaw, float pitch) {
         pendingInteract = new float[]{yaw, pitch};
     }
@@ -1145,11 +1140,19 @@ public final class ClearExecutor {
 
     private static void doInteract(Minecraft client) {
         float[] interact = pendingInteract;
-        pendingInteract = null;
         if (interact == null || client.player == null || client.level == null || client.gameMode == null) {
+            pendingInteract = null;
             return;
         }
         LocalPlayer player = client.player;
+        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap): the hop stays
+        // queued, canNext lets no further one be queued behind it, and it goes on the first tick the gap has passed. Checked
+        // here, where the packet is sent, so a click made between the hop being worked out and being sent is seen too.
+        if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[Path] Warp")) {
+            waitReason = "a block click with the same item a moment ago";
+            return;
+        }
+        pendingInteract = null;
         // Never a hop from inside a trap room (killer560, 2026-10-06: "it shouldn't be able to etherwarp in trap - just
         // to enter it"): a path may land him in one, but the next hop does not go out from there.
         DungeonLayout layout = DungeonLayout.current();
@@ -1206,6 +1209,9 @@ public final class ClearExecutor {
     private static boolean canNext() {
         if (syncDelay != 0 || globalDelay > 0 || nodes == null || nodes.isEmpty()) {
             return false;
+        }
+        if (pendingInteract != null) {
+            return false;   // a hop is still waiting to be sent (util/BlockClickGap): never queue another behind it
         }
         if (compDelay == 0) {
             active = false;
