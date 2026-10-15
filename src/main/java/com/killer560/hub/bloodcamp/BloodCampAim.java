@@ -108,6 +108,7 @@ final class BloodCampAim {
     private float prevTickPitch = Float.NaN;
     private long pickedAtTick;
     private boolean wroteThisApproach;
+    private boolean fromIdle;
 
     /** Every client tick (START), whatever the aura is doing. {@code point} null = nothing to aim at. */
     void tick(Minecraft client, Object newKey, Vec3 newPoint, boolean freecamMode) {
@@ -192,6 +193,7 @@ final class BloodCampAim {
             planned = false;
             reactionEnd = ticks + (straightOn ? 1 + r.nextInt(3) : 3 + r.nextInt(4));
             pickedAtTick = ticks;
+            fromIdle = !straightOn;
             wroteThisApproach = false;
         } else if (planned && now(client) >= t2) {
             float[] tgt = angles(player.getEyePosition(), point);
@@ -200,6 +202,7 @@ final class BloodCampAim {
                 planned = false;
                 reactionEnd = ticks + 1 + ThreadLocalRandom.current().nextInt(2);
                 pickedAtTick = ticks;
+                fromIdle = false;
                 wroteThisApproach = false;
             }
         }
@@ -416,8 +419,8 @@ final class BloodCampAim {
         tremorAmp = 0.06f + 0.1f * r.nextFloat();
         planned = true;
         approaches++;
-        if (!quick) {
-            lastReactionTicks = (int) (ticks - pickedAtTick);
+        if (!quick && fromIdle) {
+            lastReactionTicks = (int) (ticks - pickedAtTick); // a turn started from rest (the testkit reads it)
         }
     }
 
