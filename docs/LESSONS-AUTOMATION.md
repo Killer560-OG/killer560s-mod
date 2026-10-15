@@ -186,3 +186,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   "holding the use - a block click"), the sim drops a same-item use within 2 server ticks of one, and the testkit's
   `HypixelUseAfterClick` forces that on any jar (96-ar-1015-warpclick). If a held warp still gets no landing on Hypixel,
   the window is longer than 4 ticks - raise `BlockClickGap.MIN_TICKS`.
+  **Every item-use sender asks `BlockClickGap.holdUse(item, "[Feature] what")` first** (one helper, one log line; true = send
+  nothing and advance nothing): Auto Routes warp / use node / Kill Mimic, `ClearExecutor.doInteract` (every Interactive Map hop,
+  so Auto Clear, Auto Secret, Autopilot, Blood Rush, puzzle trips), `AutoPuzzleUtil.useItemRotated`, AP3's plain use, Fast Leap,
+  the pearl hopper, Mask Swapper's rod, Auto I4, the Goldor Triggerbot. Held-key uses (a crypt node's held right click) are not
+  asked - that is vanilla's startUseItem clicking the block under the crosshair. Three traps found doing it (1015-sim-clickgap):
+  (1) the click is fed from the OUTGOING `ServerboundUseItemOnPacket` (`BlockClickGapSendMixin`), not from RETURN of
+  `useItemOn`: in the sim Fabric's UseBlockCallback answers SUCCESS at the head for an ability item and RETURN never runs, so a
+  plain AOTV block click was invisible. (2) A map hop is planned from a landing 1.05 up and he rests 0.05 lower after a few
+  ticks, so a held hop is aimed again from where he stands (`getEtherwarpDirection`), and replans quietly when no ray is left;
+  unheld hops go a tick after the landing and never saw it. (3) `updateDelays` let go of the forced sneak 2 ticks after the
+  last hop was queued, so a last hop held longer left as an Instant Transmission 24 blocks off - it now waits for
+  `pendingInteract`. Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim itself.
