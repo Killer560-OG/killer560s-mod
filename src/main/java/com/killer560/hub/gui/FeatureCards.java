@@ -54,9 +54,24 @@ public final class FeatureCards {
         }
     }
 
+    /** The tab's switch (one master row, or several independent ones: {@link MasterSwitch}), freshly built, or null. */
+    public static MasterSwitch masterSwitch(BaseTab tab, Runnable requestRebuild) {
+        List<AbstractWidget> built;
+        try {
+            built = tab.buildWidgets(0, 0, BUILD_WIDTH, requestRebuild == null ? () -> { } : requestRebuild);
+        } catch (RuntimeException e) {
+            return null;
+        }
+        try {
+            return MasterSwitch.of(tab.masterToggles(built));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** Re-reads the tab's master state; returns it (null = no master). */
     public static Boolean refresh(BaseTab tab) {
-        SettingsButtonWidget m = master(tab, null);
+        MasterSwitch m = masterSwitch(tab, null);
         HAS_MASTER.put(tab, m != null);
         if (m == null) {
             STATE.remove(tab);
@@ -82,7 +97,7 @@ public final class FeatureCards {
 
     /** Presses the tab's master toggle (the same onPress a click on it in the tab runs), then re-reads the state. */
     public static Boolean toggle(BaseTab tab, Runnable requestRebuild) {
-        SettingsButtonWidget m = master(tab, requestRebuild);
+        MasterSwitch m = masterSwitch(tab, requestRebuild);
         if (m == null) {
             return null;
         }

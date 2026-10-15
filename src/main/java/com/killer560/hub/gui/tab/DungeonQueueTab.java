@@ -31,6 +31,22 @@ public class DungeonQueueTab extends BaseTab {
         super("Dungeon Queue");
     }
 
+    /** Auto Requeue and Party Finder Overlay are two features with a switch each, not one feature with sub-settings: the
+     *  card is ON while either is, OFF only when both are (killer560, 2026-10-14). */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        List<SettingsButtonWidget> out = new ArrayList<>();
+        SettingsButtonWidget requeue = switchRow(built, "Auto Requeue");
+        SettingsButtonWidget overlay = switchRow(built, "Party Finder Overlay");
+        if (requeue != null) {
+            out.add(requeue);
+        }
+        if (overlay != null) {
+            out.add(overlay);
+        }
+        return out;
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

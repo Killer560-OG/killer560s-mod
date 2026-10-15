@@ -16,8 +16,8 @@ import java.util.Map;
  * ({@link #legacyCategory}), because the setting tooltips scoped by category ("dungeon/mode", "hud elements/scale",
  * "helpers/mode") are keyed by those names - so no tooltip changes or goes missing with the regroup.
  *
- * <p>Inside a category every legit section comes first and every cheat-only one after it, in the order the old folders
- * listed them (the menu placement rule): the menu draws the cheat block under one red "Cheat" header.
+ * <p>Inside a category every legit section comes first and every cheat-only one after it (the menu placement rule: the
+ * menu draws the cheat block under one red "Cheat" header), each run alphabetical by display name - see {@link #cheatLast}.
  */
 public final class MenuCategories {
 
@@ -59,7 +59,7 @@ public final class MenuCategories {
 
         List<BaseTab> dungeons = take(pool, dungeon.subTabs());
         List<BaseTab> hudList = new ArrayList<>();
-        // The HUD order puts what most people open first (the mockup's order), then the rest of the old folder.
+        // Gather the HUD tabs; the order they are shown in is the alphabetical one cheatLast gives every category.
         for (Class<?> c : List.of(HealthAndManaBarsTab.class, CustomScoreboardTab.class, StorageOverlayTab.class,
                 AbilityCooldownTab.class, QuiverDisplayTab.class, SpringBootsTab.class, LagDisplayTab.class,
                 PositionTab.class, RealTimeTab.class, CrosshairTab.class, HidePlayersTab.class, ObjectHiderTab.class,
@@ -155,17 +155,40 @@ public final class MenuCategories {
         return out;
     }
 
-    /** Every legit section, then every cheat-only one, each in its own order. */
+    /**
+     * The one ordering rule (killer560, 2026-10-14: "sort them alphabetically or something of your choosing"): inside a
+     * category every legit tab comes first, then every cheat-only one, and each of those two runs is alphabetical by the
+     * tab's display name, ignoring case. The Secrets and Puzzle Solvers groups are placed by their own names like any
+     * tab and sort their own sections the same way; the one exception is Solver Highlights, the shared setting of every
+     * puzzle solver, which stays the first section of Puzzle Solvers.
+     */
     static List<BaseTab> cheatLast(List<BaseTab> in) {
-        List<BaseTab> out = new ArrayList<>();
+        List<BaseTab> legit = new ArrayList<>();
+        List<BaseTab> cheat = new ArrayList<>();
         for (BaseTab t : in) {
-            if (!t.isCheatOnly()) {
-                out.add(t);
+            if (t instanceof FolderTab f && !(t instanceof CategoryTab)) {
+                f.replaceSubTabs(cheatLastGroup(f.subTabs()));
             }
+            (t.isCheatOnly() ? cheat : legit).add(t);
         }
-        for (BaseTab t : in) {
-            if (t.isCheatOnly()) {
-                out.add(t);
+        legit.sort(BY_NAME);
+        cheat.sort(BY_NAME);
+        legit.addAll(cheat);
+        return legit;
+    }
+
+    private static final java.util.Comparator<BaseTab> BY_NAME =
+            java.util.Comparator.comparing((BaseTab t) -> t.name.toLowerCase(java.util.Locale.ROOT))
+                    .thenComparing(t -> t.name);
+
+    /** A group's sections: alphabetical, Solver Highlights first. */
+    private static List<BaseTab> cheatLastGroup(List<BaseTab> in) {
+        List<BaseTab> out = new ArrayList<>(in);
+        out.sort(BY_NAME);
+        for (int i = 0; i < out.size(); i++) {
+            if (out.get(i) instanceof SolverHighlightsTab) {
+                out.add(0, out.remove(i));
+                break;
             }
         }
         return out;
