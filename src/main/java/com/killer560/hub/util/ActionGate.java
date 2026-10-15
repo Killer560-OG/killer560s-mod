@@ -438,8 +438,17 @@ public final class ActionGate {
      * middle of a puzzle still settles every other actor, and still settles this one once the window lapses.
      */
     public static void expectSelfTeleport(Actor actor) {
+        expectSelfTeleport(actor, 3);
+    }
+
+    /**
+     * {@link #expectSelfTeleport(Actor)} for {@code ticks} ticks from now. Auto Water calls it again on the LANDING with
+     * the whole {@link #TELEPORT_SETTLE_TICKS}: on Hypixel a warp lands a round trip after its use, often past the 3-tick
+     * window taken at the use, and the settle the landing starts then held his next lever up to 6 ticks past its time.
+     */
+    public static void expectSelfTeleport(Actor actor, int ticks) {
         selfTeleportActor = actor;
-        selfTeleportUntilTick = tick + 3;
+        selfTeleportUntilTick = tick + Math.max(0, ticks);
     }
 
     // ---- the gate ----

@@ -38,9 +38,41 @@ final class AutoReposition {
     /** The last "not started" reason logged, so a per-tick refusal is one line, not twenty a second. */
     private String lastRefusal;
 
+    /**
+     * No fixed waits (Auto Water, killer560 2026-10-15: "it flicks the levers very late"): the tick a warp is started the
+     * sneak goes down AND the body turns to the warp's look, so that tick's own input and movement packets tell the server
+     * both, and the use goes the very next tick - the least a server needs to hear a sneak before a use, and the look
+     * before a use that follows a block click ({@code util/RightClick}). Arrival lets go of sneak and ends the warp in the
+     * same tick; the caller's own "not while sneaking" check covers the one tick the release takes to be heard.
+     * The default (QUOI's sequence) is +2 ticks after the sneak, a turn-first tick, and 2 ticks after the landing.
+     */
+    private final boolean nextTick;
+    /** Aim taken at {@link #start} in {@link #nextTick} mode, from {@link #aimFrom}: used for the use if he has not moved. */
+    private float[] startAim;
+    private net.minecraft.world.phys.Vec3 aimFrom;
+    /** Client tick the use went out, and how many ticks the last warp took from the use to the client seeing him land. */
+    private long useTick = -1;
+    private int lastTravelTicks = -1;
+
     AutoReposition(String tag, FreeCam camera) {
+        this(tag, camera, false);
+    }
+
+    AutoReposition(String tag, FreeCam camera, boolean nextTick) {
         this.tag = tag;
         this.camera = camera;
+        this.nextTick = nextTick;
+    }
+
+    /** Ticks the last warp took from its use packet to the client seeing the landing (-1 before the first): the server
+     *  round trip plus its tick, measured, for a caller that must plan a warp ahead of a deadline. */
+    int lastTravelTicks() {
+        return lastTravelTicks;
+    }
+
+    /** True from the tick a use went out until the landing (or the warp's end). */
+    boolean inFlight() {
+        return stage == Stage.AWAIT_ARRIVE;
     }
 
     boolean isActive() {
@@ -74,6 +106,29 @@ final class AutoReposition {
         bow = bowAfter;
         awaitStand = awaitStandStill;
         swapOk = AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
+        startAim = null;
+        if (nextTick && !awaitStand) {
+            float[] dir = AutoPuzzleUtil.etherwarpAim(client.level, player, target);
+            if (dir != null) {
+                // The turn goes now, with the sneak: this tick's movement packet carries the warp's look, so the use next
+                // tick is not taken as the tail of a block click just made (util/RightClick) and needs no turn tick.
+                camera.engage(player);
+                AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
+                startAim = dir;
+                aimFrom = player.position();
+            }
+            client.options.keyShift.setDown(true);
+            if (!sneakHeldByUs && player.isShiftKeyDown()) {
+                stage = Stage.USE; // already sneaking (his own key): only the look has to be heard first
+            } else {
+                sneakHeldByUs = true;
+                stage = Stage.SNEAK_DELAY;
+            }
+            wait = 1;
+            LOGGER.info("[AutoPuzzles] {}: repositioning onto {} (swap to AOTV {}; sneak and look now, the use next tick)",
+                    tag, AutoPuzzleUtil.fmt(target), swapOk ? "ok" : "pending");
+            return true; // nothing more this tick: the use goes once both are heard
+        }
         if (!client.options.keyShift.isDown()) {
             client.options.keyShift.setDown(true);
             sneakHeldByUs = true;
@@ -100,6 +155,9 @@ final class AutoReposition {
                 client.options.keyShift.setDown(true);
                 if (--wait <= 0) {
                     stage = awaitStand ? Stage.AWAIT_STAND : Stage.USE;
+                    if (nextTick) {
+                        tick(client); // the sneak was heard last tick: the use goes now, not a tick later
+                    }
                 }
             }
             case AWAIT_STAND -> {
@@ -112,7 +170,8 @@ final class AutoReposition {
                 if (!swapOk) {
                     swapOk = AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
                 }
-                float[] dir = AutoPuzzleUtil.etherwarpAim(client.level, player, spot);
+                float[] dir = startAim != null && aimFrom != null && player.position().distanceToSqr(aimFrom) < 1.0e-6
+                        ? startAim : AutoPuzzleUtil.etherwarpAim(client.level, player, spot);
                 if (!swapOk || dir == null || !AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
                     LOGGER.info("[AutoPuzzles] {}: reposition canceled (swapOk={} dir={} held={})", tag, swapOk,
                             dir != null, AutoPuzzleUtil.skyblockId(player.getMainHandItem()));
@@ -130,12 +189,23 @@ final class AutoReposition {
                 // Our own warp - waive the gate's teleport stand-down so the arrival step isn't held off too.
                 com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
                 wait = ARRIVE_TIMEOUT_TICKS;
+                useTick = com.killer560.hub.util.ActionGate.currentTick();
                 warpLag = com.killer560.hub.util.ServerLag.mark();
                 stage = Stage.AWAIT_ARRIVE;
             }
             case AWAIT_ARRIVE -> {
                 if (AutoPuzzleUtil.at(player, spot)) {
-                    LOGGER.info("[AutoPuzzles] {}: arrived on {}", tag, AutoPuzzleUtil.fmt(spot));
+                    lastTravelTicks = (int) Math.max(0, com.killer560.hub.util.ActionGate.currentTick() - useTick);
+                    LOGGER.info("[AutoPuzzles] {}: arrived on {} ({} tick(s) after the use)", tag,
+                            AutoPuzzleUtil.fmt(spot), lastTravelTicks);
+                    if (nextTick && !bow) {
+                        // The landing is our own: the gate's teleport settle must not hold the next click for 6 ticks.
+                        com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD,
+                                com.killer560.hub.util.ActionGate.TELEPORT_SETTLE_TICKS);
+                        releaseSneak(client); // heard in this tick's input packet; the caller waits out isShiftKeyDown
+                        stage = Stage.IDLE;
+                        return;
+                    }
                     stage = bow ? Stage.AFTER_BOW : Stage.RELEASE_DELAY;
                     wait = 2;
                     if (!bow) {

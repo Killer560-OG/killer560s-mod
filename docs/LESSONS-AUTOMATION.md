@@ -299,3 +299,16 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   the sim. Two things the settle had hidden: he is still 0.05 above the block on that tick, so a planned-ahead first warp
   is aimed again from where he is (a look planned from the block's height missed: "Failed from ..."), and `canPath`'s
   on-ground rule held the next trip a tick or two (`canPath(layout, true)` accepts that settling). And the map's body turn must be handed back before the route turns the body for its first action that same tick: left to `ClearExecutor`'s own tick, later in START, it undid the route's turn and the warp drew GrimAC BadPacketsJ (62-argrim-imwarp-run).
+- **`TurnFirst` reads an auto's OWN free camera as somebody else turning him, and waits 10 ticks.** Its `settle` holds a
+  turn for up to `FOREIGN_WAIT` (10) ticks whenever `ViewFreeze` is held and it did not turn him itself, and an auto
+  puzzle's `FreeCam` holds the view for its whole run. So every Auto Water click whose lever the reported look did not
+  already meet went 11 ticks after it was due (his Hypixel run 2026-10-15 16:11:52/54, "11 tick(s) late"; the sim, testkit
+  93-solve-waterboard-timing, main 12 ticks after the solver's CLICK ME, the branch 1). Auto Water now turns its own body
+  onto the next lever as soon as he stands where it is in reach, so the click needs no turn. Any other caller of
+  `gateWorldClick(client, pos)` that holds a `FreeCam` (Tic Tac Toe, RewardChest) can hit the same wait.
+- **"Click, then warp" costs one tick, not seven.** Auto Water's warp after a lever went 7 ticks late: a 200 ms gate, QUOI's
+  2-tick sneak wait, and `RightClick.mustTurnFirst`'s turn tick (the heard look still met the lever). `AutoReposition` in
+  next-tick mode puts the sneak down AND turns the body in the tick it starts (that tick's input and movement packets carry
+  both, after the click), and the use goes the next tick; on the landing it ends at once, re-waiving the gate's teleport
+  settle (a Hypixel landing comes a round trip after the use, past the 3-tick waiver taken then). Clean on GrimAC
+  (1015-grim-water-clickwarp: click, turn and sneak the same tick, use the next).
