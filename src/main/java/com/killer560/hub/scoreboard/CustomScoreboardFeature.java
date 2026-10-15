@@ -825,11 +825,11 @@ public final class CustomScoreboardFeature {
             if (line.isBlank()) {
                 continue;
             }
-            int lw = lineWidth(font, line, now);
+            // Only a centered or right-aligned line needs its own width (a font measure per line per frame otherwise).
             int lx = switch (line.align()) {
                 case LEFT -> textX;
-                case CENTER -> textX + (contentW - lw) / 2;
-                case RIGHT -> textX + contentW - lw;
+                case CENTER -> textX + (contentW - lineWidth(font, line, now)) / 2;
+                case RIGHT -> textX + contentW - lineWidth(font, line, now);
             };
             int ly = y + b + pad + i * lineStep;
             g.text(font, line.text(), lx, ly, 0xFFFFFFFF, cfg.isTextShadow());
