@@ -77,7 +77,9 @@ public final class DungeonAlertsFeature {
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
-        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !com.killer560.hub.util.SkyblockGate.allows()) {
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !com.killer560.hub.util.SkyblockGate.allows()
+                || !element.isEnabledInSettings()) {
+            // Off: its render draws nothing, so do not resolve its position and pose every frame either (95-perf, 2026-10-15).
             return;
         }
         // Position/scale come from HudConfig by id, so this works even before the element is in the editor list.
