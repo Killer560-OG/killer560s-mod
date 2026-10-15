@@ -28,14 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>"Doorway" is not the same as "air". A wither door is a slab of coal blocks and a blood door is red
  * terracotta, and both are doorways that happen to be shut; the first version of this checked for air alone and
- * decided Spikes, Staircase and Arrow Trap had no doors at all. The y is searched rather than assumed for the
- * same class of reason - not every room's floor sits at the same height, and a fixed y found Blood's walls
- * halfway up a pit.
+ * decided Spikes, Staircase and Arrow Trap had no doors at all.
  *
- * <p>Verified against his 135 captured rooms: 133 of them come out with between one and six doorways, the
- * one-door set is exactly the puzzles and the given rooms (Boulder, Ice Fill, Ice Path, Quiz, Entrance, Fairy
- * and the like), and the two that report none are Blood and Higher Blaze, whose entrances are not cut through a
- * perimeter wall at floor height. Those two are handled by the caller rather than forced into this shape.
+ * <p>The height is NOT searched (since 2026-10-15): a doorway is the window at {@link #DOOR_FLOOR_Y}, framed by wall,
+ * because that is where every Hypixel doorway is and where every one of the 277 in the shipped captures measures. The
+ * search it replaced (any opening from y64 to y86) found three openings that are not doors and the open edges of the
+ * L rooms' empty quarters - see the two constants.
  */
 public final class RoomDoors {
 
@@ -66,9 +64,30 @@ public final class RoomDoors {
     private static final int DOOR_HEIGHT = 4;
     private static final int DOOR_MIN_MATCH = 11;
 
-    /** The y range a doorway's floor can sit at. Wider than any room needs, and cheap - it is one column. */
-    private static final int SEARCH_MIN_Y = 64;
-    private static final int SEARCH_MAX_Y = 86;
+    /**
+     * The floor of every Catacombs doorway, in capture (Hypixel) coordinates: the opening is y 69..72.
+     *
+     * <p>Hypixel's doors sit at one fixed height on the 32-block grid (DungeonLayout's door scan, the wither and blood
+     * doors, every connector), and the captures agree exactly: swept 2026-10-15 over the 135 shipped captures, all 277
+     * perimeter doorways measure at this floor and no other, each with wall on both sides of the opening and a lintel
+     * over it. What used to be searched (any 3x4 opening from y64 to y86) also matched three openings that are not
+     * doors - Entrance's west wall above its back staircase (y76 up, open to the sky), Mage's north wall on its second
+     * tile (y72..87, which is a tile of ALTAR in that capture: its centre column hashes to Altar's core in the room
+     * database), and a 5x4 red terracotta panel in Quad Lava's east wall at y77..80 (red terracotta reads as a shut blood
+     * door). The layout linked rooms through the last two, and the carve at the doorway floor then cut into the solid
+     * wall below the opening (testkit 1441-sim-door-height).
+     * {@link SimDoors#carveDoorway} cuts here; {@link #carvable} asks for floor here.
+     */
+    public static final int DOOR_FLOOR_Y = 69;
+
+    /**
+     * Of the eleven blocks framing an opening (two columns of four either side, three over it), how many must be wall.
+     * Every real doorway has all eleven; an edge of an L room's missing quarter, which is open air from top to bottom,
+     * has none - twenty of those were being read as doorways, two in each of the L rooms Altar, Chambers, Dino Site, Lava
+     * Ravine, Layers, Melon, Pirate, Spider, Well and Withermancer (generated floors leave L rooms out; a drawn or
+     * pinned one could be linked through its empty quarter).
+     */
+    private static final int DOOR_MIN_FRAME = 8;
 
     /** Highest tile index a side can hold, which bounds the packed edge key below. */
     private static final int MAX_TILES = 8;
@@ -127,9 +146,11 @@ public final class RoomDoors {
         if (fresh.edges().isEmpty()) {
             // ONE door, on one side, which the layout's rotation is free to point anywhere.
             //
-            // Blood and Higher Blaze are the only two rooms this cannot measure: their captured perimeters are
+            // Blood and Higher Blaze were the two rooms this could not measure: their captured perimeters were
             // solid stone at every height from 60 to 140, checked column by column, so whatever way in they
-            // have was not cut through the wall the capture took in. killer560 (2026-09-29): "For blood there
+            // had was not cut through the wall the capture took in. (Their current captures measure a doorway at
+            // the doorway floor, as every shipped capture does - 2026-10-15 - so this is a fallback for a capture
+            // that does not.) killer560 (2026-09-29): "For blood there
             // is 1 door on it", and Higher Blaze is the upper entrance to a two-level blaze room - "high you
             // enter near the top on the door side".
             //
@@ -144,7 +165,7 @@ public final class RoomDoors {
 
     /**
      * The tile edges of a room's perimeter a doorway can be CARVED through and walked both ways: a 3x4 opening cut
-     * at the doorway floor (y69, where every carve in the sim lands) reaches three blocks in from the seam, and
+     * at the doorway floor ({@link #DOOR_FLOOR_Y}, where every carve in the sim lands) reaches three blocks in from the seam, and
      * {@code SimDoors.carveDoorway} floors it; this asks whether, past the cut, the room has somewhere to stand
      * within one block of that floor - solid underfoot, nothing in the feet and head blocks. In the capture's own
      * frame, so rotate it with {@link #rotate} exactly like the doorway mask.
@@ -194,9 +215,6 @@ public final class RoomDoors {
         return fresh;
     }
 
-    /** The doorway floor every sim carve finds (SimDoors.findFloor, measured at y69 on every bench door). */
-    private static final int CARVE_FLOOR_Y = 69;
-
     private static final Map<String, Mask> CARVABLE = new ConcurrentHashMap<>();
 
     /**
@@ -208,7 +226,7 @@ public final class RoomDoors {
     private static boolean standBehind(RoomLibrary.Room room, int wallX, int wallZ, int alongX, int alongZ,
                                        int inX, int inZ) {
         for (int w = -1; w <= 1; w++) {
-            int feet = CARVE_FLOOR_Y;
+            int feet = DOOR_FLOOR_Y;
             boolean ok = true;
             for (int in = 3; in <= 6 && ok; in++) {
                 int x = wallX + inX * in + alongX * w;
@@ -345,108 +363,55 @@ public final class RoomDoors {
                 edges.add(edge(EAST, j));
             }
         }
-        return new Mask(tilesX, tilesZ, dropStaircase(room, edges));
-    }
-
-    /**
-     * The Entrance's back staircase is not a door.
-     *
-     * <p>killer560 (2026-09-29): "for entrance the second picture shows the front. That long staircase is the
-     * back and nothing can attach there." The detector was finding TWO ways out of the Entrance and letting
-     * the generator hang a room off either, so half the floors grew out of the back of the green room.
-     *
-     * <p>Measured on his own capture rather than assumed. Of the two, one is a doorway and one is not:
-     *
-     * <pre>
-     * WEST  door box 3x4: 12/12 air   surrounding 11x12:  12/132 air   &lt;- a doorway
-     * EAST  door box 3x4:  0/12 air   surrounding 11x12:  39/132 air   &lt;- solid at floor level
-     * </pre>
-     *
-     * The east side is solid where a door would be and open higher up, because the staircase RISES - and the
-     * search walks y from {@value #SEARCH_MIN_Y} to {@value #SEARCH_MAX_Y} looking for any 3x4 opening, so it
-     * matched the stairwell partway up. A real doorway sits at the room's floor.
-     *
-     * <p>So for the Entrance only, the doorway that matches LOWEST wins and the rest are dropped. It is
-     * scoped to the Entrance deliberately: Higher and Lower Blaze genuinely have doors at unusual heights,
-     * and a blanket "lowest only" rule would break them.
-     */
-    private static Set<Integer> dropStaircase(RoomLibrary.Room room, Set<Integer> edges) {
-        if (!"entrance".equalsIgnoreCase(room.name) || edges.size() <= 1) {
-            return edges;
-        }
-        int best = -1;
-        int bestY = Integer.MAX_VALUE;
-        for (int e : edges) {
-            int y = lowestMatch(room, sideOf(e), indexOf(e));
-            if (y < bestY) {
-                bestY = y;
-                best = e;
-            }
-        }
-        return best < 0 ? edges : Set.of(best);
-    }
-
-    /** The lowest y at which this edge's doorway matches, or {@code Integer.MAX_VALUE} if it never does. */
-    private static int lowestMatch(RoomLibrary.Room room, int side, int index) {
-        int margin = room.margin;
-        int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
-        int centre = margin + index * (RoomLibrary.TILE + 1) + RoomLibrary.TILE / 2;
-        for (int base = SEARCH_MIN_Y; base <= SEARCH_MAX_Y - DOOR_HEIGHT; base++) {
-            int hits = 0;
-            for (int d = -(DOOR_WIDTH / 2); d <= DOOR_WIDTH / 2; d++) {
-                for (int y = base; y < base + DOOR_HEIGHT; y++) {
-                    boolean open = switch (side) {
-                        case NORTH -> isDoorway(room, centre + d, y, margin);
-                        case SOUTH -> isDoorway(room, centre + d, y, room.sizeZ - 1 - margin);
-                        case WEST -> isDoorway(room, margin, y, centre + d);
-                        default -> isDoorway(room, room.sizeX - 1 - margin, y, centre + d);
-                    };
-                    if (open) {
-                        hits++;
-                    }
-                }
-            }
-            if (hits >= DOOR_MIN_MATCH) {
-                return base;
-            }
-        }
-        return Integer.MAX_VALUE;
+        return new Mask(tilesX, tilesZ, edges);
     }
 
     /** A doorway in a wall that runs along X - so the three blocks vary in X and the wall's Z is fixed. */
     private static boolean openAlongX(RoomLibrary.Room room, int centreX, int wallZ) {
-        for (int base = SEARCH_MIN_Y; base <= SEARCH_MAX_Y - DOOR_HEIGHT; base++) {
-            int hits = 0;
-            for (int dx = -(DOOR_WIDTH / 2); dx <= DOOR_WIDTH / 2; dx++) {
-                for (int y = base; y < base + DOOR_HEIGHT; y++) {
-                    if (isDoorway(room, centreX + dx, y, wallZ)) {
-                        hits++;
-                    }
-                }
-            }
-            if (hits >= DOOR_MIN_MATCH) {
-                return true;
-            }
-        }
-        return false;
+        return framedOpening((u, y) -> isDoorway(room, centreX + u, y, wallZ));
     }
 
     /** A doorway in a wall that runs along Z. */
     private static boolean openAlongZ(RoomLibrary.Room room, int wallX, int centreZ) {
-        for (int base = SEARCH_MIN_Y; base <= SEARCH_MAX_Y - DOOR_HEIGHT; base++) {
-            int hits = 0;
-            for (int dz = -(DOOR_WIDTH / 2); dz <= DOOR_WIDTH / 2; dz++) {
-                for (int y = base; y < base + DOOR_HEIGHT; y++) {
-                    if (isDoorway(room, wallX, y, centreZ + dz)) {
-                        hits++;
-                    }
+        return framedOpening((u, y) -> isDoorway(room, wallX, y, centreZ + u));
+    }
+
+    /**
+     * A doorway: the 3x4 window at {@link #DOOR_FLOOR_Y} is at least {@value #DOOR_MIN_MATCH} of 12 doorway material,
+     * and at least {@value #DOOR_MIN_FRAME} of the 11 blocks round it are wall. {@code open.test(u, y)} reads the wall
+     * plane at {@code u} blocks along it from the edge's centre.
+     *
+     * <p>Only that one height. The Entrance's back staircase used to need its own rule ("the doorway that matches
+     * LOWEST wins", 2026-09-29) because the search walked y up to 86 and matched the stairwell; at one height it is not
+     * a candidate at all, and neither is anything else above the doorway floor.
+     */
+    private static boolean framedOpening(java.util.function.BiPredicate<Integer, Integer> open) {
+        int hits = 0;
+        for (int u = -(DOOR_WIDTH / 2); u <= DOOR_WIDTH / 2; u++) {
+            for (int y = DOOR_FLOOR_Y; y < DOOR_FLOOR_Y + DOOR_HEIGHT; y++) {
+                if (open.test(u, y)) {
+                    hits++;
                 }
             }
-            if (hits >= DOOR_MIN_MATCH) {
-                return true;
+        }
+        if (hits < DOOR_MIN_MATCH) {
+            return false;
+        }
+        int frame = 0;
+        for (int y = DOOR_FLOOR_Y; y < DOOR_FLOOR_Y + DOOR_HEIGHT; y++) {
+            if (!open.test(-(DOOR_WIDTH / 2) - 1, y)) {
+                frame++;
+            }
+            if (!open.test(DOOR_WIDTH / 2 + 1, y)) {
+                frame++;
             }
         }
-        return false;
+        for (int u = -(DOOR_WIDTH / 2); u <= DOOR_WIDTH / 2; u++) {
+            if (!open.test(u, DOOR_FLOOR_Y + DOOR_HEIGHT)) {
+                frame++;
+            }
+        }
+        return frame >= DOOR_MIN_FRAME;
     }
 
     /**
