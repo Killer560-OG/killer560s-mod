@@ -521,6 +521,9 @@ final class AutoTicTacToe {
                     eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target)
                             <= CHEST_SPOT_REACH * CHEST_SPOT_REACH, APPROACH);
             walkTried = true;
+            if (spot == null) {
+                LOGGER.info("[AutoPuzzles] TicTacToe: no walk on his floor to a spot in reach of {}", label);
+            }
             if (spot != null) {
                 chestWalking = true;
                 LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} - walking the last {} block(s) to {}",
@@ -541,6 +544,15 @@ final class AutoTicTacToe {
             }
         }
         if (legPaths >= MAX_LEG_PATHS) {
+            // Name the cause once: what stands over the secret and where the spots in reach of it are.
+            StringBuilder around = new StringBuilder();
+            for (int dy = 1; dy <= 4; dy++) {
+                around.append(" y+").append(dy).append('=').append(net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                        .getKey(client.level.getBlockState(target.above(dy)).getBlock()).getPath());
+            }
+            LOGGER.info("[AutoPuzzles] TicTacToe: no way into reach of {} at {}:{}; {} spot(s) in reach, nearest {}",
+                    label, AutoPuzzleUtil.fmt(target), around, spots.size(),
+                    spots.subList(0, Math.min(3, spots.size())).stream().map(AutoPuzzleUtil::fmt).toList());
             advanceChest(ChestStage.WALK_BACK, "cannot get within reach of " + label + " after " + legPaths + " path(s)");
             return;
         }
