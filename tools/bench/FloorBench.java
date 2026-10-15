@@ -235,18 +235,9 @@ public final class FloorBench {
             };
         }
 
-        /** SimDoors.findFloor: down from y72 to y58, the first non-air, non-chest block with two air above. */
+        /** SimDoors.findFloor: the doorway floor, RoomDoors.DOOR_FLOOR_Y (not searched since 2026-10-15). */
         int findFloor(int wx, int wz) {
-            for (int y = 72; y >= 58; y--) {
-                int f = wflags(wx, y, wz);
-                if ((f & EtherSearch.AIR) != 0 || chests.contains(EtherSearch.pack(wx, y, wz))) {
-                    continue;
-                }
-                if ((wflags(wx, y + 1, wz) & EtherSearch.AIR) != 0 && (wflags(wx, y + 2, wz) & EtherSearch.AIR) != 0) {
-                    return y + 1;
-                }
-            }
-            return 69;
+            return RoomDoors.DOOR_FLOOR_Y;
         }
 
         /** SimDoors.carveDoorway for a normal door: 3 wide, 4 high, 7 deep of air, floored where it is open. */

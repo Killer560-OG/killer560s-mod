@@ -293,83 +293,19 @@ public final class SimDoors {
     }
 
     /**
-     * The floor level at a doorway.
+     * The floor of a doorway: {@link RoomDoors#DOOR_FLOOR_Y} on this floor's altitude. Not searched.
      *
-     * <p>Searched rather than assumed, for the same reason the player's landing spot is: rooms differ in floor
-     * height, and a doorway cut at a fixed Y is a hole in a wall halfway up on half the floors.
-     */
-    /**
-     * The walking floor at a doorway, searched DOWNWARD through the band a Catacombs doorway can be in.
-     *
-     * <p>This used to scan upward from the very bottom of the world and take the first solid block with two
-     * air above it, which is the LOWEST surface in the column - a basement, a cave, the underside of the room.
-     * The carve then happened down there and the real doorway stayed solid. It only ever worked because
-     * captures used to start at y60, so the lowest surface was the walking floor by luck; once rooms were
-     * captured at full height, with content down to y15 in places, scenario 81 found two of eight doorways
-     * impassable on a single floor - blocked by stone bricks and by cobblestone with stairs, both at head
-     * height, with a carved opening sitting uselessly below them.
-     *
-     * <p>Every doorway on a Catacombs floor is at the same level, on the dungeon floor around y68-70, with
-     * roofs up near y99-107. So the search runs down from y90 - above a doorway's four-block opening, below
-     * any roof - to y55, and takes the first surface it meets, which is the highest one in that band rather
-     * than the deepest one in the world. {@link SimAltitude#toWorld} maps those to wherever this floor was
-     * built. The y69 fallback is unchanged: it is the real dungeon floor.
-     *
-     * <p><b>The top of the band has to be INSIDE the opening, not above it.</b> Measured 2026-09-30 by
-     * printing the carve volume layer by layer for every doorway the player could not walk through (scenario
-     * 81's seam profile): the failing doorways all had a perfect 21-of-21 open 3x7 carve FIVE BLOCKS ABOVE the
-     * walking floor, with the floor layer itself only 13 of 21 open. So the carve was happening exactly as
-     * written - at a "floor" this search had found at capture y74. With the band starting at y75, the scan
-     * begins above the doorway's lintel, and the first surface it meets coming down is the TOP OF THAT LINTEL
-     * whenever the seam above the door is open (which it often is, up to the roof). Starting at y72 instead -
-     * the top block of a doorway whose floor is y69 - the scan begins inside the opening, walks down through
-     * air, and lands on the doorway's own floor. It still covers floors from y67 to y72, which is every
-     * Catacombs doorway.
+     * <p>Every Hypixel doorway is at that one height, and so is every doorway in the shipped captures (277 of 277,
+     * 2026-10-15), so the opening a carve or a seal works on is known before a block is read. The search it
+     * replaced - down the seam column from y72 to y58 for the first surface with two air above it - was right where
+     * the seam held the doorway's own floor and wrong in four different ways where it did not, each found by being
+     * wrong (2026-09-30: up from the world's bottom found basements; down from y90 found mezzanines; down from y75
+     * found the lintel's top and cut the opening five blocks up; a chest in the perimeter read as the floor). A
+     * doorway the layout links at the wrong height is a mask fault ({@link RoomDoors}), not something to search for.
      */
     private static int findFloor(ServerLevel level, BlockPos near) {
-        int top = SimAltitude.toWorld(DOORWAY_SEARCH_TOP);
-        int bottom = SimAltitude.toWorld(DOORWAY_SEARCH_BOTTOM);
-        for (int y = top; y >= bottom; y--) {
-            BlockPos at = new BlockPos(near.getX(), y, near.getZ());
-            if (level.getBlockState(at).isAir()) {
-                continue;
-            }
-            // A CHEST is not a floor, and mistaking one for a floor is what sealed a doorway.
-            //
-            // Some rooms have a secret chest in their perimeter at the doorway height - Pedestal has one at
-            // capture y70 on its z=0 edge, Archway one at y70 near the same edge, and y70 is exactly where a
-            // doorway opening starts. Treating that chest as the surface returned y71, so the carve ran 71..74
-            // and left the chest itself at 70, sitting in the middle of the opening. Scenario 81 reported the
-            // doorway between Pedestal and Archway as "blocked by chest" with the player having walked 3.3
-            // blocks into an opening that was carved one block too high. Stepping past it finds the real floor
-            // underneath, and the carve then removes the chest as it always did.
-            if (level.getBlockState(at).is(Blocks.CHEST)
-                    || level.getBlockState(at).is(Blocks.TRAPPED_CHEST)) {
-                continue;
-            }
-            if (level.getBlockState(at.above()).isAir()
-                    && level.getBlockState(at.above(2)).isAir()) {
-                return y + 1;
-            }
-        }
-        return SimAltitude.toWorld(69);
+        return SimAltitude.toWorld(RoomDoors.DOOR_FLOOR_Y);
     }
-
-    /**
-     * The band a doorway's floor can be in, in CAPTURE coordinates. See {@link #findFloor}.
-     *
-     * <p>Tight on purpose, and both ends were found by being wrong. Searching UP from the bottom of the world
-     * found basements. Searching DOWN from y90 found a room's internal upper floor instead of its ground
-     * floor, which is still a surface with air above it - scenario 81 went from two doorways impassable to
-     * two different ones, both blocked by plain stone brick with the player having moved a fifth of a block.
-     * Searching down from y75 found the top of the doorway's own LINTEL, because the seam above a door is
-     * usually open: that put the carve five blocks above the floor, which is the measurement in
-     * {@link #findFloor}'s doc. A Catacombs doorway is on the dungeon floor at y68-70 and is four blocks tall,
-     * so y72 is the top block OF the opening rather than the first block above it, and y58 is below the floor
-     * and above any basement.
-     */
-    private static final int DOORWAY_SEARCH_TOP = 72;
-    private static final int DOORWAY_SEARCH_BOTTOM = 58;
 
     /**
      * Registers a wither door centred on {@code centre}. See {@link #DOOR_WIDTH}/{@link #DOOR_HEIGHT} for
