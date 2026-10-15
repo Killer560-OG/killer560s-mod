@@ -938,6 +938,10 @@ final class SettingTooltipsData {
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");
+        d.put("per-profile names", "Off (the default): your custom names, rank and renames are one set shared by every profile. On: they are saved inside each profile like other settings.");
+        d.put("rank", "The tag shown in front of your name: keep the original, remove it, pick a Hypixel rank, or make your own. Left click forward, right click back.");
+        d.put("rank color", "Quickly recolors the rank tag with one of the 16 chat colors, or leaves the rank's own color.");
+        d.put("plus color", "The color of the + signs in your own rank text (KING++); leave it on the rank's own to match the text.");
         d.put("save current as new", "Saves your current mod settings as a new profile.");
         d.put("load", "Applies this profile's settings right away.");
         d.put("export", "Zips this profile into the share folder and opens that folder, so you can send the zip to someone.");
