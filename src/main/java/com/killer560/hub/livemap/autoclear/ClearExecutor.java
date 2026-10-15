@@ -727,6 +727,40 @@ public final class ClearExecutor {
 
     private static final String[] AOTV = {"ASPECT_OF_THE_VOID"};
 
+    /**
+     * A queue planned ahead can be asked for on the very tick a warp landed him (the start node's route ended there at
+     * once), standing 0.05 above the block, and a marginal look planned from the block's own height did not land from
+     * there (2026-10-15, 144: "Failed from ..." and a fresh search) - as a route's own warp fired on its landing tick
+     * re-aims (LESSONS-AUTOMATION, chain timing). So, about to send its first warp: that warp aimed again from exactly
+     * where he is now at the landing block it was planned for (a look planned from a spot a few hundredths off can miss).
+     */
+    private static void reaimFirstHop(Minecraft client) {
+        List<ClearNode> current = nodes;
+        if (current == null || current.isEmpty() || !(current.get(0) instanceof ClearNode.EtherNode first)
+                || client.player == null) {
+            return;
+        }
+        Vec3 at = client.player.position();
+        if (at.distanceTo(first.pos) < 0.001) {
+            return;
+        }
+        Vec3 eye0 = new Vec3(first.pos.x, first.pos.y + TeleportUtils.eyeHeight(true), first.pos.z);
+        TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye0, first.yaw, first.pitch, 61.0);
+        if (!hit.succeeded() || hit.pos() == null) {
+            return;
+        }
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, hit.pos(), hopRange() + 1.0);
+        if (rot == null) {
+            return;
+        }
+        Vec3 look = TeleportUtils.getLook(rot.yaw(), rot.pitch()).scale(60.0);
+        List<ClearNode> swapped = new ArrayList<>(current);
+        swapped.set(0, new ClearNode.EtherNode(at, rot.yaw(), rot.pitch(), 0xFFA500, List.of(eye, eye.add(look))));
+        nodes = swapped;
+        position = null;
+    }
+
     // ------------------------------------------------------------------------------------------- held at the start
 
     /**
@@ -1157,6 +1191,9 @@ public final class ClearExecutor {
         if (issued.size() - confirmed >= MAX_LEAD) {
             waitReason = "the server did not answer " + (issued.size() - confirmed) + " warp(s)";
             return;
+        }
+        if (sendNow && issued.isEmpty()) {
+            reaimFirstHop(client);
         }
         if (position == null) {
             Vec3 p = client.player.position();
