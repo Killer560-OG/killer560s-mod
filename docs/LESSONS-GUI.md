@@ -404,3 +404,11 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+
+- **A per-screen or per-overlay Theme choice must name a saved theme by a stable id, and be listed live** (2026-10-15). `ScreenThemes`
+  offered Theme Default, the presets and ONE "Custom" (the menu's current Custom colours), so a theme he saved never appeared;
+  a list captured when the tab was built would also miss one saved after. A choice is `SAVED:<id>` (`MenuConfig.SavedTheme.id`,
+  "T1"..., persisted; a file from before ids gets them in list order) and `ScreenThemes.choices()` is read when the button is
+  pressed. Overlays over the game (`OverlayThemes`, setting "Menu Theme") use the same list but "Default" means the overlay's
+  own look and `OverlayThemes.of(id)` is null there; `MenuStyle.snapshot` derives a palette without leaving the menu's statics
+  changed. Testkit 1421 walks `OverlayThemes.ids()`.

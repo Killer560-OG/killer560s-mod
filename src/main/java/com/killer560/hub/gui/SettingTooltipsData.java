@@ -1307,6 +1307,8 @@ final class SettingTooltipsData {
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
         d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
+        d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Custom, or any theme you saved. Left click goes forward, right click back.");
+        d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
         // ---- Levers in the boss (Secret Aura tab) ----
         d.put("lights device", "Chooses which lights-device levers get flicked, and when (cheat build only).");
         d.put("section levers", "Also flicks the levers that open each P3 section (cheat build only).");
