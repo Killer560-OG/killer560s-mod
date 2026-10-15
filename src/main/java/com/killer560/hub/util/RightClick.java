@@ -66,6 +66,8 @@ public final class RightClick {
     /** Sneaking eye heights the server may trace from: the modern pose's and 1.8's (1.62 - 0.08). */
     private static final double[] SNEAK_EYES = {1.27, 1.54};
     private static final double[] STAND_EYES = {1.62};
+    /** A use this many ticks or fewer after a block click gets its INFO line even once the click is paired. */
+    private static final long LOG_AFTER_CLICK_TICKS = 40;
     /** How close the use's look must be to the last reported one to count as already told. */
     private static final float SAME_LOOK_DEGREES = 0.05f;
 
@@ -79,7 +81,7 @@ public final class RightClick {
 
     /** A right click on a block whose verdict the server may still hold. */
     private static boolean unpaired;
-    private static long clickTick;
+    private static long clickTick = Long.MIN_VALUE / 2;
     private static BlockPos clickPos;
     private static String clickItem;
     private static Level level;
@@ -127,7 +129,8 @@ public final class RightClick {
                 player.getInventory().getSelectedSlot() + 1, sentLook(), player.getLastSentInput().shift(), screen());
     }
 
-    /** A use is leaving: the server traces it now, along the look it last heard. One line per use. */
+    /** A use is leaving: the server traces it now, along the look it last heard. One line per use while a block click is
+     *  unpaired or was made in the last {@link #LOG_AFTER_CLICK_TICKS} ticks (and a WARN when the server pairs it). */
     public static void onUse(LocalPlayer player, ServerboundUseItemPacket p) {
         checkLevel(player);
         BlockHitResult ray = serverRay(player, sentYaw, sentPitch);
@@ -149,8 +152,10 @@ public final class RightClick {
                         : "");
         if (pairs) {
             LOGGER.warn(line);
-        } else {
+        } else if (unpaired || ActionGate.currentTick() - clickTick <= LOG_AFTER_CLICK_TICKS) {
             LOGGER.info(line);
+        } else {
+            LOGGER.debug(line); // a use with no block click near it: nothing to pair, not worth a line in his log
         }
         if (ray != null) {
             unpaired = false;
@@ -299,17 +304,15 @@ public final class RightClick {
         }
     }
 
-    /** Whether {@code yaw}/{@code pitch} (any wrapping) is the look the server last heard, from where he is. */
+    /** Whether {@code yaw}/{@code pitch} (any wrapping) is the look the server last heard. */
     private static boolean sameLook(LocalPlayer player, float yaw, float pitch) {
         if (!sentKnown) {
             return false;
         }
-        boolean look = Math.abs(Mth.wrapDegrees(yaw - sentYaw)) <= SAME_LOOK_DEGREES
+        // The look only: where he stands the server traces from its own copy of him (serverRay), whatever the client
+        // has done since - a landing still settling 0.05 down must not hold a use that has its look told.
+        return Math.abs(Mth.wrapDegrees(yaw - sentYaw)) <= SAME_LOOK_DEGREES
                 && Math.abs(Mth.clamp(pitch, -90f, 90f) - sentPitch) <= SAME_LOOK_DEGREES;
-        double dx = player.getX() - sentX;
-        double dy = player.getY() - sentY;
-        double dz = player.getZ() - sentZ;
-        return look && dx * dx + dy * dy + dz * dz < 1.0e-4;
     }
 
     /** The server's 4.5-block trace for a bare use, from the last reported position along {@code yaw}/{@code pitch}:
