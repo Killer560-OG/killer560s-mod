@@ -153,7 +153,9 @@ final class BloodCampAim {
         if (newPoint == null) {
             point = null;
             key = null;
-            planned = false;
+            if (!handingBack) {
+                planned = false; // (the hand-back's own plan must survive from tick to tick)
+            }
             if (ownsHold) {
                 if (++idleTicks >= FREECAM_IDLE_TICKS) {
                     handBack(player);
