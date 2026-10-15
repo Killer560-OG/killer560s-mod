@@ -23,7 +23,7 @@ public final class MainMenuScenes {
      *  swap back or not"). NEW is {@link AmberForgeScene}; EMBERS is the original drifting embers, kept below. One line. */
     public enum AmberScene { NEW, EMBERS }
 
-    public static final AmberScene AMBER_SCENE = AmberScene.NEW;
+    public static final AmberScene AMBER_SCENE = AmberScene.EMBERS;
 
     private static AmberScene amberScene = AMBER_SCENE;
     private static long testClockMs = -1L;
