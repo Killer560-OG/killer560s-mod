@@ -112,6 +112,26 @@ import java.util.concurrent.ConcurrentHashMap;
  *       3x5x2 oak log door right above it at {@code x=21..22, y=77..81, z=4..6} (30 blocks, exactly the box).</li>
  * </ul>
  *
+ * <h2>2026-10-15: Cobble Wall Pillar and Golden Oasis, both levers PLACED</h2>
+ *
+ * <p>Neither capture holds the lever; both positions are RSM's {@code LEVER} waypoints ({@code assets/rsm/secrets.json}
+ * in killer560s-mod-logs/rsm-ref, Hypixel-derived), turned into capture coordinates by the turn that lands that
+ * room's RSM chests on the capture's chests, and both match his Hypixel shots.
+ * <ul>
+ *   <li><b>Cobble Wall Pillar.</b> "there should be a lever here that drops this iron gate": a floor lever in the
+ *       one-block nook at {@code (8, 69, 21)} beside the captured redstone wall torch (his shot shows the red torch
+ *       beside it). It drops the gate in front of the chest at {@code (19, 60, 29)}: three iron bars wide and four
+ *       high at {@code z=27} AND the three-by-four of BARRIER blocks right behind them at {@code z=28} - the capture
+ *       recorded Hypixel's barriers, and dropping only the bars would leave an invisible wall. {@code x=18..20,
+ *       y=60..63, z=27..28}, 24 blocks, exactly the box. The identical bars at {@code x=13..15} guard a skull, not a
+ *       chest, have no barriers, and stay.</li>
+ *   <li><b>Golden Oasis.</b> "there should be a lever on this block in golden oasis that drops that wood": the lone
+ *       acacia wood at the end of the strip of three redstone blocks, {@code (30, 70, 26)}; the floor lever goes on top,
+ *       {@code (30, 71, 26)}. It drops the room's only acacia log wall, {@code x=5..8, y=69..72, z=11..12} (32 blocks,
+ *       exactly the box) - the lever's wood names its door, as in Doors. The redstone blocks in that strip are the
+ *       Redstone Key's, see {@link SimRedstoneKey}.</li>
+ * </ul>
+ *
  * <p>Opening is one-way and once only, like the real thing - flicking the lever back does not put the blocks
  * back, because on Hypixel it does not either. A fresh floor rearms everything.
  */
@@ -172,7 +192,12 @@ public final class SimRoomLevers {
             new Rule("Buttons",
                     new int[]{43, 81, 58}, new int[]{56, 80, 16}, new int[]{58, 88, 16}),
             new Rule("Dome",
-                    new int[]{22, 75, 7}, new int[]{21, 77, 4}, new int[]{22, 81, 6}));
+                    new int[]{22, 75, 7}, new int[]{21, 77, 4}, new int[]{22, 81, 6}),
+            // 2026-10-15 (see the class comment).
+            new Rule("Cobble Wall Pillar",
+                    new int[]{8, 69, 21}, new int[]{18, 60, 27}, new int[]{20, 63, 28}, true),
+            new Rule("Golden Oasis",
+                    new int[]{30, 71, 26}, new int[]{5, 69, 11}, new int[]{8, 72, 12}, true));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();
