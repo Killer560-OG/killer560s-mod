@@ -1799,7 +1799,8 @@ final class SettingTooltipsData {
         d.put("terminal triggerbot/range", "Cheat build: how far away you can open a terminal you look at, 1-4 blocks.");
         d.put("dungeon/termism", "Opens fake F7/M7 terminals to practice on anywhere; /termism opens it too.");
         d.put("thorn (f4)/thorn highlights", "Colored boxes or a glow on Thorn-fight targets during the F4/M4 boss.");
-        d.put("trajectories/bows", "Draws the arrow path and landing spot while you hold a bow.");
+        d.put("trajectories/bows", "Draws the arrow path and landing spot while you draw a normal bow.");
+        d.put("trajectories/shortbows", "Draws a shortbow's full-power arrow path whenever you hold one, no draw needed; one path per arrow, so three for a Terminator.");
         d.put("trajectories/ender pearls", "Draws the throw path and landing spot while you hold an Ender Pearl.");
         d.put("chat/translate", "Run /translate to change the language, or pick it below; all your messages are then sent in that language.");
         d.put("translate/language", "The language your chat is translated into; /language opens this picker.");

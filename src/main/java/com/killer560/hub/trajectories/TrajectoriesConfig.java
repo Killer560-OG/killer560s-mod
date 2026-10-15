@@ -25,6 +25,7 @@ public final class TrajectoriesConfig {
     private boolean enabled = false;
     private boolean showBows = false;
     private boolean showPearls = true;
+    private boolean showShortbows = true;
     private int range = 30;
 
     private TrajectoriesConfig() {
@@ -49,6 +50,7 @@ public final class TrajectoriesConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showBows = ConfigJson.getBool(obj, "showBows", false);
             cfg.showPearls = ConfigJson.getBool(obj, "showPearls", true);
+            cfg.showShortbows = ConfigJson.getBool(obj, "showShortbows", true);
             // Same 5-120 clamp setRange() applies (was loaded unclamped).
             cfg.setRange(ConfigJson.getInt(obj, "range", 30));
             instance = cfg;
@@ -64,6 +66,7 @@ public final class TrajectoriesConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showBows", showBows);
             obj.addProperty("showPearls", showPearls);
+            obj.addProperty("showShortbows", showShortbows);
             obj.addProperty("range", range);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -92,6 +95,15 @@ public final class TrajectoriesConfig {
 
     public void setShowPearls(boolean showPearls) {
         this.showPearls = showPearls;
+    }
+
+    /** Skyblock shortbows (killer560, 2026-10-15): their full-power path while held, one arc per arrow. Default ON. */
+    public boolean isShowShortbows() {
+        return showShortbows;
+    }
+
+    public void setShowShortbows(boolean showShortbows) {
+        this.showShortbows = showShortbows;
     }
 
     public int getRange() {
