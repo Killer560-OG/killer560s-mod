@@ -550,8 +550,12 @@ public final class AutoPuzzleUtil {
         } else {
             com.killer560.hub.livemap.autoclear.ClearExecutor.etherPath(target, onArrive);
         }
+        mapTripOurs = true;
         return true;
     }
+
+    /** True from a puzzle auto's own Interactive Map trip ({@link #pathIfMapOn}) until it is over. */
+    private static boolean mapTripOurs = false;
 
     // ------------------------------------------------------------------ chest secrets (killer560, 2026-09-27)
 
@@ -820,6 +824,16 @@ public final class AutoPuzzleUtil {
     /** Every puzzle tick, FIRST, whatever the gates: holds a turned body for its click and gives it back after. */
     static void turnTick(Minecraft client) {
         TURN.tick(client.player);
+        if (mapTripOurs) {
+            // A trip a puzzle auto asked the Interactive Map for lands him where the auto wanted him: its landings are the
+            // auto's own, so the gate's 6-tick teleport settle must not hold the auto's next shot or warp (Lower Blaze's
+            // far-spot walks, 93-solve-lowerblaze-timing 2026-10-15: every warp 6 ticks after the map's landing). Renewed
+            // every tick of the trip and once more on its last, so the waiver outlasts the settle the landing starts.
+            com.killer560.hub.util.ActionGate.expectSelfTeleport(ActionGate.Actor.PUZZLE_WORLD, ActionGate.TELEPORT_SETTLE_TICKS);
+            if (!com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                mapTripOurs = false;
+            }
+        }
     }
 
     /**
@@ -851,7 +865,7 @@ public final class AutoPuzzleUtil {
         if (client.level == null || pos == null) {
             return true;
         }
-        Vec3 eye = new Vec3(player.getX(), player.getY() + EYE_STANDING, player.getZ());
+        Vec3 eye = settledEye(player);
         BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, eye);
         if (aim == null) {
             return true; // nothing to aim at; the click's own null handling decides
@@ -875,7 +889,7 @@ public final class AutoPuzzleUtil {
         if (client.level == null || pos == null || aimedAt(player, pos)) {
             return false;
         }
-        Vec3 eye = new Vec3(player.getX(), player.getY() + EYE_STANDING, player.getZ());
+        Vec3 eye = settledEye(player);
         BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, eye);
         if (aim == null) {
             return false;
@@ -888,6 +902,20 @@ public final class AutoPuzzleUtil {
         float[] dir = direction(eye, aim.getLocation());
         rotateCamera(player, dir[0], dir[1]);
         return true;
+    }
+
+    /**
+     * His STANDING eye where he will be next tick: on an etherwarp's landing tick he hovers up to {@link #LANDING_HOVER}
+     * over the block and gravity sets him on it the tick after, so a look aimed from the hovering eye can pass a small
+     * target's edge by from the settled one, and the click's own check (from the settled eye) turns him again.
+     */
+    private static Vec3 settledEye(LocalPlayer player) {
+        double feet = player.getY();
+        double top = Math.floor(feet);
+        if (!player.onGround() && feet - top < LANDING_HOVER) {
+            feet = top;
+        }
+        return new Vec3(player.getX(), feet + EYE_STANDING, player.getZ());
     }
 
     /** The same for an entity (a Three Weirdos NPC): an interact the reported look misses draws GrimAC Hitboxes. */
