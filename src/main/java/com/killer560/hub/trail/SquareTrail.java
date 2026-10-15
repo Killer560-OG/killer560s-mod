@@ -53,6 +53,7 @@ final class SquareTrail {
     void clear() {
         head = 0;
         size = 0;
+        teleports = 0;
         hasLast = false;
     }
 
