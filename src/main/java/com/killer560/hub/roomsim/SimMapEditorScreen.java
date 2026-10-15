@@ -114,7 +114,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private String searchText = "";
     private int scroll;
     private String status = "";
-    /** Usable rooms in the library, the "M" of the header's "N of M rooms". */
+    /** Usable rooms in the library (no longer drawn - the header count went, 2026-10-15; the testkit reads it). */
     private int roomTotal;
     /** Whether the room database had loaded when {@link #listed} was built; the type filters need it. */
     private boolean listedWithDatabase;
@@ -764,15 +764,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         if (!listedWithDatabase && panel == Panel.ROOMS && RoomDatabase.isReady()) {
             refilter();
         }
-        if (panel == Panel.ROOMS) {
-            // "N of M rooms" in the header bar, right-aligned: the only free space that never meets a control.
-            String count = listed.size() + " of " + roomTotal + " rooms"
-                    + (SimRoomFilters.isDefault() ? "" : " (filtered)");
-            int maxW = panelW - 20 - this.font.width("DESIGN A MAP") - 10;
-            String shownCount = this.font.width(count) <= maxW ? count : listed.size() + "/" + roomTotal;
-            MenuStyle.text(g, shownCount, panelX + panelW - 10 - this.font.width(shownCount), panelY + 11,
-                    SimRoomFilters.isDefault() ? MenuStyle.DIM : MenuStyle.OR);
-        }
+        // No "N of M rooms" in the header bar any more (killer560, 2026-10-15: "Remove the 134 of 134 rooms in the top
+        // right"). The Filters button still says how many filters are on.
         // Where the map name box was (Save went, 2026-10-15): which floor the grid is, and its size.
         ScreenChrome.text(g, fit(floor.label + "  ·  " + floor.across + " x " + floor.down + " rooms",
                 floor.label, areaSize), areaX, panelY + 48, MenuStyle.DIM);

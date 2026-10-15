@@ -136,7 +136,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
         contentBottom = panelY + panelH - FOOTER;
 
         // Footer: Clear all and Done bottom-right, the mod's own buttons, outside the scrolling band so they are
-        // always reachable. The header bar keeps "N of M rooms" on the right, as Design a Map does.
+        // always reachable. The header bar keeps "N of M rooms" on the right (Design a Map dropped its own, 2026-10-15).
         int buttonW = footerButtonW();
         int by = panelY + panelH - BUTTON_H - 6;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
