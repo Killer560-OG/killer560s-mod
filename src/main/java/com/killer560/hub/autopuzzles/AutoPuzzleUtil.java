@@ -710,6 +710,51 @@ public final class AutoPuzzleUtil {
         return out;
     }
 
+    /**
+     * A first etherwarp for when none of {@code goals} can be aimed at from here: the standable block (within 10 of a
+     * goal) that he CAN warp onto and from whose sneaking eye a goal can be warped onto. Null when there is none. A
+     * covered alcove (Tic Tac Toe's secret, 93-solve-tictactoe-grab 2026-10-15) has no line in from the board.
+     */
+    public static BlockPos hopToward(Minecraft client, LocalPlayer player, java.util.List<BlockPos> goals) {
+        if (client.level == null) {
+            return null;
+        }
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        int tried = 0;
+        for (BlockPos goal : goals) {
+            if (++tried > 6) {
+                break;
+            }
+            for (int dx = -10; dx <= 10; dx++) {
+                for (int dz = -10; dz <= 10; dz++) {
+                    for (int dy = -4; dy <= 6; dy++) {
+                        BlockPos b = goal.offset(dx, dy, dz);
+                        if (isPassable(client.level.getBlockState(b)) || !client.level.getBlockState(b.above()).isAir()
+                                || !client.level.getBlockState(b.above(2)).isAir()) {
+                            continue;
+                        }
+                        double d = b.distSqr(goal);
+                        if (d >= bestD) {
+                            continue;
+                        }
+                        Vec3 eyeThere = new Vec3(b.getX() + 0.5, b.getY() + 1 + EYE_SNEAKING, b.getZ() + 0.5);
+                        if (com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eyeThere, goal, 57.0)
+                                == null || etherwarpAim(client.level, player, b) == null) {
+                            continue;
+                        }
+                        best = b;
+                        bestD = d;
+                    }
+                }
+            }
+            if (best != null) {
+                return best;
+            }
+        }
+        return best;
+    }
+
     /** Whether a ray from {@code eye} to the centre of {@code target} meets nothing before it. */
     public static boolean sees(Minecraft client, Vec3 eye, BlockPos target) {
         Vec3 centre = Vec3.atCenterOf(target);

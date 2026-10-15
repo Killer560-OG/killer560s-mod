@@ -59,6 +59,7 @@ final class RewardChest {
     private final Set<BlockPos> opened = new HashSet<>();
     private final Set<BlockPos> warpTried = new HashSet<>();
     private boolean clickedAwaitingScreen = false;
+    private int hops = 0;
     private String lastNote = "";
 
     /**
@@ -112,6 +113,7 @@ final class RewardChest {
         opened.clear();
         warpTried.clear();
         clickedAwaitingScreen = false;
+        hops = 0;
         lastNote = "";
     }
 
@@ -165,6 +167,7 @@ final class RewardChest {
                 return;
             }
             clicks = 0;
+            hops = 0;
             sinceClick = RETRY_TICKS;
             warpTried.clear();
             LOGGER.info("[AutoPuzzles] {}: reward chest at {} (relative {})", tag, AutoPuzzleUtil.fmt(target),
@@ -183,6 +186,15 @@ final class RewardChest {
                 warpTried.add(spot);
                 if (warp.start(client, spot, false, false, false)) {
                     note("warping onto " + AutoPuzzleUtil.fmt(spot) + " for the reward chest");
+                    return;
+                }
+            }
+            if (hops < 2) {
+                BlockPos hop = AutoPuzzleUtil.hopToward(client, player,
+                        AutoPuzzleUtil.reachSpots(client, List.of(target), REACH, false, player.position()));
+                if (hop != null && !AutoPuzzleUtil.at(player, hop) && warp.start(client, hop, false, false, false)) {
+                    hops++;
+                    note("no warp line onto a spot by the reward chest - warping to " + AutoPuzzleUtil.fmt(hop) + " first");
                     return;
                 }
             }

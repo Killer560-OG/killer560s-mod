@@ -406,6 +406,8 @@ final class AutoTicTacToe {
     // click (or this auto's own when the aura will not take it), and one etherwarp back in front of the board.
 
     private static int auraTicks = 0;
+    /** Two-warp detours taken on this leg (see {@link AutoPuzzleUtil#hopToward}). */
+    private static int hops = 0;
     private static final java.util.Set<BlockPos> chestSpotsTried = new java.util.HashSet<>();
 
     private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
@@ -433,8 +435,7 @@ final class AutoTicTacToe {
                     return;
                 }
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
-                        <= CHEST_SPOT_REACH * CHEST_SPOT_REACH && AutoPuzzleUtil.sees(client, player.getEyePosition(),
-                        chestReal)) {
+                        <= CHEST_SPOT_REACH * CHEST_SPOT_REACH && player.onGround()) {
                     auraTicks = 0;
                     advanceChest(ChestStage.AURA, "the secret is in reach");
                     return;
@@ -478,8 +479,15 @@ final class AutoTicTacToe {
         if (ClearExecutor.isBusy()) {
             return;
         }
-        List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client, List.of(target), CHEST_SPOT_REACH, true,
-                Vec3.atCenterOf(target));
+        // In sight of it first; a covered spot (the server's reach has no line-of-sight test) when none is.
+        List<BlockPos> spots = new java.util.ArrayList<>(AutoPuzzleUtil.reachSpots(client, List.of(target),
+                CHEST_SPOT_REACH, true, Vec3.atCenterOf(target)));
+        for (BlockPos b : AutoPuzzleUtil.reachSpots(client, List.of(target), CHEST_SPOT_REACH, false,
+                Vec3.atCenterOf(target))) {
+            if (!spots.contains(b)) {
+                spots.add(b);
+            }
+        }
         if (spots.isEmpty()) {
             advanceChest(ChestStage.WALK_BACK, "no block to stand on has " + label + " in reach");
             return;
@@ -492,6 +500,16 @@ final class AutoTicTacToe {
             if (WARP.start(client, spot, false, false, false)) {
                 LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping onto {} for {} at {} ({} spot(s) in reach of it)",
                         AutoPuzzleUtil.fmt(spot), label, AutoPuzzleUtil.fmt(target), spots.size());
+                return;
+            }
+        }
+        // No line onto any of them from here (a covered alcove): one warp onto a block that has a line onto one.
+        if (hops < 2) {
+            BlockPos hop = AutoPuzzleUtil.hopToward(client, player, spots);
+            if (hop != null && !AutoPuzzleUtil.at(player, hop) && WARP.start(client, hop, false, false, false)) {
+                hops++;
+                LOGGER.info("[AutoPuzzles] TicTacToe: no warp line onto a spot by {} - warping to {} first, which has one",
+                        label, AutoPuzzleUtil.fmt(hop));
                 return;
             }
         }
@@ -541,6 +559,7 @@ final class AutoTicTacToe {
         chestStage = next;
         chestLegStartMs = System.currentTimeMillis();
         legPaths = 0;
+        hops = 0;
         chestMapOffWarned = false;
         chestSpotsTried.clear();
     }
