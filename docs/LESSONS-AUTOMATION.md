@@ -199,6 +199,20 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   last hop was queued, so a last hop held longer left as an Instant Transmission 24 blocks off - it now waits for
   `pendingInteract`. Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim itself.
 
+- **"No move for him" is not "the game is over" in Tic Tac Toe.** Hypixel's computer answers a second or two after his
+  click, and the board in between has no move for him either; Auto Tic Tac Toe's Walk Out read that gap as finished and
+  warped him out after the FIRST click, then walked him back in (Mod Only Test 2026-10-14 17:26:00-17:26:04). The sim
+  painted both marks in one server tick, so it never showed. The walk-out now waits for `TicTacToeSolverFeature.isGameOver`
+  (or the tab list), and the sim's computer replies `SimTicTacToePuzzle.REPLY_TICKS` later (an estimate: his real clicks
+  came 3 s apart against the auto's 0.5 s gap).
+- **A chest is not a block to etherwarp onto.** Tic Tac Toe's chest trip asked the Interactive Map for the chest itself:
+  "is not etherwarpable ... Nothing searched" three times and the secret was never taken (same log, 17:26:00). Trips to a
+  block go to a standable block that has it in reach (`AutoPuzzleUtil.reachSpots`), as Auto Blaze's already did.
+- **Nothing ever opened Water Board, Ice Path or Ice Fill's reward chest.** Secret Aura skips Ice Path and Ice Fill outright
+  (`SKIP_ROOMS`) and in Water Board waits for the tab list or the map to say the puzzle is over (his 2026-10-14 runs: each
+  auto finished and he stood beside the chest). The autos open it themselves (`autopuzzles/RewardChest`), Secret Aura or
+  not; testkit 93-solve-*-claim run with Secret Aura off.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
