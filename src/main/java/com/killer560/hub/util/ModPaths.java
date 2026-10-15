@@ -141,6 +141,8 @@ public final class ModPaths {
         t.put("invsort", "skyblock/invsort");
         t.put("inventory", "skyblock/inventory");
         t.put("itembrowser", "skyblock/itembrowser");
+        // Price Tooltip: its settings and its price cache folder (killer560smod-pricetooltip-cache/), 2026-10-15.
+        t.put("pricetooltip", "skyblock/pricetooltip");
         t.put("quiverdisplay", "skyblock/quiverdisplay");
         t.put("ragaxe", "skyblock/ragaxe");
         t.put("autosell", "skyblock/autosell");

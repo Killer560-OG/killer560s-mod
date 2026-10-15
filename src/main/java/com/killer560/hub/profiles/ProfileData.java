@@ -70,7 +70,9 @@ public final class ProfileData {
             // Croesus and Experiments logs were always left out).
             "runs", "social",
             // The Map Designer's list of floors he played (sim-designer-1015): history like the runs.
-            "sim-map-history.json"
+            "sim-map-history.json",
+            // The Price Tooltip's downloaded prices and item facts (re-fetched every few minutes).
+            "pricetooltip-cache"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */

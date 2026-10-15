@@ -25,6 +25,7 @@ public class ItemsTab extends FolderTab {
                 new ItemProtectTab(),
                 // Armor Recolour is Custom Items in the Cosmetics category since 2026-10-08.
                 new EnchantColorsTab(),
+                new PriceTooltipTab(),
                 new TooltipScrollTab(),
                 new RevertMasterStarsTab(),
                 new ItemBrowserTab(),

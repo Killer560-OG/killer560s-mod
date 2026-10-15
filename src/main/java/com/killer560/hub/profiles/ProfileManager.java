@@ -579,6 +579,7 @@ public final class ProfileManager {
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,
                 com.killer560.hub.tooltipscroll.TooltipScrollConfig::load,
                 com.killer560.hub.enchantcolors.EnchantColorsConfig::load,
+                com.killer560.hub.pricetooltip.PriceTooltipConfig::load,
                 com.killer560.hub.chunkcache.ChunkCacheConfig::load,
                 com.killer560.hub.pathfinding.PathfindingConfig::load,
                 com.killer560.hub.f7spots.F7SpotsConfig::load,

@@ -146,6 +146,7 @@ final class CardBlurbsData {
         d.put("PetWheelTab", "A wheel to summon pets fast.");
         d.put("RevertMasterStarsTab", "Master Stars as red stars.");
         d.put("TooltipScrollTab", "Scroll long tooltips.");
+        d.put("PriceTooltipTab", "Prices on item tooltips.");
         d.put("SlotBindsTab", "Link slots to swap on shift-click.");
         d.put("StorageSearchTab", "/search across storages.");
         d.put("AutoAnvilTab", "Combines enchant books at the anvil.");

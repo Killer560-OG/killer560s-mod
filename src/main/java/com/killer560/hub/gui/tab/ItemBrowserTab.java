@@ -118,15 +118,8 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        // killer560 (2026-09-27): "make a whole new setting just like skyhanni that shows the items value
-        // on its tooltip" - a SEPARATE toggle from the panel itself (works anywhere in the game, not just
-        // while this panel is open) - see ItemValueTooltipMixin.
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Item Value (Tooltip)", cfg.isShowItemValue()), btn -> {
-                    cfg.setShowItemValue(!cfg.isShowItemValue());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Item Value (Tooltip)", cfg.isShowItemValue()));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 26;
+        // The old "Show Item Value (Tooltip)" row (2026-09-27) became its own feature, Price Tooltip, in the Items
+        // category on 2026-10-15 (pricetooltip/); its saved value seeds that feature's switch once.
 
         int itemCount = SkyblockItemRepository.getItems().size();
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
