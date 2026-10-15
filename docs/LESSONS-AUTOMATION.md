@@ -210,6 +210,31 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   halves by the client's tick-end packet, not by server tick or movement packet (a standing client sends no movement packet).
   Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim.
 
+- **"No move for him" is not "the game is over" in Tic Tac Toe.** Hypixel's computer answers a second or two after his
+  click, and the board in between has no move for him either; Auto Tic Tac Toe's Walk Out read that gap as finished and
+  warped him out after the FIRST click, then walked him back in (Mod Only Test 2026-10-14 17:26:00-17:26:04). The sim
+  painted both marks in one server tick, so it never showed. The walk-out now waits for `TicTacToeSolverFeature.isGameOver`
+  (or the tab list), and the sim's computer replies `SimTicTacToePuzzle.REPLY_TICKS` later (an estimate: his real clicks
+  came 3 s apart against the auto's 0.5 s gap).
+- **A chest is not a block to etherwarp onto.** Tic Tac Toe's chest trip asked the Interactive Map for the chest itself:
+  "is not etherwarpable ... Nothing searched" three times and the secret was never taken (same log, 17:26:00). Trips to a
+  block go to a standable block that has it in reach (`AutoPuzzleUtil.reachSpots`), as Auto Blaze's already did.
+- **Nothing ever opened Water Board, Ice Path or Ice Fill's reward chest.** Secret Aura skips Ice Path and Ice Fill outright
+  (`SKIP_ROOMS`) and in Water Board waits for the tab list or the map to say the puzzle is over (his 2026-10-14 runs: each
+  auto finished and he stood beside the chest). The autos open it themselves (`autopuzzles/RewardChest`), Secret Aura or
+  not; testkit 93-solve-*-claim run with Secret Aura off.
+
+- **Auto Boulder started at the doorway only on ClearExecutor's arrival counter**, which moves only when a map path ends
+  within 1.5 of its planned landing - never for his own etherwarp, nor a map trip that ended off its plan. Standing on
+  the doorway spot (filed by the live map under the tile next door) it then never started; walking in did. Any server
+  teleport that leaves him there starts it now (`ClearExecutor.positionPackets`); testkit 93-solve-boulder-doorwarp
+  (main: never starts; a real map press, -mapwarp, passes on both). Its walks also only sprinted on long straights.
+- **The sim decided a Tic Tac Toe click on the CLIENT and took the square's button away in a server task queued before
+  the click's own packet**, so the server saw air and fired an AOTV's Instant Transmission into the board (4.2 blocks,
+  93-solve-tictactoe-grab). On Hypixel a board click never moves him (his 2026-10-14 log); `SimAbilities.blockWins` now
+  lets a square win. Sim Ice Fill's two reward chests sit on coordinates read off one capture; Mod Only Test's holds
+  gray wool there, so no chest stood at all until it searched for the torch-lit pedestals by the iron bars.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's

@@ -40,6 +40,9 @@ final class AutoIceFill {
     /** Held from the first warp until the finish tile is packed ice (see {@link FreeCam}). */
     private static final FreeCam CAMERA = new FreeCam("IceFill");
     private static final AutoReposition REPOSITION = new AutoReposition("IceFill", CAMERA);
+    /** The reward chests at the end of the fill, past the finish tile (15, 71, 26); see {@link RewardChest}. */
+    private static final RewardChest CHEST = new RewardChest("Ice Fill", new int[]{15, 72, 28},
+            new int[]{0, 66, 0, 31, 82, 31}, 2);
 
     private static List<Vec3> sourcePath = List.of();
     private static List<Vec3> path = List.of();
@@ -146,8 +149,14 @@ final class AutoIceFill {
         if (!IceFillSolverConfig.getInstance().isEnabled()) {
             CAMERA.release(client.player);
         }
+        if (done) {
+            // Secret Aura skips Ice Fill entirely, so the chests at the end were never opened (killer560, 2026-10-15).
+            CHEST.start();
+            CHEST.tick(client);
+            return;
+        }
         if (!GUARD.solverOn(IceFillSolverConfig.getInstance().isEnabled()) || raw.isEmpty() || !GUARD.fresh()
-                || McCompat.screen(client) != null || done) {
+                || McCompat.screen(client) != null) {
             return;
         }
         if (IceFillSolverConfig.getInstance().isOptimizedPath()) {
@@ -274,6 +283,18 @@ final class AutoIceFill {
         if (lastIndex >= path.size() - 1) {
             return;
         }
+        // EACH SECTION'S FIRST TILE IS WAITED FOR, adaptive or not (killer560, 2026-10-15: "it needs to wait for the
+        // first block to register for each section before it can move on to using the normal etherwarping tick
+        // ratio"). The tile under it turns packed ice when the server has him on it; until then nothing hops on. No
+        // clock: the hop goes the tick the tile reads packed, the delay already counted out meanwhile.
+        int section = sectionStartOf(lastIndex);
+        if (section >= 0 && client.level.getBlockState(BlockPos.containing(path.get(lastIndex)).below())
+                .is(Blocks.ICE)) {
+            ticks = Math.min(ticks + 1, Integer.MAX_VALUE - 1);
+            note("first" + lastIndex, "section {}: waiting for its first tile (point {}) to register before hopping on",
+                    section + 1, lastIndex);
+            return;
+        }
         // ticks is only advanced on a tick we did NOT warp on: >= (not ==) so that a tick the gate holds back simply
         // leaves the warp due, and the very next allowed tick takes it. The unblocked cadence is unchanged.
         if (cfg.isIceFillAdaptive()) {
@@ -347,6 +368,16 @@ final class AutoIceFill {
         }
         sectionTiles = tiles;
         sectionStart = starts.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** The section whose first tile is path point {@code index}, or -1. */
+    private static int sectionStartOf(int index) {
+        for (int s = 0; s < sectionStart.length; s++) {
+            if (sectionStart[s] == index) {
+                return s;
+            }
+        }
+        return -1;
     }
 
     /** The first section with at least half its tiles gone to air - broken, waiting to come back - or -1. */
@@ -603,6 +634,7 @@ final class AutoIceFill {
         lastIndex = -1;
         ticks = 0;
         done = false;
+        CHEST.reset(client);
         optimizedWarned = false;
         lastNote = "";
     }

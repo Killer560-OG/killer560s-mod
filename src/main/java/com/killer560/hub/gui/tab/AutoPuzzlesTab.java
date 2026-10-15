@@ -116,10 +116,10 @@ public class AutoPuzzlesTab extends BaseTab {
         y = toggle(widgets, contentX, y, contentWidth, "Auto Tic Tac Toe", cfg.isAutoTicTacToeEnabled(),
                 () -> cfg.setAutoTicTacToeEnabled(!cfg.isAutoTicTacToeEnabled()), cfg, requestRebuild);
         if (cfg.isAutoTicTacToeEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Aura Chest", cfg.getTicTacToeAuraChestEnabledRaw()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(onOff("Grab Secret", cfg.getTicTacToeAuraChestEnabledRaw()), btn -> {
                         cfg.setTicTacToeAuraChestEnabled(!cfg.getTicTacToeAuraChestEnabledRaw());
                         cfg.save();
-                        btn.setMessage(onOff("Aura Chest", cfg.getTicTacToeAuraChestEnabledRaw()));
+                        btn.setMessage(onOff("Grab Secret", cfg.getTicTacToeAuraChestEnabledRaw()));
                     }).bounds(contentX, y, contentWidth, 20).build());
             y += ROW_STEP;
             widgets.add(SettingsButtonWidget.builder(onOff("Walk Out When Done",

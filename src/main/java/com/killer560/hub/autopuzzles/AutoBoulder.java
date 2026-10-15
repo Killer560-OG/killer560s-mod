@@ -134,6 +134,11 @@ public final class AutoBoulder {
     private static long stageStartMs = 0L;
     private static String loggedWait = null;
     private static int consumedArrival = Integer.MIN_VALUE;
+    /** {@code ClearExecutor.positionPackets()} last seen: any server teleport, not only a map path that ended where it
+     *  planned. */
+    private static int seenPackets = Integer.MIN_VALUE;
+    /** Until when a landing at the doorway may still start the auto (a teleport, then settling onto the floor). */
+    private static long doorCheckUntilMs = 0L;
     private static boolean noChestWarned = false;
     private static int scanCooldown = 0;
     private static boolean sawContainer = false;
@@ -177,6 +182,8 @@ public final class AutoBoulder {
         disengage(Minecraft.getInstance(), null);
         doneChest = null;
         consumedArrival = ClearExecutor.arrivalSeq();
+        seenPackets = ClearExecutor.positionPackets();
+        doorCheckUntilMs = 0L;
     }
 
     /** From the position-packet hook: a server correction while he is being walked (reported and re-planned on the
@@ -327,20 +334,36 @@ public final class AutoBoulder {
         LOGGER.info("[AutoPuzzles] Boulder: started - {}", why);
     }
 
-    /** Boulder's clay/rotation when an Interactive Map path has just ended with him at its doorway spot, else null. */
+    /**
+     * Boulder's clay/rotation when a teleport has just put him on its doorway spot, else null.
+     *
+     * <p>killer560 (2026-10-15): "Auto boulder does not work if i ehterwarp to the room on interactive map but it does if
+     * i step into the room." The doorway spot the map lands on (relative 15, 68, -2) is filed by the live map under the
+     * tile NEXT door, so "he is in the room" never starts it there; the one other start was ClearExecutor's arrival
+     * counter, which only moves when a path ends within 1.5 blocks of its last planned landing ("ended N blocks from the
+     * planned landing" moves nothing) - and not at all for an etherwarp of his own. Now ANY server teleport (every map
+     * hop, every etherwarp) that leaves him on that spot starts it, once he is on the ground with no map path running.
+     */
     private static int[] mapArrivalAtDoor(LocalPlayer player) {
+        long now = System.currentTimeMillis();
         int arrival = ClearExecutor.arrivalSeq();
-        if (arrival == consumedArrival) {
-            return null;
+        if (arrival != consumedArrival) {
+            consumedArrival = arrival;
+            if (now - ClearExecutor.arrivalMs() <= 3000L) {
+                doorCheckUntilMs = Math.max(doorCheckUntilMs, now + 3000L);
+            }
         }
-        if (System.currentTimeMillis() - ClearExecutor.arrivalMs() > 3000L) {
-            consumedArrival = arrival; // too old to act on
+        int packets = ClearExecutor.positionPackets();
+        if (packets != seenPackets) {
+            seenPackets = packets;
+            doorCheckUntilMs = Math.max(doorCheckUntilMs, now + 3000L);
+        }
+        if (now > doorCheckUntilMs) {
             return null;
         }
         if (ClearExecutor.isBusy() || !player.onGround()) {
             return null; // not settled yet - the 3 s window allows for it
         }
-        consumedArrival = arrival;
         int[] c = boulderClayRotation();
         if (c == null) {
             return null;
@@ -351,6 +374,7 @@ public final class AutoBoulder {
                 || Math.abs(feet.getY() - door.getY()) > 2) {
             return null;
         }
+        doorCheckUntilMs = 0L;
         return c;
     }
 
@@ -989,7 +1013,9 @@ public final class AutoBoulder {
         }
         boolean forward = err < (remaining < 0.8 ? 20f : 55f);
         client.options.keyUp.setDown(forward);
-        client.options.keySprint.setDown(forward && err < 12f && remaining > 4.5);
+        // Sprinting whenever he walks (killer560, 2026-10-15: "make sure that it is sprinting not walking"); it was
+        // only on a long straight, so the stair walk and every short leg in button mode went at walking pace.
+        client.options.keySprint.setDown(forward);
     }
 
     private static void replanOrFail(Minecraft client, LocalPlayer player) {

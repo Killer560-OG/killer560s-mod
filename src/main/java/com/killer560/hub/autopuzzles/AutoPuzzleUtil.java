@@ -649,6 +649,128 @@ public final class AutoPuzzleUtil {
         return found;
     }
 
+    // ------------------------------------------------------------------ standing spots in reach of a block
+
+    /**
+     * Standable blocks (solid, two clear above, etherwarpable, inside the live map's room when it knows one) from
+     * which BOTH the standing and the sneaking eye reach every one of {@code targets}' boxes within {@code reach}.
+     * {@code needSight}: the standing eye must also see each target's centre (the target itself or nothing hit
+     * first). Ordered nearest-to-{@code prefer} first. The same rules Auto Blaze's aura spots use, for any block.
+     */
+    public static java.util.List<BlockPos> reachSpots(Minecraft client, java.util.List<BlockPos> targets, double reach,
+                                                     boolean needSight, Vec3 prefer) {
+        java.util.List<BlockPos> out = new java.util.ArrayList<>();
+        if (client.level == null || client.player == null || targets.isEmpty()) {
+            return out;
+        }
+        int idx = com.killer560.hub.livemap.LiveMapFeature.currentRoomIndex();
+        int[] bounds = idx < 0 ? null : com.killer560.hub.livemap.LiveMapFeature.roomWorldBounds(idx);
+        BlockPos a = targets.get(0);
+        int minX = a.getX();
+        int maxX = a.getX();
+        int minY = a.getY();
+        int maxY = a.getY();
+        int minZ = a.getZ();
+        int maxZ = a.getZ();
+        for (BlockPos t : targets) {
+            minX = Math.min(minX, t.getX());
+            maxX = Math.max(maxX, t.getX());
+            minY = Math.min(minY, t.getY());
+            maxY = Math.max(maxY, t.getY());
+            minZ = Math.min(minZ, t.getZ());
+            maxZ = Math.max(maxZ, t.getZ());
+        }
+        int r = (int) Math.ceil(reach) + 1;
+        double reachSq = reach * reach;
+        for (int x = minX - r; x <= maxX + r; x++) {
+            for (int z = minZ - r; z <= maxZ + r; z++) {
+                if (bounds != null && (x < bounds[0] || x > bounds[2] || z < bounds[1] || z > bounds[3])) {
+                    continue;
+                }
+                for (int y = minY - r - 2; y <= maxY + r - 1; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (targets.contains(pos) || isPassable(client.level.getBlockState(pos))
+                            || !client.level.getBlockState(pos.above()).isAir()
+                            || !client.level.getBlockState(pos.above(2)).isAir()) {
+                        continue;
+                    }
+                    Vec3 stand = new Vec3(x + 0.5, y + 1, z + 0.5);
+                    Vec3 eyeUp = stand.add(0, EYE_STANDING, 0);
+                    Vec3 eyeDown = stand.add(0, EYE_SNEAKING, 0);
+                    boolean ok = true;
+                    for (BlockPos t : targets) {
+                        if (com.killer560.hub.util.BlockHits.boxDistanceSq(eyeUp, t) > reachSq
+                                || com.killer560.hub.util.BlockHits.boxDistanceSq(eyeDown, t) > reachSq
+                                || (needSight && !sees(client, eyeUp, t))) {
+                            ok = false;
+                            break;
+                        }
+                    }
+                    if (ok && com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.isEtherwarpable(pos)) {
+                        out.add(pos);
+                    }
+                }
+            }
+        }
+        Vec3 p = prefer == null ? client.player.position() : prefer;
+        out.sort(java.util.Comparator.comparingDouble((BlockPos b) -> Vec3.atCenterOf(b).distanceToSqr(p)));
+        return out;
+    }
+
+    /**
+     * A first etherwarp for when none of {@code goals} can be aimed at from here: the standable block (within 10 of a
+     * goal) that he CAN warp onto and from whose sneaking eye a goal can be warped onto. Null when there is none. A
+     * covered alcove (Tic Tac Toe's secret, 93-solve-tictactoe-grab 2026-10-15) has no line in from the board.
+     */
+    public static BlockPos hopToward(Minecraft client, LocalPlayer player, java.util.List<BlockPos> goals) {
+        if (client.level == null) {
+            return null;
+        }
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        int tried = 0;
+        for (BlockPos goal : goals) {
+            if (++tried > 6) {
+                break;
+            }
+            for (int dx = -10; dx <= 10; dx++) {
+                for (int dz = -10; dz <= 10; dz++) {
+                    for (int dy = -4; dy <= 6; dy++) {
+                        BlockPos b = goal.offset(dx, dy, dz);
+                        if (isPassable(client.level.getBlockState(b)) || !client.level.getBlockState(b.above()).isAir()
+                                || !client.level.getBlockState(b.above(2)).isAir()) {
+                            continue;
+                        }
+                        double d = b.distSqr(goal);
+                        if (d >= bestD) {
+                            continue;
+                        }
+                        Vec3 eyeThere = new Vec3(b.getX() + 0.5, b.getY() + 1 + EYE_SNEAKING, b.getZ() + 0.5);
+                        if (com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherwarpDirection(eyeThere, goal, 57.0)
+                                == null || etherwarpAim(client.level, player, b) == null) {
+                            continue;
+                        }
+                        best = b;
+                        bestD = d;
+                    }
+                }
+            }
+            if (best != null) {
+                return best;
+            }
+        }
+        return best;
+    }
+
+    /** Whether a ray from {@code eye} to the centre of {@code target} meets nothing before it. */
+    public static boolean sees(Minecraft client, Vec3 eye, BlockPos target) {
+        Vec3 centre = Vec3.atCenterOf(target);
+        HitResult hit = client.level.clip(new ClipContext(eye, centre, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+                client.player));
+        return hit.getType() == HitResult.Type.MISS
+                || (hit instanceof BlockHitResult b && b.getBlockPos().equals(target));
+    }
+
     // ------------------------------------------------------------------ block interact
 
     /** Claims this client tick's single automated interaction for the puzzle autos.
