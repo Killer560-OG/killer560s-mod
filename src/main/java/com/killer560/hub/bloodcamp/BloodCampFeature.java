@@ -624,6 +624,10 @@ public final class BloodCampFeature {
         if ((triggerTarget != null || auraHit != null)
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             lastClickTick = now;
+            RECENT_CLICKS.addLast(now);
+            while (RECENT_CLICKS.size() > 32) {
+                RECENT_CLICKS.removeFirst();
+            }
             if (triggerTarget == null) {
                 client.gameMode.attack(client.player, auraHit);
                 client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
@@ -673,6 +677,13 @@ public final class BloodCampFeature {
     private static int auraAttacks;
     private static int lastAuraFloorTarget = -1;
     private static boolean lastTriggerMobPresent;
+
+    /** Game ticks of Blood Camp's last 32 clicks, oldest first (the testkit checks the client's own spacing). */
+    private static final java.util.ArrayDeque<Long> RECENT_CLICKS = new java.util.ArrayDeque<>();
+
+    public static List<Long> recentClickTicks() {
+        return new ArrayList<>(RECENT_CLICKS);
+    }
 
     public static int lastCooldownTicks() {
         return lastCooldownTicks;
