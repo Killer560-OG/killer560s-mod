@@ -1294,6 +1294,11 @@ public final class ClearExecutor {
         }
         LOGGER.info("[Path] arrived: the server confirmed the last landing {} - no arrival settle", fmt(at));
         lastFastArrivalTick = clientTicks;
+        // The hops' body turn goes back to his view now, before the route that arms next turns the body for its own
+        // first action this same tick. Left to this class's own tick (later in START) it undid the route's turn, and the
+        // route's warp went out with a rotation no movement packet reported: GrimAC BadPacketsJ (62-argrim-imwarp-run,
+        // 2026-10-15).
+        BODY.tick(client.player, false);
         completeArrival(client);
         return true;
     }
