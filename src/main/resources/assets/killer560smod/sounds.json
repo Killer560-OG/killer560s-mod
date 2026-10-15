@@ -6,5 +6,53 @@
         "stream": false
       }
     ]
+  },
+  "click_soft": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_soft",
+        "stream": false
+      }
+    ]
+  },
+  "click_tick": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_tick",
+        "stream": false
+      }
+    ]
+  },
+  "click_pop": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_pop",
+        "stream": false
+      }
+    ]
+  },
+  "click_wood": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_wood",
+        "stream": false
+      }
+    ]
+  },
+  "click_chime": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_chime",
+        "stream": false
+      }
+    ]
+  },
+  "click_bleep": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_bleep",
+        "stream": false
+      }
+    ]
   }
 }

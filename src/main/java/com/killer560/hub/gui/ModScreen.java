@@ -1683,7 +1683,7 @@ public class ModScreen extends Screen {
             ty += 10;
         }
         ty += 2;
-        int descLines = Math.max(0, (y + h - 14 - ty) / 10);
+        int descLines = DescriptionConfig.getInstance().isShowMenu() ? Math.max(0, (y + h - 14 - ty) / 10) : 0;
         for (String line : MenuStyle.wrap(FeatureCards.description(tab), w - 14, descLines)) {
             MenuStyle.flat(g, line, x + 7, ty, MenuStyle.DIM);
             ty += 10;

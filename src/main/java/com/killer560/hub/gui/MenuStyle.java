@@ -548,7 +548,7 @@ public final class MenuStyle {
     public static List<String> wrap(String s, int width, int maxLines) {
         Font f = font();
         List<String> out = new ArrayList<>();
-        if (s == null || s.isBlank() || width < 8) {
+        if (s == null || s.isBlank() || width < 8 || maxLines <= 0) {
             return out;
         }
         String[] words = s.trim().split("\\s+");
