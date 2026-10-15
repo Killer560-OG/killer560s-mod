@@ -32,7 +32,6 @@ public final class InteropConfig {
     private boolean chatParsing = true;
     private boolean localBridge = true;
     private boolean relayData = true;
-    private boolean logPickups = false;
 
     private InteropConfig() {
     }
@@ -58,7 +57,6 @@ public final class InteropConfig {
             cfg.chatParsing = ConfigJson.getBool(obj, "chatParsing", true);
             cfg.localBridge = ConfigJson.getBool(obj, "localBridge", true);
             cfg.relayData = ConfigJson.getBool(obj, "relayData", true);
-            cfg.logPickups = ConfigJson.getBool(obj, "logPickups", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new InteropConfig();
@@ -74,7 +72,6 @@ public final class InteropConfig {
             obj.addProperty("chatParsing", chatParsing);
             obj.addProperty("localBridge", localBridge);
             obj.addProperty("relayData", relayData);
-            obj.addProperty("logPickups", logPickups);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -129,14 +126,5 @@ public final class InteropConfig {
 
     public void setRelayData(boolean v) {
         this.relayData = v;
-    }
-
-    /** Print each accepted fact into chat - for working out why something did or did not register. */
-    public boolean isLogPickups() {
-        return logPickups;
-    }
-
-    public void setLogPickups(boolean v) {
-        this.logPickups = v;
     }
 }

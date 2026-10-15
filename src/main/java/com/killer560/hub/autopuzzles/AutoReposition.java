@@ -112,7 +112,7 @@ final class AutoReposition {
                 }
                 float[] dir = AutoPuzzleUtil.etherwarpAim(client.level, player, spot);
                 if (!swapOk || dir == null || !AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
-                    LOGGER.info("[AutoPuzzles] {}: reposition cancelled (swapOk={} dir={} held={})", tag, swapOk,
+                    LOGGER.info("[AutoPuzzles] {}: reposition canceled (swapOk={} dir={} held={})", tag, swapOk,
                             dir != null, AutoPuzzleUtil.skyblockId(player.getMainHandItem()));
                     cancel(client);
                     return;

@@ -369,13 +369,13 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         applies.active = canSwitch;
         addRenderableWidget(applies);
 
-        SettingsButtonWidget colour = SettingsButtonWidget.builder(ColorSwatch.label("Colour", e == null ? 0xFFFFFFFF : e.color), b -> {
+        SettingsButtonWidget colour = SettingsButtonWidget.builder(ColorSwatch.label("Color", e == null ? 0xFFFFFFFF : e.color), b -> {
                     ArmourDyeEntry cur = entry();
                     McOpen.colourPicker(this, selectedLabel, cur == null ? 0xFFFFFFFF : cur.color, this::setColour);
                 }).bounds(rightX, y, half, 18).build();
         colour.active = has;
         addRenderableWidget(colour);
-        SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Colour: "
+        SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Color: "
                         + (e != null && e.colorEnabled ? "§aON" : "§cOFF")), b -> toggleUseColour())
                 .bounds(rightX + half + 4, y, rightW - half - 4, 18).build();
         use.active = has;
@@ -594,7 +594,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     private static final class McOpen {
         static void colourPicker(Screen back, String label, int current, java.util.function.IntConsumer onChange) {
             Minecraft mc = Minecraft.getInstance();
-            mc.setScreenAndShow(new ColorPickerScreen(back, label + " Colour", current, 0xFFFFFFFF, onChange));
+            mc.setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
         }
     }
     @Override

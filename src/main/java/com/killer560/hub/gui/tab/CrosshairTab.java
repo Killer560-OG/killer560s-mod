@@ -128,7 +128,7 @@ public class CrosshairTab extends BaseTab {
         slider(w, sx, y, sw, "Rotation", "°", CustomCrosshairConfig.MIN_ROTATION, CustomCrosshairConfig.MAX_ROTATION,
                 1f, cfg::getRotation, cfg::setRotation, cfg);
 
-        header(w, sx, y, sw, "Colour");
+        header(w, sx, y, sw, "Color");
         color(w, sx, y[0], sw, "Color", cfg::getColor, cfg::setColor, 0xFFFFFFFF, cfg);
         y[0] += STEP;
         toggle(w, sx, y[0], half, "Chroma", cfg::isChroma, cfg::setChroma, cfg, requestRebuild);

@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * Make them red and the closest one green once you get a key and a different color than the other ones."
  * <p>
  * The master toggle and the two Wither colors work in both builds - only "Show All Doors" (draw every
- * locked Wither/Blood door instead of just the closest Wither door) and "Through Walls" are cheat-only,
+ * locked Wither/Blood door instead of just the closest Wither door, through walls) is cheat-only,
  * gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} the same way
  * {@code doorkeys.DoorKeysConfig.isThroughWalls()} gates its own ESP option. Ships fully OFF.
  */
@@ -83,8 +83,6 @@ public final class WitherDoorsConfig {
     /** Cheat build only: draw every locked Wither door and the Blood door, not just the closest Wither
      *  door. Ships OFF - the legit jar can never set this true regardless of a hand-edited config file. */
     private boolean showAllDoors = false;
-    /** Cheat build only: draw the highlight(s) through walls. Ships OFF. */
-    private boolean throughWalls = false;
     /** Cheat build only: highlight the door into the Fairy room on the blood-rush path until anyone enters Fairy
      *  ({@link FairyDoor}). Ships ON - killer560 asked for it as part of Wither Doors (2026-10-07). */
     private boolean fairyDoor = true;
@@ -120,7 +118,6 @@ public final class WitherDoorsConfig {
             cfg.customFillColor = ConfigJson.getBool(obj, "customFillColor", cfg.customFillColor);
             cfg.fillColor = ConfigJson.getInt(obj, "fillColor", cfg.fillColor);
             cfg.showAllDoors = ConfigJson.getBool(obj, "showAllDoors", cfg.showAllDoors);
-            cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
             cfg.fairyDoor = ConfigJson.getBool(obj, "fairyDoor", cfg.fairyDoor);
             cfg.fairyDoorColor = ConfigJson.getInt(obj, "fairyDoorColor", cfg.fairyDoorColor);
             instance = cfg;
@@ -145,7 +142,6 @@ public final class WitherDoorsConfig {
             obj.addProperty("customFillColor", customFillColor);
             obj.addProperty("fillColor", fillColor);
             obj.addProperty("showAllDoors", showAllDoors);
-            obj.addProperty("throughWalls", throughWalls);
             obj.addProperty("fairyDoor", fairyDoor);
             obj.addProperty("fairyDoorColor", fairyDoorColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -251,17 +247,11 @@ public final class WitherDoorsConfig {
         this.showAllDoors = showAllDoors;
     }
 
-    /** Cheat-gated: the legit jar can never draw through walls, whatever the saved value says. */
+    /** Cheat-gated: the legit jar can never draw through walls, whatever the saved value says. There is no
+     *  separate Through Walls toggle since 2026-10-14 (killer560: it was "the exact same thing" as Show All
+     *  Doors) - Show All Doors draws every highlight through walls. */
     public boolean isThroughWalls() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && throughWalls;
-    }
-
-    public boolean isThroughWallsRaw() {
-        return throughWalls;
-    }
-
-    public void setThroughWalls(boolean throughWalls) {
-        this.throughWalls = throughWalls;
+        return isShowAllDoors();
     }
 
     /** Cheat-gated, like Show All Doors: the path to Blood is not something the legit build shows. */

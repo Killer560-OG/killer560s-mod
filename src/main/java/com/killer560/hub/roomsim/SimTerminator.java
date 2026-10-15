@@ -482,7 +482,7 @@ public final class SimTerminator {
 
         String describe() {
             return String.format("shot #%d %s arrow, %d ticks in flight, at %.2f,%.2f,%.2f", shot,
-                    lane < 0 ? "yaw-5 side" : lane > 0 ? "yaw+5 side" : "centre", livedTicks, getX(), getY(), getZ());
+                    lane < 0 ? "yaw-5 side" : lane > 0 ? "yaw+5 side" : "center", livedTicks, getX(), getY(), getZ());
         }
 
         TerminatorArrow(Level level, LivingEntity owner) {

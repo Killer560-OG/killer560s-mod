@@ -158,7 +158,7 @@ public record TrailSpec(RibbonTrailConfig.ColorMode mode, int[] colors, float wi
 
     /** For log lines and the test hooks: "ribbon gradient 3 colours 0.60x1.00 60%". */
     public String describe() {
-        return String.format(Locale.ROOT, "ribbon %s %d colours %.2fx%.2f %d%%", wire(mode), colors.length,
+        return String.format(Locale.ROOT, "ribbon %s %d colors %.2fx%.2f %d%%", wire(mode), colors.length,
                 width, length, opacity);
     }
 }

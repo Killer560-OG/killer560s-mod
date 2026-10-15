@@ -16,8 +16,7 @@ import net.minecraft.client.Minecraft;
  * for why a floor he already set is never overwritten.
  * <p>
  * This command only ever changes the per-floor numbers in {@link AutoKickConfig}. It never flips the
- * master {@link AutoKickConfig#isEnabledRaw() Auto Kick toggle} itself and never changes
- * {@link AutoKickConfig#getMode()} - populating times for a floor he hasn't looked at yet must not be how
+ * master {@link AutoKickConfig#isEnabledRaw() Auto Kick toggle} itself - populating times for a floor he hasn't looked at yet must not be how
  * Auto Kick quietly turns itself on.
  */
 public final class AutoKickCommands {

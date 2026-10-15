@@ -628,7 +628,7 @@ public final class SimFloorLayout {
             }
         }
         LOGGER.warn("Sim floor: the growth left {} cell(s) empty and {} room(s) short; the fill pass put {} room(s)"
-                        + " in ({} after turning or swapping a neighbour, {} through a carved wall){}",
+                        + " in ({} after turning or swapping a neighbor, {} through a carved wall){}",
                 Math.max(0, target - before), Math.max(0, minRooms - floor.rooms().size()),
                 strict + carved, rewired, carved, carved > 0 ? ": " + String.join(", ", f.carvedNotes) : "");
         if (f.filled < target) {

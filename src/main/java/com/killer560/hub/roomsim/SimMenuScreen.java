@@ -363,7 +363,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         if (mode == Mode.HOME) {
             String hint = RoomLibrary.roomCount() == 0
                     ? "No rooms loaded - the shipped room library did not load"
-                    : "Pick what to practise";
+                    : "Pick what to practice";
             ScreenChrome.text(g, hint, panelX + 20, panelY + 42, MenuStyle.DIM);
         } else if (mode == Mode.CYCLE) {
             if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {

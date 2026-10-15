@@ -235,7 +235,7 @@ public final class AutoClearFeature {
     public static void cancel() {
         if (running) {
             stopQuietly();
-            say(ModChat.dim("Cancelled"));
+            say(ModChat.dim("Canceled"));
         }
     }
 

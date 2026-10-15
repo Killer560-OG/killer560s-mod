@@ -543,7 +543,7 @@ public final class AutoRoutesFeature {
             return;
         }
         int number = route == null ? -1 : route.indexOf(node) + 1;
-        chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To cancelled before reaching node ")
+        chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To canceled before reaching node ")
                 + (number > 0 ? "#" + number : "") + " - edit mode not turned on.");
     }
 

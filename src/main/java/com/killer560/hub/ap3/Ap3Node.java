@@ -579,7 +579,7 @@ public final class Ap3Node {
     public String describe() {
         StringBuilder sb = new StringBuilder(type.label());
         switch (type) {
-            case ALIGN -> sb.append(precise ? " [precise]" : " [centre]");
+            case ALIGN -> sb.append(precise ? " [precise]" : " [center]");
             case AXIS_ALIGN -> sb.append(" [wall ").append(wallDir == null ? "?" : wallDir.getName())
                     .append(precise ? ", precise]" : "]");
             case WALK, RUN -> sb.append(String.format(Locale.US, " [@ %.0f deg]", yaw));

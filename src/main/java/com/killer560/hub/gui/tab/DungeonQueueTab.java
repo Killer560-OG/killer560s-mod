@@ -149,14 +149,10 @@ public class DungeonQueueTab extends BaseTab {
         }
 
         // ---------------------------------------------------------------- Style Preview
+        // Always shown, no toggle (killer560, 2026-10-14: "it should always show down there").
         y += 4;
-        widgets.add(rebuildToggle("Style Preview", pf::isStylePreview, pf::setStylePreview, pf::save, requestRebuild,
-                contentX, y, contentWidth));
-        y += 20;
-        if (pf.isStylePreview()) {
-            int previewHeight = 8 + (PartyFinderOverlay.PREVIEW_LINE_COUNT + 1) * 10;
-            widgets.add(new StylePreviewWidget(contentX, y, contentWidth, previewHeight, pf));
-        }
+        int previewHeight = 8 + (PartyFinderOverlay.PREVIEW_LINE_COUNT + 1) * 10;
+        widgets.add(new StylePreviewWidget(contentX, y, contentWidth, previewHeight, pf));
         return widgets;
     }
 

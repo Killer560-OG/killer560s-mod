@@ -167,11 +167,61 @@ public final class SimMobs {
         // Client side: the snapshot the server task above publishes is read here, against the map's rooms.
         if (++roomClearTicks >= 10) {
             roomClearTicks = 0;
+            markEnteredRoomCleared(client);
             markClearedRooms();
         }
     }
 
+    /**
+     * killer560, 2026-10-14: "Treat all rooms as cleared in the sim until we do mob stuff later." A room's mobs are
+     * not a real fight in the sim yet, so every mob room counts as cleared (map checkmark, score, Auto Clear, Room
+     * Cleared alert) the moment he is inside it, without killing anything - as if its last starred mob died on entry.
+     * Puzzle rooms still clear by their puzzle and Blood by its own logic. Client thread, like {@link #markClearedRooms}.
+     */
+    private static void markEnteredRoomCleared(Minecraft client) {
+        if (!clearRoomsOnEntry || client.player == null) {
+            return;
+        }
+        double x = client.player.getX();
+        double z = client.player.getZ();
+        // roomAtWorld clamps to the grid's edge, so a position outside the 6x6 grid (the boss room) must not count.
+        int min = com.killer560.hub.livemap.LiveMapFeature.START_X - 16;
+        int max = com.killer560.hub.livemap.LiveMapFeature.START_X + 6 * 32 - 16;
+        int minZ = com.killer560.hub.livemap.LiveMapFeature.START_Z - 16;
+        int maxZ = com.killer560.hub.livemap.LiveMapFeature.START_Z + 6 * 32 - 16;
+        if (x < min || x >= max || z < minZ || z >= maxZ) {
+            return;
+        }
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        int room = layout.roomAtWorld(x, z);
+        String name = layout.name(room);
+        if (name == null || "Unknown".equals(name)) {
+            return;
+        }
+        com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(room);
+        String type = entry == null ? null : entry.type;
+        if ("PUZZLE".equalsIgnoreCase(type) || "BLOOD".equalsIgnoreCase(type)) {
+            return;
+        }
+        if (SimRoomState.markCleared(name)) {
+            SimScore.roomCleared();
+            com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room cleared: {} (entered; every room"
+                    + " counts as cleared until the sim has mob fights)", name);
+        }
+    }
+
     private static int roomClearTicks = 0;
+
+    /** On by default. The testkit turns it off for the scenarios that measure a clear by its mobs dying (Auto Clear). */
+    private static volatile boolean clearRoomsOnEntry = true;
+
+    public static void setClearRoomsOnEntry(boolean on) {
+        clearRoomsOnEntry = on;
+    }
+
+    public static boolean isClearRoomsOnEntry() {
+        return clearRoomsOnEntry;
+    }
 
     /**
      * Where each starred mob stood when it was spawned (or woken), so its ROOM is known. Hypixel clears a room the moment

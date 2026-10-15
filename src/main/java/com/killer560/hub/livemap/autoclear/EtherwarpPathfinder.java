@@ -426,7 +426,7 @@ public final class EtherwarpPathfinder {
                 ? "; " + graph.firmFixed + " aim(s) moved to one that holds, " + graph.firmDropped
                 + " fragile hop(s) dropped" + (graph.fragileLeft ? ", ONE STILL FRAGILE" : "") : "";
         if (tile6 >= 0 && !graphs.usedExact && graph.lastDepth >= 0) {
-            landing += "; landing " + graph.lastDepth + " block(s) from the tile centre";
+            landing += "; landing " + graph.lastDepth + " block(s) from the tile center";
             if (Boolean.getBoolean(CHECK_FEWEST)) {
                 // The testkit's check that the centre preference never costs a warp: the same click on the same
                 // graph with the preference off, which lands where the search first reaches the tile.
@@ -438,9 +438,9 @@ public final class EtherwarpPathfinder {
                 plain.tile = goal.tile;
                 plain.deadEnd = goal.deadEnd;
                 List<EtherSearch.Hop> p2 = graph.plan(grid, start, plain, System.nanoTime() + 200_000_000L, MAX_WARPS);
-                landing += p2 == null ? "; [check] without the centre preference: nothing"
-                        : String.format(java.util.Locale.ROOT, "; [check] without the centre preference: %d warp(s),"
-                        + " landing %d block(s) from the tile centre", p2.size(), (int) Math.floor(Math.max(
+                landing += p2 == null ? "; [check] without the center preference: nothing"
+                        : String.format(java.util.Locale.ROOT, "; [check] without the center preference: %d warp(s),"
+                        + " landing %d block(s) from the tile center", p2.size(), (int) Math.floor(Math.max(
                         Math.abs(graph.lastLandX + 0.5 - goal.preferX), Math.abs(graph.lastLandZ + 0.5 - goal.preferZ))));
             }
         }

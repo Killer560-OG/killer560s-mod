@@ -47,7 +47,7 @@ public class MenuThemeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colours", false),
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colors", false),
                 Minecraft.getInstance().font));
         y += 16;
         int[] colours = cfg.activeColours();
@@ -83,7 +83,7 @@ public class MenuThemeTab extends BaseTab {
         List<MenuConfig.SavedTheme> saved = cfg.getSavedThemes();
         if (saved.isEmpty()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7None yet - Save as New Theme keeps the colours you see now."), font));
+                    Component.literal("§7None yet - Save as New Theme keeps the colors you see now."), font));
             return widgets;
         }
         int useW = 54;
@@ -162,6 +162,6 @@ public class MenuThemeTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "The menu's colours: Amber, Dark, Light, Ocean, or your own Custom set.";
+        return "The menu's colors: Amber, Dark, Light, Ocean, or your own Custom set.";
     }
 }
