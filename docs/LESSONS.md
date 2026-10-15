@@ -38,7 +38,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   a server anchor (NoammAddons used `ClientboundSetTimePacket.gameTime`).
 - `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
   the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
-  server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
+  server stalls subscribes to `subscribeRawPing` instead (as `util/ServerLag` does).
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
@@ -104,6 +104,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `backendRetryAtMs()` and requeues the name. Also: Hypixel records no S/S+ on Entrance (every real player's Entrance
   time is `fastest_time` only), so S/S+-only PBs never show there. The PF parser now also accepts "Floor: Entrance"
   (floor 0); that lore wording is assumed, not yet seen in a real menu.
+  By 2026-10-12..15 (his Mod Only Test logs) it was 2-6 per window then "Retry-After: 30" every time, and 53 of 126
+  answers were HTTP 500s that the relay fetched fine later: treat a backend 5xx as transient (retry in seconds), never
+  as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API key" (checked 2026-10-15), so the
+  relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x optimistic; trust it only briefly.
 - A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
@@ -342,3 +346,12 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   every 250 ms and merges anything new (testkit 736 adds a reward to an already-scanned page).
 - **A finished Superpairs board stays open on Hypixel** until it is closed; Escape takes you to the rewards (killer560,
   2026-10-11). Auto E-Table presses Escape once when Remaining Clicks reads 0; Hx's `holdOnOut` emulates it (testkit 735).
+- **Class picks live in the Leap Order's file** (leap-queue-1015, 2026-10-15): the Class Overrides tab and
+  `killer560smod-classoverrides.json` are gone; picks are the `classPicks` array of `killer560smod-leapmenu.json`
+  (`LeapMenuConfig.pickOf/setPick/clearPick/allPicks`), and `dungeonclass/ClassOverrides` is only the static front every
+  feature already read through (no `getInstance()`, no `load()`, nothing of its own in `reloadAllConfigs`).
+  `LeapMenuConfig.load()` moves an old file in (a pick already there wins, saved first, then the old file is deleted);
+  a profile saved before that puts the file back and the next `LeapMenuConfig.load()` migrates it again, so applying a
+  profile must keep reloading `LeapMenuConfig`. A pick stored with a UUID that `PlayerNames` cannot map back to its
+  name is invisible to `classOf(name)` (the lookup is UUID first, then the typed name) - testkit 1072 calls
+  `PlayerNames.noteKnown` for its uuid entry.

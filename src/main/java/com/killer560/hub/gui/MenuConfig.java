@@ -44,11 +44,15 @@ public final class MenuConfig {
 
     /** A named Custom colour set: its five colours in {@link MenuTheme.Slot} order and the preset it started from. */
     public static final class SavedTheme {
+        /** Stable across renames and deletions of other themes ("T1", "T2"...): a screen's Theme setting names a saved
+         *  theme by it ({@link ScreenThemes}), never by position or name. */
+        public String id;
         public String name;
         public MenuTheme base;
         public final int[] colours;
 
-        SavedTheme(String name, MenuTheme base, int[] colours) {
+        SavedTheme(String id, String name, MenuTheme base, int[] colours) {
+            this.id = id;
             this.name = name;
             this.base = base;
             this.colours = colours;
@@ -100,9 +104,11 @@ public final class MenuConfig {
                             readColours(t.getAsJsonObject("colours"), cols);
                         }
                         String name = t.has("name") ? t.get("name").getAsString() : "";
-                        cfg.savedThemes.add(new SavedTheme(cleanName(name), base, cols));
+                        String id = t.has("id") && t.get("id").isJsonPrimitive() ? t.get("id").getAsString().trim() : "";
+                        cfg.savedThemes.add(new SavedTheme(id, cleanName(name), base, cols));
                     }
                 }
+                cfg.assignMissingIds();
                 if (obj.has("activeSaved")) {
                     int a = obj.get("activeSaved").getAsInt();
                     cfg.activeSaved = a >= 0 && a < cfg.savedThemes.size() ? a : -1;
@@ -159,6 +165,7 @@ public final class MenuConfig {
             JsonArray saved = new JsonArray();
             for (SavedTheme t : savedThemes) {
                 JsonObject o = new JsonObject();
+                o.addProperty("id", t.id);
                 o.addProperty("name", t.name);
                 o.addProperty("base", t.base.name());
                 o.add("colours", writeColours(t.colours));
@@ -254,9 +261,55 @@ public final class MenuConfig {
         while (taken.contains("custom " + n)) {
             n++;
         }
-        savedThemes.add(new SavedTheme("Custom " + n, base, cols));
+        savedThemes.add(new SavedTheme(freshId(), "Custom " + n, base, cols));
         useSavedTheme(savedThemes.size() - 1);
         return savedThemes.size() - 1;
+    }
+
+    /** The saved theme with this {@link SavedTheme#id}, or null (deleted, or never there). */
+    public SavedTheme savedThemeById(String id) {
+        if (id != null) {
+            for (SavedTheme t : savedThemes) {
+                if (t.id.equalsIgnoreCase(id.trim())) {
+                    return t;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** "T" plus the lowest number nobody uses (a file from before ids gets T1, T2... in list order, once). */
+    private String freshId() {
+        int n = 1;
+        while (true) {
+            String id = "T" + n;
+            boolean taken = false;
+            for (SavedTheme t : savedThemes) {
+                if (id.equalsIgnoreCase(t.id)) {
+                    taken = true;
+                    break;
+                }
+            }
+            if (!taken) {
+                return id;
+            }
+            n++;
+        }
+    }
+
+    private void assignMissingIds() {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (SavedTheme t : savedThemes) {
+            if (t.id == null || t.id.isBlank() || !seen.add(t.id.toUpperCase(java.util.Locale.ROOT))) {
+                t.id = "";
+            }
+        }
+        for (SavedTheme t : savedThemes) {
+            if (t.id.isEmpty()) {
+                t.id = freshId();
+                seen.add(t.id.toUpperCase(java.util.Locale.ROOT));
+            }
+        }
     }
 
     /** Makes saved theme {@code i} the Custom set and draws it. */

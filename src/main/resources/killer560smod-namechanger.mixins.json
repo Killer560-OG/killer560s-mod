@@ -6,6 +6,7 @@
 	"client": [
 		"NameChangerFontMixin",
 		"NameChangerEditBoxMixin",
+		"NameChangerCommandSuggestionsMixin",
 		"NameChangerGuiGraphicsMixin",
 		"IdentityCommandMixin",
 		"NameChangerScreenMixin",

@@ -13,7 +13,17 @@ import java.nio.file.Path;
 
 /** Persisted Lever Aura settings - see {@link LeverAuraFeature}. Cheat build only; ships disabled. Every getter that
  *  can make the aura click is gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and
- *  {@link com.killer560.hub.util.SkyblockGate#allows()} (the {@code ...Raw()} getters are for tab labels). */
+ *  {@link com.killer560.hub.util.SkyblockGate#allows()} (the {@code ...Raw()} getters are for tab labels).
+ *  <p>
+ *  Since 2026-10-15 the Lever Aura is the "In Boss" part of the Secret Aura tab: its on/off switch is Secret Aura's
+ *  {@code auraBossLevers} ({@link com.killer560.hub.cheatutils.CheatUtilsConfig#isAuraBossLevers}), no longer a key of
+ *  this file. A file that still has {@code "enabled": true} turns In Boss on when it loads, then is rewritten without
+ *  the key ({@link #load}).
+ *  <p>
+ *  Since the same day the Lights device is its own feature ({@code lightsdevice.LightsDeviceConfig}): a file that still
+ *  has {@code lightsPreFlick} / {@code lightsFinish} hands them (with the range, CPS, swing and chat settings they ran
+ *  with, and whether In Boss was on) to {@code LightsDeviceConfig#migrateFromLeverAura} when it loads, then is rewritten
+ *  without them. What is left here is S2's section levers and their range, CPS, swing and chat. */
 public final class LeverAuraConfig {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -31,11 +41,6 @@ public final class LeverAuraConfig {
 
     private static LeverAuraConfig instance;
 
-    private boolean enabled = false;
-    /** Lights device: flick every unlit lever (4 corners + 2 middle) while S2 isn't open yet. */
-    private boolean lightsPreFlick = true;
-    /** Lights device: once S1 is done, one finishing/activating flick in S2. */
-    private boolean lightsFinish = true;
     /** S2's two section levers ("Not Activated" stand above) once S2 is open. */
     private boolean sectionLevers = false;
     /** ...and also before S2 is open. */
@@ -57,12 +62,17 @@ public final class LeverAuraConfig {
 
     public static void load() {
         LeverAuraConfig cfg = new LeverAuraConfig();
+        boolean migrateEnabled = false;
+        boolean migrateLights = false;
         if (Files.exists(CONFIG_PATH)) {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                cfg.lightsPreFlick = ConfigJson.getBool(o, "lightsPreFlick", cfg.lightsPreFlick);
-                cfg.lightsFinish = ConfigJson.getBool(o, "lightsFinish", cfg.lightsFinish);
+                // A file from before the merge into Secret Aura: its switch becomes In Boss (never turns it off).
+                migrateEnabled = o.has("enabled");
+                if (migrateEnabled && ConfigJson.getBool(o, "enabled", false)) {
+                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(true);
+                    com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().save();
+                }
                 cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
                 cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
                 cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
@@ -76,20 +86,29 @@ public final class LeverAuraConfig {
                 }
                 cfg.swingHand = ConfigJson.getBool(o, "swingHand", cfg.swingHand);
                 cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
+                // A file from before the Lights Device was its own feature: its Lights options, and the In Boss switch
+                // they ran under (already migrated above when the file is older still), move there once.
+                migrateLights = o.has("lightsPreFlick") || o.has("lightsFinish");
+                if (migrateLights) {
+                    com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
+                            ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
+                            com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
+                            cfg.range, cfg.cps, cfg.swingHand, cfg.chatFeedback);
+                }
             } catch (Exception e) {
                 // unreadable file (not just a bad key) - keep defaults
             }
         }
         instance = cfg;
+        if (migrateEnabled || migrateLights) {
+            cfg.save(); // drops the old "enabled" and Lights keys, so each is migrated once
+        }
     }
 
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
-            o.addProperty("enabled", enabled);
-            o.addProperty("lightsPreFlick", lightsPreFlick);
-            o.addProperty("lightsFinish", lightsFinish);
             o.addProperty("sectionLevers", sectionLevers);
             o.addProperty("sectionLeversEarly", sectionLeversEarly);
             o.addProperty("range", range);
@@ -103,19 +122,12 @@ public final class LeverAuraConfig {
 
     /** The legit jar can never report true here, even from a copied cheat-build config file. */
     public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled && com.killer560.hub.util.SkyblockGate.allows();
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && isEnabledRaw() && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public boolean isEnabledRaw() { return enabled; }
-    public void setEnabled(boolean v) { enabled = v; }
-
-    public boolean isLightsPreFlick() { return isEnabled() && lightsPreFlick; }
-    public boolean isLightsPreFlickRaw() { return lightsPreFlick; }
-    public void setLightsPreFlick(boolean v) { lightsPreFlick = v; }
-
-    public boolean isLightsFinish() { return isEnabled() && lightsFinish; }
-    public boolean isLightsFinishRaw() { return lightsFinish; }
-    public void setLightsFinish(boolean v) { lightsFinish = v; }
+    /** The In Boss switch of the Secret Aura tab. */
+    public boolean isEnabledRaw() { return com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(); }
+    public void setEnabled(boolean v) { com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().setAuraBossLevers(v); }
 
     public boolean isSectionLevers() { return isEnabled() && sectionLevers; }
     public boolean isSectionLeversRaw() { return sectionLevers; }

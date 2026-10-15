@@ -64,6 +64,8 @@ public final class ProfileData {
             // dumps, old sim measurement output, the sim world-version marker, the generated Spotify guide.
             "gifs-cache", "packdisabler-missing.txt", "mapdumps", "measurements.txt", "sim-world.txt",
             "spotify-setup-guide.txt",
+            // The Party Finder's cache of other players' dungeon stats (re-fetched on view).
+            "partyfinder-stats-cache.json",
             // History, not setup: run history and the auto-tracked "best friends" play records (same reason the
             // Croesus and Experiments logs were always left out).
             "runs", "social",

@@ -50,6 +50,8 @@ public final class RouteRunMemory {
     /** Nodes whose await (or bat node's kill) was met this run, by {@link #nodeKey}. */
     private static final Set<String> metNodes = new HashSet<>();
     private static final Set<String> routedRooms = new HashSet<>();
+    /** How far each room's route got this run: {nodes done, nodes in the route}, kept after a stop (the HUD's percent). */
+    private static final Map<String, int[]> progress = new LinkedHashMap<>();
 
     private static Object level;
     private static int generation = Integer.MIN_VALUE;
@@ -77,6 +79,7 @@ public final class RouteRunMemory {
         claimed.clear();
         metNodes.clear();
         routedRooms.clear();
+        progress.clear();
     }
 
     /** For the testkit: forget the run, as a new run would. */
@@ -164,6 +167,39 @@ public final class RouteRunMemory {
         if (room != null && routedRooms.add(room)) {
             LOGGER.info("[AutoRoutes] run memory: {}'s route ran to the end - its secrets count as done this run", room);
         }
+    }
+
+    /** The route in {@code room} has finished {@code done} of its {@code total} nodes (the executor reports every tick). */
+    public static void noteProgress(String room, int done, int total) {
+        check();
+        if (room == null || total <= 0) {
+            return;
+        }
+        int[] p = progress.computeIfAbsent(room, k -> new int[2]);
+        p[0] = Math.max(0, Math.min(total, done));
+        p[1] = total;
+    }
+
+    /**
+     * How far {@code room}'s route got this run as {nodes done, nodes in the route}, or null when it has not started.
+     * A route that ran to its end is all done, whatever the last tick said.
+     */
+    public static int[] progressOf(String room) {
+        check();
+        int[] p = room == null ? null : progress.get(room);
+        if (routedRooms.contains(room)) {
+            int total = p != null ? p[1] : 1;
+            return new int[]{total, total};
+        }
+        return p == null ? null : p.clone();
+    }
+
+    /** What the executor itself last reported for {@code room} this run, or null if it never has (a test hook: unlike
+     *  {@link #progressOf} it does not turn a finished route into all-done). */
+    public static int[] reportedProgress(String room) {
+        check();
+        int[] p = room == null ? null : progress.get(room);
+        return p == null ? null : p.clone();
     }
 
     /** Whether a route ran to its end in {@code room} this run. */

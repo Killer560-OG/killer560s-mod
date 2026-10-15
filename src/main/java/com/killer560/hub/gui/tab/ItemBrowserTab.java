@@ -98,6 +98,10 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER,
+                contentX, y, contentWidth, 18));
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(alignText(cfg), btn -> {
                     cfg.setAlign(cfg.getAlign().next());
                     cfg.save();

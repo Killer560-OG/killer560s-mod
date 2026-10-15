@@ -59,10 +59,10 @@ import com.killer560.hub.compat.McCompat;
  * Extras killer560 asked for beyond Noamm's own real feature: a Trigger Bot (real left-click once the
  * countdown expires AND the player's real crosshair is on that exact spot - see {@link #aimedAt} for why
  * "on that spot" is ray-traced here rather than read off {@code Minecraft#hitResult}), a Kill Popup for the
- * Watcher's own move schedule ({@link BloodCampMoveTimer}), an auto-detected-lag or
- * manual tick offset for exactly when that click fires, a guaranteed single click per mob (never a
- * repeat), a spawn-overlay-only mode with no clicking at all, and an "aura" that turns to face the
- * predicted spot before the mob visually arrives. The aura's rotation math follows this mod's own
+ * Watcher's own move schedule ({@link BloodCampMoveTimer}), a Trigger Offset of -10..10 ticks from the kill
+ * timer for exactly when that click fires, one click per mob unless it missed (then it is retried), a
+ * spawn-overlay-only mode with no clicking at all, and an "aura" ({@link BloodCampAim}) that turns him toward
+ * the mob due next with a human-looking mouse movement. Both only act inside the Blood Room. The aura's rotation math follows this mod's own
  * standing rule: Hypixel tracks a real player's yaw as a continuously running, uncapped value, so this
  * never wraps/clamps the stored rotation at 0-360 - it only ever computes a bounded DELTA (via
  * {@link Mth#wrapDegrees}) and adds that onto the player's existing real yaw, exactly the same way a
@@ -70,7 +70,7 @@ import com.killer560.hub.compat.McCompat;
  */
 public final class BloodCampFeature {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
+    static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
 
     // Real base64 skull "textures" property values, copied verbatim from Noamm's own confirmed source -
     // not re-derived or guessed. Two of the real mob skulls have no attached player profile at all (a
@@ -122,13 +122,6 @@ public final class BloodCampFeature {
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
      *  stale and a click would just be a random swing at whatever is still standing there. */
     private static final double TRIGGER_WINDOW_TICKS = 20.0;
-    /** What a ping does not cover: both ends act on a packet only at a tick - the client's countdown and click run on
-     *  client ticks, the server handles the attack between its own - so 0 to 1 tick is lost at each end, in whatever
-     *  phase the two tick clocks happen to have. Measured on the testkit's real server (testkit 792, 2026-10-11): on
-     *  top of the round trip the attack was acted on 0, 1, 1 and 2 ticks later than aimed over four trips, at 1 ms and
-     *  at 200 ms alike. 1 is the mean, so the click goes on the countdown tick nearest 4 + ping in ticks (the countdown
-     *  only takes x.8 values, so 3.8 + ping) and the hit lands 2.8 ticks early on average, 1.8-3.8 by tick phase. */
-    static final double TRIGGER_PIPELINE_TICKS = 1.0;
     /**
      * How far the crosshair test reaches for "looking at the spawn hitbox". It used to be the attack reach (3 blocks),
      * so standing further than 3 blocks from where a mob lands - which is where anyone camps blood from - the Trigger
@@ -175,7 +168,14 @@ public final class BloodCampFeature {
         WorldRenderUtils.initThroughWalls();
         BloodCampMoveTimer.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> endTick());
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodCampFeature::onWorldRender);
+        // The Aura's turn moves every frame (a 20 Hz staircase is what made it look snappy); clicks stay on the tick.
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+            if (isActive()) {
+                AIM.frame(Minecraft.getInstance());
+            }
+        });
         for (com.killer560.hub.hud.HudElement element : hudElements()) {
             net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                     net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "bloodcamp_" + element.id()),
@@ -403,6 +403,9 @@ public final class BloodCampFeature {
             bloodMobs.clear();
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
+            AIM.reset(null);
+            reportedYaw = Float.NaN;
+            reportedPitch = Float.NaN;
             // a new level's game time can be behind the old one's; never let that hold a sound off
             lastStartSoundTick = Long.MIN_VALUE / 2;
             lastKillSoundTick = Long.MIN_VALUE / 2;
@@ -411,6 +414,9 @@ public final class BloodCampFeature {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
                 bloodMobs.clear();
                 watcherEntityId = null;
+            }
+            if (AIM.isTurning() || AIM.ownsCamera()) {
+                AIM.reset(client.player);
             }
             return;
         }
@@ -427,70 +433,124 @@ public final class BloodCampFeature {
             scanForWatcher(client);
         }
 
-        tickSounds(cfg, client.level.getGameTime(), pingMs(client));
+        long now = client.level.getGameTime();
+        int pingMs = pingMs(client);
+        tickSounds(cfg, now, pingMs);
+        confirmHits(client, now);
 
-        Vec3 auraTarget = null;
+        // killer560, 2026-10-15: "Aura and triggerbot should both only work if I am in the blood room."
+        boolean inRoom = inBloodRoom(client);
+        lastInBloodRoom = inRoom;
+
+        // ---- Aura: pick the mob, then turn (before the Trigger Bot looks, as a hand would already be moving) ------
+        Map.Entry<ArmorStand, BloodMobState> auraPick = null;
+        if (cfg.isAuraEnabled() && inRoom) {
+            double best = Double.MAX_VALUE;
+            for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+                BloodMobState data = entry.getValue();
+                if (data.endVector == null || entry.getKey().isRemoved() || data.confirmed || data.gaveUp) {
+                    continue;
+                }
+                double remaining = remainingTicks(data, now);
+                if (remaining > AURA_START_TICKS || remaining <= -RETRY_STALE_TICKS) {
+                    continue;
+                }
+                if (remaining < best) {
+                    best = remaining;
+                    auraPick = entry;
+                }
+            }
+        }
+        Vec3 auraPoint = auraPick == null ? null : aimPoint(client, auraPick.getValue());
+        lastAuraPoint = auraPoint;
+        AIM.tick(client, auraPick == null ? null : auraPick.getKey().getId(), auraPoint,
+                cfg.isAuraEnabled() && cfg.isAuraFreecam());
+
+        // ---- Trigger Bot ------------------------------------------------------------------------------------------
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
-        // other on the next tick". This loop used to attack EVERY due mob in the same pass, so a wave that expired
-        // together produced a burst of attack packets on one tick. Pick the most-due one here and send it below.
-        Entity triggerTarget = null;
-        BloodMobState triggerData = null;
-        double bestRemaining = Double.MAX_VALUE;
-        // A FIXED SERVER-SIDE LEAD. killer560 (2026-10-11): "delay should be fixed. That means that I want to hit 3 ticks
-        // before the mob spawns, with ping factored. So if i have 100ms of ping i have about 2ticks worth so i need to hit
-        // 5 ticks early to have my server side attack come out 3 ticks early." (This replaces the 2026-09-27 "never
-        // early" rule.) The attack should ARRIVE at the server Hit Lead ticks (his setting, 3 by default) before the
-        // countdown's end, so it goes out that lead plus the measured round trip in ticks (ms / 50; the countdown is one
-        // way behind the server and the attack takes one way back) plus the tick a packet waits on average at the two
-        // ends' tick boundaries (TRIGGER_PIPELINE_TICKS).
-        // Rounding: the countdown steps one whole tick at a time, so exactly one tick's value lies within half a tick of
-        // the target; the click goes on that tick (the first with remaining <= target + 0.5). That puts the mean
-        // server-side arrival within half a tick of the lead; the tick phase of the two ends spreads it by +-1.
-        double clickAtTicks = triggerTargetTicks(cfg, client) + 0.5;
-        boolean triggerBotUsable = cfg.isTriggerBotEnabled()
+        // other on the next tick". Pick the most-due mob here and send at most one click below.
+        //
+        // WHEN (killer560, 2026-10-15: "Triggerbot was attacking them before the kill timer actually went off", and an
+        // offset of -10..10, default -1, negative = late). The kill timer is the moment the box turns green and the Kill
+        // Sound plays: the first tick the time left is under your ping (killable). The click used to aim for Hit Lead
+        // (3) + 1 tick-boundary allowance + ping ticks before the countdown's end - the same ping the kill timer uses
+        // PLUS four more ticks, so it always went out about four ticks before the box went green. Now the click goes on
+        // the first tick with time left < ping ticks + offset: the kill timer's own tick, shifted by exactly the offset
+        // (-1 clicks one tick after the box goes green). With Auto Detect Lag off the ping term is left out, so the click
+        // is timed from the countdown's own end instead.
+        double clickBelow = triggerTargetTicks(cfg, client);
+        boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
+        Entity triggerTarget = null;
         Entity triggerHit = null;
-        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
-            ArmorStand entity = entry.getKey();
-            BloodMobState data = entry.getValue();
-            if (data.endVector == null || entity.isRemoved()) {
-                continue;
+        BloodMobState triggerData = null;
+        boolean triggerIsRetry = false;
+        double bestRemaining = Double.MAX_VALUE;
+        if (triggerBotUsable) {
+            int retryWindow = hitConfirmTicks(pingMs);
+            for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+                ArmorStand entity = entry.getKey();
+                BloodMobState data = entry.getValue();
+                if (data.endVector == null || entity.isRemoved() || data.confirmed || data.gaveUp) {
+                    continue;
+                }
+                double remainingTicks = remainingTicks(data, now);
+                if (remainingTicks >= bestRemaining) {
+                    continue;
+                }
+                boolean retry = false;
+                Entity mob = nearestMob(client, data.endVector);
+                if (data.clicks == 0) {
+                    // Only inside the window: due, but not so long ago that the prediction is stale.
+                    if (remainingTicks >= clickBelow || remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS) {
+                        continue;
+                    }
+                } else {
+                    // killer560, 2026-10-15: "If you detect that it missed hitting a mob then it should try to kill them
+                    // again immediately." A miss: a real mob stands on the landing spot, it took no damage within one
+                    // round trip + HIT_CONFIRM_TICKS of the click and is still alive (confirmHits) - or the click was a
+                    // swing on air and a mob is now under the crosshair in reach (it was not there yet). With no mob
+                    // there at all there is nothing to have missed, so a swing at an empty spot stays one click.
+                    if (data.clicks > MAX_RETRIES) {
+                        if (now - data.lastClickTick > retryWindow) {
+                            data.gaveUp = true;
+                        }
+                        continue;
+                    }
+                    if (mob == null || remainingTicks < -RETRY_STALE_TICKS || now - data.lastClickTick < data.retryGap) {
+                        continue;
+                    }
+                    boolean windowOver = now - data.lastClickTick > retryWindow;
+                    boolean nowReachable = !data.lastClickAttacked
+                            && resolveAttackTarget(client, entity, data.endVector, reach) != null;
+                    if (!windowOver && !nowReachable) {
+                        continue;
+                    }
+                    retry = true;
+                }
+                // "if my crosshair is looking in a blood mobs spawn hitbox when it goes to spawn have it click once."
+                // aimBox is that spawn hitbox, a mob-sized box standing on the predicted spot and reaching up through
+                // the drawn box; the stand's or the real mob's own box is accepted too. Judged on the BODY's look (what
+                // the movement packets report - the camera can be elsewhere in Freecam Mode), and on both the look the
+                // server was last told and the one this tick's packet will carry, so the server never sees an attack
+                // its reported look misses (GrimAC Hitboxes, docs/LESSONS-AUTOMATION.md).
+                if (!aimedAt(client, aimBox(data.endVector)) && !aimedAt(client, entity.getBoundingBox())
+                        && (mob == null || !aimedAt(client, mob.getBoundingBox()))) {
+                    continue;
+                }
+                // A LEFT CLICK, the way his own button does it: on a mob within melee reach that the crosshair is on, an
+                // attack plus the swing; otherwise the swing alone - a click on air, which is all a real left click sends
+                // there (and what a shortbow shoots on).
+                triggerTarget = entity;
+                triggerHit = resolveAttackTarget(client, entity, data.endVector, reach);
+                triggerData = data;
+                triggerIsRetry = retry;
+                bestRemaining = remainingTicks;
             }
-            double remainingTicks = remainingTicks(data, client.level.getGameTime());
-
-            if (cfg.isAuraEnabled() && remainingTicks <= 30 && remainingTicks > 0 && auraTarget == null) {
-                auraTarget = data.endVector;
-            }
-
-            if (!triggerBotUsable || data.triggerBotClicked) {
-                continue;
-            }
-            // Only inside the window: due, but not so long ago that the prediction is stale.
-            if (remainingTicks > clickAtTicks || remainingTicks <= clickAtTicks - TRIGGER_WINDOW_TICKS
-                    || remainingTicks >= bestRemaining) {
-                continue;
-            }
-            // "if my crosshair is looking in a blood mobs spawn hitbox when it goes to spawn have it click once."
-            // aimBox is that spawn hitbox - a 1x2x1 box standing on the predicted spawn point. The stand's own
-            // bounding box is accepted too, so being aimed at the real mob once it exists counts as well; it can
-            // only ever ADD a case he would want, never fire somewhere he is not looking. One click per mob is
-            // enforced by triggerBotClicked above, which is only ever set after a click actually goes out.
-            if (!aimedAt(client, aimBox(data.endVector), AIM_RANGE)
-                    && !aimedAt(client, entity.getBoundingBox(), AIM_RANGE)) {
-                continue;
-            }
-            // A LEFT CLICK, the way his own button does it: on a mob within melee reach that the crosshair is on, an
-            // attack plus the swing; otherwise the swing alone - a click on air, which is all a real left click sends
-            // there (and what a shortbow shoots on). It used to need a mob within 3 blocks and send nothing at all
-            // otherwise, and its mob search skipped every Player entity - the Watcher's summons are player-model NPCs.
-            triggerTarget = entity;
-            triggerHit = resolveAttackTarget(client, entity, data.endVector, reach);
-            triggerData = data;
-            bestRemaining = remainingTicks;
         }
         // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
-        // denial leaves triggerBotClicked false so the same mob is simply hit on the next tick it allows.
+        // denial leaves the mob as it was, so it is simply clicked on the next tick it allows.
         if (triggerTarget != null
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             if (triggerHit != null) {
@@ -499,17 +559,199 @@ public final class BloodCampFeature {
             }
             client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             triggerData.triggerBotClicked = true;
+            triggerData.clicks++;
+            triggerData.lastClickTick = now;
+            triggerData.lastClickAttacked = triggerHit != null;
+            triggerData.lastAttackedId = triggerHit == null ? -1 : triggerHit.getId();
+            triggerData.retryGap = 2 + java.util.concurrent.ThreadLocalRandom.current().nextInt(3);
             triggerClicks++;
-            lastTriggerAt = bestRemaining;
-            lastTrigger = (triggerHit == null ? "swing" : "attack " + triggerHit.getType().toShortString() + " #"
-                    + triggerHit.getId()) + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
+            if (triggerIsRetry) {
+                triggerRetries++;
+            } else {
+                lastTriggerAt = bestRemaining;
+            }
+            lastTrigger = (triggerIsRetry ? "retry " : "") + (triggerHit == null ? "swing" : "attack "
+                    + triggerHit.getType().toShortString() + " #" + triggerHit.getId())
+                    + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
             LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
         }
+    }
 
-        if (cfg.isAuraEnabled() && auraTarget != null) {
-            lookTowardsSafely(client, auraTarget);
+    /** Ticks before a mob is due the Aura starts turning toward it (a trip is 38.8 ticks, the first wave 78.8). */
+    private static final double AURA_START_TICKS = 35.0;
+    /** A click that did no damage is retried at most this many times per trip. */
+    static final int MAX_RETRIES = 4;
+    /** Retries (and the Aura) give a mob up this many ticks past its due moment. */
+    private static final double RETRY_STALE_TICKS = 40.0;
+    /** On top of the round trip, ticks a hit is given to show up (the hurt flash or the death) before it is a miss. */
+    private static final int HIT_CONFIRM_TICKS = 4;
+
+    static int hitConfirmTicks(int pingMs) {
+        return (int) Math.ceil(pingMs / 50.0) + HIT_CONFIRM_TICKS;
+    }
+
+    /** The one Aura turn controller (per-frame smooth, his mouse wins - see {@link BloodCampAim}). */
+    private static final BloodCampAim AIM = new BloodCampAim();
+    /** The body's rotation the last movement packet reported (read at END_CLIENT_TICK, after it was sent). */
+    private static float reportedYaw = Float.NaN;
+    private static float reportedPitch = Float.NaN;
+    /** Testkit: retries sent, the last aura aim point, and the room gate's last answer. */
+    private static int triggerRetries;
+    private static Vec3 lastAuraPoint;
+    private static boolean lastInBloodRoom;
+
+    public static int triggerRetries() {
+        return triggerRetries;
+    }
+
+    public static Vec3 lastAuraPoint() {
+        return lastAuraPoint;
+    }
+
+    public static boolean lastInBloodRoom() {
+        return lastInBloodRoom;
+    }
+
+    public static int auraTakeovers() {
+        return AIM.takeovers;
+    }
+
+    public static float auraMaxTickYaw() {
+        return AIM.maxTickYaw;
+    }
+
+    public static float auraMaxTickPitch() {
+        return AIM.maxTickPitch;
+    }
+
+    public static void resetAuraStats() {
+        AIM.maxTickYaw = 0f;
+        AIM.maxTickPitch = 0f;
+        AIM.lastReactionTicks = -1;
+    }
+
+    public static int auraLastReactionTicks() {
+        return AIM.lastReactionTicks;
+    }
+
+    public static boolean auraOwnsCamera() {
+        return AIM.ownsCamera();
+    }
+
+    public static boolean auraTurning() {
+        return AIM.isTurning();
+    }
+
+    /**
+     * Whether he is inside the Blood Room. The map is asked first: when it knows the type of the room he stands in, that
+     * decides. Otherwise the Watcher does - he never leaves the Blood Room, which is always a 1x1 room, so it is the
+     * dungeon room tile (32 x 32 on the grid {@code LiveMapFeature} uses, centres at -185 + 32n) the Watcher is in.
+     * Without a Watcher there are no blood mobs, so nothing is lost by answering "no".
+     */
+    static boolean inBloodRoom(Minecraft client) {
+        if (client.player == null || client.level == null || watcherEntityId == null) {
+            return false;
         }
+        String type = com.killer560.hub.livemap.LiveMapFeature.currentRoomType();
+        if (type != null) {
+            return "BLOOD".equals(type);
+        }
+        Entity watcher = client.level.getEntity(watcherEntityId);
+        if (watcher == null) {
+            return false;
+        }
+        Vec3 p = client.player.position();
+        Vec3 w = watcher.position();
+        return roomTile(p.x) == roomTile(w.x) && roomTile(p.z) == roomTile(w.z) && Math.abs(p.y - w.y) < 40.0;
+    }
+
+    /** The room tile index along one axis (rounded to the nearest room centre, -185 + 32n). */
+    static long roomTile(double coord) {
+        return Math.round((coord - com.killer560.hub.livemap.LiveMapFeature.START_X) / 32.0);
+    }
+
+    /**
+     * Marks a trip done once its mob is hurt or dead - the Aura moves on and no retry is sent. Hurt is the client's own
+     * hurt flash ({@code hurtTime}, set by the server's damage event), so a teammate's hit counts too.
+     */
+    private static void confirmHits(Minecraft client, long now) {
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
+            if (data.endVector == null || data.confirmed) {
+                continue;
+            }
+            if (data.lastAttackedId >= 0) {
+                Entity attacked = client.level.getEntity(data.lastAttackedId);
+                if (attacked == null || attacked.isRemoved() || !attacked.isAlive()) {
+                    data.confirmed = true;
+                    continue;
+                }
+            }
+            if (remainingTicks(data, now) > 2.0) {
+                continue; // nothing to hit yet
+            }
+            AABB search = new AABB(data.endVector, data.endVector).inflate(TARGET_SEARCH_RADIUS);
+            for (Entity candidate : client.level.getEntities(client.player, search,
+                    e -> e instanceof LivingEntity && !(e instanceof ArmorStand)
+                            && !(e instanceof Player && e.getUUID().version() == 4))) {
+                LivingEntity living = (LivingEntity) candidate;
+                if (living.hurtTime > 0 || !living.isAlive()) {
+                    data.confirmed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    /** The real mob standing on a landing spot (nearest to it), or null when only the stand is there. */
+    private static Entity nearestMob(Minecraft client, Vec3 end) {
+        AABB search = new AABB(end, end).inflate(TARGET_SEARCH_RADIUS);
+        Entity best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Entity candidate : client.level.getEntities(client.player, search, BloodCampFeature::isAttackableMob)) {
+            double d = candidate.position().distanceToSqr(end);
+            if (d < bestD) {
+                bestD = d;
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Where the Aura aims (killer560, 2026-10-15: "Aura is aiming very low it should aim higher"). It used to aim at the
+     * predicted landing spot itself - the stand's FEET. Now: the real mob's upper chest ({@link #AIM_HEIGHT_FRACTION} of
+     * its height) once it stands there, else {@link #AIM_HEIGHT_EMPTY} above the landing spot, the bottom of the box
+     * Blood Camp draws. A small offset rolled per trip keeps two aims from being pixel-identical.
+     */
+    static Vec3 aimPoint(Minecraft client, BloodMobState data) {
+        Entity mob = nearestMob(client, data.endVector);
+        if (mob != null) {
+            AABB b = mob.getBoundingBox();
+            double w = b.getXsize();
+            double h = b.getYsize();
+            return new Vec3(b.getCenter().x + data.aimJitterX * w, b.minY + h * (AIM_HEIGHT_FRACTION + data.aimJitterY),
+                    b.getCenter().z + data.aimJitterZ * w);
+        }
+        Vec3 end = data.endVector;
+        return new Vec3(end.x + data.aimJitterX, end.y + AIM_HEIGHT_EMPTY + data.aimJitterY * 2, end.z + data.aimJitterZ);
+    }
+
+    /** Fraction of a mob's height the Aura aims at (upper chest), and the height above an empty landing spot. */
+    static final double AIM_HEIGHT_FRACTION = 0.72;
+    static final double AIM_HEIGHT_EMPTY = 1.5;
+
+    /** END_CLIENT_TICK: the movement packet has gone; its rotation is what the server judges the next attack by. */
+    private static void endTick() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            reportedYaw = Float.NaN;
+            reportedPitch = Float.NaN;
+            return;
+        }
+        reportedYaw = client.player.getYRot();
+        reportedPitch = client.player.getXRot();
     }
 
     /**
@@ -610,10 +852,10 @@ public final class BloodCampFeature {
         }
     }
 
-    /** What the Trigger Bot treats as "the right hitbox" - a mob-sized box on the predicted landing spot. The
-     *  overlay's own box is deliberately not reused: it only covers the head so it reads well from a distance. */
-    private static AABB aimBox(Vec3 end) {
-        return new AABB(end.x - 0.5, end.y, end.z - 0.5, end.x + 0.5, end.y + 2.0, end.z + 0.5);
+    /** What the Trigger Bot treats as "the right hitbox" - a mob-sized box on the predicted landing spot, reaching up
+     *  to the top of the box Blood Camp draws (1.5 to 2.5 above the spot), so aiming at the drawn box counts too. */
+    static AABB aimBox(Vec3 end) {
+        return new AABB(end.x - 0.5, end.y, end.z - 0.5, end.x + 0.5, end.y + 2.5, end.z + 0.5);
     }
 
     /**
@@ -626,10 +868,20 @@ public final class BloodCampFeature {
      * Trigger Bot therefore had no reachable code path to a click at all. Ray-tracing the boxes ourselves is the
      * same fix Terminal Triggerbot already shipped.
      */
-    private static boolean aimedAt(Minecraft client, AABB box, double range) {
+    private static boolean aimedAt(Minecraft client, AABB box) {
         Vec3 eyes = client.player.getEyePosition();
-        Vec3 end = eyes.add(client.player.getViewVector(1f).scale(range));
-        return box.inflate(AIM_INFLATE).clip(eyes, end).isPresent();
+        AABB grown = box.inflate(AIM_INFLATE);
+        // The BODY's look (getXRot/getYRot, what movement packets carry), never the view: in Freecam Mode the camera is
+        // somewhere else. Both the look the last movement packet reported and the one this tick's will carry must hit.
+        Vec3 now = eyes.add(Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot()).scale(AIM_RANGE));
+        if (!grown.clip(eyes, now).isPresent()) {
+            return false;
+        }
+        if (Float.isNaN(reportedYaw)) {
+            return true;
+        }
+        Vec3 last = eyes.add(Vec3.directionFromRotation(reportedPitch, reportedYaw).scale(AIM_RANGE));
+        return grown.clip(eyes, last).isPresent();
     }
 
     /**
@@ -646,7 +898,7 @@ public final class BloodCampFeature {
      */
     private static Entity resolveAttackTarget(Minecraft client, ArmorStand stand, Vec3 predicted, double range) {
         Vec3 eyes = client.player.getEyePosition();
-        Vec3 end = eyes.add(client.player.getViewVector(1f).scale(range));
+        Vec3 end = eyes.add(Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot()).scale(range));
         AABB search = new AABB(predicted, predicted).inflate(TARGET_SEARCH_RADIUS);
         Entity best = null;
         double bestDistance = Double.MAX_VALUE;
@@ -684,22 +936,16 @@ public final class BloodCampFeature {
         return (data.firstSpawn ? 40 : 0) + 38 - timeTook + 0.8;
     }
 
-    /** Real ping-based auto lag compensation (killer560's own request) - fire the click that many ticks
-     *  earlier than the manual offset alone would, so the real click PACKET (not just the local
-     *  prediction) lands around the real moment the mob actually becomes vulnerable server-side, the same
-     *  real idea Noamm's own reference uses ping for (inverting the highlight box color as a warning) but
-     *  applied here to the actual click timing instead of just a visual warning.
-     *  <p>
-     *  The caller ADDS this to the manual offset (fixed 2026-09-21 - it used to subtract it, which delayed
-     *  the click by a full round trip instead of advancing it). The lead is the whole measured round trip
-     *  ({@link #pingMs}), not half: the countdown started when the stand's first move REACHED us, one way after the
-     *  server sent it, and the click needs one more way to get back, so a click due at server time T must leave when
-     *  our countdown still reads one round trip. Until 2026-10-11 this read the tab-list latency, about 1 ms on
-     *  Hypixel, so it never led at all. */
-    /** Ticks left on the countdown at which the Trigger Bot aims to click: Hit Lead +
-     *  {@link #TRIGGER_PIPELINE_TICKS} + the measured round trip in ticks (Auto Detect Lag). The click goes on the tick nearest this value. */
+    /**
+     * The Trigger Bot's first click goes on the first tick whose time left is below this. The kill timer (box green,
+     * Kill Sound) goes off on the first tick whose time left is below the ping in ticks ({@link #killable}), so with
+     * Auto Detect Lag on this is that moment moved by Trigger Offset: offset 0 clicks on the kill timer's own tick,
+     * -1 (the default) one tick after it, +2 two ticks before. With Auto Detect Lag off the ping is left out and the
+     * offset counts from the countdown's own end. The time left falls by exactly one a tick, so the click lands exactly
+     * -offset ticks after the kill timer (testkit 792 and the 1015 blood camp cases measure it).
+     */
     static double triggerTargetTicks(BloodCampConfig cfg, Minecraft client) {
-        return cfg.getHitLeadTicks() + TRIGGER_PIPELINE_TICKS + autoLagOffsetTicks(cfg, client);
+        return autoLagOffsetTicks(cfg, client) + cfg.getTriggerOffsetTicks();
     }
 
     private static double autoLagOffsetTicks(BloodCampConfig cfg, Minecraft client) {
@@ -707,30 +953,6 @@ public final class BloodCampFeature {
             return 0;
         }
         return pingMs(client) / 50.0;
-    }
-
-    /** Turns the player to face {@code target}, a fraction of the way per tick (smooth, not a snap) -
-     *  see this class's own doc comment for the real "never wrap/clamp at 0-360" rule this follows: only
-     *  a bounded DELTA is ever computed (via {@link Mth#wrapDegrees}), which then gets ADDED onto the
-     *  player's own existing, continuously-running real yaw/pitch - never replacing it with a freshly
-     *  bounded absolute angle, which would look like an impossible sudden jump on Hypixel's own real,
-     *  uncapped rotation tracking. */
-    private static void lookTowardsSafely(Minecraft client, Vec3 target) {
-        var player = client.player;
-        Vec3 eyePos = player.getEyePosition();
-        Vec3 diff = target.subtract(eyePos);
-        double horizontalDist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
-        float rawTargetYaw = (float) (Mth.atan2(diff.z, diff.x) * (180.0 / Math.PI)) - 90.0f;
-        float rawTargetPitch = (float) -(Mth.atan2(diff.y, horizontalDist) * (180.0 / Math.PI));
-
-        float currentYaw = player.getYRot();
-        float currentPitch = player.getXRot();
-        float yawDelta = Mth.wrapDegrees(rawTargetYaw - currentYaw);
-        float pitchDelta = Mth.wrapDegrees(rawTargetPitch - currentPitch);
-
-        float smoothing = 0.15f;
-        player.setYRot(currentYaw + yawDelta * smoothing);
-        player.setXRot(currentPitch + pitchDelta * smoothing);
     }
 
     // ------------------------------------------------------------------

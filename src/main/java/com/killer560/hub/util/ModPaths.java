@@ -92,7 +92,7 @@ public final class ModPaths {
         }
 
         for (String terminal : new String[]{"terminal", "teammelody", "goldor", "i4", "p3nav", "simonsays",
-                "leveraura", "arrowalign"}) {
+                "leveraura", "lightsdevice", "arrowalign"}) {
             t.put(terminal, "dungeons/terminals");
         }
 
@@ -184,6 +184,8 @@ public final class ModPaths {
         t.put("hud", "interface/hud");
         t.put("customscoreboard", "interface/customscoreboard");
         t.put("mainmenu", "interface/mainmenu");
+        // The Font setting (killer560smod-fonts.json) and its import folder (killer560smod-fonts/), 2026-10-15.
+        t.put("fonts", "interface/fonts");
         // The mod menu's own settings: Favourites (killer560smod-menu.json, Option A menu 2026-10-12).
         t.put("menu", "interface/menu");
         // Every colour picker's Recent row (killer560smod-colours.json, 2026-10-13).
@@ -192,6 +194,8 @@ public final class ModPaths {
         t.put("inventorytheme", "interface/inventorytheme");
         t.put("enchantcolors", "interface/enchantcolors");
         t.put("itemrarity", "interface/itemrarity");
+        t.put("slottext", "interface/slottext");
+        t.put("compactorpreview", "interface/compactorpreview");
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
         t.put("fullbright", "interface/fullbright");

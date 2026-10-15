@@ -398,9 +398,66 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   never stale: the probe in 1322 showed McRender's camera equal to the main camera every frame. 36 other registrations
   still use AFTER_TRANSLUCENT_FEATURES.
 
+- **A font scoped to one screen must be decided per text render state, not per frame.** GUI text is measured while a
+  screen lays out and draws, but PREPARED later, after every screen and the HUD have submitted (`GuiTextRenderState.
+  ensurePrepared`, javap 26.1.2 and 26.2), so a "menu font on" flag held only while the mod screen draws would measure in
+  one font and draw in the other. The Font setting's Mod Menu Only (`fonts/FontScope`) has each state remember, as it is
+  made, whether it was made inside a mod screen, and replays that around its own preparation; the glyph swap itself is a
+  ModifyReturnValue on `Font.getGlyphSource(FontDescription)`, where every width and glyph lookup goes. Testkit 1561/1562
+  read each state's prepared bounds: Mod Menu Only changed 49 of 53 menu texts and 0 of 13 Options texts (2026-10-15).
+- **A custom FontSet that borrows the default font's providers must be dropped at `FontManager.apply`.** That reload closes
+  the old providers (unifont's buffers included), so a set still holding them reads freed glyph data; `fonts/CustomFonts`
+  drops at apply's HEAD and rebuilds at the next tick (testkit 1562 reloads resources with a font on).
+- **Every vanilla button label is drawn with a drop shadow, whatever the screen wants.** `GuiGraphicsExtractor$
+  RenderingTextCollector.accept` builds its GuiTextRenderState with `dropShadow = true` (javap 26.1.2 and 26.2), so dark
+  text on the Light theme's title screen smeared; `mainmenu/mixin/MainMenuLabelShadowMixin` turns it off there (1565).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+
+- **A per-screen or per-overlay Theme choice must name a saved theme by a stable id, and be listed live** (2026-10-15). `ScreenThemes`
+  offered Theme Default, the presets and ONE "Custom" (the menu's current Custom colours), so a theme he saved never appeared;
+  a list captured when the tab was built would also miss one saved after. A choice is `SAVED:<id>` (`MenuConfig.SavedTheme.id`,
+  "T1"..., persisted; a file from before ids gets them in list order) and `ScreenThemes.choices()` is read when the button is
+  pressed. Overlays over the game (`OverlayThemes`, setting "Menu Theme") use the same list but "Default" means the overlay's
+  own look and `OverlayThemes.of(id)` is null there; `MenuStyle.snapshot` derives a palette without leaving the menu's statics
+  changed. Testkit 1421 walks `OverlayThemes.ids()`.
+- **Name Changer: a command line is never restyled, and the suggestions list is not an edit box (2026-10-15).** `NameReplacer`'s
+  Scanner now ignores any line whose first visible glyph is `/` (it also covers a command echoed in chat), and
+  `NameChangerCommandSuggestionsMixin` suppresses replacement while `CommandSuggestions` draws its list and usage hint - those
+  are drawn outside `EditBox`, so the edit-box suppression never reached them. Matched by method name with a `CallbackInfo`-only
+  handler so it serves both Minecraft versions (testkit 1550 fails on the old jar: `/<ign>` came back as `/Zed`).
+- **A rank tag is replaced with the name, not on its own (2026-10-15).** The scanner tracks `[LETTERS+] ` glyph by glyph and
+  extends a match of your own name back over a tag that sits directly in front of it, only when the tag is 2..12 letters/`+`
+  (so a Skyblock level `[285]` is never taken); `Entry.rankReplacement` carries the new tag. Hypixel sends the tag in several
+  Component parts, so it cannot be matched as one string - 1551 feeds it as `[MVP` + `++` + `] ` + name.
+- **Custom names live in `killer560smod-namechanger-names.json`, outside every profile (2026-10-15).** It is in
+  `ProfileManager.EXCLUDED_FILES` and also holds the Per-Profile Names switch, so the switch is the same in every profile. With
+  the switch on, the names go in the profile's own `killer560smod-namechanger.json` as before. An install from before the split
+  finds no names file on its first load and moves the names its profile file holds into it (1552).
+- **Slot Text and Compactor Preview hook points (2026-10-15, javap 26.1.2 and 26.2).** Text over an item goes right after the
+  one `GuiGraphicsExtractor.itemDecorations(Font, ItemStack, int, int, String)` call in `AbstractContainerScreen.extractSlot`
+  (the rarity and search fills use the `Slot.isFake` call before the item instead). A grid inside an item tooltip is a
+  `ClientTooltipComponent` added by a `@ModifyVariable` on the list argument of `GuiGraphicsExtractor.tooltip(Font, List, int, int,
+  ClientTooltipPositioner, Identifier)`; hand it a COPY, vanilla's list may be immutable. A Personal Compactor/Deletor keeps its
+  slots in custom data as `personal_compact_<n>` / `personal_deletor_<n>` strings holding a SkyBlock id (read from Skyblocker's
+  open source and cross-checked with the wiki's slot counts, not yet seen on a live item).
+- A harness key press never reaches `InputConstants.isKeyDown` (it polls GLFW), so a hold-key mode needs a test hook
+  (`keyHeldForTest`, docs/TESTING-HOOKS.md). And an inventory screenshot diff must not look at the whole frame: the
+  player model turns with the cursor and changed 602 px in testkit 961's first run; diff only the slot grid.
+- **A card's description has to be written for the narrowest card, not measured on the one in front of you.** The grid lays
+  cards out between `FeatureCards.CARD_MIN_W` (104) and about 131 wide, so a card has 90 px of text: three lines (about 38
+  characters) when its name takes one line, two (about 26) when it takes two. The old descriptions were the first sentence of the
+  master toggle's tooltip, 60-150 characters, so `MenuStyle.wrap` cut the last line with "..." on all 169 cards (testkit
+  1060 failed on every one before `CardBlurbsData`). The long tooltip is now the hover text (`FeatureCards.longDescription`);
+  `FeatureCards.cardText` is the one place a card's text is laid out, and `autoCut()` lists any tab whose text the menu had to
+  trim itself, which 1060 requires to be empty. A new tab needs a blurb in `CardBlurbsData` (or `cardDescription()`).
+- **Every vanilla button click is `minecraft:ui.button.click` through `SoundManager.play`**, so the Click Sound option is one
+  `@ModifyVariable` on that method (`clicksound/mixin`), not a change per widget. An imported .ogg is not in any resource pack:
+  `SoundBufferLibrary.getCompleteBuffer` is answered from the folder by a second mixin, and the decoded `SoundBuffer` is kept
+  per file because each one owns an OpenAL buffer that is only freed when the engine clears its library. An `Identifier` cannot
+  hold capitals or spaces, so an imported file is named to the engine by a hashed key (`imported/s<hash>`).

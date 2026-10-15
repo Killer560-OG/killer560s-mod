@@ -1,7 +1,10 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeoninfo.DungeonInfoConfig;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -38,6 +41,18 @@ public class DungeonInfoTab extends BaseTab {
                     cfg.setSecretsHudEnabled(!cfg.isSecretsHudEnabled());
                     cfg.save();
                     requestRebuild.run();
+                }).bounds(contentX, y, 220, 20).build());
+        y += 24;
+
+        // killer560, 2026-10-15: "make it so you can edit the text color of your secret hud".
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Secrets Text Color", cfg.getTextColor()), btn -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(mc, new ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(mc), "Secrets Text Color", cfg.getTextColor(),
+                            DungeonInfoConfig.DEFAULT_TEXT_COLOR, argb -> {
+                        cfg.setTextColor(argb);
+                        cfg.save();
+                    }));
                 }).bounds(contentX, y, 220, 20).build());
 
         return widgets;

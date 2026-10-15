@@ -20,7 +20,6 @@ public class CheatSecretsTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>();
         tabs.add(new SecretAuraTab());
-        tabs.add(new LeverAuraTab()); // directly under Secret Aura
         tabs.add(new SecretTriggerbotTab());
         tabs.add(new FullBlockTab());
         return tabs;

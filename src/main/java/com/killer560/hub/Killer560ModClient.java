@@ -133,6 +133,9 @@ public class Killer560ModClient implements ClientModInitializer {
         // places under Multiplayer - so there is nothing to register here.
         com.killer560.hub.roomsim.SimAbilities.register();
         com.killer560.hub.roomsim.SimActionBar.register();
+        // Per-tick pings from the sim's server, as Hypixel sends them: what util/ServerLag measures stalls by.
+        com.killer560.hub.roomsim.SimServerTicks.register();
+        com.killer560.hub.util.ServerLag.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
         // Only so the Terminator's own arrows can be recognised when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.
@@ -205,6 +208,7 @@ public class Killer560ModClient implements ClientModInitializer {
         GifPlayerFeature.register();
         DvdFeature.register();
         com.killer560.hub.mainmenu.MainMenuTitleLayout.register();
+        com.killer560.hub.fonts.CustomFonts.register();
         AutoMeowFeature.register();
         com.killer560.hub.architect.ArchitectDraftFeature.register();
         ExperimentsFeature.register();
@@ -251,6 +255,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
         com.killer560.hub.leveraura.LeverAuraFeature.register();
+        com.killer560.hub.lightsdevice.LightsDeviceFeature.register();
         com.killer560.hub.terminalaura.TerminalAuraFeature.register();
         com.killer560.hub.terminaltrigger.TerminalTriggerbotFeature.register();
         com.killer560.hub.autoroutes.AutoRoutesFeature.register();
@@ -442,6 +447,14 @@ public class Killer560ModClient implements ClientModInitializer {
                                     ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
                                     return 1;
                                 })))));
+        // killer560, 2026-10-15: "have it use the /leaporder process. Also have /class which opens the same menu to edit the
+        // same things" - both bare commands open the Leap Order editor, the one place a player's class is set.
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            dispatcher.register(ClientCommands.literal("leaporder")
+                    .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
+            dispatcher.register(ClientCommands.literal("class")
+                    .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
+        });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("killer560")
                         .executes(context -> {
@@ -461,14 +474,12 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.literal("bugreport")
                                 .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
-                        // directly rather than going through the mod menu's Dungeon folder.
+                        // directly rather than going through the mod menu's Dungeon folder. "/killer560 class" is the
+                        // same screen (2026-10-15), as are the bare /leaporder and /class registered below.
                         .then(ClientCommands.literal("leaporder")
-                                .executes(context -> {
-                                    Minecraft client = Minecraft.getInstance();
-                                    client.execute(() -> client.setScreenAndShow(
-                                            new com.killer560.hub.leapmenu.LeapOrderScreen(McCompat.screen(client))));
-                                    return 1;
-                                }))
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
+                        .then(ClientCommands.literal("class")
+                                .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()))
                         // Real, working data-gathering tool for the Mapping tab's placeholders - see
                         // MappingFeature's class doc. Dumps whatever map you're holding right now.
                         .then(ClientCommands.literal("mapdump")
@@ -670,8 +681,10 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                 .executes(context -> {
                                     String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.applyProfile(name).message(), 5000);
+                                    var result = com.killer560.hub.profiles.ProfileManager.applyProfile(name);
+                                    if (!result.success()) {
+                                        ModOverlayMessage.show(result.message(), 5000);
+                                    }
                                     return 1;
                                 })))
                 .then(ClientCommands.literal("delete")

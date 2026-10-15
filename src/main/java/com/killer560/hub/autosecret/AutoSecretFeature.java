@@ -291,6 +291,8 @@ public final class AutoSecretFeature {
         }
         Phase was = phase;
         phase = Phase.IDLE;
+        com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET);
+        com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
         keyTarget = null;
         WitherDoorOpener.cancel();
         if (pilot) {
@@ -718,6 +720,7 @@ public final class AutoSecretFeature {
             (dist.containsKey(r.room()) ? open : blocked).add(r);
         }
         open.sort(Comparator.comparingInt((RoomStatus.Room r) -> -r.unfound()).thenComparingInt(r -> dist.get(r.room())));
+        publishPlan(open);
         String blockedText = describe(blocked);
         for (RoomStatus.Room r : open) {
             if (goSecret(layout, r, dist, describe(open), blockedText)) {
@@ -728,6 +731,28 @@ public final class AutoSecretFeature {
         // while there is anything else useful to do) - the endgame does the useful things first, then the door.
         blockedSecrets = blocked.isEmpty() ? null : blockedText;
         return false;
+    }
+
+    /**
+     * The rooms it will secret, in the order it will try them, for the Auto Routes Progress HUD
+     * ({@link com.killer560.hub.autoroutes.RunPlan}): the open rooms {@link #decideSecrets} just sorted, minus any with no
+     * recorded route (it skips those). Rooms done = those it has finished that have a route.
+     */
+    private static void publishPlan(List<RoomStatus.Room> open) {
+        List<String> names = new ArrayList<>();
+        for (RoomStatus.Room r : open) {
+            Route route = RouteStore.getInstance().forRoom(r.name());
+            if (route != null && route.startNode() != null) {
+                names.add(r.name());
+            }
+        }
+        int done = 0;
+        for (String s : secreted) {
+            if (RouteStore.getInstance().forRoom(s) != null) {
+                done++;
+            }
+        }
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET, names, done);
     }
 
     /**

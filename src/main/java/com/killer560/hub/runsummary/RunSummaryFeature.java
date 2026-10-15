@@ -188,32 +188,69 @@ public final class RunSummaryFeature {
             return;
         }
         try {
-            com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
-            int roomCount = layout.roomCount();
-            if (roomCount <= 0) {
+            RunRecord.MapSnapshot snapshot = snapshotMap(com.killer560.hub.livemap.DungeonLayout.current());
+            if (snapshot == null) {
                 return;
             }
-            int cells = RunRecord.MapSnapshot.GRID * RunRecord.MapSnapshot.GRID;
-            int[] rooms = new int[cells];
-            int[] doors = new int[cells];
-            for (int i = 0; i < cells; i++) {
-                rooms[i] = layout.roomOfCell(i);
-                int type = layout.doorType(i);
-                doors[i] = type == 0 ? 0 : type | (layout.isLocked(i) ? RunRecord.MapSnapshot.LOCKED_BIT : 0);
-            }
-            List<RunRecord.MapRoom> roomList = new ArrayList<>(roomCount);
-            for (int id = 0; id < roomCount; id++) {
-                com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(id);
-                roomList.add(new RunRecord.MapRoom(layout.name(id), entry == null ? null : entry.type));
-            }
-            RunRecord.MapSnapshot snapshot = new RunRecord.MapSnapshot(rooms, doors, roomList);
-            // Keep the richest map seen: a late warp can reset the grid to a handful of rooms.
-            if (mapSnapshot == null || roomList.size() >= mapSnapshot.rooms().size()) {
-                mapSnapshot = snapshot;
+            // Keep the richest map seen: a late warp can reset the grid to a handful of rooms. A rotation the live
+            // map read earlier is kept when a later read of the same room has none (its marker went unread).
+            if (mapSnapshot == null || snapshot.rooms().size() >= mapSnapshot.rooms().size()) {
+                mapSnapshot = keepRotations(snapshot, mapSnapshot);
             }
         } catch (Exception e) {
             LOGGER.debug("[RunSummary] Map snapshot failed", e);
         }
+    }
+
+    /**
+     * The map as {@code layout} has it, with each room's DATABASE rotation as the live map read it (what the sim needs
+     * to rebuild the room facing the way it did), or null when nothing is scanned. Public for the testkit, which takes
+     * one off a sim floor and replays it.
+     */
+    public static RunRecord.MapSnapshot snapshotMap(com.killer560.hub.livemap.DungeonLayout layout) {
+        int roomCount = layout.roomCount();
+        if (roomCount <= 0) {
+            return null;
+        }
+        int cells = RunRecord.MapSnapshot.GRID * RunRecord.MapSnapshot.GRID;
+        int[] rooms = new int[cells];
+        int[] doors = new int[cells];
+        for (int i = 0; i < cells; i++) {
+            rooms[i] = layout.roomOfCell(i);
+            int type = layout.doorType(i);
+            doors[i] = type == 0 ? 0 : type | (layout.isLocked(i) ? RunRecord.MapSnapshot.LOCKED_BIT : 0);
+        }
+        List<RunRecord.MapRoom> roomList = new ArrayList<>(roomCount);
+        for (int id = 0; id < roomCount; id++) {
+            com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(id);
+            int[] clay = layout.clayRotation(id);
+            int rotation = clay != null && clay.length >= 3 ? Math.floorMod(clay[2], 360)
+                    : RunRecord.MapRoom.UNKNOWN_ROTATION;
+            if (rotation % 90 != 0) {
+                rotation = RunRecord.MapRoom.UNKNOWN_ROTATION;
+            }
+            roomList.add(new RunRecord.MapRoom(layout.name(id), entry == null ? null : entry.type, rotation));
+        }
+        return new RunRecord.MapSnapshot(rooms, doors, roomList);
+    }
+
+    /** {@code fresh}, with any room it has no rotation for taking the one {@code older} read for the same name. */
+    private static RunRecord.MapSnapshot keepRotations(RunRecord.MapSnapshot fresh, RunRecord.MapSnapshot older) {
+        if (older == null) {
+            return fresh;
+        }
+        java.util.Map<String, Integer> known = new java.util.HashMap<>();
+        for (RunRecord.MapRoom r : older.rooms()) {
+            if (r.name() != null && r.rotation() >= 0) {
+                known.putIfAbsent(r.name(), r.rotation());
+            }
+        }
+        List<RunRecord.MapRoom> rooms = new ArrayList<>(fresh.rooms().size());
+        for (RunRecord.MapRoom r : fresh.rooms()) {
+            Integer rot = r.rotation() < 0 && r.name() != null ? known.get(r.name()) : null;
+            rooms.add(rot == null ? r : new RunRecord.MapRoom(r.name(), r.type(), rot));
+        }
+        return new RunRecord.MapSnapshot(fresh.roomOfCell(), fresh.doorOfCell(), rooms);
     }
 
     /** Closes a split segment whenever Split Timers moves on to the next one. No split regex here - the
@@ -322,6 +359,16 @@ public final class RunSummaryFeature {
             PlayerRunStats row = stats.get(key);
             DungeonClass cls = PartyTracker.classOf(name);
             Integer level = CLASS_LEVELS.get(key);
+            // The room NAMES behind the counts (killer560, 2026-10-15: "list who was in the party how many secrets
+            // each person got what rooms they cleared"), for the sim's run detail page and /log.
+            List<List<String>> roomNames = List.of(List.of(), List.of());
+            try {
+                if (row != null && row.hasRooms()) {
+                    roomNames = RunStatsTracker.roomBreakdown(name);
+                }
+            } catch (Exception e) {
+                LOGGER.debug("[RunSummary] Room names unavailable for {}", name, e);
+            }
             out.add(new RunRecord.PartyMember(
                     uuidOf(client, name),
                     name,
@@ -331,7 +378,10 @@ public final class RunSummaryFeature {
                     row != null ? row.soloRooms() : RunRecord.UNKNOWN_INT,
                     row != null ? row.stackedRooms() : RunRecord.UNKNOWN_INT,
                     row != null ? row.secrets() : RunRecord.UNKNOWN_INT,
-                    row != null ? row.deaths().size() : RunRecord.UNKNOWN_INT));
+                    row != null ? row.deaths().size() : RunRecord.UNKNOWN_INT,
+                    roomNames.get(0),
+                    roomNames.get(1),
+                    row != null ? row.deaths() : List.of()));
         }
         return out;
     }

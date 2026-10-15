@@ -19,7 +19,6 @@ import net.minecraft.resources.Identifier;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import com.killer560.hub.gui.SettingsButtonWidget;
 import java.util.Comparator;
 import java.util.List;
 import com.killer560.hub.compat.McCompat;
@@ -150,6 +149,21 @@ public final class MainMenuTitleLayout {
         }
     }
 
+    /** The Dungeon Sim row: a plain vanilla Button like the rest of the column, so it is drawn in the main menu's
+     *  theme by MainMenuButtonMixin exactly like Singleplayer (it was a SettingsButtonWidget in the mod menu's style). */
+    public static final class DungeonSimButton extends Button.Plain {
+        private DungeonSimButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+    }
+
+    /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
+    private static volatile int ruleY;
+
+    static int ruleY(Screen screen) {
+        return isAppliedTo(screen) ? ruleY : 0;
+    }
+
     /** Themed-mode Swap Accounts button. Starts at the old top-left bounds with the old long label, so if the
      *  layout never runs (listener missing, or it failed) the button is still where users know it. */
     public static Button createSwapAccountsButton(Button.OnPress onPress) {
@@ -173,6 +187,8 @@ public final class MainMenuTitleLayout {
 
     private static void apply(Screen screen) {
         appliedTo = new WeakReference<>(null);
+        MainMenuChrome.clearCard();
+        playingAsY = -1;
         if (!MainMenuTheme.active()) {
             return;
         }
@@ -252,11 +268,9 @@ public final class MainMenuTitleLayout {
             int afterMultiplayer = multiplayer == null ? -1 : column.indexOf(multiplayer);
             if (afterMultiplayer >= 0) {
                 if (sim == null) {
-                    sim = SettingsButtonWidget.builder(Component.literal("Dungeon Sim"), btn ->
-                            McCompat.setScreen(Minecraft.getInstance(), 
-                                    new com.killer560.hub.roomsim.SimMenuScreen(screen)))
-                            .bounds(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT)
-                            .build();
+                    sim = new DungeonSimButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
+                            Component.literal("Dungeon Sim"), btn -> McCompat.setScreen(Minecraft.getInstance(),
+                                    new com.killer560.hub.roomsim.SimMenuScreen(screen)));
                     // killer560 (2026-09-28, and again on 2026-09-30): "the button for the sim still doesnt
                     // load in like the other buttons do." It fades with them now, and nothing here does it.
                     //
@@ -344,6 +358,16 @@ public final class MainMenuTitleLayout {
                 removeWidget(screen, widgets, m);
             }
 
+            // The frosted panel behind the column and the Options/Quit row (2026-10-15), with a rule between them.
+            int lastBottom = start + ROW_STEP * (rows - 1) + ROW_HEIGHT;
+            ruleY = (lastBottom + rowY) / 2;
+            int padTop = Math.max(4, Math.min(10, start - LOGO_BOTTOM + 2));
+            int padBottom = Math.max(3, Math.min(10, screen.height - COPYRIGHT_HEIGHT - 2 - (rowY + ROW_HEIGHT)));
+            int cardTop = start - padTop;
+            int cardBottom = rowY + ROW_HEIGHT + padBottom;
+            MainMenuChrome.setCard(screen, cx - COLUMN_WIDTH / 2 - 10, cardTop, COLUMN_WIDTH + 20, cardBottom - cardTop,
+                    column.get(0));
+
             if (swap != null) {
                 String name = playerName();
                 swap.setMessage(Component.literal("Swap Accounts"));
@@ -355,7 +379,7 @@ public final class MainMenuTitleLayout {
                     // index itself, so no manual remove (which would make idx off by one).
                     widgets.add(idx + 1, swap);
                 }
-                installPlayingAs(screen, swap, name, cx, rowY + ROW_HEIGHT + 5);
+                installPlayingAs(screen, swap, name, cx, cardBottom + 5);
             }
             appliedTo = new WeakReference<>(screen);
         } catch (Throwable t) {
@@ -385,33 +409,39 @@ public final class MainMenuTitleLayout {
         }
     }
 
-    /** "Playing as <name>" centred under the Options/Quit row when it fits above the footer lines;
-     *  otherwise (very small windows / huge GUI scale) as the button's tooltip instead. */
-    private static void installPlayingAs(Screen screen, SwapAccountsButton swap, String name, int cx, int textY) {
-        Font font = Minecraft.getInstance().font;
-        if (textY + font.lineHeight > screen.height - FOOTER_CLEARANCE) {
+    /** Height of the "Playing as" chip. */
+    private static final int CHIP_HEIGHT = 15;
+
+    /** "Playing as <name>" as a chip centred under the panel when it fits above the footer band; otherwise (very
+     *  small windows / huge GUI scale) as the button's tooltip instead. The name is always the account's real one,
+     *  never Name Changer's (killer560, 2026-10-15: "Do not have the custom ign color work on this page"). */
+    private static void installPlayingAs(Screen screen, SwapAccountsButton swap, String name, int cx, int chipY) {
+        if (chipY + CHIP_HEIGHT > screen.height - FOOTER_CLEARANCE) {
             swap.setTooltip(Tooltip.create(Component.literal("Playing as " + name)));
             return;
         }
-        String prefix = "Playing as ";
-        int prefixW = font.width(prefix);
-        int total = prefixW + font.width(name);
-        int x = cx - total / 2;
+        playingAsY = chipY;
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
             if (!MainMenuTheme.active() || !swap.visible) {
                 return;
             }
             try {
-                int alpha = Math.round(swap.getAlpha() * 255f);
-                if (alpha <= 4) {
+                float alpha = swap.getAlpha();
+                if (alpha <= 0.02f) {
                     return;
                 }
-                graphics.text(font, prefix, x, textY, MainMenuTheme.argb(MainMenuTheme.DIM, alpha));
-                graphics.text(font, name, x + prefixW, textY, MainMenuTheme.argb(MainMenuTheme.LIGHT_ORANGE, alpha));
+                MainMenuChrome.drawPlayingAs(graphics, cx, chipY, name, alpha);
             } catch (Throwable t) {
                 MainMenuTheme.fail("playing-as line", t);
             }
         });
+    }
+
+    /** Where the chip was put (testkit). */
+    private static volatile int playingAsY = -1;
+
+    public static int playingAsY() {
+        return playingAsY;
     }
 
     // ---------------------------------------------------------------- identification

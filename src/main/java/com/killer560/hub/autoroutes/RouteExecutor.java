@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Input;
@@ -139,6 +140,10 @@ public final class RouteExecutor {
     private static RouteNode activeNode;
     private static Step step;
     private static int stepTicks;
+    /** {@link com.killer560.hub.util.ServerLag#mark()} on the step's first tick: every wait for the server's answer
+     *  (a landing, a broken block, a boom, a kill) gets {@link #serverLagTicks()} more ticks, so a lagging server is
+     *  never read as the action failing; 0 while the server keeps time (killer560, 2026-10-15). */
+    private static long stepLag;
     private static int settleTicks;
     private static Vec3 actionOrigin;
     /**
@@ -261,6 +266,17 @@ public final class RouteExecutor {
     private static final int CRYPT_AIM_GIVE_UP = 60;
     /** Crypt node: route ticks in a row that ended with the look at pitch 90.0 (the server has it once this is 2). */
     private static int cryptDownTicks;
+    /** Bat node with a Spirit Sceptre: the first uses go straight down, then it aims at the nearest secret bat. */
+    public static final int BAT_DOWN_USES = 2;
+    /** Ticks between two aimed sceptre uses: what a held right click does. */
+    private static final int BAT_USE_GAP = 4;
+    /** Legit: how close (degrees) the camera must be to the bat before a use goes. */
+    private static final float BAT_AIM_TOLERANCE = 6f;
+    /** {@link AwaitEvents#weaponUses} when the node started holding use; the uses since are the node's. */
+    private static int batUseBase;
+    /** The node tick (stepTicks) of the last aimed use. */
+    private static int batLastUse;
+    private static boolean batSeeking;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
     // ---- await ----
@@ -518,6 +534,7 @@ public final class RouteExecutor {
         RouteRotation.clear();
         running = true;
         handsLatched = true;
+        RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
         if (AutoRoutesConfig.getInstance().isChatFeedback()) {
@@ -536,6 +553,7 @@ public final class RouteExecutor {
 
     private static void complete() {
         justFinished = true;
+        RouteRunMemory.noteProgress(route.roomName(), ordered.size(), ordered.size());
         RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
@@ -848,6 +866,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
+        RouteRunMemory.noteProgress(route.roomName(), nextNode, ordered.size());
         checkCorrections(client, player);
         if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
@@ -906,7 +925,10 @@ public final class RouteExecutor {
             }
         }
         if (cameraGraceTicks > 0) {
-            cameraGraceTicks--;
+            // Held while the server is stalled: the grace covers a landing still to come, and a stall delays it.
+            if (!com.killer560.hub.util.ServerLag.stalled()) {
+                cameraGraceTicks--;
+            }
         } else if (RouteRotation.userMovedCamera(player)) {
             if (activeNode != null && awaitHeld) {
                 // Waiting on its await, the node is waiting for HIM: turning to click the chest it waits for is not
@@ -1525,7 +1547,9 @@ public final class RouteExecutor {
 
     private static void tickAction(Minecraft client, LocalPlayer player) {
         RouteNode node = activeNode;
-        stepTicks++;
+        if (++stepTicks == 1) {
+            stepLag = com.killer560.hub.util.ServerLag.mark();
+        }
         actionAge++;
         if (!awaitPhaseDone) {
             // No sneak while it waits: he is collecting the secrets it waits for, and a sneaking right click with an
@@ -2177,7 +2201,7 @@ public final class RouteExecutor {
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
                 return true;
-            } else if (stepTicks > LANDING_TIMEOUT) {
+            } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
@@ -2434,7 +2458,7 @@ public final class RouteExecutor {
                 rejoinPathAfterTeleport(player, node);
                 finishAction();
                 noteLanding(node);
-            } else if (stepTicks > LANDING_TIMEOUT) {
+            } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 stop(node.item + " didn't teleport where it was recorded");
             }
         }
@@ -2486,6 +2510,7 @@ public final class RouteExecutor {
             // turns sideways (the node's recorded yaw used to be turned to).
             aimAt(player.getYRot(), MimicKiller.STRAIGHT_DOWN, node);
             cryptDownTicks = 0;
+            batSeeking = false;
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -2535,6 +2560,7 @@ public final class RouteExecutor {
             // right click sends (javap, 26.1.2 and 26.2: keyUse.isDown && rightClickDelay == 0 && !isUsingItem).
             // Under the Interactive Map (Run While Map Open) handleKeybinds does not run; HeldUsePickMixin takes
             // that step instead (heldUseUnderScreen).
+            batUseBase = AwaitEvents.weaponUses();
             holdUse(client, player, node);
             logActed(node, " (" + weapon.label() + ", holding use until " + goal + (bat ? " bat kill(s))"
                     : " crypt/prince kill(s))"));
@@ -2565,7 +2591,7 @@ public final class RouteExecutor {
             }
             int attackTicks = bat ? AutoRoutesConfig.getInstance().getBatAttackTicks()
                     : AutoRoutesConfig.getInstance().getCryptAttackTicks();
-            if (stepTicks > attackTicks) {
+            if (stepTicks > attackTicks + serverLagTicks()) {
                 // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
                 // reach must not strand the rest of the route.
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} of {} kill(s) after holding use {} tick(s) - attack "
@@ -2578,8 +2604,77 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
+            // killer560, 2026-10-15: "If I have the spirit scepter set to bat mode have the first 2 bats go straight down
+            // after that have it look right at the bat to use the rest of them till it times out. If using hype have it
+            // keep looking down." The Hyperion (and a sceptre with no bat in sight) keeps the held right click down.
+            if (bat && weapon == AutoRoutesConfig.CryptWeapon.SPIRIT_SCEPTRE
+                    && AwaitEvents.weaponUses() - batUseBase >= BAT_DOWN_USES && tickBatSeek(client, player, node)) {
+                return;
+            }
             holdUse(client, player, node);
         }
+    }
+
+    /** The secret bat nearest him (alive, Skyblock health), or null: what a sceptre BAT node aims at after its first uses. */
+    private static net.minecraft.world.entity.ambient.Bat nearestSecretBat(Minecraft client, LocalPlayer player) {
+        net.minecraft.world.entity.ambient.Bat best = null;
+        double bestD = 40.0 * 40.0;
+        for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.ambient.Bat b && !b.isRemoved() && !b.isDeadOrDying()
+                    && AwaitEvents.isSecretBat(b)) {
+                double d = b.distanceToSqr(player);
+                if (d < bestD) {
+                    bestD = d;
+                    best = b;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A Spirit Sceptre BAT node past its {@link #BAT_DOWN_USES} downward uses: the sceptre is used AT the nearest secret
+     * bat, one use per {@link #BAT_USE_GAP} ticks (the held key's pace), until the kill or Bat Attack Time. The key is
+     * let go - a held use acts on the block along the look, and a look at a bat can have a chest or lever on it - and each use is
+     * a plain item use (no block) at the bat's centre: obvious mode turns the body as every route use does
+     * ({@link #useHeldItem}), legit mode eases the camera and goes once it is within {@link #BAT_AIM_TOLERANCE}.
+     * Returns false when no secret bat is there, and the node falls back to looking down.
+     */
+    private static boolean tickBatSeek(Minecraft client, LocalPlayer player, RouteNode node) {
+        net.minecraft.world.entity.ambient.Bat target = nearestSecretBat(client, player);
+        if (target == null) {
+            batSeeking = false;
+            return false;
+        }
+        releaseUse(client);
+        if (!batSeeking) {
+            batSeeking = true;
+            batLastUse = stepTicks - 1;
+            LOGGER.info("[AutoRoutes] Node #{} BAT: {} uses went down - now aiming the Spirit Sceptre at the secret bat",
+                    route.indexOf(node) + 1, BAT_DOWN_USES);
+        }
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), target.getBoundingBox().getCenter());
+        float dYaw = Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
+        float yaw = player.getYRot() + dYaw;
+        if (legit) {
+            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                RouteRotation.beginApproach(yaw, pitch, false, 0f, 0f);
+            }
+        }
+        float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
+        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
+            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Bat")) {
+                return true;
+            }
+            batLastUse = stepTicks;
+            useHeldItem(client, player, yaw, pitch, false);
+            LOGGER.info("[AutoRoutes] Node #{} BAT: Spirit Sceptre use at the bat (yaw {}, pitch {}, {} blocks)",
+                    route.indexOf(node) + 1, Float.toString(yaw), Float.toString(pitch),
+                    String.format(Locale.US, "%.1f", (double) target.distanceTo(player)));
+        }
+        return true;
     }
 
     /** The kills a crypt node (crypt / prince) or a bat node (secret bats) counts. */
@@ -2771,7 +2866,7 @@ public final class RouteExecutor {
             if (changed) {
                 LOGGER.info("[AutoRoutes] Boom: blocks changed {} tick(s) after the click", stepTicks);
                 finishAction();
-            } else if (stepTicks >= boomSettleTicks()) {
+            } else if (stepTicks >= boomSettleTicks() + serverLagTicks()) {
                 // Nothing within reach of the hit changed once the server had a round trip to answer: the crypt or
                 // wall is already open (the stack's earlier boom, or an earlier run), so there was nothing left to
                 // blow. It COMPLETES - stopping here is what kept his stacked booms from reaching their crypt node
@@ -2787,6 +2882,11 @@ public final class RouteExecutor {
      *  com.killer560.hub.util.PingTracker#automationMs}) rounded up, plus a margin, bounded - 5 at a local 1-50 ms, 8 at
      *  200 ms, 20 (a second) above 750 ms. Until 2026-10-11 the round trip was the tab-list latency, about 1 ms on
      *  Hypixel, so a boom on a real connection waited 5 ticks whatever the ping. */
+    /** Ticks the server has stalled since this step began (util/ServerLag): added to every deadline that waits on it. */
+    private static int serverLagTicks() {
+        return com.killer560.hub.util.ServerLag.ticksSince(stepLag);
+    }
+
     static int boomSettleTicks() {
         int ping = 0;
         Minecraft client = Minecraft.getInstance();
@@ -2967,7 +3067,7 @@ public final class RouteExecutor {
             if (gone == breakerSent.size()) {
                 LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
                 finishAction();
-            } else if (stepTicks > BREAKER_TIMEOUT) {
+            } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
                 if (gone == 0) {
                     stop("dungeon breaker didn't break the blocks");
                 } else {

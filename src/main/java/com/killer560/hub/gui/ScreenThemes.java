@@ -24,6 +24,13 @@ import java.util.Map;
  * presets, Custom being the menu's saved Custom colours. {@link MenuTheme#forScreen} resolves an id to its five base
  * colours and {@link MenuStyle#use} applies them while that screen is open, so nothing else changes per screen.
  * <p>
+ * <p>The choices (killer560, 2026-10-15: "if i make a new custom theme it would show up there"): Theme Default, the four
+ * presets, Custom (the menu's live Custom colours), then every theme he has SAVED, read live from {@link MenuConfig} each
+ * time the list is used - a theme saved a second ago is on the next press. A saved theme is stored by its stable id
+ * ({@code SAVED:T2}), so renaming or deleting another one never moves it; one that has been deleted reads as Default.
+ * Overlays that draw over the game (the Storage Overlay and its kin, {@link OverlayThemes}) use the same list with
+ * "Default" meaning THEIR OWN look rather than following the menu.
+ * <p>
  * A screen whose own older style choices should stay available passes them to {@link #button} as extra choices; their
  * names are stored as given and {@link #colours} leaves them to the screen (it returns the menu's colours for them).
  * Saved in {@code killer560smod-menu-screens.json} (ModPaths' {@code menu} row puts it beside the menu's own file) and
@@ -36,6 +43,8 @@ public final class ScreenThemes {
 
     /** "Theme Default": the screen follows the mod menu's theme. */
     public static final String DEFAULT = "DEFAULT";
+    /** A saved theme's choice is this plus its {@link MenuConfig.SavedTheme#id}. */
+    public static final String SAVED_PREFIX = "SAVED:";
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = ModPaths.config("killer560smod-menu-screens.json");
@@ -105,20 +114,57 @@ public final class ScreenThemes {
         version++;
     }
 
-    /** Theme Default, then the menu's presets, then Custom (the menu's saved Custom colours). */
+    /** Theme Default, then the menu's presets, then Custom (the menu's live Custom colours), then every saved theme in the
+     *  order he saved them. Read live: call it when the choice is made, never cache it. */
     public static List<String> builtInChoices() {
         List<String> out = new ArrayList<>();
         out.add(DEFAULT);
         for (MenuTheme t : MenuTheme.values()) {
             out.add(t.name());
         }
+        for (MenuConfig.SavedTheme t : MenuConfig.getInstance().getSavedThemes()) {
+            out.add(SAVED_PREFIX + t.id.toUpperCase(Locale.ROOT));
+        }
         return out;
+    }
+
+    /** {@link #builtInChoices} followed by a screen's own extra choices. */
+    public static List<String> choices(String... extraChoices) {
+        List<String> all = builtInChoices();
+        for (String e : extraChoices) {
+            all.add(e.toUpperCase(Locale.ROOT));
+        }
+        return all;
+    }
+
+    /** Whether the choice is a saved theme's. */
+    public static boolean isSaved(String choice) {
+        return choice != null && choice.startsWith(SAVED_PREFIX);
+    }
+
+    /** The saved theme a choice names, or null (not a saved choice, or that theme has been deleted). */
+    public static MenuConfig.SavedTheme savedTheme(String choice) {
+        return isSaved(choice) ? MenuConfig.getInstance().savedThemeById(choice.substring(SAVED_PREFIX.length())) : null;
+    }
+
+    /** The choice as the stored string for the saved theme at {@code index} in {@link MenuConfig#getSavedThemes}. */
+    public static String savedChoice(int index) {
+        return SAVED_PREFIX + MenuConfig.getInstance().getSavedThemes().get(index).id.toUpperCase(Locale.ROOT);
     }
 
     /** The label a choice shows on its button. */
     public static String label(String choice) {
+        return label(choice, false);
+    }
+
+    /** {@link #label(String)}; for an overlay ({@code overlay} true) the first choice reads "Default" - its own look. */
+    public static String label(String choice, boolean overlay) {
         if (DEFAULT.equals(choice)) {
-            return "Theme Default";
+            return overlay ? "Default" : "Theme Default";
+        }
+        if (isSaved(choice)) {
+            MenuConfig.SavedTheme t = savedTheme(choice);
+            return t == null ? (overlay ? "Default" : "Theme Default") : MenuConfig.shownName(t);
         }
         for (MenuTheme t : MenuTheme.values()) {
             if (t.name().equals(choice)) {
@@ -135,6 +181,10 @@ public final class ScreenThemes {
         String c = get(screenId);
         if (DEFAULT.equals(c)) {
             return menu.activeColours();
+        }
+        if (isSaved(c)) {
+            MenuConfig.SavedTheme t = savedTheme(c);
+            return t == null ? menu.activeColours() : t.colours.clone();
         }
         if (MenuTheme.CUSTOM.name().equals(c)) {
             int[] out = new int[MenuTheme.Slot.values().length];
@@ -159,20 +209,48 @@ public final class ScreenThemes {
     /** {@link #button} with its own label ("Swap Accounts Theme" in a tab that is not that screen's own). */
     public static SettingsButtonWidget button(String screenId, String label, int x, int y, int w, int h,
                                               String... extraChoices) {
-        List<String> all = builtInChoices();
-        for (String e : extraChoices) {
-            all.add(e.toUpperCase(Locale.ROOT));
-        }
-        return SettingsButtonWidget.cycling(text(label, screenId), (btn, dir) -> {
+        return button(screenId, label, false, x, y, w, h, extraChoices);
+    }
+
+    /**
+     * The Menu Theme button of an overlay that draws over the game (killer560, 2026-10-15): "Menu Theme: Default" is the
+     * overlay's own look, then the presets, Custom and every saved theme. Left forward, right back, wrapping.
+     */
+    public static SettingsButtonWidget overlayButton(String overlayId, int x, int y, int w, int h) {
+        return button(overlayId, "Menu Theme", true, x, y, w, h);
+    }
+
+    /** {@link #overlayButton} with its own label ("Chest Panel Menu Theme" in a tab with more than one). */
+    public static SettingsButtonWidget overlayButton(String overlayId, String label, int x, int y, int w, int h) {
+        return button(overlayId, label, true, x, y, w, h);
+    }
+
+    private static SettingsButtonWidget button(String screenId, String label, boolean overlay, int x, int y, int w, int h,
+                                               String... extraChoices) {
+        return SettingsButtonWidget.cycling(text(label, screenId, overlay), (btn, dir) -> {
+            // The list is read now, so a theme saved since the tab was built is in it.
+            List<String> all = choices(extraChoices);
             int i = Math.max(0, all.indexOf(get(screenId)));
             set(screenId, all.get(SettingsButtonWidget.step(i, dir, all.size())));
             save();
-            btn.setMessage(text(label, screenId));
+            btn.setMessage(text(label, screenId, overlay));
         }).bounds(x, y, w, h).build();
     }
 
-    private static Component text(String label, String screenId) {
-        return Component.literal(label + ": " + label(get(screenId)));
+    private static Component text(String label, String screenId, boolean overlay) {
+        return Component.literal(label + ": " + label(get(screenId), overlay));
+    }
+
+    /**
+     * The five colours an OVERLAY draws in, or null when it is on Default (its own look). The one question every overlay
+     * asks; {@link OverlayThemes#of} wraps it into a full palette.
+     */
+    public static int[] overlayColours(String overlayId) {
+        String c = get(overlayId);
+        if (DEFAULT.equals(c) || (isSaved(c) && savedTheme(c) == null)) {
+            return null;
+        }
+        return colours(overlayId);
     }
 
     /**

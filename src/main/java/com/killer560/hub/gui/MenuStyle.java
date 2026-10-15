@@ -136,6 +136,24 @@ public final class MenuStyle {
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 
+    /**
+     * The palette five base colours give, as a snapshot, WITHOUT leaving {@link MenuStyle}'s statics changed (the menu or
+     * screen being drawn keeps its own colours): an overlay that is not itself a themed screen reads its colours from
+     * this ({@link OverlayThemes}).
+     */
+    static OverlayPalette snapshot(int[] c) {
+        int[] prev = usedColours == null ? null : usedColours.clone();
+        derive(c[0], c[1], c[2], c[3], c[4]);
+        OverlayPalette p = new OverlayPalette(LIGHT, c.clone(), BACKDROP, PANEL_TOP, PANEL_BOTTOM, CARD_TOP, CARD_HOVER_TOP,
+                WELL, ACCENT_EDGE, BLACK, OR, OR_HOVER, OR_DARK, BTN_TOP, BTN_HOVER_TOP, SEL_TOP, TXT, TXT_HOVER, DIM, DIM2,
+                SW_ON_BOTTOM);
+        if (prev != null) {
+            derive(prev[0], prev[1], prev[2], prev[3], prev[4]);
+        }
+        usedColours = prev;
+        return p;
+    }
+
     private static int lift(int c, float t) {
         return mix(c, 0xFFFFFFFF, t);
     }
@@ -544,11 +562,40 @@ public final class MenuStyle {
         return cut + "...";
     }
 
+    /** True when {@code s} word-wraps into at most {@code maxLines} lines of {@code width} with nothing cut or ellipsized. */
+    public static boolean fits(String s, int width, int maxLines) {
+        if (s == null || s.isBlank()) {
+            return true;
+        }
+        Font f = font();
+        if (maxLines <= 0 || width < 8) {
+            return false;
+        }
+        int lines = 1;
+        int lineW = 0;
+        int space = f.width(" ");
+        for (String word : s.trim().split("\\s+")) {
+            int ww = f.width(word);
+            if (ww > width) {
+                return false;
+            }
+            if (lineW == 0) {
+                lineW = ww;
+            } else if (lineW + space + ww <= width) {
+                lineW += space + ww;
+            } else {
+                lines++;
+                lineW = ww;
+            }
+        }
+        return lines <= maxLines;
+    }
+
     /** Word-wrapped lines of plain {@code s} at {@code width}, at most {@code maxLines}; the last one ellipsized. */
     public static List<String> wrap(String s, int width, int maxLines) {
         Font f = font();
         List<String> out = new ArrayList<>();
-        if (s == null || s.isBlank() || width < 8) {
+        if (s == null || s.isBlank() || width < 8 || maxLines <= 0) {
             return out;
         }
         String[] words = s.trim().split("\\s+");

@@ -478,6 +478,7 @@ public final class SimBuilder {
             doorWork.add(() -> {
                 SimDoors.CHESTS_CARVED_AWAY = 0;
                 SimDoors.FLOORED = 0;
+                SimDoors.KEPT_TRIM = 0;
                 // BEFORE the carves, so the carve reopens the one door this room really has - see
                 // closeGreenRoomShell.
                 closeGreenRoomShell(level);
@@ -491,8 +492,9 @@ public final class SimBuilder {
                 int walled = sealOuterEdges(level, decoded, doorFloors);
                 LOGGER.info("Sim doors: {} block(s) of wall laid in open seams (the floor's edge, empty cells, between rooms)", walled);
                 LOGGER.info("Sim doors: {} carved, {} sealed, {} secret chest(s) removed by the carve, "
-                                + "{} block(s) of floor laid where a doorway had none",
-                        doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY, SimDoors.FLOORED);
+                                + "{} block(s) of floor laid where a doorway had none, {} block(s) of doorway trim kept",
+                        doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY, SimDoors.FLOORED,
+                        SimDoors.KEPT_TRIM);
             });
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {

@@ -113,6 +113,8 @@ final class Autopilot {
         noScoreSaid = false;
         lastBloodFirstWait = null;
         current = null;
+        actionsDone = 0;
+        com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
         hudAction = "Starting";
         hudWhy = "";
         hudScore = "";
@@ -341,6 +343,7 @@ final class Autopilot {
             ranked.add(k.describe());
         }
         LOGGER.info("{} | pick {} - {} | ranked: {}", head, p.describe(), c.why(), String.join("; ", ranked));
+        publishPlan(c);
         RoomStatus.Room room = null;
         for (RoomStatus.Room r : rooms) {
             if (keyOf(r).equals(p.room())) {
@@ -394,6 +397,30 @@ final class Autopilot {
         return room == null ? finish(true, "the chosen room left the map") : Order.of(t, room, c.why());
     }
 
+    /**
+     * The ranked candidates this decision weighed, for the Auto Routes Progress HUD ({@link com.killer560.hub.autoroutes.RunPlan}):
+     * the pick first (candidates arrive best first); a dropped key is not a room so it is left out.
+     */
+    private static void publishPlan(AutopilotPlanner.Choice c) {
+        List<String> rooms = new ArrayList<>();
+        List<String> tags = new ArrayList<>();
+        for (AutopilotPlanner.Candidate k : c.ranked()) {
+            if (k.kind() == AutopilotPlanner.Kind.KEY) {
+                continue;
+            }
+            rooms.add(k.room().startsWith("Unknown@") ? "an unexplored room" : k.room());
+            tags.add(switch (k.kind()) {
+                case SECRET -> "Secret";
+                case CLEAR -> "Clear";
+                case PUZZLE -> "Puzzle";
+                case EXPLORE -> "Explore";
+                case KEY -> "Key";
+            });
+        }
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT, rooms, tags,
+                actionsDone);
+    }
+
     private static String displayName(RoomStatus.Room r, String key) {
         return r == null ? key : "Unknown".equals(r.name()) ? "an unexplored room" : r.name();
     }
@@ -409,6 +436,9 @@ final class Autopilot {
         double work = Math.max(0.5, took - currentTravel);
         LOGGER.info(String.format(Locale.US, "[Autopilot] done %s %s in %.1f s (estimated %.1f s, travel ~%.1f s)",
                 current.kind(), current.room(), took, current.seconds(), currentTravel));
+        if (!failed) {
+            actionsDone++;
+        }
         if (failed) {
             LOGGER.info("[Autopilot] (that trip failed - not learnt from)");
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
@@ -425,6 +455,8 @@ final class Autopilot {
     }
 
     private static boolean currentFailed;
+    /** Actions finished this run (the Auto Routes Progress HUD's done count; a failed trip is not one). */
+    private static int actionsDone;
 
     /** Auto Secret stopped: close the action so the log has its time. */
     static void onStopped() {

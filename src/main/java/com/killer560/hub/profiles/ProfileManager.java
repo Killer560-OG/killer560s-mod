@@ -83,7 +83,10 @@ public final class ProfileManager {
             "killer560smod-auction-history.json",
             // Which mod version last ran on this INSTALL (ConfigMigrations). A profile carries its own version in
             // profile.json instead; copying this one in made an older profile rewind the install's stamp.
-            "killer560smod-configversion.json"
+            "killer560smod-configversion.json",
+            // Custom names while they are shared by every profile, and the Per-Profile Names switch itself (Name Changer,
+            // 2026-10-15): the same in every profile by design, so no profile carries or changes it.
+            "killer560smod-namechanger-names.json"
     );
 
     /** Whether a file name is one of this mod's own setting files that profiles may copy. Applied on
@@ -357,6 +360,9 @@ public final class ProfileManager {
                 msg.append(" §eIt was made by a newer mod version (").append(meta.describe())
                         .append("); anything this version does not know was left out.");
             }
+            // Shown nowhere on screen (killer560, 2026-10-15: "Dont show this text on screen whenver I profile swap"): the
+            // line is logged, and the Result still carries it for a caller that wants it (the tests).
+            LOGGER.info("[Profiles] {}", msg.toString().replaceAll("§.", ""));
             return new Result(true, msg.toString());
         } catch (IOException e) {
             return new Result(false, "§cFailed to apply profile: " + e.getMessage());
@@ -422,8 +428,12 @@ public final class ProfileManager {
                 com.killer560.hub.autoupdate.AutoUpdateConfig::load,
                 com.killer560.hub.cringe.CringeConfig::load,
                 com.killer560.hub.gui.MenuConfig::load,
+                com.killer560.hub.clicksound.ClickSoundConfig::load,
+                com.killer560.hub.gui.DescriptionConfig::load,
                 com.killer560.hub.gui.RecentColours::load,
                 com.killer560.hub.gui.ScreenThemes::load,
+                // The Themes tab's Font setting (2026-10-15).
+                com.killer560.hub.fonts.FontConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.trail.RibbonTrailConfig::load,
@@ -495,6 +505,8 @@ public final class ProfileManager {
                 com.killer560.hub.itembrowser.ItemBrowserConfig::load,
                 com.killer560.hub.itemprotect.ItemProtectConfig::load,
                 com.killer560.hub.itemrarity.ItemRarityConfig::load,
+                com.killer560.hub.slottext.SlotTextConfig::load,
+                com.killer560.hub.compactorpreview.CompactorPreviewConfig::load,
                 com.killer560.hub.leapmenu.LeapMenuConfig::load,
                 com.killer560.hub.leapmessage.LeapMessageConfig::load,
                 com.killer560.hub.livemap.LiveMapConfig::load,
@@ -549,13 +561,14 @@ public final class ProfileManager {
                 com.killer560.hub.ticktimers.TickTimersConfig::load,
                 com.killer560.hub.trajectories.TrajectoriesConfig::load,
                 com.killer560.hub.leveraura.LeverAuraConfig::load,
+                // After LeverAuraConfig: an old In Boss file's Lights keys migrate into this one as that loads.
+                com.killer560.hub.lightsdevice.LightsDeviceConfig::load,
                 com.killer560.hub.terminalaura.TerminalAuraConfig::load,
                 com.killer560.hub.terminaltrigger.TerminalTriggerbotConfig::load,
                 com.killer560.hub.autoroutes.AutoRoutesConfig::load,
                 com.killer560.hub.autoroutes.RouteStore::reload,
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reload,
-                com.killer560.hub.dungeonclass.ClassOverrides::load,
                 com.killer560.hub.dungeonclass.ClassSelectionOverlayConfig::load,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,
@@ -610,6 +623,9 @@ public final class ProfileManager {
                 com.killer560.hub.roomsim.SimBreakerState::forgetSecretCharges,
                 // DVD runtimes hold the OLD DvdEntry objects; rebuild them from the new ones.
                 com.killer560.hub.dvd.DvdFeature::reloadFromConfig,
+                // Imported fonts ride in profiles (killer560smod-fonts/): list them again and rebuild the chosen one.
+                com.killer560.hub.fonts.FontChoices::rescan,
+                com.killer560.hub.fonts.CustomFonts::markDirty,
                 // Borderless is applied to the real window once; follow a changed setting.
                 () -> {
                     if (window) {
@@ -638,6 +654,7 @@ public final class ProfileManager {
             "killer560smod-waypointroutes-routes.json",
             "killer560smod-autoroutes.json",
             "killer560smod-etherwarp-waypoints.json",
+            "killer560smod-leapmenu.json",
             "killer560smod-classoverrides.json",
             "killer560smod-autotrap.json",
             // Where his HUD elements sit and how big they are: a layout, not a switch (HudConfig is left as it is).
@@ -728,6 +745,42 @@ public final class ProfileManager {
         LOGGER.info("[Profiles] Blank profile \"{}\": {} switch(es) off", name, off);
         return new Result(true, "§a[Profiles] Created blank profile \"" + name
                 + "\" (every setting off). Load it to use it.");
+    }
+
+    /** Renames a saved profile (killer560, 2026-10-15: "make a way to edit the name of them"). The folder is moved, so
+     *  everything it holds comes along; if it is the active profile the marker follows, and the auto-save carries on into
+     *  the renamed folder. A name another profile has is refused (a change of capitals only is allowed). */
+    public static synchronized Result renameProfile(String rawOld, String rawNew) {
+        String oldName = sanitize(rawOld == null ? "" : rawOld);
+        String newName = sanitize(rawNew == null ? "" : rawNew);
+        if (newName.isEmpty()) {
+            return new Result(false, "§cType a name for the profile first.");
+        }
+        Path from = PROFILES_DIR.resolve(oldName);
+        if (oldName.isEmpty() || !Files.isDirectory(from)) {
+            return new Result(false, "§cNo profile named \"" + oldName + "\".");
+        }
+        if (newName.equals(oldName)) {
+            return new Result(true, "§a[Profiles] \"" + oldName + "\" keeps its name.");
+        }
+        Path to = PROFILES_DIR.resolve(newName);
+        if (Files.exists(to) && !newName.equalsIgnoreCase(oldName)) {
+            return new Result(false, "§cThere is already a profile named \"" + newName + "\".");
+        }
+        // A change made in the last two seconds still belongs to the folder about to move.
+        syncActiveProfile();
+        try {
+            boolean wasActive = oldName.equals(getActiveProfile());
+            Files.move(from, to);
+            if (wasActive) {
+                Files.writeString(ACTIVE_MARKER, newName, StandardCharsets.UTF_8);
+                lastSyncedProfile = newName;
+            }
+            LOGGER.info("[Profiles] Renamed \"{}\" to \"{}\"{}", oldName, newName, wasActive ? " (active)" : "");
+            return new Result(true, "§a[Profiles] Renamed \"" + oldName + "\" to \"" + newName + "\".");
+        } catch (IOException e) {
+            return new Result(false, "§cFailed to rename profile: " + e.getMessage());
+        }
     }
 
     public static synchronized Result deleteProfile(String rawName) {

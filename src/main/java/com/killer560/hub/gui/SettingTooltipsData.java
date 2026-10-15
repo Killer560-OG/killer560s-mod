@@ -21,7 +21,23 @@ final class SettingTooltipsData {
         crosshair(d);
         autoSecret(d);
         menuTheme(d);
+        clickSounds(d);
         colourPicker(d);
+        slotTextAndCompactor(d);
+    }
+
+    private static void slotTextAndCompactor(Map<String, String> d) {
+        d.put("slot text", "Draws small text in the corner of items in menus and your inventory: pet levels, enchanted book levels, minion tiers, skill levels and more. Each kind has its own switch.");
+        d.put("slot text/show", "Always shows the text, only while the key is held, or hides it while the key is held. Left click goes forward, right click back.");
+        d.put("slot text/key", "The key (or mouse button) for the Show setting. Click, then press the key. Escape clears it.");
+        d.put("slot text/skyblock only", "Only draw slot text on Hypixel Skyblock.");
+        for (com.killer560.hub.slottext.SlotTextType t : com.killer560.hub.slottext.SlotTextType.values()) {
+            d.put("slot text/" + t.label.toLowerCase(java.util.Locale.ROOT), t.description);
+        }
+        d.put("compactor preview", "Hover a Personal Compactor or Personal Deletor and its tooltip shows a grid of the items you set up in it, without opening it.");
+        d.put("compactor preview/show", "On Hover adds the grid to the tooltip whenever you hover the item. While Holding Key adds it only while the key is held. Left click goes forward, right click back.");
+        d.put("compactor preview/key", "The key (or mouse button) that shows the grid in While Holding Key mode. Click, then press the key. Escape clears it.");
+        d.put("compactor preview/skyblock only", "Only show the grid on Hypixel Skyblock.");
     }
 
     private static void colourPicker(Map<String, String> d) {
@@ -31,6 +47,20 @@ final class SettingTooltipsData {
         d.put("color picker/set default", "Puts this setting's own default color back.");
         d.put("color picker/done", "Closes the picker. The color is already saved as you change it.");
         d.put("color picker/alpha", "How see-through the color is. A pasted color without alpha keeps this value.");
+    }
+
+    private static void clickSounds(Map<String, String> d) {
+        // killer560, 2026-10-15: the menu click sound and the Descriptions switches (clicksound/, gui/tab/ClickSoundsTab, DescriptionsTab).
+        d.put("click sounds", "The sound every button click makes. Default is Minecraft's own click; the presets are short original sounds; Import adds your own .ogg.");
+        d.put("click sounds/click sound", "Default (Minecraft's click), a preset (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep) or an .ogg you imported. Left click goes to the next and plays it, right click back.");
+        d.put("click sounds/vanilla screens", "Off: only this mod's menus use the sound. On: Minecraft's own screens (Options, the title screen, Mod Menu...) use it too.");
+        d.put("click sounds/click volume", "How loud the chosen click is, 0-100%. It is also scaled by your Minecraft master volume.");
+        d.put("click sounds/preview", "Plays the chosen click once.");
+        d.put("click sounds/open sound folder", "Opens the folder your imported .ogg files live in. Drop a short Ogg Vorbis file in (under 1 MB), then step Click Sound to it.");
+        d.put("click sounds/import from clipboard", "Copy an .ogg file's path (Shift + right click it in Explorer, Copy as path) then press this: the file is checked, copied into the sound folder and chosen.");
+        d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
+        d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");
+        d.put("descriptions/show editor descriptions", "Off hides the hint line at the top of the HUD editor (drag, resize, scroll, Esc). The line saying why the editor is empty stays.");
     }
 
     private static void menuTheme(Map<String, String> d) {
@@ -48,6 +78,19 @@ final class SettingTooltipsData {
         d.put("menu theme/confirm", "Click again to delete this saved theme.");
         d.put("menu theme/text", "Custom: the color of names, labels and descriptions.");
         d.put("menu theme/switch on", "Custom: the color of a switch that is on.");
+        // Font and Main Menu sections (killer560, 2026-10-15: fonts.FontSettings, mainmenu.MainMenuSettings).
+        d.put("menu theme/font", "The font text is drawn in: Minecraft's own, a bundled one (Lato, Space Mono, VT323, Press Start 2P) or one you imported. Characters a font does not have still come from Minecraft's font. Left click goes to the next, right click back.");
+        d.put("menu theme/font applies to", "Mod Menu Only: just the mod's own screens. Everything: every line of text you see - chat, the HUD, scoreboards, tooltips, Minecraft's menus and name tags.");
+        d.put("menu theme/font size", "How big the chosen font's letters are, from 70% to 140%. Minecraft's own font is never resized.");
+        d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
+        d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
+        d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed, splash text and button panel below.");
+        d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Custom an aurora.");
+        d.put("menu theme/background", "Custom: the main menu's animated background. Theme Default is the theme's own.");
+        d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
+        d.put("menu theme/animation speed", "Custom: how fast the background moves.");
+        d.put("menu theme/splash text", "Custom: shows or hides the yellow splash text beside the logo.");
+        d.put("menu theme/button panel", "Custom: the frosted panel behind the main menu's buttons.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colors"
                     + " back to the " + preset + " preset it was started from.");
@@ -380,6 +423,7 @@ final class SettingTooltipsData {
         d.put("duration", "How long this lasts: timer countdown length, or Mage beam lifetime in ticks.");
         d.put("test start", "Starts this timer now so you can see it on the HUD.");
         d.put("secrets hud", "Shows secrets found in your current room out of its total.");
+        d.put("secrets text color", "Opens a color picker for the Secrets HUD text; type or paste a hex color there.");
         d.put("mimic killed msg", "Sends the message below to party chat when the Mimic dies.");
         d.put("mimic killed msg message", "Type the party chat message sent when the Mimic is killed.");
         d.put("prince killed msg", "Sends the message below to party chat when a Prince is killed.");
@@ -510,8 +554,8 @@ final class SettingTooltipsData {
         d.put("clear chain key", "Keybind for /ap3 clear.");
         d.put("reload chains file key", "Keybind for /ap3 reload.");
         d.put("stop chain key", "Keybind for /ap3 stop. Works even with AP3 off.");
-        d.put("class overrides", "Sets a player's class by hand for every feature in the mod.");
-        d.put("class overrides/class selection overlay", "Pick a player in the bar, then a class box, to assign their class on the class-selection screen.");
+        d.put("class selection overlay", "On the class-selection screen, shows your party across the top. Pick a player, then a class box, to set their class; it is the same class the Leap Order editor (/class) sets.");
+        d.put("edit classes", "Opens the Leap Order editor (the same screen as /leaporder and /class): pick your class, then set each teammate's class and leap spot.");
         d.put("current party", "Lists your party and their classes; click Override to set a different class.");
         d.put("override", "Left click cycles this player's class override, right click goes back.");
         d.put("remove override", "Removes this player's override.");
@@ -702,8 +746,8 @@ final class SettingTooltipsData {
         d.put("blood camp", "Tracks the Watcher's blood mobs and predicts where each will land.");
         d.put("show overlay", "Draws a countdown box where each blood mob will settle, green when it is ready to hit.");
         d.put("aura", "Cheat build: acts on targets around you without needing to aim at them.");
-        d.put("auto detect lag", "Makes the Trigger Bot click earlier by your measured ping, so its hit reaches the server Hit Lead ticks before the mob lands.");
-        d.put("hit lead", "Cheat build: how many ticks before a blood mob lands the Trigger Bot's hit reaches the server, 0-10 (3 by default).");
+        d.put("auto detect lag", "Times the Trigger Bot from the kill timer (which allows for your measured ping) instead of the countdown's own end.");
+        d.put("trigger offset", "Cheat build: ticks from the kill timer to the Trigger Bot's click, -10 to 10: below 0 clicks late, above 0 early (-1 by default).");
         d.put("boulder solver", "Outlines the stone button to press next in the Boulder puzzle.");
         d.put("show all remaining clicks", "Outlines every remaining Boulder tile at once instead of just the next one.");
         d.put("quiz solver", "Highlights the floor spot of the correct answer in the Quiz puzzle.");
@@ -863,7 +907,7 @@ final class SettingTooltipsData {
         d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms.");
         d.put("talk to npcs", "Also right-clicks the three Weirdo NPCs so they speak.");
         d.put("secret aura", "Clicks nearby dungeon secrets for you (cheat build only).");
-        d.put("f7 boss levers (p3/devices)", "Lets Secret Aura click the F7 P3 and device levers in the boss fight.");
+        d.put("in boss", "Levers in the boss fight (F7/M7 P3). Turns on the S2 Section Levers options below, and with Secret Aura on lets it click the other P3 levers too. Works with Secret Aura off. The Lights device is its own Lights Device tab (cheat build only).");
         d.put("swing hand", "Swings your arm each time Secret Aura clicks something.");
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
@@ -938,19 +982,32 @@ final class SettingTooltipsData {
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");
+        d.put("per-profile names", "Off (the default): your custom names, rank and renames are one set shared by every profile. On: they are saved inside each profile like other settings.");
+        d.put("rank", "The tag shown in front of your name: keep the original, remove it, pick a Hypixel rank, or make your own. Left click forward, right click back.");
+        d.put("rank color", "Quickly recolors the rank tag with one of the 16 chat colors, or leaves the rank's own color.");
+        d.put("plus color", "The color of the + signs in your own rank text (KING++); leave it on the rank's own to match the text.");
         d.put("save current as new", "Saves your current mod settings as a new profile.");
         d.put("load", "Applies this profile's settings right away.");
         d.put("export", "Zips this profile into the share folder and opens that folder, so you can send the zip to someone.");
-        d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class overrides and HUD layout come along; nothing changes until you Load it.");
+        d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class picks, leap order and HUD layout come along; nothing changes until you Load it.");
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
 
-        // Lever Aura (in Dungeon > Secrets since 2026-09-21)
-        d.put("lever aura", "Flicks the F7/M7 P3 Section 2 Lights levers for you (cheat build only).");
-        d.put("pre-flick lights before s2", "Flicks each unlit Lights lever once in range before S2 opens.");
-        d.put("finish lights when s2 opens", "After S1 is cleared, flicks the last unlit Lights lever.");
+        // Lever Aura (the In Boss part of the Secret Aura tab since 2026-10-15)
         d.put("s2 section levers", "Flicks S2's two section levers once after S2 opens.");
         d.put("s2 section levers early", "Also flicks S2's section levers before S2 opens.");
-        d.put("lever aura/chat feedback", "Posts a local chat line for every lever Lever Aura flicks.");
+        d.put("secret aura/boss lever chat feedback", "Posts a local chat line for every S2 section lever flicked here.");
+        // Lights Device (its own cheat tab since 2026-10-15, out of In Boss)
+        d.put("lights device/lights aura", "Flicks the F7/M7 P3 S2 Lights device's six levers for you when they are in range, each at most once a run. Its own feature: Secret Aura and In Boss never touch these levers (cheat build only).");
+        d.put("lights device/pre-flick before s2", "Before S2 opens, flicks each unlit Lights lever once in range, so the device is lit when the section opens.");
+        d.put("lights device/finish when s2 opens", "After S1 is cleared, flicks an unlit Lights lever (the last one completes the device), or, with all six already lit, one lever to make the device register.");
+        d.put("lights device/aura range", "How far the Aura reaches, eyes to the lever's nearest point, 2.1-4.5 blocks. Checked again the moment each flick is sent.");
+        d.put("lights device/aura cps", "Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("lights device/aura swing hand", "Plays your arm swing each time the Aura flicks a lever.");
+        d.put("lights device/chat feedback", "Posts a local chat line for every lever the Aura flicks.");
+        d.put("lights device/lights triggerbot", "Flicks only the Lights lever your crosshair is on, by the same device rules (unlit levers before S2, then the finishing or activating flick), never moves your camera (cheat build only).");
+        d.put("lights device/triggerbot delay", "How long your crosshair must stay on a lever before it is flicked, 0-500 ms. Flicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
+        d.put("lights device/triggerbot cooldown", "The least time between two Triggerbot flicks, 0-2000 ms.");
+        d.put("lights device/triggerbot swing hand", "Plays your arm swing each time the Triggerbot flicks a lever.");
         // Thorn
         d.put("spirit bear hud", "Shows Spirit Bear kill progress, spawn countdown and status in the F4/M4 boss.");
         d.put("show overkill", "Adds an Overkill line under the Spirit Bear HUD for wasted spirit kills.");
@@ -966,6 +1023,8 @@ final class SettingTooltipsData {
         d.put("thorn esp style", "How Thorn highlights are drawn: Outline Box, Filled Box or Glow; left click cycles forward, right click back.");
         d.put("thorn esp line width", "Outline thickness for the Thorn highlight boxes, 1-10.");
         d.put("thorn esp through walls", "Thorn highlights also show targets behind walls (cheat build only).");
+        d.put("all mobs through walls", "Highlights every mob in the Thorn fight except bats, through walls, in the Spirit Mob color (cheat build only).");
+        d.put("bats through walls", "Highlights the bats in the Thorn fight through walls, in the Spirit Mob color (cheat build only).");
         d.put("stun spot waypoints", "Draws your saved stun spot waypoints during the F4/M4 boss.");
         d.put("stun spot color", "Opens a color picker for stun-spot waypoints.");
         d.put("stun spot labels", "Shows each stun spot's name above its box.");
@@ -1308,10 +1367,12 @@ final class SettingTooltipsData {
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
         d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
-        // ---- Lever Aura ----
+        d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Custom, or any theme you saved. Left click goes forward, right click back.");
+        d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
+        // ---- Levers in the boss (Secret Aura tab) ----
         d.put("lights device", "Chooses which lights-device levers get flicked, and when (cheat build only).");
         d.put("section levers", "Also flicks the levers that open each P3 section (cheat build only).");
-        d.put("timing & range", "Sets how far the Lever Aura reaches and how long it waits between flicks (cheat build only).");
+        d.put("timing & range", "Sets how far the boss-lever flicking reaches and how long it waits between flicks (cheat build only).");
 
         // ---- Cheat Utils ----
         d.put("secret aura (dungeons)", "Clicks nearby secret chests, levers and Wither Essence for you in dungeons (cheat build only).");
@@ -1633,8 +1694,8 @@ final class SettingTooltipsData {
         d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
-        d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");
-        d.put("lever aura/swing hand", "Plays your arm swing each time Lever Aura flicks a lever (cheat build only).");
+        d.put("secret aura/boss lever range", "Maximum distance in blocks the boss-lever flicking reaches.");
+        d.put("secret aura/boss lever swing hand", "Plays your arm swing each time a boss lever is flicked here (cheat build only).");
         d.put("maxor's crystals/respawn timer", "Shows a countdown to the next crystal spawning.");
         d.put("maxor's crystals/place timer", "Times how long you take to place a crystal and remembers your best.");
         d.put("maxor's crystals/unplaced crystal alert", "Warns you while you are carrying a crystal you have not placed.");
@@ -1802,7 +1863,6 @@ final class SettingTooltipsData {
         d.put("dungeon esp/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
         d.put("starred mob hitboxes/wither boss highlight", "Highlights the F7/M7 wither bosses at any range while you can see them.");
         d.put("dungeon esp/esp", "Cheat build: one switch for every ESP here - starred mobs and bats through walls, and the F7/M7 wither bosses through walls at any range.");
-        d.put("dungeon esp/wither boss color", "Color of the wither bosses while ESP is on.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("solver highlights/solver highlights", "Solver Highlights as a whole - off, no puzzle or boss solver draws its boxes, waypoints or lines in the world (the solvers still solve, and their chat and HUD lines still show).");
@@ -1821,7 +1881,6 @@ final class SettingTooltipsData {
         d.put("door keys/tracer thickness", "How thick that tracer line is drawn (1-10).");
         d.put("door keys/esp through walls", "Draws the key circle and tracer through walls (cheat build only).");
         d.put("name changer/color", "Opens the color picker for this name.");
-        d.put("ap3/class overrides", "Read-only copy of Dungeon > Class Overrides.");
         d.put("mod chat/mod chat", "A private chat with other mod users: /kc <message> sends one line, /chat k makes your typed chat go there.");
         d.put("mod chat/room", "Party keeps mod chat to your party; Lobby reaches every mod user on your current server.");
         d.put("mod chat/log to chat", "Prints received mod chat into your chat (on by default); off shows each message briefly instead.");
@@ -1867,10 +1926,11 @@ final class SettingTooltipsData {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
             // Chest. Inside the constant, so a legit jar carries none of these strings.
-            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob when its countdown ends, if you are aiming at its spot (cheat build only; needs Blood Camp on).");
-            d.put("auto blood camp/aura", "Turns your camera toward the spot a blood mob is about to land (cheat build only; needs Blood Camp on).");
-            d.put("auto blood camp/auto detect lag", "Clicks earlier by your measured ping, so the hit reaches the server Hit Lead ticks before the mob lands.");
-            d.put("auto blood camp/hit lead", "How many ticks before the mob lands the hit reaches the server, 0-10 (3 by default). Auto Detect Lag adds your ping on top.");
+            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it, and clicks again if the hit missed (cheat build only; only in the Blood Room; needs Blood Camp on).");
+            d.put("auto blood camp/aura", "Turns you toward the blood mob due next, at its chest, with a human-looking mouse movement; moving your mouse takes over (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
+            d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: below 0 clicks late, above 0 early. -1 by default.");
+            d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
@@ -1917,7 +1977,7 @@ final class SettingTooltipsData {
         d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
         d.put("class colors/tab list", "Colors each teammate's name in the tab list by dungeon class.");
         d.put("class colors/nametags", "Draws a class-colored tag like [M] Name above each teammate.");
-        d.put("secret aura/levers", "Lets Secret Aura flip levers in dungeon rooms.");
+        d.put("secret aura/in rooms", "Lets Secret Aura flip levers in dungeon rooms.");
         d.put("secret aura/chests", "Lets Secret Aura open secret chests and trapped chests in dungeon rooms.");
         d.put("secret aura/wither essence", "Lets Secret Aura click Wither Essence skulls.");
         d.put("secret aura/place redstone key", "Once a Redstone Key within 10 blocks has been picked up (by anyone), Secret Aura right-clicks the room's redstone block to put the key on top of it, at the Skull Range, always on a side of the block that faces air. Never while you hold a block, and once per key.");
@@ -1927,7 +1987,7 @@ final class SettingTooltipsData {
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
-        d.put("lever aura/cps", "Cheat build only. Lever Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("secret aura/boss lever cps", "Cheat build only. Boss lever flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
         d.put("stat bars", "Replaces the vanilla hearts, hunger, armor and air bars and the action-bar stats with your own text and bars.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).
         d.put("health and mana bars/stat bars", "Reads health, mana, defense and vitality from Hypixel's action bar; needed by every bar and text below.");
@@ -2045,8 +2105,10 @@ final class SettingTooltipsData {
         d.put("goldor triggerbot/click type", "Attack is a left click for melee; Use is a right click for a Terminator or Juju shot.");
         d.put("goldor triggerbot/aim delay", "How long your crosshair must stay on Goldor before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("goldor triggerbot/range", "How far away Goldor can be and still get clicked, 3-50 blocks.");
-        d.put("dungeon esp/tracer", "Cheat build: while ESP is on, draws a line from you to each wither boss.");
+        d.put("dungeon esp/tracer", "Draws a line from you to each wither boss: only to one you can see with the Wither Boss Highlight, to every one through walls while ESP is on.");
         d.put("dungeon esp/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
+        d.put("starred mob hitboxes/tracer", "Draws a line from you to a wither boss you can see (line of sight only) while the Wither Boss Highlight is on.");
+        d.put("starred mob hitboxes/tracer thickness", "How thick the wither boss tracer line is drawn, 1.0-10.0.");
         d.put("party commands/party (pc)", "Commands typed in party chat count; replies go to party chat.");
         d.put("party commands/guild (gc)", "Commands typed in guild chat count; replies go to guild chat.");
         d.put("party commands/all chat (ac)", "Commands typed in all chat count; replies go to all chat. Party-changing ones still need a teammate.");
@@ -2081,6 +2143,7 @@ final class SettingTooltipsData {
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the squares are.");
         d.put("trail/fade toward tail", "Squares fade out the older they get.");
+        d.put("trail/on teleport", "What the squares do when you teleport (an etherwarp, an AOTV). Break leaves a gap, Connect lays a line of squares between where you left and where you landed, Arc lays them along a curve that rises between them. Left click goes forward, right click back.");
         d.put("trail/show in first person", "Whether the squares are drawn while you are in first person. Third person always shows them.");
         d.put("ribbon trail/ribbon trail", "Draws one smooth upright band streaming behind you, like a Roblox trail, colored from you to its tail and fading out at the end. Works alongside the squares Trail. Supporters can share it.");
         d.put("ribbon trail/ribbon height", "How tall the band stands behind you, in blocks.");
@@ -2091,6 +2154,9 @@ final class SettingTooltipsData {
         d.put("ribbon trail/head color", "The ribbon's color right behind you.");
         d.put("ribbon trail/middle color", "The ribbon's color halfway along.");
         d.put("ribbon trail/tail color", "The ribbon's color at its far end, where it fades out.");
+        d.put("auto routes/progress hud", "A movable HUD: the room you are in, how much of its route is done and the node count. While Auto Clear, Auto Secret or Dungeon Autopilot runs it shows that run instead: the total percent done at the top, the room it is on, and the rooms it will do next in the order it chose them. Move it in the HUD editor.");
+        d.put("auto routes/progress rooms", "How many upcoming rooms the Progress HUD lists after the one under way. Any more show as a +N more line.");
+        d.put("ribbon trail/on teleport", "What the ribbon does when you teleport (an etherwarp, an AOTV). Break leaves a gap, Connect draws a straight band between where you left and where you landed, Arc draws a curved band that rises between them. Left click goes forward, right click back.");
         d.put("ribbon trail/show in first person", "Whether the ribbon is drawn while you are in first person. Third person always shows it.");
         // 2026-09-27 regroup: one toggle per Catacombs floor now covers that floor's Master Mode
         // shortcut too (killer560: "clump them into groups like catacombs/mastermode as one toggle for

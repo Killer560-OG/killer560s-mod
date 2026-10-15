@@ -356,7 +356,7 @@ public final class FastLeapSection {
             } else {
                 Teammates.Teammate who = Teammates.firstAliveOfClass(c);
                 String holder = who != null ? who.name() : partyMemberOfClass(c);
-                shown = com.killer560.hub.gui.tab.ClassOverridesTab.colourCode(c) + c.displayName()
+                shown = com.killer560.hub.dungeonclass.DungeonClass.colourCode(c) + c.displayName()
                         + (holder == null ? "" : " §7(" + holder + ")");
             }
         } else {
@@ -453,7 +453,7 @@ public final class FastLeapSection {
     static SettingsButtonWidget classButton(int x, int y, int w, String label, DungeonClass current, Consumer<DungeonClass> onChange) {
         DungeonClass[] holder = {current};
         return SettingsButtonWidget.cycling(classLabel(label, current), (btn, dir) -> {
-            holder[0] = com.killer560.hub.gui.tab.ClassOverridesTab.step(holder[0], dir);
+            holder[0] = com.killer560.hub.dungeonclass.DungeonClass.step(holder[0], dir);
             onChange.accept(holder[0]);
             btn.setMessage(classLabel(label, holder[0]));
         }).bounds(x, y, Math.max(1, w), ROW).build();

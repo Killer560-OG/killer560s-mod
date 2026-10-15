@@ -81,6 +81,9 @@ public final class CheatUtilsConfig {
     private boolean auraRedstoneKey = true;
     /** Once a Redstone Key is found, put it on the room's redstone block (QUOI; killer560 said yes 2026-10-12). */
     private boolean auraPlaceRedstoneKey = true;
+    /** "In Boss" in the Secret Aura tab: levers in the boss (F7 P3). With Secret Aura on, the aura also clicks the other
+     *  F7 P3 levers; the Lever Aura (Lights Device, S2 section levers) works whenever it is on, since the Lever Aura merged
+     *  into this tab (2026-10-15; its old switch migrates here, see LeverAuraConfig). The key keeps its old name. */
     private boolean auraBossLevers = false;
     // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.

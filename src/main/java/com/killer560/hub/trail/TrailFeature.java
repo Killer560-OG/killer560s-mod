@@ -113,7 +113,7 @@ public final class TrailFeature {
             SQUARES.forgetLast();
             return;
         }
-        SQUARES.sample(player.getX(), player.getY(), player.getZ(), player.onGround());
+        SQUARES.sample(player.getX(), player.getY(), player.getZ(), player.onGround(), cfg.getTeleportMode());
     }
 
     private static void onWorldRender(LevelRenderContext context) {

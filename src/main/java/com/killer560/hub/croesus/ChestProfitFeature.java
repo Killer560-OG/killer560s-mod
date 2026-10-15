@@ -1131,23 +1131,47 @@ public final class ChestProfitFeature {
         return lines.size() * 10 + PANEL_PADDING * 2 - 1;
     }
 
+    /** A line colour on a menu theme: the mod's orange, light orange, text and dim map onto the theme's accent, hover accent,
+     *  text and dim; good / bad greens and reds and every other colour stay. */
+    static int themed(com.killer560.hub.gui.OverlayPalette menu, int argb) {
+        if (menu == null) {
+            return argb;
+        }
+        int rgb = argb & 0xFFFFFF;
+        if (rgb == ModChat.ORANGE) {
+            return menu.accent();
+        }
+        if (rgb == ModChat.LIGHT_ORANGE) {
+            return menu.accentHover();
+        }
+        if (rgb == ModChat.TEXT) {
+            return menu.text();
+        }
+        if (rgb == ModChat.DIM) {
+            return menu.dim();
+        }
+        return argb;
+    }
+
     private static void drawLines(GuiGraphicsExtractor graphics, int x, int y, List<Line> lines) {
         Font font = Minecraft.getInstance().font;
         int panelW = panelWidth(lines);
         int panelH = panelHeight(lines);
-        graphics.fill(x, y, x + panelW, y + panelH, PANEL_BG);
-        graphics.outline(x, y, panelW, panelH, PANEL_BORDER);
+        // Menu Theme (2026-10-15): Default draws exactly the colours below; anything else maps them onto the menu's.
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CHEST_PROFIT);
+        graphics.fill(x, y, x + panelW, y + panelH, menu == null ? PANEL_BG : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xD0));
+        graphics.outline(x, y, panelW, panelH, menu == null ? PANEL_BORDER : menu.border());
         int ty = y + PANEL_PADDING;
         for (Line line : lines) {
             if (line.rich() != null) {
-                graphics.text(font, line.rich(), x + PANEL_PADDING, ty, line.color(), true);
+                graphics.text(font, line.rich(), x + PANEL_PADDING, ty, line.color(), !(menu != null && menu.light()));
                 ty += 10;
                 continue;
             }
-            graphics.text(font, line.text(), x + PANEL_PADDING, ty, line.color(), true);
+            graphics.text(font, line.text(), x + PANEL_PADDING, ty, themed(menu, line.color()), menu == null || !menu.light());
             if (line.right() != null) {
                 graphics.text(font, line.right(), x + panelW - PANEL_PADDING - font.width(line.right()), ty,
-                        line.rightColor(), true);
+                        themed(menu, line.rightColor()), menu == null || !menu.light());
             }
             ty += 10;
         }

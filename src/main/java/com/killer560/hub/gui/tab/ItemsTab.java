@@ -18,6 +18,8 @@ public class ItemsTab extends FolderTab {
                 new InventoryThemeTab(),
                 new StorageSearchTab(),
                 new SlotBindsTab(),
+                new SlotTextTab(),
+                new CompactorPreviewTab(),
                 new LoadoutKeybindsTab(),
                 new PetWheelTab(),
                 new ItemProtectTab(),

@@ -52,12 +52,17 @@ public final class BloodCampConfig {
     private boolean triggerBotEnabled = false;
     private boolean auraEnabled = false;
     private boolean autoDetectLag = true;
-    /** Trigger Bot: how many ticks before the mob is due its hit should reach the server (killer560, 2026-10-11:
-     *  "The trigger bots should all have their own unique specific timer"). Default 3; the measured ping is added on
-     *  top while Auto Detect Lag is on. Replaces Click Offset ({@code manualTickOffset}, -3..+3 on top of a fixed 3). */
-    private int hitLeadTicks = DEFAULT_HIT_LEAD_TICKS;
-    public static final int DEFAULT_HIT_LEAD_TICKS = 3;
-    public static final int MAX_HIT_LEAD_TICKS = 10;
+    /** Trigger Bot: ticks from the kill timer (the moment the box turns green and the Kill Sound plays) to the click -
+     *  positive clicks that many ticks EARLY, negative that many ticks LATE (killer560, 2026-10-15: "there needs to be a
+     *  negative option as well where it will attack late. Have the slider go from -10 to 10 and have it default to -1").
+     *  Replaces Hit Lead (0-10, 3), whose old value is not carried over: it counted from a different moment. */
+    private int triggerOffsetTicks = DEFAULT_TRIGGER_OFFSET_TICKS;
+    public static final int DEFAULT_TRIGGER_OFFSET_TICKS = -1;
+    public static final int MIN_TRIGGER_OFFSET_TICKS = -10;
+    public static final int MAX_TRIGGER_OFFSET_TICKS = 10;
+    /** Aura: turn the body only, the camera stays where his mouse puts it (killer560, 2026-10-15: "have an option for
+     *  aura to put you into freecam mode"). */
+    private boolean auraFreecam = false;
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
@@ -100,12 +105,10 @@ public final class BloodCampConfig {
             cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
             cfg.autoDetectLag = ConfigJson.getBool(obj, "autoDetectLag", true);
-            if (obj.has("hitLeadTicks")) {
-                cfg.setHitLeadTicks(ConfigJson.getInt(obj, "hitLeadTicks", DEFAULT_HIT_LEAD_TICKS));
-            } else {
-                // Migration: the old Click Offset was a fine-tune on top of a fixed 3-tick lead.
-                cfg.setHitLeadTicks(DEFAULT_HIT_LEAD_TICKS + ConfigJson.getInt(obj, "manualTickOffset", 0));
-            }
+            // The old hitLeadTicks / manualTickOffset keys are ignored on purpose: they counted from the server-side
+            // due moment, this counts from the kill timer he sees, so the old number would not mean the same click.
+            cfg.setTriggerOffsetTicks(ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS));
+            cfg.auraFreecam = ConfigJson.getBool(obj, "auraFreecam", false);
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
@@ -131,7 +134,8 @@ public final class BloodCampConfig {
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
             obj.addProperty("auraEnabled", auraEnabled);
             obj.addProperty("autoDetectLag", autoDetectLag);
-            obj.addProperty("hitLeadTicks", hitLeadTicks);
+            obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
+            obj.addProperty("auraFreecam", auraFreecam);
             obj.addProperty("killPopup", killPopup);
             obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
             obj.addProperty("timerTextScale", timerTextScale);
@@ -234,12 +238,22 @@ public final class BloodCampConfig {
         this.autoDetectLag = autoDetectLag;
     }
 
-    public int getHitLeadTicks() {
-        return hitLeadTicks;
+    /** Ticks EARLY (positive) or LATE (negative) relative to the kill timer the Trigger Bot clicks; -10..10. */
+    public int getTriggerOffsetTicks() {
+        return triggerOffsetTicks;
     }
 
-    public void setHitLeadTicks(int ticks) {
-        this.hitLeadTicks = Math.max(0, Math.min(MAX_HIT_LEAD_TICKS, ticks));
+    public void setTriggerOffsetTicks(int ticks) {
+        this.triggerOffsetTicks = Math.max(MIN_TRIGGER_OFFSET_TICKS, Math.min(MAX_TRIGGER_OFFSET_TICKS, ticks));
+    }
+
+    /** Aura in freecam mode: the camera stays with his mouse while the aura turns his body. */
+    public boolean isAuraFreecam() {
+        return auraFreecam;
+    }
+
+    public void setAuraFreecam(boolean auraFreecam) {
+        this.auraFreecam = auraFreecam;
     }
 
     /** Text scale for the world-space countdown drawn on each blood mob's box (killer560: "the timer on

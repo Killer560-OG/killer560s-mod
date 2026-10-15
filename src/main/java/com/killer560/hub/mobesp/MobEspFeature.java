@@ -51,7 +51,8 @@ import java.util.Set;
  * <li><b>Wither ESP</b> (F7/M7 boss, P1-P4): {@link WitherEspFeature#isRealWither} (not Hypixel's invisible /
  * 800-invulnerable-tick display withers). Cheat build only, like the Cheat Utils Wither ESP it replaces; always
  * through walls and never range-limited. Takes precedence over Wither Highlight when both are on. Its optional
- * Tracer draws a line from your eyes to each highlighted wither's hitbox centre, in the ESP's own colour.
+ * Tracer draws a line from your eyes to each highlighted wither's hitbox centre, in the wither colour; Wither Highlight
+ * has the same Tracer, drawn only to a wither that passed the line-of-sight test (2026-10-15).
  * </ul>
  * Styles: Outline Box / Filled Box ({@link EspRenderer}) or Glow - vanilla's entity outline, forced through
  * {@code Minecraft#shouldEntityAppearGlowing} and coloured through {@code Entity#getTeamColor} by the
@@ -180,7 +181,9 @@ public final class MobEspFeature {
                 ? currentRoomBox(client, cfg.getRoomMargin()) : null;
         double rangeSq = roomBox != null ? Double.MAX_VALUE : cfg.getRange() * cfg.getRange();
 
-        boolean witherTracer = wantWitherEsp && cfg.isWitherTracerEnabled();
+        // One Tracer setting for both wither modes (killer560, 2026-10-15): the ESP draws it to every wither it
+        // highlights, through walls; the legit highlight only to one that passed the line-of-sight test in accept().
+        boolean witherTracer = (wantWitherEsp || wantWitherHighlight) && cfg.isWitherTracerEnabled();
 
         Map<Integer, Box> foundBoxes = new LinkedHashMap<>();
         Map<Integer, Integer> foundGlows = new LinkedHashMap<>();
@@ -201,7 +204,8 @@ public final class MobEspFeature {
                 if (!espMode && !wantWitherHighlight) {
                     continue;
                 }
-                int color = espMode ? cfg.getWitherColor() : cfg.getWitherHighlightColor();
+                // The same colour in both modes (killer560, 2026-10-15: no separate wither boss colour for ESP).
+                int color = cfg.getWitherHighlightColor();
                 boolean wallsOk = espMode;
                 boolean asGlow = espMode ? glow : witherGlow;
                 boolean asFilled = espMode ? filled : !witherGlow;

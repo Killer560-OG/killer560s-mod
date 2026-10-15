@@ -22,7 +22,10 @@ public class HomeTab extends FolderTab {
                 // 2026-10-11: legit in both builds, so it sits above the cheat-only block.
                 new AutoUpdateTab(),
                 // 2026-10-12 (Option A menu): the menu's colour preset and Custom colours.
-                new MenuThemeTab()
+                new MenuThemeTab(),
+                // 2026-10-15: the click sound (and the card descriptions switch) next to the theme.
+                new ClickSoundsTab(),
+                new DescriptionsTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());

@@ -218,6 +218,10 @@ public final class SecretTriggerbotFeature {
             return true;
         }
         if (block == Blocks.LEVER) {
+            // The S2 Lights levers are the Lights Device's (its own Triggerbot), even if the boss latch was missed.
+            if (DungeonState.isF7OrM7() && com.killer560.hub.lightsdevice.LightsDeviceFeature.isLightsLever(pos)) {
+                return false;
+            }
             return roomName == null || !NO_LEVER_ROOMS.contains(roomName);
         }
         if (block instanceof AbstractSkullBlock) {

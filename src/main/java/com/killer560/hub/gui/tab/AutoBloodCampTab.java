@@ -62,7 +62,7 @@ public class AutoBloodCampTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(onOff("Aura", cfg.getAuraRaw()), btn -> {
                     cfg.setAuraEnabled(!cfg.getAuraRaw());
                     cfg.save();
-                    btn.setMessage(onOff("Aura", cfg.getAuraRaw()));
+                    requestRebuild.run(); // shows or hides Freecam Mode
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
@@ -74,23 +74,42 @@ public class AutoBloodCampTab extends BaseTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 20;
 
-            double leadNorm = cfg.getHitLeadTicks() / (double) BloodCampConfig.MAX_HIT_LEAD_TICKS;
+            // killer560, 2026-10-15: "Have the slider go from -10 to 10 and have it default to -1" - ticks from the kill
+            // timer, positive early, negative late.
+            int span = BloodCampConfig.MAX_TRIGGER_OFFSET_TICKS - BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS;
+            double offsetNorm = (cfg.getTriggerOffsetTicks() - BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS) / (double) span;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Hit Lead: " + cfg.getHitLeadTicks() + "t"), leadNorm) {
+                    Component.literal(offsetLabel(cfg.getTriggerOffsetTicks())), offsetNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Hit Lead: " + cfg.getHitLeadTicks() + "t"));
+                    setMessage(Component.literal(offsetLabel(cfg.getTriggerOffsetTicks())));
                 }
 
                 @Override
                 protected void applyValue() {
-                    cfg.setHitLeadTicks((int) Math.round(this.value * BloodCampConfig.MAX_HIT_LEAD_TICKS));
+                    cfg.setTriggerOffsetTicks(BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS
+                            + (int) Math.round(this.value * span));
                     cfg.save();
                 }
             });
+            y += 20;
+        }
+
+        if (cfg.getAuraRaw()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Freecam Mode", cfg.isAuraFreecam()), btn -> {
+                        cfg.setAuraFreecam(!cfg.isAuraFreecam());
+                        cfg.save();
+                        btn.setMessage(onOff("Freecam Mode", cfg.isAuraFreecam()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
         }
 
         return widgets;
+    }
+
+    /** "Trigger Offset: -1t (late)" - which way the click moves from the kill timer. */
+    static String offsetLabel(int ticks) {
+        String dir = ticks < 0 ? " (late)" : ticks > 0 ? " (early)" : "";
+        return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + "t" + dir;
     }
 
     private static Component onOff(String label, boolean value) {

@@ -133,7 +133,12 @@ public final class NameReplacer {
 
     private static boolean isModMenuScreen(Object screen) {
         String name = screen.getClass().getName();
-        return name.startsWith("com.killer560.hub.gui.")
+        // The main menu and the Swap Accounts screens show the account's real name (killer560, 2026-10-15: "Do not have
+        // the custom ign color work on this page").
+        if (screen instanceof net.minecraft.client.gui.screens.TitleScreen) {
+            return true;
+        }
+        return name.startsWith("com.killer560.hub.gui.") || name.startsWith("com.killer560.hub.accounts.gui.")
                 || name.startsWith("com.killer560.hub.hud.HudEditorScreen")
                 || name.startsWith("com.killer560.hub.scoreboard.ScoreboardEditorScreen");
     }
@@ -315,9 +320,22 @@ public final class NameReplacer {
         private int wordStart;
         private int index;
 
+        /** True once the first visible glyph was a slash: the whole line is a command, which is never renamed (killer560,
+         *  2026-10-15: a name typed inside "/killer560" took the custom colour, partly black). */
+        private boolean commandLine;
+        private boolean seenGlyph;
+        /** Rank-tag tracking: 0 none, 1 inside "[...", 2 after "]", 3 after "] " (the next word may be the name). */
+        private int rankPhase;
+        private int rankOpen;
+        private int rankChars;
+        /** Where the rank tag directly before the word being read opened, or -1. */
+        private int wordRankOpen;
+        private int pendingRank = -1;
+
         int matchCount;
         private int[] starts = new int[8];
         private int[] lens = new int[8];
+        private boolean[] ranked = new boolean[8];
         private NameTable.Entry[] entries = new NameTable.Entry[8];
 
         void begin(NameTable table) {
@@ -327,12 +345,53 @@ public final class NameReplacer {
             overflow = false;
             index = 0;
             matchCount = 0;
+            commandLine = false;
+            seenGlyph = false;
+            rankPhase = 0;
+            wordRankOpen = -1;
+            pendingRank = -1;
+        }
+
+        /** Advances the "[RANK] name" tracker by one glyph; see {@link #rankPhase}. Runs before the word logic. */
+        private void trackRank(int c, int at) {
+            if (!seenGlyph && c > ' ') {
+                seenGlyph = true;
+                commandLine = c == '/';
+            }
+            switch (rankPhase) {
+                case 1 -> {
+                    if (NameRank.isRankChar(c)) {
+                        rankChars++;
+                    } else if (c == ']' && rankChars >= 2 && rankChars <= 12) {
+                        rankPhase = 2;
+                    } else {
+                        rankPhase = 0;
+                    }
+                }
+                case 2 -> rankPhase = c == ' ' ? 3 : 0;
+                case 3 -> {
+                    if (NameTable.isNameChar(c) && len == 0) {
+                        pendingRank = rankOpen;
+                    }
+                    rankPhase = 0;
+                }
+                default -> {
+                }
+            }
+            if (c == '[') {
+                rankPhase = 1;
+                rankOpen = at;
+                rankChars = 0;
+            }
         }
 
         private void feed(int c, int at) {
+            trackRank(c, at);
             if (NameTable.isNameChar(c)) {
                 if (len == 0) {
                     wordStart = at;
+                    wordRankOpen = pendingRank;
+                    pendingRank = -1;
                 }
                 if (len < NameTable.MAX_LEN) {
                     buf[len++] = (char) c;
@@ -346,17 +405,23 @@ public final class NameReplacer {
         }
 
         void flush() {
-            if (len > 0 && !overflow) {
+            if (len > 0 && !overflow && !commandLine) {
                 NameTable.Entry e = table.lookup(buf, len, hash);
                 if (e != null) {
                     if (matchCount == starts.length) {
                         int n = matchCount * 2;
                         starts = java.util.Arrays.copyOf(starts, n);
                         lens = java.util.Arrays.copyOf(lens, n);
+                        ranked = java.util.Arrays.copyOf(ranked, n);
                         entries = java.util.Arrays.copyOf(entries, n);
                     }
-                    starts[matchCount] = wordStart;
-                    lens[matchCount] = len;
+                    // A rank tag directly before your own name is replaced with it ("[MVP++] name" -> custom tag + name).
+                    boolean withRank = e.rankReplacement != null && wordRankOpen >= 0
+                            && (matchCount == 0 || starts[matchCount - 1] + lens[matchCount - 1] <= wordRankOpen);
+                    int start = withRank ? wordRankOpen : wordStart;
+                    starts[matchCount] = start;
+                    lens[matchCount] = wordStart + len - start;
+                    ranked[matchCount] = withRank;
                     entries[matchCount] = e;
                     matchCount++;
                 }
@@ -364,6 +429,12 @@ public final class NameReplacer {
             len = 0;
             hash = 0;
             overflow = false;
+        }
+
+        /** What replaces match {@code m}: the new rank tag and the name, or just the name. */
+        private String replacementFor(int m) {
+            NameTable.Entry e = entries[m];
+            return ranked[m] ? e.rankReplacement + e.replacement : e.replacement;
         }
 
         /** FormattedCharSequence pass: indices are glyph (codepoint) positions. */
@@ -406,7 +477,7 @@ public final class NameReplacer {
                 int start = starts[m];
                 active = updateActiveFormatting(active, s, last, start);
                 sb.append(s, last, start);
-                String repl = entries[m].replacement;
+                String repl = replacementFor(m);
                 sb.append(repl);
                 if (repl.indexOf('§') >= 0) {
                     // Restore whatever colour/format was active before the name so the rest of the line is unchanged.
@@ -472,7 +543,7 @@ public final class NameReplacer {
                 if (i == start) {
                     // § codes in the display name layer on top of the original style (click/hover events survive).
                     // NameColor's decoder, not StringDecomposer's: a fade's §x hex escapes are misread by vanilla.
-                    NameColor.iterateFormatted(sc.entries[m].replacement, style, adder);
+                    NameColor.iterateFormatted(sc.replacementFor(m), style, adder);
                 }
                 if (i == start + sc.lens[m] - 1) {
                     m++;

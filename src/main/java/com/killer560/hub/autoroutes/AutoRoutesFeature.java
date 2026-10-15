@@ -99,6 +99,7 @@ public final class AutoRoutesFeature {
         com.killer560.hub.util.WorldRenderUtils.initThroughWalls();
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
         AwaitEvents.register();
+        AutoRoutesProgressHud.register();
         LOGGER.info("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 

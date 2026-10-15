@@ -107,6 +107,10 @@ final class AutoTeleportMaze {
 
     private static FinishStage finishStage = FinishStage.NONE;
     private static long finishStageStartMs = 0L;
+    /** util/ServerLag readings taken with finishStageStartMs and walkStartMs: a server stall never runs a wait for a
+     *  pad's teleport out (2026-10-15). */
+    private static long finishStageLag = 0L;
+    private static long walkLag = 0L;
     private static int auraAttempts = 0;
 
     private AutoTeleportMaze() {
@@ -208,6 +212,7 @@ final class AutoTeleportMaze {
                 if (isAtEndPad(player.position())) {
                     finishStage = FinishStage.AURA_CHEST;
                     finishStageStartMs = System.currentTimeMillis();
+                    finishStageLag = com.killer560.hub.util.ServerLag.mark();
                     auraAttempts = 0;
                 } else {
                     LOGGER.info("[AutoPuzzles] TeleportMaze: no pad to walk to - stopped");
@@ -230,6 +235,7 @@ final class AutoTeleportMaze {
         walkStraight = !planned;
         walkTarget = pad;
         walkStartMs = System.currentTimeMillis();
+        walkLag = com.killer560.hub.util.ServerLag.mark();
         walkTimeoutMs = planned
                 ? Math.max(WALK_TIMEOUT_MS, (long) (WALK.length(player.position()) / WALK_SPEED * 1000.0) + 1500L)
                 : WALK_TIMEOUT_MS;
@@ -242,7 +248,7 @@ final class AutoTeleportMaze {
     }
 
     private static void tickWalk(Minecraft client, LocalPlayer player) {
-        if (System.currentTimeMillis() - walkStartMs > walkTimeoutMs) {
+        if (com.killer560.hub.util.ServerLag.serverMsSince(walkStartMs, walkLag) > walkTimeoutMs) {
             LOGGER.info("[AutoPuzzles] TeleportMaze: no teleport after {}ms of walking - stopped", walkTimeoutMs);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
                     ModChat.bad("could not reach the pad"), ModChat.text(" - stopped."));
@@ -494,6 +500,7 @@ final class AutoTeleportMaze {
                     MAX_AURA_ATTEMPTS);
             finishStage = afterChest();
             finishStageStartMs = System.currentTimeMillis();
+            finishStageLag = com.killer560.hub.util.ServerLag.mark();
             return;
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
@@ -520,6 +527,7 @@ final class AutoTeleportMaze {
                 ModChat.text("."));
         finishStage = afterChest();
         finishStageStartMs = System.currentTimeMillis();
+        finishStageLag = com.killer560.hub.util.ServerLag.mark();
     }
 
     /**
@@ -542,7 +550,7 @@ final class AutoTeleportMaze {
         BlockPos pad = cr == null ? null
                 : PuzzleCoords.real(END_PAD_RELATIVE[0], END_PAD_RELATIVE[1], END_PAD_RELATIVE[2], cr);
         boolean sentOut = pad == null || player.position().distanceToSqr(Vec3.atCenterOf(pad)) > SENT_OUT_SQ;
-        boolean timedOut = System.currentTimeMillis() - finishStageStartMs > FINISH_WALK_TIMEOUT_MS;
+        boolean timedOut = com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > FINISH_WALK_TIMEOUT_MS;
         if (sentOut || timedOut) {
             if (timedOut && !sentOut) {
                 LOGGER.warn("[AutoPuzzles] TeleportMaze: the end pad did not send me out - continuing anyway");
@@ -551,6 +559,7 @@ final class AutoTeleportMaze {
             walking = false;
             finishStage = FinishStage.WALK_OUT;
             finishStageStartMs = System.currentTimeMillis();
+            finishStageLag = com.killer560.hub.util.ServerLag.mark();
             return;
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(pad));
@@ -566,6 +575,7 @@ final class AutoTeleportMaze {
         if (target == null) {
             finishStage = nextStage;
             finishStageStartMs = System.currentTimeMillis();
+            finishStageLag = com.killer560.hub.util.ServerLag.mark();
             client.options.keyUp.setDown(false);
             walking = false;
             return true;
@@ -576,14 +586,16 @@ final class AutoTeleportMaze {
             walking = false;
             finishStage = nextStage;
             finishStageStartMs = System.currentTimeMillis();
+            finishStageLag = com.killer560.hub.util.ServerLag.mark();
             return true;
         }
-        if (System.currentTimeMillis() - finishStageStartMs > FINISH_WALK_TIMEOUT_MS) {
+        if (com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > FINISH_WALK_TIMEOUT_MS) {
             LOGGER.warn("[AutoPuzzles] TeleportMaze: walk to {} timed out - continuing anyway", label);
             client.options.keyUp.setDown(false);
             walking = false;
             finishStage = nextStage;
             finishStageStartMs = System.currentTimeMillis();
+            finishStageLag = com.killer560.hub.util.ServerLag.mark();
             return true;
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(target));

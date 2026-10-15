@@ -133,11 +133,12 @@ public final class ItemCraftView {
         panelBounds = new int[]{panelX, panelY, panelW, panelH};
 
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
-        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xF00D0D0D);
-        graphics.outline(panelX, panelY, panelW, panelH, 0xFFCC6600);
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
+        graphics.fill(panelX, panelY, panelX + panelW, panelY + panelH, menu == null ? 0xF00D0D0D : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xF0));
+        graphics.outline(panelX, panelY, panelW, panelH, menu == null ? 0xFFCC6600 : menu.accent());
 
         String title = ItemBrowserFeature.minionBaseName(tiers.getFirst()) + " - all tiers";
-        graphics.text(font, title, panelX + PADDING, panelY + PADDING, 0xFFFFAA00, false);
+        graphics.text(font, title, panelX + PADDING, panelY + PADDING, menu == null ? 0xFFFFAA00 : menu.accentHover(), false);
 
         int gridX = panelX + (panelW - TIER_COLUMNS * TIER_CELL_W) / 2;
         int gridY = panelY + PADDING + font.lineHeight + 6;
@@ -149,7 +150,7 @@ public final class ItemCraftView {
             int[] cell = {cx, cy, TIER_CELL_W, TIER_CELL_H};
             tierCells.add(cell);
             boolean over = inside(cell, mouseX, mouseY);
-            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? 0x80CC6600 : 0xFF262626);
+            graphics.fill(cx + 1, cy + 1, cx + TIER_CELL_W - 1, cy + TIER_CELL_H - 1, over ? (menu == null ? 0x80CC6600 : com.killer560.hub.gui.OverlayPalette.alpha(menu.accent(), 0x80)) : (menu == null ? 0xFF262626 : menu.card()));
             SkyblockItemEntry tier = tiers.get(i);
             graphics.item(SkyblockItemStackFactory.build(tier), cx + (TIER_CELL_W - 16) / 2, cy + 2);
             graphics.centeredText(font, ItemBrowserFeature.minionTierLabel(tier), cx + TIER_CELL_W / 2, cy + 19, 0xFFFFFFFF);
@@ -231,8 +232,9 @@ public final class ItemCraftView {
 
         // Dim the whole screen behind it so the popup reads clearly over whatever real menu is open.
         graphics.fill(0, 0, screenWidth, screenHeight, 0x99000000);
-        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, 0xF00D0D0D);
-        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, 0xFFCC6600);
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.ITEM_BROWSER);
+        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + panelHeight, menu == null ? 0xF00D0D0D : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xF0));
+        graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, menu == null ? 0xFFCC6600 : menu.accent());
 
         int lx = panelX + PADDING;
         int ly = panelY + PADDING;
@@ -255,7 +257,7 @@ public final class ItemCraftView {
         }
 
         ly += 6;
-        graphics.text(font, "§6Obtain:", lx, ly, 0xFFFFAA00, false);
+        graphics.text(font, "§6Obtain:", lx, ly, menu == null ? 0xFFFFAA00 : menu.accentHover(), false);
         ly += font.lineHeight;
         if (obtainLines.isEmpty()) {
             graphics.text(font, "§8No obtain information available from Hypixel's API.", lx, ly, 0xFF888888, false);

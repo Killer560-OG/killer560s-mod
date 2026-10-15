@@ -324,6 +324,18 @@ public final class InventoryThemeConfig {
     /** The shades everything is drawn in: the preset's, with Accent Source / Slot Color Source: Custom applied on top
      *  in any preset. */
     public InventoryPalette getPalette() {
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME);
+        if (menu != null) {
+            // Menu Theme is not Default: the menu's colours replace the preset; Accent / Slot Color Source still apply.
+            InventoryPalette m = InventoryPalette.fromMenu(menu);
+            if (useCustomAccent) {
+                m = m.withAccent(customAccentColor);
+            }
+            if (useCustomSlotColor) {
+                m = m.withSlotFill(customSlotColor);
+            }
+            return m;
+        }
         if (preset == Preset.CUSTOM) {
             // Custom: built from the Theme's colours with the custom accent / slot colour taking their place, so the
             // accent also colours the bevels.

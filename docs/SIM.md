@@ -2890,6 +2890,26 @@ change the size of the map like it should".
   re-read from disk; row lines >= 2 px apart; clicking the row restores the floor), `75-sim-designer-count` (no "N of M
   rooms" in a frame's text runs).
 
+## Deuces' doorway: cold braziers and a carve that cut doorway trim (2026-10-15, sim-deuces-1015)
+
+killer560's Hypixel shot of Deuces (the doorway into Altar under the secret chest) against the sim. Read back from the
+built level (testkit 1433), the sim matched `Dueces.json` block for block there; the geometry was never wrong. Two
+things were:
+- **The capture's braziers were cold.** A brazier is a hopper with fire on it; all 16 of Deuces' hoppers have air on
+  top in the capture, and across the library 1,099 of 1,471 hoppers do (372 have fire), with the same placement
+  signature either way (wall-mounted and hanging 961 vs 285) and rooms holding both. Fire is the block a player punches
+  out, and RoomDatabase already leaves it out of its core hash, so a capture keeps whatever was still lit.
+  `RoomBraziers` relights every hopper with air above it at library load (never in the wall plane or seam), so the
+  paste and the build audit see one answer. If he ever sees a hopper on Hypixel that is NOT lit, this rule is the
+  thing to narrow.
+- **The doorway carve removed each room's top trim.** `carveDoorway` clears 3 wide x 4 high x 3 deep into each room;
+  a room's own doorway is already open, so inside the room all it took was the top layer one block in from the wall:
+  stairs pairs, iron-bar rows, slabs - 157 blocks over 65 doorways in 31 rooms (tool sweep of the shipped captures).
+  A top-layer block over air outside the seam is now kept (`SimDoors.KEPT_TRIM`, 38-47 a floor); 80/81/855 still pass.
+- Unverified lead from the same offline sweep (captures alone, not a built floor): Entrance W0, Mage N1 and Quad Lava
+  E0 measure their doorway at y72-77 while the seam column's floor reads y69, which would put a carve there 3 blocks
+  into solid stone below the real opening. Check in a build before acting on it.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
@@ -2912,3 +2932,10 @@ change the size of the map like it should".
   only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
+- **A replayed run's rooms faced rotation 0 because the run never stored one** (killer560, 2026-10-15: "those saved rooms
+  did not save the proper orientation [...] no doors that are aligning properly"). `RunRecord.MapSnapshot` held room ids,
+  doors and names only, and `SimRunHistory` wrote rotation 0 into every cell. Each `MapRoom` now stores the DATABASE
+  rotation the live map read (`DungeonLayout.clayRotation`), and the replay pastes at that minus `RoomCaptureRotation`
+  (the inverse of `SimRoomIndex.add`), so the rebuilt `SimRoomIndex` rotation equals the recorded one; older runs pick the
+  turn whose `RoomDoors` doorways meet the map's doors. Testkit 97-sim-savedrun: every room back at its rotation (22/22 and
+  24/24 on two floors) and no new door-audit line; on the old jar 19 of 24 came back turned and 13 doors were unbacked.

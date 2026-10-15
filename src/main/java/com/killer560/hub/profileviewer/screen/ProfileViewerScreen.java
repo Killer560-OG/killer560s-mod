@@ -1439,22 +1439,22 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
      *  grid and the items, with the rarity background and a tooltip only for a slot inside {@code clipTop..clipBottom}. */
     void overlayPanel(GuiGraphicsExtractor g, int x, int y, String label, List<ItemStack> items, int mx, int my,
                       int clipTop, int clipBottom) {
-        com.killer560.hub.gui.PanelTheme theme = com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().getTheme();
+        com.killer560.hub.gui.PanelColours theme = com.killer560.hub.storageoverlay.StorageOverlayConfig.getInstance().colours();
         int rows = Math.max(1, (items.size() + 8) / 9);
         int h = overlayPanelHeight(rows);
-        g.fill(x, y, x + OVERLAY_PANEL_W, y + h, theme.panelBg);
-        g.outline(x, y, OVERLAY_PANEL_W, h, theme.border);
-        tx(g, this.font.plainSubstrByWidth(label, OVERLAY_PANEL_W - 6), x + 3, y + 3, theme.text);
+        g.fill(x, y, x + OVERLAY_PANEL_W, y + h, theme.panelBg());
+        g.outline(x, y, OVERLAY_PANEL_W, h, theme.border());
+        tx(g, this.font.plainSubstrByWidth(label, OVERLAY_PANEL_W - 6), x + 3, y + 3, theme.text());
         int gridX = x + 2;
         int gridY = y + this.font.lineHeight + 4;
         int gw = 9 * 18;
         int gh = rows * 18;
-        g.fill(gridX, gridY, gridX + gw, gridY + gh, theme.cellBg);
+        g.fill(gridX, gridY, gridX + gw, gridY + gh, theme.cellBg());
         for (int col = 0; col <= 9; col++) {
-            g.fill(gridX + col * 18, gridY, gridX + col * 18 + 1, gridY + gh, theme.cellLine);
+            g.fill(gridX + col * 18, gridY, gridX + col * 18 + 1, gridY + gh, theme.cellLine());
         }
         for (int row = 0; row <= rows; row++) {
-            g.fill(gridX, gridY + row * 18, gridX + gw, gridY + row * 18 + 1, theme.cellLine);
+            g.fill(gridX, gridY + row * 18, gridX + gw, gridY + row * 18 + 1, theme.cellLine());
         }
         for (int i = 0; i < items.size(); i++) {
             ItemStack stack = items.get(i);

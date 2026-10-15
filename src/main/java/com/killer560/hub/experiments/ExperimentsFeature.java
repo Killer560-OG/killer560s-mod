@@ -186,7 +186,7 @@ public final class ExperimentsFeature {
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register(
                 (client, screen, w, h) -> onScreenOpened(screen));
         // Superpairs' Adaptive Timeout extends its confirm wait by however long the server stalls.
-        ServerLagSensor.register();
+        com.killer560.hub.util.ServerLag.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", ExperimentsProfitTracker::tick));
@@ -343,9 +343,10 @@ public final class ExperimentsFeature {
     private static final int START_BUTTON_BORDER = 0xFFCC6600;
 
     private static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label) {
-        graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, START_BUTTON_BG);
-        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, START_BUTTON_BORDER);
-        graphics.centeredText(Minecraft.getInstance().font, label, x + START_BUTTON_WIDTH / 2, y + 6, 0xFFFFFFFF);
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.START_BUTTONS);
+        graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BG : menu.control());
+        graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BORDER : menu.accent());
+        graphics.centeredText(Minecraft.getInstance().font, label, x + START_BUTTON_WIDTH / 2, y + 6, menu == null ? 0xFFFFFFFF : menu.text());
     }
 
     private static HudElement startButtonElement() {

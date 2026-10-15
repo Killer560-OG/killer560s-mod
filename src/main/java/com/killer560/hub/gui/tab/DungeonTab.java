@@ -32,7 +32,6 @@ public class DungeonTab extends FolderTab {
                 new AutoKickTab(),
                 // Not cheat-only: setting someone's class fixes the normal leap menu and every class-coloured display
                 // too, not just AP3's leap nodes (killer560, 2026-09-16).
-                new ClassOverridesTab(),
                 new ClassColorsTab(),
                 new TeammatesTab(),
                 new TeamMelodyTab(),
@@ -102,6 +101,8 @@ public class DungeonTab extends FolderTab {
             tabs.add(new TerminalTriggerbotTab());
             tabs.add(new DioriteGlassTab());
             tabs.add(new GoldorTriggerbotTab());
+            // Out of Secret Aura's In Boss, 2026-10-15 (killer560: "It should be its own cheat").
+            tabs.add(new LightsDeviceTab());
             tabs.add(new AutoUltTab());
             tabs.add(new Ap3Tab());
             tabs.add(new FreezeStateTab());

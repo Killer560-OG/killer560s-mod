@@ -21,6 +21,21 @@ public abstract class MainMenuSplashMixin {
     private Component killer560smod$source;
     @Unique
     private Component killer560smod$themed;
+    @Unique
+    private int killer560smod$themedRgb = -1;
+
+    /** The main menu's Custom style can turn the splash text off (2026-10-15). */
+    @org.spongepowered.asm.mixin.injection.Inject(method = "extractRenderState", at = @At("HEAD"), cancellable = true,
+            require = 0)
+    private void killer560smod$hideSplash(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        try {
+            if (MainMenuTheme.activeOnTitleScreen() && !com.killer560.hub.mainmenu.MainMenuLook.current().splash()) {
+                ci.cancel();
+            }
+        } catch (Throwable t) {
+            MainMenuTheme.fail("splash toggle", t);
+        }
+    }
 
     @ModifyArg(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;ILnet/minecraft/client/gui/Font;F)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/ActiveTextCollector;accept(Lnet/minecraft/client/gui/TextAlignment;IILnet/minecraft/client/gui/ActiveTextCollector$Parameters;Lnet/minecraft/network/chat/Component;)V"),
@@ -30,10 +45,12 @@ public abstract class MainMenuSplashMixin {
             return splash;
         }
         try {
-            if (killer560smod$source != splash || killer560smod$themed == null) {
+            int rgb = com.killer560.hub.mainmenu.MainMenuChrome.accentLightColour();
+            if (killer560smod$source != splash || killer560smod$themed == null || killer560smod$themedRgb != rgb) {
                 killer560smod$source = splash;
+                killer560smod$themedRgb = rgb;
                 // Override the root colour (the splash's own style IS the yellow), keep any other styling.
-                killer560smod$themed = splash.copy().withStyle((Style s) -> s.withColor(TextColor.fromRgb(MainMenuTheme.LIGHT_ORANGE)));
+                killer560smod$themed = splash.copy().withStyle((Style s) -> s.withColor(TextColor.fromRgb(rgb)));
             }
             return killer560smod$themed;
         } catch (Throwable t) {

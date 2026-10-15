@@ -32,6 +32,9 @@ final class SquareTrail {
     private final boolean[] grounded = new boolean[TrailConfig.MAX_LENGTH];
     private int head = 0;
     private int size = 0;
+    private int teleports = 0;
+    /** Blocks between two squares laid across a teleport. */
+    private static final double BRIDGE_SPACING = 0.6;
 
     private double lastX;
     private double lastY;
@@ -42,9 +45,15 @@ final class SquareTrail {
         return size;
     }
 
+    /** Teleports this trail has sampled. */
+    int teleports() {
+        return teleports;
+    }
+
     void clear() {
         head = 0;
         size = 0;
+        teleports = 0;
         hasLast = false;
     }
 
@@ -53,21 +62,48 @@ final class SquareTrail {
         hasLast = false;
     }
 
-    /** One tick's feet position: lays a square when it moved since the last sample. */
-    void sample(double x, double y, double z, boolean onGround) {
+    /** The newest square's position ({@code fromNewest} 0) or an older one's, as x y z; null past what is held. */
+    double[] position(int fromNewest) {
+        if (fromNewest < 0 || fromNewest >= size) {
+            return null;
+        }
+        int idx = Math.floorMod(head - 1 - fromNewest, TrailConfig.MAX_LENGTH);
+        return new double[]{xs[idx], ys[idx], zs[idx]};
+    }
+
+    private void lay(double x, double y, double z, boolean onGround) {
+        xs[head] = x;
+        ys[head] = y;
+        zs[head] = z;
+        grounded[head] = onGround;
+        head = (head + 1) % TrailConfig.MAX_LENGTH;
+        if (size < TrailConfig.MAX_LENGTH) {
+            size++;
+        }
+    }
+
+    /** One tick's feet position: lays a square when it moved since the last sample. A step past
+     *  {@link TeleportMode#MIN_JUMP} is a teleport: Break lays only the landing square (a gap before it), Connect and Arc
+     *  lay squares along the straight line or the arc from where he left to where he landed. */
+    void sample(double x, double y, double z, boolean onGround, TeleportMode onTeleport) {
         if (hasLast) {
             double dx = x - lastX;
             double dy = y - lastY;
             double dz = z - lastZ;
-            if (dx * dx + dy * dy + dz * dz >= STILL_EPSILON_SQ) {
-                xs[head] = x;
-                ys[head] = y;
-                zs[head] = z;
-                grounded[head] = onGround;
-                head = (head + 1) % TrailConfig.MAX_LENGTH;
-                if (size < TrailConfig.MAX_LENGTH) {
-                    size++;
+            double dsq = dx * dx + dy * dy + dz * dz;
+            if (TeleportMode.isTeleport(Math.sqrt(dsq))) {
+                teleports++;
+                if (onTeleport != TeleportMode.BREAK) {
+                    double d = Math.sqrt(dsq);
+                    int steps = TeleportMode.bridgeSteps(d, BRIDGE_SPACING);
+                    for (int i = 1; i < steps; i++) {
+                        double t = i / (double) steps;
+                        lay(lastX + dx * t, lastY + dy * t + onTeleport.lift(t, d), lastZ + dz * t, false);
+                    }
                 }
+                lay(x, y, z, onGround);
+            } else if (dsq >= STILL_EPSILON_SQ) {
+                lay(x, y, z, onGround);
             }
         }
         lastX = x;

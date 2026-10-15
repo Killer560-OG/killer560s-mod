@@ -68,6 +68,7 @@ public final class RibbonTrailConfig {
     private int headColor = DEFAULT_HEAD_COLOR;
     private int midColor = DEFAULT_MID_COLOR;
     private int tailColor = DEFAULT_TAIL_COLOR;
+    private TeleportMode teleportMode = TeleportMode.CONNECT;
 
     private RibbonTrailConfig() {
     }
@@ -144,6 +145,15 @@ public final class RibbonTrailConfig {
         colorCount = Math.max(2, Math.min(3, v));
     }
 
+    /** What the ribbon does across a teleport (an etherwarp, an AOTV): a gap, a straight line or an arc. */
+    public TeleportMode getTeleportMode() {
+        return teleportMode;
+    }
+
+    public void setTeleportMode(TeleportMode v) {
+        teleportMode = v == null ? TeleportMode.CONNECT : v;
+    }
+
     public int getHeadColor() {
         return headColor;
     }
@@ -194,6 +204,7 @@ public final class RibbonTrailConfig {
         headColor = ConfigJson.getInt(obj, "headColor", headColor);
         midColor = ConfigJson.getInt(obj, "midColor", midColor);
         tailColor = ConfigJson.getInt(obj, "tailColor", tailColor);
+        teleportMode = enumOr(obj, "teleportMode", TeleportMode.class, teleportMode);
     }
 
     public static void load() {
@@ -243,6 +254,7 @@ public final class RibbonTrailConfig {
             obj.addProperty("headColor", headColor);
             obj.addProperty("midColor", midColor);
             obj.addProperty("tailColor", tailColor);
+            obj.addProperty("teleportMode", teleportMode.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
