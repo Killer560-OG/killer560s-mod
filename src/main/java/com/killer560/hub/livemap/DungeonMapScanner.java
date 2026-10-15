@@ -130,6 +130,12 @@ final class DungeonMapScanner {
         return calibrated && kinds[idx] == KIND_DOOR ? doorTiles[idx] : LiveMapFeature.Tile.UNKNOWN;
     }
 
+    /** The map's own colour id for a door cell (85 = a door to a room nobody has opened, 119 = wither, 18 = blood, 30 =
+     *  entrance, a room colour for an ordinary or opened door), or 0 when the cell is not a door on the map. */
+    static int doorColorAt(int idx) {
+        return calibrated && kinds[idx] == KIND_DOOR ? centerColors[idx] & 0xFF : 0;
+    }
+
     /** Interactive map: the map's room colour id for a room cell (NoammAddons {@code RoomType.fromMapColor}: 18 blood,
      *  82 fairy, 34 rare, 74 champion, 66 puzzle, 62 trap, 63/85 normal, 30 entrance), or 0 when unknown. */
     static int roomColorAt(int idx) {
@@ -325,29 +331,50 @@ final class DungeonMapScanner {
             return false;
         }
         mapRoomSize = foundLength;
-        switch (floorNumber()) {
-            case 0 -> {
-                startCornerX = 22;
-                startCornerZ = 22;
+        int measuredX = (foundStart & 127) % (mapRoomSize + 4);
+        int measuredZ = (foundStart >> 7) % (mapRoomSize + 4);
+        // Every floor's corner from a table, not just E-F3 (NoammAddons measures F4 and up from the entrance run).
+        // His logs (26.1.2 Dungeons, 2026-10): F5/F6/F7/M5 calibrated at (5,5) 193 times and M4 at (5,16) 47 times, but
+        // two M5 runs on 2026-10-08 measured (16,5) - a 5-wide grid on a 6x6 floor - and that reading is used for the
+        // whole run. A floor's corner is fixed (its grid is centred on the 128px map), so the table cannot be wrong
+        // that way; the measurement is only used where the floor is unknown.
+        int[] known = knownCorner(floorNumber());
+        if (known != null) {
+            startCornerX = known[0];
+            startCornerZ = known[1];
+            mapRoomSize = known[2];
+            if (known[0] != measuredX || known[1] != measuredZ || known[2] != foundLength) {
+                LOGGER.info("[LiveMap] Dungeon map entrance run measured corner ({},{}) size {}; using the floor's ({},{}) size {}",
+                        measuredX, measuredZ, foundLength, known[0], known[1], known[2]);
             }
-            case 1 -> {
-                startCornerX = 22;
-                startCornerZ = 11;
-            }
-            case 2, 3 -> {
-                startCornerX = 11;
-                startCornerZ = 11;
-            }
-            default -> {
-                startCornerX = (foundStart & 127) % (mapRoomSize + 4);
-                startCornerZ = (foundStart >> 7) % (mapRoomSize + 4);
-            }
+        } else {
+            startCornerX = measuredX;
+            startCornerZ = measuredZ;
         }
         calibrated = true;
         sampled = false;
         LOGGER.info("[LiveMap] Dungeon map calibrated: roomSize={} startCorner=({},{}) floor={}",
                 mapRoomSize, startCornerX, startCornerZ, DungeonState.getFloor());
         return true;
+    }
+
+    /** The map's start corner and room size {x, z, size} for a floor number (0 = Entrance), or null when the floor is
+     *  unknown. E-F3 are NoammAddons' table (18px rooms); F4 (6x5) and F5-F7 (6x6) are the corners his own logs show
+     *  those floors at (16px rooms). Each is the floor's grid centred on the 128px map, rounded down. */
+    static int[] knownCorner(int floor) {
+        return switch (floor) {
+            case 0 -> new int[]{22, 22, 18};
+            case 1 -> new int[]{22, 11, 18};
+            case 2, 3 -> new int[]{11, 11, 18};
+            case 4 -> new int[]{5, 16, 16};
+            case 5, 6, 7 -> new int[]{5, 5, 16};
+            default -> null;
+        };
+    }
+
+    /** Test hook: the calibrated start corner {x, z} and room size, or null before calibration. */
+    static int[] calibration() {
+        return calibrated ? new int[]{startCornerX, startCornerZ, mapRoomSize} : null;
     }
 
     private static int floorNumber() {

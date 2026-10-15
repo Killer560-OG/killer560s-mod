@@ -159,7 +159,9 @@ public final class PartyTracker {
         }
         wasInDungeon = true;
         List<String> fromTab = new ArrayList<>();
-        for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
+        // In the order the tab list draws them, which is Hypixel's party order: the dungeon map's player markers come in
+        // that order and InteractiveMapFeature.players pairs them up by position (getListedOnlinePlayers is a hash set).
+        for (PlayerInfo info : com.killer560.hub.util.TabOrder.listed(client)) {
             String plain = com.killer560.hub.util.TabText.plain(info);
             if (plain == null) {
                 continue;
