@@ -16,9 +16,17 @@ final class NameTable {
         final char[] lower;
         final boolean caseSensitive;
         final String replacement;
+        /** Your own name only: what replaces a Hypixel rank tag ({@code [MVP++] }) sitting directly before the name, or
+         *  null to leave the tag alone. "" removes it. */
+        final String rankReplacement;
         final int hash;
 
         Entry(String name, String replacement, boolean caseSensitive) {
+            this(name, replacement, caseSensitive, null);
+        }
+
+        Entry(String name, String replacement, boolean caseSensitive, String rankReplacement) {
+            this.rankReplacement = rankReplacement;
             this.exact = name.toCharArray();
             this.lower = new char[exact.length];
             for (int i = 0; i < exact.length; i++) {

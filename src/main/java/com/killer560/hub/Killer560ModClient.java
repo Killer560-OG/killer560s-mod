@@ -670,8 +670,10 @@ public class Killer560ModClient implements ClientModInitializer {
                         .then(ClientCommands.argument("name", StringArgumentType.greedyString())
                                 .executes(context -> {
                                     String name = StringArgumentType.getString(context, "name");
-                                    ModOverlayMessage.show(
-                                            com.killer560.hub.profiles.ProfileManager.applyProfile(name).message(), 5000);
+                                    var result = com.killer560.hub.profiles.ProfileManager.applyProfile(name);
+                                    if (!result.success()) {
+                                        ModOverlayMessage.show(result.message(), 5000);
+                                    }
                                     return 1;
                                 })))
                 .then(ClientCommands.literal("delete")

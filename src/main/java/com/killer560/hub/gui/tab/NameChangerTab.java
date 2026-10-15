@@ -6,6 +6,7 @@ import com.killer560.hub.namechanger.NameAnimation;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameChangerFeature;
 import com.killer560.hub.namechanger.NameColor;
+import com.killer560.hub.namechanger.NameRank;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -46,6 +47,15 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // "Per-Profile Names" (killer560, 2026-10-15): off, your custom names are one set shared by every profile; on,
+        // they are saved inside each profile like the other settings. The switch itself is the same in every profile.
+        widgets.add(SettingsButtonWidget.builder(onOff("Per-Profile Names", cfg.isPerProfileNames()), btn -> {
+                    cfg.setPerProfileNames(!cfg.isPerProfileNames());
+                    cfg.save();
+                    btn.setMessage(onOff("Per-Profile Names", cfg.isPerProfileNames()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         if (!cfg.isEnabled()) {
             return widgets;
         }
@@ -84,6 +94,46 @@ public class NameChangerTab extends BaseTab {
                     cfg.save();
                 }));
         y += 24;
+
+        // "Rank" (killer560, 2026-10-15: "custom prefix instead of the mvp++ or the vip ... quick change the color of it,
+        // select a different rank, or create your own rank"): the [MVP++] tag in front of your name wherever it is shown.
+        // Left click steps forward through Keep Original / None / the Hypixel ranks / Custom, right click back.
+        int rankW = (contentWidth - gap) / 2;
+        widgets.add(SettingsButtonWidget.cycling(rankText(cfg), (btn, dir) -> {
+                    cfg.setOwnRank(SettingsButtonWidget.step(cfg.getOwnRank(), dir));
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, rankW, 18).build());
+        if (cfg.getOwnRank() != NameRank.Preset.DEFAULT && cfg.getOwnRank() != NameRank.Preset.NONE) {
+            widgets.add(SettingsButtonWidget.cycling(rankColorText("Rank Color", cfg.getOwnRankColor()), (btn, dir) -> {
+                        cfg.setOwnRankColor(stepColor(cfg.getOwnRankColor(), dir));
+                        cfg.save();
+                        preview.setMessage(previewLine());
+                        btn.setMessage(rankColorText("Rank Color", cfg.getOwnRankColor()));
+                    }).bounds(contentX + rankW + gap, y, contentWidth - rankW - gap, 18).build());
+        }
+        y += 24;
+        if (cfg.getOwnRank() == NameRank.Preset.CUSTOM) {
+            int plusW = 120;
+            EditBox rankField = new EditBox(font, contentX, y, contentWidth - plusW - gap, 18,
+                    Component.literal("Rank text"));
+            rankField.setMaxLength(NameRank.MAX_TEXT);
+            rankField.setValue(cfg.getOwnRankCustomText());
+            rankField.setHint(Component.literal("§8Rank text, e.g. KING++"));
+            rankField.setResponder(text -> {
+                cfg.setOwnRankCustomText(text);
+                cfg.save();
+                preview.setMessage(previewLine());
+            });
+            widgets.add(rankField);
+            widgets.add(SettingsButtonWidget.cycling(rankColorText("Plus Color", cfg.getOwnRankPlusColor()), (btn, dir) -> {
+                        cfg.setOwnRankPlusColor(stepColor(cfg.getOwnRankPlusColor(), dir));
+                        cfg.save();
+                        preview.setMessage(previewLine());
+                        btn.setMessage(rankColorText("Plus Color", cfg.getOwnRankPlusColor()));
+                    }).bounds(contentX + contentWidth - plusW, y, plusW, 18).build());
+            y += 24;
+        }
 
         // "Bold Name" (killer560, 2026-10-13: "make a toggle for custom names to be bold"): your own display name in
         // bold here and, with Share if Supporter, for other mod users too (NameChangerFeature#ownStyled).
@@ -201,6 +251,32 @@ public class NameChangerTab extends BaseTab {
         }
 
         return widgets;
+    }
+
+    private static Component rankText(NameChangerConfig cfg) {
+        return Component.literal("Rank: " + cfg.getOwnRank().label);
+    }
+
+    /** "Rank Color: ■" in the picked colour, or "Rank Color: Rank's Own" when none is picked. */
+    private static Component rankColorText(String label, int argb) {
+        if (argb == NameColor.NONE) {
+            return Component.literal(label + ": Rank's Own");
+        }
+        return Component.literal(label + ": ").append(Component.literal("■").withStyle(
+                Style.EMPTY.withColor(TextColor.fromRgb(argb & 0xFFFFFF))));
+    }
+
+    /** The next of "the rank's own" and the 16 chat colours, {@code dir} steps from {@code current}. */
+    static int stepColor(int current, int dir) {
+        int n = NameRank.COLOR_CODES.length() + 1;
+        int index = 0;
+        for (int i = 1; i < n; i++) {
+            if (NameColor.argbForCode(NameRank.COLOR_CODES.charAt(i - 1)) == current) {
+                index = i;
+            }
+        }
+        int next = SettingsButtonWidget.step(index, dir, n);
+        return next == 0 ? NameColor.NONE : NameColor.argbForCode(NameRank.COLOR_CODES.charAt(next - 1));
     }
 
     private static Component animationText(NameChangerConfig cfg) {
