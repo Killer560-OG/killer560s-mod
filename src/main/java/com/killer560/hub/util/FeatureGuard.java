@@ -42,7 +42,9 @@ public final class FeatureGuard {
     }
 
     /** Wraps a START_CLIENT_TICK handler. {@code name} is what the user will see if it has to be disabled. */
-    public static ClientTickEvents.StartTick start(String name, ClientTickEvents.StartTick handler) {
+    public static ClientTickEvents.StartTick start(String name, ClientTickEvents.StartTick guarded) {
+        // Debug-only: the probe (perfprobe/PerfProbe) times the feature's own handler, not this shared wrapper.
+        ClientTickEvents.StartTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.StartTick.class, guarded);
         // The try is written out here rather than wrapping the handler in a Runnable for a shared run(): that
         // allocated a capturing lambda per handler per tick and put a second megamorphic call in front of every
         // one of the ~150 guarded handlers (95-fps-bench JFR, 2026-10-05: about 2% of render-thread samples sat
@@ -60,7 +62,8 @@ public final class FeatureGuard {
     }
 
     /** Wraps an END_CLIENT_TICK handler. */
-    public static ClientTickEvents.EndTick end(String name, ClientTickEvents.EndTick handler) {
+    public static ClientTickEvents.EndTick end(String name, ClientTickEvents.EndTick guarded) {
+        ClientTickEvents.EndTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded);
         return client -> {
             if (anyDisabled && DISABLED.contains(name)) {
                 return;
@@ -82,7 +85,8 @@ public final class FeatureGuard {
      * A crash is a bad afternoon, a silent flood of interactions is an account. So this one keeps being called and
      * keeps catching, and only the log volume is held down.
      */
-    public static ClientTickEvents.StartTick criticalStart(String name, ClientTickEvents.StartTick handler) {
+    public static ClientTickEvents.StartTick criticalStart(String name, ClientTickEvents.StartTick guarded) {
+        ClientTickEvents.StartTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.StartTick.class, guarded);
         return client -> {
             try {
                 handler.onStartTick(client);
