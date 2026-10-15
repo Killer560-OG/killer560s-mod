@@ -2852,6 +2852,40 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
 
+## Every floor fills its real rectangle; the designer's Load list (2026-10-15, sim-designer-1015)
+
+killer560, of a Floor 1 in the designer: "If i generate with it already set then it will generate less rooms but it still
+needs to be in that square style. Right now as you can see they are sporadically placed." And the floor button "did not
+change the size of the map like it should".
+
+- **`Floor.cells` was grown anywhere on the 6x6.** The smaller floors' targets (E 19, F1 22, F2 26...) were an inference
+  from F7's cells-per-room, laid out with no bound, so an F1 was 22 cells scattered over 36 slots (and Entrance's 19 did not
+  even fit its real 4x4). Now `SimFloorLayout.generate(..., across, down)` keeps every bounds check, the entrance seat, the
+  fill passes and the cell target inside the floor's rectangle at the grid's north-west corner (a per-thread bound; cell
+  indices stay `z * 6 + x`), and `Floor.across/down/cells` come from `MapPainter.floorRooms` - the live map's table, made
+  public, so the sim and the map cannot disagree about a floor's size.
+- **Measured, `tools/layoutsim -Dsweep=true -Dbounded=true -Dseed=1`, 10 a combination (2,240 floors):** 0 floors with a
+  room outside the rectangle, 0 short of filling it, path length exact on all, F2-F7 0 failing anything. The small floors
+  cannot hold every slider value: E fails 161 of 280 and F1 45 of 280, all "puzzles != slider" (193) or "rooms < minimum"
+  (38) - E with Rooms to blood 8 places no 5th puzzle in any floor, F1 at 8 and 5 puzzles likewise. The rooms are where a
+  real floor has them; it is the asks that do not fit. The status line shows the puzzles actually placed.
+- **Those misses were a 2.3 s freeze.** `run` lays out 12 whole floors when every one misses, and an E with Rooms to blood
+  8 costs ~190 ms a floor (the spine search spends its whole budget). `RETRY_BUDGET_NANOS` (400 ms) keeps the best floor
+  found by then; an exact floor takes 3-40 ms and never meets it.
+- **The designer** draws only the floor's rectangle, scaled into the square the 6x6 takes; the floor button regenerates a
+  generated floor at once and takes off pinned rooms that no longer fit. Its Play now sets `SimState.setFloorLabel` as
+  `SimFloorGen.generate` always did (the designer's floors played as F7 for the mimic rule and the sidebar).
+- **Save is gone; Play records.** `SimMapHistory` (`killer560smod-sim-map-history.json`, newest first, 200 kept, in
+  `ProfileData.EXCLUDED_NAMES` as history) keeps every floor played from the designer: a generated one by its map code
+  (so it rebuilds with its rotations and doors - the reason a generated floor is never replayed from the grid), a drawn one
+  by its cells. A code already listed is not listed again. `SimMapPresets` and its Save went; the old
+  `killer560smod-simmaps.json` stays on disk, unread.
+- Testkit: `75-sim-designer-floors` (the real floor button through all 8 floors with a plan up, then Generate at each:
+  regenerated, every slot of the real rectangle filled, nothing outside), `75-sim-designer-load` (no Save; a real Play of
+  a generated Entrance, then Load lists exactly it with today's date drawn and not a seeded real run or an old design;
+  re-read from disk; row lines >= 2 px apart; clicking the row restores the floor), `75-sim-designer-count` (no "N of M
+  rooms" in a frame's text runs).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
