@@ -269,6 +269,22 @@ public final class MapPainter {
         return hideUnrevealed();
     }
 
+    /** Test hook: whether a dungeon map item has been read and calibrated. */
+    public static boolean mapItemCalibrated() {
+        return DungeonMapScanner.isCalibrated();
+    }
+
+    /** Test hook: how many of the floor's rooms the Dungeon Map would draw right now. */
+    public static int revealedRoomCount() {
+        int n = 0;
+        for (LiveMapFeature.RoomGroup group : LiveMapFeature.groupsView()) {
+            if (isRevealed(group)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /**
      * A room he has not been in yet, which Darken Unexplored darkens. On the map-item map that is a grey "?" room the
      * map shows as unopened; on Funny Map it is any room the map item does not show as opened yet, drawn in its real
