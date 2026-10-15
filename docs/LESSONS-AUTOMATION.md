@@ -222,3 +222,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   before a NEXT node; `RouteExecutor.finishAction` now completes it the tick the last node finishes. A one-node route then
   completes on its arming tick, inside `RouteExecutor.start`, so nothing ever sees it running: Auto Secret watches
   `RouteExecutor.completions()` / `lastCompletedRoom()` instead of `isRunning()`.
+- **A dungeon trip's length is not its straight distance.** Two rooms 45 blocks apart were 13 etherwarps apart by the floor
+  graph (the walls send a trip round by the doors), and one 115 blocks away was 4 (145's floors, 2026-10-15). Room order
+  that guessed from straight lines put the wrong room next; `RoomTour` uses the planner's own warp counts, and its fallback
+  estimate takes the larger of the straight line and 2 warps per room on the map's path.
+- Auto Clear logged "etherwarp toward" before `startTrip`, which only turns the body back on that tick (Phase.RELEASE) and
+  comes through again the next, so one trip was logged twice (131 case 9: 5 lines for 3 trips). It logs once the trip is
+  really under way now.
