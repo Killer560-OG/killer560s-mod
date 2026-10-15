@@ -172,6 +172,7 @@ public final class PriceTooltipConfig {
 
     public void setEnabled(boolean v) {
         enabled = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isNpcPrice() {
@@ -180,6 +181,7 @@ public final class PriceTooltipConfig {
 
     public void setNpcPrice(boolean v) {
         npcPrice = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isLowestBin() {
@@ -188,6 +190,7 @@ public final class PriceTooltipConfig {
 
     public void setLowestBin(boolean v) {
         lowestBin = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isAverageBin() {
@@ -196,6 +199,7 @@ public final class PriceTooltipConfig {
 
     public void setAverageBin(boolean v) {
         averageBin = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public int getAverageDays() {
@@ -204,6 +208,7 @@ public final class PriceTooltipConfig {
 
     public void setAverageDays(int v) {
         averageDays = clampDays(v);
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isBazaar() {
@@ -212,6 +217,7 @@ public final class PriceTooltipConfig {
 
     public void setBazaar(boolean v) {
         bazaar = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isEstimatedValue() {
@@ -220,6 +226,7 @@ public final class PriceTooltipConfig {
 
     public void setEstimatedValue(boolean v) {
         estimatedValue = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isObtained() {
@@ -228,6 +235,7 @@ public final class PriceTooltipConfig {
 
     public void setObtained(boolean v) {
         obtained = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public boolean isMuseum() {
@@ -236,6 +244,7 @@ public final class PriceTooltipConfig {
 
     public void setMuseum(boolean v) {
         museum = v;
+        PriceTooltipFeature.invalidate();
     }
 
     public When getStackPrice() {
@@ -244,6 +253,7 @@ public final class PriceTooltipConfig {
 
     public void setStackPrice(When v) {
         stackPrice = v == null ? When.SHIFT : v;
+        PriceTooltipFeature.invalidate();
     }
 
     public When getBreakdown() {
@@ -252,6 +262,7 @@ public final class PriceTooltipConfig {
 
     public void setBreakdown(When v) {
         breakdown = v == null ? When.SHIFT : v;
+        PriceTooltipFeature.invalidate();
     }
 
     public ValueMode getValueMode() {
@@ -260,6 +271,7 @@ public final class PriceTooltipConfig {
 
     public void setValueMode(ValueMode v) {
         valueMode = v == null ? ValueMode.NETWORTH : v;
+        PriceTooltipFeature.invalidate();
     }
 
     public NumberFormat getNumberFormat() {
@@ -268,6 +280,7 @@ public final class PriceTooltipConfig {
 
     public void setNumberFormat(NumberFormat v) {
         numberFormat = v == null ? NumberFormat.EXACT : v;
+        PriceTooltipFeature.invalidate();
     }
 
     public int getRefreshMinutes() {
@@ -276,5 +289,6 @@ public final class PriceTooltipConfig {
 
     public void setRefreshMinutes(int v) {
         refreshMinutes = clampMinutes(v);
+        PriceTooltipFeature.invalidate();
     }
 }
