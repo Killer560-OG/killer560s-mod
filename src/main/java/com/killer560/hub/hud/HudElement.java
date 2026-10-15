@@ -68,4 +68,23 @@ public interface HudElement {
     default float layoutScale() {
         return 0f;
     }
+
+    /**
+     * True for an element that may never be drawn or dragged past any screen edge, at any scale. The HUD editor clamps
+     * such an element's box into the screen while it is dragged, resized or scrolled (2026-10-15, the Custom Scoreboard:
+     * killer560, "not able to go off the right side of the screen"). Every other element keeps the old rule, where a
+     * deliberate half-off-screen placement is his to keep.
+     */
+    default boolean keepOnScreen() {
+        return false;
+    }
+
+    /**
+     * The HUD editor dropped this element with its drawn box at screen {@code x, y}, {@code w x h} GUI pixels on a
+     * {@code screenW x screenH} screen. Return true when the element stores that its own way (and serves it back from
+     * {@link #layoutPosition()}); false, the default, saves it to {@link HudConfig} as for every other element.
+     */
+    default boolean storeEditorPosition(int x, int y, int w, int h, int screenW, int screenH) {
+        return false;
+    }
 }

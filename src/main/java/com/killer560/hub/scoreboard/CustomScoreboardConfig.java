@@ -79,6 +79,18 @@ public final class CustomScoreboardConfig {
         }
     }
 
+    /** Which screen edge the board is anchored to (2026-10-15): the board grows away from it, so a right-anchored board
+     *  that gets a longer line grows to the left instead of off the screen. */
+    public enum Side {
+        LEFT("Left"), RIGHT("Right");
+
+        public final String label;
+
+        Side(String label) {
+            this.label = label;
+        }
+    }
+
     public enum NumberFormat {
         LONG("Long"), SHORT("Short");
 
@@ -210,7 +222,16 @@ public final class CustomScoreboardConfig {
         }
     }
 
-    public static final int DEFAULT_BACKGROUND_COLOR = 0xAA1A1108;
+    /** A plain translucent black like the vanilla sidebar's (2026-10-15, "make the custom scoreboard simpler"); the title
+     *  row is drawn a little darker over it, as vanilla does. */
+    public static final int DEFAULT_BACKGROUND_COLOR = 0x50000000;
+    /** The look before 2026-10-15 (orange-tinted box, 5 px padding, rounded corners, orange border). A saved config that
+     *  still holds one of these old defaults is moved to the new one once ({@link #LOOK_VERSION}); a value he changed is kept. */
+    private static final int OLD_DEFAULT_BACKGROUND_COLOR = 0xAA1A1108;
+    private static final int OLD_DEFAULT_PADDING = 5;
+    private static final int LOOK_VERSION = 2;
+    /** Gap between the board and the edge it is anchored to, in GUI pixels: the vanilla sidebar's 1. */
+    public static final int DEFAULT_EDGE_GAP = 1;
     public static final int DEFAULT_BORDER_COLOR = 0xFFCC6600;
     public static final int DEFAULT_BORDER_BOTTOM_COLOR = 0xFFFFA040;
     public static final String DEFAULT_TITLE = "&&6&&lSKYBLOCK";
@@ -233,8 +254,20 @@ public final class CustomScoreboardConfig {
     private Align footerAlignment = Align.LEFT;
     private boolean textShadow = true;
     private int lineSpacing = 1;
+    /** Before 2026-10-15 the board was placed by SkyHanni's snap (Snap X / Snap Y / Screen Margin) or, once dragged,
+     *  by an absolute HudConfig x. Read only to convert an old save into the anchor below; never written again. */
     private HorizontalSnap horizontalSnap = HorizontalSnap.RIGHT;
     private VerticalSnap verticalSnap = VerticalSnap.CENTER;
+    /** Where the board sits (2026-10-15): against this edge, {@link #edgeGap} pixels in, with its middle
+     *  {@link #centerOffsetY} pixels below the screen's middle - so it stays against the right edge, vertically
+     *  centered like the vanilla sidebar, at every GUI scale and window size. Set by dragging it in Edit HUD. */
+    private Side anchorSide = Side.RIGHT;
+    private int edgeGap = DEFAULT_EDGE_GAP;
+    private int centerOffsetY = 0;
+    /** An old save placed somewhere other than right/center: converted from where it was drawn, on the first frame. */
+    private boolean positionPending = false;
+    /** The editor's Settings page Advanced section is open (remembered). */
+    private boolean editorAdvancedOpen = false;
     private NumberFormat numberFormat = NumberFormat.LONG;
     private NumberDisplayFormat numberDisplayFormat = NumberDisplayFormat.TEXT_COLOR_NUMBER;
     private boolean useCustomTitle = true;
@@ -286,10 +319,10 @@ public final class CustomScoreboardConfig {
     // background
     private boolean backgroundEnabled = true;
     private int backgroundColor = DEFAULT_BACKGROUND_COLOR;
-    private int padding = 5;
-    private boolean roundedCorners = true;
+    private int padding = 2;
+    private boolean roundedCorners = false;
     private int cornerRadius = 6;
-    private boolean borderEnabled = true;
+    private boolean borderEnabled = false;
     private int borderColor = DEFAULT_BORDER_COLOR;
     private int borderThickness = 1;
     private boolean borderGradient = false;
@@ -403,6 +436,22 @@ public final class CustomScoreboardConfig {
                 cfg.borderSoftness = clamp(ConfigJson.getInt(obj, "borderSoftness", cfg.borderSoftness), 0, 10);
                 cfg.backgroundBlur = ConfigJson.getBool(obj, "backgroundBlur", cfg.backgroundBlur);
                 cfg.blurStrength = clamp(ConfigJson.getInt(obj, "blurStrength", cfg.blurStrength), 1, 20);
+                cfg.editorAdvancedOpen = ConfigJson.getBool(obj, "editorAdvancedOpen", cfg.editorAdvancedOpen);
+                if (ConfigJson.getInt(obj, "lookVersion", 1) < LOOK_VERSION) {
+                    cfg.migrateLook(obj);
+                }
+                if (obj.has("anchorSide")) {
+                    cfg.anchorSide = ConfigJson.getEnum(obj, "anchorSide", Side.class, cfg.anchorSide);
+                    cfg.edgeGap = clamp(ConfigJson.getInt(obj, "edgeGap", cfg.edgeGap), 0, 4000);
+                    cfg.centerOffsetY = clamp(ConfigJson.getInt(obj, "centerOffsetY", cfg.centerOffsetY), -4000, 4000);
+                } else if (cfg.horizontalSnap == HorizontalSnap.RIGHT && cfg.verticalSnap == VerticalSnap.CENTER) {
+                    // The old default (never dragged): the same place, now as an anchor.
+                    cfg.anchorSide = Side.RIGHT;
+                    cfg.edgeGap = cfg.margin;
+                    cfg.centerOffsetY = 0;
+                } else {
+                    cfg.positionPending = true;
+                }
                 // New keys first; a save from before the add/trash editor (only "entries"/"events"/"chunkedStats",
                 // each row with an on/off flag) migrates to the same lines in the same order - see EntryOrder.
                 cfg.loadedFrom = cfg.entries.load(obj.get("lineOrder"), ConfigJson.getArray(obj, "entries"))
@@ -425,8 +474,11 @@ public final class CustomScoreboardConfig {
             obj.addProperty("footerAlignment", footerAlignment.name());
             obj.addProperty("textShadow", textShadow);
             obj.addProperty("lineSpacing", lineSpacing);
-            obj.addProperty("horizontalSnap", horizontalSnap.name());
-            obj.addProperty("verticalSnap", verticalSnap.name());
+            obj.addProperty("anchorSide", anchorSide.name());
+            obj.addProperty("edgeGap", edgeGap);
+            obj.addProperty("centerOffsetY", centerOffsetY);
+            obj.addProperty("lookVersion", LOOK_VERSION);
+            obj.addProperty("editorAdvancedOpen", editorAdvancedOpen);
             obj.addProperty("numberFormat", numberFormat.name());
             obj.addProperty("numberDisplayFormat", numberDisplayFormat.name());
             obj.addProperty("useCustomTitle", useCustomTitle);
@@ -483,7 +535,6 @@ public final class CustomScoreboardConfig {
             obj.addProperty("chromaSpeed", chromaSpeed);
             obj.addProperty("imageBackground", imageBackground);
             obj.addProperty("imageOpacity", imageOpacity);
-            obj.addProperty("margin", margin);
             obj.addProperty("minWidth", minWidth);
             obj.addProperty("minHeight", minHeight);
             obj.addProperty("borderSoftness", borderSoftness);
@@ -498,6 +549,24 @@ public final class CustomScoreboardConfig {
             obj.add("chunkedStats", chunkedStats.toLegacyJson());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
+        }
+    }
+
+    /** An old save's look fields that still hold the old default take the new one; anything he set himself is kept. */
+    private void migrateLook(JsonObject obj) {
+        if (ConfigJson.getInt(obj, "backgroundColor", OLD_DEFAULT_BACKGROUND_COLOR) == OLD_DEFAULT_BACKGROUND_COLOR) {
+            backgroundColor = DEFAULT_BACKGROUND_COLOR;
+        }
+        if (ConfigJson.getInt(obj, "padding", OLD_DEFAULT_PADDING) == OLD_DEFAULT_PADDING) {
+            padding = 2;
+        }
+        if (ConfigJson.getBool(obj, "roundedCorners", true)) {
+            roundedCorners = false;
+        }
+        if (ConfigJson.getBool(obj, "borderEnabled", true) && !ConfigJson.getBool(obj, "chromaBorder", false)
+                && !ConfigJson.getBool(obj, "borderGradient", false)
+                && ConfigJson.getInt(obj, "borderColor", DEFAULT_BORDER_COLOR) == DEFAULT_BORDER_COLOR) {
+            borderEnabled = false; // the plain orange border nobody chose; a chroma, gradient or recolored one stays
         }
     }
 
@@ -628,20 +697,56 @@ public final class CustomScoreboardConfig {
         lineSpacing = clamp(v, 0, 10);
     }
 
-    public HorizontalSnap getHorizontalSnap() {
+    /** The pre-2026-10-15 Snap X, for converting an old save ({@link #isPositionPending}). */
+    HorizontalSnap legacyHorizontalSnap() {
         return horizontalSnap;
     }
 
-    public void setHorizontalSnap(HorizontalSnap v) {
-        horizontalSnap = v;
-    }
-
-    public VerticalSnap getVerticalSnap() {
+    /** The pre-2026-10-15 Snap Y, for converting an old save ({@link #isPositionPending}). */
+    VerticalSnap legacyVerticalSnap() {
         return verticalSnap;
     }
 
-    public void setVerticalSnap(VerticalSnap v) {
-        verticalSnap = v;
+    /** The pre-2026-10-15 Screen Margin, for converting an old save ({@link #isPositionPending}). */
+    int legacyMargin() {
+        return margin;
+    }
+
+    public Side getAnchorSide() {
+        return anchorSide;
+    }
+
+    public int getEdgeGap() {
+        return edgeGap;
+    }
+
+    public int getCenterOffsetY() {
+        return centerOffsetY;
+    }
+
+    /** Sets where the board sits (see {@link #anchorSide}); the caller saves. */
+    public void setAnchor(Side side, int gap, int offsetY) {
+        anchorSide = side == null ? Side.RIGHT : side;
+        edgeGap = clamp(gap, 0, 4000);
+        centerOffsetY = clamp(offsetY, -4000, 4000);
+        positionPending = false;
+    }
+
+    /** Back to the default spot: against the right edge, vertically centered. */
+    public void resetAnchor() {
+        setAnchor(Side.RIGHT, DEFAULT_EDGE_GAP, 0);
+    }
+
+    public boolean isPositionPending() {
+        return positionPending;
+    }
+
+    public boolean isEditorAdvancedOpen() {
+        return editorAdvancedOpen;
+    }
+
+    public void setEditorAdvancedOpen(boolean v) {
+        editorAdvancedOpen = v;
     }
 
     public NumberFormat getNumberFormat() {
@@ -1090,14 +1195,6 @@ public final class CustomScoreboardConfig {
 
     public void setHidePurseInDungeons(boolean v) {
         hidePurseInDungeons = v;
-    }
-
-    public int getMargin() {
-        return margin;
-    }
-
-    public void setMargin(int v) {
-        margin = clamp(v, 0, 50);
     }
 
     public int getMinWidth() {
