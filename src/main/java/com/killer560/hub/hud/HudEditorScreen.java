@@ -237,11 +237,17 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     /** The one hint line at the top left: what the mouse does, and how to leave. Drawn only while nothing is being
      *  dragged, so it never covers an element being placed there. Every option that used to sit on this screen as
      *  buttons (Snapping and its targets, Show Unseen, Done) lives in the mod menu's Home tab since 2026-10-08. */
-    private String hintLine() {
+    private String[] hintLine() {
+        // Longest first; fit() takes the first that fits the window, so a narrow window gets a shorter hint, never a cut one.
         return barsMode
-                ? "§7Drag: move. Edge/corner: resize. Scroll: scale. Esc: done."
-                : "§7Drag: move. Corner: resize. Scroll: scale. Alt: no snap. Esc: done.";
+                ? new String[]{"§7Drag: move. Edge/corner: resize. Scroll: scale. Esc: done.",
+                        "§7Drag: move. Edge: resize. Scroll: scale. Esc: done.", "§7Drag: move. Esc: done."}
+                : new String[]{"§7Drag: move. Corner: resize. Scroll: scale. Alt: no snap. Esc: done.",
+                        "§7Drag: move. Corner: resize. Scroll: scale. Esc: done.", "§7Drag: move. Esc: done."};
     }
+
+    /** The hint line drawn last frame (the testkit reads it): "" when none was drawn. */
+    private String hintShown = "";
 
     /** Recomputes the draggable list and (re)snapshots the draggable ones' positions/scales. Positions come through
      *  {@link HudElementRegistry#resolvePosition}, so a never-moved element starts inside the screen. */
@@ -296,8 +302,12 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         // One dim line, gone while something is dragged (2026-10-08, killer560: the editor's panels "block a lot of my
         // screen"). With nothing listed, the line says why instead. Since the screen sweep (2026-10-13) it sits on a
         // small chip in the theme, so it reads over any world and on a light theme.
-        if (draggingId == null) {
-            hintChip(graphics, fit(shown.isEmpty() ? emptyLine() : hintLine()), 4);
+        hintShown = "";
+        boolean hints = com.killer560.hub.gui.DescriptionConfig.getInstance().isShowEditor();
+        if (draggingId == null && (shown.isEmpty() || hints)) {
+            // Show Editor Descriptions (Home > Descriptions) hides the hints; the line that says why the editor is empty stays.
+            hintShown = fit(shown.isEmpty() ? emptyLine() : hintLine());
+            hintChip(graphics, hintShown, 4);
         }
 
         // Predefined stat readouts go where their layout puts them, every frame (it moves as others are dragged).
@@ -311,8 +321,9 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             }
         }
         if (anyAnchored) {
-            if (draggingId == null) {
-                hintChip(graphics, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all."), 19);
+            if (draggingId == null && hints) {
+                hintChip(graphics, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all.",
+                        "§7Predefined: drop one on an area; scroll sizes them all.", "§7Predefined: drop one on an area."), 19);
             }
             drawAreas(graphics);
         }
@@ -529,21 +540,32 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     }
 
     /** A hint cut to the window's width, so a small window never shows half a word at its edge. */
-    private String fit(String line) {
+    private String fit(String... variants) {
         int room = this.width - 8;
-        if (this.font.width(line) <= room) {
-            return line;
+        for (String v : variants) {
+            if (this.font.width(v) <= room) {
+                return v;
+            }
         }
-        return this.font.plainSubstrByWidth(line, Math.max(0, room - this.font.width("..."))) + "...";
+        // Even the shortest does not fit: drop whole words off its end (no ellipsis; killer560, 2026-10-15).
+        String[] words = variants[variants.length - 1].split(" ");
+        int n = words.length;
+        while (n > 1 && this.font.width(String.join(" ", java.util.Arrays.copyOf(words, n))) > room) {
+            n--;
+        }
+        return String.join(" ", java.util.Arrays.copyOf(words, n));
     }
 
     /** Shown instead of the hint when nothing is listed, so an empty editor says why. */
-    private String emptyLine() {
+    private String[] emptyLine() {
         if (barsMode) {
-            return "§7No bars to edit: turn on Stat Bars and a bar or text in Health and Mana Bars. Esc to close.";
+            return new String[]{"§7No bars to edit: turn on Stat Bars and a bar or text in Health and Mana Bars. Esc to close.",
+                    "§7No bars to edit: turn on Stat Bars first. Esc to close.", "§7No bars to edit. Esc to close."};
         }
-        return "§7Nothing to edit here" + (disabledCount > 0 ? " (" + disabledCount + " turned off in settings)" : "")
-                + ". Show Unseen is in Home > HUD Editor. Esc to close.";
+        return new String[]{"§7Nothing to edit here" + (disabledCount > 0 ? " (" + disabledCount + " turned off in settings)" : "")
+                + ". Show Unseen is in Home > HUD Editor. Esc to close.",
+                "§7Nothing to edit here. Show Unseen is in Home > HUD Editor. Esc to close.",
+                "§7Nothing to edit here. Esc to close."};
     }
 
     /** width()/height() run feature code; a throw here would otherwise kill the editor's render/click path. */

@@ -167,6 +167,6 @@ public class MenuThemeTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "The menu's colors: Amber, Dark, Light, Ocean, or your own Custom set.";
+        return "Amber, Dark, Light, Ocean or Custom.";
     }
 }

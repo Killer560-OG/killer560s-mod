@@ -24,6 +24,30 @@ public final class FeatureCards {
     private FeatureCards() {
     }
 
+    /** A feature card's height, and the narrowest it is ever laid out (ModScreen draws every card at these or wider). */
+    public static final int CARD_H = 66;
+    public static final int CARD_MIN_W = 104;
+
+    /**
+     * The text of one card as ModScreen draws it: the name lines, then the description lines. {@code truncated} is true
+     * when the description did not fit the card's space and would have been cut with "..." (the testkit requires none).
+     */
+    public record CardText(List<String> name, List<String> desc, boolean truncated) {
+    }
+
+    /** The one place a card's text is laid out: {@code drawCard} draws exactly this, and the testkit measures it. */
+    public static CardText cardText(BaseTab tab, int w, int h, boolean hasSwitch) {
+        int nameW = w - 14 - (hasSwitch ? MenuStyle.SWITCH_W + 4 : 0);
+        List<String> name = MenuStyle.wrap(tab.name, nameW, 2);
+        int budget = Math.max(0, (h - 14 - (6 + 10 * name.size() + 2)) / 10);
+        if (!DescriptionConfig.getInstance().isShowMenu()) {
+            return new CardText(name, List.of(), false);
+        }
+        String full = description(tab);
+        List<String> desc = MenuStyle.wrap(full, w - 14, budget);
+        return new CardText(name, desc, !MenuStyle.fits(full, w - 14, budget));
+    }
+
     /** Off-screen width the master toggle is built at (the menu's drawer content is about this wide). */
     private static final int BUILD_WIDTH = 300;
 
@@ -115,11 +139,74 @@ public final class FeatureCards {
         return d;
     }
 
+    /** Descriptions {@link #fitted} had to shorten itself (a blurb that did not fit its card): the testkit requires none. */
+    private static final java.util.List<String> AUTO_CUT = new java.util.ArrayList<>();
+
+    /** The tabs whose description had to be cut by {@link #fitted} (should be empty: write a shorter blurb). */
+    public static java.util.List<String> autoCut() {
+        return java.util.Collections.unmodifiableList(AUTO_CUT);
+    }
+
+    /** The most description lines a card of this tab has at its narrowest. */
+    private static int worstBudget(BaseTab tab) {
+        int nameW = CARD_MIN_W - 14 - (state(tab) != null ? MenuStyle.SWITCH_W + 4 : 0);
+        return Math.max(0, (CARD_H - 14 - (6 + 10 * MenuStyle.wrap(tab.name, nameW, 2).size() + 2)) / 10);
+    }
+
+    /** {@code text} unchanged when it fits the tab's narrowest card, else cut back to whole words that do (never "..."). */
+    private static String fitted(BaseTab tab, String text) {
+        int w = CARD_MIN_W - 14;
+        int lines = worstBudget(tab);
+        if (text == null || MenuStyle.fits(text, w, lines)) {
+            return text;
+        }
+        String[] words = text.trim().split("\\s+");
+        int n = words.length;
+        while (n > 1 && !MenuStyle.fits(String.join(" ", java.util.Arrays.copyOf(words, n)), w, lines)) {
+            n--;
+        }
+        AUTO_CUT.add(tab.name);
+        return String.join(" ", java.util.Arrays.copyOf(words, n));
+    }
+
+    /**
+     * The longer text a card shows on hover: the master toggle's full tooltip (or the tab's own), when there is more to
+     * say than the card's line. Null when the card already says it all.
+     */
+    public static String longDescription(BaseTab tab) {
+        String shortText = description(tab);
+        String full = null;
+        String category = MenuCategories.legacyCategory(tab);
+        SettingsButtonWidget m = master(tab, null);
+        if (m != null) {
+            full = SettingTooltips.describeScoped(tab.name, category, m.getMessage().getString());
+        }
+        if (full == null || full.isBlank()) {
+            full = SettingTooltips.describeScoped(null, category, tab.name);
+        }
+        if (full == null || full.isBlank()) {
+            full = FeatureDescriptions.get(tab);
+        }
+        if (full == null || full.isBlank() || full.trim().equals(shortText == null ? "" : shortText.trim())) {
+            return null;
+        }
+        return full;
+    }
+
     private static String computeDescription(BaseTab tab) {
         String own = tab.cardDescription();
         if (own != null && !own.isBlank()) {
-            return own;
+            return fitted(tab, own);
         }
+        String blurb = CardBlurbs.get(tab);
+        if (blurb != null) {
+            return fitted(tab, blurb);
+        }
+        return fitted(tab, rawDescription(tab));
+    }
+
+    /** The description before any fitting (the testkit dumps it so blurbs can be written). */
+    public static String rawDescription(BaseTab tab) {
         String category = MenuCategories.legacyCategory(tab);
         // A tab of several independent switches: its first row's tooltip would describe only that one.
         MasterSwitch several = masterSwitch(tab, null);
