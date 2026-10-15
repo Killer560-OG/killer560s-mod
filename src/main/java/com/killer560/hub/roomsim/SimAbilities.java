@@ -217,6 +217,12 @@ public final class SimAbilities {
         return true;
     }
 
+    /** Forgets every stored block click, as a fresh server would (the testkit, between cases). */
+    public static void forgetStoredClicks() {
+        storedClicks.clear();
+        heardLook.clear();
+    }
+
     /** Lets go of a stored click whose ability fired on the block once its use half has had time to pair. */
     private static void expireAbilityClicks(MinecraftServer server) {
         int now = server.getTickCount();
