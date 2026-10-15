@@ -1497,6 +1497,50 @@ public class ModScreen extends Screen {
         return null;
     }
 
+    /**
+     * Where a slider's knob belongs for the value it has just saved: the open drawer's (or page's) tab is built again
+     * off-screen and the same row (same label, same position among rows of that label) is read back - its constructor
+     * turns the saved setting into a knob position, exactly as opening the drawer would. Used only when that twin's text
+     * matches the slider's (so it really describes the same value); null otherwise, and outside the menu.
+     */
+    static Double twinSliderValue(ThemedSliderButton slider) {
+        if (!(McCompat.screen(Minecraft.getInstance()) instanceof ModScreen m) || m.contentPane == null) {
+            return null;
+        }
+        BaseTab tab = m.paneTab();
+        if (tab == null) {
+            return null;
+        }
+        String key = slider.dragKey();
+        int ordinal = 0;
+        boolean found = false;
+        for (AbstractWidget w : m.contentPane.children()) {
+            if (w == slider) {
+                found = true;
+                break;
+            }
+            if (w instanceof ThemedSliderButton t && key.equals(t.dragKey())) {
+                ordinal++;
+            }
+        }
+        if (!found) {
+            return null;
+        }
+        List<AbstractWidget> fresh;
+        try {
+            fresh = tab.buildWidgets(m.contentX, m.contentY, m.contentW, () -> { });
+        } catch (RuntimeException e) {
+            return null;
+        }
+        String text = slider.getMessage().getString();
+        for (AbstractWidget w : fresh) {
+            if (w instanceof ThemedSliderButton t && key.equals(t.dragKey()) && ordinal-- == 0) {
+                return text.equals(t.getMessage().getString()) ? t.sliderValue() : null;
+            }
+        }
+        return null;
+    }
+
     /** Testkit: {@code tab}'s card animation as of the last frame - {hover, knob, on colour, selected, press, x, y, w,
      *  lift} (x, y in grid-content units, before scroll) - or null when it has never been laid out. */
     public float[] cardAnimState(BaseTab tab) {
