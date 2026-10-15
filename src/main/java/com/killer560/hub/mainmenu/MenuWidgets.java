@@ -15,18 +15,63 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  */
 public final class MenuWidgets {
 
-    public static final int BG = 0xFF1A1A1A;
-    public static final int BG_HOVER = 0xFF262626;
-    public static final int BG_WARM = 0xFF1A1108;
-    public static final int BG_DISABLED = 0xFF121212;
-    public static final int BORDER = 0xFF663D1A;
-    public static final int BORDER_DARK = 0xFF553311;
-    public static final int BORDER_DISABLED = 0xFF3A2C22;
-    public static final int ACCENT = 0xFF000000 | MainMenuTheme.ORANGE;
-    public static final int ACCENT_LIGHT = 0xFF000000 | MainMenuTheme.LIGHT_ORANGE;
+    // The palette (killer560, 2026-10-15: vanilla menus "fit the new themes"; the pause menu kept a fixed dark-and-orange
+    // look whatever the theme). Derived by sync() from the main menu's theme (MainMenuLook: Match Menu Theme follows the
+    // mod menu's), or, inside one of the mod's own screens, from that screen's palette - re-read every draw, so a theme
+    // change shows on the next frame on every open screen.
+    public static int BG = 0xFF1A1A1A;
+    public static int BG_HOVER = 0xFF262626;
+    public static int BG_WARM = 0xFF1A1108;
+    public static int BG_DISABLED = 0xFF121212;
+    public static int BORDER = 0xFF663D1A;
+    public static int BORDER_DARK = 0xFF553311;
+    public static int BORDER_DISABLED = 0xFF3A2C22;
+    public static int ACCENT = 0xFF000000 | MainMenuTheme.ORANGE;
+    public static int ACCENT_LIGHT = 0xFF000000 | MainMenuTheme.LIGHT_ORANGE;
     /** "Already dragged past" strip on slider tracks (same as ThemedSliderButton). */
-    public static final int FILLED = 0xFF3D2A14;
-    public static final int TOOLTIP_BG = 0xF0100C08;
+    public static int FILLED = 0xFF3D2A14;
+    public static int TOOLTIP_BG = 0xF0100C08;
+    public static int FIELD = 0xFF0B0907;
+    public static int DIM = 0xFF9A8C80;
+
+    private static int lastSig = Integer.MIN_VALUE;
+
+    /**
+     * Brings every colour here (and {@link MenuChrome}'s) in line with the palette the open screen should use. Cheap: a
+     * cached lookup and an int compare unless the theme changed. Called at the top of every draw helper.
+     */
+    public static void sync() {
+        net.minecraft.client.gui.screens.Screen screen =
+                com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance());
+        if (screen == null || !screen.getClass().getName().startsWith("com.killer560.hub.")) {
+            MainMenuChrome.usePalette();
+        }
+        int sig = com.killer560.hub.gui.MenuStyle.OR * 31 + com.killer560.hub.gui.MenuStyle.PANEL_TOP * 17
+                + com.killer560.hub.gui.MenuStyle.CARD_TOP * 7 + com.killer560.hub.gui.MenuStyle.TXT
+                + (com.killer560.hub.gui.MenuStyle.LIGHT ? 1 : 0);
+        if (sig == lastSig) {
+            return;
+        }
+        lastSig = sig;
+        boolean light = com.killer560.hub.gui.MenuStyle.LIGHT;
+        BG = com.killer560.hub.gui.MenuStyle.CARD_BOTTOM;
+        BG_HOVER = com.killer560.hub.gui.MenuStyle.CARD_HOVER_TOP;
+        BG_WARM = com.killer560.hub.gui.MenuStyle.SEL_BOTTOM;
+        BG_DISABLED = com.killer560.hub.gui.MenuStyle.mix(com.killer560.hub.gui.MenuStyle.PANEL_BOTTOM,
+                light ? 0xFFFFFFFF : 0xFF000000, 0.2f);
+        BORDER = com.killer560.hub.gui.MenuStyle.FRAME_RING;
+        BORDER_DARK = com.killer560.hub.gui.MenuStyle.ACCENT_EDGE;
+        BORDER_DISABLED = com.killer560.hub.gui.MenuStyle.mix(com.killer560.hub.gui.MenuStyle.PANEL_BOTTOM,
+                com.killer560.hub.gui.MenuStyle.FRAME_RING, 0.5f);
+        ACCENT = com.killer560.hub.gui.MenuStyle.OR;
+        ACCENT_LIGHT = light ? com.killer560.hub.gui.MenuStyle.OR_DARK : com.killer560.hub.gui.MenuStyle.OR_HOVER;
+        FILLED = com.killer560.hub.gui.MenuStyle.mix(com.killer560.hub.gui.MenuStyle.CARD_TOP,
+                com.killer560.hub.gui.MenuStyle.OR, 0.35f);
+        TOOLTIP_BG = com.killer560.hub.gui.MenuStyle.TOOLTIP_TOP;
+        FIELD = com.killer560.hub.gui.MenuStyle.WELL;
+        DIM = com.killer560.hub.gui.MenuStyle.DIM;
+        MenuChrome.derive(light);
+    }
 
     private MenuWidgets() {
     }
@@ -47,10 +92,11 @@ public final class MenuWidgets {
 
     /** Bordered EditBox / multi-line text area frame: dark field, dim orange border, full orange when focused. */
     public static void drawTextField(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean focused) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
-        int bg = active ? BG : BG_DISABLED;
+        int bg = active ? FIELD : BG_DISABLED;
         int border = !active ? BORDER_DISABLED : (focused ? ACCENT : BORDER);
         g.fill(x, y, x + w, y + h, bg);
         g.outline(x, y, w, h, border);
@@ -61,6 +107,7 @@ public final class MenuWidgets {
     /** Slider track: the themed button box plus a warm "filled" strip from the left edge up to the handle. */
     public static void drawSliderTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                        boolean highlighted, float alpha, double value, int handleWidth) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -77,6 +124,7 @@ public final class MenuWidgets {
     /** Slider handle: solid orange knob (light orange while hovered/dragged) with a darker 1px rim. */
     public static void drawSliderHandle(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                         boolean highlighted, float alpha) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -93,6 +141,7 @@ public final class MenuWidgets {
     /** Checkbox square with an orange 2px check mark when selected. */
     public static void drawCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean active,
                                     boolean highlighted, boolean selected, float alpha) {
+        sync();
         if (size <= 0) {
             return;
         }
@@ -100,7 +149,7 @@ public final class MenuWidgets {
         if (!selected) {
             return;
         }
-        int color = MainMenuTheme.fade(!active ? 0xFF7A5A3A : (highlighted ? ACCENT_LIGHT : ACCENT), alpha);
+        int color = MainMenuTheme.fade(!active ? BORDER_DISABLED : (highlighted ? ACCENT_LIGHT : ACCENT), alpha);
         int t = size >= 12 ? 2 : 1;
         int ax = x + Math.round(size * 0.22f);
         int ay = y + Math.round(size * 0.50f);
@@ -144,6 +193,7 @@ public final class MenuWidgets {
      *  the tab bar separator line ({@link #drawTabSeparator}). */
     public static void drawTab(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                boolean selected, boolean highlighted) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -169,6 +219,7 @@ public final class MenuWidgets {
     /** Replaces the 2px header-separator strips either side of the tab row with a single border-coloured
      *  line on the bottom row (aligned with the unselected tabs' bottom edge). */
     public static void drawTabSeparator(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
@@ -180,17 +231,18 @@ public final class MenuWidgets {
     /** Themed box plus a small padlock glyph: closed and orange when locked, open and dim when unlocked. */
     public static void drawLockButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active,
                                       boolean highlighted, boolean locked, float alpha) {
+        sync();
         if (w <= 0 || h <= 0) {
             return;
         }
         MainMenuTheme.drawButtonBox(g, x, y, w, h, active, highlighted, alpha);
         int color;
         if (!active) {
-            color = locked ? 0xFF7A5A3A : BORDER_DISABLED;
+            color = BORDER_DISABLED;
         } else if (locked) {
             color = highlighted ? ACCENT_LIGHT : ACCENT;
         } else {
-            color = highlighted ? ACCENT_LIGHT : (0xFF000000 | MainMenuTheme.DIM);
+            color = highlighted ? ACCENT_LIGHT : DIM;
         }
         color = MainMenuTheme.fade(color, alpha);
         int cx = x + w / 2;
@@ -211,6 +263,7 @@ public final class MenuWidgets {
     /** Tooltip background for content at (x, y, w, h): same 4px footprint as vanilla's frame, warm near-black
      *  fill and a 1px orange border (matches ModScreen's setting tooltips). */
     public static void drawTooltip(GuiGraphicsExtractor g, int x, int y, int w, int h) {
+        sync();
         g.fill(x - 3, y - 3, x + w + 3, y + h + 3, TOOLTIP_BG);
         g.outline(x - 4, y - 4, w + 8, h + 8, ACCENT);
     }

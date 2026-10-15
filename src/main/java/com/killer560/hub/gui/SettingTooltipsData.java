@@ -87,6 +87,7 @@ final class SettingTooltipsData {
         d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
         d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
         d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed, splash text and button panel below.");
+        d.put("menu theme/themed vanilla menus", "Draws Minecraft's own menus - Singleplayer, Multiplayer, Options and every page under it, the pause menu, loading and disconnected screens - in the main menu's theme: its background out of a world, and its buttons, sliders, text boxes, lists and tooltips everywhere. Nothing is moved or removed. Follows Main Menu Style.");
         d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Custom an aurora.");
         d.put("menu theme/background", "Custom: the main menu's animated background. Theme Default is the theme's own.");
         d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");

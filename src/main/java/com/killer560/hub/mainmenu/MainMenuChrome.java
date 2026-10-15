@@ -129,7 +129,7 @@ public final class MainMenuChrome {
     /** A title-screen button: a raised face in the theme's card colour, an accent ring, glow and side bar on hover. */
     public static void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean hover,
                                   float alpha) {
-        usePalette();
+        MenuWidgets.sync();
         GuiRects r = GuiRects.begin(g);
         float a = Math.max(0f, Math.min(1f, alpha)) * (active ? 1f : 0.55f);
         boolean lit = active && hover;
@@ -161,7 +161,7 @@ public final class MainMenuChrome {
 
     /** Label colours on a title-screen button. */
     public static int labelColour(boolean active, boolean hover) {
-        usePalette();
+        MenuWidgets.sync();
         if (!active) {
             return MenuStyle.DIM2 & 0xFFFFFF;
         }

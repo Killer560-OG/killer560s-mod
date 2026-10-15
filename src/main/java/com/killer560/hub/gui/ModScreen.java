@@ -1800,12 +1800,54 @@ public class ModScreen extends Screen {
                 g.pose().translate(-cx, -cy);
             }
             drawMenu(g, mouseX, mouseY, partialTick);
+            drawNoWorldNotice(g);
         } finally {
             if (grown) {
                 g.pose().popMatrix();
             }
             MenuAnim.popFade(prevFade);
         }
+    }
+
+    // ---- opened from the title screen (killer560, 2026-10-15: "add a button on the main menu to open my mod's settings")
+
+    private static volatile String noWorldNotice;
+    private static volatile long noWorldUntil;
+
+    /**
+     * For something that needs a world (the HUD editors draw the live HUD over the game): with no world loaded - the menu
+     * opened from the main menu's Mod Settings - it says so in the menu for three seconds and returns true (refused).
+     */
+    public static boolean refuseWithoutWorld(String what) {
+        if (Minecraft.getInstance().level != null) {
+            return false;
+        }
+        noWorldNotice = "Join a world to use " + what + ".";
+        noWorldUntil = System.currentTimeMillis() + 3000;
+        return true;
+    }
+
+    /** The notice {@link #refuseWithoutWorld} set, while it shows (testkit). */
+    public static String noWorldNotice() {
+        return System.currentTimeMillis() < noWorldUntil ? noWorldNotice : null;
+    }
+
+    private void drawNoWorldNotice(GuiGraphicsExtractor g) {
+        String msg = noWorldNotice();
+        if (msg == null) {
+            return;
+        }
+        var font = this.font != null ? this.font : Minecraft.getInstance().font;
+        int w = font.width(msg) + 20;
+        int h = 18;
+        int x = this.width / 2 - w / 2;
+        int y = panelY + 34;
+        com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(g);
+        MenuStyle.dropShadow(r, x, y, w, h, 3);
+        MenuStyle.bevel(r, x, y, w, h, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
+        r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR);
+        r.submit();
+        g.text(font, msg, x + 10, y + 5, MenuStyle.TXT, MenuStyle.TEXT_SHADOW);
     }
 
     private void drawMenu(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -2681,11 +2723,15 @@ public class ModScreen extends Screen {
             b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
             b.add(new HomeButton("Edit HUD", () -> {
                 Minecraft client = Minecraft.getInstance();
-                McCompat.setScreen(client, new com.killer560.hub.hud.HudEditorScreen(McCompat.screen(client)));
+                if (!refuseWithoutWorld("Edit HUD")) {
+                    McCompat.setScreen(client, new com.killer560.hub.hud.HudEditorScreen(McCompat.screen(client)));
+                }
             }));
             b.add(new HomeButton("Edit Bars", () -> {
                 Minecraft client = Minecraft.getInstance();
-                McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
+                if (!refuseWithoutWorld("Edit Bars")) {
+                    McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
+                }
             }));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
             b.add(new HomeButton(HOME_SWEAT, com.killer560.hub.util.SweatMode::enter));

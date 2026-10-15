@@ -39,6 +39,15 @@ public final class MainMenuSettings {
                     requestRebuild.run(); // the theme and look rows come and go with the style
                 }).bounds(x, y, w, 20).build());
         y += 24;
+        // Every vanilla menu (singleplayer, multiplayer, options, the pause menu...) drawn in the main menu's theme
+        // (killer560, 2026-10-15). The old "other menus" switch, now with a row of its own; default ON.
+        widgets.add(SettingsButtonWidget.builder(vanillaText(), btn -> {
+                    MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
+                    c.setOtherMenus(!c.isOtherMenus());
+                    c.save();
+                    btn.setMessage(vanillaText());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
         if (cfg.getStyle() == MainMenuThemeConfig.Style.MATCH) {
             return y;
         }
@@ -134,6 +143,10 @@ public final class MainMenuSettings {
 
     static Component speedText() {
         return Component.literal("Animation Speed: " + MainMenuThemeConfig.getInstance().getSpeed() + "%");
+    }
+
+    static Component vanillaText() {
+        return Component.literal("Themed Vanilla Menus: " + (MainMenuThemeConfig.getInstance().isOtherMenus() ? "§aON" : "§cOFF"));
     }
 
     static Component splashText() {

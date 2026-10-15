@@ -810,7 +810,9 @@ public class Killer560ModClient implements ClientModInitializer {
         if (down && !editKeyWasDown && !(open instanceof HudEditorScreen) && !typing && !typedLastTick
                 // Not with an item on the cursor: leaving a container screen drops it client-side.
                 && !(open instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> c
-                        && !c.getMenu().getCarried().isEmpty())) {
+                        && !c.getMenu().getCarried().isEmpty())
+                // Not at the main menu: the editor places the live HUD over the game.
+                && client.level != null) {
             McCompat.setScreen(client, new HudEditorScreen(open));
         }
         editKeyWasDown = down;

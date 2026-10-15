@@ -158,6 +158,13 @@ public final class MainMenuTitleLayout {
         }
     }
 
+    /** "Mod Settings": opens the mod menu from the title screen. A plain vanilla Button like the rest of the column. */
+    public static final class ModSettingsButton extends Button.Plain {
+        private ModSettingsButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+    }
+
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
@@ -215,7 +222,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim) {
+                if (w == sim || w instanceof ModSettingsButton) {
                     continue;
                 }
                 String key = translationKey(w);
@@ -254,7 +261,7 @@ public final class MainMenuTitleLayout {
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim || friends.contains(w)) {
+                        || w == sim || w instanceof ModSettingsButton || friends.contains(w)) {
                     continue;
                 }
                 if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
@@ -301,6 +308,29 @@ public final class MainMenuTitleLayout {
                 removeWidget(screen, widgets, sim);
                 simButton = new WeakReference<>(null);
             }
+
+            // The mod's own settings, straight from the title screen (killer560, 2026-10-15: "add a button on the main menu
+            // to open my mod's settings and edit them from the main menu"). Above Swap Accounts; closing the menu returns
+            // here (ModScreen.onClose goes back to its parent).
+            AbstractWidget modSettings = null;
+            for (AbstractWidget w : widgets) {
+                if (w instanceof ModSettingsButton) {
+                    modSettings = w;
+                }
+            }
+            if (modSettings == null) {
+                modSettings = new ModSettingsButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
+                        Component.literal("Mod Settings"), btn -> McCompat.setScreen(Minecraft.getInstance(),
+                                new com.killer560.hub.gui.ModScreen(screen)));
+                int idx = swap != null ? widgets.indexOf(swap) : -1;
+                if (idx >= 0) {
+                    widgets.add(idx, modSettings);
+                } else {
+                    widgets.add(modSettings);
+                }
+            }
+            modSettings.visible = true;
+            column.add(modSettings);
 
             if (swap != null) {
                 column.add(swap);

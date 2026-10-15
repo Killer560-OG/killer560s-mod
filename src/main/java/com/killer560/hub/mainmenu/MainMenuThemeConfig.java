@@ -187,6 +187,7 @@ public final class MainMenuThemeConfig {
 
     public void setOtherMenus(boolean otherMenus) {
         this.otherMenus = otherMenus;
+        version++;
     }
 
     public Style getStyle() {

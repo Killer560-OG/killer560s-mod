@@ -127,6 +127,9 @@ public class HealthAndManaBarsTab extends BaseTab {
             // The bars' own editor (2026-10-08): Edit HUD no longer lists them; this and Home's "Edit Bars" open it.
             widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Bars"), btn -> {
                         Minecraft client = Minecraft.getInstance();
+                        if (com.killer560.hub.gui.ModScreen.refuseWithoutWorld("Edit Bars")) {
+                            return;
+                        }
                         McCompat.setScreen(client, com.killer560.hub.hud.HudEditorScreen.forBars(McCompat.screen(client)));
                     }).bounds(contentX, y[0], contentWidth, ROW_H).build());
             y[0] += ROW;

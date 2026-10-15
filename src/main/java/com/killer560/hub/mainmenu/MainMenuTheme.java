@@ -32,12 +32,6 @@ public final class MainMenuTheme {
     public static final int TEXT = 0xF0E6DC;
     public static final int DIM = 0x9A8C80;
 
-    private static final int BTN_BG = 0xFF1A1A1A;
-    private static final int BTN_BG_HOVER = 0xFF262626;
-    private static final int BTN_BORDER = 0xFF663D1A;
-    private static final int BTN_BORDER_HOVER = 0xFFCC6600;
-    private static final int BTN_BG_DISABLED = 0xFF121212;
-    private static final int BTN_BORDER_DISABLED = 0xFF3A2C22;
 
     private static volatile boolean failed;
     private static String modTag;
@@ -105,25 +99,10 @@ public final class MainMenuTheme {
 
     public static void drawButtonBox(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                      boolean active, boolean highlighted, float alpha) {
-        if (McCompat.screen(Minecraft.getInstance()) instanceof TitleScreen) {
-            // The redesigned title screen (2026-10-15) draws its buttons in the main menu's own theme.
-            MainMenuChrome.drawButton(g, x, y, w, h, active, highlighted, alpha);
-            return;
-        }
-        int bg;
-        int border;
-        if (!active) {
-            bg = BTN_BG_DISABLED;
-            border = BTN_BORDER_DISABLED;
-        } else if (highlighted) {
-            bg = BTN_BG_HOVER;
-            border = BTN_BORDER_HOVER;
-        } else {
-            bg = BTN_BG;
-            border = BTN_BORDER;
-        }
-        g.fill(x, y, x + w, y + h, fade(bg, alpha));
-        g.outline(x, y, w, h, fade(border, alpha));
+        // Every themed menu's buttons (the title screen, the pause menu, options, world and server lists...) in the main
+        // menu's theme, read live each frame (killer560, 2026-10-15: the pause menu kept a fixed dark look whatever the
+        // theme). Inside one of the mod's own screens a vanilla button follows that screen's palette instead.
+        MainMenuChrome.drawButton(g, x, y, w, h, active, highlighted, alpha);
     }
 
     /** Wraps a label so its un-coloured parts render in the theme colour; explicit colours inside the
@@ -133,9 +112,7 @@ public final class MainMenuTheme {
         if (message == null) {
             return null;
         }
-        int rgb = McCompat.screen(Minecraft.getInstance()) instanceof TitleScreen
-                ? MainMenuChrome.labelColour(active, highlighted)
-                : !active ? DIM : (highlighted ? LIGHT_ORANGE : TEXT);
+        int rgb = MainMenuChrome.labelColour(active, highlighted);
         return Component.empty().withColor(rgb).append(message);
     }
 

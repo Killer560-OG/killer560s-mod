@@ -21,6 +21,18 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     private static int cachedMain = Integer.MIN_VALUE;
     private static int cachedMenu = Integer.MIN_VALUE;
 
+    private static MainMenuLook calmFor;
+    private static MainMenuLook calm;
+
+    /** The same look with half the particles: the background behind every other out-of-world menu. Cached. */
+    public synchronized MainMenuLook calm() {
+        if (calmFor != this) {
+            calm = new MainMenuLook(colours, theme, scene, density * 0.5f, speed, splash, panel);
+            calmFor = this;
+        }
+        return calm;
+    }
+
     public int accent() {
         return colours[0];
     }
