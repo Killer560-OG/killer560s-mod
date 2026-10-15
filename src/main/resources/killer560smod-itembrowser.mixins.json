@@ -4,8 +4,6 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.itembrowser.mixin",
 	"client": [
-		"ItemValueTooltipMixin",
-		"ItemValueContainerTooltipMixin",
 		"ItemBrowserRenderMixin",
 		"ItemBrowserRecipeBookRenderMixin"
 	],

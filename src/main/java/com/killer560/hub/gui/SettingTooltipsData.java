@@ -24,6 +24,26 @@ final class SettingTooltipsData {
         clickSounds(d);
         colourPicker(d);
         slotTextAndCompactor(d);
+        priceTooltip(d);
+    }
+
+    private static void priceTooltip(Map<String, String> d) {
+        // killer560, 2026-10-15: Skyblocker-style price lines on item tooltips (pricetooltip/, gui/tab/PriceTooltipTab).
+        d.put("price tooltip", "Adds price lines to Skyblock item tooltips: NPC sell price, Bazaar, lowest BIN, average BIN, estimated value, when it was obtained and whether your museum has it.");
+        d.put("price tooltip/npc sell price", "What an NPC pays for the item, from Hypixel's item list.");
+        d.put("price tooltip/bazaar buy/sell", "For Bazaar items: the instant-buy and instant-sell prices.");
+        d.put("price tooltip/lowest bin", "The cheapest Buy It Now listing on the Auction House right now.");
+        d.put("price tooltip/average bin", "The average lowest BIN over the last 1 or 3 days (Average Over).");
+        d.put("price tooltip/average over", "How many days the Average BIN line averages: 1 or 3. Left click goes forward, right click back.");
+        d.put("price tooltip/est. item value", "The item plus what was applied to it: recombobulator, potato books, enchants, stars, master stars, gemstones and slots, scrolls and more. Reforges are not counted.");
+        d.put("price tooltip/obtained date", "The date the item was created, from its own data.");
+        d.put("price tooltip/museum status", "The item's museum category and whether your selected profile has donated it. Read from the API (your key if set, else the keyless backend) and refreshed every 10 minutes.");
+        d.put("price tooltip/stack price", "When a stack shows the price of the whole stack instead of one item: while holding Shift, always, or never. Left click goes forward, right click back.");
+        d.put("price tooltip/value breakdown", "When Est. Item Value lists its parts under it: while holding Shift, always, or never. Left click goes forward, right click back.");
+        d.put("price tooltip/value mode", "Networth weighs applied upgrades the way networth calculators do (a recombobulator counts 80%); Full Price counts everything at its market price. Left click goes forward, right click back.");
+        d.put("price tooltip/number format", "Exact shows 5,900,000.0; Short shows 5.9M. Left click goes forward, right click back.");
+        d.put("price tooltip/refresh every", "How often prices are fetched again while you use the tooltips. Left click goes forward, right click back.");
+        d.put("price tooltip/refresh prices", "Fetches every price again now.");
     }
 
     private static void slotTextAndCompactor(Map<String, String> d) {
@@ -1677,7 +1697,6 @@ final class SettingTooltipsData {
         d.put("item browser/orientation", "Whether items fill rows left to right or columns top to bottom.");
         d.put("item browser/centered", "Which side of the screen the panel sits on.");
         d.put("item browser/refresh item catalog", "Re-downloads the item list right now instead of waiting for the automatic refresh.");
-        d.put("item browser/show item value (tooltip)", "Adds a Value line to any item's tooltip anywhere in the game.");
         d.put("inventory search/search lore", "Also matches an item's lore text, not just its name.");
         d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
         d.put("inventory search/search bar scale", "Resizes the floating search bar.");

@@ -17,13 +17,20 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
   override are still reachable, so a harness can run offline with only its fakes. Read on every call.
 
 Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
-`minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `github-api`, `relay`,
+`minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `hysky`, `github-api`, `relay`,
 `pf-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
 (`<override>/Killer560-OG/killer560s-mod/releases/download/`).
+
+## Price Tooltip (`pricetooltip/`)
+
+No property beyond the `hypixel` and `hysky` service overrides above, which it reads at every fetch. `PriceData.
+refreshNow(includeItems)` fetches on the calling thread (never the render thread); `clearForTest()` empties every map;
+`markStartedForTest()` keeps the background loop and disk cache out of a case. `MuseumDonations.setDonated(ids)` stands
+in for your museum; `PriceTooltipFeature.setShiftForTest(Boolean)` fakes Shift; `obtainedDate(tag)` is the date reader.
 
 ## Auto Update (`autoupdate/`)
 
@@ -50,7 +57,9 @@ pipe), the Proxy Client (the game connection itself), and anything Minecraft or 
 - `-Dprismaccountswitcher.accountsFile=<path>` reads that file instead of Prism's real `accounts.json` (refresh tokens).
 - `-Dprismaccountswitcher.universalProxyFile=<path>` reads and writes the Universal proxy there instead of Prism's shared
   `prismaccountswitcher/universal-proxy.json`, which every instance reads; a case that presses Swap Accounts' Universal
-  switch needs it (testkit 1851 refuses to press it without). Read once, when `ProxyConfig` loads.
+  switch needs it (testkit 1851 refuses to press it without). Read once, when `ProxyConfig` loads. Without it a test
+  client also CONNECTS through whatever universal proxy is on for real play: on 2026-10-15 that failed every testkit join
+  to localhost with a ProxyConnectException, until the testkit set it for every run.
 
 ## Interactive Map warp count (`livemap/autoclear/EtherwarpPathfinder`)
 
