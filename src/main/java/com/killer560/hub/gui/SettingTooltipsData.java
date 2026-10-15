@@ -328,8 +328,6 @@ final class SettingTooltipsData {
         d.put("show node numbers", "Shows each node's number on its label, as used by /ap3 delete <n>.");
         d.put("show node type", "Shows the node's type (Line, Walk, Leap...) on its label.");
         d.put("show node details", "Shows the node's modifier on its label, like length, wait or leap target.");
-        d.put("label color", "Node's Color draws each label in its node's color; Fixed uses one color for all.");
-        d.put("fixed label color", "The color every AP3 node label uses when Label Color is Fixed.");
         d.put("label scale", "Size of the labels above AP3 nodes.");
         d.put("label height", "How many blocks above the node its label floats.");
         d.put("ap3/edit", "Opens this node's page to move it, re-place it, or change its settings.");
@@ -421,7 +419,6 @@ final class SettingTooltipsData {
         d.put("reload routes", "Re-reads the routes file from disk (same as /ar reload).");
         d.put("colors", "Cheat build: node marker colors in the world.");
         d.put("uniform color", "ON: all node markers use one color. OFF: each node type gets its own.");
-        d.put("color", "The one color every node marker uses while Uniform Color is on.");
         d.put("active node color", "Color of the node the route is heading for.");
         d.put("etherwarp color", "Marker color for etherwarp nodes.");
         d.put("dungeon breaker color", "Marker color for dungeon breaker nodes.");
@@ -1223,7 +1220,7 @@ final class SettingTooltipsData {
         d.put("font scale", "Size of the text drawn on the Interactive Map, 0.5x to 3x.");
         d.put("highlight color", "Color of the room highlight under your cursor on the map.");
         d.put("player heads", "Draws each player's skin face as their map marker instead of the arrow, turned so the top of the head points where they face.");
-        d.put("class colors", "Colors player markers and their names by dungeon class.");
+        d.put("dungeon map/class colors", "Colors player markers and their names by dungeon class.");
         d.put("names holding leap", "While you hold a Spirit Leap or Infinileap, every teammate's name shows under their marker on the Dungeon Map; off, no names.");
         d.put("player names", "When to show teammates' names by their markers: never, while holding a leap item, or always.");
         d.put("icon scale", "Size of the player markers on the Interactive Map, 0.5x to 3x.");
@@ -1773,7 +1770,7 @@ final class SettingTooltipsData {
         d.put("checkmark sprites", "Draws the real map's check, cross and question mark instead of text characters.");
         d.put("darken unexplored", "How much dimmer rooms you have not opened are drawn, 0 to 0.9.");
         d.put("map background", "Color behind the map; the alpha slider sets how see-through it is.");
-        d.put("border color", "Outline color around the HUD map; set alpha to 0 for no border.");
+        d.put("dungeon map/border color", "Outline color around the HUD map; set alpha to 0 for no border.");
         d.put("current room", "Highlight color over the room you are standing in; alpha 0 turns it off.");
         d.put("room colors", "Shows a color picker for every room and door type.");
         d.put("reset room colors", "Puts every room and door color back to the real dungeon map's colors.");
@@ -1837,7 +1834,7 @@ final class SettingTooltipsData {
         d.put("party interop/use mod relay", "Accepts dungeon info from other players running this mod.");
         d.put("party interop/local mod bridge", "Reads dungeon info from NoammAddons and Odin if you have them installed.");
         d.put("superboom color", "Marker color for Superboom nodes.");
-        d.put("path color", "Marker color for Path nodes.");
+        d.put("auto routes/path color", "Marker color for Path nodes.");
         d.put("auto routes/thickness", "Line thickness of the Auto Routes node markers and path line, 1 to 8.");
         d.put("auto routes/active node color", "Color of the node the route is currently walking to or performing.");
         d.put("auto routes/keybinds", "Binds a key to each /ar command (cheat build only).");
