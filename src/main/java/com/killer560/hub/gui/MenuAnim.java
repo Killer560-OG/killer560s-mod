@@ -62,9 +62,11 @@ public final class MenuAnim {
     private static final boolean TICK_CLOCK = "ticks".equalsIgnoreCase(System.getProperty("killer560.test.menuAnimClock"));
     private static long testClockNanos = -1L;
     private static long ticks;
-    private static long frameNanos = System.nanoTime();
-    private static long prevFrameNanos = frameNanos;
+    private static long frameNanos = clockNanos();
     private static long eventNanos = Long.MIN_VALUE;
+    /** How many times the clock has moved, and its count when the last input came. */
+    private static long clockMoves;
+    private static long eventMove = -10L; // no input yet (never MIN_VALUE: the difference would overflow)
     private static long frames;
 
     /** Samples the clock for this frame. Call once at the top of a frame that draws animated parts. */
@@ -72,8 +74,8 @@ public final class MenuAnim {
         long now = clockNanos();
         if (now != frameNanos) {
             // only a frame that moved the clock moves "the previous frame" (two draws in one instant are one frame)
-            prevFrameNanos = frameNanos;
             frameNanos = now;
+            clockMoves++;
         }
         frames++;
     }
@@ -85,11 +87,13 @@ public final class MenuAnim {
      */
     public static void input() {
         eventNanos = clockNanos();
+        eventMove = clockMoves;
     }
 
-    /** When a change seen now happened: the input event since the last frame that caused it, or this frame. */
+    /** When a change seen now happened: the input event that caused it (during that input, or at the first frame
+     *  after it), or else this frame. */
     public static long changeTime() {
-        return eventNanos >= prevFrameNanos ? eventNanos : frameNanos;
+        return clockMoves - eventMove <= 1 ? eventNanos : frameNanos;
     }
 
     private static long clockNanos() {
@@ -116,8 +120,11 @@ public final class MenuAnim {
      *  re-samples the current frame's time, so a test can read tweens right after setting it. */
     public static void setClockForTest(double ms) {
         testClockNanos = ms < 0 ? -1L : Math.round(ms * 1_000_000.0);
-        frameNanos = clockNanos();
-        prevFrameNanos = Math.min(prevFrameNanos, frameNanos);
+        long now = clockNanos();
+        if (now != frameNanos) {
+            frameNanos = now;
+            clockMoves++;
+        }
     }
 
     /** Advances the ticks clock (registered only under {@code killer560.test.menuAnimClock=ticks}). */
@@ -140,6 +147,10 @@ public final class MenuAnim {
         }
         return (m == Mode.REDUCED ? ms * 3L / 4L : ms) * 1_000_000L;
     }
+
+    /** A start further than this in the future means the clock itself went back: treat it as finished. (A start a little
+     *  ahead is normal: a click stamped after the last frame.) */
+    private static final long BACKWARDS = 1_000_000_000L;
 
     /** Ease-out cubic: fast start, gentle stop. */
     public static float easeOut(float t) {
@@ -165,6 +176,9 @@ public final class MenuAnim {
             return 1f;
         }
         long e = frameNanos - startNanos;
+        if (e < -BACKWARDS) {
+            return 1f; // the clock went back (a test switched clocks): nothing is still on its way
+        }
         return e >= d ? 1f : easeOut(e / (float) d);
     }
 
@@ -218,6 +232,9 @@ public final class MenuAnim {
         /** The value now. */
         public float get() {
             long e = frameNanos - start;
+            if (e < -BACKWARDS) {
+                return to;
+            }
             if (duration <= 0L || e >= duration) {
                 return to;
             }
