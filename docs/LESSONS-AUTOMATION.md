@@ -216,6 +216,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   painted both marks in one server tick, so it never showed. The walk-out now waits for `TicTacToeSolverFeature.isGameOver`
   (or the tab list), and the sim's computer replies `SimTicTacToePuzzle.REPLY_TICKS` later (an estimate: his real clicks
   came 3 s apart against the auto's 0.5 s gap).
+- **Secret Aura needs no line of sight**: it picks by standing eye to the block's BOX within Aura Range (capped 4.5) and
+  clicks through walls, as the server allows. Grab Secret's landing is chosen by that same rule; in the sim's Tic Tac Toe the
+  chest is in a roofed pit no warp or walk reaches, and a landing on the board side of its wall lets the aura take it
+  (testkit 93-solve-tictactoe-grab, killer560 2026-10-15: "it should aura the secret").
 - **A chest is not a block to etherwarp onto.** Tic Tac Toe's chest trip asked the Interactive Map for the chest itself:
   "is not etherwarpable ... Nothing searched" three times and the secret was never taken (same log, 17:26:00). Trips to a
   block go to a standable block that has it in reach (`AutoPuzzleUtil.reachSpots`), as Auto Blaze's already did.
