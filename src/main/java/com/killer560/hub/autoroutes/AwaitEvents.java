@@ -135,6 +135,20 @@ public final class AwaitEvents {
      */
     static final int START_LOOKBACK = 10;
 
+    /**
+     * How far before a node's window opened (ticks) a secret of his, taken while the node before it was ACTING (its
+     * await met or skipped, or it had none), still counts for this node's await - see {@code RouteExecutor.beginAction}.
+     * <p>
+     * killer560, 2026-10-14, on Hypixel: "it never detects secrets. I think it picks them up faster than it knows it
+     * grabs them". His Mod Only Test log of a real Red Blue run (17:22:43) has it exactly: #3's etherwarp lands on
+     * the item #4 waits for, and Hypixel's {@code ClientboundTakeItemEntityPacket} arrives in the same batch as the
+     * teleport, so it is handled before the route's next tick sees the landing - "await secret 1: item picked up by
+     * you" is logged while #3 is still the active node, then #3 finishes, the window is reset, and #4 sat at 0/1 until
+     * he left clicked. Secret Aura's click on the landing tick (it ticks before Auto Routes) is the same race. Ten
+     * ticks is the start lookback's span; the secret must also be within {@link RouteRunMemory#NEAR_NODE} of the node.
+     */
+    static final int CARRY_TICKS = 10;
+
     /** The tick the running route started: a remembered secret from before it can meet a node's first await. */
     private static int beganAt;
 

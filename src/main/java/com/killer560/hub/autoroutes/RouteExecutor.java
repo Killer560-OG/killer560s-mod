@@ -274,6 +274,18 @@ public final class RouteExecutor {
     /** The active node's {@link RouteRunMemory#nodeKey}, and the secrets of this run remembered toward its await. */
     private static String awaitNodeKey;
     private static List<RouteRunMemory.Got> awaitRemembered = List.of();
+    /** {@link AwaitEvents#now()} when the active node's own action began (its await met or skipped, or it had none):
+     *  a secret of his after this and in the last {@link AwaitEvents#CARRY_TICKS} before it finished is the NEXT
+     *  node's, not lost with this node's window. */
+    private static int actionFromTick;
+    /** Set by {@link #finishAction}: the next node's await also counts remembered secrets got at or after this tick.
+     *  {@code Integer.MAX_VALUE} when there is no node before it (the route's start has its own lookback). */
+    private static int carryFrom = Integer.MAX_VALUE;
+    /** {@link #execTicks} of a left click of his taken while the route was teleporting him between awaits (a warp
+     *  or path node in flight, or the settle before the next node of a stack) - see {@link #takeEarlySkip}. */
+    private static long earlySkipClickAt = Long.MIN_VALUE / 2;
+    /** How long such a click still skips the await of the node it lands him on, in route ticks. */
+    static final int EARLY_SKIP_TICKS = 10;
     /** The active node has sent its action (its "acted" line is written then). */
     private static boolean nodeActed;
 
@@ -492,6 +504,8 @@ public final class RouteExecutor {
         forceSneak = false;
         unsneakOverride = false;
         awaitPhaseDone = true;
+        carryFrom = Integer.MAX_VALUE;
+        earlySkipClickAt = Long.MIN_VALUE / 2;
         AwaitEvents.begin(client);
         landedFrom = null;
         arrivalChain = false;
@@ -917,6 +931,28 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] {}{}", line, waiting == null ? ""
                     : " - node #" + (route.indexOf(waiting) + 1) + " waits for " + Math.max(1, waiting.awaitAmount));
         }
+        if (teleportingBetweenAwaits() && takeSkipClick(client)) {
+            // killer560, 2026-10-14: "Left clicking for auto routes does not always skip the node." A click he makes
+            // while the warp that lands him on the waiting node is still in flight (or the stack settles) reached
+            // vanilla as a swing a tick or two BEFORE the node began waiting, and was gone by then: the node sat at
+            // 0/N. Held for EARLY_SKIP_TICKS - the node it lands him on skips its await with it.
+            earlySkipClickAt = execTicks;
+            LOGGER.info("[AutoRoutes] Left click while the route was warping you - held for the next node's await");
+        }
+        if (MimicKiller.isBusy() && activeNode != null && !awaitPhaseDone
+                && (takeSkipClick(client) || takeEarlySkip())) {
+            // A left click skips a waiting node while Kill Mimic works too (it used to be swallowed by vanilla for as
+            // long as Kill Mimic kept the hands - up to five seconds of Spirit Sceptre uses). The click means "go":
+            // Kill Mimic lets go and the node acts now.
+            LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the await ({}/{} secrets) - Kill Mimic stopped",
+                    route.indexOf(activeNode) + 1, activeNode.type, AwaitEvents.secrets() + awaitRemembered.size(),
+                    Math.max(1, activeNode.awaitAmount));
+            MimicKiller.cancel(client, "left click skipped the await");
+            awaitPhaseDone = true;
+            actionFromTick = AwaitEvents.now();
+            step = Step.PREP;
+            stepTicks = 0;
+        }
         if (MimicKiller.isBusy() && mayYieldToMimic()) {
             // Kill Mimic has the hands: no node starts and nothing moves until it is done. A node already waiting on
             // its await keeps counting - the mimic's death may be the very secret it waits for.
@@ -1279,6 +1315,9 @@ public final class RouteExecutor {
                 && node.type != RouteNode.Type.AWAIT;
         awaitNodeKey = RouteRunMemory.nodeKey(route, node);
         awaitRemembered = List.of();
+        actionFromTick = AwaitEvents.now();
+        int carry = carryFrom;
+        carryFrom = Integer.MAX_VALUE;
         if (!awaitPhaseDone && node.awaitCondition != RouteNode.AwaitCondition.DELAY) {
             // killer560, 2026-10-14: "if it remembers I already got that secret or that bat then it will not wait for
             // the await before doing that action". Met earlier this run: met now. First visit: a secret he already got
@@ -1288,12 +1327,28 @@ public final class RouteExecutor {
                         + "not waiting", route.indexOf(node) + 1, node.type);
                 awaitPhaseDone = true;
             } else {
-                awaitRemembered = RouteRunMemory.unclaimedNear(RouteCoords.toReal(frame, node.relativePos()),
-                        AwaitEvents.beganAt(), AwaitEvents.windowSecrets());
-                for (RouteRunMemory.Got g : awaitRemembered) {
+                Vec3 nodeAt = RouteCoords.toReal(frame, node.relativePos());
+                java.util.Set<String> window = AwaitEvents.windowSecrets();
+                List<RouteRunMemory.Got> remembered = new ArrayList<>(RouteRunMemory.unclaimedNear(nodeAt,
+                        AwaitEvents.beganAt(), window));
+                for (RouteRunMemory.Got g : remembered) {
                     LOGGER.info("[AutoRoutes] Node #{} {}: await counts {} - already got this run", route.indexOf(node) + 1,
                             node.type, g.what());
                 }
+                if (carry != Integer.MAX_VALUE) {
+                    // His secret taken while the node before this one was still acting - the item Hypixel's pickup
+                    // packet hands him in the same batch as the warp's landing, or Secret Aura's click on the landing
+                    // tick - arrives before this node's window opens (AwaitEvents.CARRY_TICKS). It is this node's.
+                    java.util.Set<String> seen = new java.util.HashSet<>(window);
+                    remembered.forEach(g -> seen.add(g.key()));
+                    for (RouteRunMemory.Got g : RouteRunMemory.unclaimedNearSince(nodeAt, carry, seen)) {
+                        remembered.add(g);
+                        LOGGER.info("[AutoRoutes] Node #{} {}: await counts {} - got {} tick(s) ago, while the node "
+                                + "before it was still acting", route.indexOf(node) + 1, node.type,
+                                g.what(), Math.max(0, AwaitEvents.now() - g.tick()));
+                    }
+                }
+                awaitRemembered = remembered;
             }
         }
         awaitHeld = !awaitPhaseDone;
@@ -1348,7 +1403,10 @@ public final class RouteExecutor {
         RouteRotation.clear();
         activeNode = null;
         step = null;
-        // What the next node's await counts starts now ("since the previous node finished").
+        // What the next node's await counts starts now ("since the previous node finished") - plus what this node
+        // picked up on its way in during its last few ticks (AwaitEvents.CARRY_TICKS: Hypixel's pickup packet comes
+        // in the same batch as the warp's landing, ahead of the tick that sees it).
+        carryFrom = Math.max(actionFromTick, AwaitEvents.now() - AwaitEvents.CARRY_TICKS);
         AwaitEvents.window(Minecraft.getInstance());
         boolean landed = landingConfirmed;
         landingConfirmed = false;
@@ -1476,15 +1534,17 @@ public final class RouteExecutor {
             // tickAwait, which is this gate for any node now that AWAIT isn't its own type any more. Once it
             // clears, the action starts in this same tick.
             tickAwait(client, player, node);
-            if (!awaitPhaseDone && activeNode == node && takeSkipClick(client)) {
+            boolean early = false;
+            if (!awaitPhaseDone && activeNode == node && (takeSkipClick(client) || (early = takeEarlySkip()))) {
                 // killer560, 2026-10-06: "if I left click while on an await node then it should perform the teleport
                 // even if it didn't grab a secret yet". The click is consumed here, at START_CLIENT_TICK, so vanilla's
                 // handleKeybinds later this tick never sees it: no startAttack, no swing, no dig - the node's own
                 // action (the warp) is the only thing that click sends.
-                LOGGER.info("[AutoRoutes] Node #{} {}: left click skipped the await ({}/{} secrets) after {} tick(s)",
-                        route.indexOf(node) + 1, node.type, AwaitEvents.secrets(), Math.max(1, node.awaitAmount),
-                        actionAge);
+                LOGGER.info("[AutoRoutes] Node #{} {}: left click{} skipped the await ({}/{} secrets) after {} tick(s)",
+                        route.indexOf(node) + 1, node.type, early ? " (made while the route warped you here)" : "",
+                        AwaitEvents.secrets() + awaitRemembered.size(), Math.max(1, node.awaitAmount), actionAge);
                 awaitPhaseDone = true;
+                actionFromTick = AwaitEvents.now();
                 step = Step.PREP;
                 stepTicks = 0;
             }
@@ -1689,6 +1749,32 @@ public final class RouteExecutor {
         return clicked;
     }
 
+    /**
+     * The route is moving him by teleport from one node to the next, so a left click of his has nothing else to do:
+     * an etherwarp or path node whose use went out (in flight, or flying its hops), or the settle / stack between two
+     * nodes. Not between nodes of a path-less route he walks himself - there a left click may be at a mob.
+     */
+    private static boolean teleportingBetweenAwaits() {
+        if (!running) {
+            return false;
+        }
+        if (activeNode != null) {
+            return awaitPhaseDone && nodeActed
+                    && (activeNode.type == RouteNode.Type.ETHERWARP || activeNode.type == RouteNode.Type.PATH);
+        }
+        return settleTicks > 0 || !stackQueue.isEmpty() || chainAfterLanding;
+    }
+
+    /** A left click held by {@link #tick} while the route warped him here, at most {@link #EARLY_SKIP_TICKS} old:
+     *  true once, and it is used up. */
+    private static boolean takeEarlySkip() {
+        if (execTicks - earlySkipClickAt > EARLY_SKIP_TICKS) {
+            return false;
+        }
+        earlySkipClickAt = Long.MIN_VALUE / 2;
+        return true;
+    }
+
     private static void tickAwait(Minecraft client, LocalPlayer player, RouteNode node) {
         boolean delay = node.awaitCondition == RouteNode.AwaitCondition.DELAY;
         if (step == Step.PREP) {
@@ -1717,6 +1803,7 @@ public final class RouteExecutor {
         }
         if (done) {
             awaitPhaseDone = true;
+            actionFromTick = AwaitEvents.now();
             step = Step.PREP;
             stepTicks = 0;
         }

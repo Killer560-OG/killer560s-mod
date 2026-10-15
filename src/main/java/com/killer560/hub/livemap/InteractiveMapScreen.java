@@ -23,7 +23,7 @@ import java.util.List;
  * {@code textPlacement}, name colour by clear state, no names on Entrance/Fairy/Blood), current-room highlight colour,
  * hover brighten + white outline, and clicks that teleport-path (cheat builds). On top of QUOI: player heads/arrows
  * with names and class colours (QUOI's commented-out icon config / NoammAddons), hover tooltips (type, secrets, crypts,
- * puzzle, clear state, who cleared), scroll zoom, right/middle-drag pan (never the left button) and a legend.
+ * puzzle, clear state, who cleared), scroll zoom (the map never pans: no drag moves it) and a legend.
  * No world dim/blur, like QUOI's {@code open(background = false)}.
  */
 public class InteractiveMapScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
@@ -80,9 +80,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     private float panX = 0f;
     private float panY = 0f;
     private int pressButton = -1;
-    private double pressX;
-    private double pressY;
-    private boolean dragMoved = false;
     /** Last cursor position this screen was rendered with. killer560, 2026-09-29: "Remember this isn't a left or
      *  right click but based off of my key binds" - a bound KEY press carries no coordinates, so the thing it
      *  acts on is whatever the cursor is over. No mouse hook is needed to know that: a Screen is handed the
@@ -555,7 +552,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         // The bind's own name is printed rather than "LMB", since it is his to change (2026-09-29: "Remember
         // this isn't a left or right click but based off of my key binds").
         String startName = cfg.getStartKeyCode() == KeyUtil.NONE ? "LMB" : KeyUtil.bindShortName(cfg.getStartKeyCode());
-        String pan = "Drag " + panButtonsName();
         if (expanded) {
             ty = control(g, x, ty, startName, "Go / retarget");
             if (cfg.isMapDoublePressStartNode()) {
@@ -568,13 +564,11 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
                 ty = control(g, x, ty, KeyUtil.bindShortName(cfg.getLockedDoorKeyCode()), "Locked door");
             }
             ty = control(g, x, ty, "Scroll", "Zoom");
-            ty = control(g, x, ty, pan, "Pan");
             if (!isAnyBind(cfg, 2)) {
                 ty = control(g, x, ty, "MMB", "Reset view");
             }
         } else {
             ty = control(g, x, ty, startName, "Go");
-            ty = control(g, x, ty, pan, "Pan");
         }
         if (viewMoved()) {
             int rowY = ty;
@@ -606,18 +600,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             ty = infoRow(g, x, ty, "S+ Secrets", ScoreCalculatorFeature.secretsNeededSummary(), accentSoft());
         }
         return ty + PAD - 2;
-    }
-
-    /** The mouse buttons that pan when dragged: every button except the left one and the Start bind's. */
-    private static boolean pans(int button) {
-        LiveMapConfig cfg = LiveMapConfig.getInstance();
-        return button != 0 && !isBind(cfg.getStartKeyCode(), button);
-    }
-
-    private static String panButtonsName() {
-        boolean right = pans(1);
-        boolean middle = pans(2);
-        return right && middle ? "RMB/MMB" : right ? "RMB" : middle ? "MMB" : "mouse";
     }
 
     private static boolean isAnyBind(LiveMapConfig cfg, int button) {
@@ -754,12 +736,10 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     // ------------------------------------------------------------------------------------------- input
     //
     // killer560 (2026-10-05): "in interactive map if i hold left click and drag around it moves the map and it
-    // shouldnt." The left button is Go / retarget and nothing else: a left press always acts on release, however
-    // far the cursor moved, and never pans. Panning is a drag with any OTHER button (right or middle, minus
-    // whichever one is his Start bind). A press with one of those that moves less than DRAG_THRESHOLD is still a
-    // click and keeps its action (Locked door, Go + secret, Reset view); one that moves further only pans.
-
-    private static final double DRAG_THRESHOLD = 4.0;
+    // shouldnt", and (2026-10-14) "I should never be able to drag the map around inside of interactive map it should
+    // be fixed." No drag with any button moves the map: a press of any button acts on its release, however far the
+    // cursor moved (Go / retarget, Locked door, Go + secret, Reset view), and the map stays where it is drawn. Scroll
+    // zoom is the only thing that changes the view, and the legend's Reset view puts it back.
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
@@ -767,25 +747,13 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             return true;
         }
         pressButton = event.button();
-        pressX = event.x();
-        pressY = event.y();
-        dragMoved = false;
         return true;
     }
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         if (pressButton >= 0 && event.button() == pressButton) {
-            if (pans(pressButton)) {
-                if (!dragMoved && Math.hypot(event.x() - pressX, event.y() - pressY) > DRAG_THRESHOLD) {
-                    dragMoved = true;
-                }
-                if (dragMoved) {
-                    panX += (float) dragX;
-                    panY += (float) dragY;
-                }
-            }
-            return true;
+            return true; // never pans
         }
         return super.mouseDragged(event, dragX, dragY);
     }
@@ -793,15 +761,11 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (event.button() == pressButton) {
-            boolean panned = dragMoved;
             pressButton = -1;
-            dragMoved = false;
-            if (!panned) {
-                if (event.button() == 0 && legendClick(event.x(), event.y())) {
-                    return true;
-                }
-                onClick(event.button(), event.x(), event.y());
+            if (event.button() == 0 && legendClick(event.x(), event.y())) {
+                return true;
             }
+            onClick(event.button(), event.x(), event.y());
             return true;
         }
         return super.mouseReleased(event);
