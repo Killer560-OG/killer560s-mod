@@ -160,12 +160,6 @@ public final class GoldorTriggerbotFeature {
                 return;
             }
         }
-        // Hypixel drops a use of the item he has just right-clicked a block with (util/BlockClickGap); a held shot is
-        // carried like a gate-denied one (the due time stays).
-        if (cfg.getClickType() != GoldorTriggerbotConfig.ClickType.ATTACK
-                && com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[Goldor] Shot")) {
-            return;
-        }
         // The one-interaction-per-tick gate, checked after the interval has elapsed and before anything is sent
         // or rolled: a denied tick must leave the aim and the due time exactly where they are.
         if (!ActionGate.tryAct(GATE_ACTOR)) {
@@ -176,7 +170,9 @@ public final class GoldorTriggerbotFeature {
             player.swing(InteractionHand.MAIN_HAND);
         } else {
             // Terminator / Juju: the shot is a plain item use in the direction you are already looking - the same
-            // call AutoI4Feature fires the bow with. useItem does its own swing handling, so none is sent here.
+            // call AutoI4Feature fires the bow with. useItem does its own swing handling, so none is sent here. A block
+            // click unpaired on the server gets vanilla's block half first (util/RightClick).
+            com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[Goldor] Shot");
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
         // From the due tick, not from now, so the band's average survives tick rounding; a click held back (gate,

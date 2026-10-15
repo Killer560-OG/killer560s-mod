@@ -122,12 +122,14 @@ public final class SimAbilities {
                 ? onServerUse(sp, hand, hitResult)
                 : onClientUse(player, hand, hitResult));
         // Every block click the server takes, whoever answers it (SimSecrets, SimRoomLevers... answer chests and levers
-        // in the default phase, before this class would see them): only recorded, never answered.
+        // in the default phase, before this class would see them): only recorded, never answered - Hypixel's
+        // firedInteract / interactResult, see storedClicks.
         UseBlockCallback.EVENT.addPhaseOrdering(CLICK_RECORD_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
         UseBlockCallback.EVENT.register(CLICK_RECORD_PHASE, (player, level, hand, hitResult) -> {
             if (player instanceof ServerPlayer sp && simServer(sp)) {
-                lastBlockClick.put(sp.getUUID(), new BlockClick(sp.level().getServer().getTickCount(),
-                        CheatUtils.skyblockId(sp.getItemInHand(hand))));
+                String id = CheatUtils.skyblockId(sp.getItemInHand(hand));
+                storedClicks.put(sp.getUUID(), new StoredClick(sp.level().getServer().getTickCount(),
+                        hitResult.getBlockPos().immutable(), id, id != null && isAbilityItem(id), false));
             }
             return InteractionResult.PASS;
         });
@@ -137,39 +139,88 @@ public final class SimAbilities {
             net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "sim_click_record");
 
     /**
-     * Hypixel ignores a use of the item he has just right-clicked a block with (util/BlockClickGap: six Auto Routes
-     * etherwarps sent a tick after a chest or lever click met their await got no landing, 2026-10-14, while one after a
-     * click made with another item landed). A use packet of the same item that the server takes within this many of its
-     * ticks after the block click does nothing - no teleport, no chat line, as on Hypixel. Only the 1-client-tick gap is
-     * in the evidence; two server ticks covers its arrival in any tick phase.
+     * Hypixel's 1.8 server pairs a bare use with the right click on a block before it (util/RightClick has the whole
+     * account; CraftBukkit 1.8 {@code PlayerInteractManager.firedInteract/interactResult} and the face-255 branch of
+     * {@code PlayerConnection.a(PacketPlayInBlockPlace)}). A click on a block stores its verdict - here: the item DENIED
+     * when it is an ability item, as Hypixel denies an Aspect of the Void that opened a chest. A bare use traces
+     * {@link #PAIR_TRACE} blocks from the eye along the look the server last HEARD - the last movement packet's, not the
+     * use packet's own (a 1.8 use carries none) - and when that ray meets a block while a verdict is stored, the use is
+     * taken as the click's second half: no ability, the verdict replayed (denied = nothing at all, no chat line), and the
+     * verdict cleared. A ray that meets nothing is a right click in the air and fires, leaving the verdict stored.
+     * <p>
+     * killer560's real run (2026-10-14 17:22-17:29): six etherwarps a tick after a chest or lever click with the AOTV in
+     * hand did nothing, and every retry 3 s later landed. Auto Routes sent each use in the tick it turned to the warp, so
+     * the server still had the look Secret Aura clicked the chest with, and that ray met the chest.
      */
-    static final int USE_AFTER_CLICK_DROP_TICKS = 2;
+    static final double PAIR_TRACE = 4.5;
+    /** The 1.8 sneaking eye height Hypixel's server traces the pairing ray from ({@code getHeadHeight}, 1.62 - 0.08). */
+    static final double PAIR_SNEAK_EYE = 1.54;
+    /**
+     * A click whose ability fired on the block (a sneaking AOTV click on stone warps) is followed on Hypixel by the use
+     * half in the same tick, which pairs with it; the sim's client hook answers that click itself, so vanilla never sends
+     * the use half. Such a click's verdict is let go after this many server ticks - long enough for a use half the mod
+     * sends itself (util/RightClick) to pair with it, short enough that a click made by hand leaves nothing stored.
+     */
+    static final int ABILITY_CLICK_PAIR_TICKS = 2;
 
-    private record BlockClick(int serverTick, String skyblockId) {
+    private record StoredClick(int serverTick, BlockPos pos, String skyblockId, boolean denied, boolean abilityFired) {
     }
 
-    private static final java.util.Map<java.util.UUID, BlockClick> lastBlockClick = new java.util.concurrent.ConcurrentHashMap<>();
-    private static volatile int usesDroppedAfterClick;
+    private static final java.util.Map<java.util.UUID, StoredClick> storedClicks = new java.util.concurrent.ConcurrentHashMap<>();
+    /** The look each player's last movement packet told the server, taken as a use packet arrives (before vanilla snaps
+     *  him to the use packet's own rotation) - {@code SimUseLookMixin}. */
+    private static final java.util.Map<java.util.UUID, float[]> heardLook = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile int usesTakenAsClickHalf;
 
-    /** Uses dropped by {@link #USE_AFTER_CLICK_DROP_TICKS} since launch - read by the testkit. */
-    public static int usesDroppedAfterClick() {
-        return usesDroppedAfterClick;
+    /** Uses the sim's server took as the second half of a stored block click and dropped - read by the testkit. */
+    public static int usesTakenAsClickHalf() {
+        return usesTakenAsClickHalf;
     }
 
-    /** True (and logged) when this use of {@code id} comes too soon after a block click with the same item. */
-    private static boolean droppedAfterClick(ServerPlayer sp, String id) {
-        BlockClick c = lastBlockClick.get(sp.getUUID());
-        if (c == null || id == null || !id.equals(c.skyblockId())) {
+    /** From {@code SimUseLookMixin}, on the server thread, as a use packet arrives: the look he was last heard with. */
+    public static void noteUseArrives(ServerPlayer sp) {
+        if (sp != null) {
+            heardLook.put(sp.getUUID(), new float[]{sp.getYRot(), sp.getXRot()});
+        }
+    }
+
+    /**
+     * True (and logged) when this bare use pairs with a stored block click whose verdict denied the item: Hypixel then
+     * does nothing with it. Clears the stored click whenever the ray meets a block, as the server does.
+     */
+    private static boolean takenAsClickHalf(ServerPlayer sp, String id) {
+        StoredClick c = storedClicks.get(sp.getUUID());
+        float[] look = heardLook.remove(sp.getUUID());
+        if (c == null) {
             return false;
         }
-        int gap = sp.level().getServer().getTickCount() - c.serverTick();
-        if (gap < 0 || gap > USE_AFTER_CLICK_DROP_TICKS) {
+        float yaw = look != null ? look[0] : sp.getYRot();
+        float pitch = look != null ? look[1] : sp.getXRot();
+        Vec3 eye = new Vec3(sp.getX(), sp.getY() + (sp.isShiftKeyDown() ? PAIR_SNEAK_EYE : 1.62), sp.getZ());
+        Vec3 end = eye.add(com.killer560.hub.livemap.autoclear.TeleportUtils.getLook(yaw, pitch).scale(PAIR_TRACE));
+        BlockHitResult ray = sp.level().clip(new net.minecraft.world.level.ClipContext(eye, end,
+                net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE, sp));
+        if (ray == null || ray.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return false; // a right click in the air: it fires, and the click stays stored
+        }
+        storedClicks.remove(sp.getUUID());
+        if (!c.denied()) {
             return false;
         }
-        usesDroppedAfterClick++;
-        com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] use of " + id + " dropped: " + gap
-                + " server tick(s) after a block click with the same item (Hypixel ignores it)");
+        usesTakenAsClickHalf++;
+        com.killer560.hub.util.ModLog.get("killer560smod-sim").info(String.format(java.util.Locale.ROOT,
+                "[Sim] use of %s taken as the second half of the block click at %s with %s %d server tick(s) ago: the "
+                        + "server's last-heard look (%.2f / %.2f) meets %s at %s - dropped, as on Hypixel", id,
+                c.pos().toShortString(), c.skyblockId(), sp.level().getServer().getTickCount() - c.serverTick(),
+                net.minecraft.util.Mth.wrapDegrees(yaw), pitch, sp.level().getBlockState(ray.getBlockPos()).getBlock()
+                        .getName().getString(), ray.getBlockPos().toShortString()));
         return true;
+    }
+
+    /** Lets go of a stored click whose ability fired on the block once its use half has had time to pair. */
+    private static void expireAbilityClicks(MinecraftServer server) {
+        int now = server.getTickCount();
+        storedClicks.values().removeIf(c -> c.abilityFired() && now - c.serverTick() > ABILITY_CLICK_PAIR_TICKS);
     }
 
     /** Whether this skyblock id is a right-click ability the sim's server implements. */
@@ -277,6 +328,10 @@ public final class SimAbilities {
         if (id == null) {
             return InteractionResult.PASS;
         }
+        // A bare use first: is it the second half of a stored block click (storedClicks)? Then nothing happens.
+        if (onBlock == null && takenAsClickHalf(sp, id)) {
+            return InteractionResult.FAIL;
+        }
         boolean ours = isAbilityItem(id);
         if (onBlock != null && (!ours || blockWins(sp, sp.level(), onBlock))) {
             return InteractionResult.PASS;
@@ -291,15 +346,17 @@ public final class SimAbilities {
         if (!ours) {
             return InteractionResult.PASS;
         }
-        if (onBlock == null && droppedAfterClick(sp, id)) {
-            return InteractionResult.FAIL;
-        }
         boolean sneaking = sp.isShiftKeyDown();
         if (ETHERWARP_ITEMS.contains(id) && sneaking && etherwarpLocked(room)) {
             sayEtherwarpLocked();
             return InteractionResult.FAIL;
         }
         markAbilityUsed();
+        if (onBlock != null) {
+            // The ability fires on the block: on Hypixel the client's use half follows in the same tick and pairs with it.
+            storedClicks.computeIfPresent(sp.getUUID(), (k, c) -> new StoredClick(c.serverTick(), c.pos(), c.skyblockId(),
+                    c.denied(), true));
+        }
         boolean fired;
         if (ETHERWARP_ITEMS.contains(id)) {
             fired = sneaking ? etherwarp(sp, held) : instantTransmission(sp, held);
@@ -726,6 +783,9 @@ public final class SimAbilities {
      * sim is not live, so leaving the sim or dying cannot strand a pending teleport.
      */
     private static void serverTick(MinecraftServer server) {
+        if (!storedClicks.isEmpty()) {
+            expireAbilityClicks(server);
+        }
         if (insertion == null) {
             return;
         }
@@ -777,7 +837,8 @@ public final class SimAbilities {
     public static void reset() {
         insertion = null;
         insertionTicks = 0;
-        lastBlockClick.clear();
+        storedClicks.clear();
+        heardLook.clear();
     }
 
     /** Whether an insertion is planted. */

@@ -1326,12 +1326,9 @@ public final class Ap3Executor {
         HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         BlockHitResult b = hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK ? bh : null;
-        // A plain item use (nothing under the ray) is dropped by Hypixel right after a block click with the same item
-        // (util/BlockClickGap): held, finishAct's SWAP_TIMEOUT still bounds it.
-        if (b == null && node.type == Ap3Node.Type.USE
-                && com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AP3] Use")) {
-            return;
-        }
+        // No wait for a block click before a plain use (util/RightClick): with a block under the ray the use below is
+        // vanilla's own two-packet right click (useItemOn first), which pairs on Hypixel; with none, the server's ray along
+        // the same look meets nothing either, and a use in the air fires.
         actFired = true;
         switch (node.type) {
             case BLOCK -> {

@@ -155,8 +155,9 @@ public final class MimicKiller {
                 if (sneakDown || turning) {
                     return;
                 }
-                // The chest click that armed this may have been made with this same item (util/BlockClickGap).
-                if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Kill Mimic")) {
+                // The trapped chest click that armed this is unpaired on the server, and the server's look still points at
+                // the chest: it hears the straight-down look first, or the use is taken as the click's end (util/RightClick).
+                if (RouteExecutor.turnFirst(player, player.getYRot(), STRAIGHT_DOWN, "[AutoRoutes] Kill Mimic")) {
                     return;
                 }
                 use(client, player);
@@ -187,7 +188,7 @@ public final class MimicKiller {
                     return;
                 }
                 if (AwaitEvents.now() - lastUseTick >= delay
-                        && !com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Kill Mimic")) {
+                        && !RouteExecutor.turnFirst(player, player.getYRot(), STRAIGHT_DOWN, "[AutoRoutes] Kill Mimic")) {
                     use(client, player);
                 }
             }

@@ -669,8 +669,7 @@ public final class AutoI4Feature {
         }
         // Clicking only once the device has started, holding the bow, with no menu open.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
-                || now < nextClickAtMs
-                || com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoI4] Shot")) {
+                || now < nextClickAtMs) {
             return;
         }
         if (shot != null && settled && !cfg.isAutoI4Rotate() && !fireNoRotate(client, player, shot)) {
@@ -682,6 +681,8 @@ public final class AutoI4Feature {
             if (cfg.isAutoI4Rotate()) {
                 player.setYRot(shot.targetYaw);
                 player.setXRot(shot.targetPitch);
+                // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
+                com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
                 InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
                 onFired(client, shot, "Rotate", result, elapsed);
             }
@@ -691,6 +692,7 @@ public final class AutoI4Feature {
             }
         } else if (cfg.isAutoI4Rotate()) {
             // Mid-turn (or nothing to aim at yet): a plain click wherever the camera is pointing.
+            com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
     }
@@ -711,6 +713,7 @@ public final class AutoI4Feature {
         if (!TURN.readyBox(player, spot, shot.aimPoint, eye.distanceTo(shot.aimPoint) + 1.0)) {
             return false;
         }
+        com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
         InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         onFired(client, shot, "No Rotate", result, 0L);
         return true;
