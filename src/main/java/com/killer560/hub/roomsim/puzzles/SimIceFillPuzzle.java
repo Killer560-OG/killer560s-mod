@@ -432,6 +432,36 @@ public final class SimIceFillPuzzle {
             }
         }
 
+        if (rewards == 0 && !ironBars.isEmpty()) {
+            // The two coordinates above were read off ONE capture of the room; Mod Only Test's holds gray wool there
+            // (testkit 93-solve-icefill-claim, 2026-10-15), so no chest stood anywhere and nothing could be opened. The
+            // same pocket found from the room itself: a polished andesite pedestal with air over it and a torch beside
+            // it, within 4 blocks of the iron-bar wall that hides it.
+            double cx = 0;
+            double cy = 0;
+            double cz = 0;
+            for (BlockPos b : ironBars) {
+                cx += b.getX();
+                cy += b.getY();
+                cz += b.getZ();
+            }
+            BlockPos centre = BlockPos.containing(cx / ironBars.size(), cy / ironBars.size(), cz / ironBars.size());
+            for (BlockPos b : BlockPos.betweenClosed(centre.offset(-4, -4, -4), centre.offset(4, 4, 4))) {
+                if (rewards >= 2 || !level.getBlockState(b).is(Blocks.POLISHED_ANDESITE)
+                        || !level.getBlockState(b.above()).isAir()) {
+                    continue;
+                }
+                boolean torch = false;
+                for (BlockPos t : BlockPos.betweenClosed(b.offset(-1, 1, -1), b.offset(1, 1, 1))) {
+                    torch |= level.getBlockState(t).is(Blocks.TORCH) || level.getBlockState(t).is(Blocks.WALL_TORCH);
+                }
+                if (torch) {
+                    level.setBlockAndUpdate(b.above(), Blocks.CHEST.defaultBlockState());
+                    rewards++;
+                    LOGGER.info("Sim ice fill: reward chest on the pedestal at {}", b);
+                }
+            }
+        }
         LOGGER.info("Sim ice fill: armed in {} - section sizes {}/{}/{}, exits {}, {} water block(s) drained, "
                         + "{} iron bar(s) held for the finish, {} of 2 reward chest(s) placed", p.room().name,
                 found.get(0).size(), found.get(1).size(), found.get(2).size(), exits, drained, ironBars.size(),
