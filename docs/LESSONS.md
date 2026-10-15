@@ -389,3 +389,6 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   instance, so a test client that presses Swap Accounts' Universal switch writes the proxy every one of his instances
   connects through (testkit 1851 on main read that real path, 2026-10-15). `-Dprismaccountswitcher.universalProxyFile`
   moves it (docs/TESTING-HOOKS.md); the testkit sets it, and 1851 refuses to press the switch on a jar that ignores it.
+- **Skyblock price ids differ by source.** hysky.de (Skyblocker's keyless lists, Price Tooltip) keys pets `LVL_1_LEGENDARY_GOLDEN_DRAGON`
+  and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the Bazaar keys books `ENCHANTMENT_SHARPNESS_6`.
+  moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of epoch ms on 867 of 867 live auctions checked.
