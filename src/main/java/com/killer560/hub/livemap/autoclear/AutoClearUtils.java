@@ -43,6 +43,9 @@ public final class AutoClearUtils {
             "Deathmite", Map.of(706341009, new int[]{5, 68, 15}),
             "Dragon", Map.of(-1334473473, new int[]{15, 68, 18}));
 
+    /** How far (squared) a stand-in for a room spot that is not a full landing may be from it. */
+    private static final double NEAR_OVERRIDE_SQ = 9.0;
+
     private AutoClearUtils() {
     }
 
@@ -335,9 +338,21 @@ public final class AutoClearUtils {
             // differs by a block, or the sim pasted something into that cell - used to fail the whole press
             // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
             if (!TeleportUtils.landable(goal) || !TeleportUtils.underCover(goal)) {
-                LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
-                        + " standable block in the clicked tile instead", name, goal);
-                goal = null;
+                // A full landing a step or two away keeps the trip where the spot means it to go. Water Board's
+                // (15, 58, 9) is a bottom stone-brick stair (no full top, so not a landing): falling back to the
+                // whole tile landed him up on the doorway at y 69, and Auto Water then needed two more warps down to
+                // the lever floor (killer560's run, 2026-10-15 16:11:39-41; the stair read in testkit
+                // 93-solve-waterboard-timing).
+                BlockPos near = TeleportUtils.nearestEtherwarpable(goal);
+                if (near != null && near.distSqr(goal) <= NEAR_OVERRIDE_SQ) {
+                    LOGGER.info("[Path] {}'s recorded spot {} is not a full landing - using {} beside it", name,
+                            goal.toShortString(), near.toShortString());
+                    goal = near;
+                } else {
+                    LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
+                            + " standable block in the clicked tile instead", name, goal);
+                    goal = null;
+                }
             }
         }
         boolean wholeTile = false;

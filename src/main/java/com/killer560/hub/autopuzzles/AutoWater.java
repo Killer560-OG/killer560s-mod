@@ -95,7 +95,10 @@ final class AutoWater {
                     : PuzzleCoords.real(START_SPOT_RELATIVE[0], START_SPOT_RELATIVE[1], START_SPOT_RELATIVE[2], cr);
             if (start == null) {
                 startAreaAttempted = true; // no known spot for this room name - nothing to walk to, don't retry forever
-            } else if (AutoPuzzleUtil.at(client.player, start)) {
+            } else if (AutoPuzzleUtil.at(client.player, start) || client.player.onGround() && client.player.getY()
+                    == 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
+                // Already on the lever floor (a map press now lands beside the spot, which is a stair and no landing):
+                // the lever logic warps him wherever each lever needs him from here.
                 startAreaAttempted = true;
             } else if (AutoPuzzleUtil.pathIfMapOn(start, null)) {
                 startAreaAttempted = true;
