@@ -540,8 +540,9 @@ public final class BloodCampFeature {
                 Entity mob = nearestMob(client, data.endVector);
                 if (data.clicks == 0) {
                     if (neverMiss) {
-                        if (mob == null || remainingTicks < -RETRY_STALE_TICKS
-                                || resolveAttackTarget(client, entity, data.endVector, reach) == null) {
+                        // Really there: a living mob on the spot, his look on it and reaching it before any block - at any
+                        // range (a mage beam or a shortbow does not need melee reach).
+                        if (mob == null || remainingTicks < -RETRY_STALE_TICKS || !aimedAt(client, mob.getBoundingBox())) {
                             continue;
                         }
                     } else if (remainingTicks >= clickBelow || remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS) {
@@ -590,11 +591,14 @@ public final class BloodCampFeature {
 
         // ---- Aura's own attack -------------------------------------------------------------------------------------
         // The Aura kills what it aims at: a floor mob at once, a mob on its way once it is killable (the Trigger Bot's
-        // moment, or with Never Miss the tick it is really there) - only an attack on a living mob in melee reach under
-        // his body's look, in sight, never a swing at air. It keeps hitting (at the weapon's pace) until the mob dies.
-        Entity auraHit = null;
+        // moment, or with Never Miss the tick it is really there), at the weapon's pace, until it dies. At ANY range
+        // (killer560, 2026-10-15: "It should always attack with whatever weapon I am holding even if they are out of
+        // range no matter the weapon if I am in the room and they are not through a wall. Because mage beam can kill
+        // them or short bows. No one really melee them.") - so long as his body's look is on the mob and reaches it
+        // before any block. What is sent is what his own click with that weapon sends (see click()).
+        Entity auraMob = null;
         BloodMobState auraHitData = null;
-        if (triggerTarget == null && cooldownReady && cfg.isAuraEnabled() && inRoom
+        if (triggerTarget == null && cfg.isAuraEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             Entity mob = null;
             if (auraFloor != null) {
@@ -609,50 +613,101 @@ public final class BloodCampFeature {
                 }
             }
             if (mob != null && aimedAt(client, mob.getBoundingBox())) {
-                Entity hit = lookTarget(client, reach);
-                if (hit == mob) {
-                    auraHit = hit;
-                }
-            }
-            if (auraHit == null) {
+                auraMob = mob;
+            } else {
                 auraHitData = null;
             }
         }
 
+        // ---- Human clicks between the hits (killer560, 2026-10-15: "make sure it is not only when the server should
+        // register, there should be some other ones thrown in to make it look more human as well"). While the Aura is
+        // on a mob, or the Trigger Bot is still on a mob it clicked that is not hit yet, extra clicks go between the
+        // registering ones at a spam-clicker's irregular pace (HumanClicks). They only fall well inside the weapon's
+        // cooldown - at least 2 ticks before the next registering hit may go, so none of them can land as a hit, and
+        // the registering hit still goes on the first tick the cap allows. Hypixel only: there a hit inside the
+        // cooldown does nothing; on a vanilla server it would cut the next hit's damage.
+        Entity fillerMob = null;
+        if (auraMob == null || !cooldownReady) {
+            fillerMob = auraMob;
+            auraMob = cooldownReady ? auraMob : null;
+            if (fillerMob == null && triggerBotUsable) {
+                for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+                    BloodMobState data = entry.getValue();
+                    if (data.clicks == 0 || !liveTrip(entry.getKey(), data, now)) {
+                        continue;
+                    }
+                    Entity m = nearestMob(client, data.endVector);
+                    if (m != null && aimedAt(client, m.getBoundingBox())) {
+                        fillerMob = m;
+                        break;
+                    }
+                }
+            }
+        }
+        if (auraMob != null) {
+            fillerMob = null;
+        }
+        boolean fillerNow = false;
+        if (fillerMob == null) {
+            HUMAN.idle(now);
+        } else if (triggerTarget == null && humanClicks && com.killer560.hub.util.AttackCooldown.onHypixel(client)
+                && now - lastClickTick <= cooldown - 2 && HUMAN.due(now)
+                && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            fillerNow = true;
+        }
+
         // Mod-wide one-interaction-per-tick gate, after the target is chosen and before anything is marked: a
         // denial leaves the mob as it was, so it is simply clicked on the next tick it allows.
-        if ((triggerTarget != null || auraHit != null)
+        if (fillerNow && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
+            Entity melee = lookTarget(client, reach);
+            Click kind = click(client, melee == fillerMob ? fillerMob : null);
+            HUMAN.clicked(now);
+            fillerClicks++;
+            ALL_CLICKS.addLast(now);
+            while (ALL_CLICKS.size() > 64) {
+                ALL_CLICKS.removeFirst();
+            }
+            lastTrigger = "human " + kind.name().toLowerCase(Locale.ROOT) + " between hits";
+            return;
+        }
+        if ((triggerTarget != null || auraMob != null)
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             lastClickTick = now;
+            HUMAN.clicked(now);
+            ALL_CLICKS.addLast(now);
+            while (ALL_CLICKS.size() > 64) {
+                ALL_CLICKS.removeFirst();
+            }
             RECENT_CLICKS.addLast(now);
             while (RECENT_CLICKS.size() > 32) {
                 RECENT_CLICKS.removeFirst();
             }
             if (triggerTarget == null) {
-                client.gameMode.attack(client.player, auraHit);
-                client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+                Entity melee = lookTarget(client, reach);
+                Click done = click(client, melee == auraMob ? auraMob : null);
                 auraAttacks++;
                 if (auraHitData != null) {
                     auraHitData.clicks++;
                     auraHitData.lastClickTick = now;
-                    auraHitData.lastClickAttacked = true;
-                    auraHitData.lastAttackedId = auraHit.getId();
+                    auraHitData.lastClickAttacked = done == Click.ATTACK;
+                    auraHitData.lastAttackedId = done == Click.ATTACK ? auraMob.getId() : -1;
                     auraHitData.retryGap = 2 + java.util.concurrent.ThreadLocalRandom.current().nextInt(3);
                 }
-                lastTrigger = "aura attack " + auraHit.getType().toShortString() + " #" + auraHit.getId();
-                LOGGER.info("[BloodCamp] Aura attacked: {}", lastTrigger);
+                lastTrigger = "aura " + done.name().toLowerCase(Locale.ROOT) + " " + auraMob.getType().toShortString()
+                        + " #" + auraMob.getId() + String.format(Locale.US, ", %.1f blocks",
+                        client.player.getEyePosition().distanceTo(auraMob.getBoundingBox().getCenter()));
+                LOGGER.info("[BloodCamp] Aura clicked: {}", lastTrigger);
                 return;
             }
-            if (triggerHit != null) {
-                client.gameMode.attack(client.player, triggerHit);
+            Click done = click(client, triggerHit);
+            if (done == Click.ATTACK) {
                 triggerAttacks++;
             }
-            client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
             triggerData.triggerBotClicked = true;
             triggerData.clicks++;
             triggerData.lastClickTick = now;
-            triggerData.lastClickAttacked = triggerHit != null;
-            triggerData.lastAttackedId = triggerHit == null ? -1 : triggerHit.getId();
+            triggerData.lastClickAttacked = done == Click.ATTACK;
+            triggerData.lastAttackedId = done == Click.ATTACK ? triggerHit.getId() : -1;
             triggerData.retryGap = 2 + java.util.concurrent.ThreadLocalRandom.current().nextInt(3);
             triggerClicks++;
             if (triggerIsRetry) {
@@ -661,12 +716,65 @@ public final class BloodCampFeature {
                 lastTriggerAt = bestRemaining;
                 lastTriggerMobPresent = nearestMob(client, triggerData.endVector) != null;
             }
-            lastTrigger = (triggerIsRetry ? "retry " : "") + (triggerHit == null ? "swing" : "attack "
-                    + triggerHit.getType().toShortString() + " #" + triggerHit.getId())
+            lastTrigger = (triggerIsRetry ? "retry " : "") + (done == Click.ATTACK ? "attack "
+                    + triggerHit.getType().toShortString() + " #" + triggerHit.getId() : done.name().toLowerCase(Locale.ROOT))
                     + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
             LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
         }
+    }
+
+    /** The between-hits click timing (a spam-clicker's pace; see {@link HumanClicks}). */
+    private static final HumanClicks HUMAN = new HumanClicks();
+    /** Testkit hook: the cases that measure only the registering hits switch the between-hits clicks off. Not a saved
+     *  setting - it is always on in play. */
+    static boolean humanClicks = true;
+    private static int fillerClicks;
+    /** Every Blood Camp click's game tick, registering and between-hits alike (last 64, oldest first). */
+    private static final java.util.ArrayDeque<Long> ALL_CLICKS = new java.util.ArrayDeque<>();
+
+    public static int fillerClicks() {
+        return fillerClicks;
+    }
+
+    public static List<Long> allClickTicks() {
+        return new ArrayList<>(ALL_CLICKS);
+    }
+
+    public static void setHumanClicks(boolean on) {
+        humanClicks = on;
+    }
+
+    /** What one Blood Camp click sent. */
+    enum Click { ATTACK, SWING, USE }
+
+    /** Testkit: clicks of each kind sent (attack, swing on air, right-click use). */
+    private static final int[] CLICKS_BY_KIND = new int[3];
+
+    public static int clicksOfKind(String kind) {
+        return CLICKS_BY_KIND[Click.valueOf(kind).ordinal()];
+    }
+
+    /**
+     * One click with whatever he holds, the way his own button would send it. A Hypixel shortbow ("Shortbow: Instantly
+     * shoots!" in its lore) shoots on a right click: a use, which vanilla lets go of on the next tick because the use key
+     * is not held - a tap. Anything else is a left click: an attack plus the swing on a mob within melee reach under his
+     * look ({@code melee}), otherwise the swing alone - which is all a real left click sends there, and what a mage
+     * weapon's beam (and Hypixel's other left-click abilities) fire on. The attack-speed cap is the caller's.
+     */
+    private static Click click(Minecraft client, Entity melee) {
+        if (com.killer560.hub.util.AttackCooldown.isShortbow(client.player.getMainHandItem())) {
+            client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND);
+            CLICKS_BY_KIND[Click.USE.ordinal()]++;
+            return Click.USE;
+        }
+        if (melee != null) {
+            client.gameMode.attack(client.player, melee);
+        }
+        client.player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        Click kind = melee != null ? Click.ATTACK : Click.SWING;
+        CLICKS_BY_KIND[kind.ordinal()]++;
+        return kind;
     }
 
     /** Game tick of Blood Camp's last click (Trigger Bot or Aura) - the attack-speed cap counts from it. */
