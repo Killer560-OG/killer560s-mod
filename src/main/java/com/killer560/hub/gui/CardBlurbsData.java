@@ -10,12 +10,15 @@ final class CardBlurbsData {
 
     static void register(Map<String, String> d) {
         d.put("HomeMainTab", "Update notice, HUD keys and scale.");
+        d.put("SlotTextTab", "Levels and tiers on item slots.");
+        d.put("CompactorPreviewTab", "Shows compactor contents.");
+        d.put("LightsDeviceTab", "F7 lights aura and trigger.");
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
         d.put("CorrectionAlarmTab", "Siren on a position fix.");
         d.put("ArchitectDraftTab", "Chat link for a draft.");
         d.put("ArrowAlignTab", "Shows the Arrow Align solution.");
-        d.put("AutoKickTab", "Warns about or kicks slow joiners.");
+        d.put("AutoKickTab", "Kicks joiners under your limits.");
         d.put("BlessingsTab", "Lists the blessings you hold.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
