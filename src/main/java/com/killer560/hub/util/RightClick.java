@@ -120,7 +120,10 @@ public final class RightClick {
     /** A right click on a block is leaving. */
     public static void onUseOn(LocalPlayer player, ServerboundUseItemOnPacket p) {
         checkLevel(player);
-        unpaired = true;
+        // A click with an empty hand stores a verdict too, but one that cannot deny an item - and it replaces whatever an
+        // earlier click stored. Only a click made with an item in hand can leave a use to be eaten (the one real warp a tick
+        // after a click with another item, the Dungeon Breaker, landed: Grand Library 2026-10-14 17:29:35).
+        unpaired = !player.getItemInHand(p.getHand()).isEmpty();
         clickTick = ActionGate.currentTick();
         clickPos = p.getHitResult().getBlockPos().immutable();
         clickItem = itemId(player, p.getHand());
