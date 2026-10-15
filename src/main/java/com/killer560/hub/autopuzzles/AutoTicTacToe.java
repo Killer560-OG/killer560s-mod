@@ -406,6 +406,9 @@ final class AutoTicTacToe {
     // click (or this auto's own when the aura will not take it), and one etherwarp back in front of the board.
 
     private static int auraTicks = 0;
+    /** Walking the last blocks to the secret (no warp line in reach of it). */
+    private static boolean chestWalking = false;
+    private static boolean walkTried = false;
     /** Two-warp detours taken on this leg (see {@link AutoPuzzleUtil#hopToward}). */
     private static int hops = 0;
     private static final java.util.Set<BlockPos> chestSpotsTried = new java.util.HashSet<>();
@@ -433,6 +436,14 @@ final class AutoTicTacToe {
                 }
                 if (chestStage != ChestStage.WALK_TO_CHEST) {
                     return;
+                }
+                if (chestWalking) {
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
+                            > CHEST_SPOT_REACH * CHEST_SPOT_REACH && APPROACH.tick(client)) {
+                        return;
+                    }
+                    chestWalking = false;
+                    client.options.keyUp.setDown(false);
                 }
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
                         <= CHEST_SPOT_REACH * CHEST_SPOT_REACH && player.onGround()) {
@@ -513,6 +524,22 @@ final class AutoTicTacToe {
                 return;
             }
         }
+        // No warp gets him there (a covered alcove): the last few blocks on foot, on his own floor - as close as a
+        // warp can get being the board spot itself.
+        if (!walkTried && player.onGround()) {
+            walkTried = true;
+            BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 8,
+                    eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target)
+                            <= CHEST_SPOT_REACH * CHEST_SPOT_REACH, APPROACH);
+            if (spot != null) {
+                chestWalking = true;
+                LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} - walking the last {} block(s) to {}",
+                        label, String.format(java.util.Locale.ROOT, "%.1f", APPROACH.length(player.position())),
+                        AutoPuzzleUtil.fmt(spot));
+                APPROACH.tick(client);
+                return;
+            }
+        }
         if (legPaths >= MAX_LEG_PATHS) {
             advanceChest(ChestStage.WALK_BACK, "cannot get within reach of " + label + " after " + legPaths + " path(s)");
             return;
@@ -560,6 +587,11 @@ final class AutoTicTacToe {
         chestLegStartMs = System.currentTimeMillis();
         legPaths = 0;
         hops = 0;
+        walkTried = false;
+        if (chestWalking) {
+            chestWalking = false;
+            Minecraft.getInstance().options.keyUp.setDown(false);
+        }
         chestMapOffWarned = false;
         chestSpotsTried.clear();
     }
