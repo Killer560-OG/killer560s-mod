@@ -101,6 +101,12 @@ public class TrailTab extends BaseTab {
             cfg.save();
         });
         y[0] += 22;
+        w.add(SettingsButtonWidget.cycling(teleportLabel(cfg), (btn, dir) -> {
+                    cfg.setTeleportMode(SettingsButtonWidget.step(cfg.getTeleportMode(), dir));
+                    cfg.save();
+                    btn.setMessage(teleportLabel(cfg));
+                }).bounds(contentX, y[0], contentWidth, 18).build());
+        y[0] += 22;
         firstPerson(w, contentX, y, contentWidth, cfg);
 
         return w;
@@ -112,6 +118,10 @@ public class TrailTab extends BaseTab {
             cfg.save();
         });
         y[0] += 22;
+    }
+
+    private static Component teleportLabel(TrailConfig cfg) {
+        return Component.literal("On Teleport: " + cfg.getTeleportMode().label());
     }
 
     private static Component lengthLabel(TrailConfig cfg) {

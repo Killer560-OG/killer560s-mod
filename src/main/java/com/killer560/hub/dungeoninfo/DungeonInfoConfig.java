@@ -36,6 +36,9 @@ public final class DungeonInfoConfig {
 
     // ---- Secrets HUD ----
     private boolean secretsHudEnabled = false;
+    /** The HUD line's color (killer560, 2026-10-15: "make it so you can edit the text color of your secret hud"). */
+    public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
+    private int textColor = DEFAULT_TEXT_COLOR;
 
     private DungeonInfoConfig() {
     }
@@ -57,6 +60,7 @@ public final class DungeonInfoConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             DungeonInfoConfig cfg = new DungeonInfoConfig();
             cfg.secretsHudEnabled = ConfigJson.getBool(obj, "secretsHudEnabled", cfg.secretsHudEnabled);
+            cfg.textColor = ConfigJson.getInt(obj, "textColor", cfg.textColor);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonInfoConfig();
@@ -68,6 +72,7 @@ public final class DungeonInfoConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("secretsHudEnabled", secretsHudEnabled);
+            obj.addProperty("textColor", textColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -79,5 +84,14 @@ public final class DungeonInfoConfig {
 
     public void setSecretsHudEnabled(boolean secretsHudEnabled) {
         this.secretsHudEnabled = secretsHudEnabled;
+    }
+
+    /** ARGB of the HUD text; a picked color with no alpha at all is drawn opaque. */
+    public int getTextColor() {
+        return textColor;
+    }
+
+    public void setTextColor(int argb) {
+        textColor = argb;
     }
 }

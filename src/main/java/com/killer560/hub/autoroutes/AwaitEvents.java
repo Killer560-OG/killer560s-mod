@@ -372,6 +372,23 @@ public final class AwaitEvents {
         lastWeaponUse = ticks;
     }
 
+    /** Right clicks of his (a held key's burst is one) since the game started - a BAT node's Spirit Sceptre counts its own. */
+    private static int weaponUses;
+    private static int lastUseCountedAt = Integer.MIN_VALUE / 2;
+
+    /** One use packet (item or block) went out this client tick; a burst of several in one tick is one use. */
+    public static void onUseSent() {
+        if (lastUseCountedAt != ticks) {
+            lastUseCountedAt = ticks;
+            weaponUses++;
+        }
+    }
+
+    /** {@link #onUseSent} so far; take the difference, never the value. */
+    static int weaponUses() {
+        return weaponUses;
+    }
+
     private static void onCryptKill(String what) {
         if (!active) {
             return;

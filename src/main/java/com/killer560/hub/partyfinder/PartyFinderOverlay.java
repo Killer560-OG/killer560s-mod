@@ -69,6 +69,8 @@ public final class PartyFinderOverlay {
     private static final Party[] parties = new Party[SCAN_SLOTS];
     private static DungeonClass scannedRole;
     private static int ticksUntilRequest = 0;
+    /** The world the last tick saw; a different one drops every unanswered stats lookup. */
+    private static Object lastLevel;
     /** killer560 9.1: set once per screen-open (see {@link #tick}) rather than read every tick - it means a
      *  file read, and it can't change while the menu is already open. See {@link #rewriteTooltip} and
      *  {@link com.killer560.hub.interop.DetectedMods#isDevonianPartyFinderOverviewOn}. */
@@ -90,6 +92,13 @@ public final class PartyFinderOverlay {
     // ------------------------------------------------------------------------------------------ scanning
 
     private static void tick(Minecraft client) {
+        // Background lookups outlive the menu, but not the world it was opened in (dungeon start, lobby swap).
+        if (client.level != lastLevel) {
+            if (lastLevel != null) {
+                PartyFinderStatsApi.onWorldChange();
+            }
+            lastLevel = client.level;
+        }
         if (client.player == null) {
             currentRole = null;
             clearScan();
@@ -232,6 +241,12 @@ public final class PartyFinderOverlay {
             return null;
         }
 
+        if (!devonianConflict && !party.members().isEmpty()) {
+            // The party he is looking at goes to the front of both lookup paths.
+            List<String> hot = new ArrayList<>(party.members().size());
+            party.members().forEach(m -> hot.add(m.name()));
+            PartyFinderStatsApi.requestHot(hot);
+        }
         List<Component> out = new ArrayList<>(lines.size() + 3);
         if (devonianConflict) {
             // killer560 9.1: the join-once chat warning (ModConflictWarnings) is easy to miss or scroll past,

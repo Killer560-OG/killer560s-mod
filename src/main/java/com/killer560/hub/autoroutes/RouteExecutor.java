@@ -12,6 +12,7 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Input;
@@ -265,6 +266,17 @@ public final class RouteExecutor {
     private static final int CRYPT_AIM_GIVE_UP = 60;
     /** Crypt node: route ticks in a row that ended with the look at pitch 90.0 (the server has it once this is 2). */
     private static int cryptDownTicks;
+    /** Bat node with a Spirit Sceptre: the first uses go straight down, then it aims at the nearest secret bat. */
+    public static final int BAT_DOWN_USES = 2;
+    /** Ticks between two aimed sceptre uses: what a held right click does. */
+    private static final int BAT_USE_GAP = 4;
+    /** Legit: how close (degrees) the camera must be to the bat before a use goes. */
+    private static final float BAT_AIM_TOLERANCE = 6f;
+    /** {@link AwaitEvents#weaponUses} when the node started holding use; the uses since are the node's. */
+    private static int batUseBase;
+    /** The node tick (stepTicks) of the last aimed use. */
+    private static int batLastUse;
+    private static boolean batSeeking;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
     // ---- await ----
@@ -522,6 +534,7 @@ public final class RouteExecutor {
         RouteRotation.clear();
         running = true;
         handsLatched = true;
+        RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
         if (AutoRoutesConfig.getInstance().isChatFeedback()) {
@@ -540,6 +553,7 @@ public final class RouteExecutor {
 
     private static void complete() {
         justFinished = true;
+        RouteRunMemory.noteProgress(route.roomName(), ordered.size(), ordered.size());
         RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
@@ -852,6 +866,7 @@ public final class RouteExecutor {
             stop("world change");
             return;
         }
+        RouteRunMemory.noteProgress(route.roomName(), nextNode, ordered.size());
         checkCorrections(client, player);
         if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
@@ -2495,6 +2510,7 @@ public final class RouteExecutor {
             // turns sideways (the node's recorded yaw used to be turned to).
             aimAt(player.getYRot(), MimicKiller.STRAIGHT_DOWN, node);
             cryptDownTicks = 0;
+            batSeeking = false;
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -2544,6 +2560,7 @@ public final class RouteExecutor {
             // right click sends (javap, 26.1.2 and 26.2: keyUse.isDown && rightClickDelay == 0 && !isUsingItem).
             // Under the Interactive Map (Run While Map Open) handleKeybinds does not run; HeldUsePickMixin takes
             // that step instead (heldUseUnderScreen).
+            batUseBase = AwaitEvents.weaponUses();
             holdUse(client, player, node);
             logActed(node, " (" + weapon.label() + ", holding use until " + goal + (bat ? " bat kill(s))"
                     : " crypt/prince kill(s))"));
@@ -2587,8 +2604,77 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
+            // killer560, 2026-10-15: "If I have the spirit scepter set to bat mode have the first 2 bats go straight down
+            // after that have it look right at the bat to use the rest of them till it times out. If using hype have it
+            // keep looking down." The Hyperion (and a sceptre with no bat in sight) keeps the held right click down.
+            if (bat && weapon == AutoRoutesConfig.CryptWeapon.SPIRIT_SCEPTRE
+                    && AwaitEvents.weaponUses() - batUseBase >= BAT_DOWN_USES && tickBatSeek(client, player, node)) {
+                return;
+            }
             holdUse(client, player, node);
         }
+    }
+
+    /** The secret bat nearest him (alive, Skyblock health), or null: what a sceptre BAT node aims at after its first uses. */
+    private static net.minecraft.world.entity.ambient.Bat nearestSecretBat(Minecraft client, LocalPlayer player) {
+        net.minecraft.world.entity.ambient.Bat best = null;
+        double bestD = 40.0 * 40.0;
+        for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.ambient.Bat b && !b.isRemoved() && !b.isDeadOrDying()
+                    && AwaitEvents.isSecretBat(b)) {
+                double d = b.distanceToSqr(player);
+                if (d < bestD) {
+                    bestD = d;
+                    best = b;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A Spirit Sceptre BAT node past its {@link #BAT_DOWN_USES} downward uses: the sceptre is used AT the nearest secret
+     * bat, one use per {@link #BAT_USE_GAP} ticks (the held key's pace), until the kill or Bat Attack Time. The key is
+     * let go - a held use acts on the block along the look, and a look at a bat can have a chest or lever on it - and each use is
+     * a plain item use (no block) at the bat's centre: obvious mode turns the body as every route use does
+     * ({@link #useHeldItem}), legit mode eases the camera and goes once it is within {@link #BAT_AIM_TOLERANCE}.
+     * Returns false when no secret bat is there, and the node falls back to looking down.
+     */
+    private static boolean tickBatSeek(Minecraft client, LocalPlayer player, RouteNode node) {
+        net.minecraft.world.entity.ambient.Bat target = nearestSecretBat(client, player);
+        if (target == null) {
+            batSeeking = false;
+            return false;
+        }
+        releaseUse(client);
+        if (!batSeeking) {
+            batSeeking = true;
+            batLastUse = stepTicks - 1;
+            LOGGER.info("[AutoRoutes] Node #{} BAT: {} uses went down - now aiming the Spirit Sceptre at the secret bat",
+                    route.indexOf(node) + 1, BAT_DOWN_USES);
+        }
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), target.getBoundingBox().getCenter());
+        float dYaw = Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
+        float yaw = player.getYRot() + dYaw;
+        if (legit) {
+            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                RouteRotation.beginApproach(yaw, pitch, false, 0f, 0f);
+            }
+        }
+        float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
+        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
+            if (com.killer560.hub.util.BlockClickGap.holdUse(player.getMainHandItem(), "[AutoRoutes] Bat")) {
+                return true;
+            }
+            batLastUse = stepTicks;
+            useHeldItem(client, player, yaw, pitch, false);
+            LOGGER.info("[AutoRoutes] Node #{} BAT: Spirit Sceptre use at the bat (yaw {}, pitch {}, {} blocks)",
+                    route.indexOf(node) + 1, Float.toString(yaw), Float.toString(pitch),
+                    String.format(Locale.US, "%.1f", (double) target.distanceTo(player)));
+        }
+        return true;
     }
 
     /** The kills a crypt node (crypt / prince) or a bat node (secret bats) counts. */

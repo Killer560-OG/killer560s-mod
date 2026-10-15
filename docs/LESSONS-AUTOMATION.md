@@ -134,11 +134,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   Post per click). They send at START_CLIENT_TICK now; only camera turns stay per frame. Delays are
   `ActionGate.delayTicks` (rounded UP to 50 ms), and a click RATE is kept by scheduling each click from the previous one's
   due time, fractional, not from when it went out (else 16 CPS rounds to 10). Testkit 786-788 and 831-835 require clean.
-- **A ping does not cover the tick boundaries.** Blood Camp's Trigger Bot aims its attack to reach the server 3 ticks before
-  the mob is due (killer560, 2026-10-11), so it clicks at 3 + measured ping in ticks + 1. The +1 is measured: on the
-  testkit server (792, server-side `attack_entity` tick) the attack was acted on 0-2 ticks later than ping alone predicts,
-  over five trips, at 1 ms and 200 ms alike - each end only acts on a packet at a tick. The countdown only takes x.8 values,
-  so the click lands on 3.8 + ping and the hit arrives 2.8 ticks early on average, 1.8-3.8 by tick phase.
+- **A ping does not cover the tick boundaries** (testkit 792, 2026-10-11): an attack sent on a client tick is acted on 0-2
+  server ticks later than the round trip alone predicts, at 1 ms and 200 ms alike - each end only acts on a packet at a tick.
+- **Time a trigger from the moment he SEES, not from a second clock.** Blood Camp's Trigger Bot aimed at Hit Lead 3 + that
+  1-tick allowance + ping before the countdown's end, while the green box and Kill Sound fire at ping alone, so every click
+  went out about four ticks before the "kill" he was watching for ("attacking them before the kill timer actually went
+  off", 2026-10-15). It now clicks on the first tick with time left < ping ticks + Trigger Offset - the kill timer's own
+  test shifted by the offset - so the delay is exactly -offset ticks (testkit 177, 792).
 - **QUOI's aura ranges are eye to block CENTRE; ours are eye to block BOX.** A centre distance is 0.5-0.87 longer than the box
   distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
   number is bigger (2026-10-12). Compare in one measure. Skull Range now uses QUOI's centre measure (testkit 842: 4.8 not
@@ -208,6 +210,18 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
   and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
   within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
+
+- **A sceptre BAT node counts its uses from the OUTGOING use packets** (`BlockClickGapSendMixin`: `ServerboundUseItemOnPacket` and
+  `ServerboundUseItemPacket`), one per tick. The game-mode calls (`useItem` HEAD, `useItemOn` RETURN) are not seen in the sim:
+  Fabric's UseBlockCallback answers an ability item at the head, so the first version never left its two downward uses
+  (96-ar-1015-batseek, 2026-10-15). Past two it lets go of the held key and sends plain item uses at the nearest secret bat. Run
+  memory also carries between cases: call `forgetRunMemory` first or the node says "its bat was already killed".
+- No real Hypixel BAT-node run exists in his logs yet (every `Node #N BAT` line in Mod Only Test is a sim run), so "a bat already
+  alive on arrival is never killed" is NOT reproduced: the sim kills and counts one (96-ar-1015-batpresent passes on main).
+- A one-node route starts and completes inside `RouteExecutor.start()`/`complete()` before any executor tick runs, so anything
+  that wants a route's progress (the Auto Routes Progress HUD, `RouteRunMemory.noteProgress`) must be told at start and at
+  completion as well as each tick, or a short route is never seen (102-sim-autosecret, 2026-10-15). The planners' queue for
+  that HUD is `autoroutes/RunPlan`, published by each planner at its own pick, never recomputed by the HUD.
 - **A wait for the server's answer must not read a server stall as a failure** (killer560, 2026-10-15: the Interactive Map
   said "Warp 1 never landed - planning again from here" whenever Hypixel lagged). `util/ServerLag` measures stalls from the
   gaps between Hypixel's once-a-tick pings; every such wait takes `ServerLag.mark()` when it starts (or makes progress) and

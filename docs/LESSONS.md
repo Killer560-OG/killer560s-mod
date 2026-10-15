@@ -104,6 +104,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `backendRetryAtMs()` and requeues the name. Also: Hypixel records no S/S+ on Entrance (every real player's Entrance
   time is `fastest_time` only), so S/S+-only PBs never show there. The PF parser now also accepts "Floor: Entrance"
   (floor 0); that lore wording is assumed, not yet seen in a real menu.
+  By 2026-10-12..15 (his Mod Only Test logs) it was 2-6 per window then "Retry-After: 30" every time, and 53 of 126
+  answers were HTTP 500s that the relay fetched fine later: treat a backend 5xx as transient (retry in seconds), never
+  as a 3-minute failure. The relay's own Hypixel key still answers 403 "Invalid API key" (checked 2026-10-15), so the
+  relay runs on SkyBlockPV too and its `etaMs` (3.3 s per queue place) is 3-8x optimistic; trust it only briefly.
 - A Minecraft colour code can be a DIGIT (`§3` is dark aqua), so `([\d,]+)` with optional codes BEFORE it reads
   Hypixel's overflow mana `§3200ʬ` as 3200. Start the match where a number cannot continue and let the pattern take
   the codes itself: `(?<![§\d,])(?:§.)*([\d,]+)` (`PlayerStatsFeature.NUMBER_START`, 2026-10-04, found by a scratch
