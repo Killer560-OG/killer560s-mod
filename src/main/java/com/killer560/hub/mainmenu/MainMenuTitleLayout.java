@@ -79,10 +79,11 @@ public final class MainMenuTitleLayout {
     private static final int OPTIONS_ROW_GAP = 36;
     /** Vanilla column has 3 rows; each extra row moves the column start up by half a step (same as ModMenu). */
     private static final int VANILLA_ROWS = 3;
-    /** Keep the "Playing as" line clear of the bottom-left footer lines (mod tag at height-20, version at height-10). */
-    private static final int FOOTER_CLEARANCE = 22;
-    /** Vanilla's copyright line is a 10-tall PlainTextButton at height - 10, right-aligned (javap, both versions). */
-    private static final int COPYRIGHT_HEIGHT = 10;
+    /** Keep the "Playing as" chip clear of the accent line on the bottom edge. */
+    private static final int FOOTER_CLEARANCE = 6;
+    /** Room kept under the Options/Quit row. Vanilla's copyright line (a 10-tall PlainTextButton at height - 10) is
+     *  removed by this layout since 2026-10-15, so only a small margin is left. */
+    private static final int COPYRIGHT_HEIGHT = 4;
     /** Bottom of the logo's "Java Edition" strip: LogoRenderer DEFAULT_HEIGHT_OFFSET 30 + LOGO_HEIGHT 44 - overlap 7
      *  + EDITION_HEIGHT 14 (javap, both versions), plus a 2-unit gap. The column never starts above it. */
     private static final int LOGO_BOTTOM = 83;
@@ -233,6 +234,10 @@ public final class MainMenuTitleLayout {
                 } else if (KEY_MULTIPLAYER.equals(key) && multiplayer == null) {
                     multiplayer = w;
                 } else if (isModMenuButton(w)) {
+                    mods.add(w);
+                } else if (w instanceof net.minecraft.client.gui.components.PlainTextButton) {
+                    // Vanilla's "Copyright Mojang AB" credits link (killer560, 2026-10-15: remove "the copyright message
+                    // in the bottom right"). Removed like the Mod Menu buttons, so it neither draws nor takes clicks.
                     mods.add(w);
                 }
             }
