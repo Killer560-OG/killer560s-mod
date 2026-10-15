@@ -326,10 +326,22 @@ public final class DungeonInfoFeature {
                 return HudVisibility.editorOpen() ? "Secrets: 3/7" : null;
             }
             RoomEntry entry = LiveMapFeature.currentRoomEntry();
-            String found = roomSecretsFound >= 0 ? String.valueOf(roomSecretsFound) : "?";
-            String total = entry != null ? String.valueOf(entry.secrets) : "?";
-            return "Secrets: " + found + "/" + total;
+            int found = roomSecretsFound >= 0 ? roomSecretsFound : Integer.MIN_VALUE;
+            int total = entry != null ? entry.secrets : Integer.MIN_VALUE;
+            // render() and width() each asked for a fresh concatenation every frame (the largest allocation under any
+            // mod frame in 95-perf-features' JFR, 2026-10-15); the text only changes with these two numbers.
+            if (lineText == null || found != lineFound || total != lineTotal) {
+                lineFound = found;
+                lineTotal = total;
+                lineText = "Secrets: " + (found != Integer.MIN_VALUE ? String.valueOf(found) : "?") + "/"
+                        + (total != Integer.MIN_VALUE ? String.valueOf(total) : "?");
+            }
+            return lineText;
         }
+
+        private static String lineText;
+        private static int lineFound;
+        private static int lineTotal;
 
         @Override
         public int width() {

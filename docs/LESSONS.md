@@ -120,6 +120,11 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `tools/fps-jfr.py` attributes samples to mod code). Compare the ON-OFF DELTA within one run: absolute numbers
   drifted ~0.06 ms between identical runs, which is larger than most single fixes. 95 is a dungeon; a hub (80-entry
   tab list, ~180 entities, chat, an open chest, an Ender Chest page) is `403-perf-hub` (testkit docs/fps-bench.md).
+  Per FEATURE, use `95-perf-features` (the debug-only `perfprobe/PerfProbe` times every mod listener and HUD element)
+  and gate a change with `95-perf-gate`. On a machine running other work, wall time per callback carries a ~1.5 us
+  per-call floor and +-15 us of noise per key between phases, and whole-frame CPU means swing +-0.3 ms, so a single
+  feature's cost is only trustworthy as the mean of long ALL ON phases or as ALLOCATION, which is deterministic
+  (2026-10-15: the first "each feature alone" table ranked switches by noise until it compared only their own keys).
 - **Server-sent text can be memoised by object identity.** A tab entry's display name, a team's prefix/suffix and an
   entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
   same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):

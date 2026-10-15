@@ -91,7 +91,8 @@
     "killer560smod-classselection.mixins.json",
     "killer560smod-roomsim.mixins.json",
     "killer560smod-hud.mixins.json",
-    "killer560smod-heldoutline.mixins.json"
+    "killer560smod-heldoutline.mixins.json",
+    "killer560smod-perfprobe.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.19.3",

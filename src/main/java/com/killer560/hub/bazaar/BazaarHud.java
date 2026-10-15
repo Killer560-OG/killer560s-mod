@@ -57,10 +57,12 @@ public final class BazaarHud {
     }
 
     /** The wrapper the mixin installs around each registered layer. */
-    public static HudElement gate(HudElement element) {
-        if (element == null || element instanceof Ungated) {
-            return element;
+    public static HudElement gate(HudElement layer) {
+        if (layer == null || layer instanceof Ungated) {
+            return layer;
         }
+        // Debug-only (perfprobe/PerfProbe): time the layer itself, not this shared gate, which the probe also wraps.
+        HudElement element = com.killer560.hub.perfprobe.PerfProbe.wrapListener(HudElement.class, layer);
         return (graphics, delta) -> {
             if (hidesHud()) {
                 skipped++;

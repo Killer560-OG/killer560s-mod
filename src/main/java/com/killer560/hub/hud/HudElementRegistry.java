@@ -238,6 +238,9 @@ public final class HudElementRegistry {
         if (element == null) {
             return;
         }
+        if (com.killer560.hub.perfprobe.PerfProbe.ENABLED) {
+            com.killer560.hub.perfprobe.PerfProbe.enterHud(); // debug-only per-element timer (testkit 95-perf-*)
+        }
         int[] pos = resolvePosition(element);
         float scale = resolveScale(element);
         graphics.pose().pushMatrix();
@@ -249,6 +252,9 @@ public final class HudElementRegistry {
             // One broken element must never take down the whole HUD frame.
         } finally {
             graphics.pose().popMatrix();
+            if (com.killer560.hub.perfprobe.PerfProbe.ENABLED) {
+                com.killer560.hub.perfprobe.PerfProbe.exitHud(element, element.id());
+            }
         }
     }
 

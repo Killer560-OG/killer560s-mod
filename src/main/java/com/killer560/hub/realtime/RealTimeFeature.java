@@ -29,9 +29,8 @@ public final class RealTimeFeature {
 
     private static String cachedText;
     private static long cachedSecond;
-    private static ZoneId cachedZone;
-    private static DateTimeFormatter cachedTextFormatter;
-    private static boolean cachedLabel;
+    private static int cachedFlags;
+    private static String cachedCustom;
 
     private RealTimeFeature() {
     }
@@ -45,23 +44,26 @@ public final class RealTimeFeature {
 
     /** Full HUD line, e.g. "Real Time: 09:41 PM EDT". */
     public static String buildText(RealTimeConfig cfg) {
-        // The finest thing the pattern shows is a second, so within one wall-clock second (same zone, pattern and
-        // label) the text cannot differ - reuse it instead of a ZonedDateTime + format + concat every frame.
+        // The finest thing the pattern shows is a second, so within one wall-clock second (same settings) the text
+        // cannot differ - reuse it. The check reads only the settings themselves: resolving the zone
+        // (ZoneId.systemDefault() clones the default TimeZone) and building the pattern string each frame were most
+        // of this element's cost (95-perf-features, 2026-10-15), so both now happen once a second at most.
         long nowMs = System.currentTimeMillis();
         long second = Math.floorDiv(nowMs, 1000L);
-        ZoneId zone = currentZone(cfg);
-        DateTimeFormatter formatter = formatter(cfg);
-        boolean label = cfg.isShowLabel();
-        if (cachedText != null && second == cachedSecond && zone.equals(cachedZone) && formatter == cachedTextFormatter
-                && label == cachedLabel) {
+        int flags = (cfg.isShowSeconds() ? 1 : 0) | (cfg.isUse24Hour() ? 2 : 0) | (cfg.isShowZoneAbbreviation() ? 4 : 0)
+                | (cfg.isShowLabel() ? 8 : 0) | (cfg.getZoneMode() == RealTimeConfig.ZoneMode.CUSTOM ? 16 : 0);
+        String custom = cfg.getCustomZone();
+        if (cachedText != null && second == cachedSecond && flags == cachedFlags
+                && java.util.Objects.equals(custom, cachedCustom)) {
             return cachedText;
         }
+        ZoneId zone = currentZone(cfg);
+        DateTimeFormatter formatter = formatter(cfg);
         String time = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMs), zone).format(formatter);
-        cachedText = label ? LABEL + time : time;
+        cachedText = cfg.isShowLabel() ? LABEL + time : time;
         cachedSecond = second;
-        cachedZone = zone;
-        cachedTextFormatter = formatter;
-        cachedLabel = label;
+        cachedFlags = flags;
+        cachedCustom = custom;
         return cachedText;
     }
 

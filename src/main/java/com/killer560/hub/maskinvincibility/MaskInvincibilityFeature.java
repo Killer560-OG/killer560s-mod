@@ -296,7 +296,7 @@ public final class MaskInvincibilityFeature {
             boolean icons = MaskInvincibilityConfig.getInstance().isShowItemIcons();
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
             int w = 0;
-            for (Type t : Type.values()) {
+            for (Type t : TYPES) {
                 if (shown(t)) {
                     w = Math.max(w, (icons ? 20 : 0) + font.width(rowText(t)));
                 }
@@ -306,13 +306,26 @@ public final class MaskInvincibilityFeature {
 
         @Override
         public int height() {
-            int rows = (int) java.util.Arrays.stream(Type.values()).filter(MaskInvincibilityFeature::shown).count();
+            int rows = 0;
+            for (Type t : TYPES) {
+                if (shown(t)) {
+                    rows++;
+                }
+            }
             if (rows == 0) {
                 return rowHeight();
             }
             int last = MaskInvincibilityConfig.getInstance().isShowItemIcons() ? 16 : Minecraft.getInstance().font.lineHeight;
             return (rows - 1) * rowHeight() + last;
         }
+
+        // rowText's last answer per type: the text changes at most once a tick, render and width() ask every frame
+        // (a concat, and a String.format while counting, each frame: 95-perf-features 2026-10-15). Render thread.
+        private static final Type[] TYPES = Type.values();
+        private static final String[] ROW_TEXT = new String[Type.values().length];
+        private static final int[] ROW_ACTIVE = new int[Type.values().length];
+        private static final int[] ROW_COOLDOWN = new int[Type.values().length];
+        private static final boolean[] ROW_NAMES = new boolean[Type.values().length];
 
         /** One row's text, exactly as render() draws it. */
         private static String rowText(Type t) {
@@ -322,6 +335,17 @@ public final class MaskInvincibilityFeature {
             boolean names = !(cfg.isShowItemIcons() && cfg.isHideMaskNames());
             int active = activeRemaining.get(t);
             int cooldown = cooldownRemaining.get(t);
+            int i = t.ordinal();
+            if (ROW_TEXT[i] != null && ROW_ACTIVE[i] == active && ROW_COOLDOWN[i] == cooldown && ROW_NAMES[i] == names) {
+                return ROW_TEXT[i];
+            }
+            ROW_ACTIVE[i] = active;
+            ROW_COOLDOWN[i] = cooldown;
+            ROW_NAMES[i] = names;
+            return ROW_TEXT[i] = rowTextUncached(t, names, active, cooldown);
+        }
+
+        private static String rowTextUncached(Type t, boolean names, int active, int cooldown) {
             String status = active > 0
                     ? String.format(Locale.US, "%.1fs", active / 20f)
                     : cooldown > 0
@@ -347,7 +371,7 @@ public final class MaskInvincibilityFeature {
             boolean icons = cfg.isShowItemIcons();
             int row = rowHeight();
             int lineY = y;
-            for (Type t : Type.values()) {
+            for (Type t : TYPES) {
                 if (!shown(t)) {
                     continue;
                 }
