@@ -468,9 +468,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         status = "filled " + added + " cell(s)";
     }
 
-    /** "Floor 1 · generated" - the first line of a Load row, and what the search box matches. */
+    /** "Floor 1 · Generated" / "· Drawn" / "My Dungeon · Saved design" - a Load row's first line, what search matches. */
     private static String historyTitle(SimMapHistory.Entry e) {
-        return e.floorLabel() + " · " + (e.generated() ? "generated" : "drawn");
+        return e.title();
     }
 
     /** Puts a floor from the Load list back on the grid, at its own floor size, ready for Play. */
@@ -1041,8 +1041,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 // The date he made it on the right of the first line, where a long title cannot run into it.
                 String date = e.dateText();
                 MenuStyle.text(g, date, listX + listW - 6 - this.font.width(date), y + ROW_TEXT1, MenuStyle.OR);
-                MenuStyle.text(g, fit(e.rooms() + " rooms  ·  " + e.puzzles() + " puzzles  ·  right-click to delete",
-                                e.rooms() + " rooms  ·  " + e.puzzles() + " puzzles", listW - 16),
+                // A saved design brought in from the old Save file has no puzzle count recorded (-1).
+                String counts = e.rooms() + " rooms" + (e.puzzles() >= 0 ? "  ·  " + e.puzzles() + " puzzles" : "");
+                MenuStyle.text(g, fit(counts + "  ·  right-click to delete", counts, listW - 16),
                         listX + 10, y + ROW_TEXT2, MenuStyle.DIM);
                 continue;
             }
