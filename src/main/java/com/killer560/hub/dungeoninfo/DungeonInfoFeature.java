@@ -100,6 +100,8 @@ public final class DungeonInfoFeature {
             runEndedGameTime = -1;
             lastSecretsCount = -1;
             lastSecretsPercent = null;
+            lastCountPlain = null;
+            lastPercentPlain = null;
             secretsReadsThisRun = 0;
             loggedSecretsMissThisRun = false;
             lastRoomEntry = null;
@@ -144,6 +146,10 @@ public final class DungeonInfoFeature {
 
     /** Reads "Secrets Found" from the tab list - the same player-info display names
      *  {@code DungeonState} reads for the sidebar. */
+    /** The tab lines {@link #updateSecretsCount} last parsed (identity: TabText's String for an unchanged entry). */
+    private static String lastCountPlain;
+    private static String lastPercentPlain;
+
     private static void updateSecretsCount() {
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() == null) {
@@ -158,6 +164,12 @@ public final class DungeonInfoFeature {
             if (plain == null || !plain.contains("Secrets Found")) {
                 continue;
             }
+            // TabText hands back the same String until the entry changes, so a line already matched is already
+            // counted: the two regexes ran on both lines every tick of every run (95-perf OFF JFR, 2026-10-15).
+            if (plain == lastCountPlain || plain == lastPercentPlain) {
+                matchedAny = true;
+                continue;
+            }
             Matcher count = TAB_SECRETS_COUNT_PATTERN.matcher(plain);
             if (count.matches()) {
                 matchedAny = true;
@@ -165,6 +177,7 @@ public final class DungeonInfoFeature {
                 // make FeatureGuard switch this whole feature off for the session (testkit WP2, 2026-10-04).
                 try {
                     lastSecretsCount = Integer.parseInt(count.group(1));
+                    lastCountPlain = plain;
                 } catch (NumberFormatException ignored) {
                     // keep the last good value
                 }
@@ -174,6 +187,7 @@ public final class DungeonInfoFeature {
             if (percent.matches()) {
                 matchedAny = true;
                 lastSecretsPercent = percent.group(1);
+                lastPercentPlain = plain;
             }
         }
         if (!matchedAny && lastSecretsCount < 0 && !loggedSecretsMissThisRun && ++secretsReadsThisRun >= 200) {

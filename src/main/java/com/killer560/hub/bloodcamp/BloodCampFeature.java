@@ -195,7 +195,9 @@ public final class BloodCampFeature {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
         if (client.player == null || com.killer560.hub.hud.HudVisibility.menuOpen() || McCompat.hudHidden(client)
-                || !com.killer560.hub.util.SkyblockGate.allows()) {
+                || !com.killer560.hub.util.SkyblockGate.allows() || !element.isEnabledInSettings()) {
+            // Off: the kill popup draws only while relevant() (the same two settings), so skip drawAt's position and
+            // pose work too (95-perf, 2026-10-15).
             return;
         }
         com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);

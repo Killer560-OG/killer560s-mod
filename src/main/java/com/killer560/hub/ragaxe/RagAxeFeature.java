@@ -161,7 +161,9 @@ public final class RagAxeFeature {
     private static void drawInGame(GuiGraphicsExtractor graphics, HudElement element) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide these (killer560), the HUD editor still does.
-        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !SkyblockGate.allows()) {
+        if (client.player == null || HudVisibility.menuOpen() || McCompat.hudHidden(client) || !SkyblockGate.allows()
+                || !element.isEnabledInSettings()) {
+            // Off: its render draws nothing, so do not resolve its position and pose every frame either (95-perf, 2026-10-15).
             return;
         }
         HudElementRegistry.drawAt(graphics, element);

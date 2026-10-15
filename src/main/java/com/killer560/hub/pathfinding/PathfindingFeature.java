@@ -304,7 +304,9 @@ public final class PathfindingFeature {
     private static void drawHud(GuiGraphicsExtractor graphics) {
         Minecraft client = Minecraft.getInstance();
         // menuOpen(), not "screen != null": chat must not hide this (killer560), the HUD editor still does.
-        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen()) {
+        if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen()
+                || !HudElementImpl.INSTANCE.isEnabledInSettings()) {
+            // Off: its render draws nothing, so do not resolve its position and pose every frame either (95-perf, 2026-10-15).
             return;
         }
         com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, HudElementImpl.INSTANCE);

@@ -66,4 +66,18 @@ public final class TabText {
         }
         return m;
     }
+
+    /** Whether {@code s.trim()} starts with '[' and ends with ')', without trimming (the shape of a dungeon party
+     *  line, "[lvl] name ... (Class lvl)"): a cheap filter before a regex that needs both. Same rule as trim(). */
+    public static boolean bracketedLine(String s) {
+        int a = 0;
+        int b = s.length() - 1;
+        while (a <= b && s.charAt(a) <= ' ') {
+            a++;
+        }
+        while (b >= a && s.charAt(b) <= ' ') {
+            b--;
+        }
+        return a < b && s.charAt(a) == '[' && s.charAt(b) == ')';
+    }
 }

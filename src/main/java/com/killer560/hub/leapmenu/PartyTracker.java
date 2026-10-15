@@ -163,7 +163,9 @@ public final class PartyTracker {
         // that order and InteractiveMapFeature.players pairs them up by position (getListedOnlinePlayers is a hash set).
         for (PlayerInfo info : com.killer560.hub.util.TabOrder.listed(client)) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
+            // TAB_REGEX needs "[" first and ")" last once trimmed; most of the ~80 lines are neither, and skipping
+            // them spares a trim and a Matcher each (95-perf, 2026-10-15).
+            if (plain == null || !com.killer560.hub.util.TabText.bracketedLine(plain)) {
                 continue;
             }
             Matcher m = TAB_REGEX.matcher(plain.trim());

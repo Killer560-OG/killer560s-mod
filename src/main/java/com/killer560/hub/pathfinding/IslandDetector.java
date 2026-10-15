@@ -132,7 +132,8 @@ public final class IslandDetector {
     private static String readTabArea(Minecraft client) {
         for (PlayerInfo info : client.getConnection().getListedOnlinePlayers()) {
             String plain = com.killer560.hub.util.TabText.plain(info);
-            if (plain == null) {
+            // Only an "Area:" or "Dungeon:" line can match: skip the trim and Matcher for the other ~80 (95-perf, 2026-10-15).
+            if (plain == null || !(plain.contains("Area:") || plain.contains("Dungeon:"))) {
                 continue;
             }
             Matcher m = TAB_AREA.matcher(plain.trim());

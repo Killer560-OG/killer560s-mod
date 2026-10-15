@@ -49,8 +49,10 @@ public final class GuiOverlays {
         add("dvd", DvdFeature::renderOverlay);
         add("experiments_status", ExperimentsFeature::renderOverlay);
         add("dungeon_info", graphics -> {
-            if (!HudVisibility.menuOpen()) {
-                HudElementRegistry.drawAt(graphics, HudElementRegistry.byId("dungeon_info"));
+            HudElement element = HudElementRegistry.byId("dungeon_info");
+            // Off: draws nothing, so skip drawAt's position and pose work too (95-perf, 2026-10-15).
+            if (!HudVisibility.menuOpen() && element != null && element.isEnabledInSettings()) {
+                HudElementRegistry.drawAt(graphics, element);
             }
         });
         add("etherwarp_waypoints", graphics -> {
