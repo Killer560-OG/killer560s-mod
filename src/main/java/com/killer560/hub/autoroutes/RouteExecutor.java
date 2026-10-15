@@ -518,6 +518,7 @@ public final class RouteExecutor {
         RouteRotation.clear();
         running = true;
         handsLatched = true;
+        RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
         if (AutoRoutesConfig.getInstance().isChatFeedback()) {
@@ -536,6 +537,7 @@ public final class RouteExecutor {
 
     private static void complete() {
         justFinished = true;
+        RouteRunMemory.noteProgress(route.roomName(), ordered.size(), ordered.size());
         RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();

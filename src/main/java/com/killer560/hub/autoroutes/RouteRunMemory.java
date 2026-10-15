@@ -170,7 +170,7 @@ public final class RouteRunMemory {
     }
 
     /** The route in {@code room} has finished {@code done} of its {@code total} nodes (the executor reports every tick). */
-    static void noteProgress(String room, int done, int total) {
+    public static void noteProgress(String room, int done, int total) {
         check();
         if (room == null || total <= 0) {
             return;
@@ -191,6 +191,14 @@ public final class RouteRunMemory {
             int total = p != null ? p[1] : 1;
             return new int[]{total, total};
         }
+        return p == null ? null : p.clone();
+    }
+
+    /** What the executor itself last reported for {@code room} this run, or null if it never has (a test hook: unlike
+     *  {@link #progressOf} it does not turn a finished route into all-done). */
+    public static int[] reportedProgress(String room) {
+        check();
+        int[] p = room == null ? null : progress.get(room);
         return p == null ? null : p.clone();
     }
 
