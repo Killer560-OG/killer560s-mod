@@ -320,6 +320,13 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
                 }
             }
         }
+        // A keep-on-screen element serves its own (edge-anchored, clamped) position: follow it while it is not held, so
+        // a board that grows or shrinks stays against its edge here exactly as in game.
+        for (HudElement e : shown) {
+            if (!e.id().equals(draggingId) && keepsOnScreen(e)) {
+                livePositions.put(e.id(), HudElementRegistry.resolvePosition(e));
+            }
+        }
         if (anyAnchored) {
             if (draggingId == null && hints) {
                 hintChip(graphics, fit("§7Predefined: drop one on an area (Hidden hides it); scroll sizes them all.",
@@ -761,7 +768,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
                 newY = m.y();
                 guides.addAll(m.guides());
             }
-            livePositions.put(draggingId, new int[]{newX, newY});
+            livePositions.put(draggingId, clampIfKept(element, newX, newY));
             return true;
         }
         return super.mouseDragged(event, dragX, dragY);
@@ -843,7 +850,28 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         int h = scaledHeight(element, drawn);
         int x = (resizeEdges & LEFT) != 0 ? pressBox[2] - w : pressBox[0];
         int y = (resizeEdges & TOP) != 0 ? pressBox[3] - h : pressBox[1];
-        livePositions.put(draggingId, new int[]{x, y});
+        livePositions.put(draggingId, clampIfKept(element, x, y));
+    }
+
+    private static boolean keepsOnScreen(HudElement element) {
+        try {
+            return element.keepOnScreen();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /** {@code x, y} as they are, or for a {@link HudElement#keepOnScreen()} element pulled in so its whole drawn box
+     *  (at its live scale) is on screen: never past the right edge, nor any other. A box larger than the screen pins
+     *  to the top left. */
+    private int[] clampIfKept(HudElement element, int x, int y) {
+        if (!keepsOnScreen(element)) {
+            return new int[]{x, y};
+        }
+        float scale = drawScale(element.id());
+        int w = scaledWidth(element, scale);
+        int h = scaledHeight(element, scale);
+        return new int[]{Math.max(0, Math.min(x, this.width - w)), Math.max(0, Math.min(y, this.height - h))};
     }
 
     @Override
@@ -867,12 +895,29 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             return true;
         }
         if (draggingId != null) {
-            int[] pos = livePositions.get(draggingId);
-            // Saved in baseline units (Auto Scale): resolvePosition multiplies back, so the box draws where it dropped.
-            int[] saved = HudElementRegistry.toSaved(pos[0], pos[1]);
-            HudConfig.getInstance().setPosition(draggingId, saved[0], saved[1]);
+            HudElement dropped = byId(draggingId);
+            int[] pos = dropped == null ? livePositions.get(draggingId)
+                    : clampIfKept(dropped, livePositions.get(draggingId)[0], livePositions.get(draggingId)[1]);
+            boolean own = false;
+            if (dropped != null) {
+                float drawn = drawScale(draggingId);
+                try {
+                    own = dropped.storeEditorPosition(pos[0], pos[1], scaledWidth(dropped, drawn),
+                            scaledHeight(dropped, drawn), this.width, this.height);
+                } catch (RuntimeException e) {
+                    own = false;
+                }
+            }
+            if (!own) {
+                // Saved in baseline units (Auto Scale): resolvePosition multiplies back, so the box draws where it dropped.
+                int[] saved = HudElementRegistry.toSaved(pos[0], pos[1]);
+                HudConfig.getInstance().setPosition(draggingId, saved[0], saved[1]);
+            }
             HudConfig.getInstance().setScale(draggingId, liveScales.get(draggingId));
             HudConfig.getInstance().save();
+            if (own) {
+                livePositions.put(draggingId, HudElementRegistry.resolvePosition(dropped));
+            }
             if (resizeEdges != 0 && byId(draggingId) instanceof ResizableHudElement r) {
                 r.saveSize();
             }

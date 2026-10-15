@@ -805,8 +805,6 @@ final class SettingTooltipsData {
         d.put("text align", "Left, center or right alignment for normal scoreboard lines inside the box.");
         d.put("title align", "Left, center or right alignment for the title line(s).");
         d.put("footer align", "Left, center or right alignment for the footer line(s).");
-        d.put("snap x", "Snaps the board to the left, center or right of the screen, or leaves it free.");
-        d.put("snap y", "Snaps the board to the top, center or bottom of the screen, or leaves it free.");
         d.put("line spacing", "Extra pixels of space between scoreboard lines (0-10).");
         d.put("max party members", "Most party members listed under the Party line (1-25).");
         d.put("number style", "How value lines like Purse are laid out and colored.");
@@ -1061,7 +1059,6 @@ final class SettingTooltipsData {
         d.put("hide purse in dungeons", "Hides the Purse line inside the Catacombs.");
         d.put("separator between events", "Puts an empty line between each active event.");
         d.put("border softness", "Fades extra rings outside the border for a soft glow (0 = crisp edge).");
-        d.put("screen margin", "Gap in pixels between the snapped scoreboard and the screen edge.");
         d.put("background blur (restart)", "Blurs the game behind the scoreboard box (restart Minecraft to apply).");
         d.put("blur strength", "How far the background blur samples, in pixels.");
         d.put("min width", "Minimum width of the scoreboard box.");
@@ -1209,11 +1206,13 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/scoreboard lines", "Your board, top to bottom. Drag a line to move it, the trash can takes it off (Add puts it back), click a line for its own options.");
         d.put("custom scoreboard/scoreboard events", "Events that can show on the Events line, highest priority first. Drag to reorder, trash to remove, Add to put back.");
         d.put("custom scoreboard/scoreboard chunked stats", "The stats in the Chunked Stats line, in order. Drag to reorder, trash to remove, Add to put back.");
-        d.put("open visual editor", "Opens the Custom Scoreboard editor: drag the lines on the board itself, add lines back from Not Active, and set General and Background options.");
+        d.put("open visual editor", "Opens the Custom Scoreboard editor: drag the lines on the board itself, add lines back from Not Active, and change its Settings.");
         d.put("custom scoreboard/reset board", "Puts the board back to the default lines in the default order.");
         d.put("custom scoreboard/remove", "Takes this line off the board (it moves to Not Active).");
         d.put("custom scoreboard/board", "The board's lines: the selected line's settings and the lines not on the board.");
-        d.put("custom scoreboard/general", "Alignment, snapping, hiding rules, number format, title and footer.");
+        d.put("custom scoreboard/settings", "The board's look and when it hides; everything else is under Advanced.");
+        d.put("custom scoreboard/advanced", "Every other Custom Scoreboard setting: line rules, alignment, time and date, and the box (padding, corners, border, blur, image).");
+        d.put("custom scoreboard/reset position", "Puts the board back against the right edge of the screen, vertically centered, where the vanilla scoreboard sits. Drag it anywhere in Edit HUD; it never goes off screen.");
         d.put("custom scoreboard/done", "Closes the editor. Every change is already saved.");
         d.put("custom scoreboard/edit events", "Opens the Events page, where you choose which events the Events line shows and in what order.");
         d.put("custom scoreboard/edit chunked stats", "Opens the Chunked Stats page, where you choose which stats the line shows and in what order.");
@@ -2195,7 +2194,9 @@ final class SettingTooltipsData {
         d.put("chat keybinds/off", "This row is switched off: its key and its name do nothing here. Click to switch it on.");
         d.put("chat keybinds/shortcut name", "What you type, without the slash: letters, digits and _, up to 32. A name another command already uses is refused.");
         d.put("chat keybinds/sends command", "What the server receives when you type the name or press the key, with or without a leading /.");
-        d.put("custom scoreboard/open visual editor", "Opens the same line, event and stat lists full screen beside a live preview of the board.");
+        d.put("custom scoreboard/open visual editor", "Opens the scoreboard editor: drag the board's own lines to reorder them, add or remove lines, and change its Settings.");
+        d.put("custom scoreboard/background", "Draws the translucent box behind the board, with a slightly darker title row like the vanilla scoreboard.");
+        d.put("custom scoreboard/numbers", "Long shows numbers in full (1,234,567); Short shortens them (1.2M).");
         d.put("dungeon queue/party finder style", "How party member lines look in Party Finder tooltips.");
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");

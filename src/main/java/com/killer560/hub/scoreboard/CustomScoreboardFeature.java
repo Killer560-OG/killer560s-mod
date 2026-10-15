@@ -2,7 +2,6 @@ package com.killer560.hub.scoreboard;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.hud.GuiRects;
-import com.killer560.hub.hud.HudConfig;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -44,9 +43,12 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * The full board is only active on Skyblock / p3sim ({@link SkyblockGate#isOnSkyblock()}). Elsewhere the vanilla
  * sidebar is always left alone; "Outside Skyblock: Minimal Board" only adds a small extra board next to it. Rebuilt
- * every 5 ticks (SkyHanni rebuilds every 250ms). Drawn through its own Fabric HUD layer like {@code InventoryHudFeature};
- * {@link Element#render} is the HUD-editor preview only. The screen-edge snap is SkyHanni's auto-alignment: dragging the
- * element in the HUD editor turns it off; the snapped position is written to {@code HudConfig}.
+ * every 5 ticks (SkyHanni rebuilds every 250ms), but a rebuild that reads the same keeps the old list, so the frames
+ * re-measure nothing ({@link #publish}). Drawn through its own Fabric HUD layer like {@code InventoryHudFeature};
+ * {@link Element#render} is the HUD-editor preview only. Since 2026-10-15 the board is anchored to a screen edge (the
+ * right one by default, vertically centered, like the vanilla sidebar) and can never be drawn or dragged off screen -
+ * see the position section below. It also dropped the orange box for a plain vanilla-like one (the old look is all
+ * still under the editor's Advanced section).
  * <p>
  * "Clickable Lines" (SkyBlock Custom Scoreboard's line actions): while chat is open, hovering a line with actions
  * shows its tooltip and clicking runs its command.
@@ -62,15 +64,14 @@ public final class CustomScoreboardFeature {
     private static final int UNKNOWN_WARNING_SESSION_LIMIT = 20;
 
     private static List<ScoreboardLine> current = Collections.emptyList();
+    /** How many of {@link #current}'s first lines are its title (drawn on the darker title band, as vanilla does). */
+    private static int currentTitleRows = 0;
     private static boolean currentIsMinimal = false;
     private static List<String> unknown = Collections.emptyList();
     private static List<Pattern> allPatterns;
     private static int tickCounter = 0;
     private static Object lastLevel = null;
     private static long worldChangedAtMs = 0L;
-    private static int[] lastSnapped = null;
-    private static boolean hudConfigDirty = false;
-    private static long hudConfigSavedAtMs = 0L;
     private static boolean loggedError = false;
     private static final Set<String> warnedUnknown = new HashSet<>();
     /** Shapes of unknown lines already written to the log this session (bounded; see {@link #shape}). */
@@ -151,11 +152,6 @@ public final class CustomScoreboardFeature {
             lastLevel = client.level;
             worldChangedAtMs = System.currentTimeMillis();
         }
-        if (hudConfigDirty && System.currentTimeMillis() - hudConfigSavedAtMs > 2000L) {
-            hudConfigDirty = false;
-            hudConfigSavedAtMs = System.currentTimeMillis();
-            HudConfig.getInstance().save();
-        }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         if (!cfg.isEnabled()) {
             clearBoard();
@@ -178,8 +174,9 @@ public final class CustomScoreboardFeature {
                 rebuild(cfg);
             } else if (minimalActive()) {
                 unknown = Collections.emptyList();
-                current = Collections.unmodifiableList(buildMinimal(client, cfg));
-                currentIsMinimal = true;
+                int[] titleRows = new int[1];
+                List<ScoreboardLine> minimal = buildMinimal(client, cfg, titleRows);
+                publish(minimal, titleRows[0], true);
             } else {
                 // Off Skyblock: nothing to draw, vanilla sidebar untouched.
                 clearBoard();
@@ -196,8 +193,36 @@ public final class CustomScoreboardFeature {
 
     private static void clearBoard() {
         current = Collections.emptyList();
+        currentTitleRows = 0;
         currentIsMinimal = false;
         unknown = Collections.emptyList();
+    }
+
+    /**
+     * Makes {@code lines} the board - unless it reads exactly as the board already does, in which case the old list
+     * object is kept. Every per-frame cache (the measured width, the anchored position, the hover layout) is keyed on the
+     * list's identity, so a rebuild that changes nothing (most of them: the board is rebuilt every 5 ticks, the data
+     * behind it changes far less often) costs the frames nothing (2026-10-15, perf report: 30-37 us a frame).
+     */
+    private static void publish(List<ScoreboardLine> lines, int titleRows, boolean minimal) {
+        currentIsMinimal = minimal;
+        if (titleRows == currentTitleRows && lines.equals(current)) {
+            return;
+        }
+        current = Collections.unmodifiableList(lines);
+        currentTitleRows = titleRows;
+    }
+
+    /** How many leading lines of {@code lines} are the title's own line objects (after edge trimming). */
+    private static int leadingTitleRows(List<ScoreboardLine> lines, List<ScoreboardLine> title) {
+        if (title == null || title.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        while (n < lines.size() && n < title.size() && lines.get(n) == title.get(n)) {
+            n++;
+        }
+        return n;
     }
 
     private static void rebuild(CustomScoreboardConfig cfg) {
@@ -211,10 +236,11 @@ public final class CustomScoreboardFeature {
         if (com.killer560.hub.roomsim.SimState.isActive()) {
             unknown = Collections.emptyList();
             List<ScoreboardLine> sim = new ArrayList<>();
-            sim.add(new ScoreboardLine("§6§lDungeon Sim", cfg.getTitleAlignment()));
+            List<ScoreboardLine> simTitle = List.of(new ScoreboardLine("§6§lDungeon Sim", cfg.getTitleAlignment()));
+            sim.addAll(simTitle);
             sim.addAll(ScoreboardLine.of(ScoreboardData.sidebar()));
-            current = Collections.unmodifiableList(trimBlankEdges(sim));
-            currentIsMinimal = false;
+            List<ScoreboardLine> trimmed = trimBlankEdges(sim);
+            publish(trimmed, leadingTitleRows(trimmed, simTitle), false);
             return;
         }
         long now = System.currentTimeMillis();
@@ -228,9 +254,11 @@ public final class CustomScoreboardFeature {
                 ? Collections.emptyList() : computeUnknownLines();
         warnUnknownLines(cfg);
         List<ScoreboardLine> lines = new ArrayList<>();
+        List<ScoreboardLine> title = null;
         if (!cfg.isUseCustomLines()) {
             if (!ScoreboardData.objectiveTitle().isEmpty()) {
-                lines.add(new ScoreboardLine(ScoreboardData.objectiveTitle(), cfg.getTitleAlignment()));
+                title = List.of(new ScoreboardLine(ScoreboardData.objectiveTitle(), cfg.getTitleAlignment()));
+                lines.addAll(title);
             }
             lines.addAll(ScoreboardLine.of(ScoreboardData.sidebar()));
         } else {
@@ -246,26 +274,30 @@ public final class CustomScoreboardFeature {
                         && !lines.isEmpty() && lines.get(lines.size() - 1).isBlank()) {
                     continue;
                 }
+                if (entry == ScoreboardEntry.TITLE && lines.isEmpty()) {
+                    title = elementLines;
+                }
                 lines.addAll(elementLines);
             }
         }
-        current = Collections.unmodifiableList(cfg.isHideEmptyLinesAtTopAndBottom() ? trimBlankEdges(lines) : lines);
-        currentIsMinimal = false;
+        List<ScoreboardLine> out = cfg.isHideEmptyLinesAtTopAndBottom() ? trimBlankEdges(lines) : lines;
+        publish(out, leadingTitleRows(out, title), false);
     }
 
-    /** Off-Skyblock "Minimal Board": title, today's date and time, online players, footer. */
-    private static List<ScoreboardLine> buildMinimal(Minecraft client, CustomScoreboardConfig cfg) {
+    /** Off-Skyblock "Minimal Board": title, today's date and time, online players, footer. {@code titleRows[0]} gets
+     *  how many of its first lines are the title. */
+    private static List<ScoreboardLine> buildMinimal(Minecraft client, CustomScoreboardConfig cfg, int[] titleRows) {
         List<ScoreboardLine> out = new ArrayList<>();
+        List<ScoreboardLine> title;
         if (cfg.isUseCustomTitle() && cfg.isUseCustomTitleOutsideSkyblock()) {
-            out.addAll(ScoreboardEntry.TITLE.lines(cfg));
+            title = ScoreboardEntry.TITLE.lines(cfg);
         } else {
             // SkyHanni ScoreboardElementTitle: outside SkyBlock the server's own title unless "Custom Title Outside SkyBlock".
             net.minecraft.world.scores.Objective objective = ScoreboardData.sidebarObjective(client);
-            String title = objective == null ? "" : ScoreboardData.formatted(objective.getDisplayName(), false);
-            if (!title.isEmpty()) {
-                out.add(new ScoreboardLine(title, cfg.getTitleAlignment()));
-            }
+            String text = objective == null ? "" : ScoreboardData.formatted(objective.getDisplayName(), false);
+            title = text.isEmpty() ? List.of() : List.of(new ScoreboardLine(text, cfg.getTitleAlignment()));
         }
+        out.addAll(title);
         out.add(ScoreboardLine.of(""));
         out.add(ScoreboardLine.of("§7" + cfg.getDateFormat().today() + " §8"
                 + java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern(cfg.isTime24h() ? "HH:mm" : "h:mma", java.util.Locale.US)).toLowerCase(java.util.Locale.ROOT)));
@@ -277,7 +309,9 @@ public final class CustomScoreboardFeature {
         for (String part : cfg.getCustomFooter().replace("&&", "§").split("\\\\n")) {
             out.add(new ScoreboardLine(part, cfg.getFooterAlignment()));
         }
-        return trimBlankEdges(out);
+        List<ScoreboardLine> trimmed = trimBlankEdges(out);
+        titleRows[0] = leadingTitleRows(trimmed, title);
+        return trimmed;
     }
 
     /**
@@ -446,7 +480,9 @@ public final class CustomScoreboardFeature {
         int[] pos;
         float scale;
         try {
-            pos = resolveSnappedPosition(graphics, cfg, boxWidth(font, lines, cfg), boxHeight(font, lines, cfg));
+            // The same anchored, clamped spot the HUD editor shows (Element#layoutPosition), memoised: no allocation
+            // while nothing about the board, its scale or the window changed.
+            pos = com.killer560.hub.hud.HudElementRegistry.resolvePosition(Element.INSTANCE);
             scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
         } catch (RuntimeException e) {
             return;
@@ -459,7 +495,8 @@ public final class CustomScoreboardFeature {
             graphics.pose().scale(scale, scale);
             com.killer560.hub.hud.HudTextCache.begin(); // the board's lines keep their visual order between frames
             try {
-                drawBoard(graphics, font, 0, 0, lines, cfg, true);
+                drawBoard(graphics, font, 0, 0, lines, currentTitleRows, cfg, true);
+                drawnFrames++;
             } finally {
                 com.killer560.hub.hud.HudTextCache.end();
             }
@@ -468,17 +505,53 @@ public final class CustomScoreboardFeature {
         } finally {
             graphics.pose().popMatrix();
         }
+        lastDrawnX = pos[0];
+        lastDrawnY = pos[1];
+        lastDrawnScale = scale;
+        if (!chatOpen) {
+            return; // hover and click only exist while chat is open; nothing to lay out for them
+        }
         int inset = borderSize(cfg) + cfg.getPadding();
         Layout layout = new Layout(lines, pos[0], pos[1], scale, inset, inset, innerWidth(font, lines, cfg),
                 font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
         lastLayout = layout;
-        if (chatOpen && cfg.isLineActions()) {
+        if (cfg.isLineActions()) {
             try {
                 drawHoverTooltip(client, graphics, layout);
             } catch (RuntimeException ignored) {
                 // tooltip is cosmetic
             }
         }
+    }
+
+    /** Where and at what scale the real board was last drawn in game, and how many frames drew it (testkit). */
+    private static int lastDrawnX = Integer.MIN_VALUE;
+    private static int lastDrawnY = Integer.MIN_VALUE;
+    private static float lastDrawnScale = 0f;
+    private static long drawnFrames = 0L;
+
+    /** {x, y, w, h} of the board as last drawn in game (scaled GUI pixels), or null if it never drew. */
+    public static int[] lastDrawnBox() {
+        if (lastDrawnX == Integer.MIN_VALUE || current.isEmpty()) {
+            return null;
+        }
+        Font font = Minecraft.getInstance().font;
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        return new int[]{lastDrawnX, lastDrawnY, Math.round(boxWidth(font, current, cfg) * lastDrawnScale),
+                Math.round(boxHeight(font, current, cfg) * lastDrawnScale)};
+    }
+
+    public static long drawnFrames() {
+        return drawnFrames;
+    }
+
+    /** The board's lines as text, top to bottom (what the in-game board draws). */
+    public static List<String> currentTexts() {
+        List<String> out = new ArrayList<>(current.size());
+        for (ScoreboardLine l : current) {
+            out.add(l.text());
+        }
+        return out;
     }
 
     private static ScoreboardLine lineAt(Layout layout, double mouseX, double mouseY) {
@@ -531,46 +604,102 @@ public final class CustomScoreboardFeature {
         return true;
     }
 
-    /** SkyHanni's {@code RenderBackground.updatePosition}; a HUD-editor drag disables the snap like SkyHanni's
-     *  {@code onGuiPositionMoved}. The snapped position is persisted to {@code HudConfig} (debounced). */
-    private static int[] resolveSnappedPosition(GuiGraphicsExtractor graphics, CustomScoreboardConfig cfg, int boxW, int boxH) {
-        int[] stored = com.killer560.hub.hud.HudElementRegistry.resolvePosition(Element.INSTANCE);
-        if (cfg.getHorizontalSnap() == CustomScoreboardConfig.HorizontalSnap.NONE
-                && cfg.getVerticalSnap() == CustomScoreboardConfig.VerticalSnap.NONE) {
-            lastSnapped = null;
-            return stored;
+    // ---- position (2026-10-15) ----
+    //
+    // killer560: "by default aligned on the right side of the screen where the normal scoreboard should be and not able
+    // to go off the right side of the screen." The board is stored as an ANCHOR (CustomScoreboardConfig.anchorSide,
+    // edgeGap, centerOffsetY), not an absolute x: x is worked out from the edge it is anchored to every time the screen,
+    // the scale or the board's own width changes, so a longer line grows the board AWAY from its edge, and a GUI scale or
+    // window change keeps it against the edge. Then it is clamped wholly on screen. Before this, SkyHanni's snap wrote an
+    // absolute x into HudConfig and the first drag in Edit HUD switched the snap off for good, leaving that x behind:
+    // a wider board, or a smaller window, then hung off the right edge.
+
+    private static int posScreenW = -1;
+    private static int posScreenH = -1;
+    private static int posBoxW = -1;
+    private static int posBoxH = -1;
+    private static CustomScoreboardConfig.Side posSide;
+    private static int posGap;
+    private static int posOffset;
+    private static int[] posResult;
+
+    /** Top-left of the board's drawn box, {@code w x h} scaled pixels on a {@code sw x sh} screen: against its anchor
+     *  edge, then clamped so all of it is on screen (a box larger than the screen pins to the top left). */
+    static int[] anchoredPosition(CustomScoreboardConfig cfg, int w, int h, int sw, int sh) {
+        int x = cfg.getAnchorSide() == CustomScoreboardConfig.Side.RIGHT ? sw - cfg.getEdgeGap() - w : cfg.getEdgeGap();
+        int y = (sh - h) / 2 + cfg.getCenterOffsetY();
+        return new int[]{Math.max(0, Math.min(x, sw - w)), Math.max(0, Math.min(y, sh - h))};
+    }
+
+    /** Stores a box dropped at {@code x, y} as an anchor: to whichever side its middle is on, clamped on screen first. */
+    static void storeAnchor(CustomScoreboardConfig cfg, int x, int y, int w, int h, int sw, int sh) {
+        x = Math.max(0, Math.min(x, sw - w));
+        y = Math.max(0, Math.min(y, sh - h));
+        boolean right = x + w / 2.0 >= sw / 2.0;
+        cfg.setAnchor(right ? CustomScoreboardConfig.Side.RIGHT : CustomScoreboardConfig.Side.LEFT,
+                right ? sw - x - w : x, y - (sh - h) / 2);
+        cfg.save();
+    }
+
+    /**
+     * An old save whose board was not at the old default (Snap X Right, Snap Y Center): where the old code drew it -
+     * the snap's spot, or, with snapping off, the absolute x/y Edit HUD left in HudConfig - becomes the anchor, pulled
+     * on screen if it was hanging off. Done once, on the first frame that knows the window and the board's size.
+     */
+    private static void convertOldPosition(CustomScoreboardConfig cfg, int w, int h, int sw, int sh) {
+        int margin = cfg.legacyMargin();
+        int[] own;
+        try {
+            own = com.killer560.hub.hud.HudElementRegistry.ownPosition(Element.INSTANCE);
+        } catch (RuntimeException e) {
+            own = new int[]{sw - w, (sh - h) / 2};
         }
-        if (lastSnapped != null && (stored[0] != lastSnapped[0] || stored[1] != lastSnapped[1])) {
-            cfg.setHorizontalSnap(CustomScoreboardConfig.HorizontalSnap.NONE);
-            cfg.setVerticalSnap(CustomScoreboardConfig.VerticalSnap.NONE);
-            cfg.save();
-            lastSnapped = null;
-            return stored;
-        }
-        float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
-        int w = Math.round(boxW * scale);
-        int h = Math.round(boxH * scale);
-        int sw = graphics.guiWidth();
-        int sh = graphics.guiHeight();
-        int margin = cfg.getMargin();
-        int x = switch (cfg.getHorizontalSnap()) {
-            case NONE -> stored[0];
+        int x = switch (cfg.legacyHorizontalSnap()) {
+            case NONE -> own[0];
             case LEFT -> margin;
             case CENTER -> (sw - w) / 2;
             case RIGHT -> sw - w - margin;
         };
-        int y = switch (cfg.getVerticalSnap()) {
-            case NONE -> stored[1];
+        int y = switch (cfg.legacyVerticalSnap()) {
+            case NONE -> own[1];
             case TOP -> margin;
             case CENTER -> (sh - h) / 2;
             case BOTTOM -> sh - h - margin;
         };
-        if (x != stored[0] || y != stored[1]) {
-            HudConfig.getInstance().setPosition(ELEMENT_ID, x, y);
-            hudConfigDirty = true;
+        LOGGER.info("[CustomScoreboard] Old position ({}, {}) on {}x{} converted to an edge anchor", x, y, sw, sh);
+        storeAnchor(cfg, x, y, w, h, sw, sh);
+    }
+
+    /** {@link Element#layoutPosition()}: memoised on the screen size, the drawn box size and the anchor, so a frame where
+     *  none of them changed returns the same array without measuring or allocating. */
+    private static int[] resolveAnchored() {
+        Minecraft client = Minecraft.getInstance();
+        com.mojang.blaze3d.platform.Window window = client == null ? null : client.getWindow();
+        if (window == null) {
+            return null;
         }
-        lastSnapped = new int[]{x, y};
-        return lastSnapped;
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        int sw = window.getGuiScaledWidth();
+        int sh = window.getGuiScaledHeight();
+        float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(Element.INSTANCE);
+        int w = Math.max(1, Math.round(Element.INSTANCE.width() * scale));
+        int h = Math.max(1, Math.round(Element.INSTANCE.height() * scale));
+        if (cfg.isPositionPending()) {
+            convertOldPosition(cfg, w, h, sw, sh);
+        }
+        if (posResult != null && sw == posScreenW && sh == posScreenH && w == posBoxW && h == posBoxH
+                && cfg.getAnchorSide() == posSide && cfg.getEdgeGap() == posGap && cfg.getCenterOffsetY() == posOffset) {
+            return posResult;
+        }
+        posScreenW = sw;
+        posScreenH = sh;
+        posBoxW = w;
+        posBoxH = h;
+        posSide = cfg.getAnchorSide();
+        posGap = cfg.getEdgeGap();
+        posOffset = cfg.getCenterOffsetY();
+        posResult = anchoredPosition(cfg, w, h, sw, sh);
+        return posResult;
     }
 
     private static int borderSize(CustomScoreboardConfig cfg) {
@@ -583,27 +712,33 @@ public final class CustomScoreboardFeature {
         return popup == null ? w : w + font.width(popup);
     }
 
-    /** {@link #contentWidth} of the last list measured: one frame asks it four times (position, box, inner width,
-     *  hover layout), each time measuring every line with the font - most of the board's own text cost (FPS sweep,
-     *  2026-10-07). Same list, same font and the same millisecond (popups expire by the clock) is the same answer. */
+    /** {@link #contentWidth} of the last list measured: a frame asks it several times (position, box, inner width,
+     *  hover layout), each a font measure of every line - most of the board's own text cost (FPS sweep, 2026-10-07).
+     *  The same list object and font is the same answer, for as long as no line carries a number-change popup (those
+     *  expire by the clock, so a board with one is re-measured each millisecond). {@link #publish} keeps the list
+     *  object when a rebuild changed nothing, so this measures once per real change (2026-10-15). */
     private static List<ScoreboardLine> widthLines;
     private static Font widthFont;
     private static long widthAtMs;
+    private static boolean widthTimed;
     private static int widthValue;
 
     private static int contentWidth(Font font, List<ScoreboardLine> lines) {
         long now = System.currentTimeMillis();
-        if (lines == widthLines && font == widthFont && now == widthAtMs) {
+        if (lines == widthLines && font == widthFont && (!widthTimed || now == widthAtMs)) {
             return widthValue;
         }
         int w = 0;
+        boolean timed = false;
         for (ScoreboardLine line : lines) {
             w = Math.max(w, lineWidth(font, line, now));
+            timed |= line.popup() != null;
         }
         if (Minecraft.getInstance().isSameThread()) {
             widthLines = lines;
             widthFont = font;
             widthAtMs = now;
+            widthTimed = timed;
             widthValue = w;
         }
         return w;
@@ -632,9 +767,20 @@ public final class CustomScoreboardFeature {
         return Math.max(cfg.getMinHeight(), contentHeight(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg)));
     }
 
-    /** @param inGame true for the real HUD (background blur only exists there, never in the HUD editor preview) */
-    static void drawBoard(GuiGraphicsExtractor g, Font font, int x, int y, List<ScoreboardLine> lines, CustomScoreboardConfig cfg,
-                          boolean inGame) {
+    /** What the title band lays OVER the board's background: the same colour at a little under half its alpha, which
+     *  over a 0x50 board reads like vanilla's darker title row (0x66 over its lines' 0x4C). */
+    static int titleBandOverlay(int background) {
+        int a = background >>> 24;
+        return Math.max(0x18, a * 45 / 100) << 24 | (background & 0xFFFFFF);
+    }
+
+    /**
+     * @param titleRows how many first lines are the title: drawn on a slightly darker band, the vanilla sidebar's one
+     *                  piece of structure (2026-10-15). 0 for none.
+     * @param inGame    true for the real HUD (background blur only exists there, never in the HUD editor preview)
+     */
+    static void drawBoard(GuiGraphicsExtractor g, Font font, int x, int y, List<ScoreboardLine> lines, int titleRows,
+                          CustomScoreboardConfig cfg, boolean inGame) {
         int b = borderSize(cfg);
         int pad = cfg.getPadding();
         int contentW = innerWidth(font, lines, cfg);
@@ -653,6 +799,13 @@ public final class CustomScoreboardFeature {
                         ((cfg.getImageOpacity() * 255 / 100) << 24) | 0xFFFFFF);
             } else {
                 fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), cfg.getBackgroundColor());
+                if (titleRows > 0 && titleRows < lines.size() && radius == 0) {
+                    // From the box's top edge to halfway into the gap under the title's last row.
+                    int bandBottom = y + b + pad + titleRows * (font.lineHeight + cfg.getLineSpacing())
+                            - (cfg.getLineSpacing() + 1) / 2;
+                    g.fill(x + b, y + b, x + w - b, Math.min(y + h - b, bandBottom),
+                            titleBandOverlay(cfg.getBackgroundColor()));
+                }
             }
         }
         if (b > 0) {
@@ -903,13 +1056,19 @@ public final class CustomScoreboardFeature {
      *  so both editors share exactly one "what would this look like" implementation. */
     static List<ScoreboardLine> previewLines() {
         if ((isActive() || minimalActive()) && !current.isEmpty()) {
+            previewTitleRows = currentTitleRows;
             return current;
         }
         CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
         List<ScoreboardLine> out = new ArrayList<>();
+        List<ScoreboardLine> title = null;
         for (ScoreboardEntry entry : cfg.entries().active()) {
             if (entry == ScoreboardEntry.TITLE || entry == ScoreboardEntry.FOOTER) {
-                out.addAll(entry.lines(cfg));
+                List<ScoreboardLine> el = entry.lines(cfg);
+                if (entry == ScoreboardEntry.TITLE && out.isEmpty()) {
+                    title = el;
+                }
+                out.addAll(el);
             } else if (entry.isSeparator()) {
                 if (!out.isEmpty() && !out.get(out.size() - 1).isBlank()) {
                     out.add(ScoreboardLine.of(""));
@@ -918,8 +1077,13 @@ public final class CustomScoreboardFeature {
                 out.addAll(ScoreboardLine.of(entry.sample()));
             }
         }
-        return trimBlankEdges(out);
+        List<ScoreboardLine> trimmed = trimBlankEdges(out);
+        previewTitleRows = leadingTitleRows(trimmed, title);
+        return trimmed;
     }
+
+    /** {@link #previewLines}'s title rows, as of its last call. */
+    private static int previewTitleRows;
 
     /** Re-reads {@code background.png} on the next frame. */
     public static void reloadBackgroundImage() {
@@ -930,7 +1094,8 @@ public final class CustomScoreboardFeature {
         return ScoreboardBackgroundImage.fileExists();
     }
 
-    /** HUD-editor entry (movable/scalable, position persisted in {@code HudConfig}). */
+    /** HUD-editor entry: movable and scalable. Its scale lives in {@code HudConfig}; its position is the edge anchor in
+     *  {@link CustomScoreboardConfig} (2026-10-15), served by {@link #layoutPosition()} and kept wholly on screen. */
     public static final class Element implements HudElement {
 
         public static final Element INSTANCE = new Element();
@@ -948,6 +1113,8 @@ public final class CustomScoreboardFeature {
             return "Custom Scoreboard";
         }
 
+        /** Only read when an old save is converted ({@link #convertOldPosition}); the board's own default is the right
+         *  edge, vertically centered ({@link CustomScoreboardConfig#resetAnchor}). */
         @Override
         public int defaultX() {
             return 10;
@@ -956,6 +1123,22 @@ public final class CustomScoreboardFeature {
         @Override
         public int defaultY() {
             return 80;
+        }
+
+        @Override
+        public int[] layoutPosition() {
+            return resolveAnchored();
+        }
+
+        @Override
+        public boolean keepOnScreen() {
+            return true;
+        }
+
+        @Override
+        public boolean storeEditorPosition(int x, int y, int w, int h, int screenW, int screenH) {
+            storeAnchor(CustomScoreboardConfig.getInstance(), x, y, w, h, screenW, screenH);
+            return true;
         }
 
         @Override
@@ -983,7 +1166,8 @@ public final class CustomScoreboardFeature {
             if (!cfg.isEnabled() || !(McCompat.screen(client) instanceof HudEditorScreen)) {
                 return;
             }
-            drawBoard(graphics, client.font, x, y, previewLines(), cfg, false);
+            List<ScoreboardLine> lines = previewLines();
+            drawBoard(graphics, client.font, x, y, lines, previewTitleRows, cfg, false);
         }
     }
 }
