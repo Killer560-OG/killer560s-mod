@@ -368,3 +368,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of colour 30 (as
   NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
   `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.
+- **`ClientLevel.hasChunk(x, z)` is hard-wired to `true`** (javap 26.1.2 and 26.2: `iconst_1; ireturn`), and so is
+  `LevelReader.hasChunkAt` on it; a chunk the client does not have reads as an empty chunk, all air. (`Level.isLoaded(BlockPos)`
+  is fine: it asks the chunk source.) Ask `util/ClientChunks.isLoaded` (a block read here returns real blocks: live, or held
+  by the Chunk Cache) or `isLive` (vanilla's answer, never a cached snapshot - `/mage`), once per chunk, and make a missing
+  chunk mean UNKNOWN, not absent: chunk-loaded-1015 found it reading a shut wither door as opened, a crypt as opened (then
+  done for the run), half a lid as a crypt, a box with no chest, and a wall the etherwarp ray flew through (testkit 1491).

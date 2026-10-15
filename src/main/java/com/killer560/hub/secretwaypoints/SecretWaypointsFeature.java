@@ -255,6 +255,7 @@ public final class SecretWaypointsFeature {
         if ((!inDungeon && wasInDungeon) || newRun) {
             COLLECTED.clear();
             CRYPTS.clear();
+            LEVERS_BY_CHUNK.clear();
             invalidateCache();
         }
         wasInDungeon = inDungeon;
@@ -371,6 +372,10 @@ public final class SecretWaypointsFeature {
     /** Every crypt and prince seen this run. Cleared on leaving the dungeon, like {@link #COLLECTED}. */
     private static final java.util.Map<BlockPos, CryptState> CRYPTS = new java.util.HashMap<>();
 
+    /** The levers each chunk held when it was last READ (chunk key -> lever positions inside the scanned band), so a
+     *  chunk the client has let go of - which reads as air - keeps showing what was really there. */
+    private static final java.util.Map<Long, List<BlockPos>> LEVERS_BY_CHUNK = new java.util.HashMap<>();
+
     /**
      * How long an opened tomb keeps its waypoint while nothing has appeared at it yet. The undead is spawned by
      * the blast that opens it, but it reaches the client a tick or more later.
@@ -415,17 +420,21 @@ public final class SecretWaypointsFeature {
             if (isPrince ? !princes : !crypts) {
                 continue;
             }
-            if (!client.level.hasChunk(f.anchor().getX() >> 4, f.anchor().getZ() >> 4)) {
-                continue;
-            }
+            // A tomb in a chunk the client does not have reads as all air - "opened" - and two seconds later, with no
+            // mob in sight (none can be seen there either), it was marked done for the run and never drawn again.
+            // Unknown is not opened: while any of it is unloaded it keeps its last state and is not judged.
+            boolean readable = com.killer560.hub.util.ClientChunks.allLoaded(client.level, f.minX(), f.minZ(),
+                    f.maxX(), f.maxZ());
+            AABB tomb = new AABB(f.minX(), f.minY(), f.minZ(), f.maxX() + 1, f.maxY() + 1, f.maxZ() + 1);
             int standing = 0;
-            for (BlockPos p : f.blocks()) {
-                if (CryptScanner.stillThere(client.level, f.type(), p)) {
-                    standing++;
+            if (readable) {
+                for (BlockPos p : f.blocks()) {
+                    if (CryptScanner.stillThere(client.level, f.type(), p)) {
+                        standing++;
+                    }
                 }
             }
-            AABB tomb = new AABB(f.minX(), f.minY(), f.minZ(), f.maxX() + 1, f.maxY() + 1, f.maxZ() + 1);
-            if (standing * 2 < f.blocks().size()) {
+            if (readable && standing * 2 < f.blocks().size()) {
                 if (s.openedAtMs == 0L) {
                     s.openedAtMs = now;
                 }
@@ -554,58 +563,74 @@ public final class SecretWaypointsFeature {
                 ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
         int leverMinY = LEVER_SCAN_MIN_Y + shiftY;
         int leverMaxY = LEVER_SCAN_MAX_Y + shiftY;
-        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         int minChunkX = bounds[0] >> 4;
         int maxChunkX = bounds[2] >> 4;
         int minChunkZ = bounds[1] >> 4;
         int maxChunkZ = bounds[3] >> 4;
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                if (!client.level.hasChunk(cx, cz)) {
-                    continue;
-                }
-                net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(cx, cz);
-                int x0 = Math.max(bounds[0], cx << 4);
-                int x1 = Math.min(bounds[2], (cx << 4) + 15);
-                int z0 = Math.max(bounds[1], cz << 4);
-                int z1 = Math.min(bounds[3], (cz << 4) + 15);
-                var sections = chunk.getSections();
-                for (int i = 0; i < sections.length; i++) {
-                    int sectionMinY = chunk.getSectionYFromSectionIndex(i) << 4;
-                    int sectionMaxY = sectionMinY + 15;
-                    if (sectionMaxY < leverMinY || sectionMinY > leverMaxY) {
+                long key = net.minecraft.world.level.ChunkPos.pack(cx, cz);
+                List<BlockPos> levers;
+                if (!com.killer560.hub.util.ClientChunks.isLoaded(client.level, cx, cz)) {
+                    // Not loaded: unknown, not empty. Show what it held when it was last read.
+                    levers = LEVERS_BY_CHUNK.get(key);
+                    if (levers == null) {
                         continue;
                     }
-                    var section = sections[i];
-                    if (section == null || section.hasOnlyAir()
-                            || !section.maybeHas(state -> state.is(Blocks.LEVER))) {
-                        continue;
-                    }
-                    int y0 = Math.max(leverMinY, sectionMinY);
-                    int y1 = Math.min(leverMaxY, sectionMaxY);
-                    for (int x = x0; x <= x1; x++) {
-                        for (int z = z0; z <= z1; z++) {
-                            for (int y = y0; y <= y1; y++) {
-                                if (section.getBlockState(x & 15, y & 15, z & 15).getBlock() != Blocks.LEVER) {
-                                    continue;
+                } else {
+                    levers = new ArrayList<>();
+                    net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(cx, cz);
+                    int x0 = Math.max(bounds[0], cx << 4);
+                    int x1 = Math.min(bounds[2], (cx << 4) + 15);
+                    int z0 = Math.max(bounds[1], cz << 4);
+                    int z1 = Math.min(bounds[3], (cz << 4) + 15);
+                    var sections = chunk.getSections();
+                    for (int i = 0; i < sections.length; i++) {
+                        int sectionMinY = chunk.getSectionYFromSectionIndex(i) << 4;
+                        int sectionMaxY = sectionMinY + 15;
+                        if (sectionMaxY < leverMinY || sectionMinY > leverMaxY) {
+                            continue;
+                        }
+                        var section = sections[i];
+                        if (section == null || section.hasOnlyAir()
+                                || !section.maybeHas(state -> state.is(Blocks.LEVER))) {
+                            continue;
+                        }
+                        int y0 = Math.max(leverMinY, sectionMinY);
+                        int y1 = Math.min(leverMaxY, sectionMaxY);
+                        for (int x = x0; x <= x1; x++) {
+                            for (int z = z0; z <= z1; z++) {
+                                for (int y = y0; y <= y1; y++) {
+                                    if (section.getBlockState(x & 15, y & 15, z & 15).getBlock() == Blocks.LEVER) {
+                                        levers.add(new BlockPos(x, y, z));
+                                    }
                                 }
-                                pos.set(x, y, z);
-                                BlockPos real = pos.immutable();
-                                // A lever he has clicked stays hidden for the run, as a taken chest does (killer560,
-                                // 2026-10-06: "clicking levers doesn't hide them from secret waypoints"). The click
-                                // listener in register() always marked it; this scan put it straight back on the
-                                // next rebuild because, unlike addGroup, it never asked COLLECTED.
-                                if (COLLECTED.contains(real) || !seen.add(real)) {
-                                    continue;
-                                }
-                                AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
-                                CACHED.add(new Waypoint(box,
-                                        (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5,
-                                        (box.minZ + box.maxZ) * 0.5,
-                                        r, g, b, a, real, Kind.LEVER, "Lever"));
                             }
                         }
                     }
+                    if (levers.isEmpty()) {
+                        LEVERS_BY_CHUNK.remove(key);
+                    } else {
+                        LEVERS_BY_CHUNK.put(key, levers);
+                    }
+                }
+                for (BlockPos real : levers) {
+                    if (real.getX() < bounds[0] || real.getX() > bounds[2] || real.getZ() < bounds[1]
+                            || real.getZ() > bounds[3]) {
+                        continue; // remembered for another room's bounds
+                    }
+                    // A lever he has clicked stays hidden for the run, as a taken chest does (killer560,
+                    // 2026-10-06: "clicking levers doesn't hide them from secret waypoints"). The click
+                    // listener in register() always marked it; this scan put it straight back on the
+                    // next rebuild because, unlike addGroup, it never asked COLLECTED.
+                    if (COLLECTED.contains(real) || !seen.add(real)) {
+                        continue;
+                    }
+                    AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
+                    CACHED.add(new Waypoint(box,
+                            (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5,
+                            (box.minZ + box.maxZ) * 0.5,
+                            r, g, b, a, real, Kind.LEVER, "Lever"));
                 }
             }
         }

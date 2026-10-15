@@ -46,6 +46,9 @@ final class WitherDoorScanner {
     /** null = cell not scanned yet (unloaded / no roof); NOT_A_DOOR marks a scanned non-door odd cell. */
     private static final Object NOT_A_DOOR = new Object();
     private static final Object[] cells = new Object[GRID * GRID];
+    /** Each door cell's lock as last READ. A wither or blood door whose chunk the client has let go of reads as air
+     *  - "opened" - so while its chunk is not loaded the last real reading stands (a door never re-locks). */
+    private static final boolean[] lastLocked = new boolean[GRID * GRID];
     private static Object lastLevel = null;
     private static int ticksUntilScan = 0;
 
@@ -54,6 +57,7 @@ final class WitherDoorScanner {
 
     static void reset() {
         Arrays.fill(cells, null);
+        Arrays.fill(lastLocked, false);
         ticksUntilScan = 0;
     }
 
@@ -84,7 +88,7 @@ final class WitherDoorScanner {
                 }
                 int wx = START + gx * HALF_ROOM;
                 int wz = START + gz * HALF_ROOM;
-                if (!client.level.hasChunk(wx >> 4, wz >> 4)) {
+                if (!com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, wx, wz)) {
                     continue;
                 }
                 int height = topLayer(client, mutable, wx, wz, off);
@@ -99,6 +103,7 @@ final class WitherDoorScanner {
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
                             : DoorType.NORMAL;
                     cells[idx] = new Door(wx, 69 + off, wz, type);
+                    lastLocked[idx] = type == DoorType.WITHER || type == DoorType.BLOOD;
                 } else {
                     cells[idx] = NOT_A_DOOR;
                 }
@@ -129,25 +134,30 @@ final class WitherDoorScanner {
         return Integer.MIN_VALUE;
     }
 
-    /** Same rule as {@code doorhelpers.DoorScanner.isLocked}: only WITHER/BLOOD cells can be locked, and an
-     *  opened one is air at its anchor block. */
-    static boolean isLocked(Minecraft client, Door door) {
-        if (door.type() != DoorType.WITHER && door.type() != DoorType.BLOOD) {
+    /** Same rule as {@code doorhelpers.DoorScanner.isLocked}: only WITHER/BLOOD cells can be locked, an opened one is
+     *  air at its anchor block, and while the door's chunk is not loaded its last real reading stands (an unloaded
+     *  chunk reads as air, which is not "opened"; see {@link #lastLocked}). */
+    private static boolean lockedAtCell(Minecraft client, int idx) {
+        if (!(cells[idx] instanceof Door door) || (door.type() != DoorType.WITHER && door.type() != DoorType.BLOOD)
+                || client.level == null) {
             return false;
         }
-        return client.level != null && !(client.level.getBlockState(door.basePos()).getBlock() instanceof AirBlock);
+        if (com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, door.x(), door.z())) {
+            lastLocked[idx] = !(client.level.getBlockState(door.basePos()).getBlock() instanceof AirBlock);
+        }
+        return lastLocked[idx];
     }
 
     /** Whether the door cell {@code idx} (11x11 index, x + z * 11 - {@code DungeonLayout}'s numbering) was scanned as a
      *  WITHER/BLOOD door that is still shut - i.e. the normal highlight already draws it. */
     static boolean lockedAt(Minecraft client, int idx) {
-        return idx >= 0 && idx < cells.length && cells[idx] instanceof Door door && isLocked(client, door);
+        return idx >= 0 && idx < cells.length && lockedAtCell(client, idx);
     }
 
     static List<Door> lockedDoors(Minecraft client) {
         List<Door> out = new ArrayList<>();
-        for (Object cell : cells) {
-            if (cell instanceof Door door && isLocked(client, door)) {
+        for (int idx = 0; idx < cells.length; idx++) {
+            if (cells[idx] instanceof Door door && lockedAtCell(client, idx)) {
                 out.add(door);
             }
         }
