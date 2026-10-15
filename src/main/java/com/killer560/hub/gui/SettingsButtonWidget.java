@@ -60,6 +60,12 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     private final OnPress onSecondaryPress;
     private final boolean primary;
     private final boolean danger;
+    /**
+     * A chip that is either chosen or not (the sim's filter chips, a nav entry): null for an ordinary button. In a themed
+     * screen a chosen one is drawn lit in the accent with bright text, an unchosen one recessed with dim text, so which
+     * are on reads at a glance (killer560, 2026-10-15: "it is really hard to tell which filters are selected").
+     */
+    private Boolean toggled;
     /** Its animation in the mod menu (hover, switch, press, value); handed to its rebuilt copy by ModScreen. */
     private final MenuAnim.RowAnim anim = new MenuAnim.RowAnim();
 
@@ -75,12 +81,23 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
     }
 
     private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean primary,
-            boolean danger, int x, int y, int width, int height) {
+            boolean danger, Boolean toggled, int x, int y, int width, int height) {
         super(x, y, width, height, message);
         this.onPress = onPress;
         this.onSecondaryPress = onSecondaryPress;
         this.primary = primary;
         this.danger = danger;
+        this.toggled = toggled;
+    }
+
+    /** For a {@link Builder#toggle} chip: whether it is chosen; null for an ordinary button. Read by the testkit. */
+    public Boolean toggleState() {
+        return toggled;
+    }
+
+    /** Makes this a toggle chip in the given state (or an ordinary button again with null). */
+    public void setToggleState(Boolean on) {
+        this.toggled = on;
     }
 
     /** Whether this was built with {@link Builder#danger()} (read by the testkit). */
@@ -141,6 +158,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         private OnPress onSecondaryPress;
         private boolean primary;
         private boolean danger;
+        private Boolean toggled;
         private int x;
         private int y;
         private int width = 150;
@@ -184,8 +202,15 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return this;
         }
 
+        /** Draws this as a chip that is chosen ({@code on}) or not: lit in the accent, or recessed and dim. */
+        public Builder toggle(boolean on) {
+            this.toggled = on;
+            return this;
+        }
+
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, danger, x, y, width, height);
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, danger, toggled, x, y, width,
+                    height);
         }
     }
 
@@ -289,6 +314,10 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         int h = getHeight();
         boolean hover = isHovered && active;
         com.killer560.hub.hud.GuiRects r = com.killer560.hub.hud.GuiRects.begin(graphics);
+        if (toggled != null && !danger) {
+            renderToggle(graphics, r, x0, y0, w, h, hover);
+            return;
+        }
         if (danger) {
             MenuStyle.dangerButton(r, x0 + 1, y0 + 1, w - 2, h - 2, hover);
         } else {
@@ -306,6 +335,28 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return;
         }
         graphics.text(font, label, x0 + (w - font.width(label)) / 2, y0 + (h - 8) / 2, faded(color), MenuStyle.TEXT_SHADOW);
+    }
+
+    /**
+     * A toggle chip: the Filters panel's chip look ({@code SimRoomFilterScreen.Chip}) - the value pill lit in the accent
+     * with dark-or-white text when chosen, recessed with dim text when not (hover brightens it).
+     */
+    private void renderToggle(GuiGraphicsExtractor graphics, com.killer560.hub.hud.GuiRects r, int x0, int y0, int w, int h,
+            boolean hover) {
+        boolean on = toggled && active;
+        MenuStyle.pill(r, x0, y0, w, h, on, hover);
+        if (on) {
+            MenuStyle.glow(r, x0, y0, w, h, MenuStyle.OR, hover ? 0x40 : 0x28);
+        }
+        r.submit();
+        var font = Minecraft.getInstance().font;
+        String plain = net.minecraft.ChatFormatting.stripFormatting(getMessage().getString());
+        String label = MenuStyle.ellipsize(plain == null ? getMessage().getString() : plain, w - 8);
+        int color = !active ? MenuStyle.DIM2 : on
+                ? (MenuStyle.luminance(MenuStyle.OR) > 0.55f ? 0xFF1A120A : 0xFFFFFFFF)
+                : (hover ? MenuStyle.TXT_HOVER : MenuStyle.DIM);
+        graphics.text(font, label, x0 + (w - font.width(label)) / 2, y0 + (h - 8) / 2, faded(color),
+                MenuStyle.TEXT_SHADOW && !on);
     }
 
     /** A left click, as the menu's card and search switches send it: the same {@code onPress} a real click runs. */

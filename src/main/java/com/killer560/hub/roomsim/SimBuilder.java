@@ -50,7 +50,7 @@ public final class SimBuilder {
                             .requires(src -> SimState.canAct(Minecraft.getInstance()))
                             .executes(ctx -> {
                                 Minecraft mc = Minecraft.getInstance();
-                                mc.execute(() -> mc.setScreenAndShow(new SimMenuScreen(McCompat.screen(mc))));
+                                mc.execute(() -> mc.setScreenAndShow(SimMenuScreen.open(McCompat.screen(mc))));
                                 return 1;
                             }));
                     dispatcher.register(

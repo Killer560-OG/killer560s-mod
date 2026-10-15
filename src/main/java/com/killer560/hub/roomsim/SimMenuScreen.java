@@ -28,7 +28,12 @@ import com.killer560.hub.compat.McCompat;
  * <p>killer560 (2026-10-15): "remove the pick what to practice and if there is a better way of using this space then
  * please use it." There is no in-between page any more: the four choices are a column down the left of one wide
  * panel and the page they pick fills the rest, so the room list or the runs are on screen the moment the menu
- * opens. It opens on the page it was last on ({@link SimMenuPrefs}). "Create a New Map" still opens the designer.
+ * opens.
+ *
+ * <p>killer560 (2026-10-15): the Dungeon Sim button opens "Create a New Map" (the designer) first, and after that the
+ * page he was on last this game session ({@link SimMenuNav}, which also draws the left column on the designer, so the
+ * other pages stay one click away). No page name in the header and no room count under the column; the quick filter
+ * chips are lit when chosen.
  */
 public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
@@ -48,27 +53,13 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return themedBounds.clone();
     }
 
-    private enum Mode {
-        PREVIOUS("Load a Previous Run", "Previous Runs"),
-        ROOM("Load a Room", "Load a Room"),
-        CYCLE("All Rooms (route practice)", "Route Practice");
-
-        final String title;
-        /** The label of its button in the left column. */
-        final String nav;
-
-        Mode(String title, String nav) {
-            this.title = title;
-            this.nav = nav;
-        }
-    }
-
-    /** The left column's "Create a New Map" button, which opens the designer rather than a page here. */
+    /** The left column's "Create a New Map" entry, which opens the designer as the menu's first page. */
     public static final String NEW_MAP_LABEL = "Create a New Map";
 
     private final Screen parent;
     private final SimMenuPrefs prefs = SimMenuPrefs.load();
-    private Mode mode;
+    /** The page on screen (never DESIGNER: that one is {@link SimMapEditorScreen}). */
+    private SimMenuNav.Page mode;
 
     private EditBox search;
     /** Kept across a visit to the Filters panel, which rebuilds this screen. */
@@ -86,81 +77,66 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
      */
     private boolean listedWithDatabase;
 
+    private SimMenuNav nav;
     private int panelX;
     private int panelY;
     private int panelW;
     private int panelH;
-    /** The left column. */
-    private int navX;
-    private int navW;
-    /** The page area right of it. */
+    /** The page area right of the left column. */
     private int contentX;
     private int contentY;
     private int contentW;
+    private int contentBottom;
 
+    /** The menu on the page it was last on this session, Load a Room when that was the designer or nothing yet. */
     public SimMenuScreen(Screen parent) {
+        this(parent, SimMenuNav.lastPage());
+    }
+
+    SimMenuScreen(Screen parent, SimMenuNav.Page page) {
         super(Component.literal("Dungeon Sim"));
         this.parent = parent;
-        Mode remembered = Mode.ROOM;
-        for (Mode m : Mode.values()) {
-            if (m.name().equalsIgnoreCase(prefs.page)) {
-                remembered = m;
-            }
-        }
-        this.mode = remembered;
+        this.mode = page == null || page == SimMenuNav.Page.DESIGNER ? SimMenuNav.Page.ROOM : page;
+    }
+
+    /**
+     * What the Dungeon Sim button and /map open: the map designer the first time this game session, afterwards the page
+     * he was on last (killer560, 2026-10-15).
+     */
+    public static Screen open(Screen parent) {
+        return SimMenuNav.open(parent);
     }
 
     @Override
     protected void init() {
-        // Wide: the old 560-unit cap left most of a real monitor empty around a list of names.
-        panelW = Math.min(this.width - 16, Math.max(420, Math.min((int) (this.width * 0.92), 820)));
-        panelH = Math.min(this.height - 16, Math.max(240, Math.min((int) (this.height * 0.9), 500)));
-        panelX = (this.width - panelW) / 2;
-        panelY = (this.height - panelH) / 2;
-        navX = panelX + 8;
-        navW = Math.max(112, Math.min(150, panelW / 5));
-        contentX = navX + navW + 10;
-        contentY = panelY + ScreenChrome.HEADER_H + 10;
-        contentW = panelX + panelW - 8 - contentX;
+        nav = new SimMenuNav(this.width, this.height);
+        panelX = nav.panelX;
+        panelY = nav.panelY;
+        panelW = nav.panelW;
+        panelH = nav.panelH;
+        contentX = nav.contentX;
+        contentY = nav.contentY;
+        contentW = nav.contentW;
+        contentBottom = nav.contentBottom;
+        SimMenuNav.shown(mode);
         RoomLibrary.loadAsync();
         // See SimMapEditorScreen.init - the sim runs from the main menu, where nothing else starts this.
         com.killer560.hub.roomdatabase.RoomDatabase.ensureLoading();
 
-        buildNav();
+        nav.addItems(this::addRenderableWidget, mode, parent, this::showPage);
         switch (mode) {
             case PREVIOUS -> buildPrevious();
-            case ROOM -> buildRoomPicker();
             case CYCLE -> buildCycle();
+            default -> buildRoomPicker();
         }
     }
 
-    /** The left column: the three pages, the designer, and Back. */
-    private void buildNav() {
-        int y = contentY;
-        for (Mode m : new Mode[]{Mode.PREVIOUS, null, Mode.ROOM, Mode.CYCLE}) {
-            if (m == null) {
-                // killer560 (2026-09-29): Create a New Map goes straight to the designer.
-                addRenderableWidget(SettingsButtonWidget.builder(Component.literal(NEW_MAP_LABEL), b ->
-                        McCompat.setScreen(this.minecraft, new SimMapEditorScreen(this)))
-                        .bounds(navX, y, navW, 20).build());
-            } else {
-                addRenderableWidget(SettingsButtonWidget.builder(Component.literal(m.nav), b -> showPage(m))
-                        .bounds(navX, y, navW, 20).build());
-            }
-            y += 24;
-        }
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(navX, panelY + panelH - 28, navW, 20).build());
-    }
-
-    /** Switches page and remembers it. */
-    private void showPage(Mode m) {
+    /** Switches page; init remembers it for the session. */
+    private void showPage(SimMenuNav.Page m) {
         mode = m;
         detail = null;
         scroll = 0;
         capturing = 0;
-        prefs.page = m.name();
-        prefs.save();
         rebuildWidgets();
     }
 
@@ -175,7 +151,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
      * rooms or rooms with auto routes", plus a keybinds section for Next Room / Previous Room.
      */
     private void buildCycle() {
-        int w = contentW;
         int x = contentX;
         int y = contentY + 24;
         boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
@@ -184,6 +159,9 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         // SimRoomFilters.CYCLE. The counts below are after them.
         filtersButton(SimRoomFilters.CYCLE, "Narrows the rooms /next and /back step through.",
                 contentX + contentW - filtersWidth(), contentY);
+        // Sized to their labels, not stretched across the page (killer560, 2026-10-15: the buttons "span the whole panel
+        // width - make them sensibly sized").
+        int w = cycleButtonWidth();
         for (SimRoomCycle.Choice c : SimRoomCycle.Choice.values()) {
             String count = ready ? " (" + SimRoomCycle.roomsFor(c).size() + ")" : " §7(loading...)";
             var button = SettingsButtonWidget.builder(Component.literal(c.label + count), b -> {
@@ -196,25 +174,38 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             y += 24;
         }
         // Keybinds: Next Room and Previous Room, the same as /next and /back, only inside the sim. Unbound by
-        // default. Esc clears a bind; a mouse button can be one.
-        // Room under the buttons for the KEYBINDS heading, drawn in render.
-        y += 20;
-        int half = (w - 6) / 2;
+        // default. Esc clears a bind; a mouse button can be one. Under the KEYBINDS heading drawn in render.
+        y = cycleKeybindsY() + 16;
+        int kw = keyButtonWidth();
         // Previous Room on the left, Next Room on the right (killer560, 2026-10-13).
         addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Next Room", 1, SimRoomCycle.getNextKey()), b -> {
             capturing = 1;
             b.setMessage(Component.literal("Next Room: §ePress any key..."));
-        }).bounds(x + half + 6, y, w - half - 6, 20).build());
+        }).bounds(x + kw + 6, y, kw, 20).build());
         addRenderableWidget(SettingsButtonWidget.builder(keyLabel("Previous Room", 2, SimRoomCycle.getBackKey()),
                 b -> {
                     capturing = 2;
                     b.setMessage(Component.literal("Previous Room: §ePress any key..."));
-                }).bounds(x, y, half, 20).build());
+                }).bounds(x, y, kw, 20).build());
+    }
+
+    /** The practice-set buttons' one width: the longest label with a three-figure count, plus padding. */
+    private int cycleButtonWidth() {
+        int widest = 0;
+        for (SimRoomCycle.Choice c : SimRoomCycle.Choice.values()) {
+            widest = Math.max(widest, this.font.width(c.label + " (000)"));
+        }
+        return Math.min(contentW, Math.max(180, widest + 28));
+    }
+
+    /** Each key button's width: room for "Previous Room: Press any key...", two side by side within the page. */
+    private int keyButtonWidth() {
+        return Math.min((contentW - 6) / 2, Math.max(150, this.font.width("Previous Room: Press any key...") + 16));
     }
 
     /** The y of the route practice page's KEYBINDS heading. */
     private int cycleKeybindsY() {
-        return contentY + 24 + 3 * 24 + 6;
+        return contentY + 24 + 3 * 24 + 10;
     }
 
     private Component keyLabel(String label, int which, int code) {
@@ -239,7 +230,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-        if (mode == Mode.CYCLE && capturing != 0) {
+        if (mode == SimMenuNav.Page.CYCLE && capturing != 0) {
             applyCapture(event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE
                     ? com.killer560.hub.util.KeyUtil.NONE : event.key());
             return true;
@@ -292,25 +283,27 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     private void quickFilters(int x, int y, int right) {
         SimRoomFilter f = SimRoomFilters.PICKER;
         List<SettingsButtonWidget> chips = new ArrayList<>();
+        // Every chip says whether it is on (killer560, 2026-10-15: "it is really hard to tell which filters are selected"):
+        // lit in the accent with bright text when chosen, recessed and dim when not - the Filters panel's own chip look.
         for (String size : SimRoomFilter.SIZES) {
-            boolean on = f.hasSize(size);
-            chips.add(SettingsButtonWidget.builder(Component.literal((on ? "§6" : "") + size), b -> {
+            chips.add(SettingsButtonWidget.builder(Component.literal(size), b -> {
                 f.toggleSize(size);
                 scroll = 0;
                 rebuildWidgets();
-            }).bounds(0, 0, Math.max(26, this.font.width(size) + 10), 18).build());
+            }).bounds(0, 0, Math.max(28, this.font.width(size) + 14), 18).toggle(f.hasSize(size)).build());
         }
         int lastSize = chips.size() - 1;
         chips.add(SettingsButtonWidget.cycling(Component.literal("Secrets: " + f.secrets().label), (b, dir) -> {
             f.setSecrets(SettingsButtonWidget.step(f.secrets(), dir));
             scroll = 0;
             rebuildWidgets();
-        }).bounds(0, 0, this.font.width("Secrets: 4 or more") + 12, 18).build());
+        }).bounds(0, 0, this.font.width("Secrets: 4 or more") + 14, 18)
+                .toggle(f.secrets() != SimRoomFilter.Count.ANY).build());
         chips.add(SettingsButtonWidget.cycling(Component.literal("Kind: " + kindValue()), (b, dir) -> {
             stepKind(dir);
             scroll = 0;
             rebuildWidgets();
-        }).bounds(0, 0, this.font.width("Kind: Champion") + 12, 18).build());
+        }).bounds(0, 0, this.font.width("Kind: Champion") + 14, 18).toggle(!"Any".equals(kindValue())).build());
         int cx = x;
         int cy = y;
         quickRows = 1;
@@ -324,7 +317,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             chip.setX(cx);
             chip.setY(cy);
             addRenderableWidget(chip);
-            cx += chip.getWidth() + (i == lastSize ? 10 : 3);
+            cx += chip.getWidth() + (i == lastSize ? 12 : 4);
         }
     }
 
@@ -390,11 +383,19 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     /** A "Filters" button opening the shared panel on {@code filter}. */
     private void filtersButton(SimRoomFilter filter, String note, int x, int y) {
-        int active = filter.activeCount();
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(
-                active == 0 ? "Filters" : "§6Filters (" + active + ")"), b -> McCompat.setScreen(this.minecraft,
-                        new SimRoomFilterScreen(this, filter, note)))
-                .bounds(x, y, filtersWidth(), 18).build());
+        addRenderableWidget(filtersButton(this, filter, note, x, y, filtersWidth(), 18));
+    }
+
+    /**
+     * A Filters button for {@code filter}: lit while any chip is chosen, its count the chips chosen
+     * ({@link SimRoomFilter#selectedCount}), so it matches what the panel shows lit. Shared with the designer.
+     */
+    static SettingsButtonWidget filtersButton(Screen owner, SimRoomFilter filter, String note, int x, int y, int w, int h) {
+        int chosen = filter.selectedCount();
+        return SettingsButtonWidget.builder(Component.literal(chosen == 0 ? "Filters" : "Filters (" + chosen + ")"),
+                        b -> McCompat.setScreen(net.minecraft.client.Minecraft.getInstance(),
+                                note == null ? new SimRoomFilterScreen(owner) : new SimRoomFilterScreen(owner, filter, note)))
+                .bounds(x, y, w, h).toggle(chosen > 0).build();
     }
 
     /**
@@ -444,12 +445,25 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                     .thenComparing(SimRoomFilter::shapeKey);
             case SECRETS -> java.util.Comparator.comparingInt(SimRoomFilter::secretsOf);
             case CRYPTS -> java.util.Comparator.comparingInt(SimRoomFilter::cryptsOf);
-            case ROUTES -> java.util.Comparator.comparingInt(SimRoomRoutes::routeNodes);
+            case ROUTES -> java.util.Comparator.comparingInt(SimMenuScreen::routeRank);
         };
         if (descending) {
             key = key.reversed();
         }
         return sort == SimMenuPrefs.RoomSort.NAME ? key : key.thenComparing(byName);
+    }
+
+    /**
+     * Where a room sorts in the Routes column, smallest first: "-" (a room the routes view leaves out and has no route)
+     * 0, "no routes" 1, then its node count above that. killer560 (2026-10-15): the two zero kinds were interleaved by
+     * name; now "-" comes first, then "no routes", then the rooms with nodes - and descending turns all of it round.
+     */
+    static int routeRank(String name) {
+        int nodes = SimRoomRoutes.routeNodes(name);
+        if (nodes > 0) {
+            return 1 + nodes;
+        }
+        return SimRoomRoutes.isEligible(name) ? 1 : 0;
     }
 
     /** The text at the right of a room's row, or null for a room the routes view leaves out and has no route. */
@@ -468,9 +482,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     /** Opens straight on "Load a Room", for the testkit. */
     public static SimMenuScreen roomPicker(Screen parent) {
-        SimMenuScreen screen = new SimMenuScreen(parent);
-        screen.mode = Mode.ROOM;
-        return screen;
+        return new SimMenuScreen(parent, SimMenuNav.Page.ROOM);
     }
 
     // ------------------------------------------------------------------------------------------- the room list
@@ -493,7 +505,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private int roomRowsHeight() {
-        return panelY + panelH - 8 - roomRowsTop();
+        return contentBottom - roomRowsTop();
     }
 
     /**
@@ -559,9 +571,9 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         int step = (int) Math.round(scrollY * ROW_H * 2);
-        if (mode == Mode.PREVIOUS && detail != null) {
+        if (mode == SimMenuNav.Page.PREVIOUS && detail != null) {
             detailScroll = Math.max(0, Math.min(detailMaxScroll(), detailScroll - step));
-        } else if (mode == Mode.PREVIOUS) {
+        } else if (mode == SimMenuNav.Page.PREVIOUS) {
             scroll = Math.max(0, Math.min(runsMaxScroll(), scroll - step));
         } else {
             scroll = Math.max(0, Math.min(maxScroll(), scroll - step));
@@ -572,11 +584,11 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         // A key row waiting for a bind takes the next mouse press as the bind, as the settings tabs do.
-        if (mode == Mode.CYCLE && capturing != 0) {
+        if (mode == SimMenuNav.Page.CYCLE && capturing != 0) {
             applyCapture(com.killer560.hub.util.KeyUtil.codeForMouseButton(event.button()));
             return true;
         }
-        if (mode == Mode.ROOM && event.button() == 0) {
+        if (mode == SimMenuNav.Page.ROOM && event.button() == 0) {
             // A heading sorts by its column; the same one again turns the order round.
             if (event.y() >= roomWellTop() && event.y() < roomRowsTop()) {
                 for (Col c : columns()) {
@@ -596,7 +608,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
                 return true;
             }
         }
-        if (mode == Mode.PREVIOUS && detail == null && event.button() == 0) {
+        if (mode == SimMenuNav.Page.PREVIOUS && detail == null && event.button() == 0) {
             int i = runAt(event.x(), event.y());
             if (i >= 0) {
                 detail = runs.get(i);
@@ -612,20 +624,17 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
         // hover / selected rows, every colour from the active theme.
-        ScreenChrome.backdrop(g, this.width, this.height);
+        // The menu theme (screen sweep, 2026-10-13): the menu's panel and header bar, lists in a recessed well with
+        // hover / selected rows, every colour from the active theme. No page name at the right of the bar any more
+        // (killer560, 2026-10-15): the lit entry in the left column already says which page this is.
         themedBounds = new int[]{panelX, panelY, panelW, panelH};
-        ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
-        ScreenChrome.headerBar(g, panelX, panelY, panelW);
-        ScreenChrome.title(g, "DUNGEON SIM", panelX + 10, panelY + 11, false);
-        String page = mode.title.toUpperCase(Locale.ROOT);
-        MenuStyle.text(g, page, panelX + panelW - 12 - this.font.width(page), panelY + 11, MenuStyle.DIM);
-        drawNav(g);
+        nav.drawFrame(g, this.width, this.height);
         switch (mode) {
             case CYCLE -> {
                 if (com.killer560.hub.roomdatabase.RoomDatabase.isReady() != cycleBuiltWithDatabase) {
                     rebuildWidgets();
                 }
-                ScreenChrome.section(g, "ROUTE PRACTICE", contentX, contentY + 5,
+                ScreenChrome.section(g, "PRACTICE SET", contentX, contentY + 5,
                         contentX + contentW - filtersWidth() - 8, false);
                 // killer560 (2026-10-15): "remove the top text and the no puzzles blood text stuff."
                 ScreenChrome.section(g, "KEYBINDS (sim only)", contentX, cycleKeybindsY(), contentX + contentW, false);
@@ -798,7 +807,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     private int cardsHeight() {
-        return panelY + panelH - 8 - cardsTop();
+        return contentBottom - cardsTop();
     }
 
     /** Two columns of cards when the page is wide enough for two readable ones. */
@@ -935,7 +944,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     /** The run page: the map large on the left, everything the run recorded beside it, scrolling. */
     private int detailMapCell() {
-        int areaH = panelY + panelH - 8 - cardsTop() - 16;
+        int areaH = contentBottom - cardsTop() - 16;
         int byWidth = (int) (contentW * 0.4) / RunRecordGrid.GRID;
         return Math.max(6, Math.min(14, Math.min(byWidth, areaH / RunRecordGrid.GRID)));
     }
@@ -983,26 +992,6 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         if (detailMaxScroll() > 0) {
             ScreenChrome.scrollbar(g, contentX + contentW - 5, top, h, detailScroll, detailMaxScroll(), h);
         }
-    }
-
-    /** The left column's frame, the open page's marker, and the library line under the buttons. */
-    private void drawNav(GuiGraphicsExtractor g) {
-        GuiRects r = GuiRects.begin(g);
-        // A separator between the column and the page.
-        r.fill(contentX - 6, contentY, contentX - 5, panelY + panelH - 8, MenuStyle.alpha(MenuStyle.BLACK, 0x80));
-        int index = switch (mode) {
-            case PREVIOUS -> 0;
-            case ROOM -> 2;
-            case CYCLE -> 3;
-        };
-        int y = contentY + index * 24;
-        // The open page: an accent bar beside its button.
-        r.fill(navX - 4, y, navX - 2, y + 20, MenuStyle.OR);
-        r.submit();
-        String library = RoomLibrary.roomCount() == 0
-                ? "No rooms loaded"
-                : RoomLibrary.roomCount() + " rooms captured";
-        MenuStyle.text(g, this.font.plainSubstrByWidth(library, navW), navX, contentY + 4 * 24 + 4, MenuStyle.DIM);
     }
 
     @Override

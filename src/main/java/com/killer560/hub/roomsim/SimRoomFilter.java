@@ -243,6 +243,21 @@ public final class SimRoomFilter {
         return n;
     }
 
+    /**
+     * How many chips are chosen, the number a Filters button shows: each Size, Kind and (while it can matter) Puzzle chip
+     * on its own, plus one for each single-choice row off Any. Two Size chips lit read "Filters (2)", not "(1)"
+     * (killer560, 2026-10-15: the count should match what is visibly selected).
+     */
+    public synchronized int selectedCount() {
+        Data d = data();
+        int n = d.sizes.size() + d.kinds.size() + (puzzlesInPlay() ? d.puzzles.size() : 0);
+        n += rare() != Rare.ANY ? 1 : 0;
+        n += secrets() != Count.ANY ? 1 : 0;
+        n += crypts() != Count.ANY ? 1 : 0;
+        n += routes() != SimRoomRoutes.Filter.ALL ? 1 : 0;
+        return n;
+    }
+
     public boolean isDefault() {
         return activeCount() == 0;
     }
