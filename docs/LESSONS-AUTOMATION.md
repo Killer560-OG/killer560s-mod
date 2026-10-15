@@ -213,6 +213,17 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   auto finished and he stood beside the chest). The autos open it themselves (`autopuzzles/RewardChest`), Secret Aura or
   not; testkit 93-solve-*-claim run with Secret Aura off.
 
+- **Auto Boulder started at the doorway only on ClearExecutor's arrival counter**, which moves only when a map path ends
+  within 1.5 of its planned landing - never for his own etherwarp, nor a map trip that ended off its plan. Standing on
+  the doorway spot (filed by the live map under the tile next door) it then never started; walking in did. Any server
+  teleport that leaves him there starts it now (`ClearExecutor.positionPackets`); testkit 93-solve-boulder-doorwarp
+  (main: never starts; a real map press, -mapwarp, passes on both). Its walks also only sprinted on long straights.
+- **The sim decided a Tic Tac Toe click on the CLIENT and took the square's button away in a server task queued before
+  the click's own packet**, so the server saw air and fired an AOTV's Instant Transmission into the board (4.2 blocks,
+  93-solve-tictactoe-grab). On Hypixel a board click never moves him (his 2026-10-14 log); `SimAbilities.blockWins` now
+  lets a square win. Sim Ice Fill's two reward chests sit on coordinates read off one capture; Mod Only Test's holds
+  gray wool there, so no chest stood at all until it searched for the torch-lit pedestals by the iron bars.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
