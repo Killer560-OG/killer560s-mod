@@ -175,14 +175,39 @@ public final class RightClick {
      * ({@code who} null: ask without logging).
      */
     public static boolean mustTurnFirst(LocalPlayer player, float yaw, float pitch, String who) {
+        return mustTurnFirst(player, null, yaw, pitch, who);
+    }
+
+    /**
+     * {@link #mustTurnFirst(LocalPlayer, float, float, String)} for a use the server resolves from {@code serverFeet} - where
+     * the server has him while the client has not seen the landing yet (the Interactive Map chains a hop off the last one
+     * in flight); null = where the last movement packet put him. Also true while the look is told and its own ray meets a
+     * block from there but the client is not standing there yet: the click on that block that pairs the use can only be
+     * sent once he has landed, so the hop waits for the landing.
+     */
+    public static boolean mustTurnFirst(LocalPlayer player, Vec3 serverFeet, float yaw, float pitch, String who) {
         if (!unpaired || player == null) {
             return false;
         }
         checkLevel(player);
-        if (!unpaired || sameLook(player, yaw, pitch)) {
+        if (!unpaired) {
             return false;
         }
-        BlockHitResult ray = serverRay(player, sentYaw, sentPitch);
+        Vec3 feet = serverFeet != null ? serverFeet : sentFeet(player);
+        if (sameLook(player, yaw, pitch)) {
+            if (serverFeet == null || player.position().distanceTo(serverFeet) <= 0.5
+                    || serverRay(player, feet, sentYaw, sentPitch) == null) {
+                return false; // beforeUse pairs it if its ray meets a block; a ray in the air needs nothing
+            }
+            if (who != null && (loggedTurnClick != clickTick || !who.equals(loggedTurnWho + "/land"))) {
+                loggedTurnClick = clickTick;
+                loggedTurnWho = who + "/land";
+                LOGGER.info("{}: waiting for the landing - the look is told and meets a block within reach, so the use needs "
+                        + "the click on that block first, and that goes from where the server has him", who);
+            }
+            return true;
+        }
+        BlockHitResult ray = serverRay(player, feet, sentYaw, sentPitch);
         if (ray == null) {
             return false; // the bare use is a right click in the air: it fires, and the click stays unpaired
         }
@@ -326,13 +351,21 @@ public final class RightClick {
     /** The server's 4.5-block trace for a bare use, from the last reported position along {@code yaw}/{@code pitch}:
      *  the first block it meets from any eye height the server may use, or null. */
     private static BlockHitResult serverRay(LocalPlayer player, float yaw, float pitch) {
+        return serverRay(player, sentFeet(player), yaw, pitch);
+    }
+
+    private static Vec3 sentFeet(LocalPlayer player) {
+        return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position();
+    }
+
+    private static BlockHitResult serverRay(LocalPlayer player, Vec3 feet, float yaw, float pitch) {
         Level lvl = player.level();
         if (lvl == null) {
             return null;
         }
-        double x = sentKnown ? sentX : player.getX();
-        double y = sentKnown ? sentY : player.getY();
-        double z = sentKnown ? sentZ : player.getZ();
+        double x = feet.x;
+        double y = feet.y;
+        double z = feet.z;
         Vec3 dir = look(yaw, pitch).scale(SERVER_TRACE);
         BlockHitResult best = null;
         for (double h : player.getLastSentInput().shift() ? SNEAK_EYES : STAND_EYES) {

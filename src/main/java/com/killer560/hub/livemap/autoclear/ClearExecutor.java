@@ -1197,7 +1197,11 @@ public final class ClearExecutor {
         // and he rests 0.05 lower a few ticks later (Auto Routes' reaimIfMoved does the same).
         if (pendingHeldTicks > 0 && pendingBlock != null && pendingFrom != null) {
             Vec3 at = player.position();
-            if (at.distanceTo(pendingFrom) > 0.05) {
+            // Only once he is ON the planned spot (resting a little off it). Further off he has not landed client-side
+            // yet - a hop goes on from the prediction while the last one is in flight - and the server already has him
+            // there, so the planned look is the right one (aimed from the old spot it sent 1015-sim-clickgap's hops off
+            // the plan, 2026-10-15).
+            if (at.distanceTo(pendingFrom) > 0.05 && at.distanceTo(pendingFrom) < 1.0) {
                 Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
                 TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, pendingBlock, hopRange() + 1.0);
                 if (rot != null) {
@@ -1223,7 +1227,9 @@ public final class ClearExecutor {
         // A right click on a block may be waiting on the server for its second half, and the server's look meets a block
         // (util/RightClick): the hop would be taken as that click's end and not warp. The body faces the hop now, so this
         // tick's movement packet tells the server, and it goes next tick; canNext queues nothing behind it meanwhile.
-        if (com.killer560.hub.util.RightClick.mustTurnFirst(player, yaw, pitch, "[Path] Warp")) {
+        // From where the server has him: the planned spot, which the client may not have seen him land on yet.
+        Vec3 serverFeet = pendingFrom != null && player.position().distanceTo(pendingFrom) >= 1.0 ? pendingFrom : null;
+        if (com.killer560.hub.util.RightClick.mustTurnFirst(player, serverFeet, yaw, pitch, "[Path] Warp")) {
             BODY.turn(player, yaw, pitch);
             waitReason = "the server hearing the hop's look first (a block click is unpaired)";
             pendingHeldTicks++;
