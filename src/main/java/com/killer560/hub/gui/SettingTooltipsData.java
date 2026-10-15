@@ -982,6 +982,8 @@ final class SettingTooltipsData {
         d.put("themed main menu", "Gives the game's menus the mod's black and orange theme.");
         d.put("auto join skyblock", "Runs /skyblock whenever you first join the server.");
         d.put("profile name", "Name for a new settings profile.");
+        d.put("show profit", "Whose profit every profit tracker (/profit) counts. This Account (the default): only what the Minecraft account you are logged in on recorded, so each account's profit is separate. All Accounts: every account added together. The Account switch on each /profit screen is this same setting and can also pick one other account.");
+        d.put("profit data", "Shared Across Profiles (the default): the profit trackers show what was recorded under any mod profile, so switching profile never hides your profit. Per Mod Profile: each mod profile shows only the profit recorded while it was the active one. Nothing is moved or lost either way.");
         d.put("per-profile names", "Off (the default): your custom names, rank and renames are one set shared by every profile. On: they are saved inside each profile like other settings.");
         d.put("rank", "The tag shown in front of your name: keep the original, remove it, pick a Hypixel rank, or make your own. Left click forward, right click back.");
         d.put("rank color", "Quickly recolors the rank tag with one of the 16 chat colors, or leaves the rank's own color.");

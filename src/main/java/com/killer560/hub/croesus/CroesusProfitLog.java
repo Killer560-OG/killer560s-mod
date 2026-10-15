@@ -38,6 +38,10 @@ import java.util.concurrent.Executors;
  * <p>A pre-2026-10-11 file kept running {@code totals} beside its entries, and its old "Reset totals" cleared
  * those while keeping the entries. On first load that is turned into a reset at the claim the totals start after,
  * so the numbers it showed before are the numbers it shows now. Its claims have no names and read as "?".
+ *
+ * <p>Since 2026-10-15 every claim also carries the account's UUID, and the numbers follow {@link ProfitScope#resolve}
+ * (This Account by default). A claim without a UUID is given one the first time the current account is known
+ * ({@link #migrateAccounts}), and the file is written back with it.
  */
 public final class CroesusProfitLog {
 
@@ -94,6 +98,8 @@ public final class CroesusProfitLog {
     private static final List<Reset> RESETS = new ArrayList<>();
     private static ProfitScope.Filter view = new ProfitScope.Filter();
     private static boolean loaded = false;
+    /** Whether {@link #migrateAccounts} has run on what {@link #load} read. */
+    private static boolean accountsMigrated = false;
     /** Every entry parsed, rebuilt only when the log changes (the screen reads it every frame). */
     private static List<Claim> parsed = null;
 
@@ -106,6 +112,7 @@ public final class CroesusProfitLog {
         RESETS.clear();
         view = new ProfitScope.Filter();
         parsed = null;
+        accountsMigrated = false;
         if (!Files.exists(PATH)) {
             return;
         }
@@ -116,6 +123,7 @@ public final class CroesusProfitLog {
             }
             if (root.has("view") && root.get("view").isJsonObject()) {
                 view = ProfitScope.Filter.fromJson(root.getAsJsonObject("view"));
+                view.account = null; // the account shown is Show Profit's (ProfitConfig), not this file's
             }
             if (root.has("resets")) {
                 for (JsonElement e : root.getAsJsonArray("resets")) {
@@ -224,6 +232,16 @@ public final class CroesusProfitLog {
         saveAsync();
     }
 
+    /** Resets what the screen shows now ({@link #scope()}), and only that. */
+    public static synchronized void resetView() {
+        reset(scope());
+    }
+
+    /** What the screen shows: {@link #view()} with Show Profit and Profit Data applied. */
+    public static synchronized ProfitScope.Filter scope() {
+        return ProfitScope.resolve(view());
+    }
+
     /** What the tracker screen's switches select; change its fields and call {@link #saveView()}. */
     public static synchronized ProfitScope.Filter view() {
         if (!loaded) {
@@ -247,7 +265,7 @@ public final class CroesusProfitLog {
 
     /** Totals per floor plus {@link #ALL} for the switches' selection. */
     public static synchronized Map<String, Totals> allTime() {
-        return allTime(view());
+        return allTime(scope());
     }
 
     public static synchronized Map<String, Totals> allTime(ProfitScope.Filter filter) {
@@ -256,7 +274,7 @@ public final class CroesusProfitLog {
 
     /** Like {@link #allTime()}, counting only this game session's claims. */
     public static synchronized Map<String, Totals> session() {
-        return session(view());
+        return session(scope());
     }
 
     public static synchronized Map<String, Totals> session(ProfitScope.Filter filter) {
@@ -327,7 +345,7 @@ public final class CroesusProfitLog {
 
     /** The claims the tracker screen's switches select and no reset has hidden, oldest first. */
     public static synchronized List<Claim> claims() {
-        return claims(view());
+        return claims(scope());
     }
 
     /** The claims {@code filter} selects that no reset has hidden, oldest first. */
@@ -355,6 +373,7 @@ public final class CroesusProfitLog {
         if (!loaded) {
             load();
         }
+        migrateAccounts();
         if (parsed != null) {
             return parsed;
         }
@@ -390,6 +409,65 @@ public final class CroesusProfitLog {
         }
         parsed = List.copyOf(out);
         return parsed;
+    }
+
+    /** Gives every claim without an account UUID (or mod profile) one, as {@link ProfitScope#migrated} decides, once
+     *  the current account is known; writes the file back when anything changed. */
+    private static void migrateAccounts() {
+        if (accountsMigrated || !ProfitScope.canMigrate()) {
+            return;
+        }
+        accountsMigrated = true;
+        int changed = 0;
+        for (JsonElement e : entries) {
+            if (e == null || !e.isJsonObject()) {
+                continue;
+            }
+            JsonObject o = e.getAsJsonObject();
+            ProfitScope.Key k = ProfitScope.Key.readFrom(o);
+            ProfitScope.Key m = ProfitScope.migrated(k);
+            if (m != k) {
+                m.writeTo(o);
+                changed++;
+            }
+        }
+        if (changed > 0) {
+            parsed = null;
+            LOGGER.info("[Croesus] Gave {} older claim(s) an account", changed);
+            saveAsync();
+        }
+    }
+
+    /** A mod profile was renamed: its claims, resets and the screen's switch follow the new name. */
+    public static synchronized void renameModProfile(String oldName, String newName) {
+        if (!loaded) {
+            load();
+        }
+        int changed = 0;
+        for (JsonElement e : entries) {
+            if (e != null && e.isJsonObject()) {
+                JsonObject o = e.getAsJsonObject();
+                ProfitScope.Key k = ProfitScope.Key.readFrom(o);
+                if (k.modProfile().equals(oldName)) {
+                    k.withModProfile(newName).writeTo(o);
+                    changed++;
+                }
+            }
+        }
+        for (Reset r : RESETS) {
+            if (oldName.equals(r.filter().modProfile)) {
+                r.filter().modProfile = newName;
+                changed++;
+            }
+        }
+        if (oldName.equals(view.modProfile)) {
+            view.modProfile = newName;
+            changed++;
+        }
+        if (changed > 0) {
+            parsed = null;
+            saveAsync();
+        }
     }
 
     /** Every item ever claimed, most valuable first, with per-floor counts and the run numbers of big drops. */
