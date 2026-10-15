@@ -275,17 +275,22 @@ public class CosmeticsTab extends BaseTab {
                 Math.max(0.0, Math.min(1.0, norm))) {
             @Override
             protected void updateMessage() {
-                setMessage(dimensionLabel(label, min + (float) (this.value * (max - min))));
+                setMessage(dimensionLabel(label, snapDimension(min + (float) (this.value * (max - min)))));
             }
 
             @Override
             protected void applyValue() {
-                float raw = min + (float) (this.value * (max - min));
-                float snapped = Math.round(raw / 0.05f) * 0.05f;
+                // the label shows what is saved (it used to show the unsnapped drag: "0.51x" saved as 0.50)
+                float snapped = snapDimension(min + (float) (this.value * (max - min)));
                 setter.accept(snapped);
                 cfg.save();
             }
         };
+    }
+
+    /** Model dimensions go in 0.05 steps. */
+    private static float snapDimension(float raw) {
+        return Math.round(raw / 0.05f) * 0.05f;
     }
 
     private static Component dimensionLabel(String label, float value) {

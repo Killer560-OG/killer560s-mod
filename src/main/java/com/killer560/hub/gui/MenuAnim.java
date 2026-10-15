@@ -45,7 +45,33 @@ public final class MenuAnim {
         }
     }
 
-    // ---- durations (ms) ---------------------------------------------------------------------------------------------
+    /** The Animation Speed setting (killer560, 2026-10-15: "have that speed be fast, then make an extra fast, a normal
+     *  and a slow"): a multiplier on every duration. Fast is the original timing and the default. */
+    public enum Speed {
+        SLOW("Slow", 2.2f),
+        NORMAL("Normal", 1.5f),
+        FAST("Fast", 1.0f),
+        EXTRA_FAST("Extra Fast", 0.55f);
+
+        public final String label;
+        public final float scale;
+
+        Speed(String label, float scale) {
+            this.label = label;
+            this.scale = scale;
+        }
+
+        public static Speed parse(String s) {
+            for (Speed v : values()) {
+                if (v.name().equalsIgnoreCase(s) || v.label.equalsIgnoreCase(s)) {
+                    return v;
+                }
+            }
+            return FAST;
+        }
+    }
+
+    // ---- durations (ms, at Fast) --------------------------------------------------------------------------------------
     public static final int HOVER_MS = 120;
     public static final int TOGGLE_MS = 150;
     public static final int PRESS_MS = 160;
@@ -135,7 +161,8 @@ public final class MenuAnim {
         if (m == Mode.OFF || (motion && m == Mode.REDUCED) || (INSTANT_UNLESS_DRIVEN && testClockNanos < 0)) {
             return 0L;
         }
-        return (m == Mode.REDUCED ? ms * 3L / 4L : ms) * 1_000_000L;
+        float scale = MenuConfig.getInstance().getAnimationSpeed().scale;
+        return Math.round((m == Mode.REDUCED ? ms * 0.75f : ms) * scale) * 1_000_000L;
     }
 
     /** A start further than this in the future means the clock itself went back: treat it as finished. (A start a little

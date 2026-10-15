@@ -40,6 +40,96 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
     /** Set by a click on the track: the knob glides to the new value. A drag (or a key) moves it with the mouse. */
     private boolean clickJump;
 
+    // ---- steps (killer560, 2026-10-15: "for all sliders that snap to values make it so the slider cannot be halfway
+    // between values, it should snap to its proper position") ------------------------------------------------------
+    private int steps;
+    /** True once this slider has been seen to snap (its knob then glides from step to step instead of following the
+     *  mouse between them). */
+    private boolean stepped;
+
+    /** Snaps this slider to {@code n} equal steps ({@code n + 1} stops). Returns this, for a builder-style call after
+     *  an anonymous subclass. Inside the mod menu a slider needs no count: it is snapped to wherever its own label puts
+     *  it (see {@link #setValue}). */
+    public ThemedSliderButton steps(int n) {
+        this.steps = Math.max(0, n);
+        if (steps > 0) {
+            this.value = snap(this.value, steps);
+            this.stepped = true;
+        }
+        return this;
+    }
+
+    /** The knob position (0..1). */
+    public double sliderValue() {
+        return this.value;
+    }
+
+    /** The number of equal steps, or 0 when not known here. */
+    protected int stepCount() {
+        return steps;
+    }
+
+    /** Whether this slider snaps (a known step count, or seen snapping). Read by the testkit. */
+    public boolean isStepped() {
+        return stepped || stepCount() > 0;
+    }
+
+    private static double snap(double v, int n) {
+        return Math.max(0.0, Math.min(1.0, Math.round(v * n) / (double) n));
+    }
+
+    /**
+     * Every change of value - a click, a drag, a key - comes through here (vanilla's own mouse and key paths call it).
+     * A slider with a known step count is snapped before it is applied. One in the mod menu is then put exactly where
+     * its label says: the tab is built again off-screen and this row's twin, constructed from the value just saved,
+     * holds the knob position for that label ({@link ModScreen#twinSliderValue}). So the knob always sits on a step and
+     * the number shown always matches it, for every slider in the menu without each one declaring its steps.
+     */
+    @Override
+    protected void setValue(double v) {
+        int n = stepCount();
+        if (n > 0) {
+            v = snap(v, n);
+        }
+        super.setValue(v);
+        if (n > 0 || !SettingsButtonWidget.inMenu()) {
+            return;
+        }
+        Double twin = ModScreen.twinSliderValue(this);
+        if (twin != null && Math.abs(twin - this.value) > 1e-9) {
+            this.value = Math.max(0.0, Math.min(1.0, twin));
+            this.stepped = true;
+        }
+    }
+
+    /** Arrow keys on a slider that snaps move it a whole step: vanilla's nudge is one pixel, which a snapping slider
+     *  would put straight back on the step it left. */
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        int key = event.key();
+        boolean left = key == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT;
+        boolean right = key == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT;
+        if (!(left || right) || !isStepped()) {
+            return super.keyPressed(event);
+        }
+        int n = stepCount();
+        if (n > 0) {
+            setValue(this.value + (right ? 1.0 : -1.0) / n);
+            return true;
+        }
+        String before = getMessage().getString();
+        double nudge = 1.0 / Math.max(1, getWidth() - 8);
+        double target = this.value;
+        for (int i = 0; i < 4000 && target > 0.0 && target < 1.0; i++) {
+            target += right ? nudge : -nudge;
+            setValue(Math.max(0.0, Math.min(1.0, target)));
+            if (!getMessage().getString().equals(before)) {
+                break;
+            }
+        }
+        return true;
+    }
+
     @Override
     public MenuAnim.RowAnim anim() {
         return anim;
@@ -179,7 +269,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
             // A click on the track glides the knob there; dragging follows the mouse exactly.
             float v = (float) this.value;
             if (v != anim.value.target()) {
-                if (clickJump && anim.value.placed()) {
+                if ((clickJump || stepped || stepCount() > 0) && anim.value.placed()) {
                     anim.value.set(v);
                 } else {
                     anim.value.snap(v);

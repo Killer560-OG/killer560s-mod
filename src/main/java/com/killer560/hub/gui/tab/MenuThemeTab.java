@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.gui.MenuAnim;
 import com.killer560.hub.gui.MenuConfig;
 import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.SectionHeaders;
@@ -53,6 +54,24 @@ public class MenuThemeTab extends BaseTab {
                     c.save();
                     btn.setMessage(animationsText());
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 22;
+        // killer560, 2026-10-15: "add a slider for the speed of animations ... fast, then make an extra fast, a normal
+        // and a slow". Four stops, Slow on the left; the label names the stop.
+        MenuAnim.Speed[] speeds = MenuAnim.Speed.values();
+        widgets.add(new com.killer560.hub.gui.ThemedSliderButton(contentX, y, contentWidth, 20, speedText(),
+                cfg.getAnimationSpeed().ordinal() / (double) (speeds.length - 1)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(speedText());
+            }
+
+            @Override
+            protected void applyValue() {
+                MenuConfig c = MenuConfig.getInstance(); // a profile load replaces the instance this tab was built with
+                c.setAnimationSpeed(speeds[(int) Math.round(this.value * (speeds.length - 1))]);
+                c.save();
+            }
+        }.steps(speeds.length - 1));
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colors", false),
@@ -142,6 +161,10 @@ public class MenuThemeTab extends BaseTab {
         y += 6;
         com.killer560.hub.mainmenu.MainMenuSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
+    }
+
+    private static Component speedText() {
+        return Component.literal("Animation Speed: " + MenuConfig.getInstance().getAnimationSpeed().label);
     }
 
     private static Component animationsText() {

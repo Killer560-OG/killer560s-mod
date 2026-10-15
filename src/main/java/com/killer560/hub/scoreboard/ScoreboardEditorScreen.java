@@ -1015,7 +1015,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 setter.accept(valueInt());
                 c.save();
             }
-        };
+        }.steps(range); // a whole number: the knob stops on each one
     }
 
     private EditBox textBox(String name, String value, java.util.function.Consumer<String> setter, int x, int y, int w) {

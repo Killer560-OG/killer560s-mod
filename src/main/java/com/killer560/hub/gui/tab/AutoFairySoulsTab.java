@@ -92,7 +92,8 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
 
             @Override
             protected void applyValue() {
-                cfg.setRotationSpeed((float) (3.0 + this.value * 32.0));
+                // whole degrees per tick, the number the label shows (so the knob stops on each one)
+                cfg.setRotationSpeed((float) Math.round(3.0 + this.value * 32.0));
                 cfg.save();
             }
         });
