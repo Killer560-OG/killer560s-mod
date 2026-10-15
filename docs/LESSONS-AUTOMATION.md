@@ -208,3 +208,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
   and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
   within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
+
+- **A sceptre BAT node counts its uses from the OUTGOING use packets** (`BlockClickGapSendMixin`: `ServerboundUseItemOnPacket` and
+  `ServerboundUseItemPacket`), one per tick. The game-mode calls (`useItem` HEAD, `useItemOn` RETURN) are not seen in the sim:
+  Fabric's UseBlockCallback answers an ability item at the head, so the first version never left its two downward uses
+  (96-ar-1015-batseek, 2026-10-15). Past two it lets go of the held key and sends plain item uses at the nearest secret bat. Run
+  memory also carries between cases: call `forgetRunMemory` first or the node says "its bat was already killed".
+- No real Hypixel BAT-node run exists in his logs yet (every `Node #N BAT` line in Mod Only Test is a sim run), so "a bat already
+  alive on arrival is never killed" is NOT reproduced: the sim kills and counts one (96-ar-1015-batpresent passes on main).
