@@ -121,6 +121,55 @@ public final class SimAbilities {
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> player instanceof ServerPlayer sp
                 ? onServerUse(sp, hand, hitResult)
                 : onClientUse(player, hand, hitResult));
+        // Every block click the server takes, whoever answers it (SimSecrets, SimRoomLevers... answer chests and levers
+        // in the default phase, before this class would see them): only recorded, never answered.
+        UseBlockCallback.EVENT.addPhaseOrdering(CLICK_RECORD_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        UseBlockCallback.EVENT.register(CLICK_RECORD_PHASE, (player, level, hand, hitResult) -> {
+            if (player instanceof ServerPlayer sp && simServer(sp)) {
+                lastBlockClick.put(sp.getUUID(), new BlockClick(sp.level().getServer().getTickCount(),
+                        CheatUtils.skyblockId(sp.getItemInHand(hand))));
+            }
+            return InteractionResult.PASS;
+        });
+    }
+
+    private static final net.minecraft.resources.Identifier CLICK_RECORD_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "sim_click_record");
+
+    /**
+     * Hypixel ignores a use of the item he has just right-clicked a block with (util/BlockClickGap: six Auto Routes
+     * etherwarps sent a tick after a chest or lever click met their await got no landing, 2026-10-14, while one after a
+     * click made with another item landed). A use packet of the same item that the server takes within this many of its
+     * ticks after the block click does nothing - no teleport, no chat line, as on Hypixel. Only the 1-client-tick gap is
+     * in the evidence; two server ticks covers its arrival in any tick phase.
+     */
+    static final int USE_AFTER_CLICK_DROP_TICKS = 2;
+
+    private record BlockClick(int serverTick, String skyblockId) {
+    }
+
+    private static final java.util.Map<java.util.UUID, BlockClick> lastBlockClick = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile int usesDroppedAfterClick;
+
+    /** Uses dropped by {@link #USE_AFTER_CLICK_DROP_TICKS} since launch - read by the testkit. */
+    public static int usesDroppedAfterClick() {
+        return usesDroppedAfterClick;
+    }
+
+    /** True (and logged) when this use of {@code id} comes too soon after a block click with the same item. */
+    private static boolean droppedAfterClick(ServerPlayer sp, String id) {
+        BlockClick c = lastBlockClick.get(sp.getUUID());
+        if (c == null || id == null || !id.equals(c.skyblockId())) {
+            return false;
+        }
+        int gap = sp.level().getServer().getTickCount() - c.serverTick();
+        if (gap < 0 || gap > USE_AFTER_CLICK_DROP_TICKS) {
+            return false;
+        }
+        usesDroppedAfterClick++;
+        com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] use of " + id + " dropped: " + gap
+                + " server tick(s) after a block click with the same item (Hypixel ignores it)");
+        return true;
     }
 
     /** Whether this skyblock id is a right-click ability the sim's server implements. */
@@ -238,6 +287,9 @@ public final class SimAbilities {
         }
         if (!ours) {
             return InteractionResult.PASS;
+        }
+        if (onBlock == null && droppedAfterClick(sp, id)) {
+            return InteractionResult.FAIL;
         }
         boolean sneaking = sp.isShiftKeyDown();
         if (ETHERWARP_ITEMS.contains(id) && sneaking && etherwarpLocked(room)) {
@@ -722,6 +774,7 @@ public final class SimAbilities {
     public static void reset() {
         insertion = null;
         insertionTicks = 0;
+        lastBlockClick.clear();
     }
 
     /** Whether an insertion is planted. */
