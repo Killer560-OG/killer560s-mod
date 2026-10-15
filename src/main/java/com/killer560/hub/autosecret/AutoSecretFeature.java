@@ -141,6 +141,21 @@ public final class AutoSecretFeature {
     private static int seenCorrections;
     private static int quietTicks;
 
+    // ---- the hand-over from a route to the next trip (killer560, 2026-10-15) ----
+    /** At most this many ticks at a route's end for the room's last secrets to count (killer560: "6 ticks at max"). */
+    static final int LAST_NODE_WAIT_TICKS = 6;
+    /** At most this many ticks a decision waits for its trips to be searched before it estimates them instead. */
+    private static final int TOUR_WAIT_TICKS = 10;
+    /** {@link RouteExecutor#completions()} when the trip to the target's start node began. */
+    private static int routeCompletionsSeen;
+    /** {@link com.killer560.hub.autoroutes.RouteRunMemory#clock()} then, and the room's found count then. */
+    private static int routeStartClock;
+    private static int routeFoundAtStart;
+    /** The room whose last secrets the next trip's first warp is held for, and the ticks held so far. */
+    private static String leaveWaitRoom;
+    private static int leaveWaitTicks;
+    private static int tourWaitTicks;
+
     private static boolean toggleWasDown;
     private static boolean pilotKeyWasDown;
     /** Movement keys held when it started stay ignored until released: only a fresh press is him taking over. */
@@ -155,6 +170,10 @@ public final class AutoSecretFeature {
             return;
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoSecretFeature.tick", AutoSecretFeature::tick));
+        // START, after Auto Routes' tick and before the Interactive Map runner's (registration order): a route that ends
+        // this tick hands over to the next trip this same tick, and a held first warp is let go the tick it may go.
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSecretFeature.tickStart",
+                AutoSecretFeature::tickStart));
         WitherDoorOpener.register();
         AutopilotHud.register();
     }
@@ -192,6 +211,14 @@ public final class AutoSecretFeature {
         }
         String why = phase == Phase.DOOR || phase == Phase.WAITING || phase == Phase.AUTO_CLEAR ? status : Autopilot.hudWhy();
         return new String[]{"[" + mode + "] " + Autopilot.hudAction(), Autopilot.hudScore() + (why.isEmpty() ? "" : " | " + why)};
+    }
+
+    /**
+     * For the testkit (145-sim-autosecret-order): {@code true} takes the rooms most unfound first, as Auto Secret did
+     * before 2026-10-15, so one floor can be run both ways and the two compared.
+     */
+    public static void testLegacyOrder(boolean legacy) {
+        RoomTour.legacyOrder = legacy;
     }
 
     /** For the testkit: rooms to treat as having a teammate in them. */
@@ -263,6 +290,10 @@ public final class AutoSecretFeature {
         tripFailures.clear();
         iceFillTried = false;
         lastWaiting = null;
+        leaveWaitRoom = null;
+        tourWaitTicks = 0;
+        ClearExecutor.setHold(false);
+        RoomTour.reset();
         resetDoor();
         lastDoorSaid = null;
         blockedSecrets = null;
@@ -294,6 +325,10 @@ public final class AutoSecretFeature {
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET);
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
         keyTarget = null;
+        if (leaveWaitRoom != null) {
+            leaveWaitRoom = null;
+            ClearExecutor.setHold(false);
+        }
         WitherDoorOpener.cancel();
         if (pilot) {
             Autopilot.onStopped();
@@ -366,6 +401,106 @@ public final class AutoSecretFeature {
             default -> {
             }
         }
+    }
+
+    // ------------------------------------------------------------------------------------------- route -> next trip
+
+    /**
+     * START of the tick, after Auto Routes has ticked and before the Interactive Map's runner does: the route that just
+     * ran to its end hands over to the next trip at once (decided and, when it was planned ahead, running this same tick),
+     * and a first warp held for the room's last secrets is let go the tick they count.
+     */
+    private static void tickStart(Minecraft client) {
+        if (phase == Phase.IDLE || client.player == null) {
+            return;
+        }
+        if (leaveWaitRoom != null) {
+            tickLeaveWait();
+        }
+        if (routeJustCompleted() && !com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
+            onRouteDone(client);
+        }
+    }
+
+    /** The target's route ran to its end since its trip began (on its arming tick too, for a one-node route). */
+    private static boolean routeJustCompleted() {
+        boolean waiting = phase == Phase.ROUTE || phase == Phase.AWAIT_ROUTE
+                || phase == Phase.TRAVEL && trip == Trip.START_NODE;
+        return waiting && !RouteExecutor.isRunning() && RouteExecutor.completions() != routeCompletionsSeen
+                && target != null && target.equals(RouteExecutor.lastCompletedRoom());
+    }
+
+    /**
+     * killer560, 2026-10-15: "It needs a wait timeout at the last node of 6 ticks at max if all secrets are not collected
+     * by the time it hits that node. If during those 6 ticks the room is fully cleared then it should leave the next
+     * tick." The route is over: if every secret of the room counts already, the next trip starts now; if not, it is
+     * decided now all the same, with its first warp held ({@link ClearExecutor#setHold}) - sneak down, item in hand -
+     * until the room counts every secret or {@link #LAST_NODE_WAIT_TICKS} have passed.
+     */
+    private static void onRouteDone(Minecraft client) {
+        routeCompletionsSeen = RouteExecutor.completions();
+        String room = target;
+        if (phase != Phase.ROUTE) {
+            LOGGER.info("[AutoSecret] route {} started", room);   // it armed and ended on the same tick
+        }
+        secreted.add(room);
+        long tick = ClearExecutor.clientTick();
+        LOGGER.info("[AutoSecret] route {} finished (tick {})", room, tick);
+        say(ModChat.good("Route done"), ModChat.dim(" - " + room));
+        int[] counted = roomCount(room);
+        if (counted == null || counted[0] >= counted[1]) {
+            LOGGER.info("[AutoSecret] {}: every secret counted at the route's end{} - leaving this tick", room,
+                    counted == null ? " (no secrets to count)" : " (" + counted[0] + "/" + counted[1] + ")");
+            leaveWaitRoom = null;
+            ClearExecutor.setHold(false);
+        } else {
+            LOGGER.info("[AutoSecret] {}: {}/{} secret(s) counted at the route's end - the next warp waits up to {} tick(s)"
+                    + " for the rest", room, counted[0], counted[1], LAST_NODE_WAIT_TICKS);
+            leaveWaitRoom = room;
+            leaveWaitTicks = 0;
+            ClearExecutor.setHold(true);
+            status = "Waiting at the end of " + room + " for its last secrets";
+        }
+        permitLeaveHere();
+        setPhase(Phase.DECIDE);
+        decide(client);
+    }
+
+    /** One START tick of the last-node wait: let the held warp go once the room counts every secret, or at the cap. */
+    private static void tickLeaveWait() {
+        leaveWaitTicks++;
+        int[] counted = roomCount(leaveWaitRoom);
+        boolean done = counted == null || counted[0] >= counted[1];
+        if (!done && leaveWaitTicks < LAST_NODE_WAIT_TICKS) {
+            return;
+        }
+        LOGGER.info("[AutoSecret] {}: {} after {} tick(s) of the last-node wait (tick {}) - the next warp goes now",
+                leaveWaitRoom, done ? "every secret counted" : "not every secret counted (" + counted[0] + "/" + counted[1]
+                        + ") - the " + LAST_NODE_WAIT_TICKS + "-tick cap", leaveWaitTicks, ClearExecutor.clientTick());
+        leaveWaitRoom = null;
+        ClearExecutor.setHold(false);
+    }
+
+    /**
+     * {found, total} of a room's secrets, or null when it has none to count (or is not on the map): the larger of the map's
+     * count (the action bar's "x/y", or a green check) and the count when its trip began plus every secret of his taken
+     * in the room since ({@link com.killer560.hub.autoroutes.RouteRunMemory}, counted on the click or pickup itself - the
+     * action bar only says so on its next update).
+     */
+    private static int[] roomCount(String name) {
+        RoomStatus.Room r = roomNamed(name);
+        if (r == null || r.secrets() <= 0) {
+            return null;
+        }
+        if (DungeonInfoFeature.secretsFoundPercent() >= 100.0) {
+            return new int[]{r.secrets(), r.secrets()};
+        }
+        int found = r.secrets() - r.unfound();
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = roomIdOf(layout, name);
+        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(routeStartClock,
+                p -> layout.roomAtWorld(p.x, p.z) == id);
+        return new int[]{Math.min(r.secrets(), Math.max(found, routeFoundAtStart + got)), r.secrets()};
     }
 
     /** The auto puzzle last waited under, so the hold is said once per puzzle rather than every tick. */
@@ -720,9 +855,23 @@ public final class AutoSecretFeature {
             (dist.containsKey(r.room()) ? open : blocked).add(r);
         }
         open.sort(Comparator.comparingInt((RoomStatus.Room r) -> -r.unfound()).thenComparingInt(r -> dist.get(r.room())));
-        publishPlan(open);
         String blockedText = describe(blocked);
+        // A room with no route is said once and left out, as goSecret does when it comes to one.
+        List<RoomStatus.Room> routed = new ArrayList<>();
         for (RoomStatus.Room r : open) {
+            Route route = RouteStore.getInstance().forRoom(r.name());
+            if (route == null || route.startNode() == null) {
+                goSecret(layout, r, dist, describe(open), blockedText);
+            } else {
+                routed.add(r);
+            }
+        }
+        List<RoomStatus.Room> order = RoomTour.legacyOrder ? routed : tourOrder(layout, routed);
+        if (order == null) {
+            return true;   // the trips from here are being searched (a few ticks at most)
+        }
+        publishPlan(order);   // the Progress HUD shows the tour order it will actually take
+        for (RoomStatus.Room r : order) {
             if (goSecret(layout, r, dist, describe(open), blockedText)) {
                 return true;
             }
@@ -756,6 +905,69 @@ public final class AutoSecretFeature {
     }
 
     /**
+     * The rooms in the order to secret them (killer560, 2026-10-15: "focus more on not etherwarping all the way across
+     * the map"): {@link TourPlanner} over the Interactive Map's real trip costs between them ({@link RoomTour}), each
+     * room worth its unfound secrets. Null while the trips from here are still being searched (at most
+     * {@link #TOUR_WAIT_TICKS}; a trip planned ahead from here is taken at once).
+     */
+    private static List<RoomStatus.Room> tourOrder(DungeonLayout layout, List<RoomStatus.Room> routed) {
+        Minecraft client = Minecraft.getInstance();
+        if (routed.size() <= 1 || client.player == null) {
+            tourWaitTicks = 0;
+            return routed;
+        }
+        List<RoomTour.Site> sites = new ArrayList<>();
+        List<RoomStatus.Room> withSite = new ArrayList<>();
+        List<RoomStatus.Room> rest = new ArrayList<>();
+        for (RoomStatus.Room r : routed) {
+            RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
+            if (s == null) {
+                rest.add(r);
+            } else {
+                sites.add(new RoomTour.Site(s.key(), s.arrive(), s.tile(), s.exact(), s.leave(), s.weight(), 0));
+                withSite.add(r);
+            }
+        }
+        net.minecraft.world.phys.Vec3 from = client.player.position();
+        String ahead = RoomTour.aheadPick(from);
+        if (ahead == null && !RoomTour.fromReady(from, sites)) {
+            if (tourWaitTicks == 0) {
+                RoomTour.request(from, sites, false, true, "deciding from here");
+            }
+            // Worth a few ticks only once the floor graph is warm (its searches are milliseconds then); before that the
+            // straight-line estimate decides at once.
+            if (com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.graphWarm() && tourWaitTicks++ < TOUR_WAIT_TICKS) {
+                status = "Working out the room order";
+                return null;
+            }
+        }
+        tourWaitTicks = 0;
+        RoomTour.Matrix m = RoomTour.matrix(from, sites, true, layout);
+        TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 3_000_000L);
+        int[] idx = res.order();
+        if (ahead != null) {
+            // Planned ahead from here with every trip searched: that pick's trip is already waiting.
+            for (int k = 0; k < idx.length; k++) {
+                if (sites.get(idx[k]).key().equals(ahead) && k > 0) {
+                    int v = idx[k];
+                    System.arraycopy(idx, 0, idx, 1, k);
+                    idx[0] = v;
+                    break;
+                }
+            }
+        }
+        LOGGER.info("[AutoSecret] room order (each room worth its unfound secrets, by the tick it is done): {} | {}{}",
+                RoomTour.describe(sites, idx), RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"),
+                ahead != null ? " | planned ahead: " + ahead : "");
+        List<RoomStatus.Room> out = new ArrayList<>();
+        for (int i : idx) {
+            out.add(withSite.get(i));
+        }
+        out.addAll(rest);
+        return out;
+    }
+
+    /**
      * Warps to {@code r}'s route start node (the route then plays). @return false when it cannot (no route, no warp) -
      * the room is then left out this run, with a chat line
      */
@@ -781,6 +993,9 @@ public final class AutoSecretFeature {
         // "route just finished here" latch the last room's route left, which otherwise holds the next start node
         // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
         AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        routeCompletionsSeen = RouteExecutor.completions();
+        routeStartClock = com.killer560.hub.autoroutes.RouteRunMemory.clock();
+        routeFoundAtStart = Math.max(0, r.secrets() - r.unfound());
         if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
             secreted.add(r.name());
             LOGGER.info("[AutoSecret] {}: could not warp to its start node - skipped", r.name());
@@ -788,7 +1003,69 @@ public final class AutoSecretFeature {
             return false;
         }
         beginTravel(Trip.START_NODE);
+        planAhead(layout, r, dist);
         return true;
+    }
+
+    /**
+     * While he travels to {@code r} and its route runs: the trips from where that route will leave him to every room he
+     * could take next, and the next room's trip in full, on the map's planner thread ({@link RoomTour}) - so the warp
+     * out goes the tick the route is over.
+     */
+    private static void planAhead(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        AutoRoutesFeature.RoomRoute rr = AutoRoutesFeature.roomRoute(layout, r.room());
+        net.minecraft.world.phys.Vec3 end = rr == null ? null : rr.predictedEnd();
+        if (end == null) {
+            return;
+        }
+        List<RoomTour.Site> sites = pilot ? Autopilot.sitesExcept(Autopilot.keyOf(r)) : secretSites(layout,
+                openSecretRooms(RoomStatus.rooms(), dist, r.name()));
+        if (sites.isEmpty()) {
+            return;
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoSecret] planning ahead from the end of %s's route (%.1f %.1f %.1f):"
+                + " %d room(s) to choose from", r.name(), end.x, end.y, end.z, sites.size()));
+        RoomTour.request(end, sites, true, !pilot, "while " + r.name() + "'s route runs");
+    }
+
+    /** Rooms Auto Secret could secret next: eligible, reachable, other than {@code except}. */
+    private static List<RoomStatus.Room> openSecretRooms(List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                                         String except) {
+        List<RoomStatus.Room> out = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            if (eligibleForSecrets(r) && dist.containsKey(r.room()) && !r.name().equals(except)) {
+                out.add(r);
+            }
+        }
+        return out;
+    }
+
+    /** Ticks a route takes, travel excluded, before Dungeon Autopilot has learnt better: 1 s plus 1 s a node. */
+    static double routeWorkTicks(Route route) {
+        return 20.0 * (1.0 + Autopilot.routeSecondsPerNode() * (route == null ? 0 : route.nodes().size()));
+    }
+
+    /** One {@link RoomTour.Site} per room with a route: its start node block in, its route's end out, its secrets. */
+    static List<RoomTour.Site> secretSites(DungeonLayout layout, List<RoomStatus.Room> rooms) {
+        List<RoomTour.Site> out = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
+            if (s != null) {
+                // Auto Secret alone: secrets per tick of travel - every route takes as long whatever the order.
+                out.add(new RoomTour.Site(s.key(), s.arrive(), s.tile(), s.exact(), s.leave(), s.weight(), 0));
+            }
+        }
+        return out;
+    }
+
+    static RoomTour.Site secretSite(DungeonLayout layout, RoomStatus.Room r, double weight, String key) {
+        AutoRoutesFeature.RoomRoute rr = AutoRoutesFeature.roomRoute(layout, r.room());
+        BlockPos goal = rr == null ? null : rr.goal();
+        net.minecraft.world.phys.Vec3 end = rr == null ? null : rr.predictedEnd();
+        if (goal == null || end == null) {
+            return null;
+        }
+        return new RoomTour.Site(key, goal, -1, true, end, weight, routeWorkTicks(rr.route()));
     }
 
     // ------------------------------------------------------------------------------------------- Dungeon Autopilot
@@ -1348,6 +1625,10 @@ public final class AutoSecretFeature {
             beginRoute();
             return;
         }
+        if (routeJustCompleted()) {
+            onRouteDone(client);   // it armed and ran to its end before the trip's arrival was seen
+            return;
+        }
         boolean busy = ClearExecutor.isBusy();
         busySeen |= busy;
         if (busy && phaseTicks < TRAVEL_TIMEOUT_TICKS) {
@@ -1452,6 +1733,10 @@ public final class AutoSecretFeature {
     // ------------------------------------------------------------------------------------------- routes
 
     private static void tickAwaitRoute() {
+        if (routeJustCompleted()) {
+            onRouteDone(Minecraft.getInstance());
+            return;
+        }
         if (RouteExecutor.isRunning()) {
             beginRoute();
             return;
@@ -1489,6 +1774,11 @@ public final class AutoSecretFeature {
             }
             return;
         }
+        if (routeJustCompleted() && !com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
+            onRouteDone(Minecraft.getInstance());   // normally seen at START already (tickStart)
+            return;
+        }
+        routeCompletionsSeen = RouteExecutor.completions();
         secreted.add(target);
         String reason = RouteExecutor.stopReason();
         if (reason == null) {

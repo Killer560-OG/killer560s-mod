@@ -619,6 +619,37 @@ public final class AutoRoutesFeature {
      *
      * @return true when the warp was started; false when this room has no recorded route (the caller falls back).
      */
+    /** The room's route and its frame, or null (no identified room, no rotation, no route with a start node). */
+    public record RoomRoute(RouteCoords.Frame frame, Route route, RouteNode start) {
+        /** The block {@link #warpToStartNode} warps onto: under the start node, or the nearest etherwarpable to it. */
+        public BlockPos goal() {
+            Vec3 real = RouteCoords.toReal(frame, start.relativePos());
+            BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
+            return TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+        }
+
+        /** Where a run of the route leaves him ({@link RouteExecutor#predictedEnd}). */
+        public Vec3 predictedEnd() {
+            return RouteExecutor.predictedEnd(route, frame);
+        }
+    }
+
+    /** {@link RoomRoute} of a map room. Client thread. */
+    public static RoomRoute roomRoute(DungeonLayout layout, int room) {
+        if (layout == null || room < 0) {
+            return null;
+        }
+        String name = layout.name(room);
+        int[] clayRotation = layout.clayRotation(room);
+        if (name == null || name.isBlank() || "Unknown".equals(name) || clayRotation == null) {
+            return null;
+        }
+        RouteCoords.Frame frame = new RouteCoords.Frame(name, clayRotation[0], clayRotation[1], clayRotation[2]);
+        Route route = RouteStore.getInstance().forRoom(frame.roomName());
+        RouteNode start = route == null ? null : route.startNode();
+        return start == null ? null : new RoomRoute(frame, route, start);
+    }
+
     public static boolean warpToStartNode(DungeonLayout layout, int room) {
         // Asking to be taken to the start node is as deliberate as typing /ar start: a stop the player made
         // earlier must not make the route refuse to arm when they land (2026-09-16 review).

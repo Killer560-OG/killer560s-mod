@@ -201,8 +201,7 @@ public final class AutoTrap {
             return;
         }
         DungeonLayout layout = DungeonLayout.current();
-        int room = layout.roomAtWorld(client.player.getX(), client.player.getZ());
-        String now = room >= 0 && AutoClearUtils.isTrap(layout, room) ? layout.name(room) : null;
+        String now = trapWithin(layout, client.player.getX(), client.player.getZ(), inTrap == null ? 0 : LEAVE_MARGIN);
         if (inTrap != null && !inTrap.equals(now)) {
             String left = inTrap;
             // A trap route of that room still playing (Auto Trap's, or his own while Auto Trap is on) ends here. Only that:
@@ -220,6 +219,27 @@ public final class AutoTrap {
             }
         }
         inTrap = now;
+    }
+
+    /**
+     * Blocks past a trap room's edge he must be before he has left it. The map's room edge and the server's are not the
+     * same line: 142-sim-autopilot2 (2026-10-15) had the route stopped as "left" a block and a half out, Auto Secret's next
+     * warp go out the next moment, and the sim's server refuse it as an ability in the trap ("No abilities in a trap room")
+     * and put him back inside - the run then stopped there. A trap route's walk carries him the extra blocks.
+     */
+    static final double LEAVE_MARGIN = 2.5;
+
+    /** The trap room at {@code x, z}, or within {@code margin} blocks of it along either axis, or null. */
+    private static String trapWithin(DungeonLayout layout, double x, double z, double margin) {
+        double[][] probes = margin <= 0 ? new double[][]{{0, 0}}
+                : new double[][]{{0, 0}, {margin, 0}, {-margin, 0}, {0, margin}, {0, -margin}};
+        for (double[] d : probes) {
+            int room = layout.roomAtWorld(x + d[0], z + d[1]);
+            if (room >= 0 && AutoClearUtils.isTrap(layout, room)) {
+                return layout.name(room);
+            }
+        }
+        return null;
     }
 
     /** The trap room he stands in now, by the map, or null. */

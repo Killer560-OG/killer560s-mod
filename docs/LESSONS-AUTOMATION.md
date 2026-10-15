@@ -266,3 +266,29 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   compares against `TIMEOUT + ServerLag.ticksSince(mark)` (`serverMsSince` for ms waits), which is 0 extra with no lag.
   The sim's server sent no per-tick pings until then (`roomsim/SimServerTicks` now does), so in the sim every
   `ServerTickClock` user had silently fallen back to client ticks. Testkit 1460-sim-server-lag / 96-ar-1015-serverlag.
+- **Anything else on the Interactive Map's planner thread delays every trip.** The floor graph may only be searched from
+  `ClearExecutor`'s single planner thread, so Auto Secret's room-order trip searches ran in front of a real trip: on a cold
+  graph one search took 1197 ms and the trip's first warp went 1865 ms after it was asked for (144's first run, 2026-10-15).
+  `RoomTour` now skips its searches while a trip search waits (`ClearExecutor.tripSearchWaiting`) or the graph is not warm
+  (`EtherwarpPathfinder.graphWarm`), and a trip whose path is being planned ahead waits for that search instead of queueing
+  a second one behind it.
+- **A START handler registered late sees the previous tick's number.** `ClearExecutor` counted `clientTicks` inside its own
+  START handler, registered from `LiveMapFeature` after Auto Routes and Auto Secret, so their START code in tick N read N-1
+  and a route-end-to-warp gap measured one tick long. The count now runs in its own Fabric phase ordered before the
+  default (`ClearExecutor.TICK_COUNT_PHASE`); every START handler reads the same tick.
+- A route used to complete only after the interact delay and a walk-step tick past its last node, though that delay is a wait
+  before a NEXT node; `RouteExecutor.finishAction` now completes it the tick the last node finishes. A one-node route then
+  completes on its arming tick, inside `RouteExecutor.start`, so nothing ever sees it running: Auto Secret watches
+  `RouteExecutor.completions()` / `lastCompletedRoom()` instead of `isRunning()`.
+- **A dungeon trip's length is not its straight distance.** Two rooms 45 blocks apart were 13 etherwarps apart by the floor
+  graph (the walls send a trip round by the doors), and one 115 blocks away was 4 (145's floors, 2026-10-15). Room order
+  that guessed from straight lines put the wrong room next; `RoomTour` uses the planner's own warp counts, and its fallback
+  estimate takes the larger of the straight line and 2 warps per room on the map's path.
+- Auto Clear logged "etherwarp toward" before `startTrip`, which only turns the body back on that tick (Phase.RELEASE) and
+  comes through again the next, so one trip was logged twice (131 case 9: 5 lines for 3 trips). It logs once the trip is
+  really under way now.
+- A trap route that ends at the trap room's edge is not out of it for the next warp. Auto Trap stopped the route the moment
+  `roomAtWorld` left the trap, about a block and a half out; Auto Secret's planned-ahead warp then went at once and the sim's
+  server answered "No abilities in a trap room" and had him back inside, so the run stopped there (142's trap case,
+  2026-10-15; before, a search's few ticks of delay let him slide clear). Auto Trap now counts him out 2.5 blocks past the
+  edge (`AutoTrap.LEAVE_MARGIN`); the route's walk carries him there.

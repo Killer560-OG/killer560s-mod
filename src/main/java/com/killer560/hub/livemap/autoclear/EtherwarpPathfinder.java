@@ -748,6 +748,13 @@ public final class EtherwarpPathfinder {
     // The graph lives as long as its floor: same level, same hop range, same sim state and altitude. Only the
     // planner thread ever touches it.
     private static volatile FloorGraphs graph;
+
+    /** Whether this world's floor graph is warm ({@link #tickWarm} has given every landing its edges): a search is then
+     *  milliseconds, where on a cold graph one can take a second. Any thread. */
+    public static boolean graphWarm() {
+        FloorGraphs g = graph;
+        return g != null && graphLevel == Minecraft.getInstance().level && g.warmDone();
+    }
     private static FloorTiles graphTiles;
     private static volatile Level graphLevel;
     private static volatile double graphRange;
