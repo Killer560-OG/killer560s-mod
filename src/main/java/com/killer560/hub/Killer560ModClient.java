@@ -372,6 +372,7 @@ public class Killer560ModClient implements ClientModInitializer {
         I4SensorsFeature.register();
         com.killer560.hub.i4sensors.AutoI4Feature.register();
         LiveMapFeature.register();
+        com.killer560.hub.livemap.predict.RoomPredictor.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
         com.killer560.hub.runstats.RunStatsFeature.register();
         VoiceToTextFeature.register();

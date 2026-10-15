@@ -117,45 +117,30 @@ public class WitherDoorsTab extends BaseTab {
                 cfg.save();
             }
         });
-        y += 26;
-
-        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            return widgets;
-        }
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Cheat Build - ESP", true), Minecraft.getInstance().font));
-        y += 16;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("Show All Doors", cfg.isShowAllDoorsRaw()), btn -> {
-                    cfg.setShowAllDoors(!cfg.isShowAllDoorsRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        if (cfg.isShowAllDoorsRaw()) {
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Color", cfg.getBloodLockedColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Color",
-                                cfg.getBloodLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
-                            cfg.setBloodLockedColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(col2aX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door (Key) Color", cfg.getBloodReadyColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door (Key) Color",
-                                cfg.getBloodReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
-                            cfg.setBloodReadyColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(col2bX, y, col2W, 18).build());
-            y += 22;
-        }
+        // The Blood door is drawn in both builds since 2026-10-15 (killer560: "For some reason blood door isnt
+        // highlighting unless I have all doors on"), so its colours left the cheat section with it.
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Color", cfg.getBloodLockedColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Color",
+                            cfg.getBloodLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
+                        cfg.setBloodLockedColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2aX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door (Key) Color", cfg.getBloodReadyColor()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door (Key) Color",
+                            cfg.getBloodReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
+                        cfg.setBloodReadyColor(argb);
+                        cfg.save();
+                    }));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
 
-        // killer560, 2026-10-07: the door into Fairy on the blood-rush path, until anyone enters Fairy (FairyDoor).
-        // Both rows always built, so cycling the toggle never moves a row under the cursor.
+        // The Fairy door, both builds since 2026-10-15: without Show All Doors only once the held map and his own eyes
+        // say it is the Fairy door. Both rows always built, so cycling the toggle never moves a row under the cursor.
         widgets.add(SettingsButtonWidget.builder(onOff("Fairy Door", cfg.isFairyDoorRaw()), btn -> {
                     cfg.setFairyDoor(!cfg.isFairyDoorRaw());
                     cfg.save();
@@ -169,6 +154,29 @@ public class WitherDoorsTab extends BaseTab {
                         cfg.save();
                     }));
                 }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
+
+        // Waypoint labels over the held map's doors (killer560, 2026-10-15: "it would be waypoint style").
+        widgets.add(SettingsButtonWidget.builder(onOff("Door Labels", cfg.isDoorLabels()), btn -> {
+                    cfg.setDoorLabels(!cfg.isDoorLabels());
+                    cfg.save();
+                    btn.setMessage(onOff("Door Labels", cfg.isDoorLabels()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 26;
+
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return widgets;
+        }
+
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                SectionHeaders.header("Cheat Build - ESP", true), Minecraft.getInstance().font));
+        y += 16;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Show All Doors", cfg.isShowAllDoorsRaw()), btn -> {
+                    cfg.setShowAllDoors(!cfg.isShowAllDoorsRaw());
+                    cfg.save();
+                    btn.setMessage(onOff("Show All Doors", cfg.isShowAllDoorsRaw()));
+                }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
     }

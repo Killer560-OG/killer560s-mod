@@ -237,7 +237,7 @@ public final class MapPainter {
         return p3SimCached;
     }
 
-    private static boolean hideUnrevealed() {
+    static boolean hideUnrevealed() {
         // The dungeon SIM is exempt, exactly as p3sim already is.
         //
         // The legit map only draws what the vanilla map ITEM has revealed, which is the right rule on Hypixel:

@@ -100,6 +100,36 @@ final class WitherDoorsRenderer {
         });
     }
 
+    /**
+     * The held-map doors' waypoint labels, camera-facing and readable through walls (the same SEE_THROUGH text the
+     * Posmsg and F7 Spots waypoints draw). Only ever doors the held map shows, so nothing here is more than the map
+     * already says - the label just says where on it you are looking.
+     */
+    static void drawLabels(LevelRenderContext context, List<WitherDoorsFeature.DoorLabel> labels) {
+        PoseStack poseStack = context.poseStack();
+        if (poseStack == null || labels.isEmpty()) {
+            return;
+        }
+        net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+        Vec3 cam = McRender.cameraPos(context);
+        for (WitherDoorsFeature.DoorLabel l : labels.toArray(new WitherDoorsFeature.DoorLabel[0])) {
+            double dist = Math.sqrt(cam.distanceToSqr(l.pos()));
+            String text = l.text() + " " + Math.round(dist) + "m";
+            float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
+            poseStack.pushPose();
+            try {
+                poseStack.translate(l.pos().x - cam.x, l.pos().y - cam.y, l.pos().z - cam.z);
+                poseStack.mulPose(McRender.cameraRotation(context));
+                poseStack.scale(s, -s, s);
+                McRender.drawText(context, font, text, -font.width(text) / 2f, -font.lineHeight / 2f,
+                        0xFF000000 | l.argb(), false, poseStack, net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH,
+                        0x40000000, 0xF000F0);
+            } finally {
+                poseStack.popPose();
+            }
+        }
+    }
+
     private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float r, float g, float bl,
                                 float width) {
         float x0 = (float) b.minX, y0 = (float) b.minY, z0 = (float) b.minZ;

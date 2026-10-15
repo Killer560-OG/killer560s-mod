@@ -63,8 +63,13 @@ public final class WitherDoorsFeature {
     /** A sim floor rebuilt in the same world is a new floor: its door cells must be scanned again. */
     private static int lastGeneration = Integer.MIN_VALUE;
 
+    /** A waypoint label over a door the held map shows. */
+    record DoorLabel(Vec3 pos, String text, int argb) {
+    }
+
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
     private static final List<DoorBox> CACHED = new ArrayList<>();
+    private static final List<DoorLabel> LABELS = new ArrayList<>();
     private static long cacheStampMs = 0L;
     /** Matches the scanner's own 10-tick (~500ms) rescan cadence - rebuilding the highlight list any
      *  faster than the data underneath it can change would just be wasted work. */
@@ -146,6 +151,11 @@ public final class WitherDoorsFeature {
             return;
         }
         msg = msg.trim();
+        if (MORT_START.matcher(msg).matches()) {
+            mortSeen = true;
+            invalidateCache();
+            return;
+        }
         // ANCHORED, mirroring AutoDoorOpenerFeature - which this class's own doc says it mirrors, and
         // which was anchored on 2026-09-29 while this copy was left on contains(). Display only here (it
         // recolours the nearest door's highlight), so this was never the ban-shaped version of the bug - but
@@ -178,9 +188,13 @@ public final class WitherDoorsFeature {
     private static void tick(Minecraft client) {
         int generation = com.killer560.hub.livemap.LiveMapFeature.resetGeneration();
         if (client.level != lastLevel || generation != lastGeneration) {
+            if (client.level != lastLevel) {
+                mortSeen = false; // a new world is a new run; a sim rebuild in the same world keeps Hypixel's flag
+            }
             lastLevel = client.level;
             lastGeneration = generation;
             WitherDoorScanner.reset();
+            MapDoors.reset();
             witherKeyHeld = false;
             bloodKeyHeld = false;
             invalidateCache();
@@ -189,16 +203,31 @@ public final class WitherDoorsFeature {
         String gate = gate(client, cfg);
         if (gate != null) {
             CACHED.clear();
+            LABELS.clear();
             cacheStampMs = 0L;
             if (FairyDoor.door() >= 0) {
                 FairyDoor.off();
             }
             return;
         }
-        WitherDoorScanner.tick(client);
-        // Every tick, not on the cache's 500 ms: "till I enter Fairy" should clear on the step in.
-        if (cfg.isFairyDoor()) {
-            FairyDoor.tick(client);
+        if (!cfg.isShowAllDoors()) {
+            // Only the held map's doors, and nothing before the run has started (Mort's countdown).
+            if (FairyDoor.door() >= 0) {
+                FairyDoor.off();
+            }
+            if (!runStarted()) {
+                CACHED.clear();
+                LABELS.clear();
+                cacheStampMs = 0L;
+                setStatus("waiting for the run to start");
+                return;
+            }
+        } else {
+            WitherDoorScanner.tick(client);
+            // Every tick, not on the cache's 500 ms: "till I enter Fairy" should clear on the step in.
+            if (cfg.isFairyDoor()) {
+                FairyDoor.tick(client);
+            }
         }
         long now = System.currentTimeMillis();
         if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS) {
@@ -231,6 +260,12 @@ public final class WitherDoorsFeature {
 
     private static void rebuild(Minecraft client, WitherDoorsConfig cfg) {
         CACHED.clear();
+        LABELS.clear();
+        if (!cfg.isShowAllDoors()) {
+            rebuildFromMap(client, cfg);
+            return;
+        }
+        setStatus("show all doors");
         addFairyDoor(client, cfg);
         List<WitherDoorScanner.Door> locked = WitherDoorScanner.lockedDoors(client);
         if (locked.isEmpty()) {
@@ -272,6 +307,119 @@ public final class WitherDoorsFeature {
             int color = bloodKeyHeld ? cfg.getBloodReadyColor() : cfg.getBloodLockedColor();
             addBox(bloodDoor, color);
         }
+    }
+
+    /**
+     * Without Show All Doors, both builds: the doors the held map shows ({@link MapDoors}) - every wither door on it,
+     * the nearest in the key colour once a Wither Key is held, the Blood door in its own colours (it used to need Show
+     * All Doors: killer560, 2026-10-15, "For some reason blood door isnt highlighting unless I have all doors on"), and
+     * the Fairy door once it is known. Depth-tested boxes, each with a waypoint label that reads through walls.
+     */
+    private static void rebuildFromMap(Minecraft client, WitherDoorsConfig cfg) {
+        List<MapDoors.Door> doors = MapDoors.doors(client);
+        setStatus(MapDoors.status());
+        Vec3 eye = client.player.getEyePosition();
+        double maxSq = (double) cfg.getRenderDistance() * cfg.getRenderDistance();
+        MapDoors.Door nearest = null;
+        double nearestSq = Double.MAX_VALUE;
+        for (MapDoors.Door d : doors) {
+            if (d.kind() == MapDoors.Kind.WITHER) {
+                double sq = eye.distanceToSqr(Vec3.atCenterOf(d.pos()));
+                if (sq < nearestSq) {
+                    nearestSq = sq;
+                    nearest = d;
+                }
+            }
+        }
+        for (MapDoors.Door d : doors) {
+            Vec3 c = new Vec3(d.pos().getX() + 0.5, d.pos().getY() + (DOOR_Y_MAX - DOOR_Y_MIN) / 2.0, d.pos().getZ() + 0.5);
+            if (eye.distanceToSqr(c) > maxSq) {
+                continue;
+            }
+            int color;
+            String label;
+            switch (d.kind()) {
+                case BLOOD -> {
+                    color = bloodKeyHeld ? cfg.getBloodReadyColor() : cfg.getBloodLockedColor();
+                    label = "Blood Door";
+                }
+                case FAIRY -> {
+                    if (!cfg.isFairyDoor()) {
+                        continue;
+                    }
+                    color = cfg.getFairyDoorColor();
+                    label = "Fairy Door";
+                }
+                default -> {
+                    color = d == nearest && witherKeyHeld ? cfg.getWitherReadyColor() : cfg.getWitherLockedColor();
+                    label = "Wither Door";
+                }
+            }
+            boolean wallAlongZ = (d.idx() % com.killer560.hub.livemap.DungeonLayout.GRID) % 2 == 1;
+            addBox(d.pos().getX(), d.pos().getZ(), d.pos().getY(), wallAlongZ, color);
+            if (cfg.isDoorLabels()) {
+                LABELS.add(new DoorLabel(new Vec3(c.x, d.pos().getY() + (DOOR_Y_MAX - DOOR_Y_MIN) + 0.6, c.z), label, color));
+            }
+        }
+    }
+
+    /** "[NPC] Mort: ..." - the run's first line, sent when his countdown ends (Split Timers' RUN_START, anchored). */
+    private static final java.util.regex.Pattern MORT_START = java.util.regex.Pattern.compile(
+            "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$");
+    private static boolean mortSeen = false;
+
+    /**
+     * Whether the run has started, so there is a map he could be looking at. killer560, 2026-10-15: "the mod should not
+     * show wither doors before mort finishes his countdown and the run actually starts since there is no map the player
+     * can actually see yet". On Hypixel: Mort's opening line was seen in this world, or the held map is already read
+     * (Mort hands it over at that moment, so a rejoin mid-run still counts). In the sim: its own countdown said GO.
+     */
+    public static boolean runStarted() {
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            return com.killer560.hub.roomsim.SimRun.hasStarted() || !com.killer560.hub.roomsim.SimState.isGeneratedFloor();
+        }
+        return mortSeen || com.killer560.hub.livemap.LiveMapReads.mapItemCalibrated();
+    }
+
+    private static String status = "idle";
+
+    /** What Wither Doors did on its last rebuild, for tests and the log. */
+    public static String status() {
+        return status;
+    }
+
+    private static void setStatus(String s) {
+        if (!s.equals(status)) {
+            status = s;
+            LOGGER.info("[WitherDoors] {}", s);
+        }
+    }
+
+    /** Test hook: the doors the held-map rule would draw now, as {cell, kind ordinal (0 wither, 1 blood, 2 fairy)}. */
+    public static List<int[]> mapDoorsNow() {
+        List<int[]> out = new ArrayList<>();
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.level == null) {
+            return out;
+        }
+        for (MapDoors.Door d : MapDoors.doors(client)) {
+            out.add(new int[]{d.idx(), d.kind().ordinal()});
+        }
+        return out;
+    }
+
+    /** Test hook: door cells whose doorway he has looked into this run, and whether each was empty. */
+    public static java.util.Map<Integer, Boolean> seenDoorways() {
+        return MapDoors.seen();
+    }
+
+    /** Test hook: the waypoint labels the last rebuild produced. */
+    public static List<String> cachedLabels() {
+        List<String> out = new ArrayList<>();
+        for (DoorLabel l : LABELS) {
+            out.add(l.text());
+        }
+        return out;
     }
 
     private static Vec3 center(WitherDoorScanner.Door door) {
@@ -326,10 +474,11 @@ public final class WitherDoorsFeature {
     private static void onWorldRender(LevelRenderContext context) {
         // The tick decides what is in here; an empty snapshot means "off, not in a dungeon clear, or
         // nothing near" - no per-frame config or gate re-check needed on top of that.
-        if (CACHED.isEmpty()) {
+        if (CACHED.isEmpty() && LABELS.isEmpty()) {
             return;
         }
         WitherDoorsConfig cfg = WitherDoorsConfig.getInstance();
         WitherDoorsRenderer.draw(context, CACHED, cfg.isThroughWalls(), cfg.getStyle(), cfg.getFillOpacity() / 100f);
+        WitherDoorsRenderer.drawLabels(context, LABELS);
     }
 }
