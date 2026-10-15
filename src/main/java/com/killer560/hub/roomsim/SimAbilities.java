@@ -197,7 +197,8 @@ public final class SimAbilities {
                 || com.killer560.hub.secrets.SecretsFeature.isWitherEssence(level, hit.getBlockPos())
                 // The Redstone Key, and its node once the key is found: a click places or takes it, never an ability.
                 || com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(level, hit.getBlockPos())
-                || SimRedstoneKey.isReadyNode(hit.getBlockPos()));
+                || SimRedstoneKey.isReadyNode(hit.getBlockPos())
+                || com.killer560.hub.roomsim.puzzles.SimTicTacToePuzzle.isCell(hit.getBlockPos()));
     }
 
     /**

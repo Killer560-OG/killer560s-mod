@@ -106,6 +106,17 @@ public final class SimTicTacToePuzzle {
     private static volatile Integer pendingReply = null;
     private static int replyTicksLeft = 0;
 
+    /**
+     * Whether {@code pos} is one of the board's nine squares. The click is decided on the client and the square's
+     * button is taken away by a server task queued BEFORE the click's own packet reaches the server, so the server saw
+     * air there and fired an AOTV's Instant Transmission into the board wall (testkit 93-solve-tictactoe-grab,
+     * 2026-10-15: "the server moved you 4.2 blocks" right after the first click). On Hypixel the click stays a click
+     * (his Mod Only Test log of 2026-10-14 17:26: no move after any board click), so SimAbilities lets a square win.
+     */
+    public static boolean isCell(BlockPos pos) {
+        return pos != null && CELL_INDEX.containsKey(pos);
+    }
+
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (pendingReply == null || --replyTicksLeft > 0) {

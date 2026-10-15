@@ -514,6 +514,22 @@ final class AutoTicTacToe {
                 return;
             }
         }
+        // No warp line onto a spot in reach of it (a covered alcove): the last few blocks on foot, on his own floor,
+        // before any detour - as close as a warp gets is where he already stands.
+        if (!walkTried && player.onGround()) {
+            BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 8,
+                    eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target)
+                            <= CHEST_SPOT_REACH * CHEST_SPOT_REACH, APPROACH);
+            walkTried = true;
+            if (spot != null) {
+                chestWalking = true;
+                LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} - walking the last {} block(s) to {}",
+                        label, String.format(java.util.Locale.ROOT, "%.1f", APPROACH.length(player.position())),
+                        AutoPuzzleUtil.fmt(spot));
+                APPROACH.tick(client);
+                return;
+            }
+        }
         // No line onto any of them from here (a covered alcove): one warp onto a block that has a line onto one.
         if (hops < 2) {
             BlockPos hop = AutoPuzzleUtil.hopToward(client, player, spots);
@@ -521,22 +537,6 @@ final class AutoTicTacToe {
                 hops++;
                 LOGGER.info("[AutoPuzzles] TicTacToe: no warp line onto a spot by {} - warping to {} first, which has one",
                         label, AutoPuzzleUtil.fmt(hop));
-                return;
-            }
-        }
-        // No warp gets him there (a covered alcove): the last few blocks on foot, on his own floor - as close as a
-        // warp can get being the board spot itself.
-        if (!walkTried && player.onGround()) {
-            walkTried = true;
-            BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 8,
-                    eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target)
-                            <= CHEST_SPOT_REACH * CHEST_SPOT_REACH, APPROACH);
-            if (spot != null) {
-                chestWalking = true;
-                LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} - walking the last {} block(s) to {}",
-                        label, String.format(java.util.Locale.ROOT, "%.1f", APPROACH.length(player.position())),
-                        AutoPuzzleUtil.fmt(spot));
-                APPROACH.tick(client);
                 return;
             }
         }
