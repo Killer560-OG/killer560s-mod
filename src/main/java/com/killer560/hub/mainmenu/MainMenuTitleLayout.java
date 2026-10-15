@@ -79,10 +79,11 @@ public final class MainMenuTitleLayout {
     private static final int OPTIONS_ROW_GAP = 36;
     /** Vanilla column has 3 rows; each extra row moves the column start up by half a step (same as ModMenu). */
     private static final int VANILLA_ROWS = 3;
-    /** Keep the "Playing as" line clear of the bottom-left footer lines (mod tag at height-20, version at height-10). */
-    private static final int FOOTER_CLEARANCE = 22;
-    /** Vanilla's copyright line is a 10-tall PlainTextButton at height - 10, right-aligned (javap, both versions). */
-    private static final int COPYRIGHT_HEIGHT = 10;
+    /** Keep the "Playing as" chip clear of the accent line on the bottom edge. */
+    private static final int FOOTER_CLEARANCE = 6;
+    /** Room kept under the Options/Quit row. Vanilla's copyright line (a 10-tall PlainTextButton at height - 10) is
+     *  removed by this layout since 2026-10-15, so only a small margin is left. */
+    private static final int COPYRIGHT_HEIGHT = 4;
     /** Bottom of the logo's "Java Edition" strip: LogoRenderer DEFAULT_HEIGHT_OFFSET 30 + LOGO_HEIGHT 44 - overlap 7
      *  + EDITION_HEIGHT 14 (javap, both versions), plus a 2-unit gap. The column never starts above it. */
     private static final int LOGO_BOTTOM = 83;
@@ -157,6 +158,13 @@ public final class MainMenuTitleLayout {
         }
     }
 
+    /** "Mod Settings": opens the mod menu from the title screen. A plain vanilla Button like the rest of the column. */
+    public static final class ModSettingsButton extends Button.Plain {
+        private ModSettingsButton(int x, int y, int width, int height, Component message, OnPress onPress) {
+            super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
+        }
+    }
+
     /** Where the rule between the column and the Options/Quit row goes on {@code screen} (0 when not laid out). */
     private static volatile int ruleY;
 
@@ -214,7 +222,7 @@ public final class MainMenuTitleLayout {
                     swap = s;
                     continue;
                 }
-                if (w == sim) {
+                if (w == sim || w instanceof ModSettingsButton) {
                     continue;
                 }
                 String key = translationKey(w);
@@ -234,6 +242,10 @@ public final class MainMenuTitleLayout {
                     multiplayer = w;
                 } else if (isModMenuButton(w)) {
                     mods.add(w);
+                } else if (w instanceof net.minecraft.client.gui.components.PlainTextButton) {
+                    // Vanilla's "Copyright Mojang AB" credits link (killer560, 2026-10-15: remove "the copyright message
+                    // in the bottom right"). Removed like the Mod Menu buttons, so it neither draws nor takes clicks.
+                    mods.add(w);
                 }
             }
             if (options == null || quit == null) {
@@ -249,7 +261,7 @@ public final class MainMenuTitleLayout {
             List<AbstractWidget> column = new ArrayList<>();
             for (AbstractWidget w : widgets) {
                 if (w == swap || w == realms || w == language || w == accessibility || w == options || w == quit
-                        || w == sim || friends.contains(w)) {
+                        || w == sim || w instanceof ModSettingsButton || friends.contains(w)) {
                     continue;
                 }
                 if (!mods.contains(w) && w.visible && w.getWidth() == COLUMN_WIDTH && w.getX() == cx - COLUMN_WIDTH / 2
@@ -296,6 +308,29 @@ public final class MainMenuTitleLayout {
                 removeWidget(screen, widgets, sim);
                 simButton = new WeakReference<>(null);
             }
+
+            // The mod's own settings, straight from the title screen (killer560, 2026-10-15: "add a button on the main menu
+            // to open my mod's settings and edit them from the main menu"). Above Swap Accounts; closing the menu returns
+            // here (ModScreen.onClose goes back to its parent).
+            AbstractWidget modSettings = null;
+            for (AbstractWidget w : widgets) {
+                if (w instanceof ModSettingsButton) {
+                    modSettings = w;
+                }
+            }
+            if (modSettings == null) {
+                modSettings = new ModSettingsButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
+                        Component.literal("Mod Settings"), btn -> McCompat.setScreen(Minecraft.getInstance(),
+                                new com.killer560.hub.gui.ModScreen(screen)));
+                int idx = swap != null ? widgets.indexOf(swap) : -1;
+                if (idx >= 0) {
+                    widgets.add(idx, modSettings);
+                } else {
+                    widgets.add(modSettings);
+                }
+            }
+            modSettings.visible = true;
+            column.add(modSettings);
 
             if (swap != null) {
                 column.add(swap);

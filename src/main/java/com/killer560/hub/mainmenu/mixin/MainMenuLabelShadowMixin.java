@@ -24,7 +24,11 @@ public abstract class MainMenuLabelShadowMixin {
             return false;
         }
         try {
-            if (MainMenuTheme.activeOnTitleScreen()
+            // Every themed vanilla menu on a light theme (2026-10-15); the mod's own screens draw their text themselves.
+            net.minecraft.client.gui.screens.Screen screen =
+                    com.killer560.hub.compat.McCompat.screen(net.minecraft.client.Minecraft.getInstance());
+            if (MainMenuTheme.activeOnMenus() && screen != null
+                    && !screen.getClass().getName().startsWith("com.killer560.hub.")
                     && MenuStyle.luminance(MainMenuLook.current().panelColour()) > 0.5f) {
                 return false;
             }

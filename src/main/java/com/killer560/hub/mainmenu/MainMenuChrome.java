@@ -73,12 +73,9 @@ public final class MainMenuChrome {
         MainMenuLook look = usePalette();
         float a = fade();
         GuiRects r = GuiRects.begin(g);
-        // Footer band: the version line, the mod's name and the copyright sit on it.
-        int bandH = 26;
-        int bandTop = screen.height - bandH;
-        r.gradient(0, bandTop, screen.width, screen.height, f(MenuStyle.alpha(MenuStyle.PANEL_BOTTOM, 0), a),
-                f(MenuStyle.alpha(MenuStyle.PANEL_BOTTOM, MenuStyle.LIGHT ? 0xD0 : 0xC8), a));
-        accentLine(r, 0, screen.width, bandTop + 4, a * 0.6f);
+        // The thin accent line along the very bottom edge (killer560, 2026-10-15: "I would like that moved all the way to
+        // the bottom"); the version, mod name and copyright texts that sat on the old footer band are gone.
+        accentLine(r, 0, screen.width, screen.height - 1, a * 0.6f);
 
         if (look.panel() && cardScreen.get() == screen && cardW > 0) {
             int x = cardX;
@@ -91,7 +88,9 @@ public final class MainMenuChrome {
                 r.fill(x + 2 + i, y + h + i, x + w + 2 + i, y + h + i + 1, c);
                 r.fill(x + w + i, y + 2 + i, x + w + i + 1, y + h + i, c);
             }
-            int fill = MenuStyle.LIGHT ? 0xE6 : 0xD2;
+            // Fully opaque (killer560, 2026-10-15: "do not make that dark portion surrounding the settings translucent, it
+            // makes it hard to look at"): nothing of the animated background shows behind the buttons.
+            int fill = 0xFF;
             r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, f(MenuStyle.alpha(MenuStyle.PANEL_TOP, fill), a),
                     f(MenuStyle.alpha(MenuStyle.PANEL_BOTTOM, fill), a));
             r.outline(x, y, w, h, f(MenuStyle.alpha(MenuStyle.BLACK, 0xE0), a));
@@ -130,7 +129,7 @@ public final class MainMenuChrome {
     /** A title-screen button: a raised face in the theme's card colour, an accent ring, glow and side bar on hover. */
     public static void drawButton(GuiGraphicsExtractor g, int x, int y, int w, int h, boolean active, boolean hover,
                                   float alpha) {
-        usePalette();
+        MenuWidgets.sync();
         GuiRects r = GuiRects.begin(g);
         float a = Math.max(0f, Math.min(1f, alpha)) * (active ? 1f : 0.55f);
         boolean lit = active && hover;
@@ -162,7 +161,7 @@ public final class MainMenuChrome {
 
     /** Label colours on a title-screen button. */
     public static int labelColour(boolean active, boolean hover) {
-        usePalette();
+        MenuWidgets.sync();
         if (!active) {
             return MenuStyle.DIM2 & 0xFFFFFF;
         }
@@ -186,8 +185,8 @@ public final class MainMenuChrome {
         int h = 15;
         int x = cx - w / 2;
         GuiRects r = GuiRects.begin(g);
-        r.fill(x + 1, y, x + w - 1, y + h, f(MenuStyle.alpha(MenuStyle.PILL_BG, 0xD8), alpha));
-        r.fill(x, y + 1, x + w, y + h - 1, f(MenuStyle.alpha(MenuStyle.PILL_BG, 0xD8), alpha));
+        r.fill(x + 1, y, x + w - 1, y + h, f(MenuStyle.alpha(MenuStyle.PILL_BG, 0xFF), alpha));
+        r.fill(x, y + 1, x + w, y + h - 1, f(MenuStyle.alpha(MenuStyle.PILL_BG, 0xFF), alpha));
         r.fill(x + 1, y, x + w - 1, y + 1, f(MenuStyle.ACCENT_EDGE, alpha));
         r.fill(x + 1, y + h - 1, x + w - 1, y + h, f(MenuStyle.ACCENT_EDGE, alpha));
         r.fill(x, y + 1, x + 1, y + h - 1, f(MenuStyle.ACCENT_EDGE, alpha));

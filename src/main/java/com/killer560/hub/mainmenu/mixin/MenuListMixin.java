@@ -117,6 +117,7 @@ public abstract class MenuListMixin {
         }
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
+            com.killer560.hub.mainmenu.MenuChrome.sync();
             boolean bright = self.isFocused() || killer560smod$hovering(self, x0, y0, x1, y1);
             return bright ? MenuChrome.ACCENT_LIGHT : MenuChrome.ACCENT;
         } catch (Throwable t) {
@@ -134,6 +135,7 @@ public abstract class MenuListMixin {
         }
         try {
             AbstractSelectionList<?> self = (AbstractSelectionList<?>) (Object) this;
+            com.killer560.hub.mainmenu.MenuChrome.sync();
             // Must stay opaque: it is drawn over the full-rect border fill.
             return killer560smod$hovering(self, x0, y0, x1, y1) ? MenuChrome.SELECTION_FILL_HOVER : MenuChrome.SELECTION_FILL;
         } catch (Throwable t) {
