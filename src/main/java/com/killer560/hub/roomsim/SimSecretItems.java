@@ -286,6 +286,22 @@ public final class SimSecretItems {
         }
     }
 
+    /**
+     * Right after a sim teleport (server thread): the item he lands on is touched now, as Hypixel does, so its take
+     * packet follows the position packet in the same batch instead of a server tick later. Same box, same vanilla
+     * {@code playerTouch} (pickup delay, full inventory) as {@link #magneticPickup}.
+     */
+    public static void pickupOnLanding(net.minecraft.server.level.ServerPlayer player) {
+        if (!SimState.isActive() || player == null || SimMiniboss.isPlaced(player)) {
+            return;
+        }
+        try {
+            magneticPickup((ServerLevel) player.level(), player);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Item pickup on landing failed", e);
+        }
+    }
+
     /** Spawns each secret bat he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
     private static void tickPendingBats(ServerLevel level, double px, double py, double pz) {
         if (PENDING_BATS.isEmpty()) {
