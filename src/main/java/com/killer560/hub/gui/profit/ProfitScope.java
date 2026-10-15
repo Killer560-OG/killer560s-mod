@@ -116,8 +116,11 @@ public final class ProfitScope {
                 return true;
             }
             // A name-only record whose name is what that UUID is called (it could not be resolved when migrated).
-            String name = NAMES.get(id);
-            return !hasAccountId() && name != null && name.equalsIgnoreCase(account);
+            if (hasAccountId()) {
+                return false;
+            }
+            String name = id.equals(currentAccountId()) ? currentAccount() : NAMES.get(id);
+            return name != null && name.equalsIgnoreCase(account);
         }
 
         public boolean matches(Filter f) {
