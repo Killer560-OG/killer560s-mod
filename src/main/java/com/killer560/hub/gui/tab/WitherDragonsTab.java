@@ -25,6 +25,12 @@ public class WitherDragonsTab extends BaseTab {
         super("Wither Dragons");
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Wither Dragons and King Relics are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Wither Dragons", "King Relics");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();

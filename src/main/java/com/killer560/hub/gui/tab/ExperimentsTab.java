@@ -29,6 +29,12 @@ public class ExperimentsTab extends BaseTab {
 
     private static final int GAP = 6;
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Experiment Solver and the Profit Tracker are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Experiment Solver Enabled", "Profit Tracker");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

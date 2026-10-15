@@ -39,6 +39,18 @@ final class FeatureDescriptions {
         BY_TAB.put("ObjectHiderTab", "Hides fire, fog, particles, falling blocks and other screen and world clutter.");
         BY_TAB.put("DisplayOptionsTab", "Borderless fullscreen, the themed main menu, Pack Disabler and Fullbright.");
         BY_TAB.put("ThornTab", "F4/M4 Thorn: Spirit Bear HUD and ESP, stun spots and overkill messages.");
+        // Tabs whose card switch stands for several independent features (killer560, 2026-10-14; see MasterSwitch).
+        BY_TAB.put("DungeonQueueTab", "Re-queues the dungeon after a run, and the Party Finder overlay: joinable highlight, counts, stats.");
+        BY_TAB.put("WitherDragonsTab", "F7/M7 dragon phase: spawn timers, priority, boxes and health, and the King Relics helper.");
+        BY_TAB.put("MobEspTab", "Boxes or glow on starred mobs, bats and the wither bosses.");
+        BY_TAB.put("LeapMenuTab", "A custom leap menu with player heads and class colors, and a message sent when you leap.");
+        BY_TAB.put("CroesusTab", "Chest profit in Croesus, a profit logger for claimed chests, and hiding opened runs.");
+        BY_TAB.put("ExperimentsTab", "Solves the Experimentation Table games, and tracks the profit of your sessions.");
+        BY_TAB.put("InventoryThemeTab", "Re-skins the inventory in the menu theme; Hide Potion Effects is a switch of its own.");
+        BY_TAB.put("AutoBloodCampTab", "Cheat build: Trigger Bot and Aura for the Blood Camp mobs.");
+        BY_TAB.put("AutoTerminalTab", "Cheat build: clicks Floor 7 terminals for you, and Hover Terminals clicks the one you point at.");
+        BY_TAB.put("InteractiveMapTab", "Cheat build: the full-screen map that paths to a room, and Auto Blood Rush.");
+        BY_TAB.put("I4SensorsTab", "Sharp Shooter (i4): the solver, and the cheat build's Auto i4 and I4 Leap.");
     }
 
     static String get(BaseTab tab) {

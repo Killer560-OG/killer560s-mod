@@ -44,6 +44,12 @@ public class MobEspTab extends BaseTab {
         super(com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Dungeon ESP" : "Starred Mob Hitboxes");
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Starred Mob and Bat hitboxes, the Wither Boss Highlight and the cheat ESP are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Starred Mobs", "Bats", "Wither Boss Highlight", "ESP");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

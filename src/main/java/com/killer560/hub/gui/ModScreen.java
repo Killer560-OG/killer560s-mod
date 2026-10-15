@@ -87,7 +87,7 @@ public class ModScreen extends Screen {
     private int visibleContentHeight = 0;
     private ScrollingContentPane contentPane;
     /** The open drawer's own master row (its switch in the header presses it), or null. */
-    private SettingsButtonWidget drawerMaster;
+    private MasterSwitch drawerMaster;
     /** The drawer's Basic / Advanced strip: the "▶ Advanced" header row it opens and closes, or null. */
     private SettingsButtonWidget advancedHeader;
 
@@ -577,7 +577,7 @@ public class ModScreen extends Screen {
         }
         widgets.addAll(built);
         if (openFeature == tab) {
-            drawerMaster = tab.masterToggle(built);
+            drawerMaster = MasterSwitch.of(tab.masterToggles(built));
             if (drawerMaster != null) {
                 FeatureCards.setKnownState(tab, drawerMaster.isOn());
             }

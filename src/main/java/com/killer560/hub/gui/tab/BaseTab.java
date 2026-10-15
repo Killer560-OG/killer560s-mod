@@ -59,6 +59,41 @@ public abstract class BaseTab {
         return null;
     }
 
+    /**
+     * The independent ON/OFF rows the card's switch stands for. One row for an ordinary tab (its {@link #masterToggle});
+     * a tab that is really several features side by side lists each feature's own row here, and its switch is ON while
+     * any of them is on ({@link com.killer560.hub.gui.MasterSwitch}). {@link #masterToggle} should still return the first
+     * of them (the default does: the tab's first control).
+     */
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        com.killer560.hub.gui.SettingsButtonWidget m = masterToggle(built);
+        return m == null ? List.of() : List.of(m);
+    }
+
+    /** The ON/OFF rows of {@code built} labelled {@code labels} (those that exist, in the order given). */
+    protected static List<com.killer560.hub.gui.SettingsButtonWidget> switchRows(List<AbstractWidget> built, String... labels) {
+        List<com.killer560.hub.gui.SettingsButtonWidget> out = new java.util.ArrayList<>();
+        for (String l : labels) {
+            com.killer560.hub.gui.SettingsButtonWidget b = switchRow(built, l);
+            if (b != null) {
+                out.add(b);
+            }
+        }
+        return out;
+    }
+
+    /** The row in {@code built} whose label (formatting stripped, cut at its ':') is {@code label}, if it is an ON/OFF
+     *  switch. For {@link #masterToggles} overrides. */
+    protected static com.killer560.hub.gui.SettingsButtonWidget switchRow(List<AbstractWidget> built, String label) {
+        for (AbstractWidget w : built) {
+            if (w instanceof com.killer560.hub.gui.SettingsButtonWidget b && b.isSwitch()
+                    && b.parts().label().equalsIgnoreCase(label)) {
+                return b;
+            }
+        }
+        return null;
+    }
+
     /** The labels (formatting stripped, cut at their ':') of this tab's rows that contain {@code query}, for the menu
      *  search's setting hits. Built off-screen like {@link #widgetsMatchSearch}; a tab that scans with hidden sections
      *  laid open overrides this the same way. */

@@ -29,6 +29,12 @@ public class AutoTerminalTab extends BaseTab {
         return true;
     }
 
+    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Auto Terminals and Hover Terminals are separate features. */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Auto Terminals", "Hover Terminals");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();

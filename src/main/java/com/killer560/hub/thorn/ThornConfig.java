@@ -60,10 +60,6 @@ public final class ThornConfig {
 
     private static ThornConfig instance;
 
-    /** Thorn as a whole (killer560, 2026-10-13): off, the counter, every highlight and the stun spots stand down
-     *  whatever their own switches say. On by default, so nothing changes until he flips it. */
-    private boolean thornEnabled = true;
-
     // ---- Spirit Bear counter ----
     private boolean bearHud = false;
     private boolean showOverkill = false;
@@ -122,7 +118,10 @@ public final class ThornConfig {
             }
         }
         if (obj != null) {
-            cfg.thornEnabled = ConfigJson.getBool(obj, "thornEnabled", true);
+            // A "Thorn as a whole" switch (2026-10-13) sat over the counter, the highlights and the stun spots and is gone
+            // (2026-10-15): they are independent. A file saved with it OFF had them all standing down, so they load OFF
+            // (see below); the key is not written back.
+            boolean legacyWholeOff = obj.has("thornEnabled") && !ConfigJson.getBool(obj, "thornEnabled", true);
             cfg.bearHud = ConfigJson.getBool(obj, "bearHud", false);
             cfg.showOverkill = ConfigJson.getBool(obj, "showOverkill", false);
             cfg.overkillChat = ConfigJson.getBool(obj, "overkillChat", false);
@@ -141,6 +140,17 @@ public final class ThornConfig {
             cfg.stunSpots = ConfigJson.getBool(obj, "stunSpots", false);
             cfg.stunSpotLabels = ConfigJson.getBool(obj, "stunSpotLabels", true);
             cfg.stunSpotColor = ConfigJson.getInt(obj, "stunSpotColor", DEFAULT_STUN_SPOT_COLOR);
+            if (legacyWholeOff) {
+                cfg.bearHud = false;
+                cfg.showOverkill = false;
+                cfg.overkillChat = false;
+                cfg.overkillToParty = false;
+                cfg.bearEsp = false;
+                cfg.thornEsp = false;
+                cfg.mobEsp = false;
+                cfg.bowEsp = false;
+                cfg.stunSpots = false;
+            }
             JsonArray spots = ConfigJson.getArray(obj, "stunSpotList");
             if (spots != null) {
                 cfg.stunSpotList.clear();
@@ -168,7 +178,6 @@ public final class ThornConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("thornEnabled", thornEnabled);
             obj.addProperty("bearHud", bearHud);
             obj.addProperty("showOverkill", showOverkill);
             obj.addProperty("overkillChat", overkillChat);
@@ -207,11 +216,8 @@ public final class ThornConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
     }
 
-    public boolean isThornEnabled() { return thornEnabled; }
-    public void setThornEnabled(boolean v) { thornEnabled = v; }
-
-    /** The master switch and the Skyblock gate, which every effective getter below ANDs in. */
-    private boolean live() { return thornEnabled && SkyblockGate.allows(); }
+    /** The Skyblock gate, which every effective getter below ANDs in. */
+    private boolean live() { return SkyblockGate.allows(); }
 
     // ---- Spirit Bear counter ----
     public boolean isBearHudEnabled() { return bearHud && live(); }
@@ -275,7 +281,7 @@ public final class ThornConfig {
     }
 
     /** Same rule as Dungeon ESP: the legit jar can never report true, even from a copied cheat-build config. */
-    public boolean isThroughWalls() { return cheat() && thornEnabled && throughWalls; }
+    public boolean isThroughWalls() { return cheat() && throughWalls; }
     public boolean getThroughWallsRaw() { return throughWalls; }
     public void setThroughWalls(boolean v) { throughWalls = v; }
 

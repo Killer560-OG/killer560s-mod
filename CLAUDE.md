@@ -102,6 +102,13 @@ category - no combined folders (only Secrets and Puzzle Solvers group tabs, at h
 block at the BOTTOM of their category (the menu draws it under a red "Cheat" header), never directly under the legit tab
 they go with, and cheat-only settings go at the bottom of their tab under a red `SectionHeaders` header. The categories
 are put together in `gui/tab/MenuCategories`; a new tab still goes in its old folder class (`DungeonTab`, `ItemsTab`...).
+Order (killer560, 2026-10-14: "sort them alphabetically or something of your choosing"): inside a category the legit cards
+are alphabetical by display name ignoring case, then the cheat block alphabetical too (`MenuCategories.cheatLast` does it,
+so a new tab needs no position); Secrets and Puzzle Solvers sort their own sections the same way, Solver Highlights first.
+Inside a tab the feature's on/off switch is the first row. A tab that is really several features side by side (Dungeon Queue)
+has no switch over the whole: each feature keeps its own, and the tab lists them in `BaseTab.masterToggles` so the card
+(`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent
+switches (the 2026-10-13 ones were removed 2026-10-14, files with the old key OFF load with every part OFF). Testkit 515-518.
 Testkit 511-514 check it on cheat, legit and testing jars.
 
 Never track a `HANDOFF.md` in the repo; handoff notes live only in
