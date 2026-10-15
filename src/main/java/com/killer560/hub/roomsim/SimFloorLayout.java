@@ -964,8 +964,11 @@ public final class SimFloorLayout {
                     int side = tryNo % 4;
                     Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
                     if (nb == null || "BLOOD".equalsIgnoreCase(nb.type()) || isOneDoor(nb.type())
-                            || (tryNo < 4 && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
-                        continue;   // blood and a puzzle have exactly one way in; the green room only as a last resort
+                            || ((tryNo < 4 || !checked) && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
+                        // Blood and a puzzle have exactly one way in; the green room only as a last resort, and never
+                        // blind: an unchecked cut there went through the back staircase wall killer560 said nothing
+                        // attaches to (testkit 1446's Entrance W0 control, 1 floor in 30, 2026-10-15).
+                        continue;
                     }
                     if (checked && !carvableFrom(nb, cx, cz, side)) {
                         continue;   // the cut would open onto a wall, a platform or a drop - RoomDoors.carvable
