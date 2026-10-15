@@ -58,12 +58,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
     /**
      * A list row: two lines with a gap between them and around them. It was 22 with the lines 9 apart, i.e. touching
-     * (killer560, 2026-10-15: "make there be a hair more spacing for the text it is really crammed").
+     * (killer560, 2026-10-15: "make there be a hair more spacing for the text it is really crammed"). 3 units between
+     * the lines (27/15 gave 2), so the gap still shows at a small Auto Scale where 2 units can round to no pixel at all.
      */
-    private static final int ROW_H = 27;
+    private static final int ROW_H = 28;
     /** The second line's offset in a row; the first is at {@link #ROW_TEXT1}. */
     private static final int ROW_TEXT1 = 4;
-    private static final int ROW_TEXT2 = 15;
+    private static final int ROW_TEXT2 = 16;
 
     /** The label lines of the last frame, "Name|0/6;Name|0/4;", for the gametest to read back. */
     private static volatile String labelsDrawn = "";
