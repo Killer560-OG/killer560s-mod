@@ -412,6 +412,13 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   RenderingTextCollector.accept` builds its GuiTextRenderState with `dropShadow = true` (javap 26.1.2 and 26.2), so dark
   text on the Light theme's title screen smeared; `mainmenu/mixin/MainMenuLabelShadowMixin` turns it off there (1565).
 
+- **Vanilla menus kept the old dark-and-orange look whatever the theme** because `mainmenu/MenuChrome` and `MenuWidgets`
+  held it in `static final` colours. They are now plain statics re-derived by `MenuWidgets.sync()` from the main menu's
+  theme (`MainMenuLook`), checked at the top of every draw helper, so a theme change reaches an open pause menu on the next
+  frame (testkit 1570: Back to Game measured 41,35,29 in Amber, 33,42,52 in Ocean, 231,229,226 in Light without reopening).
+  Inside one of the mod's own screens they read that screen's palette instead: re-deriving `MenuStyle` there would repaint
+  the rest of the mod screen's frame in the main menu's colours.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
