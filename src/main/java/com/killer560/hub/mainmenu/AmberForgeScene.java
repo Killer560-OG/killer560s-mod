@@ -26,8 +26,8 @@ final class AmberForgeScene {
         int hot = MenuStyle.mix(accent, WHITE, 0.5f);
         int warm = MenuStyle.mix(accent, WHITE, 0.2f);
         int skyTop = MenuStyle.mix(BLACK, accent, 0.05f);
-        int skyMid = MenuStyle.mix(BLACK, accent, 0.20f);
-        int horizon = MenuStyle.mix(BLACK, accent, 0.46f);
+        int skyMid = MenuStyle.mix(BLACK, accent, 0.26f);
+        int horizon = MenuStyle.mix(BLACK, accent, 0.66f);
         int silhouette = MenuStyle.mix(BLACK, accent, 0.07f);
         int farCol = MenuStyle.mix(BLACK, accent, 0.11f);
         double s = Math.max(0.8, Math.min(2.4, h / 420.0));
@@ -37,13 +37,13 @@ final class AmberForgeScene {
         // Sky, and the sun with its glow.
         r.gradient(0, 0, w, hy / 2, skyTop, skyMid);
         r.gradient(0, hy / 2, w, hy, skyMid, horizon);
-        double sunX = w / 2.0 + Math.sin(t * 0.045) * w * 0.035;
+        double sunX = w * 0.67 + Math.sin(t * 0.045) * w * 0.03;
         double sunR = Math.max(20, Math.min(64, h * 0.1));
-        MainMenuScenes.glow(r, (int) sunX, hy - (int) (sunR * 0.3), w * 0.6, h * 0.36, hot, (int) (0x34 * breathe), 8);
+        MainMenuScenes.glow(r, (int) sunX, hy - (int) (sunR * 0.3), w * 0.5, h * 0.42, hot, (int) (0x44 * breathe), 8);
         disc(r, sunX, hy - sunR * 0.35, sunR, MenuStyle.alpha(warm, 0xB8));
         disc(r, sunX, hy - sunR * 0.35, sunR * 0.62, MenuStyle.alpha(hot, 0xC8));
         // Haze lying on the horizon.
-        r.gradient(0, hy - (int) (h * 0.13), w, hy, MenuStyle.alpha(hot, 0), MenuStyle.alpha(hot, 0x2C));
+        r.gradient(0, hy - (int) (h * 0.13), w, hy, MenuStyle.alpha(hot, 0), MenuStyle.alpha(hot, 0x40));
 
         // Far colonnade: a lintel across the hall and the pillars under it, each with a rim of light on the sun's side.
         int lintelY = hy - (int) (h * 0.33);
@@ -88,7 +88,7 @@ final class AmberForgeScene {
             int y = hy + 2 + i * 3;
             double half = sunR * (0.9 + 2.4 * p) + Math.sin(t * 1.4 + i * 0.8) * (1.5 + p * 7);
             double centre = sunX + Math.sin(t * 1.1 + i * 0.5) * (1 + p * 6);
-            int a = (int) (0x58 * (1.0 - p) * (0.55 + 0.45 * Math.sin(t * 2.1 + i * 1.7)));
+            int a = (int) (0x70 * (1.0 - p) * (0.55 + 0.45 * Math.sin(t * 2.1 + i * 1.7)));
             r.fill((int) (centre - half), y, (int) (centre + half), y + 2, MenuStyle.alpha(hot, a));
         }
 
@@ -147,7 +147,7 @@ final class AmberForgeScene {
         }
         int lx = x + (int) swing;
         double flicker = 0.75 + 0.25 * Math.sin(t * 7.3 + id * 1.9) * Math.sin(t * 3.1 + id);
-        MainMenuScenes.glow(r, lx, len + (int) (6 * s), 46 * s, 46 * s, hot, (int) (0x38 * flicker), 6);
+        MainMenuScenes.glow(r, lx, len + (int) (6 * s), 46 * s, 46 * s, hot, (int) (0x70 * flicker), 8);
         int bw = (int) Math.max(3, 4 * s);
         int bh = (int) Math.max(5, 7 * s);
         r.fill(lx - bw - 1, len - 2, lx + bw + 1, len + bh + 3, BLACK);                   // cage

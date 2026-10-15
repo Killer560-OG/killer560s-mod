@@ -38,6 +38,19 @@ public final class MainMenuScenes {
         amberScene = old ? AmberScene.EMBERS : AMBER_SCENE;
     }
 
+    /** Test probe (testkit 1568): while set, {@link #draw} adds the bytes it allocated, the frames and the rectangles
+     *  it batched to these. Off in play. */
+    public static boolean allocProbe;
+    public static long allocBytes;
+    public static long allocFrames;
+    public static long allocQuads;
+    private static java.lang.reflect.Field quadCount;
+
+    private static long allocatedNow() {
+        return ((com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean())
+                .getThreadAllocatedBytes(Thread.currentThread().threadId());
+    }
+
     /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. */
     static double clock(float speed) {
         long ms = testClockMs >= 0 ? testClockMs : Util.getMillis();
@@ -48,6 +61,7 @@ public final class MainMenuScenes {
         if (w <= 0 || h <= 0) {
             return;
         }
+        long probeStart = allocProbe ? allocatedNow() : 0L;
         double t = clock(look.speed());
         int accent = look.accent() | 0xFF000000;
         int panel = look.panelColour() | 0xFF000000;
@@ -71,6 +85,18 @@ public final class MainMenuScenes {
         }
         vignette(r, w, h, light);
         r.submit();
+        if (allocProbe) {
+            allocBytes += allocatedNow() - probeStart;
+            allocFrames++;
+            try {
+                if (quadCount == null) {
+                    quadCount = GuiRects.class.getDeclaredField("count");
+                    quadCount.setAccessible(true);
+                }
+                allocQuads += quadCount.getInt(r);
+            } catch (ReflectiveOperationException ignored) {
+            }
+        }
     }
 
     // ---------------------------------------------------------------- shared pieces
