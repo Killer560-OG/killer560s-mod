@@ -66,7 +66,9 @@ public final class ProfileData {
             "spotify-setup-guide.txt",
             // History, not setup: run history and the auto-tracked "best friends" play records (same reason the
             // Croesus and Experiments logs were always left out).
-            "runs", "social"
+            "runs", "social",
+            // The Map Designer's list of floors he played (sim-designer-1015): history like the runs.
+            "sim-map-history.json"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */
