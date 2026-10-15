@@ -38,7 +38,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   a server anchor (NoammAddons used `ClientboundSetTimePacket.gameTime`).
 - `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
   the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
-  server stalls subscribes to `subscribeRawPing` instead (as `experiments/ServerLagSensor` does).
+  server stalls subscribes to `subscribeRawPing` instead (as `util/ServerLag` does).
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9

@@ -108,7 +108,7 @@ public final class ExperimentsConfig {
      *  default since 2026-10-04 (killer560: "Make all profit trackers on by default"). */
     private boolean profitTrackerEnabled = true;
     /** Superpairs' flat 1000ms confirm-timeout is extended by however long the server stalls while a
-     *  click waits (see {@code ExperimentSolver#superpairsConfirmTimeoutMs} and {@link ServerLagSensor}).
+     *  click waits (see {@code ExperimentSolver#superpairsConfirmTimeoutMs} and {@link com.killer560.hub.util.ServerLag}).
      *  With no lag it changes nothing. The fixed "Timeout Margin" it used to carry was removed on
      *  2026-10-04 (killer560: "that shouldn't have a margin"); an old file's {@code superpairsTimeoutMarginMs}
      *  key is simply no longer read. */

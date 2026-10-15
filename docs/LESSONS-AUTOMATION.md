@@ -222,3 +222,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   that wants a route's progress (the Auto Routes Progress HUD, `RouteRunMemory.noteProgress`) must be told at start and at
   completion as well as each tick, or a short route is never seen (102-sim-autosecret, 2026-10-15). The planners' queue for
   that HUD is `autoroutes/RunPlan`, published by each planner at its own pick, never recomputed by the HUD.
+- **A wait for the server's answer must not read a server stall as a failure** (killer560, 2026-10-15: the Interactive Map
+  said "Warp 1 never landed - planning again from here" whenever Hypixel lagged). `util/ServerLag` measures stalls from the
+  gaps between Hypixel's once-a-tick pings; every such wait takes `ServerLag.mark()` when it starts (or makes progress) and
+  compares against `TIMEOUT + ServerLag.ticksSince(mark)` (`serverMsSince` for ms waits), which is 0 extra with no lag.
+  The sim's server sent no per-tick pings until then (`roomsim/SimServerTicks` now does), so in the sim every
+  `ServerTickClock` user had silently fallen back to client ticks. Testkit 1460-sim-server-lag / 96-ar-1015-serverlag.

@@ -140,6 +140,10 @@ public final class RouteExecutor {
     private static RouteNode activeNode;
     private static Step step;
     private static int stepTicks;
+    /** {@link com.killer560.hub.util.ServerLag#mark()} on the step's first tick: every wait for the server's answer
+     *  (a landing, a broken block, a boom, a kill) gets {@link #serverLagTicks()} more ticks, so a lagging server is
+     *  never read as the action failing; 0 while the server keeps time (killer560, 2026-10-15). */
+    private static long stepLag;
     private static int settleTicks;
     private static Vec3 actionOrigin;
     /**
@@ -921,7 +925,10 @@ public final class RouteExecutor {
             }
         }
         if (cameraGraceTicks > 0) {
-            cameraGraceTicks--;
+            // Held while the server is stalled: the grace covers a landing still to come, and a stall delays it.
+            if (!com.killer560.hub.util.ServerLag.stalled()) {
+                cameraGraceTicks--;
+            }
         } else if (RouteRotation.userMovedCamera(player)) {
             if (activeNode != null && awaitHeld) {
                 // Waiting on its await, the node is waiting for HIM: turning to click the chest it waits for is not
@@ -1540,7 +1547,9 @@ public final class RouteExecutor {
 
     private static void tickAction(Minecraft client, LocalPlayer player) {
         RouteNode node = activeNode;
-        stepTicks++;
+        if (++stepTicks == 1) {
+            stepLag = com.killer560.hub.util.ServerLag.mark();
+        }
         actionAge++;
         if (!awaitPhaseDone) {
             // No sneak while it waits: he is collecting the secrets it waits for, and a sneaking right click with an
@@ -2192,7 +2201,7 @@ public final class RouteExecutor {
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
                 return true;
-            } else if (stepTicks > LANDING_TIMEOUT) {
+            } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
@@ -2449,7 +2458,7 @@ public final class RouteExecutor {
                 rejoinPathAfterTeleport(player, node);
                 finishAction();
                 noteLanding(node);
-            } else if (stepTicks > LANDING_TIMEOUT) {
+            } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 stop(node.item + " didn't teleport where it was recorded");
             }
         }
@@ -2582,7 +2591,7 @@ public final class RouteExecutor {
             }
             int attackTicks = bat ? AutoRoutesConfig.getInstance().getBatAttackTicks()
                     : AutoRoutesConfig.getInstance().getCryptAttackTicks();
-            if (stepTicks > attackTicks) {
+            if (stepTicks > attackTicks + serverLagTicks()) {
                 // Moves ON rather than stopping the route (Crypt Attack Time slider): an undead that walked out of
                 // reach must not strand the rest of the route.
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} of {} kill(s) after holding use {} tick(s) - attack "
@@ -2857,7 +2866,7 @@ public final class RouteExecutor {
             if (changed) {
                 LOGGER.info("[AutoRoutes] Boom: blocks changed {} tick(s) after the click", stepTicks);
                 finishAction();
-            } else if (stepTicks >= boomSettleTicks()) {
+            } else if (stepTicks >= boomSettleTicks() + serverLagTicks()) {
                 // Nothing within reach of the hit changed once the server had a round trip to answer: the crypt or
                 // wall is already open (the stack's earlier boom, or an earlier run), so there was nothing left to
                 // blow. It COMPLETES - stopping here is what kept his stacked booms from reaching their crypt node
@@ -2873,6 +2882,11 @@ public final class RouteExecutor {
      *  com.killer560.hub.util.PingTracker#automationMs}) rounded up, plus a margin, bounded - 5 at a local 1-50 ms, 8 at
      *  200 ms, 20 (a second) above 750 ms. Until 2026-10-11 the round trip was the tab-list latency, about 1 ms on
      *  Hypixel, so a boom on a real connection waited 5 ticks whatever the ping. */
+    /** Ticks the server has stalled since this step began (util/ServerLag): added to every deadline that waits on it. */
+    private static int serverLagTicks() {
+        return com.killer560.hub.util.ServerLag.ticksSince(stepLag);
+    }
+
     static int boomSettleTicks() {
         int ping = 0;
         Minecraft client = Minecraft.getInstance();
@@ -3053,7 +3067,7 @@ public final class RouteExecutor {
             if (gone == breakerSent.size()) {
                 LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
                 finishAction();
-            } else if (stepTicks > BREAKER_TIMEOUT) {
+            } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
                 if (gone == 0) {
                     stop("dungeon breaker didn't break the blocks");
                 } else {

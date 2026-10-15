@@ -118,6 +118,12 @@ public final class AutoClearFeature {
     private static int noMobTicks = 0;
     private static int pathFailures = 0;
     private static int hopTicks = 0;
+    /** util/ServerLag readings on the first tick of a hop, a mob and a mob-less wait: a server stall since then extends
+     *  that timeout by its length, so a lagging server never reads as a hop that missed or a mob that will not die
+     *  (killer560, 2026-10-15). With no lag every timeout is the tick count it always was. */
+    private static long hopLag = 0L;
+    private static long mobLag = 0L;
+    private static long noMobLag = 0L;
     private static Vec3 hopStart = null;
     private static Vec3 hopLook = null;
     private static boolean hopLanded = false;
@@ -447,12 +453,14 @@ public final class AutoClearFeature {
             phase = Phase.IDLE;
         }
         if (phase == Phase.HOP) {
-            hopTicks++;
+            if (++hopTicks == 1) {
+                hopLag = com.killer560.hub.util.ServerLag.mark();
+            }
             if (hopLanded) {
                 releaseUse(client);
                 phase = Phase.IDLE;
                 planKey = Long.MIN_VALUE;
-            } else if (hopTicks > HOP_TIMEOUT_TICKS) {
+            } else if (hopTicks > HOP_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(hopLag)) {
                 releaseUse(client);
                 hopsOffFor = targetId;
                 phase = Phase.IDLE;
@@ -514,7 +522,10 @@ public final class AutoClearFeature {
             if (layout.currentRoom() == room) {
                 releaseUse(client);
                 action = "looking for starred mobs";
-                if (++noMobTicks > NO_MOB_TICKS) {
+                if (++noMobTicks == 1) {
+                    noMobLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                if (noMobTicks > NO_MOB_TICKS + com.killer560.hub.util.ServerLag.ticksSince(noMobLag)) {
                     if (killsInRoom > 0 && !LiveMapFeature.hasRoomStates()) {
                         // No dungeon map to say so (nothing ever reads cleared without one): every starred mob in
                         // sight is dead, which is all a clear is.
@@ -536,7 +547,10 @@ public final class AutoClearFeature {
             mobTicks = 0;
             planKey = Long.MIN_VALUE;
         }
-        if (++mobTicks > cfg.getMobTimeoutTicks()) {
+        if (++mobTicks == 1) {
+            mobLag = com.killer560.hub.util.ServerLag.mark();
+        }
+        if (mobTicks > cfg.getMobTimeoutTicks() + com.killer560.hub.util.ServerLag.ticksSince(mobLag)) {
             skippedMobs.add(targetId);
             say(ModChat.bad("Skipping "), ModChat.value(targetName),
                     ModChat.dim(String.format(Locale.US, " - not dead after %.1f s", mobTicks / 20.0)));

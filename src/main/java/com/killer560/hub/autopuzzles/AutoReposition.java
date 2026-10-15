@@ -32,6 +32,8 @@ final class AutoReposition {
     private boolean bow;
     private boolean awaitStand;
     private int wait;
+    /** util/ServerLag when the warp went out: a server stall since then extends the arrival timeout by its length. */
+    private long warpLag;
     private boolean swapOk;
     /** The last "not started" reason logged, so a per-tick refusal is one line, not twenty a second. */
     private String lastRefusal;
@@ -128,6 +130,7 @@ final class AutoReposition {
                 // Our own warp - waive the gate's teleport stand-down so the arrival step isn't held off too.
                 com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
                 wait = ARRIVE_TIMEOUT_TICKS;
+                warpLag = com.killer560.hub.util.ServerLag.mark();
                 stage = Stage.AWAIT_ARRIVE;
             }
             case AWAIT_ARRIVE -> {
@@ -139,7 +142,7 @@ final class AutoReposition {
                         releaseSneak(client);
                     }
                     tick(client);
-                } else if (--wait <= 0) {
+                } else if (--wait + com.killer560.hub.util.ServerLag.ticksSince(warpLag) <= 0) {
                     LOGGER.info("[AutoPuzzles] {}: reposition to {} timed out", tag, spot);
                     cancel(client);
                 }

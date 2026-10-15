@@ -109,6 +109,9 @@ final class AutoBlaze {
     private static final java.util.Set<BlockPos> badSpots = new java.util.HashSet<>();
     /** Consecutive ticks the solver's list has been empty since it last held blazes - see {@link #DONE_TICKS}. */
     private static int emptyTicks = 0;
+    /** util/ServerLag readings for the empty-list wait and the chest wait: a server stall extends each by its length. */
+    private static long emptyLag = 0L;
+    private static long auraWaitLag = 0L;
     /**
      * Ticks the list must stay empty before the room is called done. The solver's list goes empty for a moment
      * whenever the label stands are replaced - a chain rebuilt after a fail drops every stand on one tick and puts
@@ -215,7 +218,10 @@ final class AutoBlaze {
         }
         if (blazes.isEmpty()) {
             if (lastBlazeCount > 0) {
-                if (++emptyTicks < DONE_TICKS) {
+                if (++emptyTicks == 1) {
+                    emptyLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                if (emptyTicks < DONE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag)) {
                     // The list also goes empty for a moment when a failed chain's stands are replaced, so the room
                     // is only called done once it has stayed empty; a secret trip already under way carries on.
                     say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
@@ -1163,6 +1169,7 @@ final class AutoBlaze {
         long now = System.currentTimeMillis();
         if (auraWaitStartMs == 0L) {
             auraWaitStartMs = now;
+            auraWaitLag = com.killer560.hub.util.ServerLag.mark();
         }
         boolean alive = !blazes.isEmpty();
         if (alive && now - lastShotTime <= shotFlightMs) {
@@ -1183,7 +1190,7 @@ final class AutoBlaze {
                 secretStage = SecretStage.NONE;
                 return;
             }
-            if (now - auraWaitStartMs > CHEST_WAIT_MS) {
+            if (com.killer560.hub.util.ServerLag.serverMsSince(auraWaitStartMs, auraWaitLag) > CHEST_WAIT_MS) {
                 LOGGER.warn("[AutoPuzzles] Blaze: no chest appeared at {} - giving up for this room",
                         AutoPuzzleUtil.fmt(target));
                 secretStage = SecretStage.DONE;
@@ -1193,7 +1200,7 @@ final class AutoBlaze {
         if (player.isShiftKeyDown()) {
             // The etherwarp landing's sneak lets go a tick or two after the walk ends; a sneaking click on a chest
             // with an item in hand does not open it, so wait rather than burn an attempt.
-            if (now - auraWaitStartMs > CHEST_WAIT_MS) {
+            if (com.killer560.hub.util.ServerLag.serverMsSince(auraWaitStartMs, auraWaitLag) > CHEST_WAIT_MS) {
                 secretAuraAttempts++;
             }
             return;
