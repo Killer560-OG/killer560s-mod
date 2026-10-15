@@ -80,6 +80,7 @@ public final class MainMenuScenes {
             case WATERFALL -> waterfall(r, w, h, t, accent, panel, text, look.density());
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
+            case FIREFLIES -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
             case SOFT_LIGHT -> softLight(r, w, h, t, accent, panel, light, look.density());
             default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 9);
         }

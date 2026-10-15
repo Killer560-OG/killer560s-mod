@@ -54,6 +54,7 @@ public final class MainMenuThemeConfig {
         STARFIELD("Starfield"),
         AURORA("Aurora"),
         SOFT_LIGHT("Soft Light"),
+        FIREFLIES("Fireflies"),
         PLAIN("Plain");
 
         public final String label;

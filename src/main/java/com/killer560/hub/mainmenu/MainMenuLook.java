@@ -98,6 +98,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
             case OCEAN -> MainMenuThemeConfig.Scene.WATERFALL;
             case DARK -> MainMenuThemeConfig.Scene.STARFIELD;
             case LIGHT -> MainMenuThemeConfig.Scene.SOFT_LIGHT;
+            case GREEN -> MainMenuThemeConfig.Scene.FIREFLIES;
             case CUSTOM -> MainMenuThemeConfig.Scene.AURORA;
             // A theme added later: a light one gets the soft light, a dark one embers in its own colours.
             default -> com.killer560.hub.gui.MenuStyle.luminance(theme.base()[1]) > 0.5f
