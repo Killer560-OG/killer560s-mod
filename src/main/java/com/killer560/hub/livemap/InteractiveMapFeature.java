@@ -621,10 +621,59 @@ public final class InteractiveMapFeature {
             if (entity != null) {
                 out.add(new MapPlayer(name, entity.getX(), entity.getZ(), entity.getYRot(), false, cls));
             } else if (marker != null) {
-                out.add(new MapPlayer(name, marker[0], marker[1], (float) marker[2], false, cls));
+                double[] at = MarkerGlide.at(name, marker[0], marker[1], (float) marker[2]);
+                out.add(new MapPlayer(name, at[0], at[1], (float) at[2], false, cls));
             }
         }
         return out;
+    }
+
+    /**
+     * A teammate drawn from a map marker glides to each new marker position over {@link #GLIDE_MS} instead of jumping.
+     * Hypixel moves the markers a few times a second, so a far-away teammate hopped across the map in steps; NoammAddons
+     * eases its heads to each new marker the same way (350 ms, yaw the short way round). A teammate whose entity is
+     * loaded is drawn from the entity and never goes through here. Display only: the marker itself is unchanged.
+     */
+    static final class MarkerGlide {
+        static final long GLIDE_MS = 350L;
+        /** Per name: {fromX, fromZ, fromYaw, toX, toZ, toYaw, startMs}. */
+        private static final Map<String, double[]> GLIDES = new HashMap<>();
+        private static int generation = Integer.MIN_VALUE;
+
+        private MarkerGlide() {
+        }
+
+        static double[] at(String name, double x, double z, float yaw) {
+            int gen = LiveMapFeature.resetGeneration();
+            if (gen != generation) {
+                generation = gen;
+                GLIDES.clear();
+            }
+            long now = System.currentTimeMillis();
+            String key = name.toLowerCase(Locale.US);
+            double[] g = GLIDES.get(key);
+            if (g == null) {
+                GLIDES.put(key, new double[]{x, z, yaw, x, z, yaw, now});
+                return new double[]{x, z, yaw};
+            }
+            if (g[3] != x || g[4] != z || g[5] != yaw) {
+                double[] cur = sample(g, now);
+                g[0] = cur[0];
+                g[1] = cur[1];
+                g[2] = cur[2];
+                g[3] = x;
+                g[4] = z;
+                g[5] = yaw;
+                g[6] = now;
+            }
+            return sample(g, now);
+        }
+
+        private static double[] sample(double[] g, long now) {
+            double t = Math.min(1.0, Math.max(0.0, (now - g[6]) / (double) GLIDE_MS));
+            double dYaw = ((g[5] - g[2]) % 360 + 540) % 360 - 180;
+            return new double[]{g[0] + (g[3] - g[0]) * t, g[1] + (g[4] - g[1]) * t, g[2] + dYaw * t};
+        }
     }
 
     /** Same rule as {@code teammates.TeammatesFeature.isTeammate} (that class is not mine to import from - it's

@@ -361,3 +361,10 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   `/mage`'s first version asked the level and captured a forgotten chunk as a hole, which its own tile check then called
   "matches no room" (testkit 1490, 2026-10-15). `DoorScanner`, `SecretWaypointsFeature`, `CryptScanner` and
   `AutoPuzzleUtil` still ask `level.hasChunk` on the client.
+- `ClientPacketListener.getListedOnlinePlayers()` is a `ReferenceOpenHashSet` (javap, 26.1.2 and 26.2): its order is
+  identity-hash order, not tab order. `PartyTracker` built the party from it, so the Dungeon Map paired far teammates'
+  map markers with names in a random order (testkit 1015-noamm-map: party read `[Bravo, Charlie, Delta, Alpha]`, 0 of 4
+  on their own marker). Anything that relies on the tab's order reads `util/TabOrder.listed`, the overlay's comparator.
+- The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of colour 30 (as
+  NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
+  `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.

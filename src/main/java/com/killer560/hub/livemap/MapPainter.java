@@ -274,6 +274,11 @@ public final class MapPainter {
         return DungeonMapScanner.isCalibrated();
     }
 
+    /** Test hook: the dungeon map item's calibration {startCornerX, startCornerZ, roomSize}, or null before it. */
+    public static int[] mapCalibration() {
+        return DungeonMapScanner.calibration();
+    }
+
     /** Test hook: how many of the floor's rooms the Dungeon Map would draw right now. */
     public static int revealedRoomCount() {
         int n = 0;
@@ -967,7 +972,13 @@ public final class MapPainter {
                 case DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
                 default -> connectorColor(idx, cfg);
             };
-            if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
+            int mapByte = hideUnrevealed() ? DungeonMapScanner.doorColorAt(idx) : 0;
+            if (mapByte == 85) {
+                // The map item's own grey: a door into a room nobody has opened yet. Hypixel draws it grey (NoammAddons
+                // DoorTile: "Unopened Door"), not in the colour of the opened room it leads from; it used to be drawn as
+                // that room's colour darkened, so it read as an opened corridor.
+                color = multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
+            } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
                 color = multiply(color, 1f - cfg.getDarkenUnopened());
             }
             float[] box = doorUnits(gx, gz);
