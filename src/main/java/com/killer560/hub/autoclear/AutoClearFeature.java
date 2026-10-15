@@ -823,14 +823,19 @@ public final class AutoClearFeature {
         }
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
-        LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
-                target.blockPosition().toShortString(), spot.toShortString(), etherTicks, cachedHops,
-                planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)" : " - nearest block to it");
-        repositions++;
         startTrip(client, player, () -> {
             ClearExecutor.etherPath(spot, null);
             return true;
         });
+        if (phase == Phase.TRAVEL) {
+            // Said (and counted) once the trip has really started: a body still turned back first (Phase.RELEASE) comes
+            // through here again next tick, and used to log the same etherwarp twice.
+            repositions++;
+            LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
+                    target.blockPosition().toShortString(), spot.toShortString(), etherTicks, cachedHops,
+                    planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
+                            : " - nearest block to it");
+        }
     }
 
     private static void travelToRoom(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {
