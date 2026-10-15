@@ -2851,3 +2851,26 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
   is the one Hypixel calls the secret. That is client logic and the same on Hypixel, so it was left alone.
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
+
+## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
+
+- The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
+  kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
+  chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
+- An L room's missing quarter is decided ONLY by `roomsim/RoomLShape` (room-database core of each tile's centre column,
+  then a wholly empty tile). "Emptiest in y 66..99" read Lava Ravine's ravine as missing and kept Market's Chains quarter;
+  the solo map, `SimRoomIndex`, the paste clear and the spawn all ask it (testkit 97-sim-lshape, 2026-10-14).
+- `AutoClearUtils.canPath` must not test a room NAME for "Trap" once `isTrap` has read the database: Arrow Trap is NORMAL,
+  and the leftover QUOI rule made every map press from its back half silently do nothing (99-sim-arrowtrap, 2026-10-14).
+- A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
+  until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
+- Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still
+  active: `SimBreakerState`'s regrowing blocks survived a leave that turned the sim off before the disconnect, and the next
+  world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
+  `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
+- `Level.isLoaded(pos)` is false for any y outside the level's build height (Hypixel's dungeon world starts at
+  y 0). Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
+- The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
+  only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
+  sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
+  rotation vote judge good rooms broken.

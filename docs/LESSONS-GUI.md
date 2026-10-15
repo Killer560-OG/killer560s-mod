@@ -397,3 +397,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   lost the outline on 4 of 27 frames until the overlay moved to `COLLECT_SUBMITS` (0 of 27, both versions). The camera was
   never stale: the probe in 1322 showed McRender's camera equal to the main camera every frame. 36 other registrations
   still use AFTER_TRANSLUCENT_FEATURES.
+
+## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
+
+- **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
+  looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
+  entry stops being found the moment that button is built by a different tab - no error, the hover text just
+  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.

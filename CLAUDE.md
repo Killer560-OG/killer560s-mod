@@ -284,10 +284,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   teleports reached the client between ticks (2026-10-05); it now judges on the server, every landing.
   So did the mimic: its chest click was the CLIENT's callback queueing the spawn, and Secret Aura's click plus Kill Mimic's
   Hyperion could reach the server first (2026-10-11, 96-ar-644). A chest now counts only when the server accepts the click (in reach).
-- **Moving a setting to a different sub-tab silently orphans its scoped tooltip.** `SettingTooltips.describe`
-  looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
-  entry stops being found the moment that button is built by a different tab - no error, the hover text just
-  changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
 - Agent worktrees are cut from `main`, not from the branch checked out here. On 2026-10-04 six were started
   while work sat on a feature branch 26 commits ahead of `main`, and every one began on stale code. Get the
   work onto `main` (or tell each agent its base) before fanning out.
@@ -298,33 +294,6 @@ range) in **[docs/LESSONS-AUTOMATION.md](docs/LESSONS-AUTOMATION.md)**. GUI, HUD
   client state goes to the render thread (fixed 2026-10-05, 3f3fa8ad). But a `client.execute` task from DISCONNECT can be
   DROPPED: a pause-menu leave closes the channel, then `Minecraft.disconnect` begins with `dropAllTasks()` (javap 26.1.2).
   SimWorld leaves a flag its END_CLIENT_TICK drains (5a1afa62; 97-sim-leave-build lost 5 of 5 resets to the task alone).
-- `Level.isLoaded(pos)` is false for any y outside the level's build height (Hypixel's dungeon world starts at
-  y 0). Ask load questions at a y clamped into `level.getMinY()..getMaxY()`.
-- The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
-  only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
-  sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
-  rotation vote judge good rooms broken.
-- Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
-  secret raised it, and levers never touch it. `autoroutes/AwaitEvents` counts only his own clicks/pickups/nearby bat
-  spawns/mimic kill, from the previous node's finish. The sim still sends the bar (`roomsim/SimActionBar`) for the map.
-- The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
-  kill. Both now score on the mob's DEATH (`SimMobs.spawnCrypt`, `SimMimic.tickServer`), the mimic chest is a trapped
-  chest, and a secret bat carries Hypixel's 100 max health (the client's only way to tell it from a sceptre bat).
-- An L room's missing quarter is decided ONLY by `roomsim/RoomLShape` (room-database core of each tile's centre column,
-  then a wholly empty tile). "Emptiest in y 66..99" read Lava Ravine's ravine as missing and kept Market's Chains quarter;
-  the solo map, `SimRoomIndex`, the paste clear and the spawn all ask it (testkit 97-sim-lshape, 2026-10-14).
-- `AutoClearUtils.canPath` must not test a room NAME for "Trap" once `isTrap` has read the database: Arrow Trap is NORMAL,
-  and the leftover QUOI rule made every map press from its back half silently do nothing (99-sim-arrowtrap, 2026-10-14).
-- A map-code build (`SimBuilder.build`) is a "generated floor": the sim's Dungeon Breaker silently refuses every block
-  until `SimRun` has started. A test that breaks blocks must `SimRun.begin` first.
-- Anything the sim holds that names a `ServerLevel` must be dropped on EVERY unload, not only when `SimState` is still
-  active: `SimBreakerState`'s regrowing blocks survived a leave that turned the sim off before the disconnect, and the next
-  world's server tried to put them back into the dead level - its loading screen never finished (2026-10-05, 96-ar).
-  `SimWorld.onWorldUnloaded` now resets it beside `SimBuildQueue.clear()`.
-- A Superboom does not break the block it lands on: it blows the crypt or wall NEAR it. Auto Routes' boom node watched only
-  the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
-  and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
-  within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
 - A Fabric event's first non-PASS listener wins. `/ar edit db`'s right clicks lost to the sim's ability hook (a held
   Superboom detonated, no block picked) until its `UseBlockCallback` moved to a phase ordered before the default. The sim's
   client-side essence listener lost the same way with any ability item held, so Secret Aura never collected essences

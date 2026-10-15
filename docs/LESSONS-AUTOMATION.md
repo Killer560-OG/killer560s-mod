@@ -198,3 +198,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   unheld hops go a tick after the landing and never saw it. (3) `updateDelays` let go of the forced sneak 2 ticks after the
   last hop was queued, so a last hop held longer left as an Instant Transmission 24 blocks off - it now waits for
   `pendingInteract`. Do not test a block click with a lever while sneaking: a sneaking AOTV use-on-block warps in the sim itself.
+
+## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
+
+- Auto Routes awaits no longer read the "x/y Secrets" bar at all (2026-10-05): it is the ROOM's count, so a teammate's
+  secret raised it, and levers never touch it. `autoroutes/AwaitEvents` counts only his own clicks/pickups/nearby bat
+  spawns/mimic kill, from the previous node's finish. The sim still sends the bar (`roomsim/SimActionBar`) for the map.
+- A Superboom does not break the block it lands on: it blows the crypt or wall NEAR it. Auto Routes' boom node watched only
+  the hit block and its six neighbours, so a boom that opened a crypt a block over read as "superboom didn't break anything"
+  and stopped the route (his Museum stack, 2026-10-06). It now watches a radius-3 cube, and a boom that changes nothing
+  within a round trip completes (nothing left to blow) instead of stopping; 96-ar-museum plays his exact route.
