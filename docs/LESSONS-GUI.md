@@ -404,3 +404,16 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   looks up `"<sub-tab name>/<label>"` first and falls back to the bare label, so a `d.put("experiments/set", ...)`
   entry stops being found the moment that button is built by a different tab - no error, the hover text just
   changes or disappears. Re-key the entry in `SettingTooltipsData` in the same session as the move.
+
+- **A card's description has to be written for the narrowest card, not measured on the one in front of you.** The grid lays
+  cards out between `FeatureCards.CARD_MIN_W` (104) and about 131 wide, so a card has 90 px of text: three lines (about 38
+  characters) when its name takes one line, two (about 26) when it takes two. The old descriptions were the first sentence of the
+  master toggle's tooltip, 60-150 characters, so `MenuStyle.wrap` cut the last line with "..." on all 169 cards (testkit
+  1060 failed on every one before `CardBlurbsData`). The long tooltip is now the hover text (`FeatureCards.longDescription`);
+  `FeatureCards.cardText` is the one place a card's text is laid out, and `autoCut()` lists any tab whose text the menu had to
+  trim itself, which 1060 requires to be empty. A new tab needs a blurb in `CardBlurbsData` (or `cardDescription()`).
+- **Every vanilla button click is `minecraft:ui.button.click` through `SoundManager.play`**, so the Click Sound option is one
+  `@ModifyVariable` on that method (`clicksound/mixin`), not a change per widget. An imported .ogg is not in any resource pack:
+  `SoundBufferLibrary.getCompleteBuffer` is answered from the folder by a second mixin, and the decoded `SoundBuffer` is kept
+  per file because each one owns an OpenAL buffer that is only freed when the engine clears its library. An `Identifier` cannot
+  hold capitals or spaces, so an imported file is named to the engine by a hashed key (`imported/s<hash>`).
