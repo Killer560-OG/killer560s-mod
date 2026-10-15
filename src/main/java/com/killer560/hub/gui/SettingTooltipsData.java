@@ -863,7 +863,7 @@ final class SettingTooltipsData {
         d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms.");
         d.put("talk to npcs", "Also right-clicks the three Weirdo NPCs so they speak.");
         d.put("secret aura", "Clicks nearby dungeon secrets for you (cheat build only).");
-        d.put("f7 boss levers (p3/devices)", "Lets Secret Aura click the F7 P3 and device levers in the boss fight.");
+        d.put("in boss", "Levers in the boss fight (F7/M7 P3). Turns on the Lights Device and Section Levers options below, and with Secret Aura on lets it click the other P3 and device levers too. Works with Secret Aura off (cheat build only).");
         d.put("swing hand", "Swings your arm each time Secret Aura clicks something.");
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
@@ -944,13 +944,12 @@ final class SettingTooltipsData {
         d.put("new blank profile", "Creates a profile with every setting off (named from the box above, or Blank). Your routes, waypoints, class overrides and HUD layout come along; nothing changes until you Load it.");
         d.put("import profile (open folder)", "Opens the import folder. Drop a profile .zip in and it is imported within a couple of seconds, named after the file.");
 
-        // Lever Aura (in Dungeon > Secrets since 2026-09-21)
-        d.put("lever aura", "Flicks the F7/M7 P3 Section 2 Lights levers for you (cheat build only).");
+        // Lever Aura (the In Boss part of the Secret Aura tab since 2026-10-15)
         d.put("pre-flick lights before s2", "Flicks each unlit Lights lever once in range before S2 opens.");
         d.put("finish lights when s2 opens", "After S1 is cleared, flicks the last unlit Lights lever.");
         d.put("s2 section levers", "Flicks S2's two section levers once after S2 opens.");
         d.put("s2 section levers early", "Also flicks S2's section levers before S2 opens.");
-        d.put("lever aura/chat feedback", "Posts a local chat line for every lever Lever Aura flicks.");
+        d.put("secret aura/boss lever chat feedback", "Posts a local chat line for every boss lever flicked here (the Lights Device and Section Levers).");
         // Thorn
         d.put("spirit bear hud", "Shows Spirit Bear kill progress, spawn countdown and status in the F4/M4 boss.");
         d.put("show overkill", "Adds an Overkill line under the Spirit Bear HUD for wasted spirit kills.");
@@ -1308,10 +1307,12 @@ final class SettingTooltipsData {
         d.put("last breath aim spots", "Shows saved aim points for Last Breath, based on your class.");
         d.put("crush trigger text (optional)", "Extra chat text that restarts the crush timer; leave blank to use only Storm's crush lines.");
 
-        // ---- Lever Aura ----
+        d.put("menu theme", "Default keeps this overlay's own look. Or draw it in one of the menu's themes: Amber, Dark, Light, Ocean, Custom, or any theme you saved. Left click goes forward, right click back.");
+        d.put("start button menu theme", "Default keeps the Start buttons' own look. Or draw them in one of the menu's themes, including any you saved.");
+        // ---- Levers in the boss (Secret Aura tab) ----
         d.put("lights device", "Chooses which lights-device levers get flicked, and when (cheat build only).");
         d.put("section levers", "Also flicks the levers that open each P3 section (cheat build only).");
-        d.put("timing & range", "Sets how far the Lever Aura reaches and how long it waits between flicks (cheat build only).");
+        d.put("timing & range", "Sets how far the boss-lever flicking reaches and how long it waits between flicks (cheat build only).");
 
         // ---- Cheat Utils ----
         d.put("secret aura (dungeons)", "Clicks nearby secret chests, levers and Wither Essence for you in dungeons (cheat build only).");
@@ -1633,8 +1634,8 @@ final class SettingTooltipsData {
         d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");
         d.put("leap menu/scale", "Size of the custom leap menu's four teammate boxes, 50% to 400%.");
-        d.put("lever aura/range", "Maximum distance in blocks this feature reaches.");
-        d.put("lever aura/swing hand", "Plays your arm swing each time Lever Aura flicks a lever (cheat build only).");
+        d.put("secret aura/boss lever range", "Maximum distance in blocks the boss-lever flicking reaches.");
+        d.put("secret aura/boss lever swing hand", "Plays your arm swing each time a boss lever is flicked here (cheat build only).");
         d.put("maxor's crystals/respawn timer", "Shows a countdown to the next crystal spawning.");
         d.put("maxor's crystals/place timer", "Times how long you take to place a crystal and remembers your best.");
         d.put("maxor's crystals/unplaced crystal alert", "Warns you while you are carrying a crystal you have not placed.");
@@ -1917,7 +1918,7 @@ final class SettingTooltipsData {
         d.put("secret sound/pitch", "Pitch of the secret sound, 0.0-2.0; 1.0 is normal.");
         d.put("class colors/tab list", "Colors each teammate's name in the tab list by dungeon class.");
         d.put("class colors/nametags", "Draws a class-colored tag like [M] Name above each teammate.");
-        d.put("secret aura/levers", "Lets Secret Aura flip levers in dungeon rooms.");
+        d.put("secret aura/in rooms", "Lets Secret Aura flip levers in dungeon rooms.");
         d.put("secret aura/chests", "Lets Secret Aura open secret chests and trapped chests in dungeon rooms.");
         d.put("secret aura/wither essence", "Lets Secret Aura click Wither Essence skulls.");
         d.put("secret aura/place redstone key", "Once a Redstone Key within 10 blocks has been picked up (by anyone), Secret Aura right-clicks the room's redstone block to put the key on top of it, at the Skull Range, always on a side of the block that faces air. Never while you hold a block, and once per key.");
@@ -1927,7 +1928,7 @@ final class SettingTooltipsData {
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
-        d.put("lever aura/cps", "Cheat build only. Lever Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("secret aura/boss lever cps", "Cheat build only. Boss lever flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
         d.put("stat bars", "Replaces the vanilla hearts, hunger, armor and air bars and the action-bar stats with your own text and bars.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).
         d.put("health and mana bars/stat bars", "Reads health, mana, defense and vitality from Hypixel's action bar; needed by every bar and text below.");

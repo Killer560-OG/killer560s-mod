@@ -47,6 +47,15 @@ public record InventoryPalette(int border, int panel, int light, int dark, int s
                 opaque(accent), 0xFF000000, opaque(accent), opaque(accent), opaque(accent), false);
     }
 
+    /** The menu theme's look (Menu Theme setting, 2026-10-15), shaped like Mod Theme: the panel and card fills, the accent
+     *  where vanilla has its light shades, the menu's text for titles so a light theme stays readable. */
+    public static InventoryPalette fromMenu(com.killer560.hub.gui.OverlayPalette m) {
+        int accent = opaque(m.accent());
+        int fill = opaque(m.card());
+        return new InventoryPalette(opaque(m.outline()), opaque(m.panel()), accent, scale(accent, 0.38f), fill,
+                scale(fill, 0.45f), accent, opaque(m.well()), accent, accent, opaque(m.text()), false);
+    }
+
     /** This palette with the accent (and title) replaced - Accent Source: Custom, in any preset. */
     public InventoryPalette withAccent(int newAccent) {
         int a = opaque(newAccent);

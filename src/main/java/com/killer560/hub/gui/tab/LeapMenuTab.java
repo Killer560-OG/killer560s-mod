@@ -91,6 +91,10 @@ public class LeapMenuTab extends BaseTab {
                 }).bounds(x, y, Math.max(1, width), ROW).build());
         y += ROW + GAP;
 
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.LEAP_MENU,
+                x, y, Math.max(1, width), ROW));
+        y += ROW + GAP;
+
         if (cfg.isEnabled()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Use Class Colors", cfg.isUseClassColors()), btn -> {
                         cfg.setUseClassColors(!cfg.isUseClassColors());

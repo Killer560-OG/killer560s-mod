@@ -173,11 +173,13 @@ public final class InventoryHudFeature {
         }
 
         if (bg != InventoryHudConfig.Background.NONE) {
-            graphics.fill(x, y, x + w, y + h, withAlpha(PANEL_BG, opacity));
-            graphics.outline(x, y, w, h, withAlpha(PANEL_BORDER, opacity));
+            // Menu Theme (2026-10-15): Default keeps the colours below; anything else takes the menu theme's.
+            com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
+            graphics.fill(x, y, x + w, y + h, withAlpha(menu == null ? PANEL_BG : menu.panel(), opacity));
+            graphics.outline(x, y, w, h, withAlpha(menu == null ? PANEL_BORDER : menu.accent(), opacity));
             if (bg == InventoryHudConfig.Background.SLOTS) {
-                int slotBg = withAlpha(SLOT_BG, opacity);
-                int slotBorder = withAlpha(SLOT_BORDER, opacity);
+                int slotBg = withAlpha(menu == null ? SLOT_BG : menu.card(), opacity);
+                int slotBorder = withAlpha(menu == null ? SLOT_BORDER : menu.border(), opacity);
                 for (int row = 0; row < ROWS; row++) {
                     for (int col = 0; col < COLS; col++) {
                         int cx = x + pad + displayCol(cfg, row, col) * cell;

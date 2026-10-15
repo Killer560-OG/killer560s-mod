@@ -1,6 +1,5 @@
 package com.killer560.hub.storageoverlay;
 
-import com.killer560.hub.gui.PanelTheme;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.hud.HudSeen;
@@ -671,7 +670,7 @@ public final class StorageOverlayFeature {
             // the box's own real screen rect (drawn as up to 4 surrounding strips instead of one big
             // rect) keeps the rest of the background solid throughout, while still never drawing
             // anything of ours directly under the box's own text.
-            int viewportBg = StorageOverlayConfig.getInstance().getTheme().viewportBg;
+            int viewportBg = StorageOverlayConfig.getInstance().colours().viewportBg();
             int vx0 = lastPos[0] - 4;
             int vy0 = lastPos[1] - 4;
             int vx1 = lastPos[0] + lastViewportWidthPx + 4;
@@ -859,10 +858,10 @@ public final class StorageOverlayFeature {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
-        PanelTheme theme = cfg.getTheme();
-        int bg = hovered ? theme.buttonHoverBg : theme.panelBg;
-        int border = hovered ? theme.hoverBorder : theme.border;
-        int textColor = theme.text;
+        com.killer560.hub.gui.PanelColours theme = cfg.colours();
+        int bg = hovered ? theme.buttonHoverBg() : theme.panelBg();
+        int border = hovered ? theme.hoverBorder() : theme.border();
+        int textColor = theme.text();
         graphics.fill(x, y, x + w, y + h, bg);
         graphics.outline(x, y, w, h, border);
         graphics.text(font, label, x + (w - font.width(label)) / 2, y + (h - font.lineHeight) / 2 + 1, textColor);
@@ -993,10 +992,10 @@ public final class StorageOverlayFeature {
 
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
-        PanelTheme theme = cfg.getTheme();
-        int textColor = theme.text;
-        int bg = theme.panelBg;
-        int border = theme.border;
+        com.killer560.hub.gui.PanelColours theme = cfg.colours();
+        int textColor = theme.text();
+        int bg = theme.panelBg();
+        int border = theme.border();
 
         int rows = Math.max(1, (int) Math.ceil(count / 9.0));
         int panelHeight = rows * SLOT_SIZE + font.lineHeight + 6;
@@ -1332,11 +1331,11 @@ public final class StorageOverlayFeature {
                                     double localMouseX, double localMouseY, int realMouseX, int realMouseY) {
         StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
         var font = Minecraft.getInstance().font;
-        PanelTheme theme = cfg.getTheme();
-        int textColor = theme.text;
-        int bg = theme.panelBg;
-        int border = theme.border;
-        int activeBorder = theme.activeBorder;
+        com.killer560.hub.gui.PanelColours theme = cfg.colours();
+        int textColor = theme.text();
+        int bg = theme.panelBg();
+        int border = theme.border();
+        int activeBorder = theme.activeBorder();
 
         lastPanelBounds.clear();
         lastLabelBounds.clear();
@@ -1392,10 +1391,10 @@ public final class StorageOverlayFeature {
             int labelHeight = font.lineHeight + 4;
             String label = displayLabel(key, prefix);
             // Amber keeps its gold "§6" active label exactly; Dark and Light colour it with their own (non-orange) accent.
-            if (active && theme == PanelTheme.AMBER) {
+            if (active && theme.amber()) {
                 graphics.text(font, "§6" + label, panelX + 3, panelY + 3, textColor);
             } else {
-                graphics.text(font, label, panelX + 3, panelY + 3, active ? theme.activeBorder : textColor);
+                graphics.text(font, label, panelX + 3, panelY + 3, active ? theme.activeBorder() : textColor);
             }
             // Per killer560's "double click the actual text and edit it there" request (2026-09-08):
             // the label strip is the rename target ONLY, not a click-to-open target - click-to-open
@@ -1446,7 +1445,7 @@ public final class StorageOverlayFeature {
                 int hy = gridY + (highlightIndex / 9) * SLOT_SIZE;
                 // Same gentle pulse Storage Search draws over a real vanilla slot, so both look like one feature.
                 int alpha = 0x40 + (int) (0x40 * (0.5 + 0.5 * Math.sin(System.currentTimeMillis() / 180.0)));
-                int hl = theme.highlightRgb;
+                int hl = theme.highlightRgb();
                 graphics.fill(hx + 1, hy + 1, hx + 17, hy + 17, (alpha << 24) | hl);
                 graphics.outline(hx, hy, SLOT_SIZE, SLOT_SIZE, 0xFF000000 | hl);
                 graphics.outline(hx - 1, hy - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, 0xFF000000 | hl);
@@ -1464,9 +1463,9 @@ public final class StorageOverlayFeature {
     /** Draws the 9-wide item-cell grid itself (dark cell background + thin dividing lines), ported
      *  from NoammAddons' own {@code drawSlotGrid} - makes an empty/still-loading page read as a real
      *  item grid instead of blank background. */
-    private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, PanelTheme theme) {
-        int cellBg = theme.cellBg;
-        int cellLine = theme.cellLine;
+    private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, com.killer560.hub.gui.PanelColours theme) {
+        int cellBg = theme.cellBg();
+        int cellLine = theme.cellLine();
         int w = 9 * SLOT_SIZE;
         int h = rows * SLOT_SIZE;
         graphics.fill(x, y, x + w, y + h, cellBg);

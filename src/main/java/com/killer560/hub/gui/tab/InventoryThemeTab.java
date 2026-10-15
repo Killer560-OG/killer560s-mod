@@ -73,6 +73,10 @@ public class InventoryThemeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME,
+                contentX, y, contentWidth, 20));
+        y += 26;
+
         if (cfg.getPreset() == InventoryThemeConfig.Preset.CUSTOM) {
             // Amber -> Dark -> Light, the same three as the Storage Overlay; only the Custom preset uses it.
             widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {

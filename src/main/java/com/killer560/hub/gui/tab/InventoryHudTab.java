@@ -64,6 +64,10 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         widgets.add(opacitySlider(colBX, y, colW, cfg));
         y += 22;
 
+        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD,
+                contentX, y, colW, 18));
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Item Counts", cfg.isShowCounts()), btn -> {
                     cfg.setShowCounts(!cfg.isShowCounts());
                     cfg.save();

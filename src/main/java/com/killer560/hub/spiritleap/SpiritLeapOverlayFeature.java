@@ -402,8 +402,10 @@ public final class SpiritLeapOverlayFeature {
             var box = new com.killer560.hub.livemap.LeapMapView.Head(n, rowX, rowY, rowX + bw, rowY + bh);
             boolean hover = box.contains(mouseX, mouseY);
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(n);
-            int color = cls != null ? cls.color() : 0xFFCC6600;
-            graphics.fill(box.x0(), box.y0(), box.x1(), box.y1(), hover ? 0xE0262626 : 0xCC0D0D0D);
+            com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.LEAP_MENU);
+            int color = cls != null ? cls.color() : (menu == null ? 0xFFCC6600 : menu.accent());
+            graphics.fill(box.x0(), box.y0(), box.x1(), box.y1(), menu == null ? (hover ? 0xE0262626 : 0xCC0D0D0D)
+                    : (hover ? com.killer560.hub.gui.OverlayPalette.alpha(menu.cardHover(), 0xE0) : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC)));
             graphics.outline(box.x0(), box.y0(), bw, bh, hover ? 0xFFFFFFFF : color);
             graphics.centeredText(font, n, rowX + bw / 2, rowY + 4, color);
             heads.add(box);
@@ -491,11 +493,15 @@ public final class SpiritLeapOverlayFeature {
             int x0 = spot % 2 == 0 ? centerX - gap - boxW : centerX + gap;
             int y0 = spot < 2 ? centerY - gap - boxH : centerY + gap;
             DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
-            int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color() : 0xFFCC6600;
+            com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.LEAP_MENU);
+            int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color()
+                    : (menu == null ? 0xFFCC6600 : menu.accent());
 
             // Dead teammates (tab list "(DEAD)") get a red-tinted box - no extra text, and the click still goes through.
             boolean dead = PartyTracker.isDead(target.name());
-            int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (spot == hovered ? 0xE0262626 : 0xCC0D0D0D);
+            int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (menu == null ? (spot == hovered ? 0xE0262626 : 0xCC0D0D0D)
+                    : (spot == hovered ? com.killer560.hub.gui.OverlayPalette.alpha(menu.cardHover(), 0xE0)
+                    : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC)));
             graphics.fill(x0, y0, x0 + boxW, y0 + boxH, fill);
             graphics.outline(x0, y0, boxW, boxH, color);
             // Their face on the left of the box (Show Player Heads); the name centres in what is left.

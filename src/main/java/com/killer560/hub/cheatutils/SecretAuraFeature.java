@@ -50,7 +50,7 @@ import com.killer560.hub.compat.McCompat;
  * until that puzzle reads solved or failed on the tab list, or its room is cleared on the map (QUOI's
  * mid-solve checks, 2026-10-12). QUOI's conditional Ice Path / Ice Fill / Teleport Maze
  * checks need room-relative coordinates, so those rooms are skipped entirely instead (conservative).
- * <li>Boss: nothing, unless "Boss Levers" is on - then ONLY QUOI's hardcoded F7 P3 levers (with a
+ * <li>Boss: nothing, unless "In Boss" is on - then ONLY QUOI's hardcoded F7 P3 levers (with a
  * "Not Activated" stand above) and unpowered device levers.
  * <li>Never while a screen is open (QUOI "In container" default off), while sneaking (optional), or while
  * holding a configured item.

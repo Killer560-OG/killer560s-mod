@@ -136,6 +136,24 @@ public final class MenuStyle {
         derive(c[0], c[1], c[2], c[3], c[4]);
     }
 
+    /**
+     * The palette five base colours give, as a snapshot, WITHOUT leaving {@link MenuStyle}'s statics changed (the menu or
+     * screen being drawn keeps its own colours): an overlay that is not itself a themed screen reads its colours from
+     * this ({@link OverlayThemes}).
+     */
+    static OverlayPalette snapshot(int[] c) {
+        int[] prev = usedColours == null ? null : usedColours.clone();
+        derive(c[0], c[1], c[2], c[3], c[4]);
+        OverlayPalette p = new OverlayPalette(LIGHT, c.clone(), BACKDROP, PANEL_TOP, PANEL_BOTTOM, CARD_TOP, CARD_HOVER_TOP,
+                WELL, ACCENT_EDGE, BLACK, OR, OR_HOVER, OR_DARK, BTN_TOP, BTN_HOVER_TOP, SEL_TOP, TXT, TXT_HOVER, DIM, DIM2,
+                SW_ON_BOTTOM);
+        if (prev != null) {
+            derive(prev[0], prev[1], prev[2], prev[3], prev[4]);
+        }
+        usedColours = prev;
+        return p;
+    }
+
     private static int lift(int c, float t) {
         return mix(c, 0xFFFFFFFF, t);
     }
