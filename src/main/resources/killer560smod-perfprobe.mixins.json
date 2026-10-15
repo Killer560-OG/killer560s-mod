@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.perfprobe.mixin",
+	"plugin": "com.killer560.hub.perfprobe.PerfProbeMixinPlugin",
+	"mixins": [
+		"ArrayBackedEventProbeMixin"
+	],
+	"client": [
+		"HudLayerProbeMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
