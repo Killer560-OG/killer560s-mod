@@ -74,6 +74,43 @@ public final class SimFloorLayout {
         return x >= 0 && z >= 0 && x < b[0] && z < b[1];
     }
 
+    /**
+     * The most puzzles a floor of {@code across x down} can be relied on to hold with this many rooms to blood, by
+     * measurement; {@link Integer#MAX_VALUE} where nothing smaller binds.
+     *
+     * <p>Coordinator (2026-10-15): "limit the Rooms-to-blood and Puzzles sliders per floor to what that floor's real size
+     * can hold ... so nothing silently under-delivers". A long path to blood and many one-door puzzles compete for the
+     * same few cells of a small floor. From {@code tools/layoutsim -Dsweep=true -Dbounded=true -Dmatrix=true}, 40
+     * floors a combination, seeds 1-4, then the clamped sweep (-Dclamp=true) at 40-150 a combination, seeds 5-9: every
+     * combination that ever came out short is left out, so Entrance 4x4 holds puzzles 4/4/3/3/2 at Rooms to blood
+     * 2/3/4/5/6 (7 left out: 4 of 30 short even at 2 puzzles on seed 2; 2/5 was 2 of 150 short), Floor 1 4x5 5 up to 4
+     * then 4/4/3/2 at 5/6/7/8 (5/5 was 1 of 40 and 1 of 60 short), Floor 2 and 3 5x5 5 everywhere but 4 at 8 (1 of 40
+     * short at 8/5), and the bigger floors never came out short.
+     */
+    public static int maxPuzzles(int across, int down, int roomsToBlood) {
+        int area = across * down;
+        if (area <= 16) {
+            return switch (roomsToBlood) {
+                case 0, 1, 2, 3 -> 4;
+                case 4, 5 -> 3;
+                case 6 -> 2;
+                default -> 0;   // beyond maxRoomsToBlood
+            };
+        }
+        if (area <= 20) {
+            return roomsToBlood <= 4 ? 5 : roomsToBlood <= 6 ? 4 : roomsToBlood == 7 ? 3 : 2;
+        }
+        if (area <= 25) {
+            return roomsToBlood >= 8 ? 4 : Integer.MAX_VALUE;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    /** The longest Rooms to blood a floor of {@code across x down} can be relied on to hold (see {@link #maxPuzzles}). */
+    public static int maxRoomsToBlood(int across, int down) {
+        return across * down <= 16 ? 6 : Integer.MAX_VALUE;
+    }
+
     private static boolean insideCell(int cell) {
         return inside(cell % GRID, cell / GRID);
     }

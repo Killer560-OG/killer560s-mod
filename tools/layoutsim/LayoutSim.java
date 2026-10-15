@@ -204,6 +204,7 @@ public final class LayoutSim {
     private static int boundH = 6;
 
     private static int DROPPED;
+    private static final Map<String, int[]> BY_COMBO = new LinkedHashMap<>();
     private static final Map<Integer, Integer> PUZZLE_DIFF = new TreeMap<>();
     private static final Map<String, Integer> PUZZLE_DOORS = new TreeMap<>();
     private static final Map<Integer, Integer> TRAP_DOORS = new TreeMap<>();
@@ -257,6 +258,11 @@ public final class LayoutSim {
                         SimFloorLayout.Floor f;
                         String pinKind = System.getProperty("pin");
                         String pinRoom = System.getProperty("pinroom");
+                        // -Dclamp=true: only the combinations the designer's sliders allow on this floor.
+                        if (Boolean.getBoolean("clamp") && (k > SimFloorLayout.maxRoomsToBlood(boundW, boundH)
+                                || puzzles > SimFloorLayout.maxPuzzles(boundW, boundH, k))) {
+                            continue;
+                        }
                         if (System.getProperty("only") != null && !System.getProperty("only").equals(fname)
                                 || Integer.getInteger("slider", k) != k
                                 || Integer.getInteger("puzzles", puzzles) != puzzles) {
@@ -315,6 +321,10 @@ public final class LayoutSim {
                         int[] fr = byFloor.computeIfAbsent(fname, x -> new int[2]);
                         fr[0]++;
                         fr[1] += any ? 1 : 0;
+                        int[] cm = BY_COMBO.computeIfAbsent(fname + " blood " + k + " puzzles " + puzzles,
+                                x -> new int[2]);
+                        cm[0]++;
+                        cm[1] += any ? 1 : 0;
                         if (any && dumped < Integer.getInteger("dump", 0)) {
                             dumped++;
                             StringBuilder why = new StringBuilder();
@@ -360,6 +370,15 @@ public final class LayoutSim {
         System.out.println("by floor (floors, any failure):");
         for (var e : byFloor.entrySet()) {
             System.out.printf("  %s: %d, %d%n", e.getKey(), e.getValue()[0], e.getValue()[1]);
+        }
+        if (Boolean.getBoolean("matrix")) {
+            // -Dmatrix=true: every floor x Rooms to blood x Puzzles combination that failed anything.
+            System.out.println("combinations failing (floors, failing):");
+            for (var e : BY_COMBO.entrySet()) {
+                if (e.getValue()[1] > 0) {
+                    System.out.printf("  %s: %d, %d%n", e.getKey(), e.getValue()[0], e.getValue()[1]);
+                }
+            }
         }
         System.out.println("path length minus slider -> floors (-99 = no path): " + lengthHist);
         System.out.println("puzzles placed minus slider -> floors: " + PUZZLE_DIFF);

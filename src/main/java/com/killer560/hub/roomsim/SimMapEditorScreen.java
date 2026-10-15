@@ -253,12 +253,22 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     rebuildWidgets();
                 }).bounds(ax, ay, wFloor, 20).build());
         ax += wFloor + 6;
+        // Both sliders stop at what this floor can hold (SimFloorGen.Floor.maxRoomsToBlood / maxPuzzles), and Puzzles
+        // follows Rooms to blood as it moves: a long path and many puzzles compete for a small floor's few cells, and a
+        // floor that silently came out a puzzle short was the alternative (coordinator, 2026-10-15).
+        clampSliders();
+        SimSlider[] puzzlesRef = new SimSlider[1];
         addRenderableWidget(new SimSlider(ax, ay, wSlider, "Rooms to blood",
-                SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD, roomsToBlood,
-                v -> roomsToBlood = v));
+                SimFloorGen.MIN_ROOMS_TO_BLOOD, floor.maxRoomsToBlood(), roomsToBlood,
+                v -> {
+                    roomsToBlood = v;
+                    if (puzzlesRef[0] != null) {
+                        puzzlesRef[0].setMax(puzzlesTop());
+                    }
+                }));
         ax += wSlider + 6;
-        addRenderableWidget(new SimSlider(ax, ay, wSlider, "Puzzles",
-                SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES, puzzleCount,
+        puzzlesRef[0] = addRenderableWidget(new SimSlider(ax, ay, wSlider, "Puzzles",
+                SimFloorGen.MIN_PUZZLES, puzzlesTop(), puzzleCount,
                 v -> puzzleCount = v));
         ax += wSlider + 6;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aGenerate"), b -> preview())
@@ -537,6 +547,21 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         generated = null;
     }
 
+    /** The Puzzles slider's top: what this floor holds at the Rooms to blood set, or at its longest when that is Random. */
+    private int puzzlesTop() {
+        return floor.maxPuzzles(roomsToBlood == SimSlider.RANDOM ? floor.maxRoomsToBlood() : roomsToBlood);
+    }
+
+    /** Brings both slider values within this floor's limits (Random stays Random). */
+    private void clampSliders() {
+        if (roomsToBlood != SimSlider.RANDOM) {
+            roomsToBlood = Math.min(roomsToBlood, floor.maxRoomsToBlood());
+        }
+        if (puzzleCount != SimSlider.RANDOM) {
+            puzzleCount = Math.min(puzzleCount, puzzlesTop());
+        }
+    }
+
     /**
      * The floor button moved: the grid becomes that floor's rectangle, and a generated floor is laid out again at once.
      *
@@ -545,6 +570,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
      * left standing outside the grid where Play would still build them.
      */
     private void floorChanged() {
+        clampSliders();
         int before = pinned.size();
         pinned.keySet().removeIf(key -> {
             int[] fp = footprintOf(pinned.get(key), 0);
@@ -581,8 +607,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private void preview() {
         // A slider parked at the far right means "pick for me", and the pick is drawn INSIDE the slider's own
         // range, so random can never produce a floor the slider could not have been set to by hand.
-        int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, SimFloorGen.MAX_PUZZLES);
-        int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, SimFloorGen.MAX_ROOMS_TO_BLOOD);
+        clampSliders();
+        int blood = roll(roomsToBlood, SimFloorGen.MIN_ROOMS_TO_BLOOD, floor.maxRoomsToBlood());
+        int puzzles = roll(puzzleCount, SimFloorGen.MIN_PUZZLES, floor.maxPuzzles(blood));
         // The rooms HE placed go in as PINS, so Generate builds around them instead of over them.
         // killer560 (2026-09-29): "test stuff like putting in a single room that I want personally in
         // generating a map around the room."
@@ -609,6 +636,11 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // A filter note goes FIRST: the status line is trimmed to the space under the grid, and "filters too
         // strict" is the part he must not miss (it is also in chat in full).
         String note = planned.filterNote();
+        // The sliders stop where the floor is measured to hold what they ask, but a rare floor can still miss: say so
+        // first rather than let it pass as asked (coordinator, 2026-10-15: "so nothing silently under-delivers").
+        if (note == null && (planned.placedPuzzles() < puzzles || planned.bloodDistance() != blood)) {
+            status = "short of the sliders (" + puzzles + " puzzles, " + blood + " to blood) · " + status;
+        }
         if (note != null && !"filtered".equals(note)) {
             status = note + " · " + status;
         } else if (note != null) {

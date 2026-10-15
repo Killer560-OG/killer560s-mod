@@ -2884,7 +2884,22 @@ change the size of the map like it should".
   (so it rebuilds with its rotations and doors - the reason a generated floor is never replayed from the grid), a drawn one
   by its cells. A code already listed is not listed again. `SimMapPresets` and its Save went; the old
   `killer560smod-simmaps.json` stays on disk, unread.
-- Testkit: `75-sim-designer-floors` (the real floor button through all 8 floors with a plan up, then Generate at each:
+- **The sliders stop at what the floor holds** (coordinator, same day: "so nothing silently under-delivers").
+  `SimFloorLayout.maxPuzzles(across, down, roomsToBlood)` / `maxRoomsToBlood` hold the measured table and
+  `SimFloorGen.Floor.maxPuzzles/maxRoomsToBlood` read it; the designer's Rooms to blood stops at the floor's top, Puzzles'
+  top follows Rooms to blood as it is dragged (`SimSlider.setMax` clamps the value with it), the floor button clamps
+  both, Random draws inside them, and `planWith` holds every other caller to them. Measured with the new
+  `tools/layoutsim -Dmatrix=true` (failing floor x Rooms to blood x Puzzles combinations), then `-Dclamp=true` (only
+  what the sliders allow): Entrance holds 6 to blood and 4/4/3/3/2 puzzles at 2..6, Floor 1 5 puzzles up to 4 to blood
+  then 4/4/3/2, Floors 2-3 4 puzzles at 8, Floors 4-7 everything. The tails are rare and needed seeds: E 2/5 was 2 of
+  150 short and F1 5/5 1 of 40 and 1 of 60 before they were taken out; clamped, 3 seeds x 11,880 floors gave 0. If a
+  floor still misses, the designer's status line leads with "short of the sliders".
+- Played floors are kept as Generated or Drawn, and the old Save file's designs were brought in once as "Saved design"
+  (dated by the file's mtime, F7, puzzles unknown = -1); a `migratedPresets` flag in the history file keeps a deleted
+  one deleted, and the old file is never written.
+- Testkit: `75-sim-designer-sliders` (tops per floor, clamping on the floor button, Generate at each floor's top and at
+  2 to blood delivers exactly, Puzzles following Rooms to blood - all by real mouse on the sliders' drawn tracks),
+  `75-sim-designer-floors` (the real floor button through all 8 floors with a plan up, then Generate at each:
   regenerated, every slot of the real rectangle filled, nothing outside), `75-sim-designer-load` (no Save; a real Play of
   a generated Entrance, then Load lists exactly it with today's date drawn and not a seeded real run or an old design;
   re-read from disk; row lines >= 2 px apart; clicking the row restores the floor), `75-sim-designer-count` (no "N of M

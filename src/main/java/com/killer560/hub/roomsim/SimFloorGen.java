@@ -115,6 +115,16 @@ public final class SimFloorGen {
         public final int across;
         public final int down;
 
+        /** The longest Rooms to blood this floor can be relied on to hold - the designer slider's top. */
+        public int maxRoomsToBlood() {
+            return Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, SimFloorLayout.maxRoomsToBlood(across, down)));
+        }
+
+        /** The most puzzles this floor holds with {@code roomsToBlood} rooms to blood - the Puzzles slider's top. */
+        public int maxPuzzles(int roomsToBlood) {
+            return Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, SimFloorLayout.maxPuzzles(across, down, roomsToBlood)));
+        }
+
         Floor(String label, String code, int rooms, int oldCells) {
             this.label = label;
             this.code = code;
@@ -273,7 +283,8 @@ public final class SimFloorGen {
             }
         }
         java.util.function.Predicate<String> keep = n -> allow.test(n) || pinnedLower.contains(n.toLowerCase(Locale.ROOT));
-        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(floor.maxPuzzles(
+                Math.max(MIN_ROOMS_TO_BLOOD, Math.min(floor.maxRoomsToBlood(), roomsToBlood))), puzzles));
         int allowedPuzzles = 0;
         for (Map.Entry<String, RoomLibrary.Room> e : usableRooms().entrySet()) {
             int[] fp = cellFootprint(e.getValue());
@@ -347,11 +358,13 @@ public final class SimFloorGen {
 
         int wantRooms = Math.min(floor.rooms, floor.cells);
         int wantCells = Math.max(wantRooms, Math.min(floor.cells, ROOM_GRID * ROOM_GRID));
-        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(MAX_PUZZLES, puzzles));
         // Counted his way: "the max is 8 if you do not count blood green room or fairy." So the path is the
         // Entrance, exactly this many rooms with the Fairy among them, and Blood - SimFloorLayout lays it first.
         // (This used to pass slider + 1 as a blood DEPTH, which had no room on it for the fairy.)
-        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(MAX_ROOMS_TO_BLOOD, roomsToBlood));
+        // Both within what THIS floor holds (Floor.maxRoomsToBlood / maxPuzzles); the designer's sliders never go
+        // past them, and any other caller is held to them here rather than handed a floor that falls short.
+        int wantDistance = Math.max(MIN_ROOMS_TO_BLOOD, Math.min(floor.maxRoomsToBlood(), roomsToBlood));
+        int wantPuzzles = Math.max(MIN_PUZZLES, Math.min(floor.maxPuzzles(wantDistance), puzzles));
 
         // The "recently used rooms" memory survives restarts now - see SimRecencyStore.
         SimRecencyStore.ensureLoaded();
