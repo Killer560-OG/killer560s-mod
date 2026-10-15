@@ -27,8 +27,6 @@ final class BloodMobState {
     boolean killSoundDone = false;
     /** The exact position the trip's first move packet gave the stand (testkit comparison only). */
     Vec3 firstPacketExact;
-    /** Game tick the kill timer went off for this trip (the box turned green), or -1. */
-    long killTimerTick = -1L;
     /** Trigger Bot clicks this trip (the first plus any retries after a miss), the tick of the last, whether it was an
      *  attack (an entity under the crosshair in reach) or a swing on air, and the entity it attacked. */
     int clicks;
@@ -63,7 +61,6 @@ final class BloodMobState {
         this.triggerBotClicked = false;
         this.startSoundDone = false;
         this.killSoundDone = false;
-        this.killTimerTick = -1L;
         this.clicks = 0;
         this.lastClickTick = 0L;
         this.lastClickAttacked = false;

@@ -569,8 +569,6 @@ public final class BloodCampFeature {
                 triggerRetries++;
             } else {
                 lastTriggerAt = bestRemaining;
-                lastTriggerKillDelay = triggerData.killTimerTick < 0 ? Integer.MIN_VALUE
-                        : (int) (now - triggerData.killTimerTick);
             }
             lastTrigger = (triggerIsRetry ? "retry " : "") + (triggerHit == null ? "swing" : "attack "
                     + triggerHit.getType().toShortString() + " #" + triggerHit.getId())
@@ -598,18 +596,13 @@ public final class BloodCampFeature {
     /** The body's rotation the last movement packet reported (read at END_CLIENT_TICK, after it was sent). */
     private static float reportedYaw = Float.NaN;
     private static float reportedPitch = Float.NaN;
-    /** Testkit: retries sent, the last first click's ticks after its kill timer, the last aura aim point, room gate. */
+    /** Testkit: retries sent, the last aura aim point, and the room gate's last answer. */
     private static int triggerRetries;
-    private static int lastTriggerKillDelay = Integer.MIN_VALUE;
     private static Vec3 lastAuraPoint;
     private static boolean lastInBloodRoom;
 
     public static int triggerRetries() {
         return triggerRetries;
-    }
-
-    public static int lastTriggerKillDelay() {
-        return lastTriggerKillDelay;
     }
 
     public static Vec3 lastAuraPoint() {
@@ -785,7 +778,6 @@ public final class BloodCampFeature {
             }
             if (!data.killSoundDone && killable(remaining, pingMs)) {
                 data.killSoundDone = true;
-                data.killTimerTick = nowTick;
                 lastKillableAt = remaining;
                 lastKillablePingMs = pingMs;
                 kill |= remaining > -SOUND_STALE_TICKS;
