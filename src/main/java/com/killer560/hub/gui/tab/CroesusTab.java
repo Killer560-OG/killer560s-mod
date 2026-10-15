@@ -154,6 +154,8 @@ public class CroesusTab extends BaseTab {
             widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()
                     + " claims logged §8- §7/croesus"));
             y += 18;
+            // Shared by every profit tracker (killer560, 2026-10-15): whose profit, and whether mod profiles share it.
+            y = com.killer560.hub.gui.profit.ProfitScopeBar.settingsRows(widgets, contentX, y, contentWidth);
             widgets.add(com.killer560.hub.gui.ScreenThemes.button("croesus", contentX, y, contentWidth, 18));
             y += 22;
         }

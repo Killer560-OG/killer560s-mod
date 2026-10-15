@@ -166,6 +166,23 @@ public final class ExperimentsProfitTracker {
             return b;
         }
 
+        void mergeFrom(Bucket o) {
+            sessions += o.sessions;
+            o.sessionsPerGame.forEach((g, n) -> sessionsPerGame.merge(g, n, Long::sum));
+            xp += o.xp;
+            valueCoins += o.valueCoins;
+            bitsSpent += o.bitsSpent;
+            for (Map.Entry<String, JsonObject> e : o.items.entrySet()) {
+                JsonObject mine = items.get(e.getKey());
+                if (mine == null) {
+                    items.put(e.getKey(), e.getValue().deepCopy());
+                } else {
+                    mine.addProperty("count", mine.get("count").getAsLong() + e.getValue().get("count").getAsLong());
+                    mine.addProperty("value", mine.get("value").getAsDouble() + e.getValue().get("value").getAsDouble());
+                }
+            }
+        }
+
         boolean isEmpty() {
             return sessions == 0 && xp == 0 && valueCoins == 0 && bitsSpent == 0 && items.isEmpty();
         }
@@ -173,6 +190,8 @@ public final class ExperimentsProfitTracker {
 
     // Running totals (persisted).
     private static boolean loaded = false;
+    /** Whether {@link #migrateAccounts} has run on what was loaded. */
+    private static boolean accountsMigrated = false;
     private static final Map<ProfitScope.Key, Bucket> buckets = new LinkedHashMap<>();
     /** What the /profit screen shows (persisted with the data, so it is not a profile setting). */
     private static ProfitScope.Filter view = new ProfitScope.Filter();
@@ -725,6 +744,12 @@ public final class ExperimentsProfitTracker {
         return view;
     }
 
+    /** What the /profit screen shows: {@link #view()} with Show Profit and Profit Data applied
+     *  ({@link ProfitScope#resolve}). The no-argument getters all read this. */
+    public static ProfitScope.Filter scope() {
+        return ProfitScope.resolve(view());
+    }
+
     public static void saveView() {
         ensureLoaded();
         save();
@@ -742,7 +767,7 @@ public final class ExperimentsProfitTracker {
 
     /** The no-argument getters read what the /profit screen's switches select ({@link #view()}). */
     public static long getTotalSessions() {
-        return getTotalSessions(view());
+        return getTotalSessions(scope());
     }
 
     public static long getTotalSessions(ProfitScope.Filter f) {
@@ -754,7 +779,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getSessionsFor(String game) {
-        return getSessionsFor(game, view());
+        return getSessionsFor(game, scope());
     }
 
     public static long getSessionsFor(String game, ProfitScope.Filter f) {
@@ -766,7 +791,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getTotalXp() {
-        return getTotalXp(view());
+        return getTotalXp(scope());
     }
 
     public static long getTotalXp(ProfitScope.Filter f) {
@@ -778,7 +803,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static double getTotalValueCoins() {
-        return getTotalValueCoins(view());
+        return getTotalValueCoins(scope());
     }
 
     public static double getTotalValueCoins(ProfitScope.Filter f) {
@@ -790,7 +815,7 @@ public final class ExperimentsProfitTracker {
     }
 
     public static long getTotalBitsSpent() {
-        return getTotalBitsSpent(view());
+        return getTotalBitsSpent(scope());
     }
 
     public static long getTotalBitsSpent(ProfitScope.Filter f) {
@@ -813,7 +838,7 @@ public final class ExperimentsProfitTracker {
     /** Up to {@code max} highest-value rewards claimed in the selected buckets, highest first, as "name xN (value)". */
     public static List<String> topItemLines(int max) {
         Map<String, double[]> sum = new LinkedHashMap<>();
-        for (Bucket b : selected(view())) {
+        for (Bucket b : selected(scope())) {
             for (Map.Entry<String, JsonObject> e : b.items.entrySet()) {
                 double[] cv = sum.computeIfAbsent(e.getKey(), k -> new double[2]);
                 cv[0] += e.getValue().get("count").getAsLong();
@@ -831,8 +856,9 @@ public final class ExperimentsProfitTracker {
     public static long[] sessionValues() {
         ensureLoaded();
         List<Long> vals = new ArrayList<>();
+        ProfitScope.Filter scope = scope();
         for (JsonObject o : sessionLog) {
-            if (ProfitScope.Key.readFrom(o).matches(view)) {
+            if (ProfitScope.Key.readFrom(o).matches(scope)) {
                 vals.add(o.has("valueCoins") ? Math.round(o.get("valueCoins").getAsDouble()) : 0L);
             }
         }
@@ -864,8 +890,20 @@ public final class ExperimentsProfitTracker {
         save();
     }
 
+    /** Reads the file again (the testkit's migration case; nothing in the mod needs it). */
+    public static synchronized void reload() {
+        loaded = false;
+        accountsMigrated = false;
+        buckets.clear();
+        sessionLog.clear();
+        view = new ProfitScope.Filter();
+        lastSummary = "";
+        ensureLoaded();
+    }
+
     private static void ensureLoaded() {
         if (loaded) {
+            migrateAccounts();
             return;
         }
         loaded = true;
@@ -892,6 +930,7 @@ public final class ExperimentsProfitTracker {
             }
             if (root.has("view") && root.get("view").isJsonObject()) {
                 view = ProfitScope.Filter.fromJson(root.getAsJsonObject("view"));
+                view.account = null; // the account shown is Show Profit's (ProfitConfig), not this file's
             }
             if (root.has("sessionLog")) {
                 for (JsonElement e : root.getAsJsonArray("sessionLog")) {
@@ -900,6 +939,64 @@ public final class ExperimentsProfitTracker {
             }
         } catch (Exception e) {
             LOGGER.warn("Couldn't read {} - starting fresh totals", DATA_PATH, e);
+        }
+        migrateAccounts();
+    }
+
+    /** Gives every bucket and logged session without an account UUID (or mod profile) one, as
+     *  {@link ProfitScope#migrated} decides, once the current account is known - the single pot from before accounts
+     *  were kept becomes the current account's. Saves when anything changed. */
+    private static void migrateAccounts() {
+        if (accountsMigrated || !ProfitScope.canMigrate()) {
+            return;
+        }
+        accountsMigrated = true;
+        int changed = rekey(ProfitScope::migrated);
+        if (changed > 0) {
+            LOGGER.info("Gave {} older experiment record(s) an account", changed);
+            save();
+        }
+    }
+
+    /** Moves every bucket and logged session to {@code map(key)}, merging buckets that land on one key. */
+    private static int rekey(java.util.function.UnaryOperator<ProfitScope.Key> map) {
+        int changed = 0;
+        Map<ProfitScope.Key, Bucket> moved = new LinkedHashMap<>();
+        for (Map.Entry<ProfitScope.Key, Bucket> e : buckets.entrySet()) {
+            ProfitScope.Key to = map.apply(e.getKey());
+            if (!to.equals(e.getKey())) {
+                changed++;
+            }
+            Bucket into = moved.get(to);
+            if (into == null) {
+                moved.put(to, e.getValue());
+            } else {
+                into.mergeFrom(e.getValue());
+            }
+        }
+        buckets.clear();
+        buckets.putAll(moved);
+        for (JsonObject o : sessionLog) {
+            ProfitScope.Key k = ProfitScope.Key.readFrom(o);
+            ProfitScope.Key to = map.apply(k);
+            if (!to.equals(k)) {
+                to.writeTo(o);
+                changed++;
+            }
+        }
+        return changed;
+    }
+
+    /** A mod profile was renamed: its totals, logged sessions and the screen's switch follow the new name. */
+    public static synchronized void renameModProfile(String oldName, String newName) {
+        ensureLoaded();
+        int changed = rekey(k -> k.modProfile().equals(oldName) ? k.withModProfile(newName) : k);
+        if (oldName.equals(view.modProfile)) {
+            view.modProfile = newName;
+            changed++;
+        }
+        if (changed > 0) {
+            save();
         }
     }
 
