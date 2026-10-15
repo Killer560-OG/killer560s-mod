@@ -48,6 +48,9 @@ final class AutoWater {
     /** Held from the first reposition warp until the chest spot (see {@link FreeCam}). */
     private static final FreeCam CAMERA = new FreeCam("Water");
     private static final AutoReposition REPOSITION = new AutoReposition("Water", CAMERA);
+    /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). */
+    private static final RewardChest CHEST = new RewardChest("Water Board", new int[]{15, 56, 22},
+            new int[]{0, 50, 0, 30, 64, 30}, 1);
 
     private static long lastClickTick = Long.MIN_VALUE / 2;
     private static long lastClickMs = 0L;
@@ -109,7 +112,14 @@ final class AutoWater {
         // on Hypixel, where relative and absolute y are the same number. The sim shifts every room by one
         // offset, so the literal 59 could never be true in there and Auto Water declined every click without
         // saying anything. Same fault, same shape, as Auto Creeper Beams' "y == 75".
-        if (cr == null || McCompat.screen(client) != null || atChest) {
+        if (atChest) {
+            // Secret Aura waits in this room until the tab list or the map says the puzzle is over, so on Hypixel
+            // nothing ever opened the chest the auto had just stood over (killer560, 2026-10-15). It opens it itself.
+            CHEST.start();
+            CHEST.tick(client);
+            return;
+        }
+        if (cr == null || McCompat.screen(client) != null) {
             return;
         }
         if (player.getY() != 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset() && !REPOSITION.isActive()) {
@@ -126,8 +136,10 @@ final class AutoWater {
             if (WaterSolverFeature.getCountedClicks() > 0) {
                 // QUOI chest(): all clicks done - warp to the chest spot and let go of sneak.
                 BlockPos chestSpot = PuzzleCoords.real(15, 58, 22, cr);
-                if (reposition && !AutoPuzzleUtil.at(player, chestSpot)) {
-                    REPOSITION.start(client, chestSpot, false, false, false);
+                // A warp onto the chest spot that cannot start (no line onto it) used to return here every tick for
+                // good - the auto sat on the lever floor saying nothing. The chest step gets him into reach itself.
+                if (reposition && !AutoPuzzleUtil.at(player, chestSpot)
+                        && REPOSITION.start(client, chestSpot, false, false, false)) {
                     return;
                 }
                 AutoReposition.releaseSneak(client);
@@ -197,6 +209,10 @@ final class AutoWater {
             stoppedThisRoom = true;
             return;
         }
+        LOGGER.info("[AutoPuzzles] Water: clicked {} lever at {} - due at {} s, {} tick(s) after the water opened{}",
+                next.water() ? "the water" : "a", AutoPuzzleUtil.fmt(next.pos()), next.time(),
+                opened == -1 ? 0 : tick - opened, opened == -1 ? "" : String.format(java.util.Locale.ROOT,
+                        " (%d tick(s) late)", (long) Math.max(0, -remaining)));
         if (WaterSolverFeature.getCountedClicks() <= countedBefore) {
             stoppedThisRoom = true;
             LOGGER.warn("[AutoPuzzles] Water: click at {} was not counted by the solver - stopping for this room", next.pos());
@@ -263,6 +279,7 @@ final class AutoWater {
         lastClickTick = Long.MIN_VALUE / 2;
         lastClickMs = 0L;
         atChest = false;
+        CHEST.reset(client);
         stoppedThisRoom = false;
         startAreaAttempted = false;
     }

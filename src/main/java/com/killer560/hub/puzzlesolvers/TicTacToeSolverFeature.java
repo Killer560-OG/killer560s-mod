@@ -46,6 +46,14 @@ public final class TicTacToeSolverFeature {
     private static int lastBoardHash = 0;
     private static BlockPos bestMove = null;
     private static BlockPos predictedMove = null;
+    /**
+     * The game on this board has ended (a line of three, or all nine squares marked) since he walked into the room.
+     * Cleared only by a room change. Auto Tic Tac Toe's walk-out waits for THIS, not for "no best move": on Hypixel
+     * the computer answers seconds after his click, and the board in between (his mark down, no reply yet) has no
+     * move for him either - 2026-10-14 17:26:00, his Mod Only Test log, the walk-out fired on that gap after the
+     * first click and took him out of the room.
+     */
+    private static boolean gameOver = false;
 
     private TicTacToeSolverFeature() {
     }
@@ -64,6 +72,16 @@ public final class TicTacToeSolverFeature {
         return bestMove;
     }
 
+    /** True once the game in this room has ended (win, loss or a full board), until he leaves the room. */
+    public static boolean isGameOver() {
+        return gameOver;
+    }
+
+    /** The world position of board square {@code i} (0..8, row by row from the top) for a room's clay/rotation. */
+    public static BlockPos cellPos(int i, int[] clayAndRotation) {
+        return indexToPos(i, clayAndRotation);
+    }
+
     private static void tick(Minecraft client) {
         tickInner(client);
     }
@@ -72,6 +90,7 @@ public final class TicTacToeSolverFeature {
         if (!TicTacToeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
             lastRoomEntry = null;
+            gameOver = false;
             reset();
             return;
         }
@@ -79,6 +98,7 @@ public final class TicTacToeSolverFeature {
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
             boardCr = null;
+            gameOver = false;
             reset();
         }
         if (current == null || !ROOM.equals(current.name)) {
@@ -129,6 +149,7 @@ public final class TicTacToeSolverFeature {
             validFrames = readSimBoard(level, cr, board);
         }
         if (getScore(board) != 0 || validFrames == 9) {
+            gameOver = true;
             reset();
             return;
         }

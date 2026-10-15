@@ -39,6 +39,13 @@ final class AutoIcePath {
     /** Held from the first aim until the silverfish reaches the exit (see {@link FreeCam}). */
     private static final FreeCam CAMERA = new FreeCam("IcePath");
     private static final AutoReposition REPOSITION = new AutoReposition("IcePath", CAMERA);
+    /** The reward chest in the alcove past the exit gap (row -1 is relative z 25; see {@link RewardChest}). */
+    private static final RewardChest CHEST = new RewardChest("Ice Path", new int[]{15, 67, 27},
+            new int[]{4, 60, 23, 26, 76, 31}, 1);
+    /** The auto shot the silverfish at least once on this visit - so a silverfish that is gone is one it got out. */
+    private static boolean shotThisVisit = false;
+    /** Stops left when the last shot went - 1 means that shot sends it out of the exit. */
+    private static int stopsLeftAtShot = Integer.MAX_VALUE;
 
     private static long lastShotTime = 0L;
     private static boolean wasInRoom = false;
@@ -103,8 +110,22 @@ final class AutoIcePath {
             say("waiting: solver data predates this world");
             return;
         }
+        if (CHEST.isActive()) {
+            CHEST.tick(client);
+            return;
+        }
         if (McCompat.screen(client) != null) {
             say("waiting: a screen is open");
+            return;
+        }
+        if (shotThisVisit && !CHEST.isFinished() && ((fish == null && stopsLeftAtShot <= 1) || path.size() == 1)) {
+            // Solved: the silverfish is out (Hypixel takes it away at the exit). Nothing opened the reward chest
+            // after this before (killer560, 2026-10-15) - Secret Aura skips Ice Path entirely.
+            CAMERA.release(player);
+            REPOSITION.cancel(client);
+            AutoReposition.releaseSneak(client);
+            CHEST.start();
+            CHEST.tick(client);
             return;
         }
         if (fish == null) {
@@ -173,6 +194,8 @@ final class AutoIcePath {
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
         lastShotTime = now;
+        shotThisVisit = true;
+        stopsLeftAtShot = path.size() - 1;
         if (!currSpot.equals(shotCell)) {
             shotCell = currSpot;
             shotsAtCell = 0;
@@ -276,6 +299,9 @@ final class AutoIcePath {
         AutoReposition.releaseSneak(client);
         CAMERA.release(client.player);
         lastShotTime = 0L;
+        shotThisVisit = false;
+        stopsLeftAtShot = Integer.MAX_VALUE;
+        CHEST.reset(client);
         shotCell = null;
         shotsAtCell = 0;
     }

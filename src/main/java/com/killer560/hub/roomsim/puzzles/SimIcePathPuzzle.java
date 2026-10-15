@@ -230,6 +230,61 @@ public final class SimIcePathPuzzle {
             }
             return InteractionResult.FAIL;
         });
+        // The reward chest, opened on the SERVER from the use-on packet (Water Board's and Boulder's the same way).
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            BlockPos chest = rewardChest;
+            if (level.isClientSide() || chest == null || !SimState.isActive()
+                    || !chest.equals(hitResult.getBlockPos())) {
+                return InteractionResult.PASS;
+            }
+            if (!rewardOpened) {
+                rewardOpened = true;
+                LOGGER.info("Sim ice path: reward chest {} opened", chest);
+            }
+            return InteractionResult.PASS;
+        });
+    }
+
+    /**
+     * THE REWARD CHEST (2026-10-15). killer560: "Auto ice path ... do not claim there chest once it finishes" - so the
+     * real room has one once the silverfish is out, and the sim had none, so no auto could ever be seen claiming it.
+     * Where it stands on Hypixel is NOT measured: this puts it in the alcove past the exit gap (row -1, columns 7-9),
+     * on the first cell of the centre column behind the gap that has floor under it and air at the wall layer. Placed
+     * on the solve, removed by a reset, dropped by {@link #forget}. Not a secret ({@code SimMimic.markPuzzleReward}).
+     */
+    private static volatile BlockPos rewardChest = null;
+    private static volatile boolean rewardOpened = false;
+
+    /** Where the sim put the reward chest, or null before the solve. */
+    public static BlockPos rewardChestPos() {
+        return rewardChest;
+    }
+
+    /** True once the reward chest was opened (a use-on it reached the server). */
+    public static boolean isRewardChestOpened() {
+        return rewardOpened;
+    }
+
+    private static void placeRewardChest(ServerLevel level) {
+        if (rewardChest != null) {
+            return;
+        }
+        for (int row = -2; row >= -6; row--) {
+            BlockPos floor = iceOf(row, 8);
+            BlockPos spot = wallOf(row, 8);
+            if (floor == null || spot == null) {
+                return;
+            }
+            if (!level.getBlockState(floor).isAir() && level.getBlockState(spot).isAir()) {
+                level.setBlockAndUpdate(spot, Blocks.CHEST.defaultBlockState());
+                rewardChest = spot.immutable();
+                rewardOpened = false;
+                com.killer560.hub.roomsim.SimMimic.markPuzzleReward(rewardChest);
+                LOGGER.info("Sim ice path: reward chest at {} (board row {}, column 8)", spot, row);
+                return;
+            }
+        }
+        LOGGER.warn("Sim ice path: no air with floor under it behind the exit gap - no reward chest placed");
     }
 
     private static boolean isOurFish(Entity entity) {
@@ -421,6 +476,12 @@ public final class SimIcePathPuzzle {
      * {@link #clearPlaced} first, which queues the writes and empties the list itself.
      */
     public static void forget() {
+        BlockPos chest = rewardChest;
+        if (chest != null) {
+            com.killer560.hub.roomsim.SimMimic.unmarkPuzzleReward(chest);
+        }
+        rewardChest = null;
+        rewardOpened = false;
         placedBlocks = List.of();
         board = null;
         boundAnchor = null;
@@ -439,6 +500,16 @@ public final class SimIcePathPuzzle {
         Minecraft client = Minecraft.getInstance();
         despawnFish(client);
         clearPlaced(client);
+        BlockPos chest = rewardChest;
+        MinecraftServer server = client.getSingleplayerServer();
+        if (chest != null && server != null && SimState.canAct(client)) {
+            server.execute(() -> {
+                ServerLevel level = server.overworld();
+                if (level.getBlockState(chest).is(Blocks.CHEST)) {
+                    level.setBlockAndUpdate(chest, Blocks.AIR.defaultBlockState());
+                }
+            });
+        }
         forget();
     }
 
@@ -805,6 +876,7 @@ public final class SimIcePathPuzzle {
                 complete = true;
                 fishId = null;
                 fish.discard();
+                placeRewardChest(level);
                 Minecraft.getInstance().execute(() ->
                         ModChat.send("Sim", ModChat.good("Ice Path solved - the silverfish is out.")));
             }

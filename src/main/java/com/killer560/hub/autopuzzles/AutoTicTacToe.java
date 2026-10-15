@@ -63,6 +63,16 @@ final class AutoTicTacToe {
     private static final int[] ROOM_SPOT_RELATIVE = AutoClearUtils.roomOverride(ROOM);
 
     private static final AutoGuard GUARD = new AutoGuard("Auto Tic Tac Toe", "Tic Tac Toe Solver");
+    /** Held while one of this auto's own warps turns him (see {@link FreeCam}). */
+    private static final FreeCam CAMERA = new FreeCam("TicTacToe");
+    /** This auto's own etherwarps: onto the board spot, next to the secret, and back (killer560, 2026-10-15). */
+    private static final AutoReposition WARP = new AutoReposition("TicTacToe", CAMERA);
+    /** Every board square within this of his standing eye's box distance - a little inside the 4.5 limit. */
+    private static final double BOARD_REACH = 4.2;
+    /** From where Secret Aura (or this auto) takes the secret chest: inside its 4.5, with a little margin. */
+    private static final double CHEST_SPOT_REACH = 4.3;
+    /** Ticks Secret Aura gets to take the chest once he stands in reach of it, before the auto clicks it itself. */
+    private static final int AURA_TICKS = 10;
 
     private static BlockPos attemptPos = null;
     private static int attempts = 0;
@@ -109,15 +119,38 @@ final class AutoTicTacToe {
             AutoPuzzleActivity.note("Tic Tac Toe");
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (!roomSpotAttempted && cr != null && McCompat.screen(client) == null) {
-            // Pure navigation, tried once per room visit regardless of solver/GUARD state below - same one-shot
-            // pattern as Auto Water Board's "start area" walk.
-            BlockPos spot = ROOM_SPOT_RELATIVE == null ? null
-                    : PuzzleCoords.real(ROOM_SPOT_RELATIVE[0], ROOM_SPOT_RELATIVE[1], ROOM_SPOT_RELATIVE[2], cr);
-            if (spot == null || AutoPuzzleUtil.at(client.player, spot)) {
+        if (WARP.isActive()) {
+            CAMERA.keep(client.player);
+            WARP.tick(client);
+            if (WARP.isActive()) {
+                AutoPuzzleActivity.note("Tic Tac Toe");
+                return;
+            }
+            CAMERA.release(client.player);
+        }
+        if (!roomSpotAttempted && cr != null && McCompat.screen(client) == null && !ClearExecutor.isBusy()) {
+            // RIGHT IN FRONT OF THE BOARD (killer560, 2026-10-15: "It should just etherwarp right infront of the board
+            // by default"): the standable block, nearest the Interactive Map's spot for this room, from which every
+            // square is in reach - one etherwarp of the auto's own when there is a line onto it, else the Interactive
+            // Map, asked for that exact block. Tried once per visit, whatever the solver says.
+            if (allSquaresInReach(client.player.getEyePosition(), cr)) {
                 roomSpotAttempted = true;
-            } else if (AutoPuzzleUtil.pathIfMapOn(spot, null)) {
-                roomSpotAttempted = true;
+            } else {
+                BlockPos spot = boardSpot(client, cr);
+                if (spot == null || AutoPuzzleUtil.at(client.player, spot)) {
+                    roomSpotAttempted = true;
+                } else if (AutoPuzzlesConfig.getInstance().isEtherwarpReposition()
+                        && AutoPuzzleUtil.etherwarpAim(client.level, client.player, spot) != null
+                        && WARP.start(client, spot, false, false, false)) {
+                    roomSpotAttempted = true;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping in front of the board onto {}",
+                            AutoPuzzleUtil.fmt(spot));
+                    return;
+                } else if (AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
+                    roomSpotAttempted = true;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: Interactive Map to {} in front of the board",
+                            AutoPuzzleUtil.fmt(spot));
+                }
             }
         }
         if (chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
@@ -140,7 +173,14 @@ final class AutoTicTacToe {
         // AutoClearUtils.nearestDoorOut asks the live map for the closest door to the room you are in, which
         // works in any room and stands two blocks back from a locked one. Off by default all the same: it is
         // the only auto-puzzle walk whose target nobody has stood on and checked.
-        if (best == null && totalPlaced > 0 && !walkOutAttempted && cfg.isTicTacToeWalkOutEnabled()) {
+        // "Done" is the GAME being over - the solver saw a line of three or a full board, or the tab list reads the
+        // puzzle solved or failed. It used to be "no move for him and one placed", which is also the board between
+        // his click and the computer's reply: on Hypixel the reply takes a second or two, and his log of 2026-10-14
+        // 17:26 shows the walk-out firing right after the FIRST click, two warps out of the room, then the auto
+        // walking him back in to carry on (killer560: "it etherwapred out, then walked back into the room").
+        char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(ROOM);
+        boolean gameOver = TicTacToeSolverFeature.isGameOver() || tab == '✔' || tab == '✖';
+        if (gameOver && totalPlaced > 0 && !walkOutAttempted && cfg.isTicTacToeWalkOutEnabled()) {
             DungeonLayout layout = DungeonLayout.current();
             int door = layout == null ? -1 : AutoClearUtils.nearestDoorOut(layout);
             if (door >= 0) {
@@ -273,6 +313,15 @@ final class AutoTicTacToe {
             return false;
         }
         approachTries++;
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        BlockPos front = cr == null ? null : boardSpot(client, cr);
+        if (approachTries == 1 && front != null && !AutoPuzzleUtil.at(player, front)
+                && AutoPuzzlesConfig.getInstance().isEtherwarpReposition()
+                && WARP.start(client, front, false, false, false)) {
+            LOGGER.info("[AutoPuzzles] TicTacToe: move {} is out of reach - etherwarping in front of the board onto {}",
+                    AutoPuzzleUtil.fmt(target), AutoPuzzleUtil.fmt(front));
+            return true;
+        }
         BlockPos spot = MazeWalk.planToSpot(client.level, player.position(), target, 6,
                 eye -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, target) <= APPROACH_EYE * APPROACH_EYE,
                 APPROACH);
@@ -311,30 +360,150 @@ final class AutoTicTacToe {
         }
     }
 
-    // ------------------------------------------------------------------ chest side trip
+    // ------------------------------------------------------------------ the board spot
+
+    /** Every board square within {@link #BOARD_REACH} of {@code eye}. */
+    private static boolean allSquaresInReach(Vec3 eye, int[] cr) {
+        for (int i = 0; i < 9; i++) {
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, TicTacToeSolverFeature.cellPos(i, cr))
+                    > BOARD_REACH * BOARD_REACH) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The block in front of the board to stand on: standable, etherwarpable, every square within
+     * {@link #BOARD_REACH} of both his standing and sneaking eye, nearest the Interactive Map's own spot for the room
+     * (relative 11, 68, 16 - on Hypixel that spot itself qualifies). One he can warp onto from here first. Null when no
+     * block qualifies.
+     */
+    private static BlockPos boardSpot(Minecraft client, int[] cr) {
+        List<BlockPos> squares = new java.util.ArrayList<>(9);
+        for (int i = 0; i < 9; i++) {
+            squares.add(TicTacToeSolverFeature.cellPos(i, cr));
+        }
+        Vec3 prefer = ROOM_SPOT_RELATIVE == null ? null : Vec3.atCenterOf(PuzzleCoords.real(ROOM_SPOT_RELATIVE[0],
+                ROOM_SPOT_RELATIVE[1], ROOM_SPOT_RELATIVE[2], cr));
+        List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client, squares, BOARD_REACH, false, prefer);
+        for (BlockPos b : spots) {
+            if (AutoPuzzleUtil.at(client.player, b) || AutoPuzzleUtil.etherwarpAim(client.level, client.player, b) != null) {
+                return b;
+            }
+        }
+        return spots.isEmpty() ? null : spots.get(0);
+    }
+
+    // ------------------------------------------------------------------ grab the secret (chest side trip)
+    //
+    // killer560 (2026-10-15): "a grab secret option where it etherwarps as close to the secret as it can for secret aura
+    // to grab it. It should do this right after the first click on the tictactoe board if the option is on." The old trip
+    // asked the Interactive Map for the CHEST block itself, which is no block to land on - his log of 2026-10-14 17:26:00
+    // has "is not etherwarpable ... Nothing searched" three times, then "no chest in reach", and the trip ended without
+    // the secret. Now: one etherwarp onto the nearest block that has the chest in reach and in sight, Secret Aura's
+    // click (or this auto's own when the aura will not take it), and one etherwarp back in front of the board.
+
+    private static int auraTicks = 0;
+    private static final java.util.Set<BlockPos> chestSpotsTried = new java.util.HashSet<>();
 
     private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
+        AutoPuzzleActivity.note("Tic Tac Toe");
         if (McCompat.screen(client) != null) {
+            if (chestStage == ChestStage.AURA) {
+                advanceChest(ChestStage.WALK_BACK, "the chest's window opened");
+            }
+            return;
+        }
+        if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
+            LOGGER.warn("[AutoPuzzles] TicTacToe: grab secret {} timed out - carrying on", chestStage);
+            if (ClearExecutor.isBusy()) {
+                ClearExecutor.cancel();
+            }
+            advanceChest(chestStage == ChestStage.WALK_BACK ? ChestStage.DONE : ChestStage.WALK_BACK, "timed out");
             return;
         }
         switch (chestStage) {
             case WALK_TO_CHEST -> {
                 if (chestReal == null && !findChest(cr)) {
-                    return; // no room identity yet, or gave up (chestStage already moved to DONE)
+                    return;
                 }
                 if (chestStage != ChestStage.WALK_TO_CHEST) {
-                    return; // findChest gave up this tick
+                    return;
                 }
-                walkChestLeg(player, chestReal, ChestStage.AURA, "the chest");
+                if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
+                        <= CHEST_SPOT_REACH * CHEST_SPOT_REACH && AutoPuzzleUtil.sees(client, player.getEyePosition(),
+                        chestReal)) {
+                    auraTicks = 0;
+                    advanceChest(ChestStage.AURA, "the secret is in reach");
+                    return;
+                }
+                warpNear(client, player, chestReal, "the secret");
             }
             case AURA -> auraChest(client, player);
             case WALK_BACK -> {
-                BlockPos spot = ROOM_SPOT_RELATIVE == null || cr == null ? null
-                        : PuzzleCoords.real(ROOM_SPOT_RELATIVE[0], ROOM_SPOT_RELATIVE[1], ROOM_SPOT_RELATIVE[2], cr);
-                walkChestLeg(player, spot, ChestStage.DONE, "the room spot");
+                BlockPos spot = cr == null ? null : boardSpot(client, cr);
+                if (spot == null || (cr != null && allSquaresInReach(player.getEyePosition(), cr))) {
+                    advanceChest(ChestStage.DONE, "back in front of the board");
+                    return;
+                }
+                if (AutoPuzzleUtil.at(player, spot)) {
+                    advanceChest(ChestStage.DONE, "on the board spot");
+                    return;
+                }
+                if (ClearExecutor.isBusy()) {
+                    return;
+                }
+                if (AutoPuzzleUtil.etherwarpAim(client.level, player, spot) != null
+                        && WARP.start(client, spot, false, false, false)) {
+                    LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping back in front of the board onto {}",
+                            AutoPuzzleUtil.fmt(spot));
+                    return;
+                }
+                if (legPaths < MAX_LEG_PATHS && AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
+                    legPaths++;
+                } else if (legPaths >= MAX_LEG_PATHS) {
+                    advanceChest(ChestStage.DONE, "cannot get back to the board spot");
+                }
             }
             default -> {
             }
+        }
+    }
+
+    /** One etherwarp onto the best block that has {@code target} in reach and in sight; the Interactive Map when none
+     *  has a line from here. */
+    private static void warpNear(Minecraft client, LocalPlayer player, BlockPos target, String label) {
+        if (ClearExecutor.isBusy()) {
+            return;
+        }
+        List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client, List.of(target), CHEST_SPOT_REACH, true,
+                Vec3.atCenterOf(target));
+        if (spots.isEmpty()) {
+            advanceChest(ChestStage.WALK_BACK, "no block to stand on has " + label + " in reach");
+            return;
+        }
+        for (BlockPos spot : spots) {
+            if (chestSpotsTried.contains(spot) || AutoPuzzleUtil.etherwarpAim(client.level, player, spot) == null) {
+                continue;
+            }
+            chestSpotsTried.add(spot);
+            if (WARP.start(client, spot, false, false, false)) {
+                LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping onto {} for {} at {} ({} spot(s) in reach of it)",
+                        AutoPuzzleUtil.fmt(spot), label, AutoPuzzleUtil.fmt(target), spots.size());
+                return;
+            }
+        }
+        if (legPaths >= MAX_LEG_PATHS) {
+            advanceChest(ChestStage.WALK_BACK, "cannot get within reach of " + label + " after " + legPaths + " path(s)");
+            return;
+        }
+        if (AutoPuzzleUtil.pathIfMapOn(spots.get(0), null, true)) {
+            legPaths++;
+        } else if (!chestMapOffWarned) {
+            chestMapOffWarned = true;
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe has no warp line to " + label
+                    + " and needs "), ModChat.value("Interactive Map"), ModChat.text(" on to walk there."));
         }
     }
 
@@ -348,18 +517,16 @@ final class AutoTicTacToe {
         if (chests == null || chests.isEmpty()) {
             if (!noChestWarned) {
                 noChestWarned = true;
-                LOGGER.warn("[AutoPuzzles] TicTacToe: no chest secret coordinates known for this room - skipping the chest trip");
+                LOGGER.warn("[AutoPuzzles] TicTacToe: no chest secret coordinates known for this room - skipping the secret");
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe: "),
-                        ModChat.bad("no chest position known"), ModChat.text(" for this room."));
+                        ModChat.bad("no secret position known"), ModChat.text(" for this room."));
             }
             chestStage = ChestStage.DONE;
             return false;
         }
-        RoomEntry.Pos nearest = chests.get(0);
-        // PuzzleCoords, not RoomDatabase - the raw call drops the sim's floor shift, so the chest trip walked
-        // to Hypixel's height and the aura never had anything in reach.
-        chestReal = PuzzleCoords.real(nearest, cr);
-        chestLegStartMs = System.currentTimeMillis();
+        // PuzzleCoords, not RoomDatabase - the raw call drops the sim's floor shift.
+        chestReal = PuzzleCoords.real(chests.get(0), cr);
+        LOGGER.info("[AutoPuzzles] TicTacToe: secret chest at {}", AutoPuzzleUtil.fmt(chestReal));
         return true;
     }
 
@@ -369,96 +536,59 @@ final class AutoTicTacToe {
     private static final int MAX_LEG_PATHS = 3;
 
     private static void advanceChest(ChestStage next, String why) {
-        LOGGER.info("[AutoPuzzles] TicTacToe: chest trip {} -> {} ({})", chestStage, next, why);
+        LOGGER.info("[AutoPuzzles] TicTacToe: grab secret {} -> {} ({})", chestStage, next, why);
         chestStage = next;
         chestLegStartMs = System.currentTimeMillis();
         legPaths = 0;
         chestMapOffWarned = false;
+        chestSpotsTried.clear();
     }
 
-    /**
-     * One leg of the chest side trip.
-     *
-     * <p>killer560 (2026-10-04): "It also did the first button for tictactoe but none after that." His log: one
-     * click at 18:08:55, then the trip's walk to the chest - two warps that stopped short ("the block itself cannot
-     * be reached"), then about seventy "Already there" in four seconds, one more warp, and silence; he played the
-     * rest by hand (a Draw at 18:09:19), and the auto never clicked again. The board itself was fine - the click
-     * logic simply never ran, because it waits for the trip and the trip could not end: it ended on standing ON the
-     * target, on the chest being in reach, or on the 15 s timeout - and that timeout sat BEHIND
-     * {@code if (ClearExecutor.isBusy()) return}, so a walk that kept the executor busy kept the trip alive with
-     * it, and a walk that ended short re-asked for a path every tick ("Already there" each time) without ever
-     * counting as done. Now the timeout is checked first and cancels a walk still running, and a leg that has
-     * asked for {@link #MAX_LEG_PATHS} paths and is still not there gives up - it cannot get closer. Each
-     * transition is an INFO line. The same on Hypixel: none of this depends on the sim.
-     */
-    private static void walkChestLeg(LocalPlayer player, BlockPos target, ChestStage nextStage, String label) {
-        if (target == null) {
-            advanceChest(nextStage, "no target for " + label);
-            return;
+    private static boolean chestTaken(Minecraft client) {
+        if (chestReal == null) {
+            return false;
         }
-        if (AutoPuzzleUtil.at(player, target)) {
-            advanceChest(nextStage, "standing on " + label);
-            return;
+        if (com.killer560.hub.cheatutils.SecretAuraFeature.isDone(chestReal)) {
+            return true;
         }
-        // The chest leg is over once the chest is in aura reach. at() above only matches when standing ON the
-        // target block, which for a chest means on its lid, so a walk that stopped beside it waited out the full
-        // 15 s timeout before the aura - "walk to the chest timed out" in his 2026-10-04 sim log.
-        if (nextStage == ChestStage.AURA
-                && com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target) <= AURA_REACH_SQ) {
-            advanceChest(nextStage, "the chest is in reach");
-            return;
-        }
-        if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
-            LOGGER.warn("[AutoPuzzles] TicTacToe: walk to {} timed out - continuing anyway", label);
-            if (ClearExecutor.isBusy()) {
-                ClearExecutor.cancel();
-            }
-            advanceChest(nextStage, "timed out");
-            return;
-        }
-        if (ClearExecutor.isBusy()) {
-            return;
-        }
-        if (legPaths >= MAX_LEG_PATHS) {
-            advanceChest(nextStage, "cannot get closer to " + label + " after " + legPaths + " path(s)");
-            return;
-        }
-        if (AutoPuzzleUtil.pathIfMapOn(target, null)) {
-            legPaths++;
-        } else if (!chestMapOffWarned) {
-            chestMapOffWarned = true;
-            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe needs "), ModChat.value("Interactive Map"),
-                    ModChat.text(" on to walk to " + label + "."));
-        }
+        var be = client.level.getBlockEntity(chestReal);
+        return be instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest && chest.getOpenNess(0f) > 0f;
     }
 
+    /** Secret Aura takes it when it will; otherwise (or when it has not in {@link #AURA_TICKS}) the auto clicks it. */
     private static void auraChest(Minecraft client, LocalPlayer player) {
+        if (chestTaken(client)) {
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: got the "), ModChat.good("secret"),
+                    ModChat.text("."));
+            advanceChest(ChestStage.WALK_BACK, "the chest is open");
+            return;
+        }
+        double dist = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal));
+        boolean aura = com.killer560.hub.cheatutils.SecretAuraFeature.chestRefusal(client, dist) == null;
+        if (aura && auraTicks++ < AURA_TICKS) {
+            return; // Secret Aura clicks a chest in reach on its next tick
+        }
         if (chestAuraAttempts >= MAX_AURA_ATTEMPTS) {
-            advanceChest(ChestStage.WALK_BACK, "no chest in reach after " + chestAuraAttempts + " tries");
+            advanceChest(ChestStage.WALK_BACK, "the chest did not open after " + chestAuraAttempts + " click(s)");
             return;
         }
-        BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
-        if (target == null) {
-            target = chestReal;
-        }
-        // To the box, like the picker above - measuring the gate one way and the choice another is how a
-        // module ends up clicking at something it cannot reach.
-        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
-        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
-            chestAuraAttempts++;
+        if (player.isShiftKeyDown() || dist > Math.sqrt(AURA_REACH_SQ)) {
+            AutoReposition.releaseSneak(client);
             return;
         }
-        if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
+        if (!AutoPuzzleUtil.gateWorldClick(client, chestReal)) {
             return;
         }
         chestAuraAttempts++;
-        if (!AutoPuzzleUtil.interactBlock(client, target)) {
-            LOGGER.warn("[AutoPuzzles] TicTacToe: no clickable shape at {} (attempt {}/{})", target, chestAuraAttempts, MAX_AURA_ATTEMPTS);
+        auraTicks = 0;
+        if (!AutoPuzzleUtil.interactBlock(client, chestReal)) {
+            LOGGER.warn("[AutoPuzzles] TicTacToe: no clickable shape at {}", chestReal);
+            advanceChest(ChestStage.WALK_BACK, "no clickable chest");
             return;
         }
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: aura'd the "), ModChat.good("secret chest"),
-                ModChat.text("."));
-        advanceChest(ChestStage.WALK_BACK, "aura'd the chest");
+        LOGGER.info("[AutoPuzzles] TicTacToe: clicked the secret chest at {} ({} from his eye{})",
+                AutoPuzzleUtil.fmt(chestReal), String.format(java.util.Locale.ROOT, "%.2f", dist),
+                aura ? ", Secret Aura had not" : ", Secret Aura will not take it");
     }
 
     private static void reset() {
@@ -478,6 +608,10 @@ final class AutoTicTacToe {
         noChestWarned = false;
         chestMapOffWarned = false;
         legPaths = 0;
+        auraTicks = 0;
+        chestSpotsTried.clear();
+        WARP.cancel(Minecraft.getInstance());
+        CAMERA.release(Minecraft.getInstance().player);
         loggedWait = null;
     }
 }
