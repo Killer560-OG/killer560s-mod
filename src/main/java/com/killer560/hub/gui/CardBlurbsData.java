@@ -2,7 +2,7 @@ package com.killer560.hub.gui;
 
 import java.util.Map;
 
-/** The text of {@link CardBlurbs}, one line per tab (killer560, 2026-10-15). Keep each short: testkit 520 measures them. */
+/** The text of {@link CardBlurbs}, one line per tab (killer560, 2026-10-15). Keep each short: testkit 1060 measures them. */
 final class CardBlurbsData {
 
     private CardBlurbsData() {

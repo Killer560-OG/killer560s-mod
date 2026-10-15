@@ -177,7 +177,7 @@ public final class ClickSounds {
 
     /** Whether a click on the screen that is open now takes the chosen sound. */
     public static boolean appliesHere(ClickSoundConfig cfg) {
-        Screen screen = Minecraft.getInstance().screen;
+        Screen screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
         boolean ours = screen == null || screen.getClass().getName().startsWith(SCREEN_PACKAGE);
         return ours || cfg.isVanillaScreens();
     }

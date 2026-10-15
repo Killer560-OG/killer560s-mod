@@ -10,7 +10,7 @@ import java.util.Map;
  * ... to show the description is too long to fit"). Keyed by the tab class's simple name. Each must word-wrap into the card
  * at its narrowest ({@link FeatureCards#CARD_MIN_W}) without a cut: about 40 characters when the card's name takes one
  * line, 28 when it takes two. The long text is the hover tooltip ({@link FeatureCards#longDescription}). The testkit's
- * 520 measures every card.
+ * 1060 measures every card.
  */
 final class CardBlurbs {
 
