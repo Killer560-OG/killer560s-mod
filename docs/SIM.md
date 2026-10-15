@@ -2825,3 +2825,29 @@ the integrated server's overworld while `SimState.isActive()`, unless the column
 PasteJob anchor, by the room's size turned by its paste rotation, every y - so it holds whether or not the puzzle armed.
 A cancelled tick is consumed; nothing reschedules it. `frozenTicks()`/`allowedTicks()` count both ways, and the first freeze
 on a floor logs "Sim water: holding water still outside the Water Board". Testkit 1410-sim-water-static.
+
+## Two placed levers and Hypixel's Redstone Key (2026-10-15, sim-levers-1015)
+
+- **RSM's waypoints are the place to look for a lever or node a capture is missing.** `rsm-ref/.../assets/rsm/secrets.json`
+  (killer560s-mod-logs) lists every secret per room, LEVER and REDSTONE_BLOCK included, centre-relative (+16 = capture,
+  +15 = database) in the canonical turn. Turn it by the k that lands its chests, keys and levers on the capture's own
+  blocks; Cobble Wall Pillar needs k=1, Golden Oasis and Redstone Key k=0, Redstone Crypt k=2. Both of his levers came out
+  exactly where his Hypixel shots put them, and both captures hold air there.
+- **Cobble Wall Pillar's gate has BARRIERS behind its bars.** The capture recorded Hypixel's barrier blocks: three by four
+  at z=28 right behind the bars at z=27. A rule taking only the bars leaves an invisible wall in front of the chest, so the
+  box is x 18..20, y 60..63, z 27..28 (24 blocks). Look for barriers behind any gate before writing its box.
+- **Redstone Key, what the client sees on Hypixel** (RSA, RSM, QUOI and Odin, read not copied): the key is a `player_head`
+  with profile id `fed95410-aba1-39df-9b95-1d4f361eb66e`, and picking it up turns that head to air; the node is a
+  `redstone_block`, and when the key goes in the block changes, an armor stand wearing the key appears with its block y two
+  below the node, and a piston sound plays (RSM counts the node's secret off `block.piston.contract`). The wiki: placing it
+  "rewards 1 secret"; since 0.18.4 it is not an item and anyone can place it once found. `SimRedstoneKey` sends all of that
+  from the server: pickup is not a secret, placing is one (`SimScore.secretFound` at the node). Until this the sim put a
+  LEVER where the key belongs.
+- **Golden Oasis' node is missing from its capture** (air at capture 11,71,4, a stone-brick ledge), while Redstone Crypt's
+  and Redstone Key's captures hold theirs. The sim places a redstone block there, only into air. What placing the key opens
+  is known only for Golden Oasis (his words: the three redstone blocks by the lever, capture 27..29,70,26); the other two
+  rooms count the secret and open nothing until someone says what they open.
+- Auto Routes' await (`AwaitEvents.onLocalBlockClick`) counts a click on the key's skull but not a click on the node, which
+  is the one Hypixel calls the secret. That is client logic and the same on Hypixel, so it was left alone.
+- Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
+  the control).
