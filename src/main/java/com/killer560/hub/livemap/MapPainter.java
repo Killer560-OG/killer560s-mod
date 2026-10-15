@@ -194,13 +194,28 @@ public final class MapPainter {
 
     /**
      * killer560, 2026-09-20: "the map the legit version should have is the non funnymap style where it only shows
-     * opened rooms". On the legit jar this painter must never draw anything Hypixel has not itself revealed, so a
-     * cell is painted only when the vanilla dungeon map item has data for it - our own world block scan and the room
-     * database are ignored for DRAWING. (They keep running: the solvers, Secret Waypoints and room names all still
-     * need {@code LiveMapFeature.currentRoomEntry()}, which is about the room you are standing in, not a reveal.)
-     * The cheat jar keeps the fuller map.
+     * opened rooms"; 2026-10-15: "For dungeon map by default it should only display what is on the normal handheld
+     * map meaning rooms you have already opened. It should not be able to scan to see what rooms there are. Funnymap
+     * the toggle should be in cheat version only and that means it scans for rooms." So on BOTH jars the Dungeon Map
+     * paints a cell only when the vanilla dungeon map item has data for it - our own world block scan and the room
+     * database are ignored for DRAWING (they keep running: the solvers, Secret Waypoints and room names all still need
+     * {@code LiveMapFeature.currentRoomEntry()}, which is about the room you are standing in, not a reveal). Only the
+     * cheat build's Funny Map ({@link LiveMapConfig#isFunnyMap()}) draws the scanned floor, and the Interactive Map
+     * (cheat) always does ({@link #beginFullScan}).
      */
-    private static final boolean REVEAL_ONLY_FROM_MAP_ITEM = !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
+    private static boolean fullScan = false;
+
+    /** The Interactive Map's render: everything the scan found, whatever Funny Map says. Render thread only.
+     *  @return the previous value, for {@link #endFullScan} */
+    static boolean beginFullScan() {
+        boolean before = fullScan;
+        fullScan = true;
+        return before;
+    }
+
+    static void endFullScan(boolean before) {
+        fullScan = before;
+    }
 
     private MapPainter() {
     }
@@ -237,16 +252,40 @@ public final class MapPainter {
         return p3SimCached;
     }
 
-    private static boolean hideUnrevealed() {
-        // The dungeon SIM is exempt, exactly as p3sim already is.
-        //
-        // The legit map only draws what the vanilla map ITEM has revealed, which is the right rule on Hypixel:
-        // it is what stops the legit build knowing more than the server told it. A singleplayer sim has no map
-        // item, so the scanner is never calibrated, every cell reads as undiscovered and the map is simply
-        // blank - on the legit jar the whole feature looked broken in there. Nothing is being revealed early:
-        // the floor is one the mod built itself and he drew or generated.
-        return REVEAL_ONLY_FROM_MAP_ITEM && !onP3Sim()
-                && !com.killer560.hub.roomsim.SimState.isActive();
+    /** Whether the map draws only what the dungeon map item shows (the default on both jars). */
+    static boolean hideUnrevealed() {
+        if (fullScan || LiveMapConfig.getInstance().isFunnyMap() || onP3Sim()) {
+            return false;
+        }
+        // The dungeon SIM is exempt while it has no map item, exactly as p3sim is: the map only draws what the vanilla
+        // map ITEM has revealed, and a singleplayer sim has none, so the scanner is never calibrated, every cell reads
+        // as undiscovered and the map would simply be blank. Nothing is being revealed early: the floor is one the mod
+        // built itself and he drew or generated. A sim that DOES hold a dungeon map in slot 9 is read like Hypixel.
+        return !com.killer560.hub.roomsim.SimState.isActive() || DungeonMapScanner.hasMapItem();
+    }
+
+    /** Test hook: whether the Dungeon Map is drawing only what the dungeon map item shows right now. */
+    public static boolean mapItemOnly() {
+        return hideUnrevealed();
+    }
+
+    /**
+     * A room he has not been in yet, which Darken Unexplored darkens. On the map-item map that is a grey "?" room the
+     * map shows as unopened; on Funny Map it is any room the map item does not show as opened yet, drawn in its real
+     * colour. With no map item to ask (the sim, p3sim) nothing is known to be unexplored.
+     * <p>killer560, 2026-10-15: "Darken Unexplored does not work." It darkened only rooms in the UNDISCOVERED state,
+     * and those are exactly the rooms the map never draws; and on the cheat jar every scanned room was promoted to
+     * discovered first, so the slider could not reach a single drawn pixel.
+     */
+    static boolean unexplored(LiveMapFeature.RoomGroup group) {
+        if (!DungeonMapScanner.isCalibrated()) {
+            return false;
+        }
+        int best = DungeonMapScanner.STATE_UNDISCOVERED;
+        for (int tile : group.tiles) {
+            best = Math.min(best, DungeonMapScanner.stateAt(tile));
+        }
+        return best >= DungeonMapScanner.STATE_UNOPENED;
     }
 
     /** @return whether this single cell may be painted at all. */
@@ -428,10 +467,7 @@ public final class MapPainter {
      *  grey whatever its real type is, because that is all the map itself knows about it. */
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
-        if (state == DungeonMapScanner.STATE_UNOPENED) {
-            return cfg.getColorUnopened();
-        }
-        if (state == DungeonMapScanner.STATE_UNDISCOVERED) {
+        if (state == DungeonMapScanner.STATE_UNOPENED || state == DungeonMapScanner.STATE_UNDISCOVERED) {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
         int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
@@ -452,16 +488,18 @@ public final class MapPainter {
         // before, so a cleared mimic room reads "red-tinted brown with its checkmark".
         // Both builds: a room is red once the mimic is known to be there. The cheat build knows it in advance (the
         // trapped chest scan); the legit build only once HE has killed it there (onMimicKillTick), killer560 2026-10-13.
+        // The default tint is 20% red over the room's own colour - NoammAddons' mimic room highlight exactly: its
+        // MapRenderer draws ColorUtils.lerp(roomColour, colorMimic, 0.2) with colorMimic (255, 0, 0) (javap of
+        // NoammAddons 1.2.7, 2026-10-05). 0x33 = 51/255 = 0.2. The cheat build's Mimic Room Color recolors it; its
+        // alpha is how strongly it is blended.
         if (hasLiveMimic(group)) {
-            color = mix(color, MIMIC_TINT);
+            color = mix(color, cfg.getMimicColor());
+        }
+        if (unexplored(group)) {
+            color = multiply(color, 1f - cfg.getDarkenUnopened());
         }
         return color;
     }
-
-    /** 20% red over the room's own colour - NoammAddons' mimic room highlight exactly: its MapRenderer draws
-     *  {@code ColorUtils.lerp(roomColour, colorMimic, 0.2)} with colorMimic defaulting to (255, 0, 0) (javap of
-     *  NoammAddons 1.2.7, 2026-10-05; his own Noamm config has the same #FF0000). 0x33 = 51/255 = 0.2. */
-    private static final int MIMIC_TINT = 0x33FF0000;
 
     /**
      * Every room TILE (grid index) that has shown the mimic this run. Once a second the scan below looks for a
@@ -546,7 +584,9 @@ public final class MapPainter {
     }
 
     private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+        // The scan that knows the mimic's room in advance is the cheat build's Funny Map with Show Mimic Room
+        // (killer560, 2026-10-15: "In the normal map it cannot scan for mimic to know which rooms has it").
+        if (LiveMapConfig.getInstance().isMimicScan()) {
             refreshMimicScanIfStale();
         }
         for (int tile : group.tiles) {
@@ -911,8 +951,7 @@ public final class MapPainter {
                 case DungeonLayout.DOOR_ENTRANCE -> cfg.getColorEntrance();
                 default -> connectorColor(idx, cfg);
             };
-            if (!LiveMapFeature.isWorldScanned(idx) && DungeonMapScanner.isCalibrated()
-                    && DungeonMapScanner.stateAt(idx) == DungeonMapScanner.STATE_UNOPENED) {
+            if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
                 color = multiply(color, 1f - cfg.getDarkenUnopened());
             }
             float[] box = doorUnits(gx, gz);
@@ -1058,15 +1097,6 @@ public final class MapPainter {
         };
     }
 
-    static String markGlyph(int state) {
-        return switch (state) {
-            case DungeonMapScanner.STATE_CLEARED, DungeonMapScanner.STATE_GREEN -> "✔";
-            case DungeonMapScanner.STATE_FAILED -> "✖";
-            case DungeonMapScanner.STATE_UNOPENED -> "?";
-            default -> null;
-        };
-    }
-
     private static void drawSprite(GuiGraphicsExtractor graphics, String[] rows, float cx, float cy, float size, int color) {
         int h = rows.length;
         int w = rows[0].length();
@@ -1125,6 +1155,8 @@ public final class MapPainter {
     private static int labelTick = Integer.MIN_VALUE;
     private static int labelGeneration = Integer.MIN_VALUE;
     private static int labelStyle = -1;
+    /** Whether the cache was built for the map-item-only map: the Interactive Map draws the full scan in the same tick. */
+    private static boolean labelHide = false;
 
     /** Rebuilt at most once a tick (fps report 2026-09-20: the map rebuilt every room's line list, and measured every
      *  line, on every single frame). Nothing a label depends on - map state, found secrets, room identity - can
@@ -1132,12 +1164,14 @@ public final class MapPainter {
     private static List<Label> labels(int style, Font font) {
         int tick = LiveMapFeature.tickCount();
         int generation = LiveMapFeature.resetGeneration();
-        if (tick == labelTick && generation == labelGeneration && style == labelStyle) {
+        boolean hide = hideUnrevealed();
+        if (tick == labelTick && generation == labelGeneration && style == labelStyle && hide == labelHide) {
             return LABEL_CACHE;
         }
         labelTick = tick;
         labelGeneration = generation;
         labelStyle = style;
+        labelHide = hide;
         LABEL_CACHE.clear();
         for (LiveMapFeature.RoomGroup group : LiveMapFeature.groupsView()) {
             RoomEntry entry = group.entry;
@@ -1245,7 +1279,7 @@ public final class MapPainter {
             if (!isRevealed(group)) {
                 continue;
             }
-            drawMark(graphics, font, visibleState(group), cfg,
+            drawMark(graphics, group, visibleState(group), cfg, ox, oy,
                     ox + (group.labelGX * 10 + 8) * ppu, oy + (group.labelGZ * 10 + 8) * ppu, ppu);
         }
         if (style == 1) {
@@ -1292,30 +1326,58 @@ public final class MapPainter {
         graphics.pose().popMatrix();
     }
 
-    static void drawMark(GuiGraphicsExtractor graphics, Font font, int state, LiveMapConfig cfg,
-                         float cx, float cy, float ppu) {
-        int color = stateColor(state);
-        if (cfg.isCheckmarkSprites()) {
-            String[] sprite = markSprite(state);
+    /**
+     * A room's mark (see {@link MapMarks}). Custom Checkmark Sprite off: Hypixel's own, copied off the map item where
+     * Hypixel drew it, else the built-in copy of its shapes at the label point. On: the mod's sprites or his own.
+     */
+    static void drawMark(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int state, LiveMapConfig cfg,
+                         float ox, float oy, float cx, float cy, float ppu) {
+        if (!cfg.isCustomCheckmarks() && state != DungeonMapScanner.STATE_DISCOVERED
+                && MapMarks.drawHypixel(graphics, group, ox, oy, ppu)) {
+            lastMarkSource = "hypixel-item";
+            return;
+        }
+        drawSampleMark(graphics, state, cfg, cx, cy, ppu);
+    }
+
+    /** A mark centred on (cx, cy) without a map item to copy from: the built-in copy of Hypixel's shapes, or with
+     *  Custom Checkmark Sprite on the mod's sprites or his own. The scheme editor's sample floor draws through here. */
+    static void drawSampleMark(GuiGraphicsExtractor graphics, int state, LiveMapConfig cfg, float cx, float cy, float ppu) {
+        float size = Math.max(6f, 10f * ppu);
+        if (cfg.isCustomCheckmarks()) {
+            MapMarks.Sprite user = cfg.getCheckmarkSource() == 1 ? MapMarks.userSprite(state) : null;
+            MapMarks.Sprite sprite = user != null ? user : MapMarks.modSprite(state);
             if (sprite != null) {
-                drawSprite(graphics, sprite, cx, cy, Math.max(6f, 10f * ppu),
-                        state == DungeonMapScanner.STATE_UNOPENED ? 0xFF1A1A1A : color);
+                lastMarkSource = user != null ? "user" : "mod";
+                MapMarks.drawSprite(graphics, sprite, cx, cy, size);
             }
             return;
         }
-        String glyph = markGlyph(state);
-        if (glyph == null) {
-            return;
+        String[] sprite = markSprite(state);
+        if (sprite != null) {
+            lastMarkSource = "hypixel-builtin";
+            drawSprite(graphics, sprite, cx, cy, size,
+                    state == DungeonMapScanner.STATE_UNOPENED ? 0xFF1A1A1A : stateColor(state));
         }
-        float scale = Math.max(0.3f, 0.75f * cfg.getFontScale() * ppu);
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(cx, cy);
-        graphics.pose().scale(scale, scale);
-        graphics.text(font, glyph, -font.width(glyph) / 2, -font.lineHeight / 2, color, cfg.isTextShadow());
-        graphics.pose().popMatrix();
+    }
+
+    /** Test hook: which kind of mark the last {@link #drawMark} drew ("hypixel-item", "hypixel-builtin", "mod", "user"). */
+    private static volatile String lastMarkSource = "";
+
+    public static String lastMarkSource() {
+        return lastMarkSource;
     }
 
     // ------------------------------------------------------------------------------------------- players
+
+    /** How opaque a teammate head's class-colour ring is: faint, so it reads as a tint around the head, not a frame. */
+    static final int CLASS_RING_ALPHA = 0x90;
+    /** Test hook: the last class ring drawn around a head (ARGB), 0 for none yet. */
+    private static volatile int lastClassRing = 0;
+
+    public static int lastClassRing() {
+        return lastClassRing;
+    }
 
     /** His own marker's fill. Unchanged green; what keeps it off a green room is the contrast outline below. */
     static final int SELF_MARKER_COLOR = 0xFF55FF55;
@@ -1349,7 +1411,10 @@ public final class MapPainter {
 
         net.minecraft.world.entity.player.PlayerSkin skin = cfg.isPlayerHeads() ? MapHeads.skinFor(mp) : null;
         if (skin != null) {
-            drawHead(graphics, skin, x, y, size, mp.yaw());
+            // killer560, 2026-10-15: "have recolor by class ... also have a faint outline around their player head on
+            // the map" - a teammate's head gets a translucent ring in his class colour outside its black edge.
+            int ring = !mp.self() && classColours && cls != null ? (CLASS_RING_ALPHA << 24) | (cls.color() & 0xFFFFFF) : 0;
+            drawHead(graphics, skin, x, y, size, mp.yaw(), ring);
         } else {
             graphics.pose().pushMatrix();
             graphics.pose().translate(x, y);
@@ -1374,13 +1439,17 @@ public final class MapPainter {
      *  turned by exactly the arrow's rotation ({@link #headRotationDegrees}), so the top of the head is where the arrow
      *  would point: facing north (yaw 180) the head is upright on the north-up map. No arrow or tick is drawn. */
     private static void drawHead(GuiGraphicsExtractor graphics, net.minecraft.world.entity.player.PlayerSkin skin,
-                                 float x, float y, int size, float yaw) {
+                                 float x, float y, int size, float yaw, int ring) {
         float half = size / 2f;
         graphics.pose().pushMatrix();
         try {
             graphics.pose().translate(x, y);
             graphics.pose().rotate((float) Math.toRadians(headRotationDegrees(yaw)));
             graphics.pose().translate(-half, -half);
+            if (ring != 0) {
+                graphics.fill(-2, -2, size + 2, size + 2, ring);
+                lastClassRing = ring;
+            }
             graphics.fill(-1, -1, size + 1, size + 1, 0xFF000000);
             net.minecraft.resources.Identifier texture = skin.body().texturePath();
             float scale = size / 8.0f;

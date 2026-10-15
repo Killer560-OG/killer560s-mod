@@ -32,6 +32,16 @@ public final class DoorKeysConfig {
     private float tracerThickness = 2f;
     /** Cheat build only: draw the key box + tracer through walls. Ships OFF. */
     private boolean throughWalls = false;
+    /**
+     * How the pickup range is shown (killer560, 2026-10-15: "For door keys if it is on have a toggle for sphere or
+     * radius. Radius is just a circle drawn at its height. Sphere would be a shaded sphere where if i go inside it then
+     * I get the key."): {@link #RANGE_RADIUS} the flat circle, {@link #RANGE_SPHERE} a shaded sphere of the same radius
+     * around the key.
+     */
+    private int rangeStyle = RANGE_RADIUS;
+    public static final int RANGE_RADIUS = 0;
+    public static final int RANGE_SPHERE = 1;
+    public static final String[] RANGE_STYLE_NAMES = {"Radius", "Sphere"};
 
     private DoorKeysConfig() {
     }
@@ -59,6 +69,7 @@ public final class DoorKeysConfig {
             cfg.tracerThickness = Math.max(MIN_TRACER_THICKNESS, Math.min(MAX_TRACER_THICKNESS,
                     ConfigJson.getFloat(obj, "tracerThickness", cfg.tracerThickness)));
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
+            cfg.setRangeStyle(ConfigJson.getInt(obj, "rangeStyle", RANGE_RADIUS));
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorKeysConfig();
@@ -75,6 +86,7 @@ public final class DoorKeysConfig {
             obj.addProperty("showTracer", showTracer);
             obj.addProperty("tracerThickness", tracerThickness);
             obj.addProperty("throughWalls", throughWalls);
+            obj.addProperty("rangeStyle", rangeStyle);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -131,5 +143,13 @@ public final class DoorKeysConfig {
 
     public void setThroughWalls(boolean throughWalls) {
         this.throughWalls = throughWalls;
+    }
+
+    public int getRangeStyle() {
+        return rangeStyle;
+    }
+
+    public void setRangeStyle(int v) {
+        this.rangeStyle = v < 0 || v >= RANGE_STYLE_NAMES.length ? RANGE_RADIUS : v;
     }
 }

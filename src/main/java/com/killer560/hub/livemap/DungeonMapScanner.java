@@ -54,6 +54,12 @@ final class DungeonMapScanner {
     private static boolean sampled = false;
 
     private static boolean calibrated = false;
+    /** Whether the last {@link #update} found a dungeon map in slot 9 (see {@link #hasMapItem}). */
+    private static boolean mapItemPresent = false;
+    /** The map's pixels as of the last change ({@link #update}), for Hypixel's own checkmarks ({@link HypixelMarks}). */
+    private static byte[] pixels = null;
+    /** Bumped whenever {@link #pixels} changes, so a cache built from them knows to rebuild. */
+    private static int pixelsVersion = 0;
     private static int mapRoomSize = 16;
     private static int startCornerX = 5;
     private static int startCornerZ = 5;
@@ -74,6 +80,9 @@ final class DungeonMapScanner {
         java.util.Arrays.fill(doorTiles, LiveMapFeature.Tile.UNKNOWN);
         sampled = false;
         calibrated = false;
+        mapItemPresent = false;
+        pixels = null;
+        pixelsVersion++;
         mapRoomSize = 16;
         startCornerX = 5;
         startCornerZ = 5;
@@ -82,6 +91,31 @@ final class DungeonMapScanner {
 
     static boolean isCalibrated() {
         return calibrated;
+    }
+
+    /** Whether he holds a dungeon map in hotbar slot 9 (as of the last read, at most a quarter second old). */
+    static boolean hasMapItem() {
+        return mapItemPresent;
+    }
+
+    /** The map's 128x128 colour bytes as last read, or null before a calibrated read. Never written by callers. */
+    static byte[] pixels() {
+        return calibrated ? pixels : null;
+    }
+
+    static int pixelsVersion() {
+        return pixelsVersion;
+    }
+
+    /** Map pixels per room side: 16, or 18 on the small early floors. */
+    static int mapRoomSize() {
+        return mapRoomSize;
+    }
+
+    /** Map pixel of grid cell {@code g}'s top-left along one axis ({@code corner} = the start corner on that axis). */
+    static int mapPixelOf(int g, boolean xAxis) {
+        int corner = xAxis ? startCornerX : startCornerZ;
+        return corner + (g / 2) * (mapRoomSize + 4) + (g % 2 == 1 ? mapRoomSize : 0);
     }
 
     static int kindAt(int idx) {
@@ -131,9 +165,15 @@ final class DungeonMapScanner {
     static boolean update(Minecraft client) {
         MapItemSavedData data = findDungeonMap(client);
         if (data == null || data.colors == null || data.colors.length < MAP_SIZE * MAP_SIZE) {
+            mapItemPresent = false;
             return false;
         }
+        mapItemPresent = true;
         byte[] colors = data.colors;
+        if (pixels == null || !java.util.Arrays.equals(pixels, colors)) {
+            pixels = colors.clone();
+            pixelsVersion++;
+        }
         if (!calibrated) {
             long now = System.currentTimeMillis();
             if (now < nextCalibrationAttemptMs) {

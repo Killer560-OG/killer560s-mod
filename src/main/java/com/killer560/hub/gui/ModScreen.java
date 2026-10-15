@@ -574,6 +574,8 @@ public class ModScreen extends Screen {
         }
         if (openFeature == tab && contentW < STACK_BELOW) {
             stackRows(built, contentX, contentW);
+        } else if (openFeature == tab) {
+            widenLoneRows(built, contentX, contentW);
         }
         widgets.addAll(built);
         if (openFeature == tab) {
@@ -664,9 +666,6 @@ public class ModScreen extends Screen {
         for (Map.Entry<Integer, List<AbstractWidget>> e : rows.entrySet()) {
             List<AbstractWidget> row = e.getValue();
             int y = e.getKey();
-            if (row.size() < 2) {
-                continue;
-            }
             int h = 0;
             for (AbstractWidget w : row) {
                 h = Math.max(h, w.getHeight());
@@ -679,6 +678,18 @@ public class ModScreen extends Screen {
                 }
             }
             if (!clean) {
+                continue;
+            }
+            if (row.size() < 2) {
+                // A row with no partner (its partner hidden, or none planned) still sat at half width, so its switch
+                // stopped in the middle of the drawer while every stacked row's sat on the right edge (killer560,
+                // 2026-10-15: "Make the name holding leap button all the way to the right like they should be ...
+                // it happens in alot of spots"). It takes the full width like the rest; nothing moves down.
+                AbstractWidget w = row.get(0);
+                if (w.getWidth() < width) {
+                    w.setX(x);
+                    w.setWidth(width);
+                }
                 continue;
             }
             int pitch = h + 2;
@@ -701,6 +712,31 @@ public class ModScreen extends Screen {
                 w.setY(newY.get(w));
             } else {
                 w.setY(w.getY() + shiftAt(shiftFrom, w.getY()));
+            }
+        }
+    }
+
+    /**
+     * In a drawer wide enough for side-by-side rows: a plain setting row with nothing beside it (its partner hidden by a
+     * toggle, or none planned) takes the full width, so its switch or value sits on the drawer's right edge with the
+     * right-hand column's instead of stopping halfway (killer560, 2026-10-15, "Names Holding Leap" and "it happens in
+     * alot of spots"). Only x and width change.
+     */
+    static void widenLoneRows(List<AbstractWidget> widgets, int x, int width) {
+        for (AbstractWidget w : widgets) {
+            if (!simpleRow(w) || !w.visible || w.getWidth() >= width) {
+                continue;
+            }
+            boolean alone = true;
+            for (AbstractWidget o : widgets) {
+                if (o != w && o.visible && o.getY() < w.getY() + w.getHeight() && o.getY() + o.getHeight() > w.getY()) {
+                    alone = false;
+                    break;
+                }
+            }
+            if (alone) {
+                w.setX(x);
+                w.setWidth(width);
             }
         }
     }

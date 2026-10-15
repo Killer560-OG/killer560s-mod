@@ -120,6 +120,39 @@ public final class WorldRenderUtils {
         vertex(buffer, matrix, ax, ay, az, r, g, b, a);
     }
 
+    /**
+     * Draws a shaded sphere (latitude/longitude quads), depth-tested like {@link #renderFilledBox}, every face in both
+     * windings so it reads the same from inside it as from outside. Each band is shaded a little darker toward the
+     * bottom, so it reads as a ball rather than a flat disc.
+     */
+    public static void renderFilledSphere(LevelRenderContext context, Vec3 centre, double radius, int stacks, int slices,
+                                          float r, float g, float b, float a) {
+        int ns = Math.max(4, stacks);
+        int nl = Math.max(6, slices);
+        McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
+            var matrix = pose.pose();
+            for (int i = 0; i < ns; i++) {
+                double p0 = Math.PI * i / ns - Math.PI / 2;
+                double p1 = Math.PI * (i + 1) / ns - Math.PI / 2;
+                float shade = 0.65f + 0.35f * (float) (i + 0.5) / ns;
+                float sr = r * shade, sg = g * shade, sb = b * shade;
+                float y0 = (float) (centre.y + Math.sin(p0) * radius);
+                float y1 = (float) (centre.y + Math.sin(p1) * radius);
+                double c0 = Math.cos(p0) * radius;
+                double c1 = Math.cos(p1) * radius;
+                for (int j = 0; j < nl; j++) {
+                    double t0 = Math.PI * 2 * j / nl;
+                    double t1 = Math.PI * 2 * (j + 1) / nl;
+                    float ax = (float) (centre.x + Math.cos(t0) * c0), az = (float) (centre.z + Math.sin(t0) * c0);
+                    float bx = (float) (centre.x + Math.cos(t1) * c0), bz = (float) (centre.z + Math.sin(t1) * c0);
+                    float cx = (float) (centre.x + Math.cos(t1) * c1), cz = (float) (centre.z + Math.sin(t1) * c1);
+                    float dx = (float) (centre.x + Math.cos(t0) * c1), dz = (float) (centre.z + Math.sin(t0) * c1);
+                    twoSidedQuad(buffer, matrix, ax, y0, az, bx, y0, bz, cx, y1, cz, dx, y1, dz, sr, sg, sb, a);
+                }
+            }
+        });
+    }
+
     /** Draws a wireframe outline box. */
     public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
                                          float thickness) {
