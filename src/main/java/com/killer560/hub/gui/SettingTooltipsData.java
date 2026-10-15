@@ -48,6 +48,19 @@ final class SettingTooltipsData {
         d.put("menu theme/confirm", "Click again to delete this saved theme.");
         d.put("menu theme/text", "Custom: the color of names, labels and descriptions.");
         d.put("menu theme/switch on", "Custom: the color of a switch that is on.");
+        // Font and Main Menu sections (killer560, 2026-10-15: fonts.FontSettings, mainmenu.MainMenuSettings).
+        d.put("menu theme/font", "The font text is drawn in: Minecraft's own, a bundled one (Lato, Space Mono, VT323, Press Start 2P) or one you imported. Characters a font does not have still come from Minecraft's font. Left click goes to the next, right click back.");
+        d.put("menu theme/font applies to", "Mod Menu Only: just the mod's own screens. Everything: every line of text you see - chat, the HUD, scoreboards, tooltips, Minecraft's menus and name tags.");
+        d.put("menu theme/font size", "How big the chosen font's letters are, from 70% to 140%. Minecraft's own font is never resized.");
+        d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
+        d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
+        d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed, splash text and button panel below.");
+        d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Custom an aurora.");
+        d.put("menu theme/background", "Custom: the main menu's animated background. Theme Default is the theme's own.");
+        d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
+        d.put("menu theme/animation speed", "Custom: how fast the background moves.");
+        d.put("menu theme/splash text", "Custom: shows or hides the yellow splash text beside the logo.");
+        d.put("menu theme/button panel", "Custom: the frosted panel behind the main menu's buttons.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colors"
                     + " back to the " + preset + " preset it was started from.");

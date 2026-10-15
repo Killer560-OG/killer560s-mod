@@ -205,6 +205,7 @@ public class Killer560ModClient implements ClientModInitializer {
         GifPlayerFeature.register();
         DvdFeature.register();
         com.killer560.hub.mainmenu.MainMenuTitleLayout.register();
+        com.killer560.hub.fonts.CustomFonts.register();
         AutoMeowFeature.register();
         com.killer560.hub.architect.ArchitectDraftFeature.register();
         ExperimentsFeature.register();

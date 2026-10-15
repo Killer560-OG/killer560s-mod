@@ -8,7 +8,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.compat.McCompat;
@@ -106,6 +105,11 @@ public final class MainMenuTheme {
 
     public static void drawButtonBox(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                      boolean active, boolean highlighted, float alpha) {
+        if (McCompat.screen(Minecraft.getInstance()) instanceof TitleScreen) {
+            // The redesigned title screen (2026-10-15) draws its buttons in the main menu's own theme.
+            MainMenuChrome.drawButton(g, x, y, w, h, active, highlighted, alpha);
+            return;
+        }
         int bg;
         int border;
         if (!active) {
@@ -129,7 +133,9 @@ public final class MainMenuTheme {
         if (message == null) {
             return null;
         }
-        int rgb = !active ? DIM : (highlighted ? LIGHT_ORANGE : TEXT);
+        int rgb = McCompat.screen(Minecraft.getInstance()) instanceof TitleScreen
+                ? MainMenuChrome.labelColour(active, highlighted)
+                : !active ? DIM : (highlighted ? LIGHT_ORANGE : TEXT);
         return Component.empty().withColor(rgb).append(message);
     }
 
@@ -152,123 +158,10 @@ public final class MainMenuTheme {
 
     // ---------------------------------------------------------------- background
 
-    /** Replaces the rotating panorama: dark warm gradient, two slowly drifting orange glows (one behind
-     *  the logo, one rising from the bottom edge), optional drifting embers, and an edge vignette. All
-     *  positions derive from the clock and the screen size - no per-frame state, so resizing / GUI scale
-     *  changes are free and nothing accumulates. Roughly 250-400 flat quads per frame. */
+    /** The main menu's animated background in its own theme (see {@link MainMenuLook}, {@link MainMenuScenes}): Amber's
+     *  embers, Ocean's waterfall, Dark's starfield, Light's soft light, Custom's aurora, or the Custom style's pick.
+     *  Also the Swap Accounts screens' background ({@code AccountScreenBackground}). */
     public static void drawBackground(GuiGraphicsExtractor g, int w, int h) {
-        if (w <= 0 || h <= 0) {
-            return;
-        }
-        double t = (Util.getMillis() % 3_600_000L) / 1000.0;
-
-        // 1. Base: near-black with a faint warm tint at the top.
-        g.fillGradient(0, 0, w, h, 0xFF140D08, 0xFF050404);
-
-        // 2. Glow behind the logo, drifting gently side to side.
-        int logoCx = w / 2 + (int) Math.round(Math.sin(t * 0.21) * Math.min(40, w * 0.06));
-        int logoCy = 55 + (int) Math.round(Math.cos(t * 0.17) * 6);
-        double breathe = 0.85 + 0.15 * Math.sin(t * 0.6);
-        glow(g, logoCx, logoCy, Math.min(w * 0.55, 300), Math.min(h * 0.40, 110), ORANGE, (int) (0x2C * breathe), 5);
-
-        // 3. Wide ember glow rising from the bottom edge, drifting the opposite way.
-        int lowCx = w / 2 - (int) Math.round(Math.sin(t * 0.13) * w * 0.12);
-        glow(g, lowCx, h + 10, w * 0.75, h * 0.42, ORANGE, 0x26, 5);
-
-        // 4. Embers.
-        if (MainMenuThemeConfig.getInstance().isParticles()) {
-            embers(g, w, h, t);
-        }
-
-        // 5. Vignette: top + bottom gradients, stepped side strips.
-        g.fillGradient(0, 0, w, Math.max(1, h / 5), 0x80000000, 0x00000000);
-        g.fillGradient(0, h - Math.max(1, h / 4), w, h, 0x00000000, 0x99000000);
-        int strips = 10;
-        int stripW = Math.max(1, w / 60);
-        for (int i = 0; i < strips; i++) {
-            int a = (int) (0x70 * (1.0 - (double) i / strips));
-            int c = argb(0x000000, a);
-            g.fill(i * stripW, 0, (i + 1) * stripW, h, c);
-            g.fill(w - (i + 1) * stripW, 0, w - i * stripW, h, c);
-        }
-
-        // 6. Hairline orange accents along the top and bottom edges, fading out toward the sides.
-        accentLine(g, w, 0, 0x90);
-        accentLine(g, w, h - 1, 0x70);
-    }
-
-    /** Cheap soft elliptical glow: {@code layers} nested ellipses, each drawn as horizontal bands of
-     *  low alpha, so the centre accumulates to ~maxAlpha and the edge fades to nothing. */
-    private static void glow(GuiGraphicsExtractor g, int cx, int cy, double rx, double ry, int rgb, int maxAlpha, int layers) {
-        if (rx < 1 || ry < 1 || maxAlpha <= 0) {
-            return;
-        }
-        int perLayer = Math.max(1, maxAlpha / layers);
-        int color = argb(rgb, perLayer);
-        for (int k = layers; k >= 1; k--) {
-            double s = (double) k / layers;
-            double lrx = rx * s;
-            double lry = ry * s;
-            int step = Math.max(2, (int) Math.ceil(lry / 14.0));
-            int top = (int) Math.floor(cy - lry);
-            int bottom = (int) Math.ceil(cy + lry);
-            for (int y = top; y < bottom; y += step) {
-                double dy = ((y + step * 0.5) - cy) / lry;
-                double q = 1.0 - dy * dy;
-                if (q <= 0) {
-                    continue;
-                }
-                int half = (int) Math.round(lrx * Math.sqrt(q));
-                if (half <= 0) {
-                    continue;
-                }
-                g.fill(cx - half, y, cx + half, y + step, color);
-            }
-        }
-    }
-
-    private static void embers(GuiGraphicsExtractor g, int w, int h, double t) {
-        int count = Math.max(24, Math.min(70, (w * h) / 3500));
-        double travel = h + 24.0;
-        for (int i = 0; i < count; i++) {
-            double r1 = hash(i, 1);
-            double r2 = hash(i, 2);
-            double r3 = hash(i, 3);
-            double speed = 5.0 + r2 * 13.0; // GUI px per second
-            double rise = (t * speed + r1 * travel * 11.0) % travel;
-            double y = h + 12.0 - rise;
-            double x = r3 * w + Math.sin(t * (0.25 + r1 * 0.45) + i * 1.3) * (5.0 + r2 * 12.0);
-            double progress = rise / travel; // 0 at bottom, 1 at top
-            double life = Math.min(1.0, progress * 8.0) * (1.0 - progress);
-            double flicker = 0.7 + 0.3 * Math.sin(t * (2.0 + r3 * 2.5) + i * 1.7);
-            int a = (int) (215 * life * flicker);
-            if (a <= 4) {
-                continue;
-            }
-            int px = (int) Math.round(x);
-            int py = (int) Math.round(y);
-            int size = r2 > 0.82 ? 2 : 1;
-            g.fill(px - 1, py - 1, px + size + 1, py + size + 1, argb(ORANGE, a / 4));
-            g.fill(px, py, px + size, py + size, argb(r1 > 0.5 ? LIGHT_ORANGE : ORANGE, a));
-        }
-    }
-
-    private static void accentLine(GuiGraphicsExtractor g, int w, int y, int maxAlpha) {
-        int segments = 16;
-        int segW = Math.max(1, w / (segments * 2));
-        int cx = w / 2;
-        for (int i = 0; i < segments; i++) {
-            int a = (int) (maxAlpha * (1.0 - (double) i / segments));
-            int c = argb(ORANGE, a);
-            int inner = i * segW;
-            int outer = (i == segments - 1) ? cx : (i + 1) * segW;
-            g.fill(cx + inner, y, cx + outer, y + 1, c);
-            g.fill(cx - outer, y, cx - inner, y + 1, c);
-        }
-    }
-
-    private static double hash(int i, int salt) {
-        double v = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
-        return v - Math.floor(v);
+        MainMenuScenes.draw(g, w, h, MainMenuLook.current());
     }
 }

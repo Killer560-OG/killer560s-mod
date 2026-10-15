@@ -84,7 +84,7 @@ public class MenuThemeTab extends BaseTab {
         if (saved.isEmpty()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("§7None yet - Save as New Theme keeps the colors you see now."), font));
-            return widgets;
+            y += 16;
         }
         int useW = 54;
         int deleteW = 58;
@@ -128,6 +128,11 @@ public class MenuThemeTab extends BaseTab {
                     }).bounds(contentX + useW + gap + nameW + gap, y, deleteW, 18).danger(armed).build());
             y += 22;
         }
+        // ---- Font and Main Menu (killer560, 2026-10-15) ----
+        y += 6;
+        y = com.killer560.hub.fonts.FontSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
+        y += 6;
+        com.killer560.hub.mainmenu.MainMenuSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
     }
 
