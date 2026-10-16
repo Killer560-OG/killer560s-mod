@@ -277,6 +277,20 @@ public final class RouteExecutor {
     /** The node tick (stepTicks) of the last aimed use. */
     private static int batLastUse;
     private static boolean batSeeking;
+    /** Spirit Sceptre CRYPT node: aimed uses given to each crypt mob before it moves on to the next (killer560,
+     *  2026-10-15: "If there are two or more that spawned have it do 2 bats at each before moving on"). */
+    public static final int CRYPT_SHOTS_EACH = 2;
+    /** How far from him a crypt mob is looked for (the sceptre's planning range, {@code WeaponReach.SCEPTRE_PLAN_RANGE}). */
+    private static final double CRYPT_SEEK_RANGE = 24.0;
+    /** Crypt mobs this crypt node has seen (entity id) and the aimed uses each has had, in the order first seen. */
+    private static final Map<Integer, Integer> cryptShots = new java.util.LinkedHashMap<>();
+    /** The crypt mob the node is shooting now, or -1: it keeps it until it is dead or has had its uses. */
+    private static int cryptTarget = -1;
+    /** Spirit Sceptre bats (non-secret bats) first seen since the node started holding use: its own shots in flight. */
+    private static final Set<Integer> cryptBats = new HashSet<>();
+    private static final Set<Integer> cryptBatsSeen = new HashSet<>();
+    /** The node has given some crypt mob a use, or seen one it was tracking die. */
+    private static boolean cryptHandled;
     private static final Map<BlockPos, BlockState> boomBefore = new HashMap<>();
 
     // ---- await ----
@@ -2627,6 +2641,11 @@ public final class RouteExecutor {
             aimAt(player.getYRot(), MimicKiller.STRAIGHT_DOWN, node);
             cryptDownTicks = 0;
             batSeeking = false;
+            cryptShots.clear();
+            cryptTarget = -1;
+            cryptBats.clear();
+            cryptBatsSeen.clear();
+            cryptHandled = false;
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -2694,7 +2713,32 @@ public final class RouteExecutor {
                 finishAction();
                 return;
             }
-            if (kills(bat) >= goal) {
+            // killer560, 2026-10-15: "make the crypt node follow the same logic as bat where it will try to look at a
+            // crypt as well. If there are two or more that spawned have it do 2 bats at each before moving on." A Spirit
+            // Sceptre crypt node goes on until every crypt mob it has seen is dead or has had its CRYPT_SHOTS_EACH aimed
+            // uses (and their bats have landed) - not merely until the kill count, which would leave the others alive.
+            boolean sceptreCrypt = !bat && weapon == AutoRoutesConfig.CryptWeapon.SPIRIT_SCEPTRE;
+            CryptSeek seek = sceptreCrypt ? cryptSeekState(client, player, goal) : CryptSeek.NONE;
+            if (seek == CryptSeek.DONE) {
+                int dead = 0;
+                int shotOut = 0;
+                for (Map.Entry<Integer, Integer> e : cryptShots.entrySet()) {
+                    if (cryptMobGone(client, e.getKey())) {
+                        dead++;
+                    } else if (e.getValue() >= CRYPT_SHOTS_EACH) {
+                        shotOut++;
+                    }
+                }
+                LOGGER.info("[AutoRoutes] Node #{} CRYPT: every crypt mob dead or given its {} uses ({} seen, {} dead, {} "
+                                + "alive after its uses, {} kill(s) counted) after holding use {} tick(s) - moving on",
+                        route.indexOf(node) + 1, CRYPT_SHOTS_EACH, cryptShots.size(), dead, shotOut, kills(false),
+                        stepTicks);
+                releaseUse(client);
+                restoreCryptSlot(client, player);
+                finishAction();
+                return;
+            }
+            if (kills(bat) >= goal && seek == CryptSeek.NONE) {
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
                         KIND, kills(bat), stepTicks);
                 if (bat) {
@@ -2727,8 +2771,176 @@ public final class RouteExecutor {
                     && AwaitEvents.weaponUses() - batUseBase >= BAT_DOWN_USES && tickBatSeek(client, player, node)) {
                 return;
             }
+            // The crypt node the same way: its first BAT_DOWN_USES go straight down (they blow up what is under him),
+            // then the sceptre is used AT each crypt mob still alive, CRYPT_SHOTS_EACH apiece.
+            if (seek == CryptSeek.PENDING && AwaitEvents.weaponUses() - batUseBase >= BAT_DOWN_USES
+                    && tickCryptSeek(client, player, node)) {
+                return;
+            }
             holdUse(client, player, node);
         }
+    }
+
+    /** Where a Spirit Sceptre crypt node is with the crypt mobs it has seen. */
+    private enum CryptSeek {
+        /** None seen (or only ones its bats cannot reach, none handled): the node behaves as it always did. */
+        NONE,
+        /** One still needs a use, or its last bats are still flying. */
+        PENDING,
+        /** Every one seen is dead, or has had its uses and their bats have landed. */
+        DONE
+    }
+
+    /** A crypt mob the node tracked is dead or no longer in his world. */
+    private static boolean cryptMobGone(Minecraft client, int id) {
+        Entity e = client.level == null ? null : client.level.getEntity(id);
+        return !(e instanceof net.minecraft.world.entity.LivingEntity l) || l.isRemoved() || l.isDeadOrDying();
+    }
+
+    /** The tracked crypt mob still owed a use (alive, under its uses, its bat can reach it), else null. */
+    private static net.minecraft.world.entity.LivingEntity cryptMobOwed(Minecraft client, LocalPlayer player, int id) {
+        if (cryptMobGone(client, id) || cryptShots.getOrDefault(id, 0) >= CRYPT_SHOTS_EACH) {
+            return null;
+        }
+        var mob = (net.minecraft.world.entity.LivingEntity) client.level.getEntity(id);
+        if (mob.distanceTo(player) > CRYPT_SEEK_RANGE) {
+            return null;
+        }
+        // Reach and line of sight in the sceptre's own terms: the bat flown from his eye at the mob's centre explodes on
+        // the first block or mob it meets, and the 6-block blast must take in the mob's box (com.killer560.hub.autoclear
+        // .WeaponReach, the numbers Auto Clear plans with). A crypt mob behind a wall the blast cannot reach is skipped.
+        Vec3 eye = player.getEyePosition();
+        Vec3 dir = mob.getBoundingBox().getCenter().subtract(eye).normalize();
+        Vec3 impact = com.killer560.hub.autoclear.WeaponReach.batImpact(client.level, player, eye, dir);
+        return com.killer560.hub.autoclear.WeaponReach.sceptreHits(impact, mob.getBoundingBox()) ? mob : null;
+    }
+
+    /**
+     * One tick of a Spirit Sceptre crypt node's bookkeeping: takes in every crypt mob near him (one that spawns a tick
+     * late is taken the tick it is seen), notes its own sceptre bats in flight, and says where the node stands.
+     */
+    private static CryptSeek cryptSeekState(Minecraft client, LocalPlayer player, int goal) {
+        if (client.level == null) {
+            return CryptSeek.NONE;
+        }
+        for (var mob : CryptMobs.near(client, player, CRYPT_SEEK_RANGE)) {
+            cryptShots.putIfAbsent(mob.getId(), 0);
+        }
+        // Its own bats: a non-secret bat first seen by his eye once the node holds use. Gone (exploded) = landed.
+        Vec3 eye = player.getEyePosition();
+        for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof net.minecraft.world.entity.ambient.Bat b && !AwaitEvents.isSecretBat(b)
+                    && cryptBatsSeen.add(b.getId()) && b.position().distanceTo(eye) <= 4.0) {
+                cryptBats.add(b.getId());
+            }
+        }
+        cryptBats.removeIf(id -> {
+            Entity e = client.level.getEntity(id);
+            return e == null || e.isRemoved() || !e.isAlive();
+        });
+        if (cryptShots.isEmpty()) {
+            return CryptSeek.NONE;
+        }
+        boolean allGone = true;
+        int dead = 0;
+        for (int id : cryptShots.keySet()) {
+            if (cryptMobGone(client, id)) {
+                cryptHandled = true;
+                dead++;
+            } else {
+                allGone = false;
+            }
+        }
+        if (allGone) {
+            // Every one it saw is dead: done the tick it sees it, without the tab list's count a second later - unless
+            // its await asks for more kills than it saw die, when it goes on as it always did (down, for the rest).
+            return dead >= goal ? CryptSeek.DONE : CryptSeek.NONE;
+        }
+        for (int id : cryptShots.keySet()) {
+            if (cryptMobOwed(client, player, id) != null) {
+                return CryptSeek.PENDING;
+            }
+        }
+        if (!cryptHandled) {
+            return CryptSeek.NONE;
+        }
+        return cryptBats.isEmpty() ? CryptSeek.DONE : CryptSeek.PENDING;
+    }
+
+    /**
+     * A Spirit Sceptre CRYPT node past its {@link #BAT_DOWN_USES} downward uses: the sceptre is used AT one crypt mob at a
+     * time, {@link #CRYPT_SHOTS_EACH} uses apiece one {@link #BAT_USE_GAP} apart (the held key's pace), the nearest owed
+     * one first, exactly as {@link #tickBatSeek} aims at a bat. With nothing owed it waits, key up, for its bats to land.
+     * Always true: the caller only comes here while {@link CryptSeek#PENDING}.
+     */
+    private static boolean tickCryptSeek(Minecraft client, LocalPlayer player, RouteNode node) {
+        releaseUse(client);
+        net.minecraft.world.entity.LivingEntity target = cryptTarget >= 0 ? cryptMobOwed(client, player, cryptTarget) : null;
+        if (target == null) {
+            double best = Double.MAX_VALUE;
+            for (int id : cryptShots.keySet()) {
+                var mob = cryptMobOwed(client, player, id);
+                if (mob != null && mob.distanceToSqr(player) < best) {
+                    best = mob.distanceToSqr(player);
+                    target = mob;
+                }
+            }
+            if (target == null) {
+                return true; // its last bats are still flying
+            }
+        }
+        if (!batSeeking) {
+            batSeeking = true;
+            batLastUse = stepTicks - 1;
+            LOGGER.info("[AutoRoutes] Node #{} CRYPT: {} uses went down - now aiming the Spirit Sceptre at {} crypt mob(s)",
+                    route.indexOf(node) + 1, BAT_DOWN_USES, cryptShots.size());
+        }
+        if (cryptTarget != target.getId()) {
+            cryptTarget = target.getId();
+            LOGGER.info("[AutoRoutes] Node #{} CRYPT: aiming at crypt mob {} ({}) at {}, {} blocks", route.indexOf(node) + 1,
+                    target.getId(), target.getName().getString(), fmt(target.position()),
+                    String.format(Locale.US, "%.1f", (double) target.distanceTo(player)));
+        }
+        if (sceptreUseAt(client, player, target.getBoundingBox().getCenter())) {
+            int n = cryptShots.merge(target.getId(), 1, Integer::sum);
+            cryptHandled = true;
+            LOGGER.info("[AutoRoutes] Node #{} CRYPT: Spirit Sceptre use {}/{} at crypt mob {} (yaw {}, pitch {}, {} blocks)",
+                    route.indexOf(node) + 1, n, CRYPT_SHOTS_EACH, target.getId(), Float.toString(lastSceptreYaw),
+                    Float.toString(lastSceptrePitch), String.format(Locale.US, "%.1f", (double) target.distanceTo(player)));
+        }
+        return true;
+    }
+
+    /** The rotation of the last {@link #sceptreUseAt} use, for its caller's log line. */
+    private static float lastSceptreYaw;
+    private static float lastSceptrePitch;
+
+    /**
+     * The bat node's aimed Spirit Sceptre use, shared by the crypt node: the look from his eye to {@code at} (pitch within
+     * +-90, yaw relative to his running value, never wrapped); obvious mode turns the body as every route use does
+     * ({@link #useHeldItem}), legit mode eases the camera and goes once within {@link #BAT_AIM_TOLERANCE}. A use goes at
+     * most every {@link #BAT_USE_GAP} ticks. True when one went this tick.
+     */
+    private static boolean sceptreUseAt(Minecraft client, LocalPlayer player, Vec3 at) {
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), at);
+        float dYaw = Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
+        float yaw = player.getYRot() + dYaw;
+        if (legit) {
+            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                RouteRotation.beginApproach(yaw, pitch, false, 0f, 0f);
+            }
+        }
+        float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
+        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
+            batLastUse = stepTicks;
+            lastSceptreYaw = yaw;
+            lastSceptrePitch = pitch;
+            useHeldItem(client, player, yaw, pitch, false);
+            return true;
+        }
+        return false;
     }
 
     /** The secret bat nearest him (alive, Skyblock health), or null: what a sceptre BAT node aims at after its first uses. */
@@ -2769,22 +2981,9 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Node #{} BAT: {} uses went down - now aiming the Spirit Sceptre at the secret bat",
                     route.indexOf(node) + 1, BAT_DOWN_USES);
         }
-        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
-        TeleportUtils.Rotation r = TeleportUtils.getDirection(player.getEyePosition(), target.getBoundingBox().getCenter());
-        float dYaw = Mth.wrapDegrees(r.yaw() - player.getYRot());
-        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
-        float yaw = player.getYRot() + dYaw;
-        if (legit) {
-            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
-                RouteRotation.beginApproach(yaw, pitch, false, 0f, 0f);
-            }
-        }
-        float error = (float) Math.hypot(dYaw, pitch - player.getXRot());
-        if (stepTicks - batLastUse >= BAT_USE_GAP && (!legit || error <= BAT_AIM_TOLERANCE)) {
-            batLastUse = stepTicks;
-            useHeldItem(client, player, yaw, pitch, false);
+        if (sceptreUseAt(client, player, target.getBoundingBox().getCenter())) {
             LOGGER.info("[AutoRoutes] Node #{} BAT: Spirit Sceptre use at the bat (yaw {}, pitch {}, {} blocks)",
-                    route.indexOf(node) + 1, Float.toString(yaw), Float.toString(pitch),
+                    route.indexOf(node) + 1, Float.toString(lastSceptreYaw), Float.toString(lastSceptrePitch),
                     String.format(Locale.US, "%.1f", (double) target.distanceTo(player)));
         }
         return true;

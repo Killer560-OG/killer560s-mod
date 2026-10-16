@@ -375,3 +375,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   lands before the use is the client/server tick phase, which drifts through a session; when it does, the action starts over
   under it ("window arrived after the await was met", logged since) and acts a tick or two later. 96-ar-1015-reaim's control
   read 2 for 1 in session runs on the rightclick-reaim tip as much as on merged main; it reruns a side the window landed in.
+- **A sim crypt undead dies to the first Spirit Sceptre bat** (one health, 30-damage blast), usually before the next use is
+  due 4 ticks later, so a sceptre crypt node's "2 uses each" (crypt-aim-1015) shows only on tough mobs; testkit
+  96-ar-1015-cryptaim sets 1000 health for that variant. Crypt mobs are told by NAME (`autoroutes/CryptMobs`), never by
+  "appeared near me", since entering a room brings every mob into tracking range at once.
