@@ -793,6 +793,16 @@ public final class ClearExecutor {
             }
             return false;
         }
+        if (e.outgrown()) {
+            // Planned on the quick graph and the full one is warm now: its fresh search (a few ms) can be warps shorter,
+            // and the cache plans this trip again within the second (fps-fix-1016, testkit 147).
+            LOGGER.info("[Path] precomputed trip ({} warp(s)) is the quick graph's and the full graph is warm - searching",
+                    e.warps());
+            if (TripCache.counting()) {
+                TripCache.miss();
+            }
+            return false;
+        }
         String source = String.format(java.util.Locale.ROOT, "precomputed (phase %d, %.1f s old%s)", e.phase(),
                 e.ageMs() / 1000.0, e.stale() ? ", to be planned again" : "");
         if (!runPlanned(e.path(), e.from(), to, tileIdx, complete, player, source, e.lastLanding())) {

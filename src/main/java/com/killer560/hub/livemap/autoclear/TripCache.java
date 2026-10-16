@@ -157,7 +157,16 @@ public final class TripCache {
 
         /** Planned before the latest block change, or on the quick graph while the full one is warm now. */
         public boolean stale() {
-            return epoch < TripCache.epoch.get() || !onFull && EtherwarpPathfinder.fullWarm();
+            return epoch < TripCache.epoch.get() || outgrown();
+        }
+
+        /**
+         * Planned on the quick graph, and the full floor graph is warm now. Never flown (fps-fix-1016): for the second or
+         * so after the full graph warms, while these are planned again, a press used to fly the quick graph's trip - 15
+         * warps where the full graph's fresh plan took 11 (testkit 147). The full graph's own search is a few ms.
+         */
+        public boolean outgrown() {
+            return !onFull && EtherwarpPathfinder.fullWarm();
         }
     }
 
@@ -219,7 +228,7 @@ public final class TripCache {
     /** {@link #find}'s path for a trip planned ahead (RoomTour), or null. */
     public static List<EtherwarpPathfinder.Node> pathFor(Vec3 at, BlockPos to, int tileIdx, boolean exact) {
         Entry e = find(at, to, tileIdx, exact);
-        return e == null ? null : e.path;
+        return e == null || e.outgrown() ? null : e.path;
     }
 
     // ------------------------------------------------------------------------------------------- what the map did with them
@@ -782,12 +791,18 @@ public final class TripCache {
         wantsVersion++;
     }
 
-    private enum Need { NONE, MISSING, STALE }
+    /** OUTGROWN: {@link Entry#outgrown} - planned again first, without waiting for block changes to go quiet. */
+    private enum Need { NONE, MISSING, OUTGROWN, STALE }
 
     private static Need needs(Want w) {
         Map<String, Entry> byFrom = TRIPS.get(w.goalKey());
         Entry e = byFrom == null ? null : byFrom.get(w.fromKey());
         if (e != null && e.from.distanceToSqr(w.from()) < 0.09) {
+            if (e.outgrown()) {
+                // The full graph found nothing for it at this epoch: not planned again until something changes.
+                Long failedAt = FAILED.get(w.key());
+                return failedAt != null && failedAt == epoch.get() ? Need.NONE : Need.OUTGROWN;
+            }
             return e.stale() ? Need.STALE : Need.NONE;
         }
         Long failedAt = FAILED.get(w.key());
@@ -820,7 +835,7 @@ public final class TripCache {
             if (first < 0) {
                 first = i;
             }
-            if (need == Need.MISSING) {
+            if (need == Need.MISSING || need == Need.OUTGROWN) {   // a quick-graph trip is not flown: as good as missing
                 missing.add(w);
                 if (missing.size() >= BATCH) {
                     break;
