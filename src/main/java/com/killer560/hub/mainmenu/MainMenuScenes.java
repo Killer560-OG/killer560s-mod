@@ -186,8 +186,13 @@ public final class MainMenuScenes {
 
     /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. */
     static double clock(float speed) {
-        long ms = testClockMs >= 0 ? testClockMs : Util.getMillis();
-        return (ms % 3_600_000L) / 1000.0 * speed;
+        if (testClockMs >= 0) {
+            return (testClockMs % 3_600_000L) / 1000.0 * speed;
+        }
+        // nanoseconds, not milliseconds: at 120 fps and more a frame is ~8 ms, and a millisecond clock moves things in
+        // uneven steps (killer560, 2026-10-16: "high fps")
+        long ns = Util.getNanos();
+        return (ns % 3_600_000_000_000L) / 1.0e9 * speed;
     }
 
     public static void draw(GuiGraphicsExtractor g, int w, int h, MainMenuLook look) {

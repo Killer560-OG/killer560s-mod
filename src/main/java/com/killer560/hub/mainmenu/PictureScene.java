@@ -395,7 +395,8 @@ final class PictureScene {
      * none inside {@code calm} (x0, y0, x1, y1: the title). Every brightness follows an eased curve, so nothing pops. The
      * lists never hold a point on the character or the land (make_textures.py leaves them out).
      */
-    record Twinkles(int[] stars, int[] points, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
+    record Twinkles(int[] stars, int[] points, int faint, int skyBottom, int[] calm, int rgb, int salt, int tw, double scale)
+            implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
             if (density <= 0) {
@@ -406,12 +407,19 @@ final class PictureScene {
                 double y = stars[i + 1] + 0.5;
                 double tw = ease(0.5 + 0.5 * Math.sin(t * (0.5 + 1.0 * hash(i, salt + 1)) + hash(i, salt) * 6.28));
                 int a = (int) Math.round(255 * (0.10 + 0.80 * tw));
-                softDot(r, x, y, 1.0 + 1.3 * tw, 1, rgb, a, 0.3 + 0.7 * tw);
-                cross(r, x, y, 5 + 12 * tw, rgb, (int) Math.round(a * 0.5));
+                softDot(r, x, y, (1.0 + 1.3 * tw) * scale, 1, rgb, a, 0.3 + 0.7 * tw);
+                cross(r, x, y, (5 + 12 * tw) * scale, rgb, (int) Math.round(a * 0.5));
             }
+            // The points in whole screen pixels: a picture pixel is rarely one screen pixel (2560 wide on a 1920 screen),
+            // and a quad smaller than a pixel can miss every pixel centre and wink out. So the pose is put into screen
+            // pixels for them and each star is snapped to the nearest one (they do not move).
+            Matrix3x2fStack pose = r.graphics().pose();
+            float f = pose.m00() * Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
+            pose.pushMatrix();
+            pose.scale(1f / f, 1f / f);
             for (int i = 0; i < points.length; i += 3) {
-                int x = points[i];
-                int y = points[i + 1];
+                int x = (int) Math.floor(points[i] * f);
+                int y = (int) Math.floor(points[i + 1] * f);
                 double v = points[i + 2] / 255.0;
                 double tw = ease(0.5 + 0.5 * Math.sin(t * (0.35 + 1.3 * hash(i, salt + 5)) + hash(i, salt + 4) * 6.28));
                 double k = v * (0.20 + 0.80 * tw);
@@ -428,8 +436,9 @@ final class PictureScene {
                     r.fill(x, y + 1, x + 1, y + 2, c);
                 }
             }
+            pose.popMatrix();
             for (int i = 0; i < faint; i++) {
-                double x = hash(i, salt + 10) * 1920;
+                double x = hash(i, salt + 10) * tw;
                 double y = hash(i, salt + 11) * skyBottom;
                 if (x > calm[0] && x < calm[2] && y > calm[1] && y < calm[3]) {
                     continue;
@@ -440,7 +449,7 @@ final class PictureScene {
                 }
                 int a = (int) Math.round(255 * 0.55 * s * s);
                 if (a > 2) {
-                    softDot(r, x, y, 0.8 + 0.7 * hash(i, salt + 13), 1, rgb, a, 0);
+                    softDot(r, x, y, (0.8 + 0.7 * hash(i, salt + 13)) * scale, 1, rgb, a, 0);
                 }
             }
         }
@@ -502,7 +511,7 @@ final class PictureScene {
      * across the middle, where the title and buttons are): a soft head and a tail that fades smoothly to nothing, both at
      * sub-pixel positions, the whole of it easing in and out.
      */
-    record Meteor(double period, int tw, int th, double width, int rgb, int salt) implements Overlay {
+    record Meteor(double period, int tw, int th, double width, int rgb, int salt, double scale) implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
             if (density <= 0) {
@@ -518,12 +527,12 @@ final class PictureScene {
             double sx = tw * (left ? 0.03 + 0.20 * hash(shot, salt + 2) : 0.70 + 0.22 * hash(shot, salt + 2));
             double sy = th * (0.05 + 0.25 * hash(shot, salt + 3));
             double ang = Math.toRadians(left ? 22 + 25 * hash(shot, salt + 4) : 158 - 25 * hash(shot, salt + 4));
-            double dist = 260 + 120 * hash(shot, salt + 5);
+            double dist = (260 + 120 * hash(shot, salt + 5)) * scale;
             double ease = 1 - Math.pow(1 - q, 1.6);
             double hx = sx + Math.cos(ang) * dist * ease;
             double hy = sy + Math.sin(ang) * dist * ease;
             double fade = ease(q / 0.25) * ease((1 - q) / 0.45);
-            double tail = 150 * ease(q / 0.35);
+            double tail = 150 * scale * ease(q / 0.35);
             int a = (int) Math.round(255 * fade);
             if (a <= 2) {
                 return;
