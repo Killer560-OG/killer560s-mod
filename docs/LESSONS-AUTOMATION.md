@@ -358,3 +358,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **Background floor-graph work must use FloorGraphs' own "knows the floor" rule, not `warmedOnce`.** The sim's full graph
+  warms once on the ~250 landings of the sealed entrance before GO. TripCache first read "full graph warmed once and not
+  warm" as "a search would finish a re-warm first" and waited for the whole floor's full warm-up: phase 1 ready 7.9-12.2 s
+  after the gate opened (testkit 147, first run). A press in that state plans on the QUICK graph
+  (`FloorGraphs.KNOWN_RATIO`), so `EtherwarpPathfinder.searchReady` now asks the same: 2.4-3.7 s on a loaded machine,
+  most of it the quick graph's own warm-up wall time.

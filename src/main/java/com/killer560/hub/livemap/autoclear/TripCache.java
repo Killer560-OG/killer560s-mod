@@ -509,6 +509,36 @@ public final class TripCache {
         if (layout.roomCount() == 0) {
             return;
         }
+        long t0 = System.nanoTime();
+        try {
+            tickInDungeon(client, player, layout);
+        } finally {
+            long dt = System.nanoTime() - t0;
+            tickNanos += dt;
+            tickMaxNanos = Math.max(tickMaxNanos, dt);
+            ticksTimed++;
+        }
+    }
+
+    /** Client-thread cost of the schedule (in a dungeon, on), and planner-thread time of its searches - for the testkit. */
+    private static long tickNanos;
+    private static long tickMaxNanos;
+    private static long ticksTimed;
+    private static volatile long plannerNanos;
+
+    /** {ticks timed, client ns in all, client ns at most in one tick, planner ns in all}. */
+    public static long[] cost() {
+        return new long[]{ticksTimed, tickNanos, tickMaxNanos, plannerNanos};
+    }
+
+    public static void resetCost() {
+        ticksTimed = 0;
+        tickNanos = 0;
+        tickMaxNanos = 0;
+        plannerNanos = 0;
+    }
+
+    private static void tickInDungeon(Minecraft client, LocalPlayer player, DungeonLayout layout) {
         tick++;
         if (floorKnownMs == 0) {
             floorKnownMs = System.currentTimeMillis();
@@ -857,8 +887,9 @@ public final class TripCache {
 
         @Override
         public void run() {
+            long j0 = System.nanoTime();
             try {
-                long end = System.nanoTime() + SLICE_NANOS;
+                long end = j0 + SLICE_NANOS;
                 for (Want w : batch) {
                     if (gen != generation || System.nanoTime() > end || ClearExecutor.tripSearchWaiting()) {
                         break;
@@ -881,6 +912,7 @@ public final class TripCache {
             } catch (Throwable t) {
                 LOGGER.warn("[Path] precompute: a search failed: {}", t.toString());
             } finally {
+                plannerNanos += System.nanoTime() - j0;
                 jobInFlight = false;
             }
         }
