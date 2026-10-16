@@ -531,6 +531,24 @@ public final class MenuStyle {
         g.text(font(), s, x, y, color, TEXT_SHADOW);
     }
 
+    private static final java.util.Map<String, Component> BOLD = new java.util.LinkedHashMap<>(64, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Component> eldest) {
+            return size() > 256;
+        }
+    };
+
+    /** {@code Component.literal(s).withStyle(BOLD)}, the same object for the same text (render thread): a Component keeps
+     *  its visual order, so a heading drawn every frame runs ICU's Bidi once instead of every frame (fps-gui-1015). */
+    public static Component bold(String s) {
+        Component c = BOLD.get(s);
+        if (c == null) {
+            c = Component.literal(s).withStyle(net.minecraft.ChatFormatting.BOLD);
+            BOLD.put(s, c);
+        }
+        return c;
+    }
+
     /** Text with no shadow. */
     public static void flat(GuiGraphicsExtractor g, String s, int x, int y, int color) {
         g.text(font(), s, x, y, color, false);
