@@ -45,6 +45,75 @@ public final class ModLog {
     }
 
     /**
+     * {@code logger}, with its TRACE/DEBUG/INFO lines dropped while {@code quiet} says so (WARN and ERROR always pass).
+     * For a class whose INFO lines describe one user action each, when it is also run many times over in the
+     * background - the Interactive Map's planner precomputing trips (livemap/autoclear/TripCache) would otherwise write
+     * hundreds of "[Path] N warp(s)" lines nobody asked for.
+     */
+    public static Logger mutedWhen(Logger logger, java.util.function.BooleanSupplier quiet) {
+        return new MutedLogger(logger, quiet);
+    }
+
+    private static final class MutedLogger extends LegacyAbstractLogger {
+
+        private final transient Logger delegate;
+        private final transient java.util.function.BooleanSupplier quiet;
+
+        MutedLogger(Logger delegate, java.util.function.BooleanSupplier quiet) {
+            this.delegate = delegate;
+            this.quiet = quiet;
+            this.name = delegate.getName();
+        }
+
+        @Override
+        protected String getFullyQualifiedCallerName() {
+            return MutedLogger.class.getName();
+        }
+
+        @Override
+        protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
+                                                   Object[] arguments, Throwable throwable) {
+            Object[] args = arguments == null ? new Object[0] : arguments;
+            if (throwable != null) {
+                args = Arrays.copyOf(args, args.length + 1);
+                args[args.length - 1] = throwable;
+            }
+            switch (level) {
+                case ERROR -> delegate.error(pattern, args);
+                case WARN -> delegate.warn(pattern, args);
+                case INFO -> delegate.info(pattern, args);
+                case DEBUG -> delegate.debug(pattern, args);
+                default -> delegate.trace(pattern, args);
+            }
+        }
+
+        @Override
+        public boolean isTraceEnabled() {
+            return delegate.isTraceEnabled() && !quiet.getAsBoolean();
+        }
+
+        @Override
+        public boolean isDebugEnabled() {
+            return delegate.isDebugEnabled() && !quiet.getAsBoolean();
+        }
+
+        @Override
+        public boolean isInfoEnabled() {
+            return delegate.isInfoEnabled() && !quiet.getAsBoolean();
+        }
+
+        @Override
+        public boolean isWarnEnabled() {
+            return delegate.isWarnEnabled();
+        }
+
+        @Override
+        public boolean isErrorEnabled() {
+            return delegate.isErrorEnabled();
+        }
+    }
+
+    /**
      * Drops everything below ERROR. {@link LegacyAbstractLogger} does the varargs/marker/throwable
      * normalisation, so only one method has to decide anything.
      */

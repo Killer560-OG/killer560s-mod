@@ -79,6 +79,15 @@ public final class ClearExecutor {
         }
     }
 
+    /**
+     * Runs {@code task} on the planner thread as background work: it does not count as a plan somebody is waiting for,
+     * so the warm-up keeps its turns (TripCache's precomputing, a few milliseconds a task, interleaves with it). The task
+     * itself must give way to {@link #tripSearchWaiting}.
+     */
+    static void onPlannerBackground(Runnable task) {
+        PLANNER.submit(task);
+    }
+
     private static List<ClearNode> nodes = null;
     private static int syncDelay = 0;
     private static int compDelay = 0;
@@ -187,6 +196,7 @@ public final class ClearExecutor {
         // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
         // the end of the tick; the name is left alone so every reference to it keeps working.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickEnd", ClearExecutor::onTickEnd));
+        TripCache.register();
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
             List<ClearNode> current = nodes;
             if (current == null || current.isEmpty()) {
@@ -354,6 +364,9 @@ public final class ClearExecutor {
             return;
         }
         if (adoptPreplan(to, tileIdx, complete, player)) {
+            return;
+        }
+        if (adoptCached(to, tileIdx, complete, player)) {
             return;
         }
         Inflight f = inflight;
@@ -674,26 +687,43 @@ public final class ClearExecutor {
             return false;
         }
         preplan = null;
+        return runPlanned(p.path(), p.from(), to, tileIdx, complete, player, "planned ahead", null);
+    }
+
+    /** Why the last {@link #runPlanned} would not run its path (for the cache's drop line). */
+    private static String plannedRefusal = "";
+
+    /**
+     * Runs a path searched before it was asked for (a preplan, a precomputed trip) if it still holds from where he stands:
+     * within a third of a block of its start as planned, or else with its first warp aimed again from where he really is
+     * at the same landing block (a route's last node leaves him anywhere in its ring). Checked like any plan
+     * ({@link #implausible}); with {@code lastLanding}, its last hop must still land on that block.
+     * @return true when the queue started
+     */
+    private static boolean runPlanned(List<EtherwarpPathfinder.Node> path, Vec3 from, BlockPos to, int tileIdx,
+                                      Runnable complete, LocalPlayer player, String source, BlockPos lastLanding) {
         Vec3 at = player.position();
         List<ClearNode> list = new ArrayList<>();
-        for (EtherwarpPathfinder.Node n : p.path()) {
+        for (EtherwarpPathfinder.Node n : path) {
             list.add(ClearNode.toEther(n));
         }
         boolean reaimed = false;
-        if (at.distanceTo(p.from()) > 0.3) {
+        if (at.distanceTo(from) > 0.3) {
             ClearNode first = list.get(0);
             Vec3 eye0 = new Vec3(first.pos.x, first.pos.y + TeleportUtils.eyeHeight(true), first.pos.z);
             TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye0, first.yaw, first.pitch, 61.0);
             if (!hit.succeeded() || hit.pos() == null) {
-                LOGGER.info("[Path] the path planned ahead lands nowhere from its own start - searching");
+                plannedRefusal = "its first warp lands nowhere from its own start";
+                LOGGER.info("[Path] the path {} lands nowhere from its own start - searching", source);
                 return false;
             }
             Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
             TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, hit.pos(), hopRange() + 1.0);
             if (rot == null) {
-                LOGGER.info("[Path] the path planned ahead started {} blocks from where you are and its first landing {}"
-                        + " cannot be seen from here - searching", String.format(java.util.Locale.ROOT, "%.1f",
-                        at.distanceTo(p.from())), hit.pos().toShortString());
+                plannedRefusal = "its first landing cannot be seen from where he stands";
+                LOGGER.info("[Path] the path {} started {} blocks from where you are and its first landing {}"
+                        + " cannot be seen from here - searching", source, String.format(java.util.Locale.ROOT, "%.1f",
+                        at.distanceTo(from)), hit.pos().toShortString());
                 return false;
             }
             Vec3 look = TeleportUtils.getLook(rot.yaw(), rot.pitch()).scale(60.0);
@@ -701,8 +731,18 @@ public final class ClearExecutor {
             reaimed = true;
         }
         String impossible = implausible(at, list, hopRange());
+        if (impossible == null && lastLanding != null) {
+            ClearNode last = list.get(list.size() - 1);
+            Vec3 eye = new Vec3(last.pos.x, last.pos.y + TeleportUtils.eyeHeight(true), last.pos.z);
+            TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye, last.yaw, last.pitch, 61.0);
+            if (!hit.succeeded() || !lastLanding.equals(hit.pos())) {
+                impossible = "its last warp lands on " + (hit.pos() == null ? "nothing" : hit.pos().toShortString())
+                        + ", not " + lastLanding.toShortString();
+            }
+        }
         if (impossible != null) {
-            LOGGER.info("[Path] the path planned ahead does not hold from here ({}) - searching", impossible);
+            plannedRefusal = impossible;
+            LOGGER.info("[Path] the path {} does not hold from here ({}) - searching", source, impossible);
             return false;
         }
         goalTo = to;
@@ -710,10 +750,11 @@ public final class ClearExecutor {
         goalComplete = complete;
         pressNanos = System.nanoTime();
         lastPathFailed = false;
-        LOGGER.info("[Path] running {} warp(s) planned ahead from {} to {}{} - no search", list.size(), fmt(at), to,
+        LOGGER.info("[Path] running {} warp(s) {} from {} to {}{} - no search", list.size(), source, fmt(at), to,
                 reaimed ? String.format(java.util.Locale.ROOT, " (first warp aimed again: he stands %.2f from its planned"
-                        + " start)", at.distanceTo(p.from())) : "");
-        ModChat.send(CHAT, ModChat.text("Path planned ahead"), ModChat.dim(" (" + list.size() + " warps)"));
+                        + " start)", at.distanceTo(from)) : "");
+        ModChat.send(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
+                ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
         sendNow = true;
         compDelay = 0;
@@ -722,6 +763,39 @@ public final class ClearExecutor {
             swappedOnTick = clientTicks;   // asked for from a START handler: no use goes out this same tick
         }
         improveInBackground(list, to, tileIdx, DungeonLayout.capture());
+        return true;
+    }
+
+    /** The precomputed trip the running queue came from (TripCache), dropped if the queue goes wrong. */
+    private static TripCache.Entry cachedRun;
+    /** The client tick the last queue started on (a press answered at once starts it on the press's own tick). */
+    private static long lastPressTick = -1;
+
+    public static long lastPressTick() {
+        return lastPressTick;
+    }
+
+    /**
+     * Runs the precomputed trip for this goal from where he stands, if there is one and it holds now (TripCache): the
+     * same checks as a path planned ahead, and its last warp must still land where it was planned. One that does not hold
+     * is dropped and the trip is searched as usual, at once.
+     */
+    private static boolean adoptCached(BlockPos to, int tileIdx, Runnable complete, LocalPlayer player) {
+        TripCache.Entry e = TripCache.find(player.position(), to, tileIdx, goalExact);
+        if (e == null) {
+            if (DungeonLayout.current().roomCount() > 0) {
+                TripCache.miss();
+            }
+            return false;
+        }
+        String source = String.format(java.util.Locale.ROOT, "precomputed (phase %d, %.1f s old%s)", e.phase(),
+                e.ageMs() / 1000.0, e.stale() ? ", to be planned again" : "");
+        if (!runPlanned(e.path(), e.from(), to, tileIdx, complete, player, source, e.lastLanding())) {
+            TripCache.reject(e, plannedRefusal);
+            return false;
+        }
+        TripCache.hit(e);
+        cachedRun = e;
         return true;
     }
 
@@ -955,6 +1029,8 @@ public final class ClearExecutor {
     }
 
     private static void startQueue(List<ClearNode> path, Runnable complete) {
+        cachedRun = null;
+        lastPressTick = clientTicks;
         stopImproving();
         sendNow = false;
         if (syncDelay != 0) {
@@ -1488,6 +1564,10 @@ public final class ClearExecutor {
         int tile = goalTile;
         Runnable complete = goalComplete != null ? goalComplete : completion;
         boolean canReplan = to != null && (correction || replans < MAX_REPLANS);
+        if (cachedRun != null && !correction) {
+            TripCache.reject(cachedRun, "it went wrong in flight (" + why + ")");
+        }
+        cachedRun = null;
         LOGGER.warn("[Path] off the plan: {} ({} of {} warp(s) answered) - {}", why, confirmed, issued.size(),
                 canReplan ? "planning again from here" : correction ? "no goal to plan again" : "stopping");
         dropQueue();

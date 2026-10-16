@@ -145,6 +145,11 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.slider("Double-Press Window", cfg::getMapDoublePressMs,
                     v -> cfg.setMapDoublePressMs((int) (Math.round(v / 50.0) * 50)), 150, 1000, "ms",
                     cfg, colB, y, colW));
+            y += 20;
+            // killer560, 2026-10-15: trips to every room planned as soon as the floor is known, and from every route's end
+            // to every other room, so a press's first warp goes with no search (livemap/autoclear/TripCache).
+            widgets.add(LiveMapTab.toggle("Precompute Trips", cfg::isPrecomputeTrips, cfg::setPrecomputeTrips,
+                    cfg, contentX, y, contentWidth));
             y += 24;
 
             // ---------------------------------------------------------------- etherwarp path preview
