@@ -358,3 +358,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **A sim crypt undead dies to the first Spirit Sceptre bat** (one health, 30-damage blast), usually before the next use is
+  due 4 ticks later, so a sceptre crypt node's "2 uses each" (crypt-aim-1015) shows only on tough mobs; testkit
+  96-ar-1015-cryptaim sets 1000 health for that variant. Crypt mobs are told by NAME (`autoroutes/CryptMobs`), never by
+  "appeared near me", since entering a room brings every mob into tracking range at once.
