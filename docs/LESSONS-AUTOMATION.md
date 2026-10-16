@@ -358,3 +358,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **Auto Three Weirdos never moved, and QUOI's reach is why it never had to** (killer560, 2026-10-15, sim: "it cannot reach
+  the right person"). QUOI clicked every CLICK stand within 5.48 feet to feet, which from the room's middle covers all three;
+  ours is the measured 3.0 eye to box (an entity interaction), and from the Interactive Map's spot (relative 15, 68, 22)
+  the far weirdo is 3.26 off in every rotation - the exact figure from his log, reproduced by testkit 93-solve-weirdos-reach.
+  The sim's weirdos sit where the solver looks (one database block of -x from each chest, chests two apart), so it was
+  the auto, not the sim. `AutoWeirdos` now moves onto the spot reaching the most weirdos left (then their chests) by its own
+  next-tick etherwarp or a walk, and talks one a tick with the body turned onto the next in the same tick (main: a 200 ms
+  gap). Its "waiting" log alternated two reasons every tick (781 lines in 20 s) because the talk and the solver each logged
+  their own; one owner per tick now. The talked-to set also has to follow the stands, not the RoomEntry: a rebuilt room or
+  the sim's new round reuses the entry, and the second round found "all three talked to" and never spoke.
