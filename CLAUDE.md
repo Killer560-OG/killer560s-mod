@@ -50,8 +50,8 @@ the PID you launched, and leave a client whose log shows a server join (he took 
 
 **Instances** (since 2026-10-07; enumerate the directory, never trust this list - it has been wrong before):
 `26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 Legit`, `26.2 Cheat`, and the
-private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (since 2026-10-16, cheat, our mod + Fabric API + Mod Menu only) is for looking at main menus and never
-joins a server: its marker file `killer560smod-title-screen-gui` turns on the Title Screen Switcher (docs/TESTING-HOOKS.md). Eight older ones are
+private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (the main-menu preview instance, marker `killer560smod-title-screen-gui`, docs/TESTING-HOOKS.md) was
+retired on 2026-10-16 to `C:\Users\Hunter\PrismInstances-removed-2026-10-16`. Eight older ones are
 in `C:\Users\Hunter\PrismInstances-removed-2026-10-07`; every `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
 leftover `.jar.pending` (on 2026-09-29 four were two builds behind). A new instance is invisible to a running Prism
