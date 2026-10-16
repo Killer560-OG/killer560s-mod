@@ -26,7 +26,9 @@ import org.slf4j.Logger;
  * <p>
  * The base is {@code textures/gui/amber_aurora.png}, built by {@code killer560s-mod-logs/aurora-picture/make_aurora.py}
  * from his picture with the baked-in title and buttons removed and every aurora band followed across the holes they left.
- * It is 1920x2160: the picture on top, its animation maps below. One full-screen quad draws it through the
+ * It is 2560x2880 (killer560, 2026-10-16: "make the high res version"; the softer, less streaky look he picked): the
+ * picture on top at 2560x1440, its animation maps below at the same size, sampled linearly ({@code .mcmeta} blur, and the
+ * pipeline's own LINEAR sampler). The shader and the overlays work in 1920x1080 picture units whatever the texture size. One full-screen quad draws it through the
  * {@code killer560smod:pipeline/amber_aurora} shader ({@code shaders/core/amber_aurora.fsh}), sampled LINEAR, so all of
  * the motion is smooth at full resolution: the curtains ripple (travelling waves move the sky a few pixels sideways and up
  * and down, nothing on the land), each ray flickers softly on its own phase, light travels slowly along the bands, the
@@ -43,8 +45,12 @@ final class AmberAuroraScene {
     private AmberAuroraScene() {
     }
 
+    /** The picture's units (positions in the shader and the overlays). */
     static final int TW = 1920;
     static final int TH = 1080;
+    /** The texture's own size: the picture at 2560x1440 with its maps below. */
+    static final int TEX_W = 2560;
+    static final int TEX_H = 2880;
     /** The shader's loop, seconds; every motion in amber_aurora.fsh is a whole number of turns of it. */
     static final double LOOP = 600.0;
 
@@ -124,7 +130,7 @@ final class AmberAuroraScene {
         Matrix3x2fStack pose = g.pose();
         pose.pushMatrix();
         pose.scale(w / (float) TW, h / (float) TH);
-        g.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 0f, 0f, TW, TH, TW, TH, TW, TH * 2);
+        g.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 0f, 0f, TW, TH, TEX_W, TEX_H / 2, TEX_W, TEX_H);
         pose.popMatrix();
         stillFrames++;
     }

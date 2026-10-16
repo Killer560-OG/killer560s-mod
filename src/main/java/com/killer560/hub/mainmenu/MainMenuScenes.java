@@ -129,6 +129,7 @@ public final class MainMenuScenes {
 
     /** The session's Amber pick (the Title Screen Switcher, a test), or null for the default. */
     private static AmberScene amberScene;
+    /** The held test clock in milliseconds, fractions kept (a 120 fps recording steps 8.333 ms); negative = released. */
     private static double testClockMs = -1;
 
     /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE_PREVIEW} with {@link #previewScenes()},
