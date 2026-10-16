@@ -3006,3 +3006,10 @@ file with the server's world: 602,745 blocks, 0 differ.
   (the inverse of `SimRoomIndex.add`), so the rebuilt `SimRoomIndex` rotation equals the recorded one; older runs pick the
   turn whose `RoomDoors` doorways meet the map's doors. Testkit 97-sim-savedrun: every room back at its rotation (22/22 and
   24/24 on two floors) and no new door-audit line; on the old jar 19 of 24 came back turned and 13 doors were unbacked.
+- **What the sim cost per tick, and why** (fps-sim-1015, testkit 95-perf-sim). Most of the sim's own client time was
+  rebuilding unchanged text: `SimTabList` composed all eighty lines (two `String.format`s) and `SimSidebar` its seven every
+  tick, and both asked `SimState.roomNameAt`, which base64-decoded the whole floor's map code per call. Each now rebuilds
+  only when an input it reads changed, and the decode is kept per distinct code (121 -> 21 and 38 -> 6 us a tick, 10.5 KB
+  and 5.9 KB -> ~100 B). The floor build parsed the palette's block-state STRING for every block placed (~280 MB of
+  garbage per F7 build); `PasteJob` now resolves each palette entry once. A room's blocks are one byte each while its
+  palette fits 255 entries (`Room.blockAt`/`setBlockAt`; `room.blocks` is gone), 25.7 -> ~17 MB for the session.
