@@ -106,13 +106,12 @@ final class SettingTooltipsData {
         d.put("menu theme/font size", "How big the chosen font's letters are, from 70% to 140%. Minecraft's own font is never resized.");
         d.put("menu theme/open fonts folder", "Opens the folder imported fonts are read from. Put .ttf or .otf files there, then pick them with Font (or press Reload Fonts).");
         d.put("menu theme/reload fonts", "Reads the fonts folder again and rebuilds the chosen font.");
-        d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed, splash text and button panel below.");
+        d.put("menu theme/main menu style", "Match Menu Theme: the main menu uses the mod menu's theme and its background. Separate Theme: a theme of its own. Custom: a theme of its own plus the background, particles, speed and button panel below.");
         d.put("menu theme/themed vanilla menus", "Draws Minecraft's own menus - Singleplayer, Multiplayer, Options and every page under it, the pause menu, loading and disconnected screens - in the main menu's theme: its background out of a world, and its buttons, sliders, text boxes, lists and tooltips everywhere. Nothing is moved or removed. Follows Main Menu Style.");
         d.put("menu theme/main menu theme", "The main menu's own theme (Separate Theme and Custom). Custom uses the mod menu's Custom colors. Each theme has its own background: Amber embers, Ocean a waterfall, Dark a starfield, Light soft light, Green fireflies in a forest, Custom an aurora.");
         d.put("menu theme/background", "Custom: the main menu's animated background. Theme Default is the theme's own.");
         d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
         d.put("menu theme/animation speed", "Custom: how fast the background moves.");
-        d.put("menu theme/splash text", "Custom: shows or hides the yellow splash text beside the logo.");
         d.put("menu theme/button panel", "Custom: the frosted panel behind the main menu's buttons.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colors"

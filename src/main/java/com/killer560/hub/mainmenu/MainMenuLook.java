@@ -15,7 +15,7 @@ import com.killer560.hub.gui.MenuTheme;
  * @param speed    animation speed, 1 = normal
  */
 public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.Scene scene, float density, float speed,
-                           boolean splash, boolean panel) {
+                           boolean panel) {
 
     private static MainMenuLook cached;
     private static int cachedMain = Integer.MIN_VALUE;
@@ -27,7 +27,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     /** The same look with half the particles: the background behind every other out-of-world menu. Cached. */
     public synchronized MainMenuLook calm() {
         if (calmFor != this) {
-            calm = new MainMenuLook(colours, theme, scene, density * 0.5f, speed, splash, panel);
+            calm = new MainMenuLook(colours, theme, scene, density * 0.5f, speed, panel);
             calmFor = this;
         }
         return calm;
@@ -83,9 +83,8 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
         boolean custom = style == MainMenuThemeConfig.Style.CUSTOM;
         float density = !cfg.isParticles() ? 0f : custom ? cfg.getDensity().factor : 1f;
         float speed = custom ? cfg.getSpeed() / 100f : 1f;
-        boolean splash = !custom || cfg.isSplash();
         boolean panel = !custom || cfg.isPanel();
-        return new MainMenuLook(colours, theme, scene, density, speed, splash, panel);
+        return new MainMenuLook(colours, theme, scene, density, speed, panel);
     }
 
     /** A theme's five colours; CUSTOM is the mod menu's Custom set. */

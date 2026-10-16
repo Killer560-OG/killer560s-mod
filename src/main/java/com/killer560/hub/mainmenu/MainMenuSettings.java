@@ -87,13 +87,6 @@ public final class MainMenuSettings {
                     btn.setMessage(speedText());
                 }).bounds(x, y, w, 20).build());
         y += 24;
-        widgets.add(SettingsButtonWidget.builder(splashText(), btn -> {
-                    MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
-                    c.setSplash(!c.isSplash());
-                    c.save();
-                    btn.setMessage(splashText());
-                }).bounds(x, y, w, 20).build());
-        y += 24;
         widgets.add(SettingsButtonWidget.builder(panelText(), btn -> {
                     MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
                     c.setPanel(!c.isPanel());
@@ -147,10 +140,6 @@ public final class MainMenuSettings {
 
     static Component vanillaText() {
         return Component.literal("Themed Vanilla Menus: " + (MainMenuThemeConfig.getInstance().isOtherMenus() ? "§aON" : "§cOFF"));
-    }
-
-    static Component splashText() {
-        return Component.literal("Splash Text: " + (MainMenuThemeConfig.getInstance().isSplash() ? "§aON" : "§cOFF"));
     }
 
     static Component panelText() {

@@ -36,7 +36,7 @@ public final class MainMenuThemeConfig {
         MATCH("Match Menu Theme"),
         /** A theme of its own (any preset or the menu's Custom colors), with that theme's background. */
         SEPARATE("Separate Theme"),
-        /** A theme of its own plus every look setting: background, particles, speed, splash text, button panel. */
+        /** A theme of its own plus every look setting: background, particles, speed, button panel. */
         CUSTOM("Custom");
 
         public final String label;
@@ -87,7 +87,6 @@ public final class MainMenuThemeConfig {
     private Density density = Density.NORMAL;
     /** Animation speed in percent. */
     private int speed = 100;
-    private boolean splash = true;
     /** The frosted panel behind the button column. */
     private boolean panel = true;
     /** Bumped on every change, so the drawing side can cache what it resolves. */
@@ -120,7 +119,6 @@ public final class MainMenuThemeConfig {
                 cfg.scene = ConfigJson.getEnum(obj, "scene", Scene.class, cfg.scene);
                 cfg.density = ConfigJson.getEnum(obj, "density", Density.class, cfg.density);
                 cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
-                cfg.splash = ConfigJson.getBool(obj, "splash", cfg.splash);
                 cfg.panel = ConfigJson.getBool(obj, "panel", cfg.panel);
             }
         } catch (Exception ignored) {
@@ -156,7 +154,6 @@ public final class MainMenuThemeConfig {
             obj.addProperty("scene", scene.name());
             obj.addProperty("density", density.name());
             obj.addProperty("speed", speed);
-            obj.addProperty("splash", splash);
             obj.addProperty("panel", panel);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -233,15 +230,6 @@ public final class MainMenuThemeConfig {
 
     public void setSpeed(int speed) {
         this.speed = clampSpeed(speed);
-        version++;
-    }
-
-    public boolean isSplash() {
-        return splash;
-    }
-
-    public void setSplash(boolean splash) {
-        this.splash = splash;
         version++;
     }
 
