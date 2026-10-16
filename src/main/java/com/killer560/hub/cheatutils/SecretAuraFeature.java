@@ -438,13 +438,21 @@ public final class SecretAuraFeature {
      * him are asked for theirs rather than every block in a 21-block cube. One that leaves the range while still there
      * is forgotten: its later pickup is not counted (848: 9 blocks counts, 11 does not).
      */
+    /** {@code Vec3.atCenterOf(p).distanceToSqr(eye)} without the Vec3: the same subtractions and sum. */
+    private static double centreDistSq(BlockPos p, Vec3 eye) {
+        double dx = eye.x - (p.getX() + 0.5);
+        double dy = eye.y - (p.getY() + 0.5);
+        double dz = eye.z - (p.getZ() + 0.5);
+        return dx * dx + dy * dy + dz * dz;
+    }
+
     private static void watchKeys(Minecraft client) {
         Vec3 eye = client.player.getEyePosition();
         double r2 = KEY_WATCH_RANGE * KEY_WATCH_RANGE;
         var it = keySkullsSeen.iterator();
         while (it.hasNext()) {
             BlockPos p = BlockPos.of(it.next());
-            if (Vec3.atCenterOf(p).distanceToSqr(eye) > r2) {
+            if (centreDistSq(p, eye) > r2) {
                 it.remove();
             } else if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
                 it.remove();
@@ -464,7 +472,7 @@ public final class SecretAuraFeature {
                     continue;
                 }
                 for (BlockPos p : lc.getBlockEntities().keySet()) {
-                    if (Vec3.atCenterOf(p).distanceToSqr(eye) <= r2 && isLooseKey(client, p)) {
+                    if (centreDistSq(p, eye) <= r2 && isLooseKey(client, p)) {
                         keySkullsSeen.add(p.asLong());
                     }
                 }
