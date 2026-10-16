@@ -476,3 +476,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   3; 300 ms before the first pong) with no landing, and ClearExecutor queues nothing behind it meanwhile. If the
   judgement was wrong the landing arrives inside that and nothing is resent. Testkit 96-ar-1016-eaten (main: timed out;
   fixed: resent 4 ticks after, landed).
+- **A secret got under a node with no await belongs to the next await, however many await-less nodes come between**
+  (fullclear-1016 run 004, his Double Diamond #4 PATH / #5 breaker / #6 etherwarp stack, #7 awaiting the item the breaker
+  opened): the Magnetic Talisman range picked it up while #4/#5 acted, #6 opened its own window and closed it unused,
+  and #7 waited 20 s for a secret already taken until Route Stall stopped the route. `finishAction` now keeps the carry a
+  node began with when it has no await (`nodeCarry`). Testkit 96-ar-1016-carry (main: #3 never warps).

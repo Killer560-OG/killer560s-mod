@@ -322,6 +322,9 @@ public final class RouteExecutor {
     /** Set by {@link #finishAction}: the next node's await also counts remembered secrets got at or after this tick.
      *  {@code Integer.MAX_VALUE} when there is no node before it (the route's start has its own lookback). */
     private static int carryFrom = Integer.MAX_VALUE;
+    /** The carry the active node began with, kept when it has no await of its own: a secret got under a node with no
+     *  await is the next await's, however many await-less nodes come between (fullclear-1016, his Double Diamond). */
+    private static int nodeCarry = Integer.MAX_VALUE;
     /** {@link #execTicks} of a left click of his taken while the route was teleporting him between awaits (a warp
      *  or path node in flight, or the settle before the next node of a stack) - see {@link #takeEarlySkip}. */
     private static long earlySkipClickAt = Long.MIN_VALUE / 2;
@@ -546,6 +549,7 @@ public final class RouteExecutor {
         unsneakOverride = false;
         awaitPhaseDone = true;
         carryFrom = Integer.MAX_VALUE;
+        nodeCarry = Integer.MAX_VALUE;
         earlySkipClickAt = Long.MIN_VALUE / 2;
         AwaitEvents.begin(client);
         landedFrom = null;
@@ -1421,6 +1425,7 @@ public final class RouteExecutor {
         actionFromTick = AwaitEvents.now();
         int carry = carryFrom;
         carryFrom = Integer.MAX_VALUE;
+        nodeCarry = node.awaitEnabled ? Integer.MAX_VALUE : carry;
         if (!awaitPhaseDone && node.awaitCondition != RouteNode.AwaitCondition.DELAY) {
             // killer560, 2026-10-14: "if it remembers I already got that secret or that bat then it will not wait for
             // the await before doing that action". Met earlier this run: met now. First visit: a secret he already got
@@ -1510,6 +1515,14 @@ public final class RouteExecutor {
         // picked up on its way in during its last few ticks (AwaitEvents.CARRY_TICKS: Hypixel's pickup packet comes
         // in the same batch as the warp's landing, ahead of the tick that sees it).
         carryFrom = Math.max(actionFromTick, AwaitEvents.now() - AwaitEvents.CARRY_TICKS);
+        // A node with no await of its own claims nothing, so whatever the node before it carried still belongs to the
+        // next await: his Double Diamond #4 PATH / #5 breaker / #6 etherwarp stack picked up #7's item (the breaker
+        // opened it, Magnetic Talisman range) while #5 acted, #6 opened its own window, and #7's await waited 20 s for
+        // a secret already taken until Route Stall stopped the route (fullclear-1016 run 004).
+        if (finished != null && !finished.awaitEnabled) {
+            carryFrom = Math.min(carryFrom, nodeCarry);
+        }
+        nodeCarry = Integer.MAX_VALUE;
         AwaitEvents.window(Minecraft.getInstance());
         boolean landed = landingConfirmed;
         landingConfirmed = false;
