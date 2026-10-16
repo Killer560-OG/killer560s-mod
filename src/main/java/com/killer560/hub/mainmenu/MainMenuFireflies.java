@@ -4,7 +4,7 @@ import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.hud.GuiRects;
 
 /**
- * The Green theme's main menu background (killer560, 2026-10-15): a calm viridian forest at dusk. Mist bands drift low
+ * The Green theme's main menu background (killer560, 2026-10-15): a calm green forest at dusk over a mossy floor. Mist bands drift low
  * between the trunks, leaves fall slowly, and fireflies wander and pulse. Like every scene, each position is a function
  * of the clock and a per-particle hash, so nothing is allocated or remembered between frames; it draws into the
  * {@link GuiRects} batch {@link MainMenuScenes#draw} already opened.
@@ -22,6 +22,10 @@ final class MainMenuFireflies {
 
         // Moonlight from above and a canopy glow.
         MainMenuScenes.glow(r, w / 2, -10, w * 0.6, h * 0.35, mint, 0x22, 6);
+        // A mossy forest floor: the lower third warms toward the switch-on green (designer, 2026-10-15: greener, with a
+        // gradient), under the trunks so they stand on it.
+        int moss = MenuStyle.mix(panel, accent, 0.35f);
+        r.gradient(0, h * 2 / 3, w, h, MenuStyle.alpha(moss, 0), MenuStyle.alpha(moss, 0x38));
 
         // Tree trunks: tall soft columns at fixed hash positions, wider and dimmer toward the back.
         int trunks = Math.max(5, w / 90);

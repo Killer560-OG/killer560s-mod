@@ -103,7 +103,16 @@ public final class MenuStyle {
     public static int KNOB_HOVER = 0xFFFFE0C0;
     public static int KNOB_EDGE = 0xFFB8B0A8;
 
+    /** A theme's own panel background, or null for the plain {@link #PANEL_TOP}..{@link #PANEL_BOTTOM} bevel (every
+     *  theme but Green; {@link GreenTheme#background}). Set by {@link #derive}. */
+    static GreenTheme.Background PANEL_BG;
+
     private static int[] usedColours;
+
+    /** Forgets the derived colours so the next {@link #use} derives again (a theme changed its background). */
+    static void invalidate() {
+        usedColours = null;
+    }
 
     /**
      * Derives the palette from the active theme (cheap when nothing changed). Call before drawing. While a
@@ -247,6 +256,7 @@ public final class MenuStyle {
         KNOB = 0xFFFFFFFF;
         KNOB_HOVER = lift(accent, 0.75f);
         KNOB_EDGE = light ? 0xFFC8C4BE : 0xFFB8B0A8;
+        PANEL_BG = GreenTheme.background(accent, panel, card, text, switchOn);
     }
 
     /** A shadow colour at {@code a} (0..255), scaled by the theme's shadow strength. */
@@ -297,6 +307,22 @@ public final class MenuStyle {
             return;
         }
         r.gradient(x + 1, y + 1, x + w - 1, y + h - 1, top, bottom);
+        r.outline(x, y, w, h, BLACK);
+        r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
+        r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);
+        r.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, SHADE);
+        r.fill(x + w - 2, y + 2, x + w - 1, y + h - 2, SHADE);
+    }
+
+    /** The menu's outer panel: {@link #bevel} in {@link #PANEL_TOP}..{@link #PANEL_BOTTOM}, or, for a theme with a
+     *  background of its own, the same bevel edges around that background. */
+    public static void panel(GuiRects r, int x, int y, int w, int h) {
+        GreenTheme.Background bg = PANEL_BG;
+        if (bg == null || w <= 2 || h <= 2) {
+            bevel(r, x, y, w, h, PANEL_TOP, PANEL_BOTTOM);
+            return;
+        }
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1);
         r.outline(x, y, w, h, BLACK);
         r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
         r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);

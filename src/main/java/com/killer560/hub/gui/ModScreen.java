@@ -1999,7 +1999,7 @@ public class ModScreen extends Screen {
             r.fill(panelX - i, panelY - i + 4, panelX + panelW + i, panelY + panelH + i + 4, MenuStyle.shadow(a / 2));
         }
         r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, MenuStyle.FRAME_RING);
-        MenuStyle.bevel(r, panelX, panelY, panelW, panelH, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        MenuStyle.panel(r, panelX, panelY, panelW, panelH);
         r.outline(panelX, panelY, panelW, panelH, MenuStyle.BLACK);
         r.fill(panelX + 1, panelY + 1, panelX + panelW - 1, panelY + 2, MenuStyle.HILITE_SOFT);
         r.submit();
