@@ -33,15 +33,16 @@ public final class MainMenuScenes {
      *  (2026-10-15: "an acid looking cave with an acid lake and waterfall ... a silhouette of my character fighting a big
      *  green slime"); BOSS is {@link SlimeBossScene}, the designer's second idea (2026-10-15: "the hollow knight is just the
      *  silhouette of a minecraft looking character, and the radiance is the slime boss ... the only animation being the
-     *  screen swaying a little side to side"), the default. FOREST, SIMPLE and ACID stay selectable here. */
-    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS }
+     *  screen swaying a little side to side"); TARGET is {@link TargetScene}, the designer's own picture of it, animated
+     *  (2026-10-16: "match THIS image almost exactly"), the default. FOREST, SIMPLE, ACID and BOSS stay selectable here. */
+    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS, TARGET }
 
-    public static final GreenScene GREEN_SCENE = GreenScene.BOSS;
+    public static final GreenScene GREEN_SCENE = GreenScene.TARGET;
 
     private static GreenScene greenScene = GREEN_SCENE;
 
     /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"},
-     *  {@code "BOSS"});
+     *  {@code "BOSS"}, {@code "TARGET"});
      *  null or empty goes back to the constant's choice. */
     public static void setGreenSceneForTest(String name) {
         greenScene = name == null || name.isEmpty() ? GREEN_SCENE : GreenScene.valueOf(name);
@@ -95,7 +96,21 @@ public final class MainMenuScenes {
         int panel = look.panelColour() | 0xFF000000;
         int text = look.text() | 0xFF000000;
         boolean light = MenuStyle.luminance(panel) > 0.5f;
+        boolean target = look.scene() == MainMenuThemeConfig.Scene.FIREFLIES && greenScene == GreenScene.TARGET;
+        if (target) {
+            // The designer's picture is the base, blitted before the batch so the batch's overlays land on top of it.
+            TargetScene.drawImage(g, w, h, t);
+        }
         GuiRects r = GuiRects.begin(g);
+        if (target) {
+            TargetScene.drawOverlays(r, w, h, t);
+            r.submit();
+            if (allocProbe) {
+                allocBytes += allocatedNow() - probeStart;
+                allocFrames++;
+            }
+            return;
+        }
         base(r, w, h, accent, panel, light);
         switch (look.scene()) {
             case EMBERS -> {
