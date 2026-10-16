@@ -3021,6 +3021,14 @@ measured / up to 7 real, Pipes 2/7, Pit 3/7, Pedestal 1/5, Balcony 1/4, Catwalk 
 ordinary room the measured mask is a lower bound and a carve through its wall is a door Hypixel can have; for the
 one-door types it is exact and a carve is always wrong. Rare rooms never appeared in his 50 runs; they are treated as
 one-door because every capture of them measures one.
+## Boulder is done when its chest is opened (2026-10-15, chest-stall-1015)
+killer560: "boulder should finish after grabbing that chest on sim, not actually if you do the puzzle or not." On Hypixel
+opening the chest behind the boxes is what completes Boulder. `SimBoulderPuzzle.isComplete` read only the board (a way
+through the boxes), so a Secret Aura run along the roof - no button pressed - left the tab line on ✦ and the map's tick
+off, and Autopilot waited out its puzzle timeout. `isComplete` is now "the chest was opened, or the board is solved"
+(both `SimTabList` and `SimRoomState` read it); `isPathOpen` is the board alone, which the presses still stop at and
+93-solve-boulder's button mode checks; a reset clears the chest too. 93-solve-boulder-chest-unsolved: complete the
+tick the chest opens, tab ✔ 1-4 ticks later; main never.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 

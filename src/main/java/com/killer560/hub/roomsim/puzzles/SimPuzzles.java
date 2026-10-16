@@ -105,8 +105,9 @@ public final class SimPuzzles {
      * scenario never has to know which class runs which room or what each one counts as solved.
      *
      * <ul>
-     *   <li>Boulder: the boxes leave a way from the near row to the far one ({@code SimBoulderPuzzle.isComplete}).
-     *       Its reward chest being opened is {@code SimBoulderPuzzle.isRewardChestOpened}, separately.</li>
+     *   <li>Boulder: its reward chest opened, or the boxes leave a way from the near row to the far one
+     *       ({@code SimBoulderPuzzle.isComplete}; Hypixel completes Boulder on the chest). The board alone is
+     *       {@code isPathOpen}, the chest alone {@code isRewardChestOpened}.</li>
      *   <li>Three Weirdos / Quiz: the right chest or answer, in THAT room - both run on {@code SimQuizPuzzle}, so
      *       its plain {@code isComplete} cannot say which.</li>
      *   <li>Water Board: every gate click and every timed click made; Tic Tac Toe: a game finished without the AI
