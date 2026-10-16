@@ -478,7 +478,7 @@ final class SettingTooltipsData {
         d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Escape clears it.");
         d.put("auto routes/bat weapon", "What a bat node (/ar add bat) uses straight down, again and again, until a secret bat dies near you after one of your uses.");
         d.put("auto routes/bat attack time", "How long a bat node keeps using the Bat Weapon without a bat kill before the route moves on.");
-        d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses at the crypt it was aimed at, again and again, until a crypt or prince of yours dies.");
+        d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses straight down, again and again, until a crypt or prince of yours dies. The Spirit Sceptre goes down twice, then is used at each crypt undead or prince in reach, two uses each, before the route moves on.");
         d.put("run while map open", "ON: routes keep working while the Interactive Map is open (its own warps still stop them).");
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room (/ar start record).");
