@@ -151,6 +151,9 @@ public final class AutoSecretFeature {
     /** {@link com.killer560.hub.autoroutes.RouteRunMemory#clock()} then, and the room's found count then. */
     private static int routeStartClock;
     private static int routeFoundAtStart;
+    /** {@link #routeStartClock} and {@link #routeFoundAtStart} of the room whose last-node wait is running. */
+    private static int leaveStartClock;
+    private static int leaveFoundAtStart;
     /** The room whose last secrets the next trip's first warp is held for, and the ticks held so far. */
     private static String leaveWaitRoom;
     private static int leaveWaitTicks;
@@ -447,6 +450,11 @@ public final class AutoSecretFeature {
         long tick = ClearExecutor.clientTick();
         LOGGER.info("[AutoSecret] route {} finished (tick {})", room, tick);
         say(ModChat.good("Route done"), ModChat.dim(" - " + room));
+        // This room's own trip start, kept for the wait: decide() below starts the NEXT trip and overwrites the
+        // fields, and the wait then counted the leaving room from the next room's found count (147 on main: "every
+        // secret counted after 1 tick" with the room still 4/5).
+        leaveStartClock = routeStartClock;
+        leaveFoundAtStart = routeFoundAtStart;
         int[] counted = roomCount(room);
         String taking = takingHere(client, room, counted);
         if (taking == null && (counted == null || counted[0] >= counted[1])) {
@@ -469,7 +477,7 @@ public final class AutoSecretFeature {
             leaveWaitLag = com.killer560.hub.util.ServerLag.mark();
             leaveTakingSaid = taking;
             ClearExecutor.setHold(true);
-            ClearExecutor.setHoldSneak(taking == null);
+            ClearExecutor.setHoldSneak(!clickComing(client));
             status = "Waiting at the end of " + room + " for its last secrets";
         }
         permitLeaveHere();
@@ -481,13 +489,13 @@ public final class AutoSecretFeature {
     private static void tickLeaveWait() {
         leaveWaitTicks++;
         Minecraft client = Minecraft.getInstance();
-        int[] counted = roomCount(leaveWaitRoom);
+        int[] counted = roomCount(leaveWaitRoom);   // with this room's own start, see leaveStartClock
         boolean done = counted == null || counted[0] >= counted[1];
         String taking = takingHere(client, leaveWaitRoom, counted);
         boolean timedOut = leaveWaitTicks >= TAKE_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(leaveWaitLag);
         if (taking != null && !timedOut) {
             // A secret in reach is still being taken: no cap but the timeout, and no sneak under its click.
-            ClearExecutor.setHoldSneak(false);
+            ClearExecutor.setHoldSneak(!clickComing(client));
             if (!taking.equals(leaveTakingSaid)) {
                 leaveTakingSaid = taking;
                 LOGGER.info("[AutoSecret] {}: waiting for {} to register ({} tick(s) in)", leaveWaitRoom, taking,
@@ -515,6 +523,15 @@ public final class AutoSecretFeature {
         leaveWaitRoom = null;
         leaveTakingSaid = null;
         ClearExecutor.setHold(false);
+    }
+
+    /**
+     * A click of Secret Aura's is coming: the held warp lets its sneak up, since a sneaking right click with the AOTV in
+     * hand is the AOTV's (the server warps him onto the block instead of opening it). Once the click has gone the sneak
+     * goes back down, so the warp can go the tick the secret registers.
+     */
+    private static boolean clickComing(Minecraft client) {
+        return com.killer560.hub.cheatutils.SecretAuraFeature.clickDue(client);
     }
 
     /**
@@ -566,8 +583,8 @@ public final class AutoSecretFeature {
 
     /**
      * {found, total} of a room's secrets, or null when it has none to count (or is not on the map): the larger of the map's
-     * count (the action bar's "x/y", or a green check) and the count when its trip began plus every secret of his taken
-     * in the room since ({@link com.killer560.hub.autoroutes.RouteRunMemory}, counted on the click or pickup itself - the
+     * count (the action bar's "x/y", or a green check) and the count when ITS trip began ({@link #leaveFoundAtStart},
+     * never the next room's) plus every secret of his taken in the room since ({@link com.killer560.hub.autoroutes.RouteRunMemory}, counted on the click or pickup itself - the
      * action bar only says so on its next update).
      */
     private static int[] roomCount(String name) {
@@ -581,9 +598,9 @@ public final class AutoSecretFeature {
         int found = r.secrets() - r.unfound();
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(routeStartClock,
+        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
-        return new int[]{Math.min(r.secrets(), Math.max(found, routeFoundAtStart + got)), r.secrets()};
+        return new int[]{Math.min(r.secrets(), Math.max(found, leaveFoundAtStart + got)), r.secrets()};
     }
 
     /** Where {@link #roomCount}'s number came from, for the last-node wait's log lines. */
@@ -594,10 +611,10 @@ public final class AutoSecretFeature {
         }
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.whatSince(routeStartClock,
+        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.whatSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return "map " + (r.secrets() - r.unfound()) + "/" + r.secrets() + ", run " + fmtPercent(
-                DungeonInfoFeature.secretsFoundPercent()) + "%, at the trip's start " + routeFoundAtStart + " + yours since "
+                DungeonInfoFeature.secretsFoundPercent()) + "%, at the trip's start " + leaveFoundAtStart + " + yours since "
                 + got;
     }
 

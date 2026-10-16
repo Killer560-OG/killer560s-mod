@@ -482,6 +482,24 @@ public final class SecretAuraFeature {
      * the momentary ones (a container, sneaking, the map's warp held at the start) do not: they pass.
      */
     public static String takingInReach(Minecraft client, boolean clickedOnly) {
+        return scanTaking(client, clickedOnly ? Taking.CLICKED : Taking.ANY);
+    }
+
+    /**
+     * Whether a click of this aura's is coming in reach: a secret it has not clicked yet, or one whose re-try is
+     * {@link #RETRY_SOON_MS} or less away. Auto Secret lets the held warp's sneak up only then - a click goes at the
+     * START of a tick, before that tick's input packet, so it is the sneak already sent that it would be made with.
+     */
+    public static boolean clickDue(Minecraft client) {
+        return scanTaking(client, Taking.DUE) != null;
+    }
+
+    private enum Taking { ANY, CLICKED, DUE }
+
+    /** How long before a re-try {@link #clickDue} counts it as coming: two ticks for the sneak to be let up first. */
+    private static final long RETRY_SOON_MS = 150;
+
+    private static String scanTaking(Minecraft client, Taking mode) {
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         if (!cfg.isSecretAuraEnabled() || client.level == null || client.player == null
                 || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
@@ -513,16 +531,23 @@ public final class SecretAuraFeature {
                 continue;
             }
             Attempt a = attempts.get(key);
-            if (clickedOnly && a == null || a != null && a.count() >= MAX_ATTEMPTS && now - a.lastMs() >= RETRY_AFTER_MS) {
+            if (mode == Taking.CLICKED && a == null
+                    || a != null && a.count() >= MAX_ATTEMPTS && now - a.lastMs() >= RETRY_AFTER_MS) {
                 continue;   // not clicked yet, or given up on (updateDone marks it so on its next tick)
+            }
+            if (mode == Taking.DUE && a != null
+                    && (a.count() >= MAX_ATTEMPTS || now - a.lastMs() < RETRY_AFTER_MS - RETRY_SOON_MS)) {
+                continue;   // clicked, and no re-try coming soon
             }
             BlockState state = client.level.getBlockState(pos);
             String kind = classify(client, cfg, pos, state, false, leversAllowed, chestsAllowed);
             if (kind == null || "redstoneNode".equals(kind)) {
                 continue;
             }
-            if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(0f) > 0f) {
-                continue;   // opened: taken, the done-set has it next tick
+            if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0f
+                    || a != null && lastClickKey != null && lastClickKey == key && now - lastClickMs < 2000
+                    && com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+                continue;   // opened (its lid, or its window after our click): taken, the done-set has it next tick
             }
             if (a != null && a.leverPoweredAtClick() != null && state.getBlock() == Blocks.LEVER
                     && !state.getValue(LeverBlock.POWERED).equals(a.leverPoweredAtClick())) {
