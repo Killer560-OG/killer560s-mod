@@ -248,7 +248,7 @@ public final class SimSecretItems {
      * times is not what was asked for and would make a room behave differently on a second pass.
      */
     private static void tickPending(ServerLevel level, double px, double py, double pz) {
-        List<BlockPos> ready = new ArrayList<>();
+        List<BlockPos> ready = null; // allocated only when one is due: this runs every server tick (fps-sim-1015)
         for (Map.Entry<BlockPos, Integer> entry : PENDING.entrySet()) {
             BlockPos at = entry.getKey();
             // From his BODY to the item's BLOCK, gap to gap. killer560 (2026-10-13): "I had a test where I was 3 blocks
@@ -260,6 +260,9 @@ public final class SimSecretItems {
             if (dx * dx + dy * dy + dz * dz <= TRIGGER_RANGE * TRIGGER_RANGE) {
                 int ticks = entry.getValue() + 1;
                 if (ticks > TRIGGER_TICKS) {
+                    if (ready == null) {
+                        ready = new ArrayList<>();
+                    }
                     ready.add(at);
                 } else {
                     entry.setValue(ticks);
@@ -267,6 +270,9 @@ public final class SimSecretItems {
             } else if (entry.getValue() != 0) {
                 entry.setValue(0);
             }
+        }
+        if (ready == null) {
+            return;
         }
         for (BlockPos at : ready) {
             PENDING.remove(at);
