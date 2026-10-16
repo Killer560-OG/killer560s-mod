@@ -145,7 +145,8 @@ public final class SecretAuraFeature {
         if (client.level != null && (!done.isEmpty() || !attempts.isEmpty() || !leverInitialState.isEmpty())) {
             // Runs even while a screen is open: a chest's GUI opening right after our click means it worked
             // (its lid open-ness can already be back to 0 by the time the GUI is closed again).
-            if (McCompat.screen(client) != null && lastClickKey != null && now - lastClickMs < 2000) {
+            if ((McCompat.screen(client) != null || windowOpenedAtMs >= lastClickMs) && lastClickKey != null
+                    && now - lastClickMs < 2000) {
                 markDone(lastClickKey, "screen opened after click");
                 lastClickKey = null;
             }
@@ -546,7 +547,7 @@ public final class SecretAuraFeature {
             }
             if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0f
                     || a != null && lastClickKey != null && lastClickKey == key && now - lastClickMs < 2000
-                    && com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+                    && (com.killer560.hub.util.ActionGate.containerScreenOpen(client) || windowOpenedAtMs >= lastClickMs)) {
                 continue;   // opened (its lid, or its window after our click): taken, the done-set has it next tick
             }
             if (a != null && a.leverPoweredAtClick() != null && state.getBlock() == Blocks.LEVER
@@ -568,6 +569,18 @@ public final class SecretAuraFeature {
             }
         }
         return best;
+    }
+
+    /** When the server last opened a container window for him, shown or not (ms). Written on the network thread. */
+    private static volatile long windowOpenedAtMs = Long.MIN_VALUE;
+
+    /**
+     * The server opened a container window that Auto Close Chest closed before it was shown: the chest our click was
+     * for opened. Without it a chest clicked with Auto Close Chest on was never seen taken (no screen, and the lid can
+     * be shut again before a tick reads it) and Auto Secret waited out its whole limit (147, 2026-10-15). Any thread.
+     */
+    public static void noteWindowOpened() {
+        windowOpenedAtMs = System.currentTimeMillis();
     }
 
     /** Shared with {@code secrettrigger.SecretTriggerbotFeature}: whether this secret is already looted/flipped. */

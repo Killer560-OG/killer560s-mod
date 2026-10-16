@@ -71,6 +71,9 @@ public final class AutoCloseChestFeature {
                 return;
             }
             client.player.connection.send(new ServerboundContainerClosePacket(packet.getContainerId()));
+            // The chest opened for him, though nobody will see its window: Secret Aura (and Auto Secret's wait on it)
+            // takes that as the click having worked.
+            com.killer560.hub.cheatutils.SecretAuraFeature.noteWindowOpened();
         }
     }
 
