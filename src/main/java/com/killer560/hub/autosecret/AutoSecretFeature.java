@@ -260,6 +260,11 @@ public final class AutoSecretFeature {
         return n == null ? 0 : n;
     }
 
+    /** The door the current step is for is the blood door (else a wither door). */
+    static boolean hudDoorBlood() {
+        return doorBlood;
+    }
+
     static boolean hudPilot() {
         return pilot;
     }

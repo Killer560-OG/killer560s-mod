@@ -255,10 +255,13 @@ public final class AutoStatusHud {
         return null;
     }
 
-    /** "the Wither Key #3" reads "Wither Key". */
+    /** "the Wither Key #3" reads "Wither Key", "the door at cell 63" "wither door" (or "blood door"). */
     static String shortTarget(String t) {
         if (t == null) {
             return null;
+        }
+        if (t.startsWith("the door at cell")) {
+            return AutoSecretFeature.hudDoorBlood() ? "blood door" : "wither door";
         }
         if (t.startsWith("the ")) {
             int hash = t.indexOf(" #");
@@ -538,14 +541,16 @@ public final class AutoStatusHud {
             return "Auto Clear Status";
         }
 
+        /** Top centre, away from the Dungeon Map (bottom left by default) and the left column of dungeon HUDs. */
         @Override
         public int defaultX() {
-            return 10;
+            return Math.max(0, Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2
+                    - (MAX_COL + GAP / 2 + PAD + 2));
         }
 
         @Override
         public int defaultY() {
-            return 136;
+            return 46;
         }
 
         @Override
