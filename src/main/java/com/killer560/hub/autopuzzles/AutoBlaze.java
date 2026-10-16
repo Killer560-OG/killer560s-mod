@@ -524,15 +524,15 @@ final class AutoBlaze {
                 return since > 3 && since >= flightTicks
                         && done("no arrow of the volley was seen - its simulated flight is over", since);
             }
-            Vec3 toTarget = targetCentre.subtract(eye);
-            double reach = toTarget.length();
             boolean struck = false;
             for (var a : arrows.keySet()) {
                 boolean removed = a.isRemoved();
                 struck |= removed;
                 boolean ended = removed
                         || ((com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor) a).killer560smod$isInGround();
-                boolean past = reach > 1.0e-3 && a.position().subtract(eye).dot(toTarget.scale(1.0 / reach)) > reach + 2.0;
+                // Flying away from the target (past it, a Terminator side arrow falling short or veering off): an arrow
+                // does not turn, so it can no longer be the one that hits it.
+                boolean past = a.getDeltaMovement().dot(targetCentre.subtract(a.position())) <= 0.0;
                 if (!ended && !past) {
                     return since > flightTicks + 40
                             && done("an arrow of the volley is still short of the target 40 ticks past its flight", since);
