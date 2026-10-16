@@ -207,7 +207,7 @@ public final class LiveMapFeature {
         InteractiveMapFeature.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
-                onActionBar(message.getString());
+                onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
             }
         });
     }

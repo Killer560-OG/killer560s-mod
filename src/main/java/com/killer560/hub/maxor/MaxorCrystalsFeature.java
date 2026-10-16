@@ -140,6 +140,10 @@ public final class MaxorCrystalsFeature {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
+        // PICKUP and ACTIVE need "Energy Crystal", SPAWN "Maxor" (fps-idle-1015).
+        if (!plain.contains("Energy Crystal") && !plain.contains("Maxor")) {
+            return;
+        }
         MaxorConfig cfg = MaxorConfig.getInstance();
 
         if (cfg.isPlaceTimerEnabled()) {

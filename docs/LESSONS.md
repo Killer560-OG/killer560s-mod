@@ -136,6 +136,19 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - A mixin's `CallbackInfo(Returnable)` is 24 B per call only when the JIT leaves the handler out of line. JFR of real
   frames (hub, menu, 2026-10-15) showed almost none, but the same jar measured 0 or 24 B for `DataComponentHolder.get` in
   two runs of a tight test loop. Keep hot handlers tiny and judge allocation tests with a budget above 24 B.
+- **That ~1.5 us per tick handler is real, not the probe.** With every switch off, the testkit's unwrapped
+  `harness/EventSpan` (no probe) read START+END ~570-620 us a tick, the same as the probe's total, and a no-probe JFR
+  put 14% of render-thread samples under the tick invokers, the trivial handlers' samples landing on static-field loads
+  like `XConfig.getInstance`'s `instance == null`: cold cache misses, one handler at a time (fps-idle-1015). A dispatcher
+  that skips switched-off features cannot be exact as the code stands: only 2 of 105 method-ref tick handlers begin with
+  a bare `if (!cfg.isEnabled()) return;` - the rest reset edge state, watch for a level change or tick a helper first.
+- **Every chat line was ~52 KB of garbage with every switch off** (95-perf-idle): each of ~55 ChatObserver subscribers
+  and ~20 raw listeners walked the component with `getString()` again and built its own `Matcher`s (Matcher + groups +
+  `IntHashSet[]`, ~200 B each, ~60 a line). `ChatObserver.raw`/`strip(Component)` now hand every reader of one delivered
+  line the same String (inside a ChatObserver dispatch or between the open/close phases it adds to Fabric's CHAT, GAME
+  and MODIFY_GAME), and the always-on handlers test a literal their patterns require before `matcher()`. 15.5 KB a line
+  is left, ~14 KB of it vanilla's (ICU Bidi, wrapping). A new chat handler: read the text through ChatObserver, and put
+  a `startsWith`/`contains` the pattern needs in front of it.
 - **Server-sent text can be memoised by object identity.** A tab entry's display name, a team's prefix/suffix and an
   entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
   same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):

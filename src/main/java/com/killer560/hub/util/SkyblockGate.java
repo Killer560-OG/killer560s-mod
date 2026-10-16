@@ -43,6 +43,10 @@ public final class SkyblockGate {
     private static volatile boolean onSkyblock = false;
     private static long noSidebarSinceMs = 0L;
     private static int tickCounter = 0;
+    /** The sidebar title last read, and whether it said SKYBLOCK (client thread only). */
+    private static net.minecraft.network.chat.Component lastTitle;
+    private static net.minecraft.locale.Language lastTitleLanguage;
+    private static boolean lastTitleSkyblock;
 
     private SkyblockGate() {
     }
@@ -90,8 +94,15 @@ public final class SkyblockGate {
             if (sidebar == null) {
                 holdOrExpire();
             } else {
-                String title = ChatFormatting.stripFormatting(sidebar.getDisplayName().getString());
-                onSkyblock = title != null && title.toUpperCase(Locale.ROOT).replace(" ", "").contains("SKYBLOCK");
+                // The title component is replaced, never edited, when the server changes it: read it only then.
+                net.minecraft.network.chat.Component name = sidebar.getDisplayName();
+                if (name != lastTitle || net.minecraft.locale.Language.getInstance() != lastTitleLanguage) {
+                    String title = ChatFormatting.stripFormatting(name.getString());
+                    lastTitleSkyblock = title != null && title.toUpperCase(Locale.ROOT).replace(" ", "").contains("SKYBLOCK");
+                    lastTitle = name;
+                    lastTitleLanguage = net.minecraft.locale.Language.getInstance();
+                }
+                onSkyblock = lastTitleSkyblock;
                 noSidebarSinceMs = 0L;
             }
         }

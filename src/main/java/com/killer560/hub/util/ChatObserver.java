@@ -6,9 +6,7 @@ import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -48,10 +46,34 @@ public final class ChatObserver {
         Component rewrite(Component message, String plain);
     }
 
-    private static final List<Consumer<Component>> LISTENERS = new ArrayList<>();
-    private static final List<Rewriter> REWRITERS = new ArrayList<>();
+    // Copy-on-write: written under the class lock (rare, at start-up), read lock-free per line. Before 2026-10-15
+    // every line copied the ~55-entry listener list (List.copyOf) under the lock, twice (Fabric, then ChatComponent).
+    @SuppressWarnings("unchecked")
+    private static volatile Consumer<Component>[] listeners = new Consumer[0];
+    private static volatile Rewriter[] rewriters = new Rewriter[0];
     private static final ArrayDeque<Recent> RECENT = new ArrayDeque<>();
     private static boolean fabricSourcesRegistered = false;
+
+    /**
+     * The line being delivered right now, and its text, computed at most once (fps-idle-1015, 2026-10-15).
+     *
+     * <p>Every subscriber and most raw chat listeners start with {@code message.getString()} (a full walk of the
+     * component tree into a new String) and usually a strip of the colour codes; with ~55 subscribers that was ~55
+     * walks of the same line. While a line is being delivered - one {@link #dispatch}, or one of Fabric's CHAT /
+     * GAME / MODIFY_GAME events between the two phases {@link #registerScopes} adds around them - {@link #raw} and
+     * {@link #strip(Component)} hand back the text already made for that very object. Identity only, and only for
+     * the duration of that one delivery on that thread, so a component built and changed elsewhere is never served a
+     * stale string.
+     */
+    private static Component scopeMsg;
+    private static Thread scopeThread;
+    private static String scopeRaw;
+    private static String scopePlain;
+    private static final net.minecraft.resources.Identifier SCOPE_OPEN =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "chat_text_scope_open");
+    private static final net.minecraft.resources.Identifier SCOPE_CLOSE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "chat_text_scope_close");
+    private static boolean scopesRegistered;
 
     private record Recent(String plain, long atMs) {
     }
@@ -67,7 +89,10 @@ public final class ChatObserver {
 
     /** {@code listener} gets every real (non-overlay) chat line once, whichever path it arrived by. */
     public static synchronized void subscribe(Consumer<Component> listener) {
-        LISTENERS.add(listener);
+        Consumer<Component>[] next = java.util.Arrays.copyOf(listeners, listeners.length + 1);
+        next[next.length - 1] = listener;
+        listeners = next;
+        registerScopes();
         if (!fabricSourcesRegistered) {
             fabricSourcesRegistered = true;
             ClientReceiveMessageEvents.CHAT.register(
@@ -81,7 +106,75 @@ public final class ChatObserver {
     }
 
     public static synchronized void addRewriter(Rewriter rewriter) {
-        REWRITERS.add(rewriter);
+        Rewriter[] next = java.util.Arrays.copyOf(rewriters, rewriters.length + 1);
+        next[next.length - 1] = rewriter;
+        rewriters = next;
+    }
+
+    /**
+     * Opens the text scope (see {@link #scopeMsg}) at the start of Fabric's CHAT, GAME and MODIFY_GAME events and
+     * closes it at their end, so every listener of one event shares one {@code getString()}. Their invokers are plain
+     * loops over every listener (no early exit), so the closing phase always runs. ALLOW_* events can stop early and
+     * are left alone. Idempotent; called from {@link #subscribe}, which every client start reaches.
+     */
+    public static synchronized void registerScopes() {
+        if (scopesRegistered) {
+            return;
+        }
+        scopesRegistered = true;
+        net.fabricmc.fabric.api.event.Event<?>[] events = {ClientReceiveMessageEvents.CHAT,
+                ClientReceiveMessageEvents.GAME, ClientReceiveMessageEvents.MODIFY_GAME};
+        for (net.fabricmc.fabric.api.event.Event<?> e : events) {
+            e.addPhaseOrdering(SCOPE_OPEN, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+            e.addPhaseOrdering(net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE, SCOPE_CLOSE);
+        }
+        ClientReceiveMessageEvents.CHAT.register(SCOPE_OPEN, (message, signed, sender, params, at) -> openScope(message));
+        ClientReceiveMessageEvents.CHAT.register(SCOPE_CLOSE, (message, signed, sender, params, at) -> closeScope());
+        ClientReceiveMessageEvents.GAME.register(SCOPE_OPEN, (message, overlay) -> openScope(message));
+        ClientReceiveMessageEvents.GAME.register(SCOPE_CLOSE, (message, overlay) -> closeScope());
+        ClientReceiveMessageEvents.MODIFY_GAME.register(SCOPE_OPEN, (message, overlay) -> {
+            openScope(message);
+            return message;
+        });
+        ClientReceiveMessageEvents.MODIFY_GAME.register(SCOPE_CLOSE, (message, overlay) -> {
+            closeScope();
+            return message;
+        });
+    }
+
+    private static void openScope(Component message) {
+        scopeMsg = message;
+        scopeThread = Thread.currentThread();
+        scopeRaw = null;
+        scopePlain = null;
+    }
+
+    private static void closeScope() {
+        scopeMsg = null;
+        scopeThread = null;
+        scopeRaw = null;
+        scopePlain = null;
+    }
+
+    private static boolean inScope(Component message) {
+        return message != null && message == scopeMsg && Thread.currentThread() == scopeThread;
+    }
+
+    /**
+     * {@code message.getString()}, made once per delivered line: inside a chat delivery (a subscriber, or a raw
+     * CHAT / GAME / MODIFY_GAME listener) the text the first caller made is handed to every later one. Anywhere else
+     * it is exactly {@code message.getString()}.
+     */
+    public static String raw(Component message) {
+        if (inScope(message)) {
+            String r = scopeRaw;
+            if (r == null) {
+                r = message.getString();
+                scopeRaw = r;
+            }
+            return r;
+        }
+        return message.getString();
     }
 
     /** Called from {@code ChatComponentMixin} for every line added to chat. Returns the (possibly rewritten)
@@ -90,46 +183,82 @@ public final class ChatObserver {
         if (message == null) {
             return null;
         }
-        Component result = message;
-        List<Rewriter> rewriters;
-        synchronized (ChatObserver.class) {
-            rewriters = List.copyOf(REWRITERS);
+        // One text scope for the rewriters and the dispatch (which reuses it), restored after: not inside any Fabric
+        // event here.
+        Component outerMsg = scopeMsg;
+        Thread outerThread = scopeThread;
+        String outerRaw = scopeRaw;
+        String outerPlain = scopePlain;
+        boolean reuse = inScope(message);
+        if (!reuse) {
+            openScope(message);
         }
-        if (!rewriters.isEmpty()) {
-            String plain = strip(message);
-            for (Rewriter rewriter : rewriters) {
-                try {
-                    Component rewritten = rewriter.rewrite(result, plain);
-                    if (rewritten != null) {
-                        result = rewritten;
+        try {
+            Component result = message;
+            Rewriter[] rewriters = ChatObserver.rewriters;
+            if (rewriters.length > 0) {
+                String plain = strip(message);
+                for (Rewriter rewriter : rewriters) {
+                    try {
+                        Component rewritten = rewriter.rewrite(result, plain);
+                        if (rewritten != null) {
+                            result = rewritten;
+                        }
+                    } catch (RuntimeException e) {
+                        recordFailure(rewriter, e);
+                        LOGGER.error("[ChatObserver] Rewriter threw on \"{}\"", plain, e);
                     }
-                } catch (RuntimeException e) {
-                    recordFailure(rewriter, e);
-                    LOGGER.error("[ChatObserver] Rewriter threw on \"{}\"", plain, e);
                 }
             }
+            dispatch(message, "chat-component");
+            return result;
+        } finally {
+            if (!reuse) {
+                scopeMsg = outerMsg;
+                scopeThread = outerThread;
+                scopeRaw = outerRaw;
+                scopePlain = outerPlain;
+            }
         }
-        dispatch(message, "chat-component");
-        return result;
     }
 
     private static void dispatch(Component message, String source) {
-        String plain = strip(message);
-        if (plain.isBlank()) {
-            return;
+        // A scope of its own (saved and restored, as a listener can add a chat line of its own): the ChatComponent
+        // path is not inside a Fabric event, and the Fabric one may be inside another mod's.
+        Component outerMsg = scopeMsg;
+        Thread outerThread = scopeThread;
+        String outerRaw = scopeRaw;
+        String outerPlain = scopePlain;
+        boolean reuse = inScope(message);
+        if (!reuse) {
+            openScope(message);
         }
-        List<Consumer<Component>> listeners;
-        boolean duplicate;
-        synchronized (ChatObserver.class) {
-            duplicate = isRecentDuplicate(plain, System.currentTimeMillis());
-            listeners = duplicate ? List.<Consumer<Component>>of() : List.copyOf(LISTENERS);
-        }
-        for (Consumer<Component> listener : listeners) {
-            try {
-                listener.accept(message);
-            } catch (RuntimeException e) {
-                recordFailure(listener, e);
-                LOGGER.error("[ChatObserver] Listener threw on \"{}\"", plain, e);
+        try {
+            String plain = strip(message);
+            if (plain.isBlank()) {
+                return;
+            }
+            boolean duplicate;
+            synchronized (ChatObserver.class) {
+                duplicate = isRecentDuplicate(plain, System.currentTimeMillis());
+            }
+            if (duplicate) {
+                return;
+            }
+            for (Consumer<Component> listener : listeners) {
+                try {
+                    listener.accept(message);
+                } catch (RuntimeException e) {
+                    recordFailure(listener, e);
+                    LOGGER.error("[ChatObserver] Listener threw on \"{}\"", plain, e);
+                }
+            }
+        } finally {
+            if (!reuse) {
+                scopeMsg = outerMsg;
+                scopeThread = outerThread;
+                scopeRaw = outerRaw;
+                scopePlain = outerPlain;
             }
         }
     }
@@ -199,7 +328,18 @@ public final class ChatObserver {
         return raw == null || raw.indexOf('§') < 0 ? raw : ChatFormatting.stripFormatting(raw);
     }
 
+    /** {@code message.getString()} with colour codes stripped; made once per delivered line (see {@link #raw}). */
     public static String strip(Component message) {
+        if (inScope(message)) {
+            String p = scopePlain;
+            if (p == null) {
+                String raw = raw(message);
+                String plain = stripCodes(raw);
+                p = plain == null ? raw : plain;
+                scopePlain = p;
+            }
+            return p;
+        }
         String raw = message.getString();
         String plain = stripCodes(raw);
         return plain == null ? raw : plain;

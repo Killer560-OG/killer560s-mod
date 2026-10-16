@@ -715,7 +715,7 @@ public final class SimonSaysFeature {
     // ------------------------------------------------------------------
 
     private static void onChatMessage(Component message) {
-        String raw = message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.raw(message);
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
 
         if (cfg.isDiagnosticLoggingEnabled() && raw.toLowerCase(Locale.ROOT).contains("simon says")) {
@@ -732,8 +732,8 @@ public final class SimonSaysFeature {
         // cancel and re-add the boss line; the party progress part stays here (matched anywhere in the line, so it
         // must not see this mod's own "SS n/5" messages, which ChatObserver would deliver).
 
-        if (!cfg.isPartyProgressTrackerEnabled()) {
-            return;
+        if (!cfg.isPartyProgressTrackerEnabled() || !raw.contains("SS ")) {
+            return; // both progress patterns need "SS " (fps-idle-1015: this runs on every chat AND action bar line)
         }
         Matcher m = PROGRESS_PATTERN.matcher(raw);
         String sender;

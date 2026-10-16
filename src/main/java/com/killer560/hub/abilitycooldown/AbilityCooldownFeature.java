@@ -44,7 +44,7 @@ public final class AbilityCooldownFeature {
         ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
             if (overlay) {
                 try {
-                    AbilityCooldownState.onActionBar(message.getString());
+                    AbilityCooldownState.onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
                 } catch (RuntimeException ignored) {
                     // Never let a regex bug eat the player's action bar.
                 }

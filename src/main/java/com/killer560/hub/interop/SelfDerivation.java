@@ -104,7 +104,7 @@ public final class SelfDerivation {
         if (!active()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = com.killer560.hub.util.ChatObserver.strip(message);
         if (plain == null || plain.indexOf('/') < 0 || !plain.contains("Secrets")) {
             return; // cheapest possible reject - this runs on nearly every action bar tick
         }

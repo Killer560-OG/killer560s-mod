@@ -347,7 +347,7 @@ public final class WitherDragonsFeature {
         if (!trackingActive() || !P5State.inP5()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = com.killer560.hub.util.ChatObserver.strip(message);
         if (plain == null || !WITHER_KING_REGEX.matcher(plain).matches()) {
             return;
         }

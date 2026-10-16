@@ -48,9 +48,13 @@ final class ScoreboardPartyLeader {
         if (plain == null) {
             return;
         }
-        Matcher m = DUNGEON_ENTER.matcher(plain);
-        if (m.find()) {
+        // DUNGEON_ENTER needs " entered " and "Catacombs, "; every other pattern needs "party"/"Party" (fps-idle-1015).
+        Matcher m;
+        if (plain.contains("Catacombs, ") && (m = DUNGEON_ENTER.matcher(plain)).find()) {
             leader = m.group(1);
+            return;
+        }
+        if (!plain.contains("arty")) {
             return;
         }
         plain = plain.trim();

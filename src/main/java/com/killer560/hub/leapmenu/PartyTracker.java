@@ -99,13 +99,13 @@ public final class PartyTracker {
         if (plain.isEmpty()) {
             return;
         }
-        if (LIST_HEADER.matcher(plain).matches()) {
+        if (plain.startsWith("Party ") && LIST_HEADER.matcher(plain).matches()) {
             MEMBERS.clear();
             readingList = true;
             return;
         }
-        Matcher m = LIST_LINE.matcher(plain);
-        if (m.matches()) {
+        Matcher m;
+        if (plain.startsWith("Party ") && (m = LIST_LINE.matcher(plain)).matches()) {
             Matcher entry = LIST_ENTRY.matcher(m.group(1));
             while (entry.find()) {
                 add(entry.group(1));
@@ -114,6 +114,11 @@ public final class PartyTracker {
         }
         if (readingList && !plain.startsWith("Party ") && !plain.startsWith("-")) {
             readingList = false;
+        }
+        // Every pattern below needs "party"/"Party" in the line, except KICKED_OFFLINE's "Kicked ...": a cheap test
+        // before eleven Matchers (fps-idle-1015; LIST_HEADER / LIST_LINE above start with "Party " too).
+        if (!plain.contains("arty") && !plain.startsWith("Kicked ")) {
+            return;
         }
         if ((m = JOINED.matcher(plain)).matches() || (m = PARTY_CHAT.matcher(plain)).matches()) {
             add(m.group(1));

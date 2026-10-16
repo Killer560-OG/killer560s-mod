@@ -29,7 +29,7 @@ public final class MagicFindTracker {
         // ChatObserver, not Fabric CHAT/GAME: drop lines are exactly the kind other mods cancel via ALLOW_GAME
         // and re-add (rewritten) straight to ChatComponent, which Fabric listeners never see. This mod never
         // prints a "(N% ... Magic Find)" line itself, so its own client messages can't match.
-        ChatObserver.subscribe(message -> onMessage(message.getString()));
+        ChatObserver.subscribe(message -> onMessage(ChatObserver.raw(message)));
     }
 
     /** A line someone typed: optional channel prefix, optional rank, a name, then ": ". Drop lines never have one. */
@@ -37,6 +37,9 @@ public final class MagicFindTracker {
             "^(?:(?:Party|Guild|Officer|Co-op) > |From |To )?(?:\\[[^\\]]{1,24}] )?[A-Za-z0-9_]{1,16}(?: \\[[^\\]]{1,24}])?: ");
 
     private static void onMessage(String text) {
+        if (!text.contains("Magic Find)")) {
+            return; // MAGIC_FIND_PATTERN needs it (fps-idle-1015)
+        }
         // Players could type "(99999% Magic Find)" and overwrite the value (testkit WP2, 2026-10-04).
         String plain = net.minecraft.ChatFormatting.stripFormatting(text);
         if (plain == null || PLAYER_CHAT.matcher(plain.trim()).find()) {

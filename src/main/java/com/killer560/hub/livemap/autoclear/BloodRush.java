@@ -10,7 +10,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -51,13 +50,12 @@ public final class BloodRush {
             if (overlay) {
                 return;
             }
-            String raw = message.getString();
             // Stripping and trimming only shorten a line, so one shorter than the 31-character target can never match:
-            // no regex for it (fps-auto-1015).
-            if (raw.length() < 31) {
+            // no strip for it (fps-auto-1015). Both reads are the line's shared text (fps-idle-1015).
+            if (com.killer560.hub.util.ChatObserver.raw(message).length() < 31) {
                 return;
             }
-            String plain = ChatFormatting.stripFormatting(raw);
+            String plain = com.killer560.hub.util.ChatObserver.strip(message);
             // Anchored: "contains" let any player typing the line in chat stop Blood Rush.
             if (plain != null && plain.trim().equals("The BLOOD DOOR has been opened!")) {
                 bloodOpenedMessage = true;
