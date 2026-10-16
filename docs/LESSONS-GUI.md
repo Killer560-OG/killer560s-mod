@@ -616,3 +616,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   varyings, so fragments fetch nothing. `GUI_TEXTURED_SNIPPET` (position, uv, colour, Sampler0) and the vanilla
   `position_tex_color` shader are byte-identical in 26.1.2 and 26.2. A PNG's `.png.mcmeta` `"blur": true` gives a GUI
   blit linear filtering on both (`ReloadableTexture` reads `TextureContents.blur()`).
+- **A scene clip can stutter when the scene does not** (2026-10-16): x264 at default settings puts a keyframe every 250
+  frames (a quality pop every ~2 s at 120 fps) and holds a slow scene still for several frames, then jumps (Amber Aurora: raw
+  per-frame change 0.0068-0.0084, the CRF clip 0.0004-0.5). Judge smoothness on the PNG frames, and encode clips with
+  `-g <frames> -x264-params scenecut=0`, at CRF 8 for a slow scene.
