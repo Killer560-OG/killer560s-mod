@@ -2998,6 +2998,16 @@ detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the ja
   walkable at all. Leaving the cell empty would break "every floor fills its real rectangle". Testkit 1446's TUNNEL
   phase sums the cut over 150 seeded F7s.
 
+## Boulder is done when its chest is opened (2026-10-15, chest-stall-1015)
+
+killer560: "boulder should finish after grabbing that chest on sim, not actually if you do the puzzle or not." On Hypixel
+opening the chest behind the boxes is what completes Boulder. `SimBoulderPuzzle.isComplete` read only the board (a way
+through the boxes), so a Secret Aura run along the roof - no button pressed - left the tab line on ✦ and the map's tick
+off, and Autopilot waited out its puzzle timeout. `isComplete` is now "the chest was opened, or the board is solved"
+(both `SimTabList` and `SimRoomState` read it); `isPathOpen` is the board alone, which the presses still stop at and
+93-solve-boulder's button mode checks; a reset clears the chest too. 93-solve-boulder-chest-unsolved: complete the
+tick the chest opens, tab ✔ 1-4 ticks later; main never.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
