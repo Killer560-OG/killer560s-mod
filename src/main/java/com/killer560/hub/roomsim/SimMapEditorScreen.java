@@ -238,8 +238,10 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // than a panel here, because this screen has no free space at a small window. They narrow the list
         // and Generate - see SimRoomFilters. Lit while any chip is chosen, counting them.
         int chosen = SimRoomFilters.DESIGNER.selectedCount();
-        int filtersW = this.font.width("Filters (99)") + 12;
-        search = new ThemedEditBox(this.font, listX, nav.contentY, Math.max(20, listW - filtersW - 4), 18,
+        // At most half the list's width, so on a narrow list the two share it instead of the box running under the
+        // button (97-sim-menu-tidy measured them crossing at 320x240).
+        int filtersW = Math.min(this.font.width("Filters (99)") + 12, Math.max(16, listW / 2));
+        search = new ThemedEditBox(this.font, listX, nav.contentY, Math.max(1, listW - filtersW - 4), 18,
                 Component.literal("Search"));
         ((ThemedEditBox) search).hint("Search rooms...");
         search.setValue(searchText);
@@ -298,6 +300,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // left column's Back closes the menu, and its entries are the way to the other pages.
         int count = 3;
         int bw = (cw - 6 * (count - 1)) / count;
+        // The division's remainder (0-2 units) goes one unit each to the first buttons, so the three stay within a unit
+        // of each other and Play's right edge meets Generate's above it exactly.
+        int extra = cw - 6 * (count - 1) - bw * count;
         int bx = cx;
 
         // Clear takes the GENERATION off first, and only wipes the drawing if there is no generation to take
@@ -320,8 +325,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 rebuildOccupancy();
                 status = "cleared";
             }
-        }).bounds(bx, by, bw, 20).build());
-        bx += bw + 6;
+        }).bounds(bx, by, bw + (extra > 0 ? 1 : 0), 20).build());
+        bx += bw + (extra > 0 ? 1 : 0) + 6;
 
         // Fill went too (killer560, 2026-10-15: "Remove the fill button, it no longer has a use"), so the row is three.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load"), b -> {
@@ -329,10 +334,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             scroll = 0;
             refilter();
             status = panel == Panel.MAPS ? "pick a floor you played" : "";
-        }).bounds(bx, by, bw, 20).build());
-        bx += bw + 6;
+        }).bounds(bx, by, bw + (extra > 1 ? 1 : 0), 20).build());
+        bx += bw + (extra > 1 ? 1 : 0) + 6;
 
-        // Play takes the division's remainder, so its right edge meets Generate's above it exactly.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aPlay"), b -> play())
                 .bounds(bx, by, cx + cw - bx, 20).primary().build());
 
