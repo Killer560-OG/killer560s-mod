@@ -125,6 +125,17 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   per-call floor and +-15 us of noise per key between phases, and whole-frame CPU means swing +-0.3 ms, so a single
   feature's cost is only trustworthy as the mean of long ALL ON phases or as ALLOCATION, which is deterministic
   (2026-10-15: the first "each feature alone" table ranked switches by noise until it compared only their own keys).
+- **PerfProbe cannot see a mixin; JFR can, under the VANILLA class's name.** A handler is merged into its target, so its
+  frame is `net.minecraft...handler$abc000$killer560smod$name` and a `com.killer560.` filter misses all of them (the
+  testkit's `tools/fps-jfr.py` counts them since 2026-10-15). Per-call cost and allocation of the hooks into vanilla hot
+  paths are testkit `95-mixin-bench` (vs a `-NoMod` run) and `95-mixin-fixes`. What that pass found: the mod-wide
+  per-call waste was not in the hooks' own guards but in what they called - a title, name or address turned into a
+  String on every call (Storage Overlay 432 B and RNG Meter 184 B per frame in every container, Revert Master Stars 920 B
+  per `getHoverName`, the protect star 312 B per slot, Secrets 80 B per `getShape`, Click Sound 80 B per sound), and an
+  identity-hash lookup per glyph in `ChromaWave` because the Enchant Colors spec keeps its map non-empty.
+- A mixin's `CallbackInfo(Returnable)` is 24 B per call only when the JIT leaves the handler out of line. JFR of real
+  frames (hub, menu, 2026-10-15) showed almost none, but the same jar measured 0 or 24 B for `DataComponentHolder.get` in
+  two runs of a tight test loop. Keep hot handlers tiny and judge allocation tests with a budget above 24 B.
 - **Server-sent text can be memoised by object identity.** A tab entry's display name, a team's prefix/suffix and an
   entry's display are REPLACED with a new `Component` when the server updates them, never edited, so "same object (and
   same `Language`), same string" is exact. `util/TabText` and `DungeonState.readSidebarText` key on that (2026-10-07):
