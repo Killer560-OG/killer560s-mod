@@ -108,6 +108,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   breaker"): the pick was refused whenever he stood off the node, though his crosshair had just picked it. Picks are
   measured eye-to-box at 4.5 now (a plain dig - the wiki gives the Dungeon Breaker no range), and a pick far from the node
   is only noted in chat, since playback digs from wherever the route has him (testkit 96-ar-658-dbreach).
+- **A rule that fires on "blocks standing" cannot tell a regrow from an edit.** The breaker re-fire (2026-10-12) breaks a
+  latched breaker node's standing blocks while he stands on it; `/ar edit db` picks add standing blocks to exactly that
+  node, so the tick edit mode closed it broke both picks (96-ar-add, failing on main and the 1015 jars: 2 digs). The picks
+  themselves never sent a packet. Closing edit mode now puts the room's breaker nodes in the re-fire's `refired` set.
 - **The floor graph's warp count is an upper bound, not the fewest.** Its 2x2 buckets, 18 aim points and early-blocked
   refusals missed a route with fewer warps on 21 of 180 bench path pairs (2026-10-11). Anything that must be minimal goes
   through `ExactWarpSearch` (via `EtherwarpPathfinder.findOptimalPath`), which proves it - see docs/SIM.md "Fewest warps,
