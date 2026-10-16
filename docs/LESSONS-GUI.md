@@ -589,3 +589,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   Java 25. BufferBuilder overrides none of them, so for a plain BufferBuilder the same JOML calls into scratch vectors plus
   `setColor(int argb)` (one `memPutInt`, same bytes) write identical vertices: Auto Routes' bare node shapes went from
   25.8 KB to 0.2 KB a frame with pixel-identical shots. `WorldRenderUtils` and every other world draw still use the helpers.
+- **In a `GuiRects` batch every pose CHANGE costs a pose copy** (the copy is shared only while the pose stays the same), so a
+  shape drawn as several push/translate/pop pieces allocates per piece. Ocean's Cavern Falls drew each streak under three poses
+  and each mist column under its own: 8085 quads at 35.4 B/quad against the old waterfall's 28.9 (testkit 1690). Drawing each
+  streak, puff and ring under ONE scaled pose (integer units of w/12, len/256, a column's eighth) made it 5136 quads at
+  30.8 B/quad with the same picture (ocean-waterfall-1016).

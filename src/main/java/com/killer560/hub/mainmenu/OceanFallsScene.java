@@ -80,7 +80,8 @@ final class OceanFallsScene {
     /**
      * A soft falling streak from {@code yTail} (clear) to {@code yHead} (brightest) centred on x, {@code w} wide: a faint
      * glow three and a half times as wide, a core of three columns (the outer two at 45%), and a short fade below the head
-     * so the head has no hard edge. All placed through the pose, so x and both ends are sub-pixel.
+     * so the head has no hard edge. One pose for the whole streak (a pose change costs the batch a matrix copy), placed so
+     * x and both ends are sub-pixel: across, a unit is w/12; down, len/256.
      */
     static void fall(GuiRects r, double x, double yTail, double yHead, double w, int rgb, int head, double a) {
         double len = yHead - yTail;
@@ -89,73 +90,111 @@ final class OceanFallsScene {
         }
         Matrix3x2fStack pose = r.graphics().pose();
         int none = Px.alpha(rgb, 0);
-        // glow
         pose.pushMatrix();
-        pose.translate((float) (x - w * 1.75), (float) yTail);
-        pose.scale((float) (w * 3.5 / 4.0), (float) (len / 64.0));
-        r.gradient(0, 0, 1, 64, none, Px.alpha(rgb, a * 0.08));
-        r.gradient(1, 0, 3, 64, none, Px.alpha(rgb, a * 0.16));
-        r.gradient(3, 0, 4, 64, none, Px.alpha(rgb, a * 0.08));
-        pose.popMatrix();
-        // core
-        pose.pushMatrix();
-        pose.translate((float) (x - w * 0.5), (float) yTail);
-        pose.scale((float) (w / 3.0), (float) (len / 64.0));
-        r.gradient(0, 0, 1, 64, none, Px.alpha(rgb, a * 0.45));
-        r.gradient(1, 0, 2, 64, none, Px.alpha(head, a));
-        r.gradient(2, 0, 3, 64, none, Px.alpha(rgb, a * 0.45));
-        pose.popMatrix();
-        // the head's soft end
-        double cap = Math.min(6.0, 1.5 + w * 1.6);
-        pose.pushMatrix();
-        pose.translate((float) (x - w * 0.5), (float) yHead);
-        pose.scale((float) (w / 3.0), (float) (cap / 16.0));
-        r.gradient(1, 0, 2, 16, Px.alpha(head, a), Px.alpha(head, 0));
-        r.gradient(0, 0, 1, 16, Px.alpha(rgb, a * 0.45), none);
-        r.gradient(2, 0, 3, 16, Px.alpha(rgb, a * 0.45), none);
+        pose.translate((float) x, (float) yTail);
+        pose.scale((float) (w / 12.0), (float) (len / 256.0));
+        // glow: 42 units (3.5 w), its middle half brighter
+        r.gradient(-21, 0, -10, 256, none, Px.alpha(rgb, a * 0.08));
+        r.gradient(-10, 0, 10, 256, none, Px.alpha(rgb, a * 0.16));
+        r.gradient(10, 0, 21, 256, none, Px.alpha(rgb, a * 0.08));
+        // core: 12 units (w) in thirds
+        int side = Px.alpha(rgb, a * 0.45);
+        int core = Px.alpha(head, a);
+        r.gradient(-6, 0, -2, 256, none, side);
+        r.gradient(-2, 0, 2, 256, none, core);
+        r.gradient(2, 0, 6, 256, none, side);
+        // the head's soft end, below the head
+        int cap = (int) Math.max(1, Math.round(Math.min(6.0, 1.5 + w * 1.6) * 256.0 / len));
+        r.gradient(-2, 256, 2, 256 + cap, core, Px.alpha(head, 0));
+        r.gradient(-6, 256, -2, 256 + cap, side, none);
+        r.gradient(2, 256, 6, 256 + cap, side, none);
         pose.popMatrix();
     }
 
-    /**
-     * A soft round glow (Gaussian, no rings) at a sub-pixel centre: columns {@code rx / 6} wide, each six piecewise-linear
-     * vertical gradients. About 160 quads - a cheaper {@link Px#softGlow} for the many puffs of mist.
-     */
+    /** A soft round glow with the default {@link #PUFF} knots and columns rx/4 wide (about 110 quads). */
     static void puff(GuiRects r, double cx, double cy, double rx, double ry, int rgb, double a) {
-        if (rx < 2 || ry < 1 || a <= 0.003) {
+        puff(r, cx, cy, rx, ry, rgb, a, 4.0, PUFF);
+    }
+
+    /**
+     * A soft round glow (Gaussian, no rings) at a sub-pixel centre: columns {@code rx / perRx} wide, each a few
+     * piecewise-linear vertical gradients through {@code knots} (in radii). One pose for all of it - across, a unit is an
+     * eighth of a column; down, ry/64 - so it is a cheaper {@link Px#softGlow} for the many puffs of mist and halos.
+     */
+    static void puff(GuiRects r, double cx, double cy, double rx, double ry, int rgb, double a, double perRx, double[] knots) {
+        if (rx < 1 || ry < 1 || a <= 0.003) {
+            return;
+        }
+        double span = knots[knots.length - 1];
+        double cw = rx / perRx;
+        int n = (int) Math.ceil(rx * span * 2 / cw);
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.translate((float) (cx - n * cw / 2.0), (float) cy);
+        pose.scale((float) (cw / 8.0), (float) (ry / 64.0));
+        for (int i = 0; i < n; i++) {
+            double u = ((i + 0.5) * cw - n * cw / 2.0) / rx;
+            double ax = a * Math.exp(-u * u * 1.6);
+            if (ax * 255 < 0.6) {
+                continue;
+            }
+            int prevY = (int) Math.round(knots[0] * 64);
+            double prevA = 0;
+            for (int k = 1; k < knots.length; k++) {
+                double v = knots[k];
+                double av = k == knots.length - 1 ? 0 : ax * Math.exp(-v * v * 1.6);
+                int y = (int) Math.round(v * 64);
+                r.gradient(i * 8, prevY, i * 8 + 8, y, Px.alpha(rgb, prevA), Px.alpha(rgb, av));
+                prevY = y;
+                prevA = av;
+            }
+        }
+        pose.popMatrix();
+    }
+
+    static final double[] PUFF = {-2.2, -1.3, -0.6, 0, 0.6, 1.3, 2.2};
+    static final double[] SMALL = {-2.0, -0.7, 0, 0.7, 2.0};
+
+    /** A tiny glowing point at a sub-pixel place, in five rectangles: a core, a soft plus round it and a faint halo. */
+    static void dot(GuiRects r, double cx, double cy, double rad, int rgb, int alpha) {
+        if (alpha <= 2) {
             return;
         }
         Matrix3x2fStack pose = r.graphics().pose();
         pose.pushMatrix();
         pose.translate((float) cx, (float) cy);
-        double cw = Math.max(2.0, rx / 6.0);
-        double span = 2.2;
-        int n = (int) Math.ceil(rx * span * 2 / cw);
-        double x0 = -n * cw / 2.0;
-        for (int i = 0; i < n; i++) {
-            double xa = x0 + i * cw;
-            double u = (xa + cw * 0.5) / rx;
-            double ax = a * Math.exp(-u * u * 1.6);
-            if (ax * 255 < 0.6) {
-                continue;
-            }
-            pose.pushMatrix();
-            pose.translate((float) xa, 0f);
-            pose.scale((float) (cw / 8.0), (float) (ry / 64.0));
-            double prevV = PUFF_KNOTS[0];
-            double prevA = 0;
-            for (int k = 1; k < PUFF_KNOTS.length; k++) {
-                double v = PUFF_KNOTS[k];
-                double av = k == PUFF_KNOTS.length - 1 ? 0 : ax * Math.exp(-v * v * 1.6);
-                r.gradient(0, (int) Math.round(prevV * 64), 8, (int) Math.round(v * 64), Px.alpha(rgb, prevA), Px.alpha(rgb, av));
-                prevV = v;
-                prevA = av;
-            }
-            pose.popMatrix();
-        }
+        pose.scale((float) (rad / 8.0), (float) (rad / 8.0));
+        r.fill(-24, -24, 24, 24, Px.alpha(rgb, alpha / 12));
+        r.fill(-14, -5, 14, 5, Px.alpha(rgb, alpha * 2 / 5));
+        r.fill(-5, -14, 5, -5, Px.alpha(rgb, alpha * 2 / 5));
+        r.fill(-5, 5, 5, 14, Px.alpha(rgb, alpha * 2 / 5));
+        r.fill(-6, -6, 6, 6, Px.alpha(rgb, alpha));
         pose.popMatrix();
     }
 
-    private static final double[] PUFF_KNOTS = {-2.2, -1.3, -0.6, 0, 0.6, 1.3, 2.2};
+    /** An elliptical ring (rx, ry) of {@code thick} px at a sub-pixel centre, one pose for all of it (quarter-pixel
+     *  units); its far half (the top, on the water) is fainter. */
+    static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
+        if (alpha <= 2 || rx < 1) {
+            return;
+        }
+        int steps = (int) Math.max(20, rx * 1.4);
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.translate((float) cx, (float) cy);
+        pose.scale(0.25f, 0.25f);
+        int hw = (int) Math.max(2, Math.round(thick * 3.2));
+        int hh = (int) Math.max(2, Math.round(thick * 2));
+        int near = Px.alpha(rgb, alpha / 2);
+        int far = Px.alpha(rgb, (int) (alpha * 0.28));
+        for (int k = 0; k < steps; k++) {
+            double ang = Math.PI * 2 * k / steps;
+            int px = (int) Math.round(Math.cos(ang) * rx * 4);
+            int py = (int) Math.round(Math.sin(ang) * ry * 4);
+            r.fill(px - hw, py - hh, px + hw, py + hh, Math.sin(ang) < 0 ? far : near);
+        }
+        pose.popMatrix();
+    }
 
     static double ease(double v) {
         return PictureScene.ease(v);
@@ -407,10 +446,10 @@ final class OceanFallsScene {
                 double e = 1 - (1 - f) * (1 - f);
                 double rx = (2 + 26 * e) * persp;
                 int a = (int) Math.round(150 * (1 - f) * (1 - f) * PictureScene.ease(f / 0.08));
-                PictureScene.ring(r, x, y, rx, rx * 0.24, 0.9 + 0.5 * persp, HEAD, a);
+                ring(r, x, y, rx, rx * 0.24, 0.9 + 0.5 * persp, HEAD, a);
                 if (f > 0.25) {
                     double e2 = 1 - Math.pow(1 - (f - 0.25) / 0.75, 2);
-                    PictureScene.ring(r, x, y, (1 + 16 * e2) * persp, (1 + 16 * e2) * persp * 0.24, 0.8, TEAL, a / 2);
+                    ring(r, x, y, (1 + 16 * e2) * persp, (1 + 16 * e2) * persp * 0.24, 0.8, TEAL, a / 2);
                 }
             }
         }
@@ -423,8 +462,8 @@ final class OceanFallsScene {
             for (int i = 0; i < at.length; i += 2) {
                 double tw = ease(0.5 + 0.5 * Math.sin(t * (0.5 + 1.1 * hash(i, salt)) + hash(i, salt + 1) * 6.28));
                 int a = (int) Math.round(255 * (0.10 + 0.55 * tw));
-                PictureScene.softDot(r, at[i] + 0.5, at[i + 1] + 0.5, 0.9 + 0.6 * tw, 1, HEAD, a, 0);
-                puff(r, at[i] + 0.5, at[i + 1] + 0.5, 5 + 3 * tw, 5 + 3 * tw, TEAL, 0.10 * tw);
+                dot(r, at[i] + 0.5, at[i + 1] + 0.5, 0.9 + 0.6 * tw, HEAD, a);
+                puff(r, at[i] + 0.5, at[i + 1] + 0.5, 4 + 3 * tw, 4 + 3 * tw, TEAL, 0.10 * tw, 1.6, SMALL);
             }
             if (density <= 0) {
                 return;
