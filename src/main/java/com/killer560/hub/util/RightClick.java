@@ -396,6 +396,7 @@ public final class RightClick {
         }
         float[] best = null;
         double bestCost = Double.MAX_VALUE;
+        boolean bestFirm = false;
         for (double[] o : REAIM_POINTS) {
             Vec3 point = new Vec3(target.getX() + o[0], target.getY() + o[1], target.getZ() + o[2]);
             com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r =
@@ -413,10 +414,15 @@ public final class RightClick {
             if (unpairable(client, player, serverFeet, ny, np)) {
                 continue;
             }
+            // A look that lands only for its exact float values can go into the neighbouring block once the server reads
+            // the running yaw a few bits off (path-wrongblock-1015, his 22:47:07 sim run: re-aimed at -149, 261, -188,
+            // the server's cast went into -149, 262, -189). Any look that still lands within the planner's margin wins.
+            boolean firm = com.killer560.hub.livemap.autoclear.TeleportUtils.holdsOn(eye, r.yaw(), np, dist, target);
             double cost = Math.abs(ny - yaw) + Math.abs(np - pitch);
-            if (cost < bestCost) {
+            if (firm && !bestFirm || firm == bestFirm && cost < bestCost) {
                 bestCost = cost;
                 best = new float[]{ny, np};
+                bestFirm = firm;
             }
         }
         if (best != null) {
@@ -452,6 +458,13 @@ public final class RightClick {
                 out.add(new double[]{a, y, 0.03});
                 out.add(new double[]{a, y, 0.97});
             }
+        }
+        // Off the tenths lattice: from a stand at a block's centre the lines to the points above often run exactly through a
+        // block's edge, which is a fragile aim (see reaimIfUnpairable); these give a firm one a chance.
+        double[][] off = {{0.37, 0.61}, {0.63, 0.39}, {0.41, 0.43}, {0.59, 0.57}, {0.23, 0.62}, {0.77, 0.38},
+                {0.62, 0.23}, {0.38, 0.77}};
+        for (double[] p : off) {
+            out.add(new double[]{p[0], 0.97, p[1]});
         }
         return out.toArray(new double[0][]);
     }
