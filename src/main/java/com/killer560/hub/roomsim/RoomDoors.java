@@ -175,12 +175,34 @@ public final class RoomDoors {
      * in that way, and clicks into or out of 8 of them failed for the etherwarp planner - Criss Cross through the
      * Entrance landed against its two-block platform, Rail Track through Three Floors in a drop - which was 54 of
      * the 88 clicks the Interactive Map's planner failed.
+     *
+     * <p>Every such cut is a tunnel Hypixel does not have; {@link #carveCost} says how long one is, so the fill can take
+     * the shortest.
      */
     public static Mask carvable(String name) {
+        Map<Integer, Integer> cost = carveCost(name);
+        if (cost == null) {
+            return null;
+        }
+        RoomLibrary.Room room = RoomLibrary.get(name);
+        return new Mask(Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1)),
+                Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1)), cost.keySet());
+    }
+
+    /**
+     * {@link #carvable}'s edges (capture frame, packed by {@link #edge}), each with how many solid capture blocks the cut
+     * removes BEHIND the room's wall plane: {@code SimDoors.carveDoorway} cuts three deep from the seam - the wall plane
+     * and the two columns past it - and this counts those two columns, across the opening's three columns and up its lower
+     * three rows (a top-row block over air is kept as trim). 0 is a one-thick wall the cut comes straight out of; 18 is
+     * a solid wall three thick. Over the shipped library's 557 walkable cuts, 341 read 0 and 121 read 18. Quad Lava's
+     * east wall, three thick behind its red terracotta panel, reads 14: its carve cut 23 capture blocks out of the room
+     * (testkit 1446, 2026-10-15). Null when the room is unknown.
+     */
+    public static Map<Integer, Integer> carveCost(String name) {
         if (name == null) {
             return null;
         }
-        Mask cached = CARVABLE.get(name);
+        Map<Integer, Integer> cached = CARVABLE.get(name);
         if (cached != null) {
             return cached;
         }
@@ -191,31 +213,55 @@ public final class RoomDoors {
         int tilesX = Math.max(1, (room.sizeX - 1) / (RoomLibrary.TILE + 1));
         int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
         int m = room.margin;
-        Set<Integer> edges = new LinkedHashSet<>();
+        Map<Integer, Integer> cost = new java.util.LinkedHashMap<>();
         for (int i = 0; i < tilesX; i++) {
             int cx = m + RoomLibrary.TILE / 2 + i * (RoomLibrary.TILE + 1);
-            if (standBehind(room, cx, m, 1, 0, 0, 1)) {
-                edges.add(edge(NORTH, i));
-            }
-            if (standBehind(room, cx, room.sizeZ - 1 - m, 1, 0, 0, -1)) {
-                edges.add(edge(SOUTH, i));
-            }
+            costAt(cost, edge(NORTH, i), room, cx, m, 1, 0, 0, 1);
+            costAt(cost, edge(SOUTH, i), room, cx, room.sizeZ - 1 - m, 1, 0, 0, -1);
         }
         for (int j = 0; j < tilesZ; j++) {
             int cz = m + RoomLibrary.TILE / 2 + j * (RoomLibrary.TILE + 1);
-            if (standBehind(room, m, cz, 0, 1, 1, 0)) {
-                edges.add(edge(WEST, j));
-            }
-            if (standBehind(room, room.sizeX - 1 - m, cz, 0, 1, -1, 0)) {
-                edges.add(edge(EAST, j));
-            }
+            costAt(cost, edge(WEST, j), room, m, cz, 0, 1, 1, 0);
+            costAt(cost, edge(EAST, j), room, room.sizeX - 1 - m, cz, 0, 1, -1, 0);
         }
-        Mask fresh = new Mask(tilesX, tilesZ, edges);
+        Map<Integer, Integer> fresh = java.util.Collections.unmodifiableMap(cost);
         CARVABLE.put(name, fresh);
         return fresh;
     }
 
-    private static final Map<String, Mask> CARVABLE = new ConcurrentHashMap<>();
+    /**
+     * {@link #carveCost} of the edge on {@code side} at {@code index} of the room as PLACED at {@code degrees} (a
+     * {@code tilesX x tilesZ} footprint at that rotation), or -1 when no walkable cut is there.
+     */
+    public static int carveCost(String name, int degrees, int tilesX, int tilesZ, int side, int index) {
+        Map<Integer, Integer> cost = carveCost(name);
+        if (cost == null) {
+            return -1;
+        }
+        Mask back = rotate(new Mask(tilesX, tilesZ, Set.of(edge(side, index))), 360 - ((degrees % 360) + 360) % 360);
+        Integer c = cost.get(back.edges().iterator().next());
+        return c == null ? -1 : c;
+    }
+
+    private static void costAt(Map<Integer, Integer> cost, int packed, RoomLibrary.Room room, int wallX, int wallZ,
+                               int alongX, int alongZ, int inX, int inZ) {
+        if (!standBehind(room, wallX, wallZ, alongX, alongZ, inX, inZ)) {
+            return;
+        }
+        int solid = 0;
+        for (int in = 1; in <= 2; in++) {
+            for (int w = -1; w <= 1; w++) {
+                for (int y = DOOR_FLOOR_Y; y < DOOR_FLOOR_Y + DOOR_HEIGHT - 1; y++) {
+                    if (!isOpen(room, wallX + inX * in + alongX * w, y, wallZ + inZ * in + alongZ * w)) {
+                        solid++;
+                    }
+                }
+            }
+        }
+        cost.put(packed, solid);
+    }
+
+    private static final Map<String, Map<Integer, Integer>> CARVABLE = new ConcurrentHashMap<>();
 
     /**
      * From the wall at {@code (wallX, wallZ)}, stepping inwards by {@code (inX, inZ)}: along any of the opening's three
