@@ -35,8 +35,37 @@ public final class FeatureCards {
     public record CardText(List<String> name, List<String> desc, boolean truncated) {
     }
 
-    /** The one place a card's text is laid out: {@code drawCard} draws exactly this, and the testkit measures it. */
+    /** One card's last layout and what it was laid out for. */
+    private record CachedText(int w, int h, boolean hasSwitch, boolean showMenu, int fontVersion, String description,
+                              net.minecraft.client.gui.Font font, CardText text) {
+    }
+
+    private static final Map<BaseTab, CachedText> TEXT = new IdentityHashMap<>();
+
+    /**
+     * The one place a card's text is laid out: {@code drawCard} draws exactly this, and the testkit measures it.
+     *
+     * <p>Kept per tab until one of its inputs changes - the card's size, the switch, the Show In Menu setting, the
+     * description, the font object or the Fonts setting (and every {@link #clear}, which the menu's {@code init} runs on
+     * a resize or reload). Word-wrapping every visible card every frame was about a fifth of the menu's allocation
+     * (95-perf-screens JFR, fps-gui-1015): {@code String.split} with a regex, a candidate string per word, a width each.
+     */
     public static CardText cardText(BaseTab tab, int w, int h, boolean hasSwitch) {
+        boolean show = DescriptionConfig.getInstance().isShowMenu();
+        int fv = com.killer560.hub.fonts.FontConfig.version();
+        net.minecraft.client.gui.Font font = MenuStyle.font();
+        String desc = show ? description(tab) : null;
+        CachedText c = TEXT.get(tab);
+        if (c != null && c.w == w && c.h == h && c.hasSwitch == hasSwitch && c.showMenu == show && c.fontVersion == fv
+                && c.font == font && java.util.Objects.equals(c.description, desc)) {
+            return c.text;
+        }
+        CardText t = layoutCardText(tab, w, h, hasSwitch);
+        TEXT.put(tab, new CachedText(w, h, hasSwitch, show, fv, desc, font, t));
+        return t;
+    }
+
+    private static CardText layoutCardText(BaseTab tab, int w, int h, boolean hasSwitch) {
         int nameW = w - 14 - (hasSwitch ? MenuStyle.SWITCH_W + 4 : 0);
         List<String> name = MenuStyle.wrap(tab.name, nameW, 2);
         int budget = Math.max(0, (h - 14 - (6 + 10 * name.size() + 2)) / 10);
@@ -56,8 +85,14 @@ public final class FeatureCards {
     private static final Map<BaseTab, Boolean> STATE = new IdentityHashMap<>();
     private static final Map<BaseTab, Boolean> HAS_MASTER = new IdentityHashMap<>();
 
+    /** Forget the cards' laid-out text (the menu's {@code init}: a resize, or a resource reload that may change glyphs). */
+    public static void clearText() {
+        TEXT.clear();
+    }
+
     /** Forget everything (the tab list was rebuilt). */
     public static void clear() {
+        TEXT.clear();
         DESCRIPTIONS.clear();
         STATE.clear();
         HAS_MASTER.clear();

@@ -8,7 +8,8 @@
 		"ArrayBackedEventProbeMixin"
 	],
 	"client": [
-		"HudLayerProbeMixin"
+		"HudLayerProbeMixin",
+		"ScreenProbeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

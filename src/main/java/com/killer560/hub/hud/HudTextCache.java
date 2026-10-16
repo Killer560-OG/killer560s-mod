@@ -16,15 +16,17 @@ import java.util.Map;
  * visual order; a {@code String} does not, and nearly every HUD line in this mod is drawn as a String (95-fps-bench JFR:
  * Bidi under the Secrets HUD, Advanced Position and the Custom Scoreboard, 2026-10-07).
  *
- * <p>While {@link #begin()}..{@link #end()} is open (the mod's own HUD layers, render thread only),
+ * <p>While {@link #begin()}..{@link #end()} is open (the mod's own HUD layers and the mod menu, render thread only),
  * {@code hud/mixin/HudTextVisualOrderMixin} draws such a string with the sequence kept here for the same text. The
  * value is exactly what vanilla computes - the same call on the same {@link Language} - and the cache is dropped when
- * the language object changes, which is the only other input. Outside those layers (vanilla, other mods, every
+ * the language object changes, which is the only other input. Outside those (vanilla, other mods, every other
  * screen) nothing changes.
  */
 public final class HudTextCache {
 
-    private static final int MAX = 512;
+    /** Room for the HUD's lines plus the mod menu's (its grid, sidebar and an open drawer are a few hundred strings;
+     *  fps-gui-1015 put the menu inside the scope). An LRU that is too small misses on every string every frame. */
+    private static final int MAX = 2048;
 
     private static final Map<String, FormattedCharSequence> CACHE = new LinkedHashMap<>(MAX * 2, 0.75f, true) {
         @Override

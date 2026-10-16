@@ -276,6 +276,7 @@ public class ModScreen extends Screen {
 
     @Override
     protected void init() {
+        FeatureCards.clearText();
         ensureTabs();
         if (pendingTabName != null) {
             String want = pendingTabName;
@@ -1297,6 +1298,11 @@ public class ModScreen extends Screen {
     }
 
     /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 YouTube. */
+    private boolean insideIcon(int mouseX, int mouseY, int i) {
+        int[] b = iconBounds(i); // once, not four times a frame
+        return inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+    }
+
     public int[] iconBounds(int i) {
         int size = 14;
         int x = headerX + headerW - 8 - (4 - i) * (size + 2) + 2;
@@ -1750,6 +1756,17 @@ public class ModScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        // The menu's String lines keep their visual order between frames (hud/HudTextCache: the same sequence vanilla
+        // computes, without an ICU Bidi per string per frame - about 45% of the menu's allocation, fps-gui-1015).
+        com.killer560.hub.hud.HudTextCache.begin();
+        try {
+            extractCounted(g, mouseX, mouseY, partialTick);
+        } finally {
+            com.killer560.hub.hud.HudTextCache.end();
+        }
+    }
+
+    private void extractCounted(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         if (!allocProbe || drawingClosed) {
             draw(g, mouseX, mouseY, partialTick);
             return;
@@ -2037,8 +2054,7 @@ public class ModScreen extends Screen {
         int brandY = headerY + (headerH - Math.round(8 * scale)) / 2;
         MenuStyle.gradientText(g, "Killer560's Mod", headerX + 8, brandY, scale, MenuStyle.BRAND_TOP, MenuStyle.BRAND_BOTTOM);
         int bw = Math.round(font.width("Killer560's Mod") * scale);
-        String ver = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
-                + (com.killer560.hub.BuildVariant.TESTING ? " · testing" : "");
+        String ver = headerVersion();
         MenuStyle.text(g, ver, headerX + 8 + bw + 8, headerY + (headerH - 8) / 2 + 1, MenuStyle.DIM2);
         MenuStyle.flat(g, "⌕", searchX + 4, searchY + 4, MenuStyle.DIM2);
         // The theme can change with the menu open (the ◐ icon), so the box takes its colour and shadow every frame.
@@ -2070,6 +2086,19 @@ public class ModScreen extends Screen {
         if (hover) {
             MenuStyle.glow(r, x, y, s, s, colour, 0x40);
         }
+    }
+
+    private static String headerVersion;
+
+    /** "1.1.0 · cheat" under the brand: fixed for the session, so built once rather than every frame. */
+    private static String headerVersion() {
+        String v = headerVersion;
+        if (v == null) {
+            v = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()
+                    + (com.killer560.hub.BuildVariant.TESTING ? " · testing" : "");
+            headerVersion = v;
+        }
+        return v;
     }
 
     private static String modVersion() {
@@ -2352,7 +2381,7 @@ public class ModScreen extends Screen {
         int titleMax = st[0] - drawerX - 14;
         String title = MenuStyle.ellipsize(openFeature.name, titleMax);
         int titleColour = openFeature.isCheatOnly() ? MenuStyle.RED_TITLE : MenuStyle.OR;
-        MenuStyle.text(g, Component.literal(title).withStyle(net.minecraft.ChatFormatting.BOLD), drawerX + 9,
+        MenuStyle.text(g, MenuStyle.bold(title), drawerX + 9,
                 drawerY + 9, titleColour);
         boolean fav = MenuConfig.getInstance().isFavourite(id(openFeature));
         boolean starHover = inside(mouseX, mouseY, st[0], st[1], st[2], st[3]);
@@ -2481,7 +2510,7 @@ public class ModScreen extends Screen {
             } catch (RuntimeException e) {
                 text = null;
             }
-        } else if (inside(mouseX, mouseY, iconBounds(3)[0], iconBounds(3)[1], iconBounds(3)[2], iconBounds(3)[3])) {
+        } else if (insideIcon(mouseX, mouseY, 3)) {
             key = "youtube";
             text = "Killer560's YouTube channel.";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
@@ -2495,15 +2524,7 @@ public class ModScreen extends Screen {
                 if ((it.kind == ItemKind.CARD || (it.kind == ItemKind.HEADER && it.tab != null))
                         && inside(mouseX, mouseY + gridScroll, it.x, it.y, it.w, it.h)) {
                     key = it.tab;
-                    text = cardTooltip(it.tab);
-                    if (text == null && it.kind == ItemKind.CARD) {
-                        // The card carries a short line; the longer text is the hover. With the line hidden, hover
-                        // shows it too, so a card is never left with nothing to say what it does.
-                        text = FeatureCards.longDescription(it.tab);
-                        if (text == null && !DescriptionConfig.getInstance().isShowMenu()) {
-                            text = FeatureCards.description(it.tab);
-                        }
-                    }
+                    text = cardHoverText(it);
                     break;
                 }
             }
@@ -2531,9 +2552,53 @@ public class ModScreen extends Screen {
         }
     }
 
+    private String tooltipLinesFor;
+    private net.minecraft.client.gui.Font tooltipLinesFont;
+    private int tooltipLinesFontVersion;
+    private List<net.minecraft.util.FormattedCharSequence> tooltipLines;
+
+    private Object cardHoverFor;
+    private ItemKind cardHoverKind;
+    private Boolean cardHoverState;
+    private boolean cardHoverShowMenu;
+    private String cardHoverText;
+
+    /** A hovered card's (or category header's) tooltip text. {@link FeatureCards#longDescription} builds the tab's whole
+     *  widget list to read its master toggle, so it is computed when the hovered card, its switch or Show In Menu
+     *  changes - not on every frame the mouse rests there (fps-gui-1015). */
+    private String cardHoverText(Item it) {
+        Boolean state = it.kind == ItemKind.CARD ? FeatureCards.state(it.tab) : null;
+        boolean show = DescriptionConfig.getInstance().isShowMenu();
+        if (cardHoverFor == it.tab && cardHoverKind == it.kind && java.util.Objects.equals(cardHoverState, state) && cardHoverShowMenu == show) {
+            return cardHoverText;
+        }
+        String text = cardTooltip(it.tab);
+        if (text == null && it.kind == ItemKind.CARD) {
+            // The card carries a short line; the longer text is the hover. With the line hidden, hover
+            // shows it too, so a card is never left with nothing to say what it does.
+            text = FeatureCards.longDescription(it.tab);
+            if (text == null && !show) {
+                text = FeatureCards.description(it.tab);
+            }
+        }
+        cardHoverFor = it.tab;
+        cardHoverKind = it.kind;
+        cardHoverState = state;
+        cardHoverShowMenu = show;
+        cardHoverText = text;
+        return text;
+    }
+
     private void drawTooltipBox(GuiGraphicsExtractor graphics, int mouseX, int mouseY, String text, int rise) {
         int maxW = 220;
-        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), maxW);
+        int fontVersion = com.killer560.hub.fonts.FontConfig.version();
+        if (!text.equals(tooltipLinesFor) || tooltipLinesFont != this.font || tooltipLinesFontVersion != fontVersion) {
+            tooltipLines = this.font.split(Component.literal(text), maxW); // once per text, not every frame
+            tooltipLinesFor = text;
+            tooltipLinesFont = this.font;
+            tooltipLinesFontVersion = fontVersion;
+        }
+        List<net.minecraft.util.FormattedCharSequence> lines = tooltipLines;
         int w = 0;
         for (var line : lines) {
             w = Math.max(w, this.font.width(line));
@@ -2715,8 +2780,15 @@ public class ModScreen extends Screen {
 
     /** Home's version line (killer560, 2026-10-15): the mod version and the variant only - no Minecraft version, no build. */
     public String versionLine() {
-        return "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant();
+        String v = homeVersion; // fixed for the session: built once, not every frame Home is drawn
+        if (v == null) {
+            v = "Version " + modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant();
+            homeVersion = v;
+        }
+        return v;
     }
+
+    private static String homeVersion;
 
     /** Labels of Home's quick buttons, in order. For the testkit. */
     public List<String> homeButtonLabels() {
@@ -2997,8 +3069,7 @@ public class ModScreen extends Screen {
             int y = s.getY() + (s.getHeight() - 8) / 2;
             if (heading) {
                 String plain = net.minecraft.ChatFormatting.stripFormatting(raw);
-                g.text(font, Component.literal(MenuStyle.ellipsize(plain == null ? raw : plain, s.getWidth()))
-                        .withStyle(net.minecraft.ChatFormatting.BOLD), s.getX(), y,
+                g.text(font, MenuStyle.bold(MenuStyle.ellipsize(plain == null ? raw : plain, s.getWidth())), s.getX(), y,
                         red ? MenuStyle.RED_TITLE : MenuStyle.OR, MenuStyle.TEXT_SHADOW);
                 return true;
             }

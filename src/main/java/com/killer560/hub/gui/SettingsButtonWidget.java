@@ -237,15 +237,27 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
 
     private String partsFor;
     private Parts parts;
+    /** The message object {@link #parts} was last read from: the same object needs no {@code getString} (which builds a
+     *  new String every call - several per row per frame in the menu, fps-gui-1015). Messages are replaced with
+     *  {@code setMessage}, never edited in place, anywhere in the mod. */
+    private Component partsMsg;
+    private boolean partsCycling;
 
-    /** This button's message read the way the menu draws it. Cached per message text. */
+    /** This button's message read the way the menu draws it. Cached per message (object, then text). */
     public Parts parts() {
-        String raw = getMessage().getString();
-        if (parts != null && raw.equals(partsFor)) {
+        Component msg = getMessage();
+        boolean cycling = isCycling();
+        if (parts != null && msg == partsMsg && cycling == partsCycling) {
+            return parts;
+        }
+        String raw = msg.getString();
+        partsMsg = msg;
+        if (parts != null && raw.equals(partsFor) && cycling == partsCycling) {
             return parts;
         }
         partsFor = raw;
-        parts = parse(raw, isCycling());
+        partsCycling = cycling;
+        parts = parse(raw, cycling);
         return parts;
     }
 
@@ -395,6 +407,19 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return Math.min(max, Math.max(30, want));
     }
 
+    private String boldFor;
+    private Component bold;
+
+    /** {@code label} in bold, the same Component while the label is the same, so its visual order (an ICU Bidi) is
+     *  computed once, not every frame (MutableComponent keeps it per language). */
+    private Component boldLabel(String label) {
+        if (bold == null || !label.equals(boldFor)) {
+            boldFor = label;
+            bold = Component.literal(label).withStyle(net.minecraft.ChatFormatting.BOLD);
+        }
+        return bold;
+    }
+
     private void renderMenu(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         Parts p = parts();
         int x0 = getX();
@@ -417,7 +442,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
                 MenuStyle.raisedButton(r, x0 + 1, y0 + 1, bw - 2, h - 2, hv, primary ? 1f : pr);
             }
             r.submit();
-            String label = MenuStyle.ellipsize(getMessage().getString(), w - 10);
+            String label = MenuStyle.ellipsize(partsFor, w - 10); // partsFor: the message text parts() just read
             if (MenuStyle.LIGHT) {
                 label = MenuStyle.lightReadable(label); // a §a / §7 label stays readable on a light theme
             }
@@ -427,17 +452,16 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
             return;
         }
         if (p.look() == Look.HEADER) {
-            MenuStyle.sectionBand(r, x0, y0 + 1, w, h - 2, getMessage().getString().contains("§c"));
+            boolean red = partsFor.contains("§c"); // the message text parts() just read
+            MenuStyle.sectionBand(r, x0, y0 + 1, w, h - 2, red);
             float band = Math.max(hv, pr);
             if (band > 0f) {
                 r.fill(x0, y0 + 2, x0 + w, y0 + h - 1, MenuStyle.alpha(MenuStyle.TXT, Math.round(0x10 * band)));
             }
             r.submit();
-            boolean red = getMessage().getString().contains("§c");
             int color = red ? MenuStyle.RED_TITLE : MenuStyle.ease(MenuStyle.OR, MenuStyle.OR_HOVER, hv);
             graphics.text(font, p.on() ? "▼" : "▶", x0 + 5, textY, faded(color), MenuStyle.TEXT_SHADOW);
-            graphics.text(font, net.minecraft.network.chat.Component.literal(p.label())
-                    .withStyle(net.minecraft.ChatFormatting.BOLD), x0 + 16, textY, faded(color), MenuStyle.TEXT_SHADOW);
+            graphics.text(font, boldLabel(p.label()), x0 + 16, textY, faded(color), MenuStyle.TEXT_SHADOW);
             return;
         }
         // A setting row: faint hover band and a separator under it, label left, control right. A press washes the row

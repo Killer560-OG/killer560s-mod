@@ -145,6 +145,9 @@ public final class SlotTextFeature {
     public static void paint(GuiGraphicsExtractor graphics, Font font, List<Entry> entries, int x, int y) {
         Matrix3x2fStack pose = graphics.pose();
         for (Entry e : entries) {
+            if (e.text() == null) {
+                continue; // vanilla's text(String) draws nothing for null
+            }
             int width = font.width(e.text());
             float scale = width > 16 ? 16f / width : 1f;
             float drawW = width * scale;
@@ -156,7 +159,8 @@ public final class SlotTextFeature {
             if (scale != 1f) {
                 pose.scale(scale, scale);
             }
-            graphics.text(font, e.text(), 0, 0, e.color(), true);
+            // visual order kept between frames: every slot's text was a fresh ICU Bidi per frame (fps-gui-1015)
+            graphics.text(font, com.killer560.hub.hud.HudTextCache.visualOrder(e.text()), 0, 0, e.color(), true);
             pose.popMatrix();
         }
     }

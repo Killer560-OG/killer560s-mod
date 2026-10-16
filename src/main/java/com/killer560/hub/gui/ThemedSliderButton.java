@@ -141,7 +141,21 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
     }
 
     /** The message split at its first ':' into label and value ("Bar Width: 120" -> "Bar Width", "120"). */
+    private net.minecraft.network.chat.Component splitFor;
+    private String[] splitParts;
+
+    /** {@link #computeSplit} of the current message, kept while it is the same object (a slider replaces its message
+     *  with {@code setMessage} on every change; it was split three times a frame per slider, fps-gui-1015). */
     private String[] split() {
+        net.minecraft.network.chat.Component msg = getMessage();
+        if (splitParts == null || msg != splitFor) {
+            splitParts = computeSplit();
+            splitFor = msg;
+        }
+        return splitParts;
+    }
+
+    private String[] computeSplit() {
         String plain = net.minecraft.ChatFormatting.stripFormatting(getMessage().getString());
         if (plain == null) {
             plain = getMessage().getString();

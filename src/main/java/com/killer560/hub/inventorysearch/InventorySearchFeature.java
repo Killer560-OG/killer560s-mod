@@ -269,7 +269,9 @@ public final class InventorySearchFeature {
             graphics.pose().scale(scale, scale);
             graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
             graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
-            graphics.text(Minecraft.getInstance().font, display, 4, 4, 0xFFFFFFFF, false);
+            // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache)
+            graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
+                    0xFFFFFFFF, false);
         } finally {
             graphics.pose().popMatrix();
         }

@@ -137,8 +137,8 @@ public final class ItemProtect {
                     return true;
                 }
             }
-            String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
-            if (cfg.nameMatchesProtected(name)) {
+            if (cfg.hasProtectedNames()
+                    && cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
                 return true;
             }
         }
@@ -193,7 +193,8 @@ public final class ItemProtect {
                     return "Protected Item";
                 }
             }
-            if (cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
+            if (cfg.hasProtectedNames()
+                    && cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
                 return "Protected Name";
             }
         }

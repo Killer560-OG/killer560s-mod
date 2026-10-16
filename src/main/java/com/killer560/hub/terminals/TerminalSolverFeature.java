@@ -448,11 +448,23 @@ public final class TerminalSolverFeature {
             endTracking();
             return;
         }
-        String rawTitle = screen.getTitle().getString();
-        // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which read
-        // their letter / colour out of it.
-        String title = TerminalType.normalizeTitle(rawTitle);
-        TerminalType type = matchType(title, cfg);
+        // Read once per title object and set of enabled types, not every frame: this runs at the head of every
+        // container's draw, and was a String, a normalised copy and up to six regex Matchers per frame on any chest
+        // (95-perf-screens JFR, fps-gui-1015). Same values: all three are pure functions of those inputs.
+        net.minecraft.network.chat.Component titleComponent = screen.getTitle();
+        int mask = enabledMask(cfg);
+        if (titleComponent != matchedTitleFor || mask != matchedMask || matchedRaw == null) {
+            matchedRaw = titleComponent.getString();
+            // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which
+            // read their letter / colour out of it.
+            matchedNorm = TerminalType.normalizeTitle(matchedRaw);
+            matchedType = matchType(matchedNorm, cfg);
+            matchedTitleFor = titleComponent;
+            matchedMask = mask;
+        }
+        String rawTitle = matchedRaw;
+        String title = matchedNorm;
+        TerminalType type = matchedType;
         if (type == null) {
             noteUnmatchedTerminalTitle(rawTitle, title);
             endTracking();
@@ -1550,8 +1562,27 @@ public final class TerminalSolverFeature {
         LOGGER.info("{} {} '{}' settled with nothing to click - board: {}", DIAG_TAG, type, rawTitle, board);
     }
 
+    /** {@code TerminalType.values()} once (each call clones the array). */
+    private static final TerminalType[] TYPES = TerminalType.values();
+    private static net.minecraft.network.chat.Component matchedTitleFor;
+    private static int matchedMask = -1;
+    private static String matchedRaw;
+    private static String matchedNorm;
+    private static TerminalType matchedType;
+
+    /** Which terminal types are switched on, one bit each (the other input of {@link #matchType}). */
+    private static int enabledMask(TerminalSolverConfig cfg) {
+        int m = 0;
+        for (TerminalType type : TYPES) {
+            if (isTypeEnabled(type, cfg)) {
+                m |= 1 << type.ordinal();
+            }
+        }
+        return m;
+    }
+
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
-        for (TerminalType type : TerminalType.values()) {
+        for (TerminalType type : TYPES) {
             if (!isTypeEnabled(type, cfg)) {
                 continue;
             }
