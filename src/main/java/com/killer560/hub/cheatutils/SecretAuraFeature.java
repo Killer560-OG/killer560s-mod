@@ -231,11 +231,17 @@ public final class SecretAuraFeature {
             if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
                 continue;
             }
+            // The block first: done.contains boxes the key (a Long per block of the cube, ~33 KB a tick in a room
+            // whose sections hold a decorative skull), and for a block classify() never answers for both orders
+            // end in the same `continue` with nothing changed.
+            BlockState state = client.level.getBlockState(pos);
+            if (!mayClassify(state)) {
+                continue;
+            }
             long key = pos.asLong();
             if (done.contains(key)) {
                 continue;
             }
-            BlockState state = client.level.getBlockState(pos);
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
