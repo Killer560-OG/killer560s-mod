@@ -167,9 +167,22 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private int panelY;
     private int panelW;
     private int panelH;
+    /** The grid in this screen's GUI units, ROUNDED from {@link #gx0}/{@link #gCell} (clicks by the testkit, the status
+     *  line). The grid is drawn and hit-tested in whole screen pixels - see {@link #layoutGrid}. */
     private int cell;
     private int gridX;
     private int gridY;
+    /** Screen pixels in one GUI unit of this screen (GUI Scale times Auto Scale), as the grid was laid out at. */
+    private float gridPx = 1f;
+    /** Screen pixels in one GRID unit: a whole number, so every line, cell and room edge lands on a pixel. */
+    private int gk = 1;
+    /** The grid's top-left line, in grid units. */
+    private int gx0;
+    private int gy0;
+    /** One cell's pitch in grid units: its line plus the inside up to the next line. */
+    private int gCell = 8;
+    /** The gutter between a cell's lines and the room drawn in it, in grid units, the same on all four sides. */
+    private int gGap = 1;
     /** The square the grid is drawn in: an F7's whole 6x6, and a smaller floor centred in it at a bigger cell. */
     private int areaX;
     private int areaY;
@@ -227,9 +240,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Only the floor's own rectangle is drawn (killer560, 2026-10-15: "Changing this button did not change the
         // size of the map like it should"), scaled up to the square the 6x6 takes, the way the dungeon map fits a
         // small floor to its frame.
-        cell = Math.max(8, areaSize / Math.max(floor.across, floor.down));
-        gridX = areaX + (areaSize - cell * floor.across) / 2;
-        gridY = areaY + (areaSize - cell * floor.down) / 2;
+        layoutGrid(this.minecraft == null ? 1f : Math.max(1, this.minecraft.getWindow().getGuiScale())
+                * com.killer560.hub.hud.AutoScale.appliedFactor(this));
         listX = areaX + areaSize + 14;
         listW = cx + cw - listX;
 
@@ -682,10 +694,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         double my = event.y();
 
         // The grid.
-        if (mx >= gridX && mx < gridX + cell * floor.across && my >= gridY && my < gridY + cell * floor.down) {
-            int gx = (int) ((mx - gridX) / cell);
-            int gz = (int) ((my - gridY) / cell);
-            int slot = gz * GRID + gx;
+        int slot = slotAt(mx, my);
+        if (slot >= 0) {
             if (event.button() == 1) {
                 Integer anchor = occupiedBy.get(slot);
                 if (anchor != null) {
@@ -843,50 +853,185 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         return nav.contentBottom - 20 - 24;
     }
 
-    /** Map units to screen pixels: one grid cell is the live map's room-plus-gap pitch. */
-    private int unitPx(float units) {
-        return Math.round(units * cell / (float) com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS);
+    /**
+     * Lays the grid out in whole screen pixels (killer560, 2026-10-16: "make this grid for rooms line up better").
+     *
+     * <p>It used to be drawn in GUI units with the live map's geometry: lines at {@code i * cell} and each room 16/20 of
+     * a cell from the cell's left edge, so a room started on one grid line and stopped a fifth of a cell short of the
+     * next - its edges fell between the lines and its size matched no whole number of cells. And because a GUI unit is
+     * {@code guiScale x Auto Scale} screen pixels (2.25 at 1920x1080 GUI 3), a one-unit line came out two pixels wide
+     * here and three there and the cells alternated by a pixel; with no line on the outside, the first row and column
+     * were a line wider than the rest. Now everything is counted in grid units of {@link #gk} WHOLE pixels: the lines
+     * (the well's own border is the outer ones) sit exactly {@link #gCell} apart, every cell's inside is the same
+     * {@code gCell - 1}, and a room spans its cells' insides less one {@link #gGap} gutter on every side, so it runs
+     * across the lines inside it and stops the same distance short of the lines around it.
+     */
+    private void layoutGrid(float pixelsPerUnit) {
+        gridPx = pixelsPerUnit > 0f ? pixelsPerUnit : 1f;
+        gk = Math.max(1, Math.round(gridPx));
+        float toGrid = gridPx / gk;
+        int ax0 = (int) Math.ceil(areaX * toGrid);
+        int ay0 = (int) Math.ceil(areaY * toGrid);
+        int size = Math.min((int) Math.floor((areaX + areaSize) * toGrid) - ax0,
+                (int) Math.floor((areaY + areaSize) * toGrid) - ay0);
+        gCell = Math.max(5, (size - 1) / Math.max(floor.across, floor.down));
+        gGap = Math.max(1, Math.round(gCell * 0.08f));
+        gx0 = ax0 + Math.max(0, size - (gCell * floor.across + 1)) / 2;
+        gy0 = ay0 + Math.max(0, size - (gCell * floor.down + 1)) / 2;
+        // GUI-unit values for everything that is not the grid's own drawing: rounded inwards, so gridX + cell * across
+        // never reaches past the drawn grid.
+        float toUnits = gk / gridPx;
+        gridX = (int) Math.ceil(gx0 * toUnits - 1e-4f);
+        gridY = (int) Math.ceil(gy0 * toUnits - 1e-4f);
+        cell = Math.max(1, (int) Math.floor(gCell * toUnits + 1e-4f));
+    }
+
+    /** The slot under a GUI-unit point, or -1 off the floor - the drawn cells', to the pixel. */
+    private int slotAt(double mx, double my) {
+        double kx = mx * gridPx / gk;
+        double ky = my * gridPx / gk;
+        if (kx < gx0 || ky < gy0) {
+            return -1;
+        }
+        int cx = (int) ((kx - gx0) / gCell);
+        int cz = (int) ((ky - gy0) / gCell);
+        if (cx >= floor.across || cz >= floor.down) {
+            return -1;
+        }
+        return cz * GRID + cx;
+    }
+
+    /** Cells {@code x0..x1-1} by {@code z0..z1-1}'s room box {@code {x0, y0, x1, y1}} in grid units: their insides less
+     *  the gutter, straight through the lines between them. */
+    private int[] cellsBox(int x0, int z0, int x1, int z1) {
+        return new int[]{gx0 + x0 * gCell + 1 + gGap, gy0 + z0 * gCell + 1 + gGap,
+                gx0 + x1 * gCell - gGap, gy0 + z1 * gCell - gGap};
+    }
+
+    /** Which of a placed room's tiles {@code [dx][dz]} are the room (clipped to the floor): all of its box, except an
+     *  L's missing quarter (RoomLShape, the one place that is decided). */
+    private boolean[][] tilesOf(int key, String name) {
+        int rotation = rotations.getOrDefault(key, 0);
+        int[] fp = footprintOf(name, rotation);
+        int ax = key % GRID;
+        int az = key / GRID;
+        int w = Math.max(1, Math.min(floor.across, ax + fp[0]) - ax);
+        int h = Math.max(1, Math.min(floor.down, az + fp[1]) - az);
+        boolean[][] present = new boolean[w][h];
+        for (boolean[] col : present) {
+            java.util.Arrays.fill(col, true);
+        }
+        int[] missing = fp[0] == 2 && fp[1] == 2 ? lMissing(name, rotation) : null;
+        if (missing != null && missing[0] < w && missing[1] < h) {
+            present[missing[0]][missing[1]] = false;
+        }
+        return present;
+    }
+
+    /** L rooms' missing quarters by "name@rotation"; a 2x2 that is not an L maps to {@link #NOT_L}. */
+    private static final Map<String, int[]> L_MISSING = new java.util.HashMap<>();
+    private static final int[] NOT_L = new int[0];
+
+    private static int[] lMissing(String name, int rotation) {
+        String key = name + "@" + rotation;
+        int[] known = L_MISSING.get(key);
+        if (known == null) {
+            if (!RoomDatabase.isReady()) {
+                return null;   // shape unknown yet: drawn whole, asked again next frame
+            }
+            int[] m = RoomLShape.missingTilePasted(RoomLibrary.get(name), rotation);
+            known = m == null ? NOT_L : m;
+            L_MISSING.put(key, known);
+        }
+        return known == NOT_L ? null : known;
     }
 
     /**
-     * A placed room's box {@code {x0, y0, x1, y1}} in the live map's geometry: the room is 16 units and the
-     * next one starts 4 units later, so the gap between neighbours is where a doorway is drawn. A room covering
-     * several cells runs straight through the gaps inside it.
+     * A placed room's fills in grid units, and the box its label is centred in: a rectangle is one box over its cells;
+     * an L is its three cells and the two bridges between them, its label on the L's horizontal pair as the live map
+     * places it.
      */
-    private int[] roomBox(int key, String name) {
-        int[] fp = footprintOf(name, rotations.getOrDefault(key, 0));
+    private List<int[]> roomFills(int key, String name, int[] labelOut) {
+        boolean[][] t = tilesOf(key, name);
         int ax = key % GRID;
         int az = key / GRID;
-        int w = Math.min(floor.across, ax + fp[0]) - ax;
-        int h = Math.min(floor.down, az + fp[1]) - az;
-        int pitch = com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS;
-        int size = com.killer560.hub.livemap.MapPainter.ROOM_SIZE_UNITS;
-        return new int[]{
-                gridX + ax * cell,
-                gridY + az * cell,
-                gridX + unitPx((ax + w - 1) * pitch + size),
-                gridY + unitPx((az + h - 1) * pitch + size)};
+        int w = t.length;
+        int h = t[0].length;
+        List<int[]> out = new ArrayList<>();
+        boolean whole = true;
+        for (boolean[] col : t) {
+            for (boolean b : col) {
+                whole &= b;
+            }
+        }
+        if (whole) {
+            int[] b = cellsBox(ax, az, ax + w, az + h);
+            out.add(b);
+            System.arraycopy(b, 0, labelOut, 0, 4);
+            return out;
+        }
+        for (int dx = 0; dx < w; dx++) {
+            for (int dz = 0; dz < h; dz++) {
+                if (!t[dx][dz]) {
+                    continue;
+                }
+                int[] b = cellsBox(ax + dx, az + dz, ax + dx + 1, az + dz + 1);
+                out.add(b);
+                if (dx + 1 < w && t[dx + 1][dz]) {
+                    out.add(new int[]{b[2], b[1], b[2] + 1 + 2 * gGap, b[3]});
+                }
+                if (dz + 1 < h && t[dx][dz + 1]) {
+                    out.add(new int[]{b[0], b[3], b[2], b[3] + 1 + 2 * gGap});
+                }
+            }
+        }
+        int[] label = null;
+        for (int dz = 0; dz < h && label == null; dz++) {
+            if (w == 2 && t[0][dz] && t[1][dz]) {
+                label = cellsBox(ax, az + dz, ax + 2, az + dz + 1);
+            }
+        }
+        System.arraycopy(label != null ? label : out.get(0), 0, labelOut, 0, 4);
+        return out;
     }
 
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-        int sizeW = cell * floor.across;
-        int sizeH = cell * floor.down;
-        GuiRects well = GuiRects.begin(g);
-        MenuStyle.well(well, gridX - 1, gridY - 1, sizeW + 2, sizeH + 2, MenuStyle.WELL);
-        int line = MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.10f);
-        for (int i = 1; i < floor.across; i++) {
-            well.fill(gridX + i * cell, gridY, gridX + i * cell + 1, gridY + sizeH, line);
+        int sizeW = gCell * floor.across;
+        int sizeH = gCell * floor.down;
+        // Everything below is in grid units of gk whole screen pixels (see layoutGrid).
+        float toUnits = gk / gridPx;
+        g.pose().pushMatrix();
+        g.pose().scale(toUnits, toUnits);
+        try {
+            GuiRects well = GuiRects.begin(g);
+            // The well's border IS the outer lines: the first and last cells are as wide as the rest.
+            MenuStyle.well(well, gx0, gy0, sizeW + 1, sizeH + 1, MenuStyle.WELL);
+            int line = MenuStyle.mix(MenuStyle.WELL, MenuStyle.TXT, 0.10f);
+            for (int i = 1; i < floor.across; i++) {
+                well.fill(gx0 + i * gCell, gy0 + 1, gx0 + i * gCell + 1, gy0 + sizeH, line);
+            }
+            for (int i = 1; i < floor.down; i++) {
+                well.fill(gx0 + 1, gy0 + i * gCell, gx0 + sizeW, gy0 + i * gCell + 1, line);
+            }
+            well.submit();
+            int[] unused = new int[4];
+            GuiRects rooms = GuiRects.begin(g);
+            for (Map.Entry<Integer, String> e : placements.entrySet()) {
+                int colour = colourFor(e.getValue());
+                for (int[] b : roomFills(e.getKey(), e.getValue(), unused)) {
+                    rooms.fill(b[0], b[1], b[2], b[3], colour);
+                }
+            }
+            rooms.submit();
+            drawDoors(g);
+            int hover = slotAt(mouseX, mouseY);
+            if (hover >= 0) {
+                g.outline(gx0 + (hover % GRID) * gCell, gy0 + (hover / GRID) * gCell, gCell + 1, gCell + 1,
+                        MenuStyle.OR);
+            }
+        } finally {
+            g.pose().popMatrix();
         }
-        for (int i = 1; i < floor.down; i++) {
-            well.fill(gridX, gridY + i * cell, gridX + sizeW, gridY + i * cell + 1, line);
-        }
-        well.submit();
-        for (Map.Entry<Integer, String> e : placements.entrySet()) {
-            String name = e.getValue();
-            int[] b = roomBox(e.getKey(), name);
-            g.fill(b[0], b[1], b[2], b[3], colourFor(name));
-        }
-        drawDoors(g);
         // Labels last, so a door never covers a room name (killer560, 2026-10-06: "have the room text be higher
         // up than the doors").
         // The live map's Room Labels setting decides what is written (killer560, 2026-10-06: "if my normal map has
@@ -900,11 +1045,13 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         StringBuilder drawnNow = new StringBuilder();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {
             String name = e.getValue();
-            int[] b = roomBox(e.getKey(), name);
-            int x0 = b[0];
-            int y0 = b[1];
-            int x1 = b[2];
-            int y1 = b[3];
+            // Centred in the room's own drawn box (an L: its horizontal pair), converted from grid units.
+            int[] b = new int[4];
+            roomFills(e.getKey(), name, b);
+            float x0 = b[0] * toUnits;
+            float y0 = b[1] * toUnits;
+            float x1 = b[2] * toUnits;
+            float y1 = b[3] * toUnits;
             // Nothing is found in a designer, so the secrets read the way the live map writes a room nobody has
             // opened: 0/N, from the room database's count.
             RoomEntry entry = RoomDatabase.lookupByName(name);
@@ -926,11 +1073,28 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     com.killer560.hub.livemap.MapPainter.labelShadow(labelCfg, textColour, colourFor(name)));
         }
         labelsDrawn = drawnNow.toString();
-        if (mouseX >= gridX && mouseX < gridX + sizeW && mouseY >= gridY && mouseY < gridY + sizeH) {
-            int gx = (mouseX - gridX) / cell;
-            int gz = (mouseY - gridY) / cell;
-            g.outline(gridX + gx * cell, gridY + gz * cell, cell, cell, MenuStyle.OR);
+    }
+
+    /**
+     * A doorway's box {@code {x0, y0, x1, y1}} in grid units for map cell {@code (gx, gz)} of the 11x11 plan: across the
+     * gutter between the two rooms it joins, from one room's edge to the other's, and 6/16 of a room's side long
+     * (the live map's proportion, {@code MapPainter.doorUnits}), centred on the cells to the pixel.
+     */
+    private int[] doorBox(int gx, int gz, boolean betweenX) {
+        int inner = gCell - 1 - 2 * gGap;
+        int len = Math.max(1, Math.round(inner * 6f / 16f));
+        if ((inner - len) % 2 != 0) {
+            len = len + 1 <= inner ? len + 1 : len - 1;
         }
+        int along = (inner - len) / 2;
+        if (betweenX) {
+            int seam = gx0 + ((gx + 1) / 2) * gCell;
+            int y = gy0 + (gz / 2) * gCell + 1 + gGap + along;
+            return new int[]{seam - gGap, y, seam + 1 + gGap, y + len};
+        }
+        int seam = gy0 + ((gz + 1) / 2) * gCell;
+        int x = gx0 + (gx / 2) * gCell + 1 + gGap + along;
+        return new int[]{x, seam - gGap, x + len, seam + 1 + gGap};
     }
 
     /**
@@ -988,13 +1152,14 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                     // The live map's own connector colour: that of the joined room with the best type priority.
                     colour = connectorColour(plan, gx, gz, betweenX);
                 }
-                // Exactly the live map's doorway box (killer560, 2026-10-06: "make the paths between rooms on the
-                // map the exact same as they look on the normal map").
-                float[] box = com.killer560.hub.livemap.MapPainter.doorUnits(gx, gz);
-                int bx0 = gridX + unitPx(box[0]);
-                int by0 = gridY + unitPx(box[1]);
-                int bx1 = gridX + unitPx(box[0] + box[2]);
-                int by1 = gridY + unitPx(box[1] + box[3]);
+                // The live map's doorway (killer560, 2026-10-06: "make the paths between rooms on the map the exact
+                // same as they look on the normal map"): the gap's whole width, 6/16 of a room long - on the grid's
+                // own pixels (doorBox), so it meets both rooms' edges exactly.
+                int[] box = doorBox(gx, gz, betweenX);
+                int bx0 = box[0];
+                int by0 = box[1];
+                int bx1 = box[2];
+                int by1 = box[3];
                 g.fill(bx0, by0, bx1, by1, colour);
                 if (wither) {
                     // A thin light-grey rim so a black door reads against the dark gap (killer560, 2026-10-06:

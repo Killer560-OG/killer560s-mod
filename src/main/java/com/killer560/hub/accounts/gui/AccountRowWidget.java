@@ -16,7 +16,8 @@ import java.util.function.Consumer;
 
 /**
  * One account on the Swap Accounts screen (killer560, 2026-10-15: "please redo how this looks"): a card across the
- * list's whole width with the account's skin head, its name, an "Active" pill on the account the game is signed in as,
+ * list's whole width with the account's skin head, its name, a solid accent "ACTIVE" pill on the account the game is signed
+ * in as (whose whole card takes the accent since 2026-10-16),
  * the proxy it connects through (none / its own / the Universal one) under the name, and its Hypixel ban status on the
  * right. A press anywhere on the card signs in as the account; its Copy ID and proxy buttons are separate widgets the
  * screen lays over the card's right end ({@link #textRight} is where they begin).
@@ -27,6 +28,8 @@ import java.util.function.Consumer;
 final class AccountRowWidget extends net.minecraft.client.gui.components.AbstractWidget {
 
     static final int HEAD = 20;
+    /** The signed-in account's tag (the testkit reads it, case-insensitively). */
+    static final String PILL = "ACTIVE";
 
     final PrismAccount account;
     final boolean signedIn;
@@ -43,6 +46,12 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
     boolean banned;
     /** Where the row's buttons begin: text stops short of it. */
     int textRight;
+    /** Where the card is drawn: the screen clips the widget's own box to the list (so a card scrolled half under the
+     *  footer neither takes clicks there nor overlaps it), while the card still draws whole under the list's scissor. */
+    int drawY;
+    int drawH = 28;
+    /** Whether its Copy ID / proxy buttons show at all (partly in the list); they take clicks only when wholly in. */
+    boolean buttonsShown;
 
     final MenuAnim.Tween hover = new MenuAnim.Tween(MenuAnim.HOVER_MS, false);
 
@@ -87,32 +96,38 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
         hover.set(isHovered() && active ? 1f : 0f);
         float hv = hover.get();
         int x = getX();
-        int y = getY();
+        int y = drawY;
         int w = getWidth();
-        int h = getHeight();
+        int h = drawH;
 
         GuiRects r = GuiRects.begin(g);
         if (signedIn) {
-            MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x30 + Math.round(0x20 * hv));
+            MenuStyle.glow(r, x, y, w, h, MenuStyle.OR, 0x58 + Math.round(0x20 * hv));
         }
         MenuStyle.dropShadow(r, x, y, w, h, 2);
         int top = MenuStyle.ease(MenuStyle.CARD_TOP, MenuStyle.CARD_HOVER_TOP, hv);
         int bottom = MenuStyle.ease(MenuStyle.CARD_BOTTOM, MenuStyle.CARD_HOVER_BOTTOM, hv);
         if (signedIn) {
-            top = MenuStyle.ease(MenuStyle.SEL_TOP, MenuStyle.CARD_HOVER_TOP, hv * 0.4f);
-            bottom = MenuStyle.ease(MenuStyle.SEL_BOTTOM, MenuStyle.CARD_HOVER_BOTTOM, hv * 0.4f);
+            // The signed-in account stands out (killer560, 2026-10-16: "Make Active a bit more noticeable"): the card
+            // itself takes the theme's accent, a two-pixel accent frame, a full-height accent bar, the name in the
+            // accent and a solid ACTIVE pill - where it had a thin outline and a small green tag.
+            top = MenuStyle.mix(MenuStyle.CARD_TOP, MenuStyle.OR, 0.30f + 0.06f * hv);
+            bottom = MenuStyle.mix(MenuStyle.CARD_BOTTOM, MenuStyle.OR, 0.18f + 0.06f * hv);
         }
         MenuStyle.bevel(r, x, y, w, h, top, bottom);
         if (signedIn) {
             r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR);
+            r.outline(x - 2, y - 2, w + 4, h + 4, MenuStyle.alpha(MenuStyle.OR, 0xA0));
         } else if (hv > 0f) {
             r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.alpha(MenuStyle.ACCENT_EDGE, Math.round(0xFF * hv)));
         }
-        // the accent bar down the left edge: always on the signed-in account, growing in on hover elsewhere
-        if (signedIn || hv > 0f) {
-            int barH = signedIn ? h - 4 : Math.max(1, Math.round((h - 4) * hv));
+        // the accent bar down the left edge: always on (and wider) on the signed-in account, growing in on hover elsewhere
+        if (signedIn) {
+            r.fill(x, y, x + 4, y + h, MenuStyle.OR);
+        } else if (hv > 0f) {
+            int barH = Math.max(1, Math.round((h - 4) * hv));
             int barY = y + 2 + (h - 4 - barH) / 2;
-            r.fill(x + 1, barY, x + 3, barY + barH, signedIn ? MenuStyle.OR : MenuStyle.OR2);
+            r.fill(x + 1, barY, x + 3, barY + barH, MenuStyle.OR2);
         }
         // the head's frame
         int hx = x + 7;
@@ -150,18 +165,24 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
         }
         int nameRoom = right - nameX - (banW > 0 ? banW + 10 : 0);
 
-        String pill = signedIn ? "Active" : null;
-        int pillW = pill == null ? 0 : font.width(pill) + 8;
+        String pill = signedIn ? PILL : null;
+        int pillW = pill == null ? 0 : font.width(pill) + 10;
         String name = MenuStyle.ellipsize(account.displayName(), Math.max(10, nameRoom - (pill == null ? 0 : pillW + 6)));
-        ScreenChrome.text(g, name, nameX, line1, hv > 0.5f || signedIn ? MenuStyle.TXT_HOVER : MenuStyle.TXT);
+        int nameColour = signedIn ? ScreenChrome.readable(MenuStyle.OR_LIGHT)
+                : hv > 0.5f ? MenuStyle.TXT_HOVER : MenuStyle.TXT;
+        ScreenChrome.text(g, name, nameX, line1, nameColour);
         if (pill != null) {
+            // A solid accent pill with text in whichever of near-black or white reads on that accent.
             int px = nameX + font.width(name) + 6;
-            int good = ScreenChrome.good();
+            // On Light every text is dark (testkit's Light sweep), so the pill is a pale accent there instead.
+            int fill = MenuStyle.LIGHT ? MenuStyle.mix(MenuStyle.OR, 0xFFFFFFFF, 0.55f) : MenuStyle.OR;
+            int ink = MenuStyle.luminance(fill) > 0.45f ? 0xFF140C04 : 0xFFFFFFFF;
             GuiRects pr = GuiRects.begin(g);
-            pr.fill(px, line1 - 2, px + pillW, line1 + 9, MenuStyle.alpha(good, 0x30));
-            pr.outline(px, line1 - 2, pillW, 11, MenuStyle.alpha(good, 0xC0));
+            pr.fill(px, line1 - 2, px + pillW, line1 + 9, fill);
+            pr.fill(px + 1, line1 - 2, px + pillW - 1, line1 - 1, MenuStyle.alpha(0xFFFFFFFF, 0x50));
+            pr.outline(px - 1, line1 - 3, pillW + 2, 13, MenuStyle.alpha(MenuStyle.BLACK, 0x90));
             pr.submit();
-            ScreenChrome.text(g, pill, px + 4, line1, good);
+            MenuStyle.flat(g, pill, px + 5, line1, ink);
         }
 
         // proxy line: a status dot and what this account connects through
