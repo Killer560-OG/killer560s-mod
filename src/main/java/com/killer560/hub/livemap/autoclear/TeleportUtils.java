@@ -231,6 +231,9 @@ public final class TeleportUtils {
         Rotation fragile = null;
         for (double[][] set : thorough ? new double[][][]{AIM_POINTS, FIRM_POINTS, VISIBLE_OFFSETS}
                 : new double[][][]{AIM_POINTS, FIRM_POINTS}) {
+            if (set == FIRM_POINTS && fragile == null && !thorough) {
+                break;   // nothing on the face points lands: the block is out of sight, and the path smoother asks often
+            }
             for (double[] o : set) {
                 double tx = to.getX() + o[0];
                 double ty = to.getY() + o[1];
