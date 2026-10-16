@@ -30,14 +30,16 @@ public final class ExperimentsConfig {
     public static final int MIN_CLICK_DELAY_MS = 150;
 
     // killer560's own settings (2026-10-15: "make sure these are the default settings for anyone when they use auto
-    // etable"). A fresh install, a missing key and a profile reset all give these; see load() for older files.
-    public static final boolean DEFAULT_SUPERPAIRS_VALUABLE_ONLY = true;
-    public static final boolean DEFAULT_SKIP_GRAND_EXP_BOTTLES = true;
-    public static final boolean DEFAULT_SKIP_GUARDIAN_PETS = true;
+    // etable"). A fresh install, a missing key and a profile reset all give these; see load() for older files. Except
+    // (killer560, same day): the three Superpairs skips and the Titanic purchase stay OFF by default, and an older file
+    // keeps whatever it says for them.
+    public static final boolean DEFAULT_SUPERPAIRS_VALUABLE_ONLY = false;
+    public static final boolean DEFAULT_SKIP_GRAND_EXP_BOTTLES = false;
+    public static final boolean DEFAULT_SKIP_GUARDIAN_PETS = false;
     public static final int DEFAULT_DELAY_MS = 400;
     public static final int DEFAULT_FIRST_CLICK_DELAY_MS = 600;
     public static final int DEFAULT_RANDOM_DELAY_MAX_MS = 50;
-    public static final double DEFAULT_TITANIC_MAX_PRICE = 800_000;
+    public static final double DEFAULT_TITANIC_MAX_PRICE = 0;
     public static final int DEFAULT_AUTO_RENEW_COUNT = 0;
     public static final int MIN_AUTO_RENEW_COUNT = 0;
     public static final int MAX_AUTO_RENEW_COUNT = 3;
@@ -95,7 +97,7 @@ public final class ExperimentsConfig {
     private int autoRenewCount = DEFAULT_AUTO_RENEW_COUNT;
     /** Max Bazaar buy price (coins) autonomous mode will pay to instantly buy a Titanic Experience
      *  Bottle when the table's own "Missing experience?" prompt shows up - 0 means never auto-buy
-     *  (the default until 2026-10-15, 800,000 since). No practical minimum beyond 0; capped at
+     *  (the default; killer560, 2026-10-15: off for everyone). No practical minimum beyond 0; capped at
      *  3,000,000 per killer560's own limit. */
     private double titanicMaxPriceCoins = DEFAULT_TITANIC_MAX_PRICE;
     /** Random extra delay (0-1000ms) added on top of whatever fixed delay already decided it was
@@ -186,20 +188,11 @@ public final class ExperimentsConfig {
             if (version < 1 && !cfg.enabled) {
                 cfg.autonomousMode = false;
             }
-            // Version 2 (2026-10-15): killer560's settings became the defaults. A file written before then gets
-            // the new default for every setting still at the OLD default (it was never chosen), and keeps every
-            // one its owner changed. The delay floor needs no step here: clampInt already raised anything below
-            // MIN_CLICK_DELAY_MS, deliberate or not.
+            // Version 2 (2026-10-15): killer560's delays became the defaults. A file written before then gets the
+            // new default for every delay still at the OLD default (it was never chosen), and keeps every one its
+            // owner changed. The skips and the Titanic price are not migrated: their defaults did not change. The
+            // delay floor needs no step here: clampInt already raised anything below MIN_CLICK_DELAY_MS.
             if (version < 2) {
-                if (!ConfigJson.getBool(obj, "superpairsValuableOnly", false)) {
-                    cfg.superpairsValuableOnly = DEFAULT_SUPERPAIRS_VALUABLE_ONLY;
-                }
-                if (!ConfigJson.getBool(obj, "skipGrandExpBottles", false)) {
-                    cfg.skipGrandExpBottles = DEFAULT_SKIP_GRAND_EXP_BOTTLES;
-                }
-                if (!ConfigJson.getBool(obj, "skipGuardianPets", false)) {
-                    cfg.skipGuardianPets = DEFAULT_SKIP_GUARDIAN_PETS;
-                }
                 if (clampInt(obj, "delayMs", OLD_DEFAULT_DELAY_MS, 0, MAX_DELAY_MS) == OLD_DEFAULT_DELAY_MS) {
                     cfg.delayMs = DEFAULT_DELAY_MS;
                 }
@@ -209,9 +202,6 @@ public final class ExperimentsConfig {
                 }
                 if (clampInt(obj, "randomDelayMaxMs", 0, MIN_DELAY_MS, MAX_DELAY_MS) == 0) {
                     cfg.randomDelayMaxMs = DEFAULT_RANDOM_DELAY_MAX_MS;
-                }
-                if (ConfigJson.getDouble(obj, "titanicMaxPriceCoins", 0) <= 0) {
-                    cfg.titanicMaxPriceCoins = DEFAULT_TITANIC_MAX_PRICE;
                 }
             }
             instance = cfg;
