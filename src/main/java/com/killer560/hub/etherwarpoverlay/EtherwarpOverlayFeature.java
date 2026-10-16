@@ -59,6 +59,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.compat.McRender;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 
 /**
  * Real Hypixel Skyblock Etherwarp landing-prediction overlay, ported from Odin's own {@code Etherwarp.kt}
@@ -154,7 +158,7 @@ public final class EtherwarpOverlayFeature {
         // Pulled 1% of the way towards the camera, so lines drawn exactly on the block's own faces never tie with them
         // for depth. Scaling about the eye moves every point along its own sight line: the box lands on exactly the same
         // pixels and only its depth changes (growing the box instead pushed the lines visibly outside the face up close).
-        Vec3 cam = com.killer560.hub.compat.McRender.cameraPos(context);
+        Vec3 cam = McRender.cameraPos(context);
         box = towardsCamera(box, cam);
         // Colour + style are user-picked since 2026-09-16 (killer560's testing feedback); the defaults are the
         // exact green/red outline this always drew. Style semantics copied from Simon Says so "Filled" and
@@ -162,22 +166,47 @@ public final class EtherwarpOverlayFeature {
         // halves the fill so the outline still reads. Never let a render exception escape into the frame.
         try {
             float[] c = WorldRenderUtils.argbToFloats(etherPos.succeeded() ? cfg.getSafeColor() : cfg.getFailedColor());
+            final AABB b = box;
             switch (cfg.getStyle()) {
-                case FILLED -> WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3]);
+                case FILLED -> submit(context, cam, RenderTypes.debugFilledBox(),
+                        (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3]));
                 case FILLED_OUTLINE -> {
-                    WorldRenderUtils.renderFilledBox(context, box, c[0], c[1], c[2], c[3] * 0.5f);
-                    WorldRenderUtils.renderFrontOutlineBox(context, box, cam, c[0], c[1], c[2], 1f, 2f);
+                    submit(context, cam, RenderTypes.debugFilledBox(),
+                            (pose, buf) -> WorldRenderUtils.filledBoxVertices(pose, buf, b, c[0], c[1], c[2], c[3] * 0.5f));
+                    submit(context, cam, RenderTypes.LINES_TRANSLUCENT,
+                            (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
                 }
                 // The box's own edges at every distance (an edge off screen is simply not seen), but only those of the
                 // faces turned towards him. killer560 (2026-10-13): "I want the full outline and if you can't see an Edge
                 // then don't draw that part of it" - replacing a red tint, then a smaller outline shrunk onto the face he
                 // was pressed against. The back edges showed through a stair's open corner and made the box look as if it
                 // sat behind the block (his screenshots of a stone brick stair, both versions).
-                default -> WorldRenderUtils.renderFrontOutlineBox(context, box, cam, c[0], c[1], c[2], 1f, 2f);
+                default -> submit(context, cam, RenderTypes.LINES_TRANSLUCENT,
+                        (pose, buf) -> WorldRenderUtils.frontOutlineVertices(pose, buf, b, cam, c[0], c[1], c[2], 1f, 2f));
             }
         } catch (Exception e) {
             LOGGER.warn("[EtherwarpOverlay] Render failed: {}", e.toString());
         }
+    }
+
+    /**
+     * Hands the box to the frame's submit collector, in camera space, rather than to the level's immediate buffer source
+     * ({@code McRender.inCameraSpace} on 26.1.2). killer560 (2026-10-15): "etherwarp on chest corners does not really show
+     * up". On 26.1.2 the immediate source's lines and fills from this event are drawn as soon as the solid features ask
+     * for their first buffer, and a chest, ender chest or trapped chest is a block ENTITY drawn in those solid features,
+     * after them: neither render type writes depth, so the chest model painted over the whole box except the half of each
+     * line that stuck out past its silhouette (testkit 1324: Filled 0 of 50 samples on a chest, full blocks and slabs
+     * untouched). Custom geometry submitted to the collector is drawn by {@code CustomFeatureRenderer} after the model
+     * parts of the same pass (javap, 26.1.2), so it lands on top of the chest like it lands on terrain. 26.2's
+     * {@code McRender.inCameraSpace} already submits this way (the call is identical on both versions), which is why the
+     * box always showed on chests there.
+     */
+    private static void submit(LevelRenderContext context, Vec3 cam, RenderType type, McRender.Geometry geometry) {
+        PoseStack poseStack = context.poseStack();
+        poseStack.pushPose();
+        poseStack.translate(-cam.x, -cam.y, -cam.z);
+        context.submitNodeCollector().order(0).submitCustomGeometry(poseStack, type, geometry::draw);
+        poseStack.popPose();
     }
 
     /** How far towards the camera the drawn box is pulled, as a fraction of its distance. */
