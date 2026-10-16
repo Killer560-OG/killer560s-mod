@@ -364,3 +364,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   after the gate opened (testkit 147, first run). A press in that state plans on the QUICK graph
   (`FloorGraphs.KNOWN_RATIO`), so `EtherwarpPathfinder.searchReady` now asks the same: 2.4-3.7 s on a loaded machine,
   most of it the quick graph's own warm-up wall time.
+- **A map trip that sends every hop on the tick it is worked out (`ClearExecutor.sendNow`) loses hops under an unpaired
+  block click.** Precomputed trips first ran with the planned-ahead path's every-hop `sendNow`; with testkit
+  1015-sim-clickgap's click primer a hop went while the previous landing was still on its way, `RightClick` judged it from
+  the planned spot, the server traced it from the spot before and paired it with the click: "warp 5 never landed" (twice in
+  two runs; main's searched presses never send that way). A precomputed trip now sends only its FIRST hop early
+  (`sendNowFirstOnly`) and the rest at a searched trip's ticks; 1015-sim-clickgap passes. Auto Secret's planned-ahead trips
+  still send every hop early - not reproduced under clicks there, not changed.
