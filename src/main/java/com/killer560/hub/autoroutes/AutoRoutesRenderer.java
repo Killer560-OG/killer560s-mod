@@ -97,6 +97,10 @@ public final class AutoRoutesRenderer {
         }
         nodesDrawn = drawn;
         nodesCulled = n - drawn;
+        totalDrawn += drawn;
+        totalCulled += n - drawn;
+        framesDrawn++;
+        drawnActive = m.paletteActive;
 
         // ---- one camera-space pass per render type, in the order the per-shape calls used to fill each buffer ----
         if (m.lineSegCount() > 0) {
@@ -155,13 +159,23 @@ public final class AutoRoutesRenderer {
     private static int nodesCulled;
     private static int labelsDrawn;
     private static long pathBuilds;
+    private static long totalDrawn;
+    private static long totalCulled;
+    private static long framesDrawn;
+    private static RouteNode drawnActive;
 
     /**
-     * Testkit: {mesh builds, palette builds, path builds} since launch, and {nodes drawn, nodes culled, labels drawn}
-     * on the last frame.
+     * Testkit: {mesh builds, palette builds, path builds, frames drawn, nodes drawn, nodes culled} since launch, then
+     * {nodes drawn, nodes culled, labels drawn} on the last frame.
      */
     public static long[] renderStats() {
-        return new long[]{meshBuilds, paletteBuilds, pathBuilds, nodesDrawn, nodesCulled, labelsDrawn};
+        return new long[]{meshBuilds, paletteBuilds, pathBuilds, framesDrawn, totalDrawn, totalCulled,
+                nodesDrawn, nodesCulled, labelsDrawn};
+    }
+
+    /** Testkit: the node the last drawn frame coloured as active (null for none). */
+    public static Object drawnActive() {
+        return drawnActive;
     }
 
     /** Palette slots per node: the colour at alpha, x0.6 (cylinder top ring), x0.35 (Filled fill), x0.45, x0.7. */

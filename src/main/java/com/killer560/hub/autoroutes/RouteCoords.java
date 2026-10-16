@@ -40,8 +40,19 @@ public final class RouteCoords {
             if (entry == null || entry.name == null || cr == null) {
                 return null;
             }
-            return new Frame(entry.name, cr[0], cr[1], cr[2]);
+            // The same room as last time hands back the same (immutable) record: Auto Routes asks every frame and
+            // every tick (ar-render-1016).
+            Frame last = lastCurrent;
+            if (last != null && last.roomName.equals(entry.name) && last.clayX == cr[0] && last.clayZ == cr[1]
+                    && last.rotation == cr[2]) {
+                return last;
+            }
+            Frame f = new Frame(entry.name, cr[0], cr[1], cr[2]);
+            lastCurrent = f;
+            return f;
         }
+
+        private static volatile Frame lastCurrent;
 
         public boolean sameRoom(Frame other) {
             return other != null && roomName.equals(other.roomName) && clayX == other.clayX && clayZ == other.clayZ
