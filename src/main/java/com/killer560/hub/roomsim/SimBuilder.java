@@ -180,6 +180,8 @@ public final class SimBuilder {
             // - opening the sim world unloads the previous one, and leave() clears this. Set before the open,
             // the way SimFloorGen.generate used to, it was true only for the first floor of a session.
             SimState.setGeneratedFloor(true);
+            // A floor is not a solo room: /reset must not rebuild the last room loaded on its own over it.
+            soloLoad = null;
             // Clay corner and rotation per NAME TABLE index, for the live map. Collected here because this is
             // the loop that knows both - SimRoomIndex records placements in flood-fill order, which is not
             // the order the name table is in, and the map indexes cells by name-table index.
@@ -1115,6 +1117,15 @@ public final class SimBuilder {
      */
     static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
                              RoomLibrary.Room room) {
+        snapPlayerTo(uuid, level, gridX, gridZ, room, null, null);
+    }
+
+    /**
+     * As above, with a facing to stand him at ({@code face}: yaw, pitch; null for the room's own rule) and a callback
+     * told the yaw and pitch the teleport actually used, on the server thread once it has run.
+     */
+    static void snapPlayerTo(java.util.UUID uuid, ServerLevel level, int gridX, int gridZ,
+                             RoomLibrary.Room room, float[] face, java.util.function.Consumer<float[]> landed) {
         var origin = DungeonLayout.cellCenter(gridZ * DungeonLayout.GRID + gridX);
         // An L whose missing quarter is its anchor tile: the anchor's centre is not in the room at all (Lava Ravine
         // as Hypixel captures it, 2026-10-13 - the scan then stood him in the void quarter, or on the ravine's lava
@@ -1226,7 +1237,9 @@ public final class SimBuilder {
         final int y = landing;
         final int fx = x;
         final int fz = z;
-        final Float faceYaw = doorYaw != null ? doorYaw : spawn == null ? null : spawn.yaw();
+        final Float faceYaw = face != null ? Float.valueOf(face[0])
+                : doorYaw != null ? doorYaw : spawn == null ? null : spawn.yaw();
+        final Float facePitch = face != null ? Float.valueOf(Math.max(-90f, Math.min(90f, face[1]))) : null;
         // The same spot death sends him back to - one definition of "the middle of the room", so the place he
         // starts and the place he returns to cannot drift apart.
         SimSurvival.setHome(new net.minecraft.core.BlockPos(fx, y, fz));
@@ -1244,7 +1257,11 @@ public final class SimBuilder {
                     float delta = ((faceYaw - yaw) % 360f + 540f) % 360f - 180f;
                     yaw += delta;
                 }
-                sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, sp.getXRot(), false);
+                float pitch = facePitch != null ? facePitch : sp.getXRot();
+                sp.teleportTo(level, fx + 0.5, y, fz + 0.5, java.util.Set.of(), yaw, pitch, false);
+                if (landed != null) {
+                    landed.accept(new float[]{yaw, pitch});
+                }
             }
         });
     }
@@ -1393,7 +1410,9 @@ public final class SimBuilder {
         try {
             java.util.List<net.minecraft.world.entity.Entity> drops = new java.util.ArrayList<>();
             for (var entity : level.getAllEntities()) {
-                if (entity instanceof net.minecraft.world.entity.item.ItemEntity) {
+                // XP orbs too: a mob killed in the last attempt leaves them, and /reset puts back the room as loaded.
+                if (entity instanceof net.minecraft.world.entity.item.ItemEntity
+                        || entity instanceof net.minecraft.world.entity.ExperienceOrb) {
                     drops.add(entity);
                 }
             }
@@ -1758,6 +1777,72 @@ public final class SimBuilder {
      * itself ({@link SimRoomCycle#isActive}).
      */
     static void buildSingleRoom(Minecraft client, String roomName, boolean fromCycle) {
+        buildSingleRoom(client, roomName, fromCycle, null, null);
+    }
+
+    /**
+     * The room standing on its own right now, as it was loaded: what {@code /reset} rebuilds. Null after a floor
+     * build or the flat test room. {@link #soloFacing} is the yaw and pitch the load stood him at, recorded when the
+     * spawn teleport ran, so a reset faces him the same way rather than keeping wherever he was looking.
+     */
+    record SoloLoad(String name, int rotation, boolean fromCycle) {
+    }
+
+    private static volatile SoloLoad soloLoad;
+    private static volatile float[] soloFacing;
+    /** The load's mimic chest, so a reset does not roll a different one. */
+    private static volatile net.minecraft.core.BlockPos soloMimic;
+
+    /** The solo room {@code /reset} would rebuild, or null when what stands is not one. */
+    static SoloLoad soloLoad() {
+        SoloLoad solo = soloLoad;
+        String standing = SimRoomRoutes.currentSoloRoom();
+        return solo != null && solo.name().equals(standing) ? solo : null;
+    }
+
+    /**
+     * {@code /reset} (killer560, 2026-10-16): "if someone is doing a solo room in the sim can you add the command
+     * /reset that will teleport them back to the spawnpoint of the room with the room fully regenerated."
+     *
+     * <p>Not a second reset path: the room is loaded again through {@link SimWorld#open}'s in-world shortcut, which
+     * drops the per-map state (mobs, mimic, levers, doors, puzzles, the run, the breaker's regrows) and then runs this
+     * class's own single-room build - the wipe, the paste, the secrets, the puzzles, the map publish - at the rotation
+     * it was loaded at. The map publish bumps the live map's reset generation, which is what every client feature's
+     * per-run memory (Secret Waypoints' found marks, Auto Routes' run memory and latches, the auras' done sets) keys on,
+     * exactly as a fresh load. Only the facing is new: the spawn teleport turns him to the yaw and pitch the first
+     * load left him at. Render thread.
+     */
+    static void resetSingleRoom(Minecraft client) {
+        if (!SimState.canAct(client)) {
+            return;
+        }
+        SoloLoad solo = soloLoad();
+        if (SimState.isGeneratedFloor() || solo == null) {
+            ModChat.send("Sim", ModChat.text("/reset is for solo rooms"),
+                    ModChat.dim(" - load one with Load a Room. A whole floor is not reset."));
+            return;
+        }
+        if (SimBuildQueue.isBusy() || SimWorld.isBuilding()) {
+            ModChat.send("Sim", ModChat.text("Still building the room - try again in a moment."));
+            return;
+        }
+        // All Rooms keeps going after a reset of one of its rooms; a room loaded by itself stays by itself.
+        boolean fromCycle = solo.fromCycle() && SimRoomCycle.isActive();
+        float[] face = soloFacing;
+        int rotation = solo.rotation();
+        LOGGER.info("[SimReset] resetting {} (rotation {}, facing {})", solo.name(), rotation,
+                face == null ? "unrecorded" : face[0] + "/" + face[1]);
+        SimWorld.open(client, "", c -> buildSingleRoom(c, solo.name(), fromCycle, rotation, face),
+                "Resetting " + solo.name());
+    }
+
+    /**
+     * @param resetRotation the rotation to paste at, for a reset; null for a load, which takes the test rotation
+     * @param resetFace     yaw and pitch to stand him at, for a reset; null keeps the load's own facing rule
+     */
+    private static void buildSingleRoom(Minecraft client, String roomName, boolean fromCycle, Integer resetRotation,
+                                        float[] resetFace) {
+        boolean reset = resetRotation != null;
         SimState.setGeneratedFloor(false);
         floorPlan = null;   // a lone room has no doors on the map; spawnFor falls back to its measured doorway
         RoomLibrary.Room room = RoomLibrary.get(roomName);
@@ -1770,11 +1855,17 @@ public final class SimBuilder {
             // Not in a world yet - which is the normal case, because this is reached from the MAIN MENU. It
             // used to open an empty sim here and ask him to run a command once inside, so the room he picked
             // was never placed. The build is queued instead and runs the moment the world exists.
-            SimWorld.open(client, "", c -> buildSingleRoom(c, roomName, fromCycle), "Loading " + roomName);
+            SimWorld.open(client, "", c -> buildSingleRoom(c, roomName, fromCycle, resetRotation, resetFace),
+                    "Loading " + roomName);
             return;
         }
         SimRoomCycle.noteSingleRoomLoad(fromCycle);
-        final int rotation = tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
+        final int rotation = reset ? resetRotation
+                : tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
+        soloLoad = new SoloLoad(room.name, rotation, fromCycle);
+        if (!reset) {
+            soloFacing = null;   // recorded afresh by this load's spawn teleport
+        }
         // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
         // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
         // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets
@@ -1861,14 +1952,24 @@ public final class SimBuilder {
                 SimRoomLevers.armFloor(level);
                 SimRedstoneKey.armFloor(level);
                 SimPrince.scan(level);
-                SimMimic.chooseForMap(level);
+                // A reset keeps the load's mimic: the room comes back as it was loaded, not re-rolled.
+                SimMimic.chooseForMap(level, reset ? soloMimic : null);
+                soloMimic = SimMimic.chosen();
                 SimScore.reset(Math.max(0, secrets), 1);
-                snapPlayerTo(client, level, centre, centre, room);
-                client.execute(() -> SimSecrets.report(roomName, secrets));
+                var player = client.player;
+                snapPlayerTo(player == null ? null : player.getUUID(), level, centre, centre, room, resetFace,
+                        face -> soloFacing = face);
+                if (!reset) {
+                    client.execute(() -> SimSecrets.report(roomName, secrets));
+                }
                 client.execute(() -> {
                     publishSingleRoomMap(room, centre, rotation);
                     SimWorld.buildFinished(client, null);
-                    ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
+                    if (reset) {
+                        ModChat.send("Sim", ModChat.text("Room reset"));
+                    } else {
+                        ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
+                    }
                 });
             });
         });
@@ -2024,6 +2125,7 @@ public final class SimBuilder {
             return;
         }
         RoomLibrary.Room room = FlatTestRoom.ensure();
+        soloLoad = null;   // the flat test room is not a room /reset can rebuild
         // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
         // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
         // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets

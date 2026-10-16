@@ -3030,6 +3030,21 @@ off, and Autopilot waited out its puzzle timeout. `isComplete` is now "the chest
 93-solve-boulder's button mode checks; a reset clears the chest too. 93-solve-boulder-chest-unsolved: complete the
 tick the chest opens, tab ✔ 1-4 ticks later; main never.
 
+## /reset: a solo room loaded again, and what had to be pinned (2026-10-16, sim-reset-1016)
+
+- `/reset` is `SimBuilder.resetSingleRoom`: the same `buildSingleRoom` the picker uses, through `SimWorld.open`'s in-world
+  shortcut so `resetPerMapState` runs first, at the load's rotation, with the load's yaw and pitch (recorded by the spawn
+  teleport, `soloFacing`). A floor build or the flat room clears `soloLoad`, so a floor only gets the "for solo rooms" line.
+- **The mimic was re-rolled on every build.** `SimMimic.chooseForMap` picks a random secret chest, so a reset of Bridges
+  moved the trapped chest to the other one (testkit 1771: the only 2 blocks of 1,478,400 that differed). A reset passes the
+  load's chest as `prefer`. Anything else random in a single-room build would show the same way in 1771's block diff.
+- **Client command suggestions are a snapshot.** Fabric's `ClientCommandInternals.addCommands` copies only the client nodes
+  whose `requires` passes WHEN the server's commands packet arrives (javap, command-api 3.0.5 and 3.1.0), and nothing
+  re-reads it, so a `requires(SimState::canAct)` command's visibility depends on whether the packet came before
+  `SimState.enter`. `SimResetCommand` re-applies the last packet (`ClientCommands.refreshCommandCompletions`) whenever
+  `canAct` changes. A failed `requires` makes the parse an unknown command, which Fabric ignores, so the line goes to the
+  server unchanged (1775: the testmod's own `/reset` answers it and is the only one suggested).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the

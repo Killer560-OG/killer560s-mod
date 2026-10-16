@@ -144,6 +144,19 @@ public final class SimMimic {
      * room at a time - picking as you go gives the first eligible room a far better chance than the last.
      */
     public static void chooseForMap(net.minecraft.server.level.ServerLevel level) {
+        chooseForMap(level, null);
+    }
+
+    /** The chest chosen as this map's mimic, or null when it has none. */
+    public static BlockPos chosen() {
+        return mimic;
+    }
+
+    /**
+     * As {@link #chooseForMap(net.minecraft.server.level.ServerLevel)}, but {@code prefer} is the mimic when it is
+     * still a candidate: {@code /reset} rebuilds a solo room exactly as it was loaded, mimic included.
+     */
+    public static void chooseForMap(net.minecraft.server.level.ServerLevel level, BlockPos prefer) {
         mimic = null;
         found = false;
         mimicMob = null;
@@ -172,7 +185,7 @@ public final class SimMimic {
         if (pool.isEmpty()) {
             pool.addAll(CANDIDATES);
         }
-        mimic = pool.get(RNG.nextInt(pool.size()));
+        mimic = prefer != null && pool.contains(prefer) ? prefer : pool.get(RNG.nextInt(pool.size()));
         LOGGER.info("Sim mimic: 1 of {} candidate chest(s) on {}, at {}",
                 pool.size(), SimState.floorLabel(), mimic);
         // On Hypixel the mimic's chest is a TRAPPED chest - that is how the map, Secret Waypoints and Auto Routes'

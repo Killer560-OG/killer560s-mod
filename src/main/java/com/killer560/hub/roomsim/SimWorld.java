@@ -383,6 +383,11 @@ public final class SimWorld {
         SimLoadingScreen.dismiss(client);
     }
 
+    /** Whether a build asked for through {@link #open} is still running (its loading screen is up). */
+    static boolean isBuilding() {
+        return buildInProgress;
+    }
+
     /** Progress line for the loading screen, if one is up. */
     public static void buildProgress(String line) {
         loadingLabel = line == null ? loadingLabel : line;

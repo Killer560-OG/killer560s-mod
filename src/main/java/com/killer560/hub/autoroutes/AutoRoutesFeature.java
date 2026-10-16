@@ -82,6 +82,8 @@ public final class AutoRoutesFeature {
     private static int ringEnteredAt;
     private static String lastRoom;
     private static Object lastLevel;
+    /** {@link LiveMapFeature#resetGeneration} at the last tick: a change is a new run in the same world. */
+    private static int lastMapGeneration = -1;
     private static boolean renderFailed;
     /** The last arming state logged by {@link #gate}, so each gate decision is logged once per change, not per tick. */
     private static String lastGate;
@@ -864,6 +866,11 @@ public final class AutoRoutesFeature {
             resetForWorld("world change");
             RoutePathPlanner.cancelProofs();
         }
+        int mapGeneration = LiveMapFeature.resetGeneration();
+        if (mapGeneration != lastMapGeneration) {
+            lastMapGeneration = mapGeneration;
+            resetForRun();
+        }
         if (!cfg.isEnabled()) {
             gate("Auto Routes is off");
             if (RouteExecutor.isRunning() || RouteRecorder.isRecording() || editMode) {
@@ -1320,6 +1327,26 @@ public final class AutoRoutesFeature {
                         RouteCoords.toReal(frame, start.relativePos()));
         return "in no node of " + frame.roomName() + " (" + route.nodes().size() + " node(s), "
                 + (startOnly ? "start only" : "any node") + ", " + where + ")";
+    }
+
+    /**
+     * A new run without a world change: the live map was reset (a dungeon entered, a sim floor or room built - the sim's
+     * {@code /reset} rebuilds the room he is standing in). The rooms are new, so no node he stood in is still "the one
+     * he stopped or finished in": the latches go, and a route still running stops. Edit mode and a recording are his
+     * and stay; a world change ({@link #resetForWorld}) still drops those.
+     */
+    private static void resetForRun() {
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("new run");
+        }
+        RouteExecutor.clearStoppedByUser();
+        RouteExecutor.clearJustFinished();
+        latchedNode = null;
+        lastRoom = null;
+        gotoNode = null;
+        gotoRoute = null;
+        addedToFire = null;
+        addedToFireRoute = null;
     }
 
     private static void resetForWorld(String reason) {
