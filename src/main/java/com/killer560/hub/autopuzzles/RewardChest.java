@@ -39,8 +39,8 @@ import java.util.Set;
  * lid is open for a tick at most. Reading only the screen and the lid, Auto Ice Path took his claimed chest for an
  * unopened one, clicked twice more and then waited half a minute for a chest to "appear" (killer560, 2026-10-15, "it
  * gets stuck on ice fill after grabbing the chest"). A click with no answer is retried once the answer is overdue - his
- * measured round trip plus any server stall, not a fixed wait - and once a chest has been found, finding no other ends
- * the step at once.
+ * measured round trip plus any server stall, and the server's ack of the click in, not a fixed wait - and once a chest
+ * has been found, finding no other ends the step at once.
  */
 final class RewardChest {
 
@@ -295,9 +295,9 @@ final class RewardChest {
     /**
      * The last click went unanswered: its round trip is over ({@link #answerTicks}) AND the server has acked it with no
      * window since. The ack is what keeps a busy server from being clicked twice: a server handles a click and sends its
-     * window before it acks it, so while the ack is not in the server simply has not got to the click yet (the sim's
-     * Ice Fill, whose server was rebuilding the finish when the click came, answered 5 ticks late). A server that sends
-     * no ack at all is given {@link #NO_ACK_ROUND_TRIPS} round trips.
+     * window before it acks it, so while the ack is not in the server simply has not got to the click yet - a server
+     * stalled past his ping is waited for rather than clicked twice. A server that sends no ack at all is given
+     * {@link #NO_ACK_ROUND_TRIPS} round trips.
      */
     private boolean unanswered() {
         int due = answerTicks();
