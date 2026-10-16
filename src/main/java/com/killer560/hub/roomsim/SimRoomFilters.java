@@ -12,7 +12,7 @@ import java.util.Set;
  * <p>Each list that picks rooms has its own {@link SimRoomFilter}, saved in its own file, all edited by the one
  * Filters panel ({@link SimRoomFilterScreen}) and tested by the one {@link SimRoomFilter#matches}:
  * <ul>
- *   <li>{@link #DESIGNER} - the Map Designer's room list, Fill (which draws from the list as shown) and Generate
+ *   <li>{@link #DESIGNER} - the Map Designer's room list and Generate
  *       (killer560, 2026-10-06: "in the generate a map thing have a filter section where i can filter based on things
  *       like puzzles, room size, secrets in a room, etc.");</li>
  *   <li>{@link #PICKER} - the Load a Room list;</li>

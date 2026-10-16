@@ -125,7 +125,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     //
     // killer560 (2026-09-29): "this screen needs to be the design the map screen. That should be the only one
     // once you click create a new map." So the settings came here rather than being dropped - Generate below
-    // still calls the real floor generator, NOT the Fill button. Those are different things and must stay
+    // still calls the real floor generator, NOT a drawing of it. Those are different things and must stay
     // different: a generated floor carries a rotation per room, worked out by matching doorways, while a drawn
     // one is placed at rotation 0 throughout (SimFloorGen.planExplicit). Filling the drawing grid from the
     // generator would throw those rotations away, and the room database's secret coordinates are translated
@@ -235,8 +235,8 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
 
         // The room filters (killer560, 2026-10-06: "have a filter section where i can filter based on things like
         // puzzles, room size, secrets in a room, etc."), beside the search box. They open as a popup screen rather
-        // than a panel here, because this screen has no free space at a small window. They narrow the list, Fill
-        // (which draws from the list) and Generate - see SimRoomFilters. Lit while any chip is chosen, counting them.
+        // than a panel here, because this screen has no free space at a small window. They narrow the list
+        // and Generate - see SimRoomFilters. Lit while any chip is chosen, counting them.
         int chosen = SimRoomFilters.DESIGNER.selectedCount();
         int filtersW = this.font.width("Filters (99)") + 12;
         search = new ThemedEditBox(this.font, listX, nav.contentY, Math.max(20, listW - filtersW - 4), 18,
@@ -296,7 +296,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         // Save went (killer560, 2026-10-15: "Remove the save and load buttons in exchange for one load button"): Play
         // records the floor in the Load list itself, so there is nothing to name or save by hand. Back went too: the
         // left column's Back closes the menu, and its entries are the way to the other pages.
-        int count = 4;
+        int count = 3;
         int bw = (cw - 6 * (count - 1)) / count;
         int bx = cx;
 
@@ -323,16 +323,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Fill"), b -> {
-            planStale();
-            autoFill();
-            // A filled grid is his drawing, not a generated floor - Clear should treat it that way.
-            pinned.clear();
-            pinned.putAll(placements);
-        })
-                .bounds(bx, by, bw, 20).build());
-        bx += bw + 6;
-
+        // Fill went too (killer560, 2026-10-15: "Remove the fill button, it no longer has a use"), so the row is three.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Load"), b -> {
             panel = panel == Panel.MAPS ? Panel.ROOMS : Panel.MAPS;
             scroll = 0;
@@ -341,8 +332,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }).bounds(bx, by, bw, 20).build());
         bx += bw + 6;
 
+        // Play takes the division's remainder, so its right edge meets Generate's above it exactly.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aPlay"), b -> play())
-                .bounds(bx, by, bw, 20).primary().build());
+                .bounds(bx, by, cx + cw - bx, 20).primary().build());
 
         refilter();
         rebuildOccupancy();
@@ -457,41 +449,6 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         return true;
     }
 
-    /**
-     * Fills the empty cells with random usable rooms - a starting point rather than a blank grid.
-     *
-     * <p>Draws from the room list AS SHOWN, so the room filters (and the search box) narrow Fill exactly as they
-     * narrow the list. Fill is a drawing, not a generated floor, so it has no required rooms to keep.
-     */
-    private void autoFill() {
-        if (panel != Panel.ROOMS) {
-            panel = Panel.ROOMS;
-            refilter();
-        }
-        List<String> pool = new ArrayList<>(listed);
-        if (pool.isEmpty()) {
-            status = SimRoomFilters.isDefault() && searchText.isBlank() ? "no usable rooms"
-                    : "no rooms match the filters";
-            return;
-        }
-        java.util.Collections.shuffle(pool);
-        int added = 0;
-        for (int slot = 0; slot < GRID * GRID; slot++) {
-            if (occupiedBy.containsKey(slot) || slot % GRID >= floor.across || slot / GRID >= floor.down) {
-                continue;
-            }
-            for (String name : pool) {
-                if (canPlace(name, slot)) {
-                    placements.put(slot, name);
-                    rebuildOccupancy();
-                    added++;
-                    break;
-                }
-            }
-        }
-        status = "filled " + added + " cell(s)";
-    }
-
     /** "Floor 1 · Generated" / "· Drawn" / "My Dungeon · Saved design" - a Load row's first line, what search matches. */
     private static String historyTitle(SimMapHistory.Entry e) {
         return e.title();
@@ -553,7 +510,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     /**
      * Forget the generated plan, because the grid no longer shows it.
      *
-     * <p>Play builds the PLAN when there is one, so a plan left standing after he edits, clears, fills or
+     * <p>Play builds the PLAN when there is one, so a plan left standing after he edits, clears or
      * loads over it would build something other than what he is looking at - the exact failure the preview
      * exists to prevent.
      */
@@ -877,7 +834,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         return nav.contentY + 24;
     }
 
-    /** The y of the upper button row (floor, sliders, Generate); the lower row (Clear, Fill, Load, Play) is 24 below. */
+    /** The y of the upper button row (floor, sliders, Generate); the lower row (Clear, Load, Play) is 24 below. */
     private int rowAY() {
         return nav.contentBottom - 20 - 24;
     }
@@ -1090,10 +1047,14 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
             if (panel == Panel.MAPS) {
                 SimMapHistory.Entry e = history.get(i);
                 g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, MenuStyle.OR);
-                MenuStyle.text(g, name, listX + 10, y + ROW_TEXT1, MenuStyle.TXT);
-                // The date he made it on the right of the first line, where a long title cannot run into it.
+                // The date he made it on the right of the first line; the title is cut with "..." short of it, so a
+                // long title or a narrow list never runs the two together (killer560, 2026-10-15: "make that
+                // something that can't happen").
                 String date = e.dateText();
-                MenuStyle.text(g, date, listX + listW - 6 - this.font.width(date), y + ROW_TEXT1, MenuStyle.OR);
+                int dateX = listX + listW - 6 - this.font.width(date);
+                MenuStyle.text(g, MenuStyle.ellipsize(name, dateX - 8 - (listX + 10)), listX + 10, y + ROW_TEXT1,
+                        MenuStyle.TXT);
+                MenuStyle.text(g, date, dateX, y + ROW_TEXT1, MenuStyle.OR);
                 // A saved design brought in from the old Save file has no puzzle count recorded (-1).
                 String counts = e.rooms() + " rooms" + (e.puzzles() >= 0 ? "  ·  " + e.puzzles() + " puzzles" : "");
                 MenuStyle.text(g, fit(counts + "  ·  right-click to delete", counts, listW - 16),
@@ -1101,14 +1062,15 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 continue;
             }
             g.fill(listX + 3, y + 3, listX + 7, y + ROW_H - 3, colourFor(name));
-            MenuStyle.text(g, name, listX + 10, y + ROW_TEXT1, isSelected ? MenuStyle.OR : MenuStyle.TXT);
+            MenuStyle.text(g, MenuStyle.ellipsize(name, listW - 16), listX + 10, y + ROW_TEXT1,
+                    isSelected ? MenuStyle.OR : MenuStyle.TXT);
             RoomEntry entry = RoomDatabase.lookupByName(name);
             String sub = SimFloorGen.typeOf(name).toLowerCase(Locale.ROOT);
             if (entry != null) {
                 sub += "  ·  " + (entry.shape == null ? "?" : entry.shape)
                         + "  ·  " + entry.secrets + " secrets";
             }
-            MenuStyle.text(g, sub, listX + 10, y + ROW_TEXT2, MenuStyle.DIM);
+            MenuStyle.text(g, MenuStyle.ellipsize(sub, listW - 16), listX + 10, y + ROW_TEXT2, MenuStyle.DIM);
         }
         g.disableScissor();
         if (listed.isEmpty()) {
