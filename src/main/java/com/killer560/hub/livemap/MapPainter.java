@@ -1546,6 +1546,8 @@ public final class MapPainter {
         }
         graphics.pose().pushMatrix();
         graphics.pose().scale(1f / TRI_RES, 1f / TRI_RES);
+        // The rows as one render-state element (hud/GuiRects: same fills, same order, same pixels).
+        com.killer560.hub.hud.GuiRects rows = com.killer560.hub.hud.GuiRects.begin(graphics);
         int runStart = top;
         int runW = -1;
         for (int r = top; r < bottom; r++) {
@@ -1553,13 +1555,14 @@ public final class MapPainter {
             int w = Math.max(1, Math.round((r + 0.5f - tipY * TRI_RES) * 0.5f));
             if (w != runW) {
                 if (runW > 0) {
-                    graphics.fill(-runW, runStart, runW, r, color);
+                    rows.fill(-runW, runStart, runW, r, color);
                 }
                 runStart = r;
                 runW = w;
             }
         }
-        graphics.fill(-runW, runStart, runW, bottom, color);
+        rows.fill(-runW, runStart, runW, bottom, color);
+        rows.submit();
         graphics.pose().popMatrix();
     }
 
