@@ -386,12 +386,14 @@ final class PictureScene {
     }
 
     /**
-     * Stars twinkling smoothly (killer560, 2026-10-16: "make the whole thing a bit smoother ... the pulsating lights"): the
-     * bright ones at the given points (x, y pairs found in the picture) as a soft round glow with a faint soft cross whose
-     * arms taper away, their brightness eased up and down; plus {@code faint} small soft dots at sub-pixel places above
-     * {@code skyBottom} that fade in and out on their own slow clocks, none inside {@code calm} (x0, y0, x1, y1: the title).
+     * Stars twinkling smoothly (killer560, 2026-10-16: "make the whole thing a bit smoother ... the pulsating lights", then
+     * "make the stars pulsate a bit more"): the bright ones at {@code stars} (x, y pairs found in the picture) breathe
+     * clearly - a soft round glow growing and dimming with a soft cross whose arms taper away; the medium ones at
+     * {@code mids} shimmer as soft dots over the painted ones; and {@code faint} small soft dots at sub-pixel places above
+     * {@code skyBottom} fade in and out on their own slow clocks, none inside {@code calm} (x0, y0, x1, y1: the title).
+     * Every brightness follows an eased curve, so nothing pops.
      */
-    record Twinkles(int[] stars, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
+    record Twinkles(int[] stars, int[] mids, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
             if (density <= 0) {
@@ -400,10 +402,19 @@ final class PictureScene {
             for (int i = 0; i < stars.length; i += 2) {
                 double x = stars[i] + 0.5;
                 double y = stars[i + 1] + 0.5;
-                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.45 + 0.9 * hash(i, salt + 1)) + hash(i, salt) * 6.28));
-                int a = (int) Math.round(255 * (0.18 + 0.50 * tw));
-                softDot(r, x, y, 1.3 + 0.5 * tw, 1, rgb, a, 0.5 + 0.5 * tw);
-                cross(r, x, y, 9 + 4 * tw, rgb, (int) Math.round(a * 0.45));
+                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.5 + 1.0 * hash(i, salt + 1)) + hash(i, salt) * 6.28));
+                int a = (int) Math.round(255 * (0.08 + 0.80 * tw));
+                softDot(r, x, y, 1.0 + 1.3 * tw, 1, rgb, a, 0.3 + 0.7 * tw);
+                cross(r, x, y, 5 + 12 * tw, rgb, (int) Math.round(a * 0.5));
+            }
+            for (int i = 0; i < mids.length; i += 2) {
+                double x = mids[i] + 0.5;
+                double y = mids[i + 1] + 0.5;
+                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.6 + 1.4 * hash(i, salt + 5)) + hash(i, salt + 4) * 6.28));
+                int a = (int) Math.round(255 * 0.62 * tw * tw);
+                if (a > 2) {
+                    softDot(r, x, y, 0.9 + 0.6 * tw, 1, rgb, a, 0);
+                }
             }
             for (int i = 0; i < faint; i++) {
                 double x = hash(i, salt + 10) * 1920;
@@ -411,13 +422,13 @@ final class PictureScene {
                 if (x > calm[0] && x < calm[2] && y > calm[1] && y < calm[3]) {
                     continue;
                 }
-                double s = Math.sin(t * (0.25 + 0.6 * hash(i, salt + 12)) + i * 2.3);
+                double s = Math.sin(t * (0.3 + 0.8 * hash(i, salt + 12)) + i * 2.3);
                 if (s <= 0) {
                     continue;
                 }
-                int a = (int) Math.round(255 * 0.5 * s * s);
+                int a = (int) Math.round(255 * 0.65 * s * s);
                 if (a > 2) {
-                    softDot(r, x, y, 0.8 + 0.6 * hash(i, salt + 13), 1, rgb, a, 0);
+                    softDot(r, x, y, 0.8 + 0.7 * hash(i, salt + 13), 1, rgb, a, 0);
                 }
             }
         }
