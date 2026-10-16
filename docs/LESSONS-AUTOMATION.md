@@ -328,3 +328,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `ClearExecutor` counts its own uses against `RightClick.usesSent()`; a moving packet another feature's use (last ~2 s)
   accounts for is that feature's landing: in the settle the trip ends as arrived, while planning it is not reported. A move
   with no use behind it still reports (testkit 93-solve-icefill-maptrip asserts both).
+- **The server's pairing ray and the client's pick can disagree** (2026-10-15, 1015-sim-clickgap). The 1.8 server traces a bare
+  use from the 1.54 sneaking eye, the client picks from 1.27, so a warp's server ray can meet a block within 4.5 that the
+  client's look never reaches: no block half can be sent and the warp is dropped under an unpaired click. Never click a
+  block the client cannot see; `RightClick.reaimIfUnpairable` aims at the same block along a look whose rays agree and the
+  warp goes one tick later (ClearExecutor hops, Auto Routes warps). Testkit 96-ar-1015-reaim builds the mismatch.
