@@ -21,9 +21,12 @@ public final class MaskInvincibilityConfig {
 
     private static MaskInvincibilityConfig instance;
 
-    /** Bounds for {@link #getSwapStepDelayMs()} - the pause between two steps of one automated swap. */
-    public static final int MIN_STEP_DELAY_MS = 150;
-    public static final int MAX_STEP_DELAY_MS = 1000;
+    /** Bounds for {@link #getSwapStepDelayTicks()} - the pause between two steps of one automated swap, in whole
+     *  client ticks (killer560, 2026-10-16: "change the mask ms timer to be in ticks"). The old millisecond range was
+     *  150-1000, i.e. 3-20 ticks; 0 was never allowed, so the floor stays 3. */
+    public static final int MIN_STEP_DELAY_TICKS = 3;
+    public static final int MAX_STEP_DELAY_TICKS = 20;
+    public static final int DEFAULT_STEP_DELAY_TICKS = 7;
 
     private boolean enabled = false;
     private boolean announceInChat = true;
@@ -36,7 +39,12 @@ public final class MaskInvincibilityConfig {
     private boolean onlyInDungeons = false;
     private boolean bossOnly = false;
     private boolean autoSwapEnabled = false;
-    private int swapStepDelayMs = 350;
+    private AutoMaskMode autoMaskMode = AutoMaskMode.FULL_AUTO;
+    private SwapOrder swapOrder = SwapOrder.MASK_FIRST;
+    private int swapKey = com.killer560.hub.util.KeyUtil.NONE;
+    private boolean autoMaskDungeonsOnly = true;
+    private boolean autoMaskBossOnly = false;
+    private int swapStepDelayTicks = DEFAULT_STEP_DELAY_TICKS;
     private boolean rodReturnToPreviousSlot = true;
     private PhoenixRoute phoenixRoute = PhoenixRoute.ROD;
 
@@ -48,6 +56,42 @@ public final class MaskInvincibilityConfig {
     public enum PhoenixRoute {
         ROD,
         PETS
+    }
+
+    /** killer560, 2026-10-16: "for auto mask have a swap keybind and a full auto mode". {@link #KEYBIND} swaps only
+     *  when {@link #getSwapKey()} is pressed; {@link #FULL_AUTO} swaps the moment the worn mask (or Phoenix) procs,
+     *  which is what Auto Swap always did. */
+    public enum AutoMaskMode {
+        KEYBIND("Keybind"),
+        FULL_AUTO("Full Auto");
+
+        private final String label;
+
+        AutoMaskMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /** killer560, 2026-10-16: "an option of swap mask first or swap phoenix first". What an Auto Mask swap tries
+     *  next: {@link #MASK_FIRST} the other mask (Spirit before Bonzo when none is worn), then Phoenix;
+     *  {@link #PHOENIX_FIRST} Phoenix, then the masks. */
+    public enum SwapOrder {
+        MASK_FIRST("Mask First"),
+        PHOENIX_FIRST("Phoenix First");
+
+        private final String label;
+
+        SwapOrder(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
     }
 
     private MaskInvincibilityConfig() {
@@ -79,7 +123,21 @@ public final class MaskInvincibilityConfig {
             cfg.hideMaskNames = ConfigJson.getBool(obj, "hideMaskNames", false);
             cfg.onlyInDungeons = ConfigJson.getBool(obj, "onlyInDungeons", false);
             cfg.bossOnly = ConfigJson.getBool(obj, "bossOnly", false);
-            cfg.swapStepDelayMs = clampDelay(ConfigJson.getInt(obj, "swapStepDelayMs", 350));
+            // Ticks since 2026-10-16. A file from before that has only the millisecond key: ms / 50, rounded, so he
+            // keeps about the same pause (350 ms -> 7 ticks). The ms key is not written again.
+            if (obj.has("swapStepDelayTicks")) {
+                cfg.swapStepDelayTicks = clampDelay(ConfigJson.getInt(obj, "swapStepDelayTicks", DEFAULT_STEP_DELAY_TICKS));
+            } else if (obj.has("swapStepDelayMs")) {
+                cfg.swapStepDelayTicks = clampDelay((int) Math.round(ConfigJson.getInt(obj, "swapStepDelayMs", 350) / 50.0));
+            }
+            // A file from before Mode existed only had the one Auto Swap switch, which always swapped on a proc:
+            // that is Full Auto, so a missing key reads as Full Auto and the switch itself keeps its saved value.
+            cfg.autoMaskMode = ConfigJson.getEnum(obj, "autoMaskMode", AutoMaskMode.class, AutoMaskMode.FULL_AUTO);
+            cfg.swapOrder = ConfigJson.getEnum(obj, "autoMaskSwapOrder", SwapOrder.class, SwapOrder.MASK_FIRST);
+            cfg.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(
+                    ConfigJson.getInt(obj, "autoMaskSwapKey", com.killer560.hub.util.KeyUtil.NONE));
+            cfg.autoMaskDungeonsOnly = ConfigJson.getBool(obj, "autoMaskDungeonsOnly", true);
+            cfg.autoMaskBossOnly = ConfigJson.getBool(obj, "autoMaskBossOnly", false);
             cfg.rodReturnToPreviousSlot = ConfigJson.getBool(obj, "rodReturnToPreviousSlot", true);
             cfg.phoenixRoute = ConfigJson.getEnum(obj, "phoenixRoute", PhoenixRoute.class, PhoenixRoute.ROD);
             // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): this used to also gate
@@ -110,7 +168,12 @@ public final class MaskInvincibilityConfig {
             obj.addProperty("onlyInDungeons", onlyInDungeons);
             obj.addProperty("bossOnly", bossOnly);
             obj.addProperty("autoSwapEnabled", autoSwapEnabled);
-            obj.addProperty("swapStepDelayMs", swapStepDelayMs);
+            obj.addProperty("autoMaskMode", getAutoMaskMode().name());
+            obj.addProperty("autoMaskSwapOrder", getSwapOrder().name());
+            obj.addProperty("autoMaskSwapKey", swapKey);
+            obj.addProperty("autoMaskDungeonsOnly", autoMaskDungeonsOnly);
+            obj.addProperty("autoMaskBossOnly", autoMaskBossOnly);
+            obj.addProperty("swapStepDelayTicks", swapStepDelayTicks);
             obj.addProperty("rodReturnToPreviousSlot", rodReturnToPreviousSlot);
             obj.addProperty("phoenixRoute", phoenixRoute.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -214,13 +277,59 @@ public final class MaskInvincibilityConfig {
         this.bossOnly = bossOnly;
     }
 
-    /** Pause between two steps of one automated swap (command -> menu -> click -> close). */
-    public int getSwapStepDelayMs() {
-        return swapStepDelayMs;
+    /** Pause between two steps of one automated swap (command -> menu -> click -> close), in whole client ticks. */
+    public int getSwapStepDelayTicks() {
+        return swapStepDelayTicks;
     }
 
-    public void setSwapStepDelayMs(int swapStepDelayMs) {
-        this.swapStepDelayMs = clampDelay(swapStepDelayMs);
+    public void setSwapStepDelayTicks(int swapStepDelayTicks) {
+        this.swapStepDelayTicks = clampDelay(swapStepDelayTicks);
+    }
+
+    /** Keybind or Full Auto - see {@link AutoMaskMode}. */
+    public AutoMaskMode getAutoMaskMode() {
+        return autoMaskMode == null ? AutoMaskMode.FULL_AUTO : autoMaskMode;
+    }
+
+    public void setAutoMaskMode(AutoMaskMode autoMaskMode) {
+        this.autoMaskMode = autoMaskMode == null ? AutoMaskMode.FULL_AUTO : autoMaskMode;
+    }
+
+    /** Mask First or Phoenix First - see {@link SwapOrder}. */
+    public SwapOrder getSwapOrder() {
+        return swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder;
+    }
+
+    public void setSwapOrder(SwapOrder swapOrder) {
+        this.swapOrder = swapOrder == null ? SwapOrder.MASK_FIRST : swapOrder;
+    }
+
+    /** The Keybind mode's key or mouse button ({@link com.killer560.hub.util.KeyUtil} code), unbound by default. */
+    public int getSwapKey() {
+        return swapKey;
+    }
+
+    public void setSwapKey(int swapKey) {
+        this.swapKey = com.killer560.hub.util.KeyUtil.sanitizeBind(swapKey);
+    }
+
+    /** Auto Mask never acts outside the Catacombs (default on). Separate from the HUD's {@link #isOnlyInDungeons()}. */
+    public boolean isAutoMaskDungeonsOnly() {
+        return autoMaskDungeonsOnly;
+    }
+
+    public void setAutoMaskDungeonsOnly(boolean autoMaskDungeonsOnly) {
+        this.autoMaskDungeonsOnly = autoMaskDungeonsOnly;
+    }
+
+    /** Auto Mask acts only in the floor's boss fight, never in the clear (default off); implies Dungeons Only.
+     *  Separate from the HUD's {@link #isBossOnly()}. */
+    public boolean isAutoMaskBossOnly() {
+        return autoMaskBossOnly;
+    }
+
+    public void setAutoMaskBossOnly(boolean autoMaskBossOnly) {
+        this.autoMaskBossOnly = autoMaskBossOnly;
     }
 
     /** Switch back to the slot you were holding once the rod has been thrown. */
@@ -241,8 +350,8 @@ public final class MaskInvincibilityConfig {
         this.phoenixRoute = phoenixRoute == null ? PhoenixRoute.ROD : phoenixRoute;
     }
 
-    private static int clampDelay(int ms) {
-        return Math.max(MIN_STEP_DELAY_MS, Math.min(MAX_STEP_DELAY_MS, ms));
+    private static int clampDelay(int ticks) {
+        return Math.max(MIN_STEP_DELAY_TICKS, Math.min(MAX_STEP_DELAY_TICKS, ticks));
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - automatically swaps

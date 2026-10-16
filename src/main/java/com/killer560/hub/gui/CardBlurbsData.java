@@ -84,7 +84,7 @@ final class CardBlurbsData {
         d.put("AutoCroesusTab", "Claims profitable chests.");
         d.put("AutoDialogueTab", "Skips NPC dialogue.");
         d.put("DoorHelpersTab", "Opens doors on keys.");
-        d.put("AutoMaskTab", "Auto-swaps masks and Phoenix.");
+        d.put("AutoMaskTab", "Swaps masks and Phoenix on a key or on a proc.");
         d.put("AutoPuzzlesTab", "Master switch for the auto puzzles.");
         d.put("AutoRoutesTab", "Records and replays room routes.");
         d.put("AutoSimonSaysTab", "Simon Says automation.");

@@ -99,6 +99,7 @@ public final class MaskInvincibilityFeature {
         ChatObserver.subscribe(MaskInvincibilityFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaskInvincibilityFeature", client -> tick()));
         MaskSwapper.register();
+        AutoMask.register();
     }
 
     private static void onChatMessage(Component message) {
@@ -124,7 +125,7 @@ public final class MaskInvincibilityFeature {
                     sendPartyChat(t.label + " popped!");
                 }
                 if (cfg.isAutoSwapEnabled()) {
-                    trySwapMask();
+                    AutoMask.onProc(t.label);
                 }
                 return;
             }
@@ -132,27 +133,14 @@ public final class MaskInvincibilityFeature {
     }
 
     /**
-     * Hands the swap to {@link MaskSwapper}, the mod's one death-item swap mechanism.
-     * <p>
-     * Rewritten 2026-09-21 (killer560): the old version needed the other mask in your <i>hotbar</i> and
-     * right-clicked it there. It now runs {@code /stats} and clicks the mask in the menu, or throws a rod for
-     * Phoenix, with a real delay between each step. Order is his: Spirit, Phoenix, Bonzo. Exactly one attempt
-     * per proc - {@code request} refusing is a normal answer, never something to retry.
+     * True when Auto Mask must not pick {@code target}: on cooldown from its last proc, or switched off in this tab's
+     * Spirit/Bonzo/Phoenix row (killer560 9.1: "allow them to select which invulnerabilities they actually own"). Auto
+     * Mask ({@link AutoMask}) decides when to swap and hands the swap to {@link MaskSwapper}; a refusal is a normal
+     * answer, never something to retry.
      */
-    private static void trySwapMask() {
-        // killer560 9.1: "allow them to select which invulnerabilities they actually own" - showSpirit/
-        // showBonzo/showPhoenix were only ever read by the HUD (shown(t) below), so Auto Swap would still
-        // happily try to put on a mask/pet the player told this mod they don't have, wasting the one attempt
-        // per proc on a menu click that can only fail. !shown(type) now skips it here too, the same way an
-        // on-cooldown target is skipped.
-        MaskSwapper.Target target = MaskSwapper.pickTarget(MaskSwapper.DEFAULT_ORDER, t -> {
-            Type type = Type.of(t);
-            return type == null || cooldownRemaining.getOrDefault(type, 0) > 0 || !shown(type);
-        });
-        if (target == null) {
-            return;
-        }
-        MaskSwapper.request(target, "Mask Timers");
+    static boolean unusable(MaskSwapper.Target target) {
+        Type type = Type.of(target);
+        return type == null || cooldownRemaining.getOrDefault(type, 0) > 0 || !shown(type);
     }
 
     /** {@code /pc <message>} the same way {@code blessings.BlessingTracker#sendPartyMessage} sends it. */

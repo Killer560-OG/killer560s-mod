@@ -63,7 +63,7 @@ import com.killer560.hub.compat.McCompat;
  * route can't find a rod, because a death-save silently doing nothing (his Autopet rule not being set up) is
  * worse than sending one extra command - it says so once in chat either way.
  * <p>
- * <b>Send rate.</b> A swap only ever starts from a real proc (or the i4 timeline), never from a poll, and it
+ * <b>Send rate.</b> A swap only ever starts from a real proc, an Auto Mask key press or the i4 timeline, never from a poll, and it
  * never retries: one command per swap ({@code /stats} for a mask, {@code /pets} for the Phoenix menu route - the
  * rod route sends none), and a failure (menu never opened, item not in the menu) marks that target unavailable
  * until the world changes, so the same miss cannot loop. On top of that {@link #MIN_COMMAND_GAP_MS} is a hard
@@ -151,7 +151,13 @@ public final class MaskSwapper {
     private static Target target = null;
     private static String requester = "";
     private static long startedMs = 0L;
-    private static long nextActionAtMs = 0L;
+    /** START_CLIENT_TICKs seen; a step waits until {@link #nextActionTick} (whole ticks, killer560 2026-10-16). */
+    private static long tickNo = 0L;
+    private static long nextActionTick = 0L;
+    /** When a screen started holding up this swap's next command/hotbar/rod step (0 = not held up). */
+    private static long blockedSinceMs = 0L;
+    /** A screen held open this long under a pending step cancels the swap (nothing marked missing). */
+    private static final long SCREEN_WAIT_MS = 5_000L;
     private static long lastCommandMs = Long.MIN_VALUE / 4;
     private static long menuFirstSeenMs = 0L;
     private static int previousSlot = -1;
@@ -160,6 +166,18 @@ public final class MaskSwapper {
     /** Set the moment a rod is thrown or {@code /pets} confirms Phoenix is out - see {@link #msSincePhoenixHandled()}. */
     private static long lastPhoenixRodThrowMs = 0L;
     private static long lastPhoenixConfirmedSummonMs = 0L;
+    /**
+     * Phoenix is the summoned pet, from Hypixel's own lines: "You summoned your Phoenix!", "Autopet equipped your
+     * [Lvl 100] Phoenix! VIEW RULE" (true) and "You despawned your Phoenix!" or another pet summoned (false). Kept across
+     * world changes, as the pet is. {@link #pickTarget} skips Phoenix while it is out: summoning it again buys nothing.
+     */
+    private static boolean phoenixSummoned = false;
+    /** Server lines only: each starts at the line's start, where a player's message has his rank and name. The pet name is
+     *  letters, spaces and apostrophes, bounded, with an optional skin star. */
+    private static final Pattern SUMMONED = Pattern.compile("^You summoned your ([A-Za-z' ]{1,32}?)(?: \u2726)?!$");
+    private static final Pattern AUTOPET = Pattern.compile(
+            "^Autopet equipped your \\[Lvl \\d{1,3}] ([A-Za-z' ]{1,32}?)(?: \u2726)?! VIEW RULE$");
+    private static final Pattern DESPAWNED = Pattern.compile("^You despawned your ([A-Za-z' ]{1,32}?)(?: \u2726)?!$");
     /** Bumped by {@link #abort} every time a swap ends - see {@link #completionSeq()}. */
     private static long completionSeq = 0L;
     private static Target lastCompletedTarget = null;
@@ -172,6 +190,34 @@ public final class MaskSwapper {
     /** Registered from {@link MaskInvincibilityFeature#register()} - this class has no entry point of its own. */
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("MaskSwapper", client -> tick(client)));
+        ChatObserver.subscribe(MaskSwapper::onChat);
+    }
+
+    private static void onChat(net.minecraft.network.chat.Component message) {
+        String raw = ChatObserver.strip(message);
+        if (raw == null || raw.length() > 96) {
+            return;
+        }
+        Matcher m = SUMMONED.matcher(raw);
+        if (!m.matches()) {
+            m = AUTOPET.matcher(raw);
+        }
+        if (m.matches()) {
+            phoenixSummoned = "Phoenix".equals(m.group(1).trim());
+            if (phoenixSummoned) {
+                lastPhoenixConfirmedSummonMs = System.currentTimeMillis();
+            }
+            return;
+        }
+        m = DESPAWNED.matcher(raw);
+        if (m.matches() && "Phoenix".equals(m.group(1).trim())) {
+            phoenixSummoned = false;
+        }
+    }
+
+    /** True while Hypixel last said Phoenix is the summoned pet (see {@link #phoenixSummoned}). */
+    public static boolean isPhoenixSummoned() {
+        return phoenixSummoned;
     }
 
     // ------------------------------------------------------------------ api
@@ -203,7 +249,7 @@ public final class MaskSwapper {
             if (t.skyblockId != null && worn.contains(t.skyblockId)) {
                 continue;
             }
-            if (t == Target.PHOENIX && msSincePhoenixHandled() < PHOENIX_HANDLED_GUARD_MS) {
+            if (t == Target.PHOENIX && (phoenixSummoned || msSincePhoenixHandled() < PHOENIX_HANDLED_GUARD_MS)) {
                 continue;
             }
             return t;
@@ -261,10 +307,11 @@ public final class MaskSwapper {
         if (client.player == null || client.level == null) {
             return false;
         }
-        if (ActionGate.containerScreenOpen(client)) {
+        if (McCompat.screen(client) != null) {
             // A terminal or any other Hypixel menu is already up: /stats would stack a second container on
-            // top of it and the rod cast would be an interaction the server can see is impossible.
-            LOGGER.info("[MaskSwap] {} asked for {} - refused, a container screen is already open.", who, wanted.label());
+            // top of it and the rod cast would be an interaction the server can see is impossible. Since
+            // 2026-10-16 any screen refuses (chat, the inventory, the mod's menu): nothing starts under one.
+            LOGGER.info("[MaskSwap] {} asked for {} - refused, a screen is open.", who, wanted.label());
             return false;
         }
         if (unavailable.contains(wanted)) {
@@ -283,7 +330,7 @@ public final class MaskSwapper {
         target = wanted;
         requester = who;
         startedMs = now;
-        nextActionAtMs = now + stepDelayMs();
+        nextActionTick = tickNo + stepDelayTicks();
         menuFirstSeenMs = 0L;
         petPagesTried = 0;
         previousSlot = client.player.getInventory().getSelectedSlot();
@@ -302,6 +349,7 @@ public final class MaskSwapper {
     // ------------------------------------------------------------------ state machine
 
     private static void tick(Minecraft client) {
+        tickNo++;
         if (client.level != lastLevel) {
             lastLevel = client.level;
             unavailable.clear();
@@ -319,6 +367,23 @@ public final class MaskSwapper {
             return;
         }
         long now = System.currentTimeMillis();
+        // Nothing fires under a screen except in the menu this swap opened itself (killer560, 2026-10-16): a command,
+        // a hotbar switch or a rod cast waits while chat, the inventory or any other screen is up. The wait does not
+        // count toward the timeout (which would mark the target missing); a screen kept open past SCREEN_WAIT_MS
+        // cancels the swap without marking anything.
+        if (McCompat.screen(client) != null && sendsOutsideAMenu(stage)) {
+            if (blockedSinceMs == 0L) {
+                blockedSinceMs = now;
+            } else if (now - blockedSinceMs > SCREEN_WAIT_MS) {
+                ModChat.send(CHAT, ModChat.bad("Swap to " + target.label() + " cancelled - a screen stayed open."));
+                abort("screen open");
+            }
+            return;
+        }
+        if (blockedSinceMs != 0L) {
+            startedMs += now - blockedSinceMs;
+            blockedSinceMs = 0L;
+        }
         if (now - startedMs > TIMEOUT_MS) {
             LOGGER.info("[MaskSwap] {} swap for {} TIMED OUT in stage {} after {}ms - marked missing, no retry.",
                     requester, target.label(), stage, now - startedMs);
@@ -330,7 +395,7 @@ public final class MaskSwapper {
         }
         // Every step waits out the inter-step delay first; ActionGate's own one-action-per-tick pacing then
         // applies on top of it (killer560: "make sure there is delay of some sort between each action").
-        if (now < nextActionAtMs) {
+        if (tickNo < nextActionTick) {
             return;
         }
         switch (stage) {
@@ -360,7 +425,7 @@ public final class MaskSwapper {
         startedMs = now; // the timeout is about the menu, so it starts when the command actually goes out
         player.connection.sendCommand("stats");
         stage = Stage.AWAIT_MENU;
-        nextActionAtMs = now + stepDelayMs();
+        nextActionTick = tickNo + stepDelayTicks();
     }
 
     private static void awaitMenu(Minecraft client, long now) {
@@ -386,7 +451,7 @@ public final class MaskSwapper {
         if (menuFirstSeenMs == 0L) {
             // The menu appearing is itself an "action" - let it settle a full step before clicking in it.
             menuFirstSeenMs = now;
-            nextActionAtMs = now + stepDelayMs();
+            nextActionTick = tickNo + stepDelayTicks();
             return;
         }
         stage = Stage.CLICK_MASK;
@@ -411,7 +476,7 @@ public final class MaskSwapper {
             }
             client.gameMode.handleContainerInput(screen.getMenu().containerId, slot.index, 0, ContainerInput.PICKUP, player);
             stage = Stage.CLOSE_MENU;
-            nextActionAtMs = now + stepDelayMs();
+            nextActionTick = tickNo + stepDelayTicks();
             return;
         }
         unavailable.add(target);
@@ -433,7 +498,7 @@ public final class MaskSwapper {
             }
             ModChat.send(CHAT, ModChat.text("No rod found for Phoenix - falling back to "), ModChat.value("/pets"));
             stage = Stage.SEND_PETS;
-            nextActionAtMs = now + stepDelayMs();
+            nextActionTick = tickNo + stepDelayTicks();
             return;
         }
         if (player.getInventory().getSelectedSlot() != slot) {
@@ -444,7 +509,7 @@ public final class MaskSwapper {
             player.connection.send(new ServerboundSetCarriedItemPacket(slot));
         }
         stage = Stage.ROD_CAST;
-        nextActionAtMs = now + stepDelayMs();
+        nextActionTick = tickNo + stepDelayTicks();
     }
 
     private static void rodCast(Minecraft client, LocalPlayer player, long now) {
@@ -460,7 +525,7 @@ public final class MaskSwapper {
             return;
         }
         stage = Stage.ROD_RESTORE;
-        nextActionAtMs = now + stepDelayMs();
+        nextActionTick = tickNo + stepDelayTicks();
     }
 
     private static void rodRestore(LocalPlayer player) {
@@ -488,7 +553,7 @@ public final class MaskSwapper {
         menuFirstSeenMs = 0L;
         player.connection.sendCommand("pets");
         stage = Stage.AWAIT_PETS;
-        nextActionAtMs = now + stepDelayMs();
+        nextActionTick = tickNo + stepDelayTicks();
     }
 
     private static void awaitPets(Minecraft client, long now) {
@@ -514,7 +579,7 @@ public final class MaskSwapper {
         if (menuFirstSeenMs == 0L) {
             // The menu appearing is itself an "action" - let it settle a full step before clicking in it.
             menuFirstSeenMs = now;
-            nextActionAtMs = now + stepDelayMs();
+            nextActionTick = tickNo + stepDelayTicks();
             return;
         }
         stage = Stage.CLICK_PET;
@@ -540,6 +605,7 @@ public final class MaskSwapper {
             String joined = lore == null ? "" : String.join(" | ", lore.lines().stream().map(ChatObserver::strip).toList());
             if (joined.contains("Click to despawn")) {
                 lastPhoenixConfirmedSummonMs = now;
+                phoenixSummoned = true;
                 closeOurMenu(client);
                 abort("already summoned");
                 return;
@@ -564,7 +630,7 @@ public final class MaskSwapper {
                     menuFirstSeenMs = 0L;
                     startedMs = now; // fresh timeout for the next page, same as the deleted class did
                     client.gameMode.handleContainerInput(screen.getMenu().containerId, i, 0, ContainerInput.PICKUP, player);
-                    nextActionAtMs = now + stepDelayMs();
+                    nextActionTick = tickNo + stepDelayTicks();
                     return;
                 }
             }
@@ -605,8 +671,14 @@ public final class MaskSwapper {
         }
     }
 
-    private static int stepDelayMs() {
-        return MaskInvincibilityConfig.getInstance().getSwapStepDelayMs();
+    private static int stepDelayTicks() {
+        return MaskInvincibilityConfig.getInstance().getSwapStepDelayTicks();
+    }
+
+    /** The stages whose action is not a click in this swap's own menu. */
+    private static boolean sendsOutsideAMenu(Stage s) {
+        return s == Stage.SEND_STATS || s == Stage.SEND_PETS || s == Stage.ROD_SELECT || s == Stage.ROD_CAST
+                || s == Stage.ROD_RESTORE;
     }
 
     private static String orEmpty(String s) {
@@ -627,5 +699,6 @@ public final class MaskSwapper {
         requester = "";
         menuFirstSeenMs = 0L;
         previousSlot = -1;
+        blockedSinceMs = 0L;
     }
 }

@@ -3045,6 +3045,21 @@ tick the chest opens, tab ✔ 1-4 ticks later; main never.
   `canAct` changes. A failed `requires` makes the parse an unknown command, which Fabric ignores, so the line goes to the
   server unchanged (1775: the testmod's own `/reset` answers it and is the only one suggested).
 
+## A room's last secret, got as he leaves, never reached the map (2026-10-16, sim-map-secrets-1016)
+
+- killer560: "the map does not register secrets I get if I leave the room too fast". The SERVER counted every secret for
+  its own room all along (`SimScore.secretFound(pos)` keys by the secret's position, for chests, essences, items, bats and
+  the Redstone Key node alike). What never reached the client was the number: `SimActionBar` sends "x/y Secrets" only for
+  the room he STANDS in, every ten server ticks, and the sim had no stand-in for Hypixel's map-item green checkmark (which
+  `MapPainter.secretsText` reads as every secret found). A secret counted on the tick he warped or walked out was lost to
+  the map for good. His run: ten rooms left short with every secret counted (Dip 0/2, Mushroom 0/1, Doors 1/5, Gravel 5/6...,
+  Auto Secret's "map X/Y" at each room's "every secret counted" line).
+- `SimRoomState.stateFor` now answers GREEN for a cleared room whose `SimScore.foundInRoom` reaches its database total,
+  the Hypixel rule (cleared + all secrets), wherever he is. A room left with secrets still MISSING keeps the action bar's
+  last count, as on Hypixel. Testkit 1790-sim-map-leave-secrets (every type, door and etherwarp, same tick and one tick
+  later): 20/20 on 26.1.2 and 26.2; main fcba4045 18/20 fail (all ten same-tick cases; two one-tick cases pass when the
+  ten-tick action bar happens to land on that tick).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the

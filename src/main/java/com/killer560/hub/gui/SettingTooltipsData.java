@@ -2081,9 +2081,9 @@ final class SettingTooltipsData {
         d.put("predictive rooms/predictive rooms", "Names a room you have not entered from what you have seen of it through a doorway, matched against the rooms the mod knows. Only the tiles it is sure of are filled in; the rest stay \"?\". It never reads blocks you could not see.");
         d.put("predictive rooms/special room guess", "Splits an unopened one-tile room on your map into the colors of the special rooms it can still be (Puzzle, Trap, Miniboss), from what your map shows.");
         d.put("wither doors/door labels", "Puts a waypoint label (\"Wither Door 34m\") over each highlighted door, readable through walls.");
-        d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Swap.");
-        d.put("mask invincibility/bonzo", "Whether you own Bonzo's Mask; controls its HUD timer and Auto Swap.");
-        d.put("mask invincibility/phoenix", "Whether you own a Phoenix Pet; controls its HUD timer and Auto Swap.");
+        d.put("mask invincibility/spirit", "Whether you own Spirit Mask; controls its HUD timer and Auto Mask.");
+        d.put("mask invincibility/bonzo", "Whether you own Bonzo's Mask; controls its HUD timer and Auto Mask.");
+        d.put("mask invincibility/phoenix", "Whether you own a Phoenix Pet; controls its HUD timer and Auto Mask.");
         d.put("mask invincibility/item icons", "Draws each item's real texture next to its timer.");
         d.put("mask invincibility/hide mask names", "Shows only the icon and the time, dropping the mask name label.");
         d.put("mask invincibility/only in dungeons", "Hides the HUD outside a dungeon run.");
@@ -2093,8 +2093,12 @@ final class SettingTooltipsData {
         d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
         d.put("freeze state/freeze state", "!! NEVER ON HYPIXEL - INSTANT BAN !! Freeze State as a whole - off, its keys, /freezestate and /rewind do nothing, and a freeze in progress resumes.");
-        d.put("auto mask/auto swap", "Cheat build: automatically swaps to Spirit, then Phoenix, then Bonzo whenever one is ready.");
-        d.put("auto mask/swap step delay", "Pause between each step of an automatic swap; higher is safer on a laggy server.");
+        d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");
+        d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape clears it.");
+        d.put("auto mask/swap order", "What a swap goes to next. Mask First: your other mask, then Phoenix. Phoenix First: summon Phoenix through the pet menu or rod, then the masks.");
+        d.put("auto mask/dungeons only", "Auto Mask never swaps outside the Catacombs.");
+        d.put("auto mask/boss only", "Auto Mask swaps only in the floor's boss fight, never during the clear. Implies Dungeons Only.");
+        d.put("auto mask/swap step delay", "Pause between each step of an automatic swap, in whole game ticks (20 a second); higher is safer on a laggy server.");
         d.put("auto mask/return to slot", "Switches back to what you were holding once the rod has been thrown.");
         d.put("auto mask/phoenix route", "How an automatic swap puts Phoenix out: throw your rod, or open /pets and click it.");
         d.put("storage search/storage search", "Run /search to find items across all your cached storages, chests and menus.");
