@@ -127,6 +127,7 @@ public final class MainMenuTitleLayout {
         ScreenEvents.AFTER_INIT.addPhaseOrdering(Event.DEFAULT_PHASE, PHASE);
         ScreenEvents.AFTER_INIT.register(PHASE, (client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof TitleScreen) {
+                TitleScreenLooks.install(screen);
                 apply(screen);
             }
         });
@@ -238,7 +239,7 @@ public final class MainMenuTitleLayout {
                     options = w;
                 } else if (KEY_QUIT.equals(key) && quit == null) {
                     quit = w;
-                } else if (KEY_MULTIPLAYER.equals(key) && multiplayer == null) {
+                } else if ((KEY_MULTIPLAYER.equals(key) || w instanceof TitleScreenLooks.LooksButton) && multiplayer == null) {
                     multiplayer = w;
                 } else if (isModMenuButton(w)) {
                     mods.add(w);

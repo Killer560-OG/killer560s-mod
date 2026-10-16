@@ -50,6 +50,28 @@ public final class MainMenuScenes {
     private static AmberScene amberScene = AMBER_SCENE;
     private static long testClockMs = -1L;
 
+    /** The Amber scene drawn now: {@link #AMBER_SCENE} unless something (the Title Screen Switcher, a test) chose
+     *  another for this session. */
+    public static AmberScene amberScene() {
+        return amberScene;
+    }
+
+    /** The Green scene drawn now (see {@link #amberScene()}). */
+    public static GreenScene greenScene() {
+        return greenScene;
+    }
+
+    /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to {@link #AMBER_SCENE}.
+     *  Changes no setting. */
+    public static void setAmberScene(AmberScene scene) {
+        amberScene = scene == null ? AMBER_SCENE : scene;
+    }
+
+    /** Draws {@code scene} for Green this session (the Title Screen Switcher); null goes back to {@link #GREEN_SCENE}. */
+    public static void setGreenScene(GreenScene scene) {
+        greenScene = scene == null ? GREEN_SCENE : scene;
+    }
+
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
     public static void setClockForTest(double ms) {
         testClockMs = ms < 0 ? -1L : Math.round(ms);
