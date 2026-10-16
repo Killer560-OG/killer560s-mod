@@ -152,7 +152,8 @@ public final class SecretAuraFeature {
                 if (McCompat.screen(client) != null) {
                     markDone(lastClickKey, "screen opened after click");
                     lastClickKey = null;
-                } else if (com.killer560.hub.util.ChestWindows.since(lastClickWindows)) {
+                } else if (com.killer560.hub.util.ChestWindows.since(lastClickWindows)
+                        || windowOpenedAtMs >= lastClickMs) {
                     markDone(lastClickKey, "chest window arrived after click");
                     lastClickKey = null;
                 }
@@ -276,7 +277,10 @@ public final class SecretAuraFeature {
         // from the middle. isBusy() covers the whole trip: searching, queued, executing, and the completion sync.
         // Placed here rather than at the top of the tick so the bookkeeping above still runs and nothing is
         // mis-remembered as attempted while it is held back.
+        // A trip held at its start (Auto Secret's last-node wait) has not moved him: he is still in the room whose
+        // last secret is being waited for, and standing down here is what made that wait never end (2026-10-15).
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
+                && !com.killer560.hub.livemap.autoclear.ClearExecutor.heldAtStart()
                 || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
             return;
         }
@@ -477,6 +481,115 @@ public final class SecretAuraFeature {
                 markDone(key, "gave up after " + a.count() + " attempts");
             }
         }
+    }
+
+    /**
+     * The secret this aura is still taking from where he stands, or null: a chest, lever or skull it would click, in its
+     * range, not yet seen taken (chest open, lever flipped, skull gone) and not given up on. {@code clickedOnly}: only one
+     * it has already clicked - a click on its way to the server, not yet answered. For Auto Secret, which must not leave a
+     * room while its last secret is in the aura's hands (killer560, 2026-10-15: "it will leave a room before a secret is
+     * grabbed and registered"). The aura's persistent gates apply (switch, options, range, room skips, held-item pause);
+     * the momentary ones (a container, sneaking, the map's warp held at the start) do not: they pass.
+     */
+    public static String takingInReach(Minecraft client, boolean clickedOnly) {
+        return scanTaking(client, clickedOnly ? Taking.CLICKED : Taking.ANY);
+    }
+
+    /**
+     * Whether a click of this aura's is coming in reach: a secret it has not clicked yet, or one whose re-try is
+     * {@link #RETRY_SOON_MS} or less away. Auto Secret lets the held warp's sneak up only then - a click goes at the
+     * START of a tick, before that tick's input packet, so it is the sneak already sent that it would be made with.
+     */
+    public static boolean clickDue(Minecraft client) {
+        return scanTaking(client, Taking.DUE) != null;
+    }
+
+    private enum Taking { ANY, CLICKED, DUE }
+
+    /** How long before a re-try {@link #clickDue} counts it as coming: two ticks for the sneak to be let up first. */
+    private static final long RETRY_SOON_MS = 150;
+
+    private static String scanTaking(Minecraft client, Taking mode) {
+        CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        if (!cfg.isSecretAuraEnabled() || client.level == null || client.player == null
+                || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
+                || !CheatUtils.isOnDungeonServer(client) && !inSim(client)
+                || heldItemPaused(cfg, client.player.getMainHandItem())) {
+            return null;
+        }
+        RoomEntry room = LiveMapFeature.currentRoomEntry();
+        String roomName = room == null ? null : room.name;
+        boolean puzzleOpen = roomName != null && CHESTS_AFTER_SOLVE_ROOMS.contains(roomName) && !puzzleDone(roomName);
+        if (roomName != null && SKIP_ROOMS.contains(roomName) || puzzleOpen && "Water Board".equals(roomName)) {
+            return null;
+        }
+        boolean leversAllowed = cfg.isAuraLevers() && (roomName == null || !NO_LEVER_ROOMS.contains(roomName));
+        boolean chestsAllowed = cfg.isAuraChests() && !puzzleOpen;
+        Vec3 eye = client.player.getEyePosition();
+        double rangeSq = cfg.getAuraRange() * cfg.getAuraRange();
+        double skullRangeSq = cfg.getAuraSkullRange() * cfg.getAuraSkullRange();
+        double capSq = CheatUtilsConfig.MEASURED_MAX_REACH * CheatUtilsConfig.MEASURED_MAX_REACH;
+        double maxRange = Math.max(cfg.getAuraRange(), cfg.getAuraSkullRange());
+        long now = System.currentTimeMillis();
+        String best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(
+                BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange),
+                BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange))) {
+            long key = pos.asLong();
+            if (done.contains(key)) {
+                continue;
+            }
+            Attempt a = attempts.get(key);
+            if (mode == Taking.CLICKED && a == null
+                    || a != null && a.count() >= MAX_ATTEMPTS && now - a.lastMs() >= RETRY_AFTER_MS) {
+                continue;   // not clicked yet, or given up on (updateDone marks it so on its next tick)
+            }
+            if (mode == Taking.DUE && a != null
+                    && (a.count() >= MAX_ATTEMPTS || now - a.lastMs() < RETRY_AFTER_MS - RETRY_SOON_MS)) {
+                continue;   // clicked, and no re-try coming soon
+            }
+            BlockState state = client.level.getBlockState(pos);
+            String kind = classify(client, cfg, pos, state, false, leversAllowed, chestsAllowed);
+            if (kind == null || "redstoneNode".equals(kind)) {
+                continue;
+            }
+            if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0f
+                    || a != null && lastClickKey != null && lastClickKey == key && now - lastClickMs < 2000
+                    && (com.killer560.hub.util.ActionGate.containerScreenOpen(client) || windowOpenedAtMs >= lastClickMs)) {
+                continue;   // opened (its lid, or its window after our click): taken, the done-set has it next tick
+            }
+            if (a != null && a.leverPoweredAtClick() != null && state.getBlock() == Blocks.LEVER
+                    && !state.getValue(LeverBlock.POWERED).equals(a.leverPoweredAtClick())) {
+                continue;   // flipped
+            }
+            double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
+            if ("essence".equals(kind) || "redstoneKey".equals(kind)) {
+                if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
+                    continue;
+                }
+            } else if (distSq > rangeSq) {
+                continue;
+            }
+            if (distSq < bestDist) {
+                bestDist = distSq;
+                best = kind + " at " + pos.toShortString() + (a == null ? " (not clicked yet)"
+                        : " (clicked " + a.count() + " time(s), " + (now - a.lastMs()) + " ms ago)");
+            }
+        }
+        return best;
+    }
+
+    /** When the server last opened a container window for him, shown or not (ms). Written on the network thread. */
+    private static volatile long windowOpenedAtMs = Long.MIN_VALUE;
+
+    /**
+     * The server opened a container window that Auto Close Chest closed before it was shown: the chest our click was
+     * for opened. Without it a chest clicked with Auto Close Chest on was never seen taken (no screen, and the lid can
+     * be shut again before a tick reads it) and Auto Secret waited out its whole limit (147, 2026-10-15). Any thread.
+     */
+    public static void noteWindowOpened() {
+        windowOpenedAtMs = System.currentTimeMillis();
     }
 
     /** Shared with {@code secrettrigger.SecretTriggerbotFeature}: whether this secret is already looted/flipped. */

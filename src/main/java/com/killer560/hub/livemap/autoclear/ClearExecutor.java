@@ -772,15 +772,30 @@ public final class ClearExecutor {
      */
     private static boolean hold = false;
     private static int holdTicks = 0;
-    private static final int HOLD_MAX_TICKS = 40;
+    /** A safety net only: the holder lets go itself (Auto Secret's waits are bounded well inside this). */
+    private static final int HOLD_MAX_TICKS = 200;
+    /** Whether the held warp keeps the sneak down. Not while a secret is being taken: a right click made sneaking with
+     *  the AOTV in hand is the AOTV's (a warp onto the chest or skull), never the block's - on Hypixel and in the sim. */
+    private static boolean holdSneak = true;
 
     public static void setHold(boolean value) {
         hold = value;
         holdTicks = 0;
+        holdSneak = true;
+    }
+
+    /** See {@link #holdSneak}. Only while held; {@link #setHold} puts it back on. */
+    public static void setHoldSneak(boolean value) {
+        holdSneak = value;
     }
 
     public static boolean isHeld() {
         return hold;
+    }
+
+    /** A queue is held and has not sent its first warp: he has not been moved by it yet. */
+    public static boolean heldAtStart() {
+        return hold && issued.isEmpty() && syncDelay == 0;
     }
 
     /** @return true while the queue is held this tick (nothing else of it runs) */
@@ -800,9 +815,23 @@ public final class ClearExecutor {
         ticksSinceProgress = 0;
         waitReason = "held for the room's last secrets";
         boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
-        active = current.get(0) instanceof ClearNode.EtherNode && !screen;   // the sneak, never under a container
+        active = current.get(0) instanceof ClearNode.EtherNode && !screen && holdSneak;   // never under a container
         if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
             swappedOnTick = clientTicks;
+        }
+        // A secret clicked while held (Secret Aura, AOTV in hand) leaves that click unpaired, and the first warp would
+        // spend a tick turning so the server hears its look first (util/RightClick). Turned now, while it waits - only
+        // with no click coming (holdSneak), as the aura's own turn and click must not be moved under it.
+        if (active && client.player != null) {
+            reaimFirstHop(client);
+            if (nodes != null && !nodes.isEmpty() && nodes.get(0) instanceof ClearNode.EtherNode first) {
+                LocalPlayer player = client.player;
+                float yaw = player.getYRot() + Mth.wrapDegrees(first.yaw - player.getYRot());
+                float pitch = Mth.clamp(first.pitch, -90f, 90f);
+                if (com.killer560.hub.util.RightClick.mustTurnFirst(player, null, yaw, pitch, null)) {
+                    BODY.turn(player, yaw, pitch);
+                }
+            }
         }
         return true;
     }

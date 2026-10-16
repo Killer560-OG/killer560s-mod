@@ -120,6 +120,31 @@ public final class RouteRunMemory {
         return n;
     }
 
+    /** What {@link #gotSince} counts, one entry per secret ("chest at x, y, z"), for log lines. */
+    public static List<String> whatSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
+        check();
+        List<String> out = new ArrayList<>();
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && g.pos() != null && where.test(g.pos())) {
+                out.add(g.what());
+            }
+        }
+        return out;
+    }
+
+    /** Whether he got a secret of this kind ({@code "item"}, {@code "block"}, {@code "bat"}) within {@code range} blocks
+     *  of {@code pos} this run. */
+    public static boolean gotNear(String kind, Vec3 pos, double range) {
+        check();
+        String prefix = kind + " ";
+        for (Got g : got.values()) {
+            if (g.key().startsWith(prefix) && g.pos() != null && g.pos().distanceToSqr(pos) <= range * range) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** A stable name for a node within its room's route: room, type and its relative spot. */
     static String nodeKey(Route route, RouteNode node) {
         Vec3 p = node.relativePos();

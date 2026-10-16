@@ -391,3 +391,21 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   chest", "Puzzles"), so every "say it once per change" reader said it every tick (his chat: Autopilot's "Waiting for ..."
   twenty times a second; Auto Routes' "Arming: inert"). The name now holds for the working spell; Auto Secret says each
   reason once per room (102-sim-autosecret).
+- **Auto Secret's last-node wait could never be met by Secret Aura** (killer560, 2026-10-15: "it will leave a room before a
+  secret is grabbed and registered"; his Mod Only Test 22:42:48 Gold, 22:42:56 Basement - a one-node DUNGEON_BREAKER route
+  with no blocks beside the room's only wither essence - and 22:42:49 Scaffolding's chest by its last landing: "0/1
+  secret(s) counted at the route's end", "the 6-tick cap", no "Wither essence collected"). The wait holds the next trip as
+  a queued `ClearExecutor` path, and Secret Aura stands down while `ClearExecutor.isBusy()`; the hold also kept the sneak
+  down, and a sneaking right click with the AOTV in hand is the AOTV's (`SimAbilities.blockWins`, as Hypixel's 1.8
+  server); and the landing's 6-tick teleport settle alone is the whole cap. Now the aura acts while the trip is
+  `heldAtStart`, the hold lets the sneak up only while an aura click is due (`SecretAuraFeature.clickDue`) and turns the
+  body to the first warp's look once it has gone, and a secret the aura has in reach and has not seen taken (or a
+  database item secret by his feet) holds the warp until it registers, bounded by `TAKE_TIMEOUT_TICKS` (50 + server lag).
+  Testkit 147-sim-autosecret-lastsecret.
+- **Deciding the next trip inside the wait overwrote the wait's own count.** `onRouteDone` calls `decide`, which sets
+  `routeStartClock`/`routeFoundAtStart` for the NEXT room, and the wait then counted the room it was leaving from that
+  room's found count: "every secret counted after 1 tick" with the room still 4/5 (147 on main, every floor). The wait keeps
+  the leaving room's own (`leaveStartClock`/`leaveFoundAtStart`).
+- **With Auto Close Chest on, a clicked chest never looks opened**: its window packet is cancelled before any screen, and
+  the lid can be shut again before a tick reads it. Secret Aura re-clicked every such chest after 1 s and Auto Secret's
+  wait ran to its limit; `AutoCloseChestFeature.autoClose` now tells the aura (`noteWindowOpened`, network thread).
