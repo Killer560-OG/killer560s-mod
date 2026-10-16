@@ -131,6 +131,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   like `XConfig.getInstance`'s `instance == null`: cold cache misses, one handler at a time (fps-idle-1015). A dispatcher
   that skips switched-off features cannot be exact as the code stands: only 2 of 105 method-ref tick handlers begin with
   a bare `if (!cfg.isEnabled()) return;` - the rest reset edge state, watch for a level change or tick a helper first.
+- **A switched-off listener can be skipped for one boolean read, if the skip is provably the same** (fps-idle-2-1016):
+  `FeatureGuard.start/end(name, bit, handler)` and `FeatureGuard.afterFeatures/afterTerrain(bit, listener)` read a
+  `util/FeatureBits` bit whose gate reads only STORED switches (`isEnabledRaw()`, never `SkyblockGate.allows()` or the
+  dungeon state), recomputed only after `FeatureBits.changed()`. So every setter of a gated field and the config's
+  `load()` (wrapped as `load(){ load0(); changed(); }`, which covers profile apply) must call it; a gated tick wrapper
+  still runs the handler once on its first switched-off tick, so an off branch that resets state does so exactly once.
+  Gate only a handler whose off branch is a bare return or a reset nothing else writes while off; a handler that ticks a
+  helper, watches the world or checks a key first is not gated. A forgotten `changed()` is caught by a 1-in-64 re-check
+  that logs ERROR and turns the bit on; testkit 95-perf-bits drives every bit through its setters and `load()`.
 - **Every chat line was ~52 KB of garbage with every switch off** (95-perf-idle): each of ~55 ChatObserver subscribers
   and ~20 raw listeners walked the component with `getString()` again and built its own `Matcher`s (Matcher + groups +
   `IntHashSet[]`, ~200 B each, ~60 a line). `ChatObserver.raw`/`strip(Component)` now hand every reader of one delivered

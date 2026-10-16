@@ -115,3 +115,8 @@ registers on a Fabric event, and every Fabric HUD layer it adds, in a timing pro
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
 the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
+
+## Feature bits (`util/FeatureBits`)
+
+- `FeatureBits.snapshot()` returns `name=true|false` per gated listener after a refresh; `count()` how many are
+  registered. Testkit 95-perf-bits reads them (and the `ON`/`names` fields directly, to see a bit without refreshing).
