@@ -24,7 +24,7 @@ import org.slf4j.Logger;
  * small glowing falls, mist where it all lands on a dark lake, glowing specks, a character standing on the rocks at the
  * lower left.
  * <p>
- * The base is {@code textures/gui/ocean_falls.png}, 1920x2160: on top the picture with its baked-in menu removed
+ * The base is {@code textures/gui/ocean_falls.png}, 2560x2880 (two 2560x1440 halves, high res; killer560 2026-10-16): on top the picture with its baked-in menu removed
  * ({@code killer560s-mod-logs/waterfall-picture/make_waterfall.py}) and most of its streak lines lifted out where water
  * falls; below, maps of where water falls, its streaks, where it lands and the lake ({@code make_waterfall_maps.py}). One
  * full-screen quad draws it through the {@code killer560smod:pipeline/ocean_falls} shader
