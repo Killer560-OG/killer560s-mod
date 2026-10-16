@@ -447,8 +447,8 @@ final class AcidCaveScene {
     private static final double PERIOD = 1.6;
 
     private static void fight(GuiRects r, int w, double t, int acid, int hot) {
-        float u = builtH * 0.0058f; // one skin pixel
-        float px = w * 0.10f;
+        float u = builtH * 0.0066f; // one skin pixel
+        float px = w * 0.09f;
         float feet = ledgeY;
         double p = (t / PERIOD) % 1.0;
 
@@ -519,8 +519,11 @@ final class AcidCaveScene {
         // The player: an acid rim one pixel out, then the silhouette over it.
         int rim = MenuStyle.alpha(hot, 0x78);
         int e = Math.max(1, Math.round(s));
-        figure(r, px, feet, u, p, theta, lunge, e, rim);
-        figure(r, px, feet, u, p, theta, lunge, 0, SHADOW);
+        // Part by part, back to front, each with its own rim, so a limb in front of the body keeps its outline.
+        for (int part = 0; part < 4; part++) {
+            figure(r, px, feet, u, p, theta, lunge, part, e, rim);
+            figure(r, px, feet, u, p, theta, lunge, part, 0, SHADOW);
+        }
 
         // The blade's trail through the strike.
         if (p >= 0.5 && p < 0.72) {
@@ -529,18 +532,19 @@ final class AcidCaveScene {
             double shY = feet - 11 * u + lunge * u - 10.5 * u;
             for (int k = 1; k <= 7; k++) {
                 double ang = Math.min(190, theta + k * 15);
-                int a = (int) (0x90 * (1 - k / 8.0) * fade);
+                int a = (int) (0xE0 * (1 - k / 8.0) * fade);
                 if (a <= 6) {
                     continue;
                 }
                 double hx = shX + 12 * u * Math.sin(Math.toRadians(ang));
                 double hy = shY + 12 * u * Math.cos(Math.toRadians(ang));
                 double b = Math.toRadians(ang + 60);
-                for (int j = 2; j <= 3; j++) {
-                    double tx = hx + 5 * j * u * Math.sin(b);
-                    double ty = hy + 5 * j * u * Math.cos(b);
-                    int d = (int) Math.max(1, u);
-                    fill(r, (int) tx - d / 2, (int) ty - d / 2, (int) tx + d / 2 + 1, (int) ty + d / 2 + 1, MenuStyle.alpha(hot, a));
+                for (int j = 2; j <= 5; j++) {
+                    double tx = hx + 3 * j * u * Math.sin(b);
+                    double ty = hy + 3 * j * u * Math.cos(b);
+                    int d = (int) Math.max(1, u * 1.3);
+                    fill(r, (int) tx - d / 2, (int) ty - d / 2, (int) tx + d / 2 + 1, (int) ty + d / 2 + 1,
+                            MenuStyle.alpha(MenuStyle.mix(hot, WHITE, 0.5f), a));
                 }
             }
         }
@@ -554,32 +558,43 @@ final class AcidCaveScene {
      * The player at {@code px}, feet on {@code feet}, facing right, every part grown by {@code e} pixels (the rim pass).
      * Slim model: 3-pixel arms, 4-pixel legs, the head one hat-layer pixel wider all round, hair down the back, two ears.
      */
-    private static void figure(GuiRects r, float px, float feet, float u, double p, double theta, double lunge, int e, int c) {
+    private static void figure(GuiRects r, float px, float feet, float u, double p, double theta, double lunge, int part,
+                               int e, int c) {
         double bob = Math.sin(p * Math.PI * 2) * 0.4 * u;
         double hipX = px + lunge * 1.5 * u;
         double hipY = feet - 11 * u + lunge * u + bob;
-        // Legs in a lunge: the front foot forward, the back foot behind.
-        bar(r, hipX, hipY, px + 6 * u, feet - 2 * u, 4 * u, e, c);
-        bar(r, hipX, hipY, px - 6 * u, feet - 2 * u, 4 * u, e, c);
-        rect(r, px + 4 * u, feet - 2.5 * u, px + 9 * u, feet, e, c);
-        rect(r, px - 8.5 * u, feet - 2.5 * u, px - 4 * u, feet, e, c);
-        // The back arm, swinging a little behind.
         double neckX = hipX + 2 * u;
         double neckY = hipY - 12 * u;
-        double back = Math.toRadians(-25 + 10 * Math.sin(p * Math.PI * 2));
-        bar(r, neckX - 1 * u, neckY + 1.5 * u, neckX - u + 11 * u * Math.sin(back), neckY + 1.5 * u + 11 * u * Math.cos(back),
-                3 * u, e, c);
-        // The body, leaning into the swing.
-        bar(r, hipX, hipY - 1 * u, neckX, neckY + 1.5 * u, 5.5 * u, e, c);
-        // The head with its hat layer (9 pixels where the head is 8), the hair down its back and the ears on top.
-        double hx = neckX + 1 * u;
-        double hy = neckY - 4.5 * u;
-        rect(r, hx - 4.5 * u, hy - 4.5 * u, hx + 4.5 * u, hy + 4.5 * u, e, c);
-        rect(r, hx - 5 * u, hy - 3.5 * u, hx - 2.5 * u, hy + 6.5 * u, e, c);
-        rect(r, hx - 4.5 * u, hy + 4 * u, hx - 3 * u, hy + 8 * u, e, c);
-        rect(r, hx - 3 * u, hy + 4 * u, hx - 1.8 * u, hy + 6 * u, e, c);
-        ear(r, hx - 3.5 * u, hy - 4.5 * u, u, e, c);
-        ear(r, hx + 2 * u, hy - 4.5 * u, u, e, c);
+        if (part == 0) {
+            // The back leg behind in the lunge, and the back arm swinging a little behind.
+            double back = Math.toRadians(-25 + 10 * Math.sin(p * Math.PI * 2));
+            bar(r, hipX, hipY, px - 6 * u, feet - 2 * u, 4 * u, e, c);
+            rect(r, px - 8.5 * u, feet - 2.5 * u, px - 4 * u, feet, e, c);
+            bar(r, neckX - 1 * u, neckY + 1.5 * u, neckX - u + 11 * u * Math.sin(back), neckY + 1.5 * u + 11 * u * Math.cos(back),
+                    3 * u, e, c);
+            return;
+        }
+        if (part == 1) {
+            // The front leg, its foot forward.
+            bar(r, hipX, hipY, px + 6 * u, feet - 2 * u, 4 * u, e, c);
+            rect(r, px + 4 * u, feet - 2.5 * u, px + 9 * u, feet, e, c);
+            return;
+        }
+        if (part == 2) {
+            // The body, leaning into the swing.
+            bar(r, hipX, hipY - 1 * u, neckX, neckY + 2.5 * u, 5 * u, e, c);
+            rect(r, neckX - 2.5 * u, neckY, neckX + 2.5 * u, neckY + 2.5 * u, e, c);
+            // The head with its hat layer (9 pixels where the head is 8), the hair down its back and the ears on top.
+            double hx = neckX + 1 * u;
+            double hy = neckY - 5 * u;
+            rect(r, hx - 4.5 * u, hy - 4.5 * u, hx + 4.5 * u, hy + 4.5 * u, e, c);
+            rect(r, hx - 5 * u, hy - 3.5 * u, hx - 2.5 * u, hy + 6.5 * u, e, c);
+            rect(r, hx - 4.5 * u, hy + 4 * u, hx - 3 * u, hy + 8 * u, e, c);
+            rect(r, hx - 3 * u, hy + 4 * u, hx - 1.8 * u, hy + 6 * u, e, c);
+            ear(r, hx - 3.5 * u, hy - 4.5 * u, u, e, c);
+            ear(r, hx + 2 * u, hy - 4.5 * u, u, e, c);
+            return;
+        }
         // The sword arm and the sword: the blade 60 degrees on from the arm, a crossguard at the hand.
         double shX = px + 3.5 * u + lunge * 1.5 * u;
         double shY = hipY - 10.5 * u;
@@ -596,9 +611,8 @@ final class AcidCaveScene {
 
     /** A pointed cat ear, three steps, its base at {@code x}..{@code x + 2.5u} on the head's top {@code y}. */
     private static void ear(GuiRects r, double x, double y, float u, int e, int c) {
-        rect(r, x, y - 1.2 * u, x + 2.6 * u, y + 0.2, e, c);
-        rect(r, x + 0.4 * u, y - 2.2 * u, x + 2.0 * u, y - 1.1 * u, e, c);
-        rect(r, x + 0.8 * u, y - 3.0 * u, x + 1.5 * u, y - 2.1 * u, e, c);
+        rect(r, x, y - 1.0 * u, x + 2.2 * u, y + 0.2, e, c);
+        rect(r, x + 0.5 * u, y - 2.0 * u, x + 1.6 * u, y - 0.9 * u, e, c);
     }
 
     private static void rect(GuiRects r, double x0, double y0, double x1, double y1, int e, int c) {
