@@ -115,3 +115,15 @@ registers on a Fabric event, and every Fabric HUD layer it adds, in a timing pro
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
 the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
+
+## Title Screen Switcher (`mainmenu/TitleScreenLooks`)
+
+The switcher exists only in the Prism instance "Title Screen GUI" (killer560, 2026-10-16: it "will never be loaded into a
+server - only for testing the main menus"). It is on when the game folder holds the empty marker file
+`killer560smod-title-screen-gui` (`TitleScreenLooks.MARKER_FILE`, like Auto Update's `killer560smod-no-auto-update`), or when
+`-Dkiller560smod.titleScreenSwitcher=true` is set; both are read once, at the first title screen. With neither, nothing
+changes. `TitleScreenLooks.setEnabledForTest(boolean)` turns it on or off for the session (off also drops the picked look);
+`looks()`, `currentIndex()`, `apply(look)`, `step(dir)` and `cornerButton()` are what testkit 1574 drives. A pick is a session
+override read by `MainMenuLook.current()`, `MainMenuTheme.active()` and `MenuStyle.use()`; it writes no setting.
+`MainMenuScenes.setAmberScene` / `setGreenScene` and `GreenTheme.setGradient` are the runtime choices behind it (the
+`AMBER_SCENE` / `GREEN_SCENE` / `DEFAULT_GRADIENT` constants stay the defaults).

@@ -41,7 +41,8 @@ public final class MainMenuTheme {
 
     /** Toggle on and nothing has failed this session. */
     public static boolean active() {
-        return !failed && MainMenuThemeConfig.getInstance().isEnabled();
+        TitleScreenLooks.Look preview = TitleScreenLooks.current();
+        return !failed && (preview != null ? !preview.vanilla() : MainMenuThemeConfig.getInstance().isEnabled());
     }
 
     /** {@link #active()} and the screen currently shown is the title screen - used by the mixins on

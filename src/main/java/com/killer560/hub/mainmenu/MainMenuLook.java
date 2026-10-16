@@ -20,6 +20,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     private static MainMenuLook cached;
     private static int cachedMain = Integer.MIN_VALUE;
     private static int cachedMenu = Integer.MIN_VALUE;
+    private static int cachedPreview = Integer.MIN_VALUE;
 
     private static MainMenuLook calmFor;
     private static MainMenuLook calm;
@@ -56,10 +57,14 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     public static synchronized MainMenuLook current() {
         int main = MainMenuThemeConfig.version();
         int menu = MenuConfig.version();
-        if (cached == null || main != cachedMain || menu != cachedMenu) {
-            cached = resolve(MainMenuThemeConfig.getInstance(), MenuConfig.getInstance());
+        int preview = TitleScreenLooks.version();
+        if (cached == null || main != cachedMain || menu != cachedMenu || preview != cachedPreview) {
+            TitleScreenLooks.Look look = TitleScreenLooks.current();
+            cached = look != null && !look.vanilla() ? preview(look, MainMenuThemeConfig.getInstance(), MenuConfig.getInstance())
+                    : resolve(MainMenuThemeConfig.getInstance(), MenuConfig.getInstance());
             cachedMain = main;
             cachedMenu = menu;
+            cachedPreview = preview;
         }
         return cached;
     }
@@ -85,6 +90,12 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
         float speed = custom ? cfg.getSpeed() / 100f : 1f;
         boolean panel = !custom || cfg.isPanel();
         return new MainMenuLook(colours, theme, scene, density, speed, panel);
+    }
+
+    /** A Title Screen Switcher look: its theme with that theme's own background, everything else as Match gives it. */
+    static MainMenuLook preview(TitleScreenLooks.Look look, MainMenuThemeConfig cfg, MenuConfig menu) {
+        return new MainMenuLook(coloursOf(look.theme(), menu), look.theme(), sceneFor(look.theme()),
+                cfg.isParticles() ? 1f : 0f, 1f, true, true);
     }
 
     /** A theme's five colours; CUSTOM is the mod menu's Custom set. */
