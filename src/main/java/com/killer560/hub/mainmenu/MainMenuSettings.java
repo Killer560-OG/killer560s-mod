@@ -39,6 +39,15 @@ public final class MainMenuSettings {
                     requestRebuild.run(); // the theme and look rows come and go with the style
                 }).bounds(x, y, w, 20).build());
         y += 24;
+        // Fancy (each theme's painted scene) or Simple (its floating particles) - killer560, 2026-10-16. Default Fancy.
+        widgets.add(SettingsButtonWidget.cycling(sceneModeText(), (btn, dir) -> {
+                    MainMenuThemeConfig c = MainMenuThemeConfig.getInstance();
+                    c.setSceneMode(SettingsButtonWidget.step(c.getSceneMode(), dir));
+                    c.save();
+                    btn.setMessage(sceneModeText());
+                    requestRebuild.run(); // Custom's "Theme Default (...)" names the mode's scene
+                }).bounds(x, y, w, 20).build());
+        y += 24;
         // Every vanilla menu (singleplayer, multiplayer, options, the pause menu...) drawn in the main menu's theme
         // (killer560, 2026-10-15). The old "other menus" switch, now with a row of its own; default ON.
         widgets.add(SettingsButtonWidget.builder(vanillaText(), btn -> {
@@ -124,9 +133,14 @@ public final class MainMenuSettings {
     static Component sceneText() {
         MainMenuThemeConfig.Scene s = MainMenuThemeConfig.getInstance().getScene();
         String shown = s == MainMenuThemeConfig.Scene.AUTO
-                ? "Theme Default (" + MainMenuLook.sceneFor(MainMenuThemeConfig.getInstance().getTheme()).label + ")"
+                ? "Theme Default (" + MainMenuLook.sceneFor(MainMenuThemeConfig.getInstance().getTheme(),
+                        MainMenuThemeConfig.getInstance().isSimple()).label + ")"
                 : s.label;
         return Component.literal("Background: " + shown);
+    }
+
+    static Component sceneModeText() {
+        return Component.literal("Main Menu Scene: " + MainMenuThemeConfig.getInstance().getSceneMode().label);
     }
 
     static Component particlesText() {

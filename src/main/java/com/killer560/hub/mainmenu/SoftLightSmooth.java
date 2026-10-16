@@ -17,7 +17,7 @@ import org.joml.Matrix3x2fStack;
  *       position, with its soft highlight, instead of rounded spans that jump a whole GUI unit;</li>
  *   <li>the glow behind the title is a soft Gaussian ({@link Px#softGlow}) instead of nine stepped ellipses.</li>
  * </ul>
- * Shown with {@link MainMenuScenes#previewScenes()} only until he approves it. Allocates nothing per frame beyond the batch's
+ * Light's scene in every instance and in both Main Menu Scene modes (approved 2026-10-16). Allocates nothing per frame beyond the batch's
  * own parts (the shear is one constant matrix).
  */
 final class SoftLightSmooth {

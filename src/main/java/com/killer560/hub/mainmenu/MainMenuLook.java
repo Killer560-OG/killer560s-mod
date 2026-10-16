@@ -83,7 +83,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
         MainMenuThemeConfig.Scene scene = style == MainMenuThemeConfig.Style.CUSTOM ? cfg.getScene()
                 : MainMenuThemeConfig.Scene.AUTO;
         if (scene == MainMenuThemeConfig.Scene.AUTO) {
-            scene = sceneFor(theme);
+            scene = sceneFor(theme, cfg.isSimple());
         }
         boolean custom = style == MainMenuThemeConfig.Style.CUSTOM;
         float density = !cfg.isParticles() ? 0f : custom ? cfg.getDensity().factor : 1f;
@@ -94,7 +94,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
 
     /** A Title Screen Switcher look: its theme with that theme's own background, everything else as Match gives it. */
     static MainMenuLook preview(TitleScreenLooks.Look look, MainMenuThemeConfig cfg, MenuConfig menu) {
-        return new MainMenuLook(coloursOf(look.theme(), menu), look.theme(), sceneFor(look.theme()),
+        return new MainMenuLook(coloursOf(look.theme(), menu), look.theme(), sceneFor(look.theme(), look.simple()),
                 cfg.isParticles() ? 1f : 0f, 1f, true);
     }
 
@@ -110,23 +110,35 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
         return theme.base();
     }
 
-    /** Each theme's own background: Amber's embers, Ocean's waterfall, Dark's starfield, Light's soft light, Custom's aurora. */
+    /** Each theme's own Fancy background (see {@link #sceneFor(MenuTheme, boolean)}). */
     public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme) {
+        return sceneFor(theme, false);
+    }
+
+    /**
+     * Each theme's own background in the Main Menu Scene mode (killer560, 2026-10-16). Fancy: Amber's aurora picture, Ocean's
+     * Cavern Falls, Dark's Milky Way, Light's Soft Light, Viridian's slime boss. Simple: each theme's floating particles
+     * ({@link SimpleScenes}) - embers, bubbles, stardust, fireflies; Light keeps Soft Light ("Keep light as only the one
+     * option"). Custom shows the embers in its own colours in both.
+     */
+    public static MainMenuThemeConfig.Scene sceneFor(MenuTheme theme, boolean simple) {
         if (theme == null) {
-            return MainMenuThemeConfig.Scene.EMBERS;
+            return simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
         }
         return switch (theme) {
-            case AMBER -> MainMenuThemeConfig.Scene.EMBERS;
-            case OCEAN -> MainMenuThemeConfig.Scene.WATERFALL;
-            case DARK -> MainMenuThemeConfig.Scene.STARFIELD;
+            case AMBER -> simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
+            case OCEAN -> simple ? MainMenuThemeConfig.Scene.SIMPLE_BUBBLES : MainMenuThemeConfig.Scene.WATERFALL;
+            case DARK -> simple ? MainMenuThemeConfig.Scene.SIMPLE_STARDUST : MainMenuThemeConfig.Scene.STARFIELD;
             case LIGHT -> MainMenuThemeConfig.Scene.SOFT_LIGHT;
-            case GREEN -> MainMenuThemeConfig.Scene.FIREFLIES;
-            // killer560 (2026-10-16): "remove aurora from custom, we won't have a custom one" - Custom gets no painted
-            // scene of its own; held to the Title Screen GUI instance until the new looks release together.
-            case CUSTOM -> MainMenuScenes.previewScenes() ? MainMenuThemeConfig.Scene.PLAIN : MainMenuThemeConfig.Scene.AURORA;
+            case GREEN -> simple ? MainMenuThemeConfig.Scene.SIMPLE_FIREFLIES : MainMenuThemeConfig.Scene.FIREFLIES;
+            // killer560 (2026-10-16): "remove aurora from custom, we won't have a custom one", then "for custom on fancy or
+            // plain have it do the colors of their custom theme" - Custom has no painted scene; in both modes it shows the
+            // Simple embers in its own colours.
+            case CUSTOM -> MainMenuThemeConfig.Scene.SIMPLE_EMBERS;
             // A theme added later: a light one gets the soft light, a dark one embers in its own colours.
             default -> com.killer560.hub.gui.MenuStyle.luminance(theme.base()[1]) > 0.5f
-                    ? MainMenuThemeConfig.Scene.SOFT_LIGHT : MainMenuThemeConfig.Scene.EMBERS;
+                    ? MainMenuThemeConfig.Scene.SOFT_LIGHT
+                    : simple ? MainMenuThemeConfig.Scene.SIMPLE_EMBERS : MainMenuThemeConfig.Scene.EMBERS;
         };
     }
 }

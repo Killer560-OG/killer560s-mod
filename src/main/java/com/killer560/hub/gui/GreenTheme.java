@@ -45,9 +45,6 @@ public final class GreenTheme {
     /** The one shown. Not a setting: the designer picked C (2026-10-15: "the last gradient looks the best"); A and B stay
      *  for the testkit's comparison shots. */
     public static final Gradient DEFAULT_GRADIENT = Gradient.CANOPY_GLOW;
-    /** Every instance but the Title Screen GUI one keeps the deployed gradient until killer560 approves (see
-     *  {@link com.killer560.hub.mainmenu.MainMenuScenes#previewScenes()}). */
-    public static final Gradient RELEASED_GRADIENT = Gradient.FOREST_NIGHT;
     private static Gradient gradient;
 
     public static Gradient gradient() {

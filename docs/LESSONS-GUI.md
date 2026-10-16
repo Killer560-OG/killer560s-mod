@@ -620,3 +620,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   frames (a quality pop every ~2 s at 120 fps) and holds a slow scene still for several frames, then jumps (Amber Aurora: raw
   per-frame change 0.0068-0.0084, the CRF clip 0.0004-0.5). Judge smoothness on the PNG frames, and encode clips with
   `-g <frames> -x264-params scenecut=0`, at CRF 8 for a slow scene.
+- **A scene-shader particle carries everything but its colour in its UVs** (simple-scenes-1016): a `SceneShaders.Quads`
+  quad has only position, uv and one colour, so `SimpleScenes` puts the parameter slot in u (`slot * 16 + local`) and the
+  particle kind in v (`kind * 16 + local`), and the vertex shader splits them with `floor((uv + 8) / 16)`. That only holds
+  while the local coordinate stays inside +-8, so a quad's reach is capped at 7.5 core radii (a firefly's wide glow is cut
+  there, under 1% alpha). The backdrop's flat varyings stay at 52 components, under GL 3.3's guaranteed 60.

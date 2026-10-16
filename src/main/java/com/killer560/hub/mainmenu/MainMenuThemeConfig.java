@@ -46,20 +46,44 @@ public final class MainMenuThemeConfig {
         }
     }
 
-    /** The animated background. AUTO is the theme's own (Amber embers, Ocean waterfall, Dark starfield...). */
+    /** The animated background. AUTO is the theme's own, in the Main Menu Scene mode ({@link SceneMode}). EMBERS to PLAIN
+     *  are the Fancy scenes (their saved names are kept from before they were pictures: EMBERS is Amber's, WATERFALL
+     *  Ocean's, STARFIELD Dark's, FIREFLIES Viridian's); the SIMPLE_ ones are the Simple scenes ({@link SimpleScenes}). */
     public enum Scene {
         AUTO("Theme Default"),
-        EMBERS("Embers"),
-        WATERFALL("Waterfall"),
-        STARFIELD("Starfield"),
+        EMBERS("Amber Aurora"),
+        WATERFALL("Cavern Falls"),
+        STARFIELD("Milky Way"),
         AURORA("Aurora"),
         SOFT_LIGHT("Soft Light"),
-        FIREFLIES("Fireflies"),
-        PLAIN("Plain");
+        FIREFLIES("Slime Boss"),
+        PLAIN("Plain"),
+        SIMPLE_EMBERS("Embers"),
+        SIMPLE_BUBBLES("Bubbles"),
+        SIMPLE_STARDUST("Stardust"),
+        SIMPLE_FIREFLIES("Fireflies");
 
         public final String label;
 
         Scene(String label) {
+            this.label = label;
+        }
+
+        /** One of the Simple scenes (floating particles in the theme's colours). */
+        public boolean simple() {
+            return SimpleScenes.flavour(this) != null;
+        }
+    }
+
+    /** Main Menu Scene (killer560, 2026-10-16: "on the real mod they should have a toggle for fancy main screen or simple"):
+     *  Fancy is each theme's painted scene, Simple its floating particles. Light has Soft Light in both. */
+    public enum SceneMode {
+        FANCY("Fancy"),
+        SIMPLE("Simple");
+
+        public final String label;
+
+        SceneMode(String label) {
             this.label = label;
         }
     }
@@ -84,6 +108,8 @@ public final class MainMenuThemeConfig {
     /** The main menu's own theme for Separate and Custom: a MenuTheme name (CUSTOM = the menu's Custom colors). */
     private com.killer560.hub.gui.MenuTheme theme = com.killer560.hub.gui.MenuTheme.OCEAN;
     private Scene scene = Scene.AUTO;
+    /** Fancy or Simple: the scene AUTO gives (Match and Separate always, Custom when its Background is Theme Default). */
+    private SceneMode sceneMode = SceneMode.FANCY;
     private Density density = Density.NORMAL;
     /** Animation speed in percent. */
     private int speed = 100;
@@ -117,6 +143,7 @@ public final class MainMenuThemeConfig {
                     cfg.theme = com.killer560.hub.gui.MenuTheme.parse(ConfigJson.getString(obj, "theme", "OCEAN"));
                 }
                 cfg.scene = ConfigJson.getEnum(obj, "scene", Scene.class, cfg.scene);
+                cfg.sceneMode = ConfigJson.getEnum(obj, "sceneMode", SceneMode.class, cfg.sceneMode);
                 cfg.density = ConfigJson.getEnum(obj, "density", Density.class, cfg.density);
                 cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
                 cfg.panel = ConfigJson.getBool(obj, "panel", cfg.panel);
@@ -152,6 +179,7 @@ public final class MainMenuThemeConfig {
             obj.addProperty("style", style.name());
             obj.addProperty("theme", theme.name());
             obj.addProperty("scene", scene.name());
+            obj.addProperty("sceneMode", sceneMode.name());
             obj.addProperty("density", density.name());
             obj.addProperty("speed", speed);
             obj.addProperty("panel", panel);
@@ -213,6 +241,19 @@ public final class MainMenuThemeConfig {
     public void setScene(Scene scene) {
         this.scene = scene == null ? Scene.AUTO : scene;
         version++;
+    }
+
+    public SceneMode getSceneMode() {
+        return sceneMode;
+    }
+
+    public void setSceneMode(SceneMode sceneMode) {
+        this.sceneMode = sceneMode == null ? SceneMode.FANCY : sceneMode;
+        version++;
+    }
+
+    public boolean isSimple() {
+        return sceneMode == SceneMode.SIMPLE;
     }
 
     public Density getDensity() {

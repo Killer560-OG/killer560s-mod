@@ -21,8 +21,8 @@ import org.slf4j.Logger;
 /**
  * Amber's "Aurora" main menu (killer560, 2026-10-16: his own picture of an orange aurora over a Minecraft valley at
  * sunset, "try taking that and editing the video for it ... make sure [the aurora lines] do line up for the render of
- * it"). Shown only behind {@link MainMenuScenes#previewScenes()} (the Title Screen GUI instance) until he approves it;
- * everywhere else Amber keeps its embers.
+ * it"). Amber's Fancy scene in every instance since he approved it (2026-10-16, with the Fancy/Simple toggle); the old
+ * embers stay reachable as {@code MainMenuScenes.AmberScene.EMBERS}.
  * <p>
  * The base is {@code textures/gui/amber_aurora.png}, built by {@code killer560s-mod-logs/aurora-picture/make_aurora.py}
  * from his picture with the baked-in title and buttons removed and every aurora band followed across the holes they left.

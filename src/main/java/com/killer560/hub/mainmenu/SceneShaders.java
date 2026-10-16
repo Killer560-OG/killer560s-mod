@@ -26,7 +26,7 @@ import java.util.Random;
  * The main menu scenes' own shaders (killer560, 2026-10-16: "make that one super high quality and 120fps"): what a vertex
  * colour cannot do. A {@code GuiRects} gradient is interpolated in the GPU and then rounded to the 8-bit framebuffer once per
  * layer, so a faint slow gradient (a ray fading down a near-white sky, a glow's falloff) shows as contour bands, and nothing
- * drawn with vertex colours can be dithered. Three pipelines, all {@link RenderPipelines#GUI_TEXTURED_SNIPPET} (position, uv,
+ * drawn with vertex colours can be dithered. The pipelines, all {@link RenderPipelines#GUI_TEXTURED_SNIPPET} (position, uv,
  * colour, {@code Sampler0}) with this mod's shaders in {@code assets/killer560smod/shaders/core/}:
  * <ul>
  *   <li>{@code scene_soft_light}: Light's whole Soft Light backdrop in one full-screen quad - the base gradient, the four
@@ -36,7 +36,9 @@ import java.util.Random;
  *       sub-pixel position). The glow and vignette above it are an affine map of the colour, so the shader applies them to
  *       the disc's own colour, which is exactly the result of drawing the disc under them;</li>
  *   <li>{@code scene_cone_glow}: a radial glow (Viridian's slime glow and fog), the stepped glow's nested ellipses averaged
- *       into one smooth falloff, its alpha dithered with blue noise.</li>
+ *       into one smooth falloff, its alpha dithered with blue noise;</li>
+ *   <li>{@code scene_simple_bg} and {@code scene_simple_mote}: the Simple scenes ({@link SimpleScenes}) - a backdrop of base
+ *       gradient, washes, glows and vignette in one dithered quad, and antialiased particles (discs, haloed discs, bubbles).</li>
  * </ul>
  * Parameters ride in a small data texture ({@link #data}): rows 0-63 are a 64x64 blue-noise tile (void-and-cluster,
  * generated once at startup), rows 64-71 four slots of 128 floats, each float stored bit-exact as one RGBA8 texel and read
@@ -57,6 +59,9 @@ public final class SceneShaders {
     static RenderPipeline softLight;
     static RenderPipeline softDisc;
     static RenderPipeline coneGlow;
+    /** The Simple scenes' backdrop and particles ({@link SimpleScenes}). */
+    static RenderPipeline simpleBg;
+    static RenderPipeline simpleMote;
     private static boolean failed;
 
     /** Blue noise, 64x64, 0..255, generated at {@link #register}. */
@@ -92,6 +97,8 @@ public final class SceneShaders {
             softLight = pipeline("scene_soft_light");
             softDisc = pipeline("scene_soft_disc");
             coneGlow = pipeline("scene_cone_glow");
+            simpleBg = pipeline("scene_simple_bg");
+            simpleMote = pipeline("scene_simple_mote");
         } catch (RuntimeException | LinkageError e) {
             fail("pipeline registration", e);
         }

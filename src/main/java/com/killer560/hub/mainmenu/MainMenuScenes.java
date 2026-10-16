@@ -7,8 +7,9 @@ import net.minecraft.util.Util;
 
 /**
  * The main menu's animated backgrounds (killer560, 2026-10-15: "You can make custom things like the waterfall theme is
- * more like falling water"), one per theme and all drawn in that theme's colours: Embers (Amber), Waterfall (Ocean),
- * Starfield (Dark), Soft Light (Light), Aurora (Custom) and Plain.
+ * more like falling water"), one per theme and all drawn in that theme's colours. Since 2026-10-16 each theme has a Fancy
+ * scene (its painted picture) and a Simple one ({@link SimpleScenes}), picked by Main Menu Scene; the older drawn scenes
+ * below (embers, waterfall, starfield, blocky soft light, aurora) stay reachable through the hooks and Custom's Background.
  * <p>
  * Every position is a function of the clock, the screen size and a per-particle hash - no per-frame state, so a resize
  * or a GUI-scale change costs nothing and nothing accumulates. All of a scene is ONE render element through
@@ -19,17 +20,15 @@ public final class MainMenuScenes {
     private MainMenuScenes() {
     }
 
-    /** Which background Amber's scene draws (killer560, 2026-10-15: "send me a quick video of it and I will tell you to
-     *  swap back or not"). NEW is {@link AmberForgeScene} (the dusk colonnade); EMBERS is the original drifting embers,
-     *  kept below; SIMPLE is {@link AmberCalmScene}, the embers refined (depth, a low warm glow, faint heat haze). He
-     *  preferred the simpler style, so the default went back to EMBERS until he picks between EMBERS and SIMPLE. AURORA is
-     *  {@link AmberAuroraScene}, his orange aurora picture animated (2026-10-16), Amber's scene only with
-     *  {@link #previewScenes()} ({@link #AMBER_SCENE_PREVIEW}). */
+    /** Which background Amber's Fancy scene ({@link MainMenuThemeConfig.Scene#EMBERS}) draws (killer560, 2026-10-15: "send
+     *  me a quick video of it and I will tell you to swap back or not"). NEW is {@link AmberForgeScene} (the dusk
+     *  colonnade); EMBERS is the original drifting embers, kept below; SIMPLE is {@link AmberCalmScene}, the first calm
+     *  embers, now drawn in HD as the Simple scene ({@link SimpleScenes}) and kept here only for the testkit's hook. AURORA
+     *  is {@link AmberAuroraScene}, his orange aurora picture animated (2026-10-16), the default: approved and released to
+     *  every instance with the Fancy/Simple toggle (killer560, 2026-10-16). */
     public enum AmberScene { NEW, EMBERS, SIMPLE, AURORA }
 
-    public static final AmberScene AMBER_SCENE = AmberScene.EMBERS;
-    /** Amber's scene in the Title Screen GUI instance ({@link #previewScenes()}) until he approves it for the others. */
-    public static final AmberScene AMBER_SCENE_PREVIEW = AmberScene.AURORA;
+    public static final AmberScene AMBER_SCENE = AmberScene.AURORA;
 
     /** Which background Green's Fireflies scene draws (killer560, 2026-10-15: "can you make the main menu more of a
      *  forest?"): FOREST is {@link MainMenuFireflies} (layered trees, canopy, undergrowth, light shafts); SIMPLE is
@@ -50,15 +49,13 @@ public final class MainMenuScenes {
     public enum DarkScene { STARS, MILKY_WAY, MILKY_WAY_HERO }
 
     public static final DarkScene DARK_SCENE = DarkScene.MILKY_WAY_HERO;
-    public static final DarkScene DARK_SCENE_RELEASED = DarkScene.STARS;
 
     private static DarkScene darkScene;
 
-    /** The Dark scene drawn now: the session's pick, else {@link #DARK_SCENE} with {@link #previewScenes()}, else the
-     *  released one. */
+    /** The Dark scene drawn now: the session's pick, else {@link #DARK_SCENE}. */
     public static DarkScene darkScene() {
         DarkScene d = darkScene;
-        return d != null ? d : previewScenes() ? DARK_SCENE : DARK_SCENE_RELEASED;
+        return d != null ? d : DARK_SCENE;
     }
 
     /** Draws {@code scene} for Dark this session (the Title Screen Switcher); null goes back to the default. */
@@ -73,19 +70,17 @@ public final class MainMenuScenes {
 
     /** Ocean's background (killer560, 2026-10-16: his waterfall picture, "can you do a similar thing with this new
      *  waterfall one"): WATERFALL is the drawn waterfall below; CAVERN_FALLS is {@link OceanFallsScene}, his picture
-     *  animated ({@link PictureScene}), shown only with {@link #previewScenes()} until he approves it. */
+     *  animated ({@link PictureScene}), the default. */
     public enum OceanScene { WATERFALL, CAVERN_FALLS }
 
     public static final OceanScene OCEAN_SCENE = OceanScene.CAVERN_FALLS;
-    public static final OceanScene OCEAN_SCENE_RELEASED = OceanScene.WATERFALL;
 
     private static OceanScene oceanScene;
 
-    /** The Ocean scene drawn now: the session's pick, else {@link #OCEAN_SCENE} with {@link #previewScenes()}, else the
-     *  released one. */
+    /** The Ocean scene drawn now: the session's pick, else {@link #OCEAN_SCENE}. */
     public static OceanScene oceanScene() {
         OceanScene o = oceanScene;
-        return o != null ? o : previewScenes() ? OCEAN_SCENE : OCEAN_SCENE_RELEASED;
+        return o != null ? o : OCEAN_SCENE;
     }
 
     /** Draws {@code scene} for Ocean this session (the Title Screen Switcher); null goes back to the default. */
@@ -101,22 +96,18 @@ public final class MainMenuScenes {
     /** Test probe: tiles a picture scene's ripples (a character's cape) redrew in the last frame (0 = none). */
     public static int heroRects;
 
-    /** What every other instance shows until killer560 approves the new pictures (2026-10-16: "for these new pictures only
-     *  push them to my title screen instance not the others yet"): the scene that was last deployed. */
-    public static final GreenScene GREEN_SCENE_RELEASED = GreenScene.FOREST;
+    // The new pictures were held to the Title Screen GUI instance (previewScenes(), 2026-10-16: "for these new pictures only
+    // push them to my title screen instance not the others yet") until killer560 approved them all the same day with the
+    // Fancy/Simple toggle; every instance now shows them.
 
-    /** True in the Title Screen GUI instance (its marker) or with -Dkiller560smod.previewScenes=true (the testkit's scene
-     *  checks): the new main menu pictures. Everywhere else the released ones. */
-    public static boolean previewScenes() {
-        return TitleScreenLooks.enabled() || Boolean.getBoolean("killer560smod.previewScenes");
-    }
-
-    /** The Green scene this game shows by default: {@link #GREEN_SCENE} with {@link #previewScenes()}, otherwise
-     *  {@link #GREEN_SCENE_RELEASED}. */
+    /** The Green scene this game shows by default ({@link #GREEN_SCENE}). */
     public static GreenScene defaultGreenScene() {
         // Released to every instance 2026-10-16 ("push it to all instances as the viridian theme").
         return GREEN_SCENE;
     }
+
+    /** Test hook (testkit 1684): draws Light's old blocky Soft Light instead of the smooth one, for comparison. */
+    public static boolean oldSoftLightForTest;
 
     private static GreenScene greenScene;
 
@@ -132,11 +123,10 @@ public final class MainMenuScenes {
     /** The held test clock in milliseconds, fractions kept (a 120 fps recording steps 8.333 ms); negative = released. */
     private static double testClockMs = -1;
 
-    /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE_PREVIEW} with {@link #previewScenes()},
-     *  else {@link #AMBER_SCENE}. */
+    /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE}. */
     public static AmberScene amberScene() {
         AmberScene a = amberScene;
-        return a != null ? a : previewScenes() ? AMBER_SCENE_PREVIEW : AMBER_SCENE;
+        return a != null ? a : AMBER_SCENE;
     }
 
     /** The Green scene drawn now (see {@link #amberScene()}). */
@@ -213,6 +203,22 @@ public final class MainMenuScenes {
             heroRects = TargetScene.SCENE.rippleTiles;
         }
         GuiRects r = GuiRects.begin(g);
+        SimpleScenes.Flavour simple = SimpleScenes.flavour(look.scene());
+        if (simple != null) {
+            // A Simple scene (Main Menu Scene: Simple): through the scene shaders, or the same plan through the batch.
+            long shaderQuads0 = SceneShaders.quads;
+            heroRects = 0;
+            boolean shaded = SimpleScenes.drawShaded(g, w, h, t, look, simple);
+            if (!shaded) {
+                SimpleScenes.drawRects(r, w, h, t, look, simple);
+            }
+            r.submit();
+            probe(r, probeStart);
+            if (allocProbe && shaded) {
+                allocQuads += SceneShaders.quads - shaderQuads0;
+            }
+            return;
+        }
         if (target) {
             TargetScene.drawOverlays(r, w, h, t);
             r.submit();
@@ -254,7 +260,8 @@ public final class MainMenuScenes {
             return;
         }
         long shaderQuads0 = SceneShaders.quads;
-        if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && previewScenes()
+        boolean smoothLight = !oldSoftLightForTest;
+        if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && smoothLight
                 && SoftLightSmooth.drawShaded(g, w, h, t, accent, panel, light, count(9000, w, h, look.density(), 12, 34),
                 baseTop(accent, panel, light), baseBottom(accent, panel, light))) {
             // the whole scene went out as shader elements (mainmenu/SceneShaders): nothing for the batch
@@ -287,8 +294,8 @@ public final class MainMenuScenes {
                 }
             }
             case SOFT_LIGHT -> {
-                // the smooth version (killer560, 2026-10-16: "can you smooth out the light one"), preview only until approved
-                if (previewScenes()) {
+                // the smooth version (killer560, 2026-10-16: "can you smooth out the light one"); the blocky one for a test
+                if (smoothLight) {
                     SoftLightSmooth.draw(r, w, h, t, accent, panel, light, count(9000, w, h, look.density(), 12, 34));
                 } else {
                     softLight(r, w, h, t, accent, panel, light, look.density());
@@ -299,7 +306,7 @@ public final class MainMenuScenes {
         // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
         if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
                 || (greenScene() != GreenScene.ACID && greenScene() != GreenScene.BOSS)) {
-            if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && previewScenes()) {
+            if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && smoothLight) {
                 SoftLightSmooth.vignette(r, w, h, light);
             } else {
                 vignette(r, w, h, light);

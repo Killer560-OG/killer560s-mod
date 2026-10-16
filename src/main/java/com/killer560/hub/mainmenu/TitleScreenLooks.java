@@ -46,10 +46,16 @@ public final class TitleScreenLooks {
 
     /**
      * One main menu look: a theme and the variant of its background. {@code theme == null} is the vanilla title screen
-     * (the themed main menu off).
+     * (the themed main menu off). {@code simple} is the theme's Simple scene (Main Menu Scene: Simple).
      */
     public record Look(String group, String name, MenuTheme theme, MainMenuScenes.AmberScene amber,
-                       MainMenuScenes.GreenScene green, GreenTheme.Gradient gradient, Enum<?> variant, String note) {
+                       MainMenuScenes.GreenScene green, GreenTheme.Gradient gradient, Enum<?> variant, String note,
+                       boolean simple) {
+        Look(String group, String name, MenuTheme theme, MainMenuScenes.AmberScene amber, MainMenuScenes.GreenScene green,
+             GreenTheme.Gradient gradient, Enum<?> variant, String note) {
+            this(group, name, theme, amber, green, gradient, variant, note, false);
+        }
+
         public boolean vanilla() {
             return theme == null;
         }
@@ -65,24 +71,29 @@ public final class TitleScreenLooks {
     static {
         List<Look> l = new ArrayList<>();
         l.add(new Look("Vanilla", "", null, null, null, null, null, "The vanilla title screen: the themed main menu off."));
-        l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers (the default elsewhere)."));
+        l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers."));
         l.add(amber("New", MainMenuScenes.AmberScene.NEW, "NEW: the dusk colonnade (AmberForgeScene)."));
-        l.add(amber("Simple", MainMenuScenes.AmberScene.SIMPLE, "SIMPLE: the embers refined (AmberCalmScene)."));
         l.add(amber("Aurora", MainMenuScenes.AmberScene.AURORA,
-                "AURORA: your orange aurora picture, animated (AmberAuroraScene); Amber's default in this instance."));
-        l.add(variant(MenuTheme.OCEAN, "Waterfall", MainMenuScenes.OceanScene.WATERFALL, "Ocean's waterfall."));
+                "AURORA: your orange aurora picture, animated (AmberAuroraScene); Amber's Fancy scene."));
+        l.add(simple(MenuTheme.AMBER, "Embers rising in three depths over a warm floor of light, in HD (Amber's Simple scene)."));
+        l.add(variant(MenuTheme.OCEAN, "Waterfall", MainMenuScenes.OceanScene.WATERFALL, "Ocean's old drawn waterfall."));
         l.add(variant(MenuTheme.OCEAN, "Cavern Falls", MainMenuScenes.OceanScene.CAVERN_FALLS,
-                "CAVERN_FALLS: your waterfall picture, animated (glowing falls, mist, the lake)."));
+                "CAVERN_FALLS: your waterfall picture, animated (glowing falls, mist, the lake); Ocean's Fancy scene."));
+        l.add(simple(MenuTheme.OCEAN, "Bubbles rising and wobbling, motes drifting, light from the surface (Ocean's Simple scene)."));
         // killer560 (2026-10-16): "let's use the one with the player" - Dark lists only that look. MILKY_WAY (without her)
         // and STARS stay in code (MainMenuScenes.DarkScene) but not here.
         l.add(variant(MenuTheme.DARK, "Milky Way", MainMenuScenes.DarkScene.MILKY_WAY_HERO,
-                "MILKY_WAY_HERO: your Milky Way picture in black and white, the caped character on the hill."));
-        l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light."));
+                "MILKY_WAY_HERO: your Milky Way picture in black and white, the caped character on the hill; Dark's Fancy scene."));
+        l.add(simple(MenuTheme.DARK, "Stars twinkling and drifting, dust rising, the odd shooting star (Dark's Simple scene)."));
+        l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light, its only scene (Fancy and Simple)."));
         // killer560 (2026-10-16): the designer's picture with droplets is Green's final look - "Remove the other ones from
         // the title screen gui instance." The other Green scenes stay in code (MainMenuScenes.GreenScene) but not here.
         l.add(green("Slime Boss", MainMenuScenes.GreenScene.TARGET, GreenTheme.DEFAULT_GRADIENT,
-                "TARGET: the designer's picture, animated, with droplets (Green's final look), gradient C."));
-        l.add(plain(MenuTheme.CUSTOM, "Plain", "Custom: no scene of its own (killer560 2026-10-16), the plain background in the Custom colors."));
+                "TARGET: the designer's picture, animated, with droplets (Viridian's Fancy scene), gradient C."));
+        l.add(simple(MenuTheme.GREEN, "Fireflies wandering and blinking, spores drifting down (Viridian's Simple scene)."));
+        // killer560 (2026-10-16): "for custom on fancy or plain have it do the colors of their custom theme" - Custom's one
+        // scene, Fancy and Simple alike, is the embers in its own colors, so it has one look.
+        l.add(simple(MenuTheme.CUSTOM, "Custom's scene (Fancy and Simple): the Simple embers in the Custom colors."));
         LOOKS = Collections.unmodifiableList(l);
     }
 
@@ -92,6 +103,12 @@ public final class TitleScreenLooks {
 
     private static Look green(String name, MainMenuScenes.GreenScene scene, GreenTheme.Gradient gradient, String note) {
         return new Look(MenuTheme.GREEN.label, name, MenuTheme.GREEN, null, scene, gradient, null, note);
+    }
+
+    /** The theme's Simple scene (Main Menu Scene: Simple), "Ocean · Simple". */
+    private static Look simple(MenuTheme theme, String note) {
+        return new Look(theme.label, "Simple", theme, null, null,
+                theme == MenuTheme.GREEN ? GreenTheme.DEFAULT_GRADIENT : null, null, note, true);
     }
 
     private static Look plain(MenuTheme theme, String name, String note) {
@@ -156,9 +173,12 @@ public final class TitleScreenLooks {
             return 0;
         }
         MenuTheme theme = MainMenuLook.current().theme();
+        boolean simpleNow = MainMenuLook.current().scene().simple();
         for (int i = 0; i < LOOKS.size(); i++) {
             Look l = LOOKS.get(i);
-            if (l.theme() == theme && (l.amber() == null || l.amber() == MainMenuScenes.amberScene())
+            // Light has one look for both modes, Custom one (its scene is the Simple one in both)
+            boolean modeMatches = theme == MenuTheme.LIGHT || theme == MenuTheme.CUSTOM || l.simple() == simpleNow;
+            if (l.theme() == theme && modeMatches && (l.amber() == null || l.amber() == MainMenuScenes.amberScene())
                     && (l.green() == null || (l.green() == MainMenuScenes.greenScene() && l.gradient() == GreenTheme.gradient()))
                     && (l.variant() == null || l.variant() == MainMenuScenes.darkScene()
                         || l.variant() == MainMenuScenes.oceanScene())) {
