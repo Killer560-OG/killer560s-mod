@@ -168,7 +168,8 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
         if (pill != null) {
             // A solid accent pill with text in whichever of near-black or white reads on that accent.
             int px = nameX + font.width(name) + 6;
-            int fill = MenuStyle.OR;
+            // On Light every text is dark (testkit's Light sweep), so the pill is a pale accent there instead.
+            int fill = MenuStyle.LIGHT ? MenuStyle.mix(MenuStyle.OR, 0xFFFFFFFF, 0.55f) : MenuStyle.OR;
             int ink = MenuStyle.luminance(fill) > 0.45f ? 0xFF140C04 : 0xFFFFFFFF;
             GuiRects pr = GuiRects.begin(g);
             pr.fill(px, line1 - 2, px + pillW, line1 + 9, fill);
