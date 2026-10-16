@@ -103,8 +103,12 @@ public final class AutoRoutesRenderer {
         drawnActive = m.paletteActive;
 
         // ---- one camera-space pass per render type, in the order the per-shape calls used to fill each buffer ----
-        if (m.lineSegCount() > 0) {
+        // Edit mode's recorded path is the same render type, drawn after the chain, so it rides in the same pass.
+        float[] path = editMode ? pathSegments(route, frame, shift) : null;
+        if (m.lineSegCount() > 0 || path != null) {
             LINES.mesh = m;
+            LINES.path = path;
+            LINES.pathWidth = Math.max(0.5f, thickness / 2f);
             McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
         }
         if (m.fillVertCount() > 0) {
@@ -132,9 +136,9 @@ public final class AutoRoutesRenderer {
             }
         }
         labelsDrawn = labels;
+        totalLabels += labels;
 
         if (editMode) {
-            renderPath(ctx, route, frame, shift, thickness);
             renderBreakerBlocks(ctx, client, route, frame, shift);
         }
     }
@@ -162,15 +166,16 @@ public final class AutoRoutesRenderer {
     private static long totalDrawn;
     private static long totalCulled;
     private static long framesDrawn;
+    private static long totalLabels;
     private static RouteNode drawnActive;
 
     /**
      * Testkit: {mesh builds, palette builds, path builds, frames drawn, nodes drawn, nodes culled} since launch, then
-     * {nodes drawn, nodes culled, labels drawn} on the last frame.
+     * {nodes drawn, nodes culled, labels drawn} on the last frame, then labels drawn since launch.
      */
     public static long[] renderStats() {
         return new long[]{meshBuilds, paletteBuilds, pathBuilds, framesDrawn, totalDrawn, totalCulled,
-                nodesDrawn, nodesCulled, labelsDrawn};
+                nodesDrawn, nodesCulled, labelsDrawn, totalLabels};
     }
 
     /** Testkit: the node the last drawn frame coloured as active (null for none). */
@@ -612,6 +617,21 @@ public final class AutoRoutesRenderer {
 
     // ---- the two replays ----
 
+    /**
+     * Render-thread scratch for the replays. {@code VertexConsumer.addVertex(Matrix4fc, x, y, z)} is
+     * {@code addVertex(matrix.transformPosition(x, y, z, new Vector3f()))} and {@code setNormal(Pose, x, y, z)} is
+     * {@code setNormal(pose.transformNormal(x, y, z, new Vector3f()))} (javap, 26.1.2 and 26.2 alike): a Vector3f per
+     * vertex and another per normal, 48 bytes a line vertex. {@code BufferBuilder} overrides neither, so for a plain
+     * BufferBuilder the replay makes the same two JOML calls into these and hands over the same floats.
+     */
+    private static final org.joml.Vector3f POS = new org.joml.Vector3f();
+    private static final org.joml.Vector3f NORMAL = new org.joml.Vector3f();
+
+    /** True for a consumer whose Matrix/Pose vertex methods are VertexConsumer's own defaults. */
+    private static boolean plain(VertexConsumer buffer) {
+        return buffer.getClass() == com.mojang.blaze3d.vertex.BufferBuilder.class;
+    }
+
     private static final LineReplay LINES = new LineReplay();
     private static final FillReplay FILLS = new FillReplay();
 
@@ -619,6 +639,9 @@ public final class AutoRoutesRenderer {
      *  wrote it. */
     private static final class LineReplay implements McRender.Geometry {
         Mesh mesh;
+        /** Edit mode's recorded path (6 floats a segment), or null. */
+        float[] path;
+        float pathWidth;
 
         @Override
         public void draw(PoseStack.Pose pose, VertexConsumer buffer) {
@@ -627,24 +650,47 @@ public final class AutoRoutesRenderer {
             for (int k = 0; k < m.count; k++) {
                 int i = m.order[k];
                 if (m.visible[i]) {
-                    segments(pose, buffer, m, pal, m.lineStart[i], m.lineEnd[i]);
+                    segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, m.lineStart[i], m.lineEnd[i]);
                 }
             }
-            segments(pose, buffer, m, pal, m.chainStart, m.chainEnd);
+            segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, m.chainStart, m.chainEnd);
+            float[] p = path;
+            if (p != null) {
+                segments(pose, buffer, p, null, null, PATH_RGBA, 0, p.length / 6, pathWidth);
+            }
         }
 
-        private static void segments(PoseStack.Pose pose, VertexConsumer buffer, Mesh m, float[] pal, int from, int to) {
-            float[] seg = m.seg;
+        private static void segments(PoseStack.Pose pose, VertexConsumer buffer, float[] seg, int[] slots, float[] widths,
+                                     float[] pal, int from, int to) {
+            segments(pose, buffer, seg, slots, widths, pal, from, to, 0f);
+        }
+
+        /** {@code slots}/{@code widths} null: every segment {@code pal[0..3]} at {@code width}. */
+        private static void segments(PoseStack.Pose pose, VertexConsumer buffer, float[] seg, int[] slots, float[] widths,
+                                     float[] pal, int from, int to, float width) {
+            boolean fast = plain(buffer);
+            org.joml.Matrix4f mat = pose.pose();
+            org.joml.Vector3f v = POS;
+            org.joml.Vector3f nv = NORMAL;
             for (int s = from; s < to; s++) {
                 int o = s * 6;
-                int c = m.segSlot[s] * 4;
+                int c = slots == null ? 0 : slots[s] * 4;
                 float r = pal[c], g = pal[c + 1], b = pal[c + 2], a = pal[c + 3];
-                float w = m.segWidth[s];
+                float w = widths == null ? width : widths[s];
                 float sx = seg[o], sy = seg[o + 1], sz = seg[o + 2];
                 float ex = seg[o + 3], ey = seg[o + 4], ez = seg[o + 5];
                 float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-                buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
-                buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
+                if (fast) {
+                    // VertexConsumer.addVertex(Pose, ...) / setNormal(Pose, ...) exactly, minus their new Vector3f.
+                    pose.transformNormal(dx, dy, dz, nv);
+                    mat.transformPosition(sx, sy, sz, v);
+                    buffer.addVertex(v.x, v.y, v.z).setColor(r, g, b, a).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
+                    mat.transformPosition(ex, ey, ez, v);
+                    buffer.addVertex(v.x, v.y, v.z).setColor(r, g, b, a).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
+                } else {
+                    buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
+                    buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
+                }
             }
         }
     }
@@ -659,6 +705,8 @@ public final class AutoRoutesRenderer {
             float[] pal = m.palette;
             float[] f = m.fill;
             var matrix = pose.pose();
+            boolean fast = plain(buffer);
+            org.joml.Vector3f p = POS;
             for (int k = 0; k < m.count; k++) {
                 int i = m.order[k];
                 if (!m.visible[i]) {
@@ -667,7 +715,12 @@ public final class AutoRoutesRenderer {
                 for (int v = m.fillStart[i]; v < m.fillEnd[i]; v++) {
                     int o = v * 3;
                     int c = m.fillSlot[v] * 4;
-                    buffer.addVertex(matrix, f[o], f[o + 1], f[o + 2]).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
+                    if (fast) {
+                        matrix.transformPosition(f[o], f[o + 1], f[o + 2], p);
+                        buffer.addVertex(p.x, p.y, p.z).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
+                    } else {
+                        buffer.addVertex(matrix, f[o], f[o + 1], f[o + 2]).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
+                    }
                 }
             }
         }
@@ -700,19 +753,24 @@ public final class AutoRoutesRenderer {
     private static RoutePath.Sample pathKeyLast;
     private static RouteCoords.Frame pathKeyFrame;
     private static int pathKeyShift;
-    private static Vec3[] pathPoints;
+    private static float[] pathSegs;
 
-    /** The recorded movement as a faint polyline - where playback will actually walk. */
-    private static void renderPath(LevelRenderContext ctx, Route route, RouteCoords.Frame frame, int shift,
-                                   float thickness) {
+    /** The path's colour: WorldRenderUtils.renderLineStrip(..., 1f, 0.65f, 0.2f, PATH_ALPHA, ...) as before. */
+    private static final float[] PATH_RGBA = {1f, 0.65f, 0.2f, PATH_ALPHA};
+
+    /**
+     * The recorded movement as a faint polyline - where playback will actually walk - as line segments (renderLineStrip's
+     * pairs of consecutive points), or null for a path under two samples.
+     */
+    private static float[] pathSegments(Route route, RouteCoords.Frame frame, int shift) {
         RoutePath path = route.path();
         if (path.size() < 2) {
-            return;
+            return null;
         }
         RoutePath.Sample first = path.get(0);
         RoutePath.Sample last = path.last();
         if (path != pathKey || path.size() != pathKeySize || first != pathKeyFirst || last != pathKeyLast
-                || shift != pathKeyShift || !frame.sameRoom(pathKeyFrame) || pathPoints == null) {
+                || shift != pathKeyShift || !frame.sameRoom(pathKeyFrame) || pathSegs == null) {
             List<Vec3> points = new ArrayList<>();
             int stride = Math.max(1, path.size() / 400); // a 10-minute path still draws as ~400 segments
             for (int i = 0; i < path.size(); i += stride) {
@@ -724,7 +782,19 @@ public final class AutoRoutesRenderer {
                 points.add(RouteCoords.toReal(frame, last.x(), last.y(), last.z()).add(0, 0.05, 0));
             }
             // A new array each rebuild, never written afterwards: on 26.2 the draw reads it later in the frame.
-            pathPoints = points.toArray(new Vec3[0]);
+            float[] segs = new float[Math.max(0, points.size() - 1) * 6];
+            for (int i = 0; i < points.size() - 1; i++) {
+                Vec3 a = points.get(i);
+                Vec3 b = points.get(i + 1);
+                int o = i * 6;
+                segs[o] = (float) a.x;
+                segs[o + 1] = (float) a.y;
+                segs[o + 2] = (float) a.z;
+                segs[o + 3] = (float) b.x;
+                segs[o + 4] = (float) b.y;
+                segs[o + 5] = (float) b.z;
+            }
+            pathSegs = segs;
             pathKey = path;
             pathKeySize = path.size();
             pathKeyFirst = first;
@@ -733,7 +803,7 @@ public final class AutoRoutesRenderer {
             pathKeyShift = shift;
             pathBuilds++;
         }
-        WorldRenderUtils.renderLineStrip(ctx, pathPoints, 1f, 0.65f, 0.2f, PATH_ALPHA, Math.max(0.5f, thickness / 2f));
+        return pathSegs.length == 0 ? null : pathSegs;
     }
 
     /** Which path the last edit-mode breaker draw took ("highlight/FILLED_OUTLINE 3 drawn"), for the testkit's 96-ar. */
