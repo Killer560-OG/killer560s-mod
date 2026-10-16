@@ -129,7 +129,8 @@ public final class MainMenuScenes {
 
     /** The session's Amber pick (the Title Screen Switcher, a test), or null for the default. */
     private static AmberScene amberScene;
-    private static long testClockMs = -1L;
+    /** The held test clock in milliseconds, fractions kept (a 120 fps recording steps 8.333 ms); negative = released. */
+    private static double testClockMs = -1;
 
     /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE_PREVIEW} with {@link #previewScenes()},
      *  else {@link #AMBER_SCENE}. */
@@ -157,7 +158,7 @@ public final class MainMenuScenes {
 
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
     public static void setClockForTest(double ms) {
-        testClockMs = ms < 0 ? -1L : Math.round(ms);
+        testClockMs = ms < 0 ? -1 : ms;
     }
 
     /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
@@ -187,7 +188,7 @@ public final class MainMenuScenes {
     /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. */
     static double clock(float speed) {
         if (testClockMs >= 0) {
-            return (testClockMs % 3_600_000L) / 1000.0 * speed;
+            return (testClockMs % 3_600_000.0) / 1000.0 * speed;
         }
         // nanoseconds, not milliseconds: at 120 fps and more a frame is ~8 ms, and a millisecond clock moves things in
         // uneven steps (killer560, 2026-10-16: "high fps")

@@ -83,12 +83,14 @@ void main() {
     // brightening travelling along the bands.
     float g = there.g;
     float xr = q.x + (PIC.y - q.y) * 0.18;
-    float f1 = 0.5 + 0.5 * sin(W(47.0) * T + 18.85 * noise(vec2(xr / 14.0, 3.7)));
-    float f2 = 0.5 + 0.5 * sin(W(29.0) * T + 18.85 * noise(vec2(xr / 41.0, 9.1)));
+    // Broad, soft flicker (killer560 picked the less streaky look, 2026-10-16): the phase varies over 40-110 px of the
+    // ray slant, not 14, so the flicker does not draw thin streaks of its own back in.
+    float f1 = 0.5 + 0.5 * sin(W(47.0) * T + 18.85 * noise(vec2(xr / 40.0, 3.7)));
+    float f2 = 0.5 + 0.5 * sin(W(29.0) * T + 18.85 * noise(vec2(xr / 110.0, 9.1)));
     float flick = 0.6 * f1 + 0.4 * f2;
     float rip = 0.5 + 0.5 * sin(q.x * 0.0065 - W(41.0) * T + q.y * 0.0030 + 2.0 * noise(q / 260.0));
     float rip2 = 0.5 + 0.5 * sin(q.x * 0.0031 + W(17.0) * T - q.y * 0.0045);
-    col *= 1.0 + g * (0.30 * (2.0 * flick - 1.0) + 0.20 * (2.0 * rip - 1.0) + 0.10 * (2.0 * rip2 - 1.0));
+    col *= 1.0 + g * (0.20 * (2.0 * flick - 1.0) + 0.20 * (2.0 * rip - 1.0) + 0.10 * (2.0 * rip2 - 1.0));
 
     // The stars, where they are, twinkling softly.
     float s = here.b;
