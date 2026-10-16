@@ -461,3 +461,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   tick (32.9 KB/tick idle in the sim's Entrance) before any block was read. Read the block, drop what `classify` can never
   answer for, then box. The chunk-section palette prefilter alone did not help: a room's sections almost always hold a
   decorative skull.
+- **A precomputed trip planned on the quick floor graph is not flown once the full graph is warm** (fps-fix-1016). Such a
+  trip was only "to be planned again", so a press in the second after the full graph warmed flew it: 15 warps where the
+  full graph's fresh plan took 11 (testkit 147 on the FPS build, 2 of 2 runs; the pre-FPS logs show the same timing, it
+  passed only because those floors' quick and full plans happened to be equal). Not an FPS cache: `Entry.outgrown()` now
+  makes the press search (a few ms on the warm graph) and the cache replan those trips first, outside the quiet gate.
