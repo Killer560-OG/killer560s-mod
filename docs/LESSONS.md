@@ -392,3 +392,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - **Skyblock price ids differ by source.** hysky.de (Skyblocker's keyless lists, Price Tooltip) keys pets `LVL_1_LEGENDARY_GOLDEN_DRAGON`
   and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the Bazaar keys books `ENCHANTMENT_SHARPNESS_6`.
   moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of epoch ms on 867 of 867 live auctions checked.
+- **Check which mod sent a command before fixing it.** The 2026-10-15 p3sim screenshot of repeated "Unknown or incomplete
+  command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
+  echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
+  `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
