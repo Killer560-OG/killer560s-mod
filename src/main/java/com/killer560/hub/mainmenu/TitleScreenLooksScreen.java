@@ -18,7 +18,13 @@ import java.util.List;
  * the one on screen lit. A click shows that look at once and stays here, so the background behind the panel (on the
  * right, left uncovered) changes with each pick; Done or Escape goes back to the title screen in that look.
  */
-public final class TitleScreenLooksScreen extends Screen {
+public final class TitleScreenLooksScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
+
+    @Override
+    public int[] themedPanelBounds() {
+        return new int[]{panelX, panelY, panelW, panelH};
+    }
+
 
     private static final int CHIP_H = 18;
     private static final int GAP = 4;

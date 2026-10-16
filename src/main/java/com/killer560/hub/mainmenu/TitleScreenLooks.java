@@ -220,10 +220,40 @@ public final class TitleScreenLooks {
         }
     }
 
-    /** The corner switcher (found by the testkit through this field). */
-    private static java.lang.ref.WeakReference<SettingsButtonWidget> corner = new java.lang.ref.WeakReference<>(null);
+    /**
+     * The corner switcher: a plain vanilla Button (so it is drawn in the main menu's theme like the column, and as a
+     * vanilla button on the vanilla look) that also takes a right click. Left click or Enter steps forward, right click
+     * back, wrapping - the mod's cycling rule (SettingsButtonWidget.cycling).
+     */
+    public static final class CornerButton extends Button.Plain {
+        private CornerButton(int x, int y, int width, int height, Component message) {
+            super(x, y, width, height, message, b -> step(1), DEFAULT_NARRATION);
+        }
 
-    public static SettingsButtonWidget cornerButton() {
+        @Override
+        protected boolean isValidClickButton(net.minecraft.client.input.MouseButtonInfo info) {
+            return info.button() == 0 || info.button() == 1;
+        }
+
+        @Override
+        public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+            if (event.button() == 1) {
+                step(-1);
+            } else {
+                super.onClick(event, doubleClick);
+            }
+        }
+
+        /** Steps through values (the testkit's 806 rule: every cycling control says so). */
+        public boolean isCycling() {
+            return true;
+        }
+    }
+
+    private static java.lang.ref.WeakReference<CornerButton> corner = new java.lang.ref.WeakReference<>(null);
+
+    /** The corner switcher on the open title screen, or null (testkit 1574). */
+    public static CornerButton cornerButton() {
         return corner.get();
     }
 
@@ -261,9 +291,8 @@ public final class TitleScreenLooks {
             for (Look l : LOOKS) {
                 widest = Math.max(widest, font.width("Look: " + l.label()));
             }
-            int w = Math.min(screen.width - 8, widest + 34);
-            SettingsButtonWidget button = SettingsButtonWidget.cycling(Component.literal(cornerLabel()),
-                    (b, dir) -> step(dir)).bounds(screen.width - w - 4, 4, w, 20).build();
+            int w = Math.min(screen.width - 8, widest + 20);
+            CornerButton button = new CornerButton(screen.width - w - 4, 4, w, 20, Component.literal(cornerLabel()));
             button.setTooltip(Tooltip.create(Component.literal("Title Screen Switcher: left click for the next main menu "
                     + "look, right click for the previous one. Only in this instance; it changes no setting.")));
             widgets.add(button);
@@ -274,7 +303,7 @@ public final class TitleScreenLooks {
                     s.resize(s.width, s.height);
                     return;
                 }
-                SettingsButtonWidget c = corner.get();
+                CornerButton c = corner.get();
                 if (c != null) {
                     String label = cornerLabel();
                     if (!label.equals(c.getMessage().getString())) {
