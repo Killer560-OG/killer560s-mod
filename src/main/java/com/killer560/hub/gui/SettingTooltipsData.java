@@ -227,11 +227,11 @@ final class SettingTooltipsData {
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");
         d.put("auto-swap to guardian pet", "Before a run, equips your best Guardian pet via /pets (cheat build, Autonomous mode).");
         d.put("stop at", "When to leave Chronomatron and Ultrasequencer: Max Clicks or Max XP (cheat build, Autonomous mode).");
-        d.put("auto experimentation table/click delay", "Wait between the bot's game clicks, 0-1000 ms in 50 ms steps (cheat build only).");
-        d.put("first click delay", "Extra wait before the first click of each Chronomatron or Ultrasequencer round, 0-3000 ms (cheat build).");
-        d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps.");
+        d.put("auto experimentation table/click delay", "Least time between two of the bot's clicks, 150-1000 ms in 50 ms steps, 400 by default (cheat build only).");
+        d.put("first click delay", "Wait before the first click of each Chronomatron or Ultrasequencer round, 150-3000 ms, 600 by default (cheat build).");
+        d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps, 50 by default. It only adds time.");
         d.put("auto-renew charges", "Cheat build: how many Renew Experiments charges (0-3) the bot buys per day.");
-        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 disables. Drag in 50k steps or type an exact amount.");
+        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 800,000 by default, 0 disables. Drag in 50k steps or type an exact amount.");
         d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
         d.put("hud elements/set", "Applies the value typed in the box next to it.");
         d.put("set", "Applies the number typed in the box next to it.");

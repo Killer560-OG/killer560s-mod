@@ -85,7 +85,20 @@ public final class ExperimentsFeature {
     private static final ExperimentNavigator NAVIGATOR = new ExperimentNavigator();
     private static final GuardianPetSwapper GUARDIAN_SWAPPER = new GuardianPetSwapper();
     private static String lastTitle = "";
+    /** When the last PUZZLE click (Chronomatron/Ultrasequencer) actually went out - the solver paces its next click
+     *  from here. It was the time the click was DECIDED until 2026-10-15, while Random Delay sends it up to that many
+     *  ms later: one click decided at t and sent at t+jitter, the next decided at t+delay and sent with no jitter,
+     *  were Click Delay minus the jitter apart (or reversed outright when the jitter beat Click Delay). */
     private static long lastClickAtMs = 0L;
+    /** When the last automated click of any kind actually went out; see {@link #gateGatedClick}'s spacing. */
+    private static long lastClickSentAtMs = 0L;
+    /** A puzzle click is decided and still waiting to be sent (jitter, spacing or ActionGate). The solver decides
+     *  nothing else until it goes, so two puzzle clicks can never be queued at once. */
+    private static boolean puzzleClickInFlight = false;
+    private static long puzzleClickDecidedAtMs = 0L;
+    /** A click in flight longer than this was lost somewhere (it cannot be: every path sends or abandons it); stop
+     *  waiting on it rather than stall the round. Covers the longest jitter, the spacing wait and the gate budget. */
+    private static final long PUZZLE_CLICK_STALE_MS = 5_000L;
     private static long lastExitAttemptAtMs = 0L;
     /** Rounds needed for max bonus on the CURRENT game, read off real "Chain of N:"/"Series of N:"
      *  lore by the navigator on the way in - -1 means none was seen, fall back to the configured
@@ -763,8 +776,10 @@ public final class ExperimentsFeature {
         ExperimentSolver.Mode mode = SOLVER.select(title);
         logModeChangeIfAny(mode, title);
         if (!title.equals(lastTitle)) {
+            // No longer zeroes lastClickAtMs (2026-10-15): 0 read as "the last click was long ago", so a title change
+            // let the next click of a sequence go out at once. A round's first click is paced from the round's own
+            // reveal (First Click Delay), so nothing needed the reset.
             lastTitle = title;
-            lastClickAtMs = 0L;
         }
 
         ChestMenu menu = screen.getMenu();
@@ -826,12 +841,24 @@ public final class ExperimentsFeature {
                     tryExitFinishedRound(screen, menu, now);
                     return;
                 }
-                OptionalInt click = SOLVER.nextClick(cells, cfg.isSuperpairsEnabled(), cfg.isSuperpairsValuableOnly(),
-                        now, lastClickAtMs, cfg.getDelayMs(), cfg.getFirstClickDelayMs());
-                if (click.isPresent()) {
-                    int slot = click.getAsInt();
-                    lastClickAtMs = now;
-                    scheduleClick(menu.containerId, slot, now, cfg);
+                if (puzzleClickInFlight && now - puzzleClickDecidedAtMs > PUZZLE_CLICK_STALE_MS) {
+                    LOGGER.warn("Experiments: a puzzle click decided {} ms ago never went out - no longer waiting on it",
+                            now - puzzleClickDecidedAtMs);
+                    puzzleClickInFlight = false;
+                }
+                if (puzzleClickInFlight) {
+                    // The last decided click has not gone out yet: learn from the board, decide nothing.
+                    SOLVER.observe(cells, cfg.isSuperpairsValuableOnly(), now);
+                } else {
+                    OptionalInt click = SOLVER.nextClick(cells, cfg.isSuperpairsEnabled(), cfg.isSuperpairsValuableOnly(),
+                            now, lastClickAtMs, cfg.getDelayMs(), cfg.getFirstClickDelayMs());
+                    if (click.isPresent()) {
+                        puzzleClickInFlight = true;
+                        puzzleClickDecidedAtMs = now;
+                        Screen ownScreen = McCompat.screen(Minecraft.getInstance());
+                        scheduleAction(gateGatedClick(menu.containerId, click.getAsInt(), ownScreen,
+                                now + GATE_RETRY_BUDGET_MS, true), now, cfg);
+                    }
                 }
             } else {
                 // Not clicking right now (the automation is off, or on but not yet armed): observe the
@@ -1434,6 +1461,7 @@ public final class ExperimentsFeature {
         NAVIGATOR.reset();
         GUARDIAN_SWAPPER.reset();
         pendingActions.clear();
+        puzzleClickInFlight = false;
         pendingReopenAtMs = 0L;
     }
 
@@ -1584,7 +1612,7 @@ public final class ExperimentsFeature {
         // Captured here (decide time) rather than read fresh inside gateGatedClick, since the whole
         // point is to catch the screen having changed OUT from under a click that hasn't fired yet.
         Screen ownScreen = McCompat.screen(Minecraft.getInstance());
-        scheduleAction(gateGatedClick(containerId, slot, ownScreen, now + GATE_RETRY_BUDGET_MS), now, cfg);
+        scheduleAction(gateGatedClick(containerId, slot, ownScreen, now + GATE_RETRY_BUDGET_MS, false), now, cfg);
     }
 
     /** Real bug found (2026-09-21) diagnosing killer560's "sometimes the autoetable misses some of the
@@ -1610,21 +1638,31 @@ public final class ExperimentsFeature {
      *  bug from, and was found alongside, the enchant-lore-name pricing fix in
      *  ExperimentsProfitTracker#enchantIdToken - that one only ever affected the coin estimate shown for
      *  a handful of renamed enchants (Gravity/Drain/Woodsplitter/...), never whether they got clicked. */
-    private static Runnable gateGatedClick(int containerId, int slot, Screen ownScreen, long giveUpAtMs) {
+    private static Runnable gateGatedClick(int containerId, int slot, Screen ownScreen, long giveUpAtMs, boolean puzzle) {
         return () -> {
             long sentAtMs = System.currentTimeMillis();
+            // Never two automated clicks closer than Click Delay, whatever asked for them (2026-10-15). The solver
+            // and the navigator pace themselves, but this is the one place every click passes, so a First Click
+            // Delay shorter than Click Delay, a claim straight after a puzzle click, or anything added later cannot
+            // undercut it. The wait is added to the give-up budget: spacing is not the gate being stuck.
+            long earliest = lastClickSentAtMs + ExperimentsConfig.getInstance().getDelayMs();
+            if (sentAtMs < earliest && McCompat.screen(Minecraft.getInstance()) == ownScreen) {
+                pendingActions.add(new PendingAction(gateGatedClick(containerId, slot, ownScreen,
+                        giveUpAtMs + (earliest - sentAtMs), puzzle), earliest));
+                return;
+            }
             // The real click only happens once this jittered action actually fires, which can be well
             // after it was decided - Superpairs' confirm-timeout clock needs to start from that real
             // send time, not the moment this click was decided (see ExperimentSolver#superpairsClickSent).
             // Harmless no-op for Chronomatron/Ultrasequencer/navigation/claim clicks, which never arm
             // that gate at all.
-            if (!ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
+            if (sentAtMs < earliest || !ActionGate.tryAct(ActionGate.Actor.EXPERIMENTS, ownScreen)) {
                 if (McCompat.screen(Minecraft.getInstance()) == ownScreen && sentAtMs < giveUpAtMs) {
                     // Denied for a transient reason (spacing, a world aura mid cross-class cooldown, a
                     // settle window) and still aimed at the right menu - the gate only ever delays, so
                     // retry the SAME click rather than treating a denial as "never happened".
                     pendingActions.add(new PendingAction(
-                            gateGatedClick(containerId, slot, ownScreen, giveUpAtMs), sentAtMs + GATE_RETRY_STEP_MS));
+                            gateGatedClick(containerId, slot, ownScreen, giveUpAtMs, puzzle), sentAtMs + GATE_RETRY_STEP_MS));
                     return;
                 }
                 // Either the screen this click was aimed at is gone - firePendingActions runs
@@ -1637,9 +1675,18 @@ public final class ExperimentsFeature {
                 LOGGER.warn("Experiments click on slot {} abandoned - ActionGate never freed up within {}ms "
                         + "of it being decided (or its screen closed first)", slot, GATE_RETRY_BUDGET_MS);
                 SOLVER.superpairsClickSent(slot, sentAtMs);
+                if (puzzle) {
+                    puzzleClickInFlight = false;
+                    lastClickAtMs = sentAtMs;
+                }
                 return;
             }
             clickSlot(containerId, slot);
+            lastClickSentAtMs = sentAtMs;
+            if (puzzle) {
+                puzzleClickInFlight = false;
+                lastClickAtMs = sentAtMs;
+            }
             SOLVER.superpairsClickSent(slot, sentAtMs);
         };
     }
