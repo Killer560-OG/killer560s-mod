@@ -905,11 +905,38 @@ public final class AutoPuzzleUtil {
     }
 
     /**
+     * {@link #aimBodyAt(LocalPlayer, BlockPos, FreeCam)} for an entity's box (a Three Weirdos NPC): the body turns onto
+     * the point of the box nearest the line to its centre, so the interact the next tick meets it on the reported look
+     * (an interact the reported look misses is GrimAC Hitboxes) and needs no turn tick of its own.
+     * @return true when the body was turned
+     */
+    static boolean aimBodyAt(LocalPlayer player, net.minecraft.world.phys.AABB box, FreeCam camera) {
+        if (player == null || box == null) {
+            return false;
+        }
+        Vec3 eye = settledEye(player);
+        if (box.contains(eye)) {
+            return false;
+        }
+        Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
+        double reach = eye.distanceTo(aim) + 1.0;
+        if (box.clip(eye, eye.add(com.killer560.hub.util.TurnFirst.look(player).scale(reach))).isPresent()) {
+            return false; // the reported look meets it already
+        }
+        if (!FreeCam.anyEngaged()) {
+            camera.engage(player);
+        }
+        float[] dir = direction(eye, box.getCenter());
+        rotateCamera(player, dir[0], dir[1]);
+        return true;
+    }
+
+    /**
      * His STANDING eye where he will be next tick: on an etherwarp's landing tick he hovers up to {@link #LANDING_HOVER}
      * over the block and gravity sets him on it the tick after, so a look aimed from the hovering eye can pass a small
      * target's edge by from the settled one, and the click's own check (from the settled eye) turns him again.
      */
-    private static Vec3 settledEye(LocalPlayer player) {
+    static Vec3 settledEye(LocalPlayer player) {
         double feet = player.getY();
         double top = Math.floor(feet);
         if (!player.onGround() && feet - top < LANDING_HOVER) {
@@ -918,7 +945,8 @@ public final class AutoPuzzleUtil {
         return new Vec3(player.getX(), feet + EYE_STANDING, player.getZ());
     }
 
-    /** The same for an entity (a Three Weirdos NPC): an interact the reported look misses draws GrimAC Hitboxes. */
+    /** The same for an entity (a Three Weirdos NPC): an interact the reported look misses draws GrimAC Hitboxes.
+     *  The turn tick is the exception: Auto Three Weirdos turns the body onto the next weirdo ahead of its talk. */
     public static boolean gateWorldClick(Minecraft client, net.minecraft.world.entity.Entity entity) {
         if (!gateWorldClick()) {
             return false;
