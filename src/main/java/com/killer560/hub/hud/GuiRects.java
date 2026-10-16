@@ -59,6 +59,12 @@ public final class GuiRects {
         return new GuiRects(graphics);
     }
 
+    /** The graphics this batch draws on (a caller may push a pose around some fills: each fill keeps the pose it was
+     *  added under). */
+    public GuiGraphicsExtractor graphics() {
+        return graphics;
+    }
+
     /** As {@code GuiGraphicsExtractor.fill(x0, y0, x1, y1, color)}. */
     public GuiRects fill(int x0, int y0, int x1, int y1, int color) {
         if (com.killer560.hub.gui.MenuAnim.fade < 1f) {

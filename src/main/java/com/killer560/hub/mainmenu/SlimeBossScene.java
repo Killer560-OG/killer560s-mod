@@ -25,6 +25,10 @@ final class SlimeBossScene {
     private SlimeBossScene() {
     }
 
+    /** The character as a smooth, natural silhouette ({@link SmoothSilhouette}, the designer, 2026-10-16: "un-minecraft-ify
+     *  my skin ... It looks weird all pixelated"); false draws the earlier blocky Minecraft one below. */
+    static final boolean SMOOTH = true;
+
     /** Cat ears on the character's head: unconfirmed by the designer, so off. */
     static final boolean EARS = false;
 
@@ -135,6 +139,11 @@ final class SlimeBossScene {
      * shifted toward the glow in the rim colour, then dark, so only the edges facing the boss are lit.
      */
     static void character(GuiRects r, int w, int h, int hot, float s) {
+        if (SMOOTH) {
+            int scale = Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
+            SmoothSilhouette.draw(r, w, h, scale, hot);
+            return;
+        }
         float u = h * 0.0195f;
         float hx = w * 0.13f; // head centre
         float hy = h * 0.36f; // head top
