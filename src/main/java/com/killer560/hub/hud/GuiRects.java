@@ -159,6 +159,12 @@ public final class GuiRects {
                 new ScreenRectangle(left, top, right - left, bottom - top), scissor));
     }
 
+    /** The fills a batch {@link #submit} handed over as one element, or null for any other element (the Dungeon Map's
+     *  draw cache compares a replayed batch with a fresh one: a record's array is compared by reference). */
+    public static GuiElementRenderState[] partsOf(Object element) {
+        return element instanceof Batch b ? b.parts() : null;
+    }
+
     private record Batch(ColoredRectangleRenderState[] parts, ScreenRectangle bounds, ScreenRectangle scissorArea)
             implements GuiElementRenderState {
 

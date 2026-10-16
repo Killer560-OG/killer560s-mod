@@ -135,6 +135,8 @@ public final class RoomPredictor {
     private static final List<Candidate>[] BY_TILE = new List[TILES * TILES];
     private static final Map<String, int[]> NORM_CACHE = new HashMap<>();
     private static final Map<Integer, Prediction> PREDICTIONS = new HashMap<>();
+    /** Bumped whenever {@link #PREDICTIONS} is replaced or cleared (the Dungeon Map's draw cache keys on it). */
+    private static int predictionsVersion = 0;
 
     private static int generation = Integer.MIN_VALUE;
     private static Object level = null;
@@ -193,6 +195,7 @@ public final class RoomPredictor {
         ALL.clear();
         Arrays.fill(BY_TILE, null);
         PREDICTIONS.clear();
+        predictionsVersion++;
         dirty = false;
     }
 
@@ -490,6 +493,7 @@ public final class RoomPredictor {
         }
         PREDICTIONS.clear();
         PREDICTIONS.putAll(next);
+        predictionsVersion++;
         setStatus(obsCount + " block(s) seen, " + PREDICTIONS.size() + " prediction(s)");
     }
 
@@ -563,6 +567,10 @@ public final class RoomPredictor {
     /** Every current prediction, by the tile it was made for. */
     public static List<Prediction> predictions() {
         return new ArrayList<>(PREDICTIONS.values());
+    }
+
+    public static int predictionsVersion() {
+        return predictionsVersion;
     }
 
     public static Prediction predictionFor(int gridIdx) {

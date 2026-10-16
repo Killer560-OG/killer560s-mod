@@ -56,6 +56,22 @@ public final class DungeonLayout {
         labelGX = base.labelGX;
         labelGZ = base.labelGZ;
         this.currentRoom = currentRoom;
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            long cell = doorType[idx] & 7L | (doorLocked[idx] ? 8L : 0L);
+            doorBits[idx / 16] |= cell << ((idx % 16) * 4);
+        }
+    }
+
+    /** Every cell's door type and lock, four bits a cell, sixteen cells a word: what the Dungeon Map's doors are drawn
+     *  from, for its draw cache to compare exactly. */
+    private final long[] doorBits = new long[(GRID * GRID + 15) / 16];
+
+    long doorBits(int word) {
+        return doorBits[word];
+    }
+
+    static int doorBitWords() {
+        return (GRID * GRID + 15) / 16;
     }
 
     /** Per-tick cached snapshot for the two map renderers (client thread only). {@link #capture()} walks all 121
