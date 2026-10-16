@@ -539,6 +539,12 @@ public final class StorageOverlayFeature {
             if (!StorageOverlayConfig.getInstance().isEnabled()) {
                 return;
             }
+            // Every container screen runs this every frame. Not a storage page and not the overview is the same
+            // question shouldHideVanilla answers, memoised on the title object; the title's text and two regexes per
+            // frame were spent only to find that out (mixin FPS pass, 2026-10-15).
+            if (!shouldHideVanilla(screen.getTitle())) {
+                return;
+            }
             String title = screen.getTitle().getString();
             String activeKey = storageKeyForTitle(title);
             // Per killer560's report (2026-09-08): the grid should already show while browsing the
