@@ -103,6 +103,7 @@ public final class ClassColors {
 
     static void onWorldChange() {
         CLASSES.clear();
+        TAB_NAMES.clear();
     }
 
     static DungeonClass selfClass() {
@@ -114,6 +115,29 @@ public final class ClassColors {
         return ClassOverrides.classOf(name, CLASSES.get(name));
     }
 
+    /** "Not a teammate row" in {@link #TAB_NAMES}. */
+    private static final String NO_NAME = new String("");
+    /** Tab display name object -> the teammate name its text matches {@link #TAB_REGEX} with, or {@link #NO_NAME}. */
+    private static final Map<Component, String> TAB_NAMES = new java.util.IdentityHashMap<>();
+
+    /**
+     * The teammate name in a tab row's display name, or null. Asked for every row of the held tab list every frame;
+     * the strip and the regex depend only on the display name object (Hypixel sends a new one when a row changes), so
+     * they run once per object instead (mixin FPS pass, 2026-10-15). Render thread only.
+     */
+    private static String teammateName(Component displayName) {
+        String known = TAB_NAMES.get(displayName);
+        if (known == null) {
+            Matcher m = TAB_REGEX.matcher(com.killer560.hub.util.ChatObserver.strip(displayName).trim());
+            known = m.matches() ? m.group(1) : NO_NAME;
+            if (TAB_NAMES.size() >= 512) {
+                TAB_NAMES.clear();
+            }
+            TAB_NAMES.put(displayName, known);
+        }
+        return known == NO_NAME ? null : known;
+    }
+
     /** Called from the PlayerTabOverlay#getNameForDisplay mixin. Returns {@code original} untouched unless this
      *  entry is a known teammate - then the name text is re-colored with the class color. */
     public static Component recolorTabName(PlayerInfo info, Component original) {
@@ -122,11 +146,10 @@ public final class ClassColors {
                 || info.getTabListDisplayName() == null) {
             return original;
         }
-        Matcher m = TAB_REGEX.matcher(com.killer560.hub.util.ChatObserver.strip(info.getTabListDisplayName()).trim());
-        if (!m.matches()) {
+        String name = teammateName(info.getTabListDisplayName());
+        if (name == null) {
             return original;
         }
-        String name = m.group(1);
         DungeonClass clazz = ClassOverrides.classOf(name, CLASSES.get(name));
         if (clazz == null) {
             return original;

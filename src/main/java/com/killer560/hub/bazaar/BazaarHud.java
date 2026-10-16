@@ -47,7 +47,10 @@ public final class BazaarHud {
 
     /** True while HUD layers must not draw: the Bazaar is on screen and Hide HUDs in Bazaar is on. */
     public static boolean hidesHud() {
-        return BazaarConfig.getInstance().isHideHuds() && bazaarOnScreen();
+        // Asked by the gate around every HUD layer every frame (about 25 a frame): the screen check is two field reads,
+        // the config's getInstance and getter are both synchronized, so the screen goes first (mixin FPS pass,
+        // 2026-10-15). Both are plain reads, so the answer is the same either way round.
+        return bazaarOnScreen() && BazaarConfig.getInstance().isHideHuds();
     }
 
     /** The Bazaar screen, or a Bazaar menu drawn as it, is the open screen. */

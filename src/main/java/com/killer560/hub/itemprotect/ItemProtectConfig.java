@@ -378,6 +378,11 @@ public final class ItemProtectConfig {
         protectedNames.removeIf(s -> s.equalsIgnoreCase(name == null ? "" : name.trim()));
     }
 
+    /** Whether any typed name fragment is on the list (when not, {@link #nameMatchesProtected} is false for every name). */
+    public boolean hasProtectedNames() {
+        return !protectedNames.isEmpty();
+    }
+
     public boolean nameMatchesProtected(String displayName) {
         if (displayName == null || displayName.isEmpty() || protectedNames.isEmpty()) {
             return false;

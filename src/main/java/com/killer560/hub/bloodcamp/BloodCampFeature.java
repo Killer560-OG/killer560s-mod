@@ -370,7 +370,11 @@ public final class BloodCampFeature {
         if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
             watcherEntityId = null;
         }
-        bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+        // Every remove-entities packet in every world comes here: with no blood mob tracked there is nothing to drop,
+        // so no capturing lambda and iterator are made for an empty map (mixin FPS pass, 2026-10-15).
+        if (!bloodMobs.isEmpty()) {
+            bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+        }
     }
 
     /** Real base64 "textures" property value off a real player-head ItemStack - same real

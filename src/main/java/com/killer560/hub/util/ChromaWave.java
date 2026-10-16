@@ -48,6 +48,14 @@ public final class ChromaWave {
 
     /** Registered text specs by their sentinel {@link TextColor} INSTANCE (copy on write; read on the render thread). */
     private static volatile Map<TextColor, Spec> specs = new IdentityHashMap<>();
+    /**
+     * The same specs as a plain array while there are few ({@link #LINEAR_MAX} or fewer; null past that). The glyph
+     * hook asks for every glyph the game draws, and the Enchant Colors spec is registered as soon as that class loads,
+     * so the map was never empty: a reference compare or two is cheaper than an identity-hash lookup per glyph
+     * (mixin FPS pass, 2026-10-15). Both are replaced together, under the same lock, on every register.
+     */
+    private static volatile Spec[] few = new Spec[0];
+    private static final int LINEAR_MAX = 8;
 
     /** Test hook: a fixed clock in ms, or -1 for the real one. Lets a test take two frames a known time apart. */
     private static volatile long clockOverride = -1L;
@@ -144,6 +152,15 @@ public final class ChromaWave {
         if (color == null) {
             return null;
         }
+        Spec[] a = few;
+        if (a != null) {
+            for (Spec spec : a) {
+                if (spec.textColor == color) {
+                    return spec;
+                }
+            }
+            return null;
+        }
         Map<TextColor, Spec> m = specs;
         return m.isEmpty() ? null : m.get(color);
     }
@@ -162,6 +179,9 @@ public final class ChromaWave {
     private static synchronized Spec register(Spec spec) {
         Map<TextColor, Spec> next = new IdentityHashMap<>(specs);
         next.put(spec.textColor, spec);
+        // Array first, then the map: a reader that sees the new array has every spec in it; one that still sees the
+        // old array misses only the spec being registered now, exactly as one reading the old map would.
+        few = next.size() <= LINEAR_MAX ? next.values().toArray(new Spec[0]) : null;
         specs = next;
         return spec;
     }
