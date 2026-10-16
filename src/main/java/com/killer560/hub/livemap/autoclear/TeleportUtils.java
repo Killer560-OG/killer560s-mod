@@ -257,17 +257,31 @@ public final class TeleportUtils {
         if (fragile != null) {
             // Every point of every visible face, down to a sixteenth of a block: the planner's own "one warp reaches it"
             // (EtherSearch.aimExact), which only takes aims that hold. Only for a block already seen to be reachable.
-            Level level = level();
-            if (level != null) {
-                EtherSearch es = new EtherSearch(new LevelEtherGrid(level));
-                if (es.aimExact(from.x, from.y, from.z, to.getX(), to.getY(), to.getZ(), dist)
-                        && holdsOn(from, es.aimYaw, es.aimPitch, dist, to)) {
-                    return new Rotation(es.aimYaw, es.aimPitch, fragile.distance());
-                }
+            Rotation exact = exactEtherwarpDirection(from, to, dist);
+            if (exact != null) {
+                return exact;
             }
             fragileAims++;
         }
         return fragile;
+    }
+
+    /**
+     * The planner's exhaustive firm aim ({@link EtherSearch#aimExact}: every point of every visible face down to a
+     * sixteenth of a block, only aims that hold within {@link EtherSearch#AIM_MARGIN}) from {@code from} onto {@code to},
+     * or null. Costly next to {@link #getEtherwarpDirection}; for a run-time aim that found nothing on the sample points.
+     */
+    public static Rotation exactEtherwarpDirection(Vec3 from, BlockPos to, double dist) {
+        Level level = level();
+        if (level == null) {
+            return null;
+        }
+        EtherSearch es = new EtherSearch(new LevelEtherGrid(level));
+        if (!es.aimExact(from.x, from.y, from.z, to.getX(), to.getY(), to.getZ(), dist)
+                || !holdsOn(from, es.aimYaw, es.aimPitch, dist, to)) {
+            return null;
+        }
+        return new Rotation(es.aimYaw, es.aimPitch, Vec3.atCenterOf(to).distanceTo(from));
     }
 
     /** Whether the etherwarp cast from {@code from} along {@code yaw}/{@code pitch} for {@code dist} lands on {@code to}. */

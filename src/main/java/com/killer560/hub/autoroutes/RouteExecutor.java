@@ -2096,8 +2096,13 @@ public final class RouteExecutor {
             return AIM_OK;
         }
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
-        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
-                com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
+        if (rot == null) {
+            // None of the sample points: every point of every face the planner would try (path-wrongblock-1015). A hop
+            // planned from the settled eye and fired 0.05 above it can lose all of them to a lip it grazed.
+            rot = TeleportUtils.exactEtherwarpDirection(eye, warpTarget, range);
+        }
         if (rot == null) {
             return AIM_NO_RAY;
         }
@@ -2125,7 +2130,11 @@ public final class RouteExecutor {
         double dz = warpSpot.z - pos.z;
         double h = Math.sqrt(dx * dx + dz * dz);
         Vec3 v = player.getDeltaMovement();
-        boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004;
+        // The saved look belongs to the spot's EYE too: on a landing tick he stands 0.05 over it, and the saved look fired
+        // from there went over a slab lip at the sim's -26, 259, -128 and was refused (1015-sim-pathland, Quartz Knight). He
+        // drops onto the spot the next tick by himself (gravity, not a wait), so "on it" includes the height.
+        boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004
+                && Math.abs(pos.y - warpSpot.y) < REAIM_EPSILON;
         if (settled || warpCentreTicks > CENTRE_TIMEOUT) {
             clearMovement();
             LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled
