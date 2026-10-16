@@ -61,7 +61,7 @@ public final class RoomBraziers {
 
     /** Lights one room's unlit braziers in place; returns how many. */
     static int light(RoomLibrary.Room room) {
-        if (room.blocks == null || room.palette.isEmpty()) {
+        if (room.blockCount() == 0 || room.palette.isEmpty()) {
             return 0;
         }
         boolean[] hopper = new boolean[room.palette.size()];
@@ -83,19 +83,19 @@ public final class RoomBraziers {
         for (int y = room.minY; y < room.maxY; y++) {
             for (int z = margin + 1; z < room.sizeZ - 1 - margin; z++) {
                 for (int x = margin + 1; x < room.sizeX - 1 - margin; x++) {
-                    short here = room.blocks[room.index(x, y, z)];
+                    short here = room.blockAt(room.index(x, y, z));
                     if (here < 0 || here >= hopper.length || !hopper[here]) {
                         continue;
                     }
                     int above = room.index(x, y + 1, z);
-                    short up = room.blocks[above];
+                    short up = room.blockAt(above);
                     if (up < 0 || up >= air.length || !air[up]) {
                         continue;
                     }
                     if (fire < 0) {
                         fire = room.paletteFor(FIRE);
                     }
-                    room.blocks[above] = fire;
+                    room.setBlockAt(above, fire);
                     lit++;
                 }
             }

@@ -204,10 +204,14 @@ public final class SimSecretItems {
                 // Not players().get(0): a placed miniboss is a ServerPlayer and so is in this list too
                 // (ServerLevel$EntityCallbacks.onTrackingStart adds every one), and a secret must appear near
                 // the real player, not near an NPC.
-                var player = level.players().stream()
-                        .filter(p -> !SimMiniboss.isPlaced(p))
-                        .findFirst()
-                        .orElse(null);
+                // A loop, not a stream: this runs every server tick (fps-sim-1015).
+                net.minecraft.server.level.ServerPlayer player = null;
+                for (net.minecraft.server.level.ServerPlayer p : level.players()) {
+                    if (!SimMiniboss.isPlaced(p)) {
+                        player = p;
+                        break;
+                    }
+                }
                 if (player != null) {
                     magneticPickup(level, player);
                 }

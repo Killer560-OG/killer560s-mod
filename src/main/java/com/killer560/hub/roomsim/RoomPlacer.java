@@ -319,6 +319,31 @@ public final class RoomPlacer {
             this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
         }
 
+        /**
+         * Each palette entry's state, already rotated, parsed the first time a block uses it (fps-sim-1015). Parsing
+         * the palette string for EVERY block was most of a floor build's server-thread allocation (~280 MB of
+         * identifiers and property maps per F7 in a JFR); the result per entry never changes within a paste.
+         */
+        private BlockState[] rotatedStates;
+        private boolean[] resolvedStates;
+
+        private BlockState rotatedState(int paletteIdx) {
+            if (rotatedStates == null) {
+                rotatedStates = new BlockState[room.palette.size()];
+                resolvedStates = new boolean[room.palette.size()];
+            }
+            if (paletteIdx >= rotatedStates.length) {
+                BlockState state = resolve(room.palette.get(paletteIdx));
+                return state == null ? null : state.rotate(vanillaRotation);
+            }
+            if (!resolvedStates[paletteIdx]) {
+                BlockState state = resolve(room.palette.get(paletteIdx));
+                rotatedStates[paletteIdx] = state == null ? null : state.rotate(vanillaRotation);
+                resolvedStates[paletteIdx] = true;
+            }
+            return rotatedStates[paletteIdx];
+        }
+
         @Override
         public boolean isDone() {
             return done;
@@ -374,17 +399,19 @@ public final class RoomPlacer {
                     // partly captured because he has not walked that part yet, and a patch that blends in
                     // would have him practising a route across ground that may not be there. Red concrete
                     // says "this is not the dungeon" at a glance and is still something to stand on.
-                    int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
-                    writer.set(worldX0 + local[0], y, worldZ0 + local[1], MARKER);
-                    SimBuildQueue.touched(worldX0 + local[0], worldZ0 + local[1]);
+                    int lx = rotatedX(x, z, room.sizeX, room.sizeZ, rotation);
+                    int lz = rotatedZ(x, z, room.sizeX, room.sizeZ, rotation);
+                    writer.set(worldX0 + lx, y, worldZ0 + lz, MARKER);
+                    SimBuildQueue.touched(worldX0 + lx, worldZ0 + lz);
                     placed++;
                 }
                 if (paletteIdx >= 0) {
-                    BlockState state = resolve(room.palette.get(paletteIdx));
-                    if (state != null) {
-                        int[] local = rotateLocal(x, z, room.sizeX, room.sizeZ, rotation);
-                        writer.set(worldX0 + local[0], y, worldZ0 + local[1], state.rotate(vanillaRotation));
-                        SimBuildQueue.touched(worldX0 + local[0], worldZ0 + local[1]);
+                    BlockState rotated = rotatedState(paletteIdx);
+                    if (rotated != null) {
+                        int lx = rotatedX(x, z, room.sizeX, room.sizeZ, rotation);
+                        int lz = rotatedZ(x, z, room.sizeX, room.sizeZ, rotation);
+                        writer.set(worldX0 + lx, y, worldZ0 + lz, rotated);
+                        SimBuildQueue.touched(worldX0 + lx, worldZ0 + lz);
                         placed++;
                     }
                 }
@@ -498,6 +525,30 @@ public final class RoomPlacer {
      *     is exactly why {@link #paste} only ever adds this result to a fixed world origin rather than assuming
      *     the room's footprint keeps its original dimensions
      */
+    /** {@code rotateLocal(...)[0]} without the array, for the per-block paste loop (fps-sim-1015). */
+    static int rotatedX(int x, int z, int sizeX, int sizeZ, int degrees) {
+        return switch (degrees) {
+            case 0 -> x;
+            case 90 -> sizeZ - 1 - z;
+            case 180 -> sizeX - 1 - x;
+            case 270 -> z;
+            default -> throw new IllegalArgumentException(
+                    "rotation must be 0, 90, 180 or 270 degrees, got " + degrees);
+        };
+    }
+
+    /** {@code rotateLocal(...)[1]} without the array. */
+    static int rotatedZ(int x, int z, int sizeX, int sizeZ, int degrees) {
+        return switch (degrees) {
+            case 0 -> z;
+            case 90 -> x;
+            case 180 -> sizeZ - 1 - z;
+            case 270 -> sizeX - 1 - x;
+            default -> throw new IllegalArgumentException(
+                    "rotation must be 0, 90, 180 or 270 degrees, got " + degrees);
+        };
+    }
+
     static int[] rotateLocal(int x, int z, int sizeX, int sizeZ, int degrees) {
         return switch (degrees) {
             case 0 -> new int[]{x, z};
@@ -522,7 +573,7 @@ public final class RoomPlacer {
         RoomLibrary.Room room = new RoomLibrary.Room("selfcheck", size, size);
         String marker = "killer560smod:selfcheck_marker";
         int markerIdx = room.paletteFor(marker);
-        room.blocks[room.index(0, room.minY, 0)] = (short) markerIdx;
+        room.setBlockAt(room.index(0, room.minY, 0), (short) markerIdx);
 
         int[][] expected = {
                 {0, 0}, // 0 deg:  NW stays NW

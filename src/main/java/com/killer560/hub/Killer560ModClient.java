@@ -148,9 +148,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimPauseEntry.register();
         com.killer560.hub.roomsim.SimSurvival.register();
         com.killer560.hub.roomsim.FloorSizeLog.register();
-        // Started here rather than when a screen asks for it: reading it is slow enough to matter
-        // and there is nothing to wait for at startup, so by the time he opens the sim it is done.
-        com.killer560.hub.roomsim.RoomLibrary.loadAsync();
+        // Started without waiting for a screen to ask for it: reading it is slow enough to matter, so by the time he
+        // opens the sim it is done. But once the title screen is up rather than during the game's own loading, which
+        // it only competed with (fps-sim-1015, util/AfterStartup).
+        com.killer560.hub.util.AfterStartup.run(com.killer560.hub.roomsim.RoomLibrary::loadAsync);
         com.killer560.hub.roomsim.SimItems.register();
         com.killer560.hub.roomsim.SimBuilder.register();
         com.killer560.hub.roomsim.SimDoors.register();

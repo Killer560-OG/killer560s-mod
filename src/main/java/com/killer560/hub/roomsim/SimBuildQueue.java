@@ -79,8 +79,18 @@ public final class SimBuildQueue {
 
     /** Records a written position's chunk. Cheap enough to call per block: a long key and a set add. */
     static void touched(int x, int z) {
-        touchedChunks.add((((long) (x >> 4)) << 32) ^ ((z >> 4) & 0xffffffffL));
+        long key = (((long) (x >> 4)) << 32) ^ ((z >> 4) & 0xffffffffL);
+        // A paste walks z fastest, so nearly every call names the chunk the last one did: skip re-adding it (a boxed
+        // Long and a hash lookup per block placed, ~60 MB per F7 build; fps-sim-1015). Safe across a clear(): an
+        // emptied set always takes the add, and every add moves lastTouched on.
+        if (key == lastTouched && !touchedChunks.isEmpty()) {
+            return;
+        }
+        lastTouched = key;
+        touchedChunks.add(key);
     }
+
+    private static long lastTouched = Long.MIN_VALUE;
 
     /**
      * The region those chunks cover, or null when nothing has been built yet.

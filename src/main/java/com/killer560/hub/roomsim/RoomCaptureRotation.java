@@ -552,7 +552,7 @@ public final class RoomCaptureRotation {
                 || y < room.minY || y > room.maxY) {
             return null;
         }
-        short id = room.blocks[room.index(x, y, z)];
+        short id = room.blockAt(room.index(x, y, z));
         if (id < 0 || id >= room.palette.size()) {
             return null;
         }
