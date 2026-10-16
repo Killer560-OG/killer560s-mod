@@ -102,18 +102,45 @@ public final class AutoRoutesRenderer {
         framesDrawn++;
         drawnActive = m.paletteActive;
 
-        // ---- one camera-space pass per render type, in the order the per-shape calls used to fill each buffer ----
-        // Edit mode's recorded path is the same render type, drawn after the chain, so it rides in the same pass.
+        // Edit mode's recorded path is the same render type as the chain and was drawn right after it.
         float[] path = editMode ? pathSegments(route, frame, shift) : null;
-        if (m.lineSegCount() > 0 || path != null) {
-            LINES.mesh = m;
-            LINES.path = path;
-            LINES.pathWidth = Math.max(0.5f, thickness / 2f);
-            McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
-        }
-        if (m.fillVertCount() > 0) {
-            FILLS.mesh = m;
-            McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), FILLS);
+        if (PER_SHAPE) {
+            // 26.2: the shapes' own submission sequence, each a cached range (see PER_SHAPE).
+            for (int k = 0; k < n; k++) {
+                int i = m.order[k];
+                if (!m.visible[i]) {
+                    continue;
+                }
+                if (m.preFill[i] != null) {
+                    McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), m.preFill[i]);
+                }
+                if (m.lines[i] != null) {
+                    McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, m.lines[i]);
+                }
+                if (m.postFill[i] != null) {
+                    McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), m.postFill[i]);
+                }
+            }
+            if (m.chainEnd > m.chainStart || path != null) {
+                LINES.mesh = m;
+                LINES.nodes = false;
+                LINES.path = path;
+                LINES.pathWidth = Math.max(0.5f, thickness / 2f);
+                McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
+            }
+        } else {
+            // 26.1.2: one camera-space pass per render type, in the order the per-shape calls used to fill each buffer.
+            if (m.lineSegCount() > 0 || path != null) {
+                LINES.mesh = m;
+                LINES.nodes = true;
+                LINES.path = path;
+                LINES.pathWidth = Math.max(0.5f, thickness / 2f);
+                McRender.inCameraSpace(ctx, RenderTypes.LINES_TRANSLUCENT, LINES);
+            }
+            if (m.fillVertCount() > 0) {
+                FILLS.mesh = m;
+                McRender.inCameraSpace(ctx, RenderTypes.debugFilledBox(), FILLS);
+            }
         }
 
         // ---- labels, after the shapes as before (a different buffer source, so the order between them is moot) ----
@@ -230,6 +257,10 @@ public final class AutoRoutesRenderer {
         int[] lineEnd;
         int[] fillStart;            // vertex range per list position
         int[] fillEnd;
+        int[] fillMid;              // fills before the node's lines end here (Filled style's box), the start fill after
+        RangeReplay[] preFill;      // PER_SHAPE submissions per list position, null where the node has none
+        RangeReplay[] lines;
+        RangeReplay[] postFill;
         int chainStart;
         int chainEnd;
         float[] seg;                // 6 floats per segment
@@ -364,6 +395,7 @@ public final class AutoRoutesRenderer {
             m.lineEnd = new int[n];
             m.fillStart = new int[n];
             m.fillEnd = new int[n];
+            m.fillMid = new int[n];
             for (int i = 0; i < n; i++) {
                 RouteNode node = m.nodes[i];
                 int d = i * 4;
@@ -424,6 +456,7 @@ public final class AutoRoutesRenderer {
                     }
                     default -> outlineBox(seg, segSlot, segWidth, box, base + S_FULL, thickness);
                 }
+                m.fillMid[i] = fillSlot.size;
                 if (node.start) {
                     // killer560, 2026-10-04: "if something is a start node the outline is filled in so I know it is
                     // special". Filled in every style; in Filled style, where every node already is, it is filled
@@ -469,6 +502,20 @@ public final class AutoRoutesRenderer {
             m.segWidth = segWidth.toArray();
             m.fill = fill.toArray();
             m.fillSlot = fillSlot.toArray();
+            m.preFill = new RangeReplay[n];
+            m.lines = new RangeReplay[n];
+            m.postFill = new RangeReplay[n];
+            for (int i = 0; i < n; i++) {
+                if (m.fillMid[i] > m.fillStart[i]) {
+                    m.preFill[i] = new RangeReplay(m, false, m.fillStart[i], m.fillMid[i]);
+                }
+                if (m.lineEnd[i] > m.lineStart[i]) {
+                    m.lines[i] = new RangeReplay(m, true, m.lineStart[i], m.lineEnd[i]);
+                }
+                if (m.fillEnd[i] > m.fillMid[i]) {
+                    m.postFill[i] = new RangeReplay(m, false, m.fillMid[i], m.fillEnd[i]);
+                }
+            }
             return m;
         }
 
@@ -654,6 +701,42 @@ public final class AutoRoutesRenderer {
         return buffer.getClass() == com.mojang.blaze3d.vertex.BufferBuilder.class;
     }
 
+    /**
+     * True where shapes must keep their own submissions (26.2). 26.1.2's mod batch ({@code McRender}) keeps one buffer
+     * per render type for the whole event, so one pass per type fills each buffer exactly as the per-shape calls did.
+     * 26.2's custom-geometry renderer merges only CONSECUTIVE submissions of one type into a draw, and sorts each
+     * translucent fill draw on its own (javap, {@code RenderTypeFeatureRenderer$Group.getVertexBuilder}): one pass per
+     * type there blended overlapping fills in a different order (95-perf-ar-render shots, 18,151 px on Filled), so 26.2
+     * keeps the old sequence - per node its fill, its lines, its start fill - replaying cached ranges.
+     * {@code CALLBACK_RUNS_LATER} is exactly the 26.2 side of that difference.
+     */
+    private static final boolean PER_SHAPE = McRender.CALLBACK_RUNS_LATER;
+
+    /** One node's lines or fills, a range of the mesh, for a PER_SHAPE submission. Built with the mesh. */
+    private static final class RangeReplay implements McRender.Geometry {
+        final Mesh mesh;
+        final boolean lines;
+        final int from;
+        final int to;
+
+        RangeReplay(Mesh mesh, boolean lines, int from, int to) {
+            this.mesh = mesh;
+            this.lines = lines;
+            this.from = from;
+            this.to = to;
+        }
+
+        @Override
+        public void draw(PoseStack.Pose pose, VertexConsumer buffer) {
+            Mesh m = mesh;
+            if (lines) {
+                LineReplay.segments(pose, buffer, m.seg, m.segSlot, m.segWidth, m.palette, m.packed, from, to, 0f);
+            } else {
+                FillReplay.vertices(pose, buffer, m, from, to);
+            }
+        }
+    }
+
     private static final LineReplay LINES = new LineReplay();
     private static final FillReplay FILLS = new FillReplay();
 
@@ -661,6 +744,8 @@ public final class AutoRoutesRenderer {
      *  wrote it. */
     private static final class LineReplay implements McRender.Geometry {
         Mesh mesh;
+        /** False: the chain and path only (PER_SHAPE draws the nodes' own lines). */
+        boolean nodes = true;
         /** Edit mode's recorded path (6 floats a segment), or null. */
         float[] path;
         float pathWidth;
@@ -670,7 +755,7 @@ public final class AutoRoutesRenderer {
             Mesh m = mesh;
             float[] pal = m.palette;
             int[] pk = m.packed;
-            for (int k = 0; k < m.count; k++) {
+            for (int k = 0; nodes && k < m.count; k++) {
                 int i = m.order[k];
                 if (m.visible[i]) {
                     segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, pk, m.lineStart[i], m.lineEnd[i], 0f);
@@ -722,26 +807,29 @@ public final class AutoRoutesRenderer {
         @Override
         public void draw(PoseStack.Pose pose, VertexConsumer buffer) {
             Mesh m = mesh;
+            for (int k = 0; k < m.count; k++) {
+                int i = m.order[k];
+                if (m.visible[i]) {
+                    vertices(pose, buffer, m, m.fillStart[i], m.fillEnd[i]);
+                }
+            }
+        }
+
+        static void vertices(PoseStack.Pose pose, VertexConsumer buffer, Mesh m, int from, int to) {
             float[] pal = m.palette;
             float[] f = m.fill;
             int[] pk = m.packed;
             var matrix = pose.pose();
             boolean fast = plain(buffer);
             org.joml.Vector3f p = POS;
-            for (int k = 0; k < m.count; k++) {
-                int i = m.order[k];
-                if (!m.visible[i]) {
-                    continue;
-                }
-                for (int v = m.fillStart[i]; v < m.fillEnd[i]; v++) {
-                    int o = v * 3;
-                    int c = m.fillSlot[v] * 4;
-                    if (fast) {
-                        matrix.transformPosition(f[o], f[o + 1], f[o + 2], p);
-                        buffer.addVertex(p.x, p.y, p.z).setColor(pk[m.fillSlot[v]]);
-                    } else {
-                        buffer.addVertex(matrix, f[o], f[o + 1], f[o + 2]).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
-                    }
+            for (int v = from; v < to; v++) {
+                int o = v * 3;
+                int c = m.fillSlot[v] * 4;
+                if (fast) {
+                    matrix.transformPosition(f[o], f[o + 1], f[o + 2], p);
+                    buffer.addVertex(p.x, p.y, p.z).setColor(pk[m.fillSlot[v]]);
+                } else {
+                    buffer.addVertex(matrix, f[o], f[o + 1], f[o + 2]).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
                 }
             }
         }
