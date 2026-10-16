@@ -71,6 +71,9 @@ public final class AutoGfsFeature {
     }
 
     static void onChat(String plain) {
+        if (!plain.startsWith("You have no ")) {
+            return; // every line below starts so; skips building one string per item for every chat line (fps-idle-1015)
+        }
         for (RefillItem item : RefillItem.values()) {
             if (plain.equals("You have no " + item.emptyName + " in your Sacks!") && emptySacks.add(item)) {
                 pending.remove(item);
