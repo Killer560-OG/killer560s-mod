@@ -133,6 +133,19 @@ public final class AutoRoutesFeature {
                             : ModChat.value("#" + breakerIndex()));
         } else {
             editBreakerNode = null;
+            // Picking breaks nothing (killer560, 2026-10-11), and that includes the tick edit mode closes: standing on the
+            // node he just picked blocks for, the breaker re-fire read the picks as "blocks grown back" and broke them
+            // on the next tick (testkit 96-ar-add). Every breaker node of this room counts as already fired for the
+            // blocks it has now - the re-fire's own once-per-stand rule, so it fires again only once all of them were
+            // seen gone (a real regrow after that), or after he steps off every node and back on.
+            Route route = currentRoute();
+            if (route != null) {
+                for (RouteNode n : route.nodes()) {
+                    if (n.type == RouteNode.Type.DUNGEON_BREAKER && !n.breakerBlocks.isEmpty()) {
+                        refired.add(n);
+                    }
+                }
+            }
         }
     }
 
