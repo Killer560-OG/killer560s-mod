@@ -71,6 +71,8 @@ feature; `README.md` holds the name list. Mining is shelved until after 2.0 (nev
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
 boss-phase detection; `util/ViewFreeze` holds the camera still while something rotates the real player.
+Main menu pictures: he (or a theme's designer) paints them and we only animate them (killer560, 2026-10-16) -
+`mainmenu/PictureScene` is the pipeline (texture, patches, ripples, overlays); `TargetScene` and `MilkyWayTexScene` are specs.
 
 ## Conventions
 

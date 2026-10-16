@@ -39,6 +39,37 @@ public final class MainMenuScenes {
 
     public static final GreenScene GREEN_SCENE = GreenScene.TARGET;
 
+    /** Dark's background (killer560, 2026-10-16: "can you make the starfield more milky way themed?", then "For the
+     *  starfield one make one without the character as it is building now and one with", his own picture, and "mainly
+     *  black and white"): STARS is the original drifting starfield; MILKY_WAY_HERO is {@link MilkyWayTexScene}, his
+     *  picture graded black and white and animated ({@link PictureScene}); MILKY_WAY the same without the character. */
+    public enum DarkScene { STARS, MILKY_WAY, MILKY_WAY_HERO }
+
+    public static final DarkScene DARK_SCENE = DarkScene.MILKY_WAY_HERO;
+    public static final DarkScene DARK_SCENE_RELEASED = DarkScene.STARS;
+
+    private static DarkScene darkScene;
+
+    /** The Dark scene drawn now: the session's pick, else {@link #DARK_SCENE} with {@link #previewScenes()}, else the
+     *  released one. */
+    public static DarkScene darkScene() {
+        DarkScene d = darkScene;
+        return d != null ? d : previewScenes() ? DARK_SCENE : DARK_SCENE_RELEASED;
+    }
+
+    /** Draws {@code scene} for Dark this session (the Title Screen Switcher); null goes back to the default. */
+    public static void setDarkScene(DarkScene scene) {
+        darkScene = scene;
+    }
+
+    /** Test hook (testkit 1680-1683): the named Dark scene; null or empty goes back to the default. */
+    public static void setDarkSceneForTest(String name) {
+        darkScene = name == null || name.isEmpty() ? null : DarkScene.valueOf(name);
+    }
+
+    /** Test probe: tiles a picture scene's ripples (a character's cape) redrew in the last frame (0 = none). */
+    public static int heroRects;
+
     /** What every other instance shows until killer560 approves the new pictures (2026-10-16: "for these new pictures only
      *  push them to my title screen instance not the others yet"): the scene that was last deployed. */
     public static final GreenScene GREEN_SCENE_RELEASED = GreenScene.FOREST;
@@ -140,6 +171,7 @@ public final class MainMenuScenes {
         if (target) {
             // The designer's picture is the base, blitted before the batch so the batch's overlays land on top of it.
             TargetScene.drawImage(g, w, h, t);
+            heroRects = TargetScene.SCENE.rippleTiles;
         }
         GuiRects r = GuiRects.begin(g);
         if (target) {
@@ -149,6 +181,19 @@ public final class MainMenuScenes {
                 allocBytes += allocatedNow() - probeStart;
                 allocFrames++;
             }
+            return;
+        }
+        DarkScene dark = darkScene();
+        if (look.scene() == MainMenuThemeConfig.Scene.STARFIELD
+                && (dark == DarkScene.MILKY_WAY || dark == DarkScene.MILKY_WAY_HERO)) {
+            boolean hero = dark == DarkScene.MILKY_WAY_HERO;
+            // His picture is the base, blitted before the batch so the batch's overlays land on top of it.
+            PictureScene sc = MilkyWayTexScene.scene(hero);
+            sc.drawImage(g, w, h, t);
+            heroRects = sc.rippleTiles;
+            sc.drawOverlays(r, w, h, t, look.density());
+            r.submit();
+            probe(r, probeStart);
             return;
         }
         base(r, w, h, accent, panel, light);
@@ -179,7 +224,12 @@ public final class MainMenuScenes {
                 || (greenScene() != GreenScene.ACID && greenScene() != GreenScene.BOSS)) {
             vignette(r, w, h, light);
         }
+        heroRects = 0;
         r.submit();
+        probe(r, probeStart);
+    }
+
+    private static void probe(GuiRects r, long probeStart) {
         if (allocProbe) {
             allocBytes += allocatedNow() - probeStart;
             allocFrames++;

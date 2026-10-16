@@ -49,7 +49,7 @@ public final class TitleScreenLooks {
      * (the themed main menu off).
      */
     public record Look(String group, String name, MenuTheme theme, MainMenuScenes.AmberScene amber,
-                       MainMenuScenes.GreenScene green, GreenTheme.Gradient gradient, String note) {
+                       MainMenuScenes.GreenScene green, GreenTheme.Gradient gradient, Enum<?> variant, String note) {
         public boolean vanilla() {
             return theme == null;
         }
@@ -64,12 +64,16 @@ public final class TitleScreenLooks {
 
     static {
         List<Look> l = new ArrayList<>();
-        l.add(new Look("Vanilla", "", null, null, null, null, "The vanilla title screen: the themed main menu off."));
+        l.add(new Look("Vanilla", "", null, null, null, null, null, "The vanilla title screen: the themed main menu off."));
         l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers (the default)."));
         l.add(amber("New", MainMenuScenes.AmberScene.NEW, "NEW: the dusk colonnade (AmberForgeScene)."));
         l.add(amber("Simple", MainMenuScenes.AmberScene.SIMPLE, "SIMPLE: the embers refined (AmberCalmScene)."));
         l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
-        l.add(plain(MenuTheme.DARK, "Starfield", "Dark's starfield."));
+        l.add(variant(MenuTheme.DARK, "Milky Way + Character", MainMenuScenes.DarkScene.MILKY_WAY_HERO,
+                "MILKY_WAY_HERO: your Milky Way picture in black and white, the caped character on the hill (new, the default)."));
+        l.add(variant(MenuTheme.DARK, "Milky Way", MainMenuScenes.DarkScene.MILKY_WAY,
+                "MILKY_WAY: the same picture without the character (new)."));
+        l.add(variant(MenuTheme.DARK, "Starfield", MainMenuScenes.DarkScene.STARS, "STARS: Dark's original starfield."));
         l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light."));
         // killer560 (2026-10-16): the designer's picture with droplets is Green's final look - "Remove the other ones from
         // the title screen gui instance." The other Green scenes stay in code (MainMenuScenes.GreenScene) but not here.
@@ -80,15 +84,19 @@ public final class TitleScreenLooks {
     }
 
     private static Look amber(String name, MainMenuScenes.AmberScene scene, String note) {
-        return new Look(MenuTheme.AMBER.label, name, MenuTheme.AMBER, scene, null, null, note);
+        return new Look(MenuTheme.AMBER.label, name, MenuTheme.AMBER, scene, null, null, null, note);
     }
 
     private static Look green(String name, MainMenuScenes.GreenScene scene, GreenTheme.Gradient gradient, String note) {
-        return new Look(MenuTheme.GREEN.label, name, MenuTheme.GREEN, null, scene, gradient, note);
+        return new Look(MenuTheme.GREEN.label, name, MenuTheme.GREEN, null, scene, gradient, null, note);
     }
 
     private static Look plain(MenuTheme theme, String name, String note) {
-        return new Look(theme.label, name, theme, null, null, null, note);
+        return new Look(theme.label, name, theme, null, null, null, null, note);
+    }
+
+    private static Look variant(MenuTheme theme, String name, Enum<?> scene, String note) {
+        return new Look(theme.label, name, theme, null, null, null, scene, note);
     }
 
     private static Boolean enabled;
@@ -148,7 +156,8 @@ public final class TitleScreenLooks {
         for (int i = 0; i < LOOKS.size(); i++) {
             Look l = LOOKS.get(i);
             if (l.theme() == theme && (l.amber() == null || l.amber() == MainMenuScenes.amberScene())
-                    && (l.green() == null || (l.green() == MainMenuScenes.greenScene() && l.gradient() == GreenTheme.gradient()))) {
+                    && (l.green() == null || (l.green() == MainMenuScenes.greenScene() && l.gradient() == GreenTheme.gradient()))
+                    && (l.variant() == null || l.variant() == MainMenuScenes.darkScene())) {
                 return i;
             }
         }
@@ -170,6 +179,7 @@ public final class TitleScreenLooks {
         MainMenuScenes.setAmberScene(look.amber() != null ? look.amber() : MainMenuScenes.AMBER_SCENE);
         MainMenuScenes.setGreenScene(look.green());
         GreenTheme.setGradient(look.gradient() != null ? look.gradient() : GreenTheme.DEFAULT_GRADIENT);
+        MainMenuScenes.setDarkScene(look.variant() instanceof MainMenuScenes.DarkScene d ? d : null);
         version++;
         // The themed layout (column, panel, no Realms) and the vanilla one are built at init, so crossing between them
         // re-inits the title screen; any other change is drawn live from the next frame.
@@ -191,6 +201,7 @@ public final class TitleScreenLooks {
         }
         current = null;
         MainMenuScenes.setAmberScene(MainMenuScenes.AMBER_SCENE);
+        MainMenuScenes.setDarkScene(null);
         MainMenuScenes.setGreenScene(null);
         GreenTheme.setGradient(GreenTheme.DEFAULT_GRADIENT);
         version++;
