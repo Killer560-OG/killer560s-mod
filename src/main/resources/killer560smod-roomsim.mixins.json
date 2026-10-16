@@ -7,6 +7,7 @@
 		"SimFovMixin",
 		"SimPlayerInfoPacketAccessor",
 		"SimStaticWaterMixin",
+		"SimUseHalfMixin",
 		"SimUseLookMixin"
 	],
 	"injectors": {

@@ -932,6 +932,10 @@ public final class RouteExecutor {
                     // The await was met a tick before the chest's window arrived (the secret count and the window
                     // come in either order): the action had started but sent nothing, so it starts over, cleanly,
                     // when the window closes - sneak, aim and all.
+                    if (step != Step.PREP || stepTicks != 0) {
+                        LOGGER.info("[AutoRoutes] Node #{} {}: the clicked chest's window arrived after the await was met "
+                                + "- the action starts over when it closes", route.indexOf(activeNode) + 1, activeNode.type);
+                    }
                     step = Step.PREP;
                     stepTicks = 0;
                 } else {
