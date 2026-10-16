@@ -80,6 +80,22 @@ public final class OverlayThemes {
         return p;
     }
 
+    private static int menuVersion = Integer.MIN_VALUE;
+    private static OverlayPalette menuPalette;
+
+    /**
+     * The menu's own theme as a palette, for a HUD that simply follows the menu (no per-overlay choice): re-derived only
+     * when {@link MenuConfig#version()} moves, so reading it every frame allocates nothing.
+     */
+    public static synchronized OverlayPalette menu() {
+        int v = MenuConfig.version();
+        if (menuPalette == null || v != menuVersion) {
+            menuPalette = MenuStyle.snapshot(MenuConfig.getInstance().activeColours());
+            menuVersion = v;
+        }
+        return menuPalette;
+    }
+
     /** The Menu Theme button for {@code id}, placed like any settings row. */
     public static SettingsButtonWidget button(String id, int x, int y, int w, int h) {
         return ScreenThemes.overlayButton(id, x, y, w, h);

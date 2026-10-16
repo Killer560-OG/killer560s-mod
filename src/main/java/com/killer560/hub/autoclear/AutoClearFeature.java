@@ -3,10 +3,6 @@ package com.killer560.hub.autoclear;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
-import com.killer560.hub.hud.HudElement;
-import com.killer560.hub.hud.HudElementRegistry;
-import com.killer560.hub.hud.HudSeen;
-import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
@@ -26,11 +22,9 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
@@ -162,6 +156,8 @@ public final class AutoClearFeature {
     // ---- HUD / last reason ----
     private static String lastReason = null;
     private static long lastReasonMs = 0L;
+    /** The run {@link #lastReason} ended was one he started (not a room handed over by Auto Secret / Autopilot). */
+    private static boolean lastReasonStandalone = false;
     private static Object lastLevel = null;
 
     private AutoClearFeature() {
@@ -187,10 +183,6 @@ public final class AutoClearFeature {
             AutoClearSettings.addSettings(widgets, x, at, width, rebuild);
             return at[0];
         });
-        HudElementRegistry.register(STATUS_HUD);
-        net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
-                Identifier.fromNamespaceAndPath("killer560smod", "auto_clear_status"),
-                (graphics, deltaTracker) -> drawStatusHud(graphics));
     }
 
     // =========================================================================================== public API (Auto Secret)
@@ -316,6 +308,7 @@ public final class AutoClearFeature {
             return;
         }
         Consumer<String> giveUp = onGiveUp;
+        lastReasonStandalone = singleRoom == null;
         stopQuietly();
         lastReason = reason;
         lastReasonMs = System.currentTimeMillis();
@@ -329,6 +322,7 @@ public final class AutoClearFeature {
 
     private static void finish(String why) {
         Runnable done = onDone;
+        lastReasonStandalone = singleRoom == null;
         stopQuietly();
         lastReason = why;
         lastReasonMs = System.currentTimeMillis();
@@ -1408,94 +1402,49 @@ public final class AutoClearFeature {
         return Set.copyOf(skippedRooms);
     }
 
-    public static final HudElement STATUS_HUD = new HudElement() {
-        @Override
-        public String id() {
-            return "auto_clear_status";
-        }
+    // ---- read by the shared status HUD (autosecret.AutoStatusHud, killer560 2026-10-15: "make it the same hud for all
+    // the auto clears") - Auto Clear has no HUD of its own any more ----
 
-        @Override
-        public String displayName() {
-            return "Auto Clear Status";
-        }
+    /** The room it is clearing or heading for, or null. */
+    public static String hudRoom() {
+        return running ? (roomName != null ? roomName : singleRoom) : null;
+    }
 
-        @Override
-        public int defaultX() {
-            return 10;
-        }
+    /** What it is doing, as the long line the log and the testkit read ({@link #status()} has the same words). */
+    public static String hudAction() {
+        return action;
+    }
 
-        @Override
-        public int defaultY() {
-            return 160;
-        }
+    /** Trips to the current room that failed so far (a retry is under way when this is above 0). */
+    public static int hudPathFailures() {
+        return pathFailures;
+    }
 
-        @Override
-        public int width() {
-            // The two drawn lines, one unit in (it was a fixed 220).
-            String[] l = lines();
-            if (l == null) {
-                return 20;
+    /** True while a run started by him (the key, /autoclear) owns it, rather than one room handed over by Auto Secret. */
+    public static boolean isStandaloneRun() {
+        return running && singleRoom == null;
+    }
+
+    /** Why the last run he started himself ended, while that was under 6 s ago; else null. */
+    public static String hudLastEnd() {
+        return lastReason != null && lastReasonStandalone && System.currentTimeMillis() - lastReasonMs < 6000L
+                ? lastReason : null;
+    }
+
+    /** {@link System#currentTimeMillis()} of the last run end, so a reader can tell a new end from an old one. */
+    public static long hudLastEndMs() {
+        return lastReasonMs;
+    }
+
+    /** Mob rooms on the map that are not cleared yet (the Clear column's "rooms left"). Client thread; not per frame. */
+    public static int mobRoomsLeft() {
+        DungeonLayout layout = DungeonLayout.capture();
+        int left = 0;
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (AutoClearTargets.isMobRoom(layout, r) && !AutoClearTargets.isCleared(layout, r)) {
+                left++;
             }
-            var font = Minecraft.getInstance().font;
-            return 1 + Math.max(font.width("Auto Clear: ") + font.width(l[0]), font.width(l[1]));
         }
-
-        @Override
-        public int height() {
-            return 11 + com.killer560.hub.hud.HudText.ROW;
-        }
-
-        @Override
-        public boolean isEnabledInSettings() {
-            AutoClearConfig cfg = AutoClearConfig.getInstance();
-            return cfg.isEnabled() && cfg.isStatusHud();
-        }
-
-        /** {line1, line2} as drawn right now, or null; render() and the box both read it. */
-        private String[] lines() {
-            if (running) {
-                return new String[]{
-                        (singleRoom != null ? "Room " + singleRoom : AutoClearConfig.getInstance().getMode().label())
-                                + (roomName == null ? "" : " - " + roomName),
-                        (targetName.isEmpty() ? "" : targetName + ": ") + action};
-            }
-            if (lastReason != null && System.currentTimeMillis() - lastReasonMs < 6000L) {
-                return new String[]{"Stopped", lastReason};
-            }
-            if (HudVisibility.menuOpen()) {
-                return new String[]{"Any Mob Room - Mushroom", "Zombie: Wither Impact in place"};
-            }
-            return null;
-        }
-
-        @Override
-        public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            String[] l = lines();
-            if (l == null) {
-                return;
-            }
-            String line1 = l[0];
-            String line2 = l[1];
-            var font = Minecraft.getInstance().font;
-            HudSeen.markDrawn(id());
-            String label = "Auto Clear: ";
-            graphics.text(font, label, x + 1, y + 1, 0xFF000000 | ModChat.ORANGE, true);
-            graphics.text(font, line1, x + 1 + font.width(label), y + 1, 0xFFFFFFFF, true);
-            graphics.text(font, line2, x + 1, y + 11, 0xFF000000 | ModChat.DIM, true);
-        }
-    };
-
-    private static void drawStatusHud(GuiGraphicsExtractor graphics) {
-        try {
-            Minecraft client = Minecraft.getInstance();
-            AutoClearConfig cfg = AutoClearConfig.getInstance();
-            if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !cfg.isEnabled()
-                    || !cfg.isStatusHud()) {
-                return;
-            }
-            HudElementRegistry.drawAt(graphics, STATUS_HUD);
-        } catch (RuntimeException e) {
-            // never take the HUD frame down over a status line
-        }
+        return left;
     }
 }
