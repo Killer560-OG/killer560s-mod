@@ -30,6 +30,8 @@ import java.util.Set;
  * <ul>
  *   <li><b>secrets</b> (an await on any node but a crypt node): a right click WE sent on a chest, lever or player head
  *   (a wither-essence skull), seen at {@code MultiPlayerGameMode.useItemOn} - by hand or a route node, each block once;
+ *   the Redstone Key as Hypixel counts it - its pickup is not a secret, our click putting it on the room's redstone
+ *   block is one (by hand, a route node or Secret Aura alike; {@link #onNodeClick});
  *   an item WE picked up ({@code ClientboundTakeItemEntityPacket} collector = our id); a secret bat (Hypixel's Skyblock
  *   health, {@link #isSecretBat}) first appearing within {@link #BAT_SPAWN_RANGE} blocks of us; and the MIMIC dying
  *   after we clicked its trapped chest - the trapped chest's click itself never counts. A button, or any other block,
@@ -240,6 +242,7 @@ public final class AwaitEvents {
             return;
         }
         tickMimic(client);
+        tickKey(client);
         if (!active) {
             return;
         }
@@ -303,8 +306,19 @@ public final class AwaitEvents {
 
     // ------------------------------------------------------------------------------------------- events
 
-    /** From {@code AwaitEventsGameModeMixin}: we sent a right click on {@code pos} (not refused client-side). */
+    /** We sent a right click on {@code pos} on an unknown face (not refused client-side). */
     public static void onLocalBlockClick(BlockPos pos) {
+        onLocalBlockClick(pos, null);
+    }
+
+    /** From {@code AwaitEventsGameModeMixin}: we sent a right click on {@code hit} (not refused client-side). */
+    public static void onLocalBlockClick(net.minecraft.world.phys.BlockHitResult hit) {
+        if (hit != null) {
+            onLocalBlockClick(hit.getBlockPos(), hit.getDirection());
+        }
+    }
+
+    private static void onLocalBlockClick(BlockPos pos, net.minecraft.core.Direction face) {
         if (pos == null) {
             return;
         }
@@ -313,6 +327,15 @@ public final class AwaitEvents {
             return;
         }
         Block b = client.level.getBlockState(pos).getBlock();
+        if ((b == Blocks.PLAYER_HEAD || b == Blocks.PLAYER_WALL_HEAD)
+                && com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(client.level, pos)) {
+            onKeyClick(client, pos);
+            return;
+        }
+        if (b == Blocks.REDSTONE_BLOCK) {
+            onNodeClick(client, pos, face);
+            return;
+        }
         if (b == Blocks.TRAPPED_CHEST) {
             // A trapped chest is the mimic: its click is not the secret, the mimic's death is.
             mimicChest = pos.immutable();
@@ -347,6 +370,148 @@ public final class AwaitEvents {
             lastChestClickAt = ticks;
         }
         addSecret("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)");
+    }
+
+    // ------------------------------------------------------------------------------------------- the Redstone Key
+
+    /**
+     * Ticks after a click on the redstone node that Hypixel's answer (the key put in) still counts it, plus any server
+     * stall since the click. Only for a click made with no key known found (a teammate's pickup, a key out of sight).
+     */
+    static final int NODE_CONFIRM_TICKS = 40;
+    /** Ticks after his click on a key skull that the skull going still means he took it. */
+    static final int KEY_TAKE_TICKS = 40;
+
+    /** His key clicks waiting for the skull to go: position to {tick, lag mark}. */
+    private static final java.util.Map<Long, long[]> keyClicks = new java.util.HashMap<>();
+    /** His node clicks with no key known found, waiting for the server to put a key in: position to {tick, lag mark}. */
+    private static final java.util.Map<Long, long[]> nodeClicks = new java.util.HashMap<>();
+    /** He took a Redstone Key and it has not been put in yet (this run). */
+    private static boolean ownKeyFound;
+    private static Object keyLevel;
+    private static int keyGeneration = Integer.MIN_VALUE;
+
+    /** Forgets the key state on a new run (world change, dungeon entered, sim floor published). */
+    private static void checkKeyRun(Minecraft client) {
+        int gen = com.killer560.hub.livemap.LiveMapFeature.resetGeneration();
+        if (client.level != keyLevel || gen != keyGeneration) {
+            keyLevel = client.level;
+            keyGeneration = gen;
+            keyClicks.clear();
+            nodeClicks.clear();
+            ownKeyFound = false;
+        }
+    }
+
+    /**
+     * A click on the Redstone Key's skull. NOT a secret: Hypixel gives the room's key secret for PUTTING the key on its
+     * redstone node ("rewards 1 secret", hypixelskyblock.minecraft.wiki, Redstone Key), and its three key rooms list
+     * three secrets with the key as one of them, so the pickup and the placing are one secret between them - the
+     * placing's. A key already put in (a key head standing on its redstone block) is not a pickup at all.
+     */
+    private static void onKeyClick(Minecraft client, BlockPos pos) {
+        checkKeyRun(client);
+        if (client.level.getBlockState(pos.below()).getBlock() == Blocks.REDSTONE_BLOCK) {
+            return;
+        }
+        keyClicks.put(pos.asLong(), new long[]{ticks, com.killer560.hub.util.ServerLag.mark()});
+        LOGGER.info("[AutoRoutes] await: redstone key at {} clicked by you - not a secret (Hypixel counts putting it on "
+                + "its redstone block)", pos.toShortString());
+    }
+
+    /**
+     * A click on a redstone block. The room's key secret when it puts a key in: at once when a key is known found (his
+     * own pickup, or one Secret Aura saw go) and the face clicked is open to air (Hypixel takes the key only on such a
+     * face, killer560 2026-10-12) - Hypixel credits it on this click, as it does a chest; otherwise when the server
+     * answers within {@link #NODE_CONFIRM_TICKS} by putting the key in (a teammate found it). A click with no key does
+     * nothing on Hypixel and counts nothing here.
+     */
+    private static void onNodeClick(Minecraft client, BlockPos pos, net.minecraft.core.Direction face) {
+        checkKeyRun(client);
+        boolean open = face == null || client.level.getBlockState(pos.relative(face)).isAir();
+        boolean known = ownKeyFound || com.killer560.hub.cheatutils.SecretAuraFeature.keyFoundNotPlaced();
+        if (known && open) {
+            ownKeyFound = false;
+            com.killer560.hub.cheatutils.SecretAuraFeature.noteKeyPlaced();
+            countNode(pos, "clicked by you, key found");
+            return;
+        }
+        nodeClicks.put(pos.asLong(), new long[]{ticks, com.killer560.hub.util.ServerLag.mark()});
+        LOGGER.info("[AutoRoutes] await: redstone block at {} clicked by you with {} - counted if the server puts a key in",
+                pos.toShortString(), known ? "a covered face" : "no key known found");
+    }
+
+    private static void countNode(BlockPos pos, String how) {
+        String key = "block " + pos.asLong();
+        String what = "redstone key put on its redstone block at " + pos.toShortString() + " (" + how + ")";
+        RouteRunMemory.gotSecret(key, Vec3.atCenterOf(pos), what);
+        if (!active) {
+            noteBeforeStart(key, what);
+            return;
+        }
+        addSecret(key, what);
+    }
+
+    /** Every tick: his key clicks answered (the skull gone) and node clicks answered (a key put in). */
+    private static void tickKey(Minecraft client) {
+        if (keyClicks.isEmpty() && nodeClicks.isEmpty()) {
+            return;
+        }
+        checkKeyRun(client);
+        var it = keyClicks.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            BlockPos p = BlockPos.of(e.getKey());
+            if (client.level.isLoaded(p) && !com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(client.level, p)) {
+                it.remove();
+                ownKeyFound = true;
+                LOGGER.info("[AutoRoutes] await: you took the redstone key at {}", p.toShortString());
+            } else if (ticks - e.getValue()[0] > KEY_TAKE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
+                it.remove();
+            }
+        }
+        var nt = nodeClicks.entrySet().iterator();
+        while (nt.hasNext()) {
+            var e = nt.next();
+            BlockPos p = BlockPos.of(e.getKey());
+            if (client.level.isLoaded(p) && keyPutIn(client, p)) {
+                nt.remove();
+                ownKeyFound = false;
+                com.killer560.hub.cheatutils.SecretAuraFeature.noteKeyPlaced();
+                countNode(p, "clicked by you, the server put the key in");
+            } else if (ticks - e.getValue()[0] > NODE_CONFIRM_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
+                nt.remove();
+            }
+        }
+    }
+
+    /**
+     * Whether a key has gone in at this node: the redstone block is gone (the sim, RSA's "block changed"), a key head
+     * stands on it (the testkit's server, Skyblocker's pos.above()), or an armor stand wearing the key is at it (RSA).
+     */
+    private static boolean keyPutIn(Minecraft client, BlockPos node) {
+        if (client.level.getBlockState(node).getBlock() != Blocks.REDSTONE_BLOCK
+                || com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(client.level, node.above())) {
+            return true;
+        }
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(node).inflate(1.0, 3.0, 1.0);
+        for (net.minecraft.world.entity.decoration.ArmorStand s : client.level.getEntitiesOfClass(
+                net.minecraft.world.entity.decoration.ArmorStand.class, box)) {
+            var prof = s.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD)
+                    .get(net.minecraft.core.component.DataComponents.PROFILE);
+            if (prof != null && prof.partialProfile() != null
+                    && REDSTONE_KEY_ID.equals(prof.partialProfile().id())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final java.util.UUID REDSTONE_KEY_ID = java.util.UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e");
+
+    /** For the testkit: whether he has a key found and not put in, by his own pickup. */
+    static boolean ownKeyFound() {
+        return ownKeyFound;
     }
 
     /** From {@code AwaitEventsPacketMixin}: an item entity was picked up by {@code collectorId}. */

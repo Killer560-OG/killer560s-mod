@@ -31,7 +31,7 @@ public abstract class AwaitEventsGameModeMixin {
                                                CallbackInfoReturnable<InteractionResult> cir) {
         try {
             if (cir.getReturnValue() != InteractionResult.FAIL && hit != null) {
-                AwaitEvents.onLocalBlockClick(hit.getBlockPos());
+                AwaitEvents.onLocalBlockClick(hit);
             }
         } catch (RuntimeException ignored) {
             // never breaks a click

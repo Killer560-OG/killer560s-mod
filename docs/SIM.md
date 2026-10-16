@@ -2849,8 +2849,15 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
   and Redstone Key's captures hold theirs. The sim places a redstone block there, only into air. What placing the key opens
   is known only for Golden Oasis (his words: the three redstone blocks by the lever, capture 27..29,70,26); the other two
   rooms count the secret and open nothing until someone says what they open.
-- Auto Routes' await (`AwaitEvents.onLocalBlockClick`) counts a click on the key's skull but not a click on the node, which
-  is the one Hypixel calls the secret. That is client logic and the same on Hypixel, so it was left alone.
+- Auto Routes' await (`AwaitEvents.onLocalBlockClick`) counted a click on the key's skull and not a click on the node, the
+  one Hypixel calls the secret. Since aura-skull-place-1016 it is the other way round, on Hypixel and in the sim alike: the
+  pickup counts nothing, the node click counts at once when a key is known found (his own pickup seen to go, or Secret
+  Aura's `keyFoundNotPlaced`) on a face open to air, else when the server shows the key in within 40 ticks (block changed,
+  a key head on top, or a stand wearing the key). Auto Secret's last-node wait holds for a node the aura has due.
+  `SimRedstoneKey.armForTest`/`foundForTest` put a key room's answers in any arena (testkit 96-ar-1016-key*).
+- **Open: what the node looks like after placing on Hypixel.** The sim (from RSA) turns the node to air with a stand
+  wearing the key; killer560 said on 2026-10-12 the key sits ON TOP of the block (the testkit server's model, and
+  Skyblocker files the secret at the block's `above()`). Every reader above accepts both; a real capture would settle it.
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
 

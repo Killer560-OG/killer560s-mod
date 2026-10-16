@@ -288,6 +288,25 @@ public final class SimRedstoneKey {
         return room != null && FOUND.contains(room);
     }
 
+    /**
+     * For tests (server thread): a key at {@code key} and an armed node at {@code node} for {@code room}, anywhere, so a
+     * scenario can play the key in its own arena - the same server answers as a key room's. The node opens nothing.
+     */
+    public static void armForTest(ServerLevel level, BlockPos key, BlockPos node, String room) {
+        level.setBlockAndUpdate(node, Blocks.REDSTONE_BLOCK.defaultBlockState());
+        NODE_ROOM.put(node.immutable(), room);
+        NODE_OPENS.put(node.immutable(), List.of());
+        if (key != null) {
+            FOUND.remove(room); // a fresh key: none found yet
+            placeKey(level, key, room);
+        }
+    }
+
+    /** For tests (server thread): {@code room}'s key found by somebody else - a teammate's pickup. */
+    public static void foundForTest(String room) {
+        FOUND.add(room);
+    }
+
     /** For tests: armed nodes on this floor. */
     public static int armedCount() {
         return NODE_ROOM.size();
