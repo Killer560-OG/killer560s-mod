@@ -108,6 +108,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   breaker"): the pick was refused whenever he stood off the node, though his crosshair had just picked it. Picks are
   measured eye-to-box at 4.5 now (a plain dig - the wiki gives the Dungeon Breaker no range), and a pick far from the node
   is only noted in chat, since playback digs from wherever the route has him (testkit 96-ar-658-dbreach).
+- **A rule that fires on "blocks standing" cannot tell a regrow from an edit.** The breaker re-fire (2026-10-12) breaks a
+  latched breaker node's standing blocks while he stands on it; `/ar edit db` picks add standing blocks to exactly that
+  node, so the tick edit mode closed it broke both picks (96-ar-add, failing on main and the 1015 jars: 2 digs). The picks
+  themselves never sent a packet. Closing edit mode now puts the room's breaker nodes in the re-fire's `refired` set.
 - **The floor graph's warp count is an upper bound, not the fewest.** Its 2x2 buckets, 18 aim points and early-blocked
   refusals missed a route with fewer warps on 21 of 180 bench path pairs (2026-10-11). Anything that must be minimal goes
   through `ExactWarpSearch` (via `EtherwarpPathfinder.findOptimalPath`), which proves it - see docs/SIM.md "Fewest warps,
@@ -335,6 +339,20 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   client's look never reaches: no block half can be sent and the warp is dropped under an unpaired click. Never click a
   block the client cannot see; `RightClick.reaimIfUnpairable` aims at the same block along a look whose rays agree and the
   warp goes one tick later (ClearExecutor hops, Auto Routes warps). Testkit 96-ar-1015-reaim builds the mismatch.
+- **A run-time etherwarp aim must HOLD, not just land** (killer560 2026-10-15: path nodes "still taking me to the wrong
+  block"). The planner proves every saved hop within `EtherSearch.AIM_MARGIN`; the aims worked out while flying
+  (`TeleportUtils.getEtherwarpDirection` for a hop fired 0.05 over its spot, `RightClick.reaimIfUnpairable`) only checked
+  the exact float look. From a block-centre stand, lines to face points on the tenths/half lattice often pass EXACTLY through
+  a block's vertical edge, and the server, reading the running yaw a few bits off, takes the voxel tie the other way: his
+  Mod Only Test 22:47:07 run re-aimed at -149, 261, -188 (eye -150.5, -191.5 to face point 0.3/0.7 crosses x -149, z -188
+  at one t) and the sim's cast stopped in -149, 262, -189. Both now prefer a look that lands for +-AIM_MARGIN, over
+  off-lattice points too. Also: "Etherwarp: landed" is any landing within 2 blocks of the planned feet, so a hop on the
+  neighbouring block counted as landed; every landing is now judged by its block ("landed OFF its planned block", WARN).
+  Second shape, same 0.05: when no sample point lands from the landing-tick eye, `stepOntoWarpSpot` read "back on its spot
+  (0.00 off) after 0 tick(s)" (horizontal check only) and fired the SAVED look - planned from the settled eye - 0.05 high
+  (his 22:47:32 Diagonal #8 hop 1 did exactly this, and happened to land). In 1015-sim-pathland it landed 5.4 blocks off
+  (Overgrown) or was refused on a slab lip (Quartz Knight). The re-aim now tries `exactEtherwarpDirection` (aimExact), and
+  "on its spot" includes the height, so the saved look goes the tick he has dropped onto it. Testkit 1015-sim-pathland.
 - **Every bow puzzle's shot after a landing waited the gate's 6-tick teleport settle.** `AutoReposition` waived it for 3
   ticks at the USE, the sim lands 2 ticks after the use, and the landing starts its own 6-tick settle, so Blaze, Beams and
   Ice Path shot exactly 6 ticks after each landing (93-solve-*-timing on main, 2026-10-15; on Hypixel the round trip is
@@ -375,9 +393,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   lands before the use is the client/server tick phase, which drifts through a session; when it does, the action starts over
   under it ("window arrived after the await was met", logged since) and acts a tick or two later. 96-ar-1015-reaim's control
   read 2 for 1 in session runs on the rightclick-reaim tip as much as on merged main; it reruns a side the window landed in.
-- **A sim crypt undead dies to the first Spirit Sceptre bat** (one health, 30-damage blast), usually before the next use is
-  due 4 ticks later, so a sceptre crypt node's "2 uses each" (crypt-aim-1015) shows only on tough mobs; testkit
-  96-ar-1015-cryptaim sets 1000 health for that variant. Crypt mobs are told by NAME (`autoroutes/CryptMobs`), never by
+- **A sceptre crypt node's reach check must not stop at its own bat.** `WeaponReach.batImpact` ends at the first living
+  entity on the line, and the node's sceptre bat in flight is one, so the mob it had just shot read "out of reach" for a
+  tick and the node turned to the next mob between a mob's two uses (96-ar-1015-cryptaim "2 mobs": 14, 13, 14 - read at
+  first as the mob dying early). `cryptMobOwed` traces blocks only (crypt-aim-2-1016): A, A, B, B, C, C. Crypt mobs are
+  told by Hypixel's whole name tag (`autoroutes/CryptMobs.TAG`, "Crypt Undead" or "Prince" with its health), never by
   "appeared near me", since entering a room brings every mob into tracking range at once.
 - **With Auto Close Chest on, a chest click never shows a screen** (his setting; 2026-10-15, "stuck on ice fill after
   grabbing the chest", his log: the sim server opened the chest on click 1). The mixin cancels the open-screen packet and
@@ -420,3 +440,18 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   gap). Its "waiting" log alternated two reasons every tick (781 lines in 20 s) because the talk and the solver each logged
   their own; one owner per tick now. The talked-to set also has to follow the stands, not the RoomEntry: a rebuilt room or
   the sim's new round reuses the entry, and the second round found "all three talked to" and never spoke.
+- **Background floor-graph work must use FloorGraphs' own "knows the floor" rule, not `warmedOnce`.** The sim's full graph
+  warms once on the ~250 landings of the sealed entrance before GO. TripCache first read "full graph warmed once and not
+  warm" as "a search would finish a re-warm first" and waited for the whole floor's full warm-up: phase 1 ready 7.9-12.2 s
+  after the gate opened (testkit 147, first run). A press in that state plans on the QUICK graph
+  (`FloorGraphs.KNOWN_RATIO`), so `EtherwarpPathfinder.searchReady` now asks the same: 2.4-3.7 s on a loaded machine,
+  most of it the quick graph's own warm-up wall time.
+- **A map trip that sends every hop on the tick it is worked out (`ClearExecutor.sendNow`) loses hops under an unpaired
+  block click.** Precomputed trips first ran with the planned-ahead path's every-hop `sendNow`; with testkit
+  1015-sim-clickgap's click primer a hop went while the previous landing was still on its way, `RightClick` judged it from
+  the planned spot, the server traced it from the spot before and paired it with the click: "warp 5 never landed" (twice in
+  two runs; main's searched presses never send that way). Since autosecret-early-1016 every early-sending trip (planned
+  ahead or precomputed) sends a hop early only while `RightClick.unpaired()` is false; otherwise it goes the next tick
+  through `doInteract`'s turn-first check. 1015-sim-clickgap 3 of 3 runs, 0 hops ignored; 144/146 timing unchanged. The
+  other early senders (Auto Routes' landing-tick warp, AutoReposition) only send after the landing is known and already
+  go through `RightClick.mustTurnFirst`.

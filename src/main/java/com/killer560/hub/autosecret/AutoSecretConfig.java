@@ -63,7 +63,8 @@ public final class AutoSecretConfig {
     private boolean bloodFirst = false;
     /** Treat puzzles like rooms (only those whose Auto Puzzles auto is on). */
     private boolean doPuzzles = true;
-    private boolean autopilotHud = true;
+    /** The one Status HUD every auto clear shares (AutoStatusHud, 2026-10-15) - Auto Clear, Auto Secret, Autopilot. */
+    private boolean statusHud = true;
     /** The base key pickup range in blocks (unverified - see DungeonKeys.DEFAULT_BASE_RANGE). */
     private double keyBaseRange = com.killer560.hub.doorkeys.DungeonKeys.DEFAULT_BASE_RANGE;
     public static final double MIN_KEY_BASE = 0.5;
@@ -100,7 +101,8 @@ public final class AutoSecretConfig {
                 }
                 cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
-                cfg.autopilotHud = ConfigJson.getBool(o, "autopilotHud", cfg.autopilotHud);
+                // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
+                cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
                 if (o.has("keyBaseRange")) {
                     cfg.setKeyBaseRange(o.get("keyBaseRange").getAsDouble());
                 }
@@ -126,7 +128,7 @@ public final class AutoSecretConfig {
             o.addProperty("runMode", runMode.name());
             o.addProperty("bloodFirst", bloodFirst);
             o.addProperty("doPuzzles", doPuzzles);
-            o.addProperty("autopilotHud", autopilotHud);
+            o.addProperty("statusHud", statusHud);
             o.addProperty("keyBaseRange", keyBaseRange);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -171,8 +173,8 @@ public final class AutoSecretConfig {
     public boolean isDoPuzzles() { return doPuzzles; }
     public void setDoPuzzles(boolean v) { doPuzzles = v; }
 
-    public boolean isAutopilotHud() { return autopilotHud; }
-    public void setAutopilotHud(boolean v) { autopilotHud = v; }
+    public boolean isStatusHud() { return statusHud; }
+    public void setStatusHud(boolean v) { statusHud = v; }
 
     public double getKeyBaseRange() { return keyBaseRange; }
     public void setKeyBaseRange(double v) { keyBaseRange = Math.max(MIN_KEY_BASE, Math.min(MAX_KEY_BASE, v)); }

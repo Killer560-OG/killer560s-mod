@@ -17,7 +17,9 @@ import com.killer560.hub.hud.GuiRects;
 public final class GreenTheme {
 
     /** What the theme is called in every list and label. */
-    public static final String NAME = "Green";
+    /** killer560 (2026-10-16): "push it to all instances as the viridian theme". The enum stays GREEN, so saved
+     *  configs still load. */
+    public static final String NAME = "Viridian";
 
     /** Hue ~135: a leaf green that reads on the panel (contrast 8.6 there). */
     public static final int ACCENT = 0xFF62C27A;
@@ -43,15 +45,23 @@ public final class GreenTheme {
     /** The one shown. Not a setting: the designer picked C (2026-10-15: "the last gradient looks the best"); A and B stay
      *  for the testkit's comparison shots. */
     public static final Gradient DEFAULT_GRADIENT = Gradient.CANOPY_GLOW;
-    private static Gradient gradient = DEFAULT_GRADIENT;
+    /** Every instance but the Title Screen GUI one keeps the deployed gradient until killer560 approves (see
+     *  {@link com.killer560.hub.mainmenu.MainMenuScenes#previewScenes()}). */
+    public static final Gradient RELEASED_GRADIENT = Gradient.FOREST_NIGHT;
+    private static Gradient gradient;
 
     public static Gradient gradient() {
-        return gradient;
+        Gradient g = gradient;
+        if (g == null) {
+            g = DEFAULT_GRADIENT; // released everywhere 2026-10-16 with the Viridian name
+            gradient = g;
+        }
+        return g;
     }
 
     /** Switches the background (the testkit's screenshots of each variant); the next {@link MenuStyle#use} re-derives. */
     public static void setGradient(Gradient g) {
-        if (g != null && g != gradient) {
+        if (g != null && g != gradient()) {
             gradient = g;
             MenuStyle.invalidate();
         }
@@ -64,7 +74,7 @@ public final class GreenTheme {
                 || (text | 0xFF000000) != TEXT || (switchOn | 0xFF000000) != SWITCH_ON) {
             return null;
         }
-        return switch (gradient) {
+        return switch (gradient()) {
             case FOREST_NIGHT -> FOREST_NIGHT_BG;
             case MOSS_FLOOR -> MOSS_FLOOR_BG;
             case CANOPY_GLOW -> CANOPY_GLOW_BG;

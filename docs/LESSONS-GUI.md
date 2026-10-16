@@ -519,9 +519,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   off**, about 2 us per element per frame; Health and Mana Bars' Predefined layout was built every frame with the
   feature off (20 us, 2 KB). `HudInGameRenderer` now skips an element whose `isEnabledInSettings()` is false (its
   sixteen renders gate on that same setting - check a new element's before adding it to that list) and draws no stat
-  readout while the feature is off (95-perf-features, 2026-10-15). Other `drawAt` callers still pay it: the Auto Clear
-  status and Autopilot HUDs build their lines without testing the setting `isEnabledInSettings()` reads, so a skip
-  inside `drawAt` itself could change what they show.
+  readout while the feature is off (95-perf-features, 2026-10-15). Other `drawAt` callers still pay it. (The Auto Clear
+  and Autopilot status lines this used to name are one `AutoStatusHud` since 2026-10-15; it builds its text on the client
+  tick, only when what it shows changed, and its layer returns before `drawAt` when there is nothing to show.)
 - **Never write a SCREEN position into HudConfig.** `HudConfig` positions are Auto Scale baseline units and
   `resolvePosition` multiplies them by the factor. The Custom Scoreboard's SkyHanni snap stored its screen x there, read
   back `x * factor` on the next frame, took the mismatch for an Edit HUD drag and switched the snap off for good, so the
@@ -544,3 +544,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   ran 4 units into "Secrets" (killer560's screenshot, 2026-10-15; Size and Secrets did the same sorted). `SimMenuScreen
   .columns()` now measures each column's heading with either arrow and every listed cell, keeps 8 units between columns,
   gives Name the rest with "...", and drops whole columns before anything can touch. testkit 97-sim-menu-tidy measures it.
+- A field made lazy behind a getter must not be read raw anywhere else. `GreenTheme.gradient` became null-until-`gradient()`
+  (d7bdc71e) while `background()` still switched on the field, so the first Green menu draw threw NPE and the themed main
+  menu turned itself off for the session (the vanilla title showed; 2026-10-16). Grep the class for the bare field.

@@ -220,8 +220,20 @@ public final class TeleportUtils {
         if (cx * cx + cy * cy + cz * cz > (dist + 1) * (dist + 1)) {
             return null;
         }
-        for (double[][] set : thorough ? new double[][][]{AIM_POINTS, VISIBLE_OFFSETS}
-                : new double[][][]{AIM_POINTS}) {
+        // FIRM FIRST (path-wrongblock-1015). An aim that lands for its exact float yaw and pitch can still be a coin toss:
+        // from a stand at a block's centre, a line to a face point on the half-block lattice (0.3/0.7 of a block, the
+        // centre) often runs EXACTLY through a block's vertical edge on the way, and the voxel walk's tie-break then
+        // decides which of the two blocks it enters. The server reads the yaw a few float bits off (the running yaw a
+        // use carries), breaks the tie the other way, and the warp goes into the neighbour - a path hop re-aimed this way
+        // left his 2026-10-15 22:47:07 sim run at -149, 262, -189 where -149, 261, -188 was aimed at. So an aim that
+        // still lands for every look within EtherSearch.AIM_MARGIN (the planner's own rule, holds()) is taken first, over
+        // the off-lattice points too; only when there is none does the first exact landing go, as before.
+        Rotation fragile = null;
+        for (double[][] set : thorough ? new double[][][]{AIM_POINTS, FIRM_POINTS, VISIBLE_OFFSETS}
+                : new double[][][]{AIM_POINTS, FIRM_POINTS}) {
+            if (set == FIRM_POINTS && fragile == null && !thorough) {
+                break;   // nothing on the face points lands: the block is out of sight, and the path smoother asks often
+            }
             for (double[] o : set) {
                 double tx = to.getX() + o[0];
                 double ty = to.getY() + o[1];
@@ -231,15 +243,79 @@ public final class TeleportUtils {
                     continue;
                 }
                 Rotation r = getDirection(from, new Vec3(tx, ty, tz));
-                Vec3 end = getLook(r.yaw(), r.pitch()).scale(dist).add(from);
-                RaycastResult real = traverseVoxels(from.x, from.y, from.z, end.x, end.y, end.z, true);
-                if (real.succeeded() && to.equals(real.pos())) {
+                if (!landsOn(from, r.yaw(), r.pitch(), dist, to)) {
+                    continue;
+                }
+                if (holdsOn(from, r.yaw(), r.pitch(), dist, to)) {
                     return r;
+                }
+                if (fragile == null) {
+                    fragile = r;
                 }
             }
         }
-        return null;
+        if (fragile != null) {
+            // Every point of every visible face, down to a sixteenth of a block: the planner's own "one warp reaches it"
+            // (EtherSearch.aimExact), which only takes aims that hold. Only for a block already seen to be reachable.
+            Rotation exact = exactEtherwarpDirection(from, to, dist);
+            if (exact != null) {
+                return exact;
+            }
+            fragileAims++;
+        }
+        return fragile;
     }
+
+    /**
+     * The planner's exhaustive firm aim ({@link EtherSearch#aimExact}: every point of every visible face down to a
+     * sixteenth of a block, only aims that hold within {@link EtherSearch#AIM_MARGIN}) from {@code from} onto {@code to},
+     * or null. Costly next to {@link #getEtherwarpDirection}; for a run-time aim that found nothing on the sample points.
+     */
+    public static Rotation exactEtherwarpDirection(Vec3 from, BlockPos to, double dist) {
+        Level level = level();
+        if (level == null) {
+            return null;
+        }
+        EtherSearch es = new EtherSearch(new LevelEtherGrid(level));
+        if (!es.aimExact(from.x, from.y, from.z, to.getX(), to.getY(), to.getZ(), dist)
+                || !holdsOn(from, es.aimYaw, es.aimPitch, dist, to)) {
+            return null;
+        }
+        return new Rotation(es.aimYaw, es.aimPitch, Vec3.atCenterOf(to).distanceTo(from));
+    }
+
+    /** Whether the etherwarp cast from {@code from} along {@code yaw}/{@code pitch} for {@code dist} lands on {@code to}. */
+    private static boolean landsOn(Vec3 from, float yaw, float pitch, double dist, BlockPos to) {
+        Vec3 end = getLook(yaw, pitch).scale(dist).add(from);
+        RaycastResult real = traverseVoxels(from.x, from.y, from.z, end.x, end.y, end.z, true);
+        return real.succeeded() && to.equals(real.pos());
+    }
+
+    /**
+     * {@link #landsOn} for the look itself and for it nudged {@link EtherSearch#AIM_MARGIN} either way in yaw and in
+     * pitch: the server's float reading of the look may be that far off ({@code EtherSearch.holds}, the planner's rule).
+     */
+    public static boolean holdsOn(Vec3 from, float yaw, float pitch, double dist, BlockPos to) {
+        float m = EtherSearch.AIM_MARGIN;
+        return landsOn(from, yaw, pitch, dist, to) && landsOn(from, yaw + m, pitch, dist, to)
+                && landsOn(from, yaw - m, pitch, dist, to) && landsOn(from, yaw, pitch + m, dist, to)
+                && landsOn(from, yaw, pitch - m, dist, to);
+    }
+
+    private static int fragileAims;
+
+    /** Aims {@link #getEtherwarpDirection} handed back with no firm one to be had - read by the testkit. */
+    public static int fragileAims() {
+        return fragileAims;
+    }
+
+    /** Top-face points off the half-block lattice ({@code EtherSearch.FIRM_POINTS}): lines from a block centre to them do
+     *  not run exactly through block edges, so a firm aim is usually among them when the lattice points are all fragile. */
+    private static final double[][] FIRM_POINTS = {
+            {0.37, 0.97, 0.61}, {0.63, 0.97, 0.39}, {0.41, 0.97, 0.43}, {0.59, 0.97, 0.57},
+            {0.23, 0.97, 0.62}, {0.77, 0.97, 0.38}, {0.62, 0.97, 0.23}, {0.38, 0.97, 0.77},
+            {0.03, 0.43, 0.41}, {0.97, 0.57, 0.59}, {0.41, 0.43, 0.03}, {0.59, 0.57, 0.97}
+    };
 
     /**
      * Aim points well inside a block's faces, best first: the top face (where almost every etherwarp lands from

@@ -33,22 +33,94 @@ public final class MainMenuScenes {
      *  (2026-10-15: "an acid looking cave with an acid lake and waterfall ... a silhouette of my character fighting a big
      *  green slime"); BOSS is {@link SlimeBossScene}, the designer's second idea (2026-10-15: "the hollow knight is just the
      *  silhouette of a minecraft looking character, and the radiance is the slime boss ... the only animation being the
-     *  screen swaying a little side to side"), the default. FOREST, SIMPLE and ACID stay selectable here. */
-    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS }
+     *  screen swaying a little side to side"); TARGET is {@link TargetScene}, the designer's own picture of it, animated
+     *  (2026-10-16: "match THIS image almost exactly"), the default. FOREST, SIMPLE, ACID and BOSS stay selectable here. */
+    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS, TARGET }
 
-    public static final GreenScene GREEN_SCENE = GreenScene.BOSS;
+    public static final GreenScene GREEN_SCENE = GreenScene.TARGET;
 
-    private static GreenScene greenScene = GREEN_SCENE;
+    /** Dark's background (killer560, 2026-10-16: "can you make the starfield more milky way themed?", then "For the
+     *  starfield one make one without the character as it is building now and one with", his own picture, and "mainly
+     *  black and white"): STARS is the original drifting starfield; MILKY_WAY_HERO is {@link MilkyWayTexScene}, his
+     *  picture graded black and white and animated ({@link PictureScene}); MILKY_WAY the same without the character. */
+    public enum DarkScene { STARS, MILKY_WAY, MILKY_WAY_HERO }
+
+    public static final DarkScene DARK_SCENE = DarkScene.MILKY_WAY_HERO;
+    public static final DarkScene DARK_SCENE_RELEASED = DarkScene.STARS;
+
+    private static DarkScene darkScene;
+
+    /** The Dark scene drawn now: the session's pick, else {@link #DARK_SCENE} with {@link #previewScenes()}, else the
+     *  released one. */
+    public static DarkScene darkScene() {
+        DarkScene d = darkScene;
+        return d != null ? d : previewScenes() ? DARK_SCENE : DARK_SCENE_RELEASED;
+    }
+
+    /** Draws {@code scene} for Dark this session (the Title Screen Switcher); null goes back to the default. */
+    public static void setDarkScene(DarkScene scene) {
+        darkScene = scene;
+    }
+
+    /** Test hook (testkit 1680-1683): the named Dark scene; null or empty goes back to the default. */
+    public static void setDarkSceneForTest(String name) {
+        darkScene = name == null || name.isEmpty() ? null : DarkScene.valueOf(name);
+    }
+
+    /** Test probe: tiles a picture scene's ripples (a character's cape) redrew in the last frame (0 = none). */
+    public static int heroRects;
+
+    /** What every other instance shows until killer560 approves the new pictures (2026-10-16: "for these new pictures only
+     *  push them to my title screen instance not the others yet"): the scene that was last deployed. */
+    public static final GreenScene GREEN_SCENE_RELEASED = GreenScene.FOREST;
+
+    /** True in the Title Screen GUI instance (its marker) or with -Dkiller560smod.previewScenes=true (the testkit's scene
+     *  checks): the new main menu pictures. Everywhere else the released ones. */
+    public static boolean previewScenes() {
+        return TitleScreenLooks.enabled() || Boolean.getBoolean("killer560smod.previewScenes");
+    }
+
+    /** The Green scene this game shows by default: {@link #GREEN_SCENE} with {@link #previewScenes()}, otherwise
+     *  {@link #GREEN_SCENE_RELEASED}. */
+    public static GreenScene defaultGreenScene() {
+        // Released to every instance 2026-10-16 ("push it to all instances as the viridian theme").
+        return GREEN_SCENE;
+    }
+
+    private static GreenScene greenScene;
 
     /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"},
-     *  {@code "BOSS"});
+     *  {@code "BOSS"}, {@code "TARGET"});
      *  null or empty goes back to the constant's choice. */
     public static void setGreenSceneForTest(String name) {
-        greenScene = name == null || name.isEmpty() ? GREEN_SCENE : GreenScene.valueOf(name);
+        greenScene = name == null || name.isEmpty() ? null : GreenScene.valueOf(name);
     }
 
     private static AmberScene amberScene = AMBER_SCENE;
     private static long testClockMs = -1L;
+
+    /** The Amber scene drawn now: {@link #AMBER_SCENE} unless something (the Title Screen Switcher, a test) chose
+     *  another for this session. */
+    public static AmberScene amberScene() {
+        return amberScene;
+    }
+
+    /** The Green scene drawn now (see {@link #amberScene()}). */
+    public static GreenScene greenScene() {
+        GreenScene g = greenScene;
+        return g != null ? g : defaultGreenScene();
+    }
+
+    /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to {@link #AMBER_SCENE}.
+     *  Changes no setting. */
+    public static void setAmberScene(AmberScene scene) {
+        amberScene = scene == null ? AMBER_SCENE : scene;
+    }
+
+    /** Draws {@code scene} for Green this session (the Title Screen Switcher); null goes back to {@link #GREEN_SCENE}. */
+    public static void setGreenScene(GreenScene scene) {
+        greenScene = scene;
+    }
 
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
     public static void setClockForTest(double ms) {
@@ -95,7 +167,35 @@ public final class MainMenuScenes {
         int panel = look.panelColour() | 0xFF000000;
         int text = look.text() | 0xFF000000;
         boolean light = MenuStyle.luminance(panel) > 0.5f;
+        boolean target = look.scene() == MainMenuThemeConfig.Scene.FIREFLIES && greenScene() == GreenScene.TARGET;
+        if (target) {
+            // The designer's picture is the base, blitted before the batch so the batch's overlays land on top of it.
+            TargetScene.drawImage(g, w, h, t);
+            heroRects = TargetScene.SCENE.rippleTiles;
+        }
         GuiRects r = GuiRects.begin(g);
+        if (target) {
+            TargetScene.drawOverlays(r, w, h, t);
+            r.submit();
+            if (allocProbe) {
+                allocBytes += allocatedNow() - probeStart;
+                allocFrames++;
+            }
+            return;
+        }
+        DarkScene dark = darkScene();
+        if (look.scene() == MainMenuThemeConfig.Scene.STARFIELD
+                && (dark == DarkScene.MILKY_WAY || dark == DarkScene.MILKY_WAY_HERO)) {
+            boolean hero = dark == DarkScene.MILKY_WAY_HERO;
+            // His picture is the base, blitted before the batch so the batch's overlays land on top of it.
+            PictureScene sc = MilkyWayTexScene.scene(hero);
+            sc.drawImage(g, w, h, t);
+            heroRects = sc.rippleTiles;
+            sc.drawOverlays(r, w, h, t, look.density());
+            r.submit();
+            probe(r, probeStart);
+            return;
+        }
         base(r, w, h, accent, panel, light);
         switch (look.scene()) {
             case EMBERS -> {
@@ -109,7 +209,7 @@ public final class MainMenuScenes {
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
             case FIREFLIES -> {
-                switch (greenScene) {
+                switch (greenScene()) {
                     case SIMPLE -> MainMenuFirefliesSimple.draw(r, w, h, t, accent, panel, text, look.density());
                     case FOREST -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
                     case ACID -> AcidCaveScene.draw(r, w, h, t, accent, panel, look.density());
@@ -121,10 +221,15 @@ public final class MainMenuScenes {
         }
         // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
         if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
-                || (greenScene != GreenScene.ACID && greenScene != GreenScene.BOSS)) {
+                || (greenScene() != GreenScene.ACID && greenScene() != GreenScene.BOSS)) {
             vignette(r, w, h, light);
         }
+        heroRects = 0;
         r.submit();
+        probe(r, probeStart);
+    }
+
+    private static void probe(GuiRects r, long probeStart) {
         if (allocProbe) {
             allocBytes += allocatedNow() - probeStart;
             allocFrames++;

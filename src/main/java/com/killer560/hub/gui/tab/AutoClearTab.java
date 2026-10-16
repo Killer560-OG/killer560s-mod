@@ -142,7 +142,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX + half + GAP, y[0], right, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst);
         y[0] += ROW;
         toggle(w, contentX, y[0], half, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles);
-        toggle(w, contentX + half + GAP, y[0], right, "Autopilot HUD", cfg::isAutopilotHud, cfg::setAutopilotHud);
+        toggle(w, contentX + half + GAP, y[0], right, "Status HUD", cfg::isStatusHud, cfg::setStatusHud);
         y[0] += ROW;
         double kSpan = AutoSecretConfig.MAX_KEY_BASE - AutoSecretConfig.MIN_KEY_BASE;
         slider(w, contentX, y[0], contentWidth, () -> String.format(java.util.Locale.US,

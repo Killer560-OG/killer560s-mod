@@ -127,6 +127,11 @@ public final class MenuStyle {
             c = MenuTheme.forScreen(t.themeId());
         }
         if (c == null) {
+            // The Title Screen Switcher's look (only in the Title Screen GUI instance), so Mod Settings opened from a
+            // previewed title screen is in that theme too - Green's gradients show there and nowhere else.
+            c = com.killer560.hub.mainmenu.TitleScreenLooks.menuColours();
+        }
+        if (c == null) {
             c = MenuConfig.getInstance().activeColours();
         }
         if (java.util.Arrays.equals(c, usedColours)) {

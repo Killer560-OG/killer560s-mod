@@ -50,7 +50,8 @@ the PID you launched, and leave a client whose log shows a server join (he took 
 
 **Instances** (since 2026-10-07; enumerate the directory, never trust this list - it has been wrong before):
 `26.1.2 (Dungeons)` (his play instance, cheat), `26.1.2 (Mod Only Test)` (cheat), `26.1.2 Legit`, `26.2 Cheat`, and the
-private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. Eight older ones are
+private `26.1.2 Untested Cheat` / `26.1.2 Untested Legit`, which take only `-PtestingBuild` jars. `Title Screen GUI` (since 2026-10-16, cheat, our mod + Fabric API + Mod Menu only) is for looking at main menus and never
+joins a server: its marker file `killer560smod-title-screen-gui` turns on the Title Screen Switcher (docs/TESTING-HOOKS.md). Eight older ones are
 in `C:\Users\Hunter\PrismInstances-removed-2026-10-07`; every `options.txt` is a copy of Dungeons'. Mod Only Test
 does not reach the instance he plays on: after work lands, check every instance by md5 and promote or delete any
 leftover `.jar.pending` (on 2026-09-29 four were two builds behind). A new instance is invisible to a running Prism
@@ -70,6 +71,8 @@ feature; `README.md` holds the name list. Mining is shelved until after 2.0 (nev
 Shared pieces worth knowing: `util/ActionGate` is the mod-wide one-automated-interaction-per-tick arbiter
 with actor priority; `util/SkyblockGate` is the "Skyblock Only" gate; `secrets/DungeonState` owns floor and
 boss-phase detection; `util/ViewFreeze` holds the camera still while something rotates the real player.
+Main menu pictures: he (or a theme's designer) paints them and we only animate them (killer560, 2026-10-16) -
+`mainmenu/PictureScene` is the pipeline (texture, patches, ripples, overlays); `TargetScene` and `MilkyWayTexScene` are specs.
 
 ## Conventions
 

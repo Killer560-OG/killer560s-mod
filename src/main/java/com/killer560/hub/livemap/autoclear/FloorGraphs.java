@@ -44,6 +44,10 @@ public final class FloorGraphs {
     /** See {@link #plan}: a once-warm full graph with fewer nodes than this times the quick graph's is re-warming
      *  most of the floor, not finishing after a change. */
     public static final double KNOWN_RATIO = 1.3;
+    /** Set by the caller for one {@link #plan}: no cold try on the full graph after the quick graph found nothing (a
+     *  precomputed trip that is not worth 10-40 ms of the planner thread; the press plans it for itself). */
+    public boolean noColdTry;
+
     /** Whether the last click on a not-warm full graph took it to know the floor already. */
     public boolean floorKnown;
 
@@ -152,7 +156,7 @@ public final class FloorGraphs {
                 q = on(quick, grid, start, goal, exactFallback, t0 + timeout, maxWarps);
             }
         }
-        if (q != null) {
+        if (q != null || noColdTry) {
             return q;
         }
         // Nothing on the quick graph (it has fewer landings; its "no way" proves nothing): the full graph's cold try.

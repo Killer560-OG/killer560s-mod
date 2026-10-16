@@ -67,7 +67,6 @@ public final class AutoClearConfig {
     private boolean hyperionHops = true;
     /** How long one mob is attacked without dying before it is skipped. Ticks. */
     private int mobTimeoutTicks = 160;
-    private boolean statusHud = true;
 
     private AutoClearConfig() {
     }
@@ -90,7 +89,8 @@ public final class AutoClearConfig {
                 cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
                 cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
                 cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
-                cfg.statusHud = ConfigJson.getBool(o, "statusHud", cfg.statusHud);
+                // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
+                // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
             } catch (Exception e) {
                 // unreadable file (not just a bad key) - keep defaults
             }
@@ -108,7 +108,6 @@ public final class AutoClearConfig {
             o.addProperty("keybind", keybind);
             o.addProperty("hyperionHops", hyperionHops);
             o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
-            o.addProperty("statusHud", statusHud);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -140,6 +139,4 @@ public final class AutoClearConfig {
         mobTimeoutTicks = Math.max(MIN_MOB_TIMEOUT_TICKS, Math.min(MAX_MOB_TIMEOUT_TICKS, v));
     }
 
-    public boolean isStatusHud() { return statusHud; }
-    public void setStatusHud(boolean v) { statusHud = v; }
 }

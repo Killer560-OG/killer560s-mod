@@ -146,20 +146,29 @@ final class RoomTour {
         return ticks >= UNREACHABLE_TICKS ? ticks : Math.max(0, ticks - TRIP_FIXED_TICKS);
     }
 
+    /** A precomputed trip's ticks from {@code start} into {@code s} (the Interactive Map's TripCache), or null. */
+    private static Double cached(Vec3 start, Site s) {
+        int w = com.killer560.hub.livemap.autoclear.TripCache.warps(start, s.arrive(), s.tile());
+        return w < 0 ? null : TRIP_FIXED_TICKS + TICKS_PER_WARP * w;
+    }
+
+    /** The searched trip's ticks (this run's matrix), else the precomputed one's, else null. */
+    private static Double known(Map<String, Double> row, Vec3 start, Site s) {
+        Double c = row == null ? null : row.get(s.arriveKey());
+        return c != null ? c : start == null ? null : cached(start, s);
+    }
+
     /** Whether every trip from {@code from} into {@code sites}, and between them, has been searched. */
     static boolean fromReady(Vec3 from, List<Site> sites) {
         String lk = nearestLeave(from);
         Map<String, Double> row = lk == null ? null : COST.get(lk);
-        if (row == null) {
-            return sites.isEmpty();
-        }
         for (Site s : sites) {
-            if (!row.containsKey(s.arriveKey())) {
+            if (known(row, from, s) == null) {
                 return false;
             }
             Map<String, Double> out = COST.get(leaveKey(s.leave()));
             for (Site t : sites) {
-                if (t != s && (out == null || !out.containsKey(t.arriveKey()))) {
+                if (t != s && known(out, s.leave(), t) == null) {
                     return false;
                 }
             }
@@ -201,7 +210,7 @@ final class RoomTour {
             Site s = sites.get(i);
             weight[i] = s.weight();
             work[i] = s.work();
-            Double c = row.get(s.arriveKey());
+            Double c = known(row, from, s);
             if (c != null) {
                 fromHere[i] = travelOnly ? variable(c) : c;
                 fromSearched[i] = true;
@@ -215,7 +224,7 @@ final class RoomTour {
                 if (i == j) {
                     continue;
                 }
-                Double b = out.get(sites.get(j).arriveKey());
+                Double b = known(out, s.leave(), sites.get(j));
                 double t = b != null ? b : estimate(s.leave(), sites.get(j).arrive(), layout);
                 between[i][j] = travelOnly ? variable(t) : t;
             }
@@ -263,6 +272,7 @@ final class RoomTour {
         int k;
         int j;
         int searches;
+        int fromCache;
         int skipped;
         int slices;
 
@@ -321,6 +331,13 @@ final class RoomTour {
                     if (k > 0 && k - 1 == j || row.containsKey(to.arriveKey())) {
                         continue;
                     }
+                    // Already precomputed by the Interactive Map (TripCache): its warps, no search.
+                    Double pre = cached(start, to);
+                    if (pre != null) {
+                        row.put(to.arriveKey(), pre);
+                        fromCache++;
+                        continue;
+                    }
                     if (gen != generation) {
                         return true;
                     }
@@ -347,8 +364,8 @@ final class RoomTour {
         /** Planner thread: everything searched - log it, and plan the next trip ahead if asked. */
         private void finish() {
             double ms = (System.nanoTime() - t0) / 1e6;
-            LOGGER.info(String.format(Locale.US, "[AutoSecret] room order: searched %d trip(s) between %d room(s) in %.0f ms"
-                            + " (%d slice(s))%s (%s)", searches, sites.size(), ms, slices,
+            LOGGER.info(String.format(Locale.US, "[AutoSecret] room order: searched %d trip(s), %d precomputed, between %d"
+                            + " room(s) in %.0f ms (%d slice(s))%s (%s)", searches, fromCache, sites.size(), ms, slices,
                     skipped > 0 ? ", " + skipped + " left to the estimate" : "", why));
             if (!planAhead || sites.isEmpty() || gen != generation) {
                 return;
@@ -358,7 +375,10 @@ final class RoomTour {
             int[] order = legacyOrder ? byWeight(m) : res.order();
             Site next = sites.get(order[0]);
             ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
-            List<EtherwarpPathfinder.Node> path = next.tile() >= 0
+            // The trip precomputed (TripCache) when there is one - read on this thread, it is a concurrent map.
+            List<EtherwarpPathfinder.Node> pre = com.killer560.hub.livemap.autoclear.TripCache.pathFor(from, next.arrive(),
+                    next.tile(), next.exact());
+            List<EtherwarpPathfinder.Node> path = pre != null ? pre : next.tile() >= 0
                     ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
                     : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
             LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"

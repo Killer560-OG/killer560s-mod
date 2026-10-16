@@ -70,11 +70,11 @@ public final class AutoSecretFeature {
     static final String CHAT = "Auto Secret";
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
-    private enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR,
+    enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR,
         KEY_WAIT }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    private enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY }
+    enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -178,7 +178,7 @@ public final class AutoSecretFeature {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoSecretFeature.tickStart",
                 AutoSecretFeature::tickStart));
         WitherDoorOpener.register();
-        AutopilotHud.register();
+        AutoStatusHud.register();
     }
 
     // ------------------------------------------------------------------------------------------- public API
@@ -235,6 +235,46 @@ public final class AutoSecretFeature {
 
     private static String chatName() {
         return pilot ? "Autopilot" : CHAT;
+    }
+
+    // ---- read by the shared Status HUD (AutoStatusHud) on the client tick, never per frame ----
+
+    static Phase hudPhase() {
+        return phase;
+    }
+
+    static Trip hudTrip() {
+        return trip;
+    }
+
+    /** The room (or key, door) the current step is for; null between steps. */
+    static String hudTarget() {
+        return target;
+    }
+
+    /** The room a finished route is still waiting on for its last secrets, or null. */
+    static String hudLeaveWait() {
+        return leaveWaitRoom;
+    }
+
+    /** Trips to the current target that already failed (above 0: this trip is a retry). */
+    static int hudTripFailures() {
+        Integer n = target == null ? null : tripFailures.get(target);
+        return n == null ? 0 : n;
+    }
+
+    /** The door the current step is for is the blood door (else a wither door). */
+    static boolean hudDoorBlood() {
+        return doorBlood;
+    }
+
+    static boolean hudPilot() {
+        return pilot;
+    }
+
+    /** {found, total} of {@code room}'s secrets as Auto Secret counts them, or null when it has none. */
+    static int[] hudRoomCount(String room) {
+        return room == null ? null : roomCount(room);
     }
 
     /** One line for the tab: what it is doing now. */
@@ -338,8 +378,8 @@ public final class AutoSecretFeature {
         if (pilot) {
             Autopilot.onStopped();
             Autopilot.setHud("Stopped", reason);
-            AutopilotHud.stopped(reason);
         }
+        AutoStatusHud.stopped(reason);
         runId++;
         if (cancelOurs) {
             if (was == Phase.TRAVEL && ClearExecutor.isBusy()) {
