@@ -32,12 +32,13 @@ public final class F7SpotsFeature {
 
     public static void register() {
         F7SpotsConfig.getInstance();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("F7 Spots render", () -> F7SpotsConfig.getInstance().getWalkWaypointsRaw() || F7SpotsConfig.getInstance().getAimSpotsRaw()), context -> {
             if (!SkyblockGate.allows()) {
                 return;
             }
             F7SpotsRenderer.render(context);
-        });
+        }));
         LOGGER.info("[F7Spots] Registered (all features default OFF, waypoint/aim lists empty)");
     }
 

@@ -61,7 +61,8 @@ public final class EtherwarpFeature {
 
     public static void register() {
         EtherwarpWaypointsRenderer.init();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(EtherwarpFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Etherwarp Waypoints render", () -> EtherwarpWaypointsConfig.getInstance().isHighlightBlocksRaw()), EtherwarpFeature::onWorldRender));
     }
 
     /** Where "here" is for every room-relative operation this class does: the room template you are

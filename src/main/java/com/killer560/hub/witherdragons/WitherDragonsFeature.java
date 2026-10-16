@@ -87,7 +87,8 @@ public final class WitherDragonsFeature {
         ServerTickClock.subscribe(WitherDragonsFeature::onServerTick);
         ChatObserver.subscribe(WitherDragonsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDragonsFeature", client -> onClientTick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDragonsFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Wither Dragons render", () -> WitherDragonsConfig.getInstance().isEnabledRaw()), WitherDragonsFeature::onWorldRender));
         KingRelicsFeature.register();
     }
 

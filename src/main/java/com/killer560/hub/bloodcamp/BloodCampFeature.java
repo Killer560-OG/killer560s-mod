@@ -169,7 +169,8 @@ public final class BloodCampFeature {
         BloodCampMoveTimer.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("BloodCampFeature", client -> tick()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> endTick());
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(BloodCampFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeaturesFlush(
+                com.killer560.hub.util.FeatureBits.register("Blood Camp overlay render", () -> BloodCampConfig.getInstance().isEnabledRaw() && BloodCampConfig.getInstance().isShowOverlayRaw()), BloodCampFeature::onWorldRender));
         // The Aura's turn moves every frame (a 20 Hz staircase is what made it look snappy); clicks stay on the tick.
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
             if (isActive()) {

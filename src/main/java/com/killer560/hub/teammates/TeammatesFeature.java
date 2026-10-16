@@ -66,8 +66,9 @@ public final class TeammatesFeature {
 
     public static void register() {
         TeammatesEspRenderer.init();
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TeammatesFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TeammatesFeature::render);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TeammatesFeature", com.killer560.hub.util.FeatureBits.register("Teammates tick", () -> TeammatesConfig.getInstance().isEnabledRaw()), client -> tick()));
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Teammates render", () -> TeammatesConfig.getInstance().isEnabledRaw()), TeammatesFeature::render));
     }
 
     private static void tick() {

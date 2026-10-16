@@ -34,7 +34,7 @@ public final class AutoRoutesKeybinds {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return;
         }
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoRoutesKeybinds.tick", AutoRoutesKeybinds::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoRoutesKeybinds.tick", com.killer560.hub.util.FeatureBits.register("Auto Routes keybinds tick", () -> AutoRoutesConfig.getInstance().isEnabledRaw()), AutoRoutesKeybinds::tick));
     }
 
     private static void tick(Minecraft client) {

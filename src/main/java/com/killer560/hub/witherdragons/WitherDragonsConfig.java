@@ -163,7 +163,28 @@ public final class WitherDragonsConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isRelicsEnabledRaw() {
+        return relicsEnabled;
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isRelicHighlightRaw() {
+        return relicHighlight;
+    }
+
+    private static void load0() {
         WitherDragonsConfig cfg = new WitherDragonsConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -255,7 +276,7 @@ public final class WitherDragonsConfig {
     }
 
     public void setEnabled(boolean v) {
-        enabled = v;
+        enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isRelicsEnabled() {
@@ -263,7 +284,7 @@ public final class WitherDragonsConfig {
     }
 
     public void setRelicsEnabled(boolean v) {
-        relicsEnabled = v;
+        relicsEnabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
     // ---- dragons ----
@@ -320,7 +341,7 @@ public final class WitherDragonsConfig {
     public int getRelicSpawnTicks() { return relicSpawnTicks; }
     public void setRelicSpawnTicks(int v) { relicSpawnTicks = Math.max(0, Math.min(100, v)); }
     public boolean isRelicHighlight() { return relicHighlight; }
-    public void setRelicHighlight(boolean v) { relicHighlight = v; }
+    public void setRelicHighlight(boolean v) { relicHighlight = v; com.killer560.hub.util.FeatureBits.changed(); }
     public boolean isRelicTracer() { return relicTracer; }
     public void setRelicTracer(boolean v) { relicTracer = v; }
     public boolean isRelicPlaceTime() { return relicPlaceTime; }

@@ -203,7 +203,13 @@ public final class AutoRoutesConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         AutoRoutesConfig cfg = new AutoRoutesConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -311,7 +317,7 @@ public final class AutoRoutesConfig {
     }
 
     public boolean isEnabledRaw() { return enabled; }
-    public void setEnabled(boolean v) { enabled = v; }
+    public void setEnabled(boolean v) { enabled = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     /**
      * killer560, 2026-10-11: "remove the mode as an option and only have obvious" until legit is finished. Only a

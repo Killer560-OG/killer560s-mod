@@ -148,6 +148,27 @@ public final class FeatureGuard {
         };
     }
 
+    /** {@link #afterFeatures} that still calls the listener on its first frame with the bit off, like the gated tick
+     *  wrappers, for a listener whose switched-off branch clears what it drew last (once). */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures afterFeaturesFlush(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures listener) {
+        var inner = com.killer560.hub.perfprobe.PerfProbe.wrapListener(
+                net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures.class, listener);
+        boolean[] ranOn = {true};
+        return context -> {
+            if (!FeatureBits.on(bit)) {
+                if (!ranOn[0]) {
+                    FeatureBits.skipped(bit);
+                    return;
+                }
+                ranOn[0] = false;
+            } else {
+                ranOn[0] = true;
+            }
+            inner.afterTranslucentFeatures(context);
+        };
+    }
+
     /** As {@link #afterFeatures}, for AFTER_TRANSLUCENT_TERRAIN. */
     public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain afterTerrain(
             int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain listener) {

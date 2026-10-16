@@ -70,7 +70,18 @@ public final class TeammatesConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new TeammatesConfig();
             return;
@@ -124,7 +135,7 @@ public final class TeammatesConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public Style getStyle() {

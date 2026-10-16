@@ -51,7 +51,13 @@ public final class MaxorConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         MaxorConfig cfg = new MaxorConfig();
         JsonObject obj = null;
         if (Files.exists(CONFIG_PATH)) {
@@ -121,7 +127,7 @@ public final class MaxorConfig {
 
     public boolean isHighlightEnabled() { return highlight && SkyblockGate.allows(); }
     public boolean getHighlightRaw() { return highlight; }
-    public void setHighlight(boolean v) { highlight = v; }
+    public void setHighlight(boolean v) { highlight = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public boolean isHighlightFilled() { return highlightFilled; }
     public void setHighlightFilled(boolean v) { highlightFilled = v; }
