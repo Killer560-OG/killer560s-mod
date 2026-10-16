@@ -137,8 +137,8 @@ public final class ItemProtect {
                     return true;
                 }
             }
-            String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
-            if (cfg.nameMatchesProtected(name)) {
+            if (cfg.hasProtectedNames()
+                    && cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
                 return true;
             }
         }
@@ -168,7 +168,8 @@ public final class ItemProtect {
                 return true;
             }
         }
-        return cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+        return cfg.hasProtectedNames()
+                && cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
     }
 
     /** Short reason used in the chat line, or null when the stack isn't protected at all. */
@@ -188,7 +189,8 @@ public final class ItemProtect {
                     return "Protected Item";
                 }
             }
-            if (cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
+            if (cfg.hasProtectedNames()
+                    && cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()))) {
                 return "Protected Name";
             }
         }

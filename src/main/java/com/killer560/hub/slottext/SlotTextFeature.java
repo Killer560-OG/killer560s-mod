@@ -114,7 +114,7 @@ public final class SlotTextFeature {
         if (stack.isEmpty() || !visible()) {
             return;
         }
-        String title = screen.getTitle().getString();
+        String title = titleOf(screen);
         boolean playerSlot = slot.container instanceof Inventory;
         List<Entry> entries = entriesFor(stack, title, slot.index, playerSlot);
         if (entries.isEmpty()) {
@@ -123,10 +123,26 @@ public final class SlotTextFeature {
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
     }
 
+    private static net.minecraft.network.chat.Component titleFor;
+    private static String titleText;
+
+    /** The menu's title text, read once per title object rather than once per slot per frame (render thread). */
+    private static String titleOf(AbstractContainerScreen<?> screen) {
+        net.minecraft.network.chat.Component t = screen.getTitle();
+        if (t != titleFor || titleText == null) {
+            titleText = t.getString();
+            titleFor = t;
+        }
+        return titleText;
+    }
+
     /** Paints entries into the 16x16 box at x,y. Text wider than the box is scaled down to fit it. Public for tests. */
     public static void paint(GuiGraphicsExtractor graphics, Font font, List<Entry> entries, int x, int y) {
         Matrix3x2fStack pose = graphics.pose();
         for (Entry e : entries) {
+            if (e.text() == null) {
+                continue; // vanilla's text(String) draws nothing for null
+            }
             int width = font.width(e.text());
             float scale = width > 16 ? 16f / width : 1f;
             float drawW = width * scale;
@@ -138,7 +154,8 @@ public final class SlotTextFeature {
             if (scale != 1f) {
                 pose.scale(scale, scale);
             }
-            graphics.text(font, e.text(), 0, 0, e.color(), true);
+            // visual order kept between frames: every slot's text was a fresh ICU Bidi per frame (fps-gui-1015)
+            graphics.text(font, com.killer560.hub.hud.HudTextCache.visualOrder(e.text()), 0, 0, e.color(), true);
             pose.popMatrix();
         }
     }

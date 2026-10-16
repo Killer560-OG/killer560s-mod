@@ -378,6 +378,12 @@ public final class ItemProtectConfig {
         protectedNames.removeIf(s -> s.equalsIgnoreCase(name == null ? "" : name.trim()));
     }
 
+    /** Whether any name fragment is on the list: when none is, a caller can skip building the plain display name (the
+     *  slot star asks for every slot of an open menu every frame, fps-gui-1015). */
+    public boolean hasProtectedNames() {
+        return !protectedNames.isEmpty();
+    }
+
     public boolean nameMatchesProtected(String displayName) {
         if (displayName == null || displayName.isEmpty() || protectedNames.isEmpty()) {
             return false;

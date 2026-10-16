@@ -1298,6 +1298,11 @@ public class ModScreen extends Screen {
     }
 
     /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 YouTube. */
+    private boolean insideIcon(int mouseX, int mouseY, int i) {
+        int[] b = iconBounds(i); // once, not four times a frame
+        return inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
+    }
+
     public int[] iconBounds(int i) {
         int size = 14;
         int x = headerX + headerW - 8 - (4 - i) * (size + 2) + 2;
@@ -2505,7 +2510,7 @@ public class ModScreen extends Screen {
             } catch (RuntimeException e) {
                 text = null;
             }
-        } else if (inside(mouseX, mouseY, iconBounds(3)[0], iconBounds(3)[1], iconBounds(3)[2], iconBounds(3)[3])) {
+        } else if (insideIcon(mouseX, mouseY, 3)) {
             key = "youtube";
             text = "Killer560's YouTube channel.";
         } else if (!pageMode() && inside(mouseX, mouseY, gridX, gridY, gridW, gridH)
