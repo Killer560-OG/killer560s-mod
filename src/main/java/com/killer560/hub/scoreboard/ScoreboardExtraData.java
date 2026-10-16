@@ -494,6 +494,11 @@ public final class ScoreboardExtraData {
             return;
         }
         plain = plain.trim();
+        // matches() of six patterns that all begin with a literal 'Y', 'Q' or 'C' (fps-idle-1015).
+        char c0 = plain.isEmpty() ? 0 : plain.charAt(0);
+        if (c0 != 'Y' && c0 != 'Q' && c0 != 'C') {
+            return;
+        }
         Matcher m;
         if (COOKIE_EATEN.matcher(plain).matches()) {
             long now = System.currentTimeMillis();

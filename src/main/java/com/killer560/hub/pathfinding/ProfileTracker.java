@@ -43,6 +43,9 @@ public final class ProfileTracker {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message).trim();
+        if (!plain.startsWith("You are playing on profile: ") && !plain.startsWith("Profile ID: ")) {
+            return; // PLAYING_ON / PROFILE_ID are anchored on these (fps-idle-1015)
+        }
         Matcher playing = PLAYING_ON.matcher(plain);
         if (playing.matches()) {
             setName(playing.group(1));

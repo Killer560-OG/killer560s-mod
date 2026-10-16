@@ -34,7 +34,7 @@ public final class DoorHelpersFeature {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("DoorHelpersFeature.onEndTick", DoorHelpersFeature::onEndTick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
-                AutoDoorOpenerFeature.onChat(com.killer560.hub.util.ChatObserver.raw(message));
+                AutoDoorOpenerFeature.onChat(com.killer560.hub.util.ChatObserver.strip(message));
             }
         });
         LOGGER.info("[DoorHelpers] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);

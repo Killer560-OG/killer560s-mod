@@ -77,6 +77,37 @@ public final class FeatureGuard {
     }
 
     /**
+     * Several END_CLIENT_TICK handlers that are registered back to back, as ONE Fabric listener that runs them in the
+     * same order, each guarded under its own name exactly as {@link #end} would (fps-idle-1015, 2026-10-15). A tick
+     * handler that returns at once still costs about 1-2 us a tick, nearly all of it cache misses on its own lambda,
+     * code and data (JFR, every switch off); a shared listener saves the per-listener dispatch and wrapper for each one
+     * after the first. Only for handlers that would have been registered consecutively: the order relative to every
+     * other listener stays what it was.
+     */
+    public static ClientTickEvents.EndTick endAll(String[] names, ClientTickEvents.EndTick... guarded) {
+        if (names.length != guarded.length) {
+            throw new IllegalArgumentException("one name per handler");
+        }
+        ClientTickEvents.EndTick[] handlers = new ClientTickEvents.EndTick[guarded.length];
+        for (int i = 0; i < guarded.length; i++) {
+            handlers[i] = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded[i]);
+        }
+        String[] ns = names.clone();
+        return client -> {
+            for (int i = 0; i < handlers.length; i++) {
+                if (anyDisabled && DISABLED.contains(ns[i])) {
+                    continue;
+                }
+                try {
+                    handlers[i].onEndTick(client);
+                } catch (Throwable t) {
+                    failed(ns[i], t);
+                }
+            }
+        };
+    }
+
+    /**
      * Guards a handler that must NEVER be switched off, however often it throws.
      *
      * <p>For the {@link ActionGate}, and anything else where not running is more dangerous than crashing. The gate

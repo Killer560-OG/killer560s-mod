@@ -37,6 +37,9 @@ public final class MagicFindTracker {
             "^(?:(?:Party|Guild|Officer|Co-op) > |From |To )?(?:\\[[^\\]]{1,24}] )?[A-Za-z0-9_]{1,16}(?: \\[[^\\]]{1,24}])?: ");
 
     private static void onMessage(String text) {
+        if (!text.contains("Magic Find)")) {
+            return; // MAGIC_FIND_PATTERN needs it (fps-idle-1015)
+        }
         // Players could type "(99999% Magic Find)" and overwrite the value (testkit WP2, 2026-10-04).
         String plain = net.minecraft.ChatFormatting.stripFormatting(text);
         if (plain == null || PLAYER_CHAT.matcher(plain.trim()).find()) {

@@ -77,6 +77,9 @@ public final class P4PlatformHighlightFeature {
         // is currently switched on, otherwise turning it on after the Core line (or while SkyblockGate is
         // still settling) leaves platformActive false for the rest of the fight.
         String raw = ChatObserver.strip(message);
+        if (!raw.startsWith("The Core ") && !raw.startsWith("[BOSS] ")) {
+            return; // all three patterns are anchored on one of these (fps-idle-1015)
+        }
         if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             platformActive = true;
         } else if (GOLDOR_START_REGEX.matcher(raw).matches() || com.killer560.hub.fastleap.Floor7Tracker.P5_START.matcher(raw).matches()) {

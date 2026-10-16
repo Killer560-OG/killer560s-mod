@@ -282,9 +282,9 @@ public final class ObjectHiderFeature {
         if (text == null) {
             return;
         }
-        if (!bossDone && BOSS_DEFEATED.matcher(text).matches()) {
+        if (!bossDone && text.contains("Defeated ") && BOSS_DEFEATED.matcher(text).matches()) {
             bossDone = true;
-        } else if (bossDone && CHESTS_SPAWNED.matcher(text).matches()) {
+        } else if (bossDone && text.contains("The Catacombs - Floor ") && CHESTS_SPAWNED.matcher(text).matches()) {
             chestsSpawned = true;
         }
     }
