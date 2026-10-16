@@ -617,7 +617,8 @@ public final class SimonSaysFeature {
                 }
             }
         });
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(SimonSaysFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Simon Says render", () -> SimonSaysConfig.getInstance().isEnabledRaw() && SimonSaysConfig.getInstance().isSolverEnabledRaw()), SimonSaysFeature::onWorldRender));
         // Rotate Mode's own real rotation-applying step - deliberately every FRAME, not every tick, so
         // it's as smooth as real mouse look (see this class's own "Rotate Mode" field-group doc comment
         // for the full real reasoning).

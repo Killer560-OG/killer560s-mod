@@ -96,7 +96,7 @@ public final class StorageSearchFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("StorageSearchFeature.tick", StorageSearchFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("StorageSearchFeature.tick", com.killer560.hub.util.FeatureBits.register("Storage Search tick", () -> StorageSearchConfig.getInstance().isEnabledRaw()), StorageSearchFeature::tick));
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> onScreenInit(screen));
         StorageSearchEsp.register();
         // The Storage Overlay grid's own Search button (killer560, 2026-09-21: "have a gui button for it in the
