@@ -358,7 +358,17 @@ public final class MapDrawCache {
 
     private static String describe(Object o) {
         if (o instanceof GuiTextRenderState t) {
-            return "text '" + plain(t.text) + "' at " + t.x + "," + t.y + " color " + Integer.toHexString(t.color);
+            StringBuilder sb = new StringBuilder("text");
+            for (java.lang.reflect.Field f : textFields()) {
+                try {
+                    Object v = f.get(t);
+                    sb.append(' ').append(v instanceof FormattedCharSequence seq ? "'" + plain(seq) + "'"
+                            : v instanceof Integer i ? Integer.toHexString(i) : String.valueOf(v));
+                } catch (IllegalAccessException e) {
+                    sb.append(" ?");
+                }
+            }
+            return sb.toString();
         }
         return String.valueOf(o);
     }
@@ -371,11 +381,26 @@ public final class MapDrawCache {
             return false;
         }
         if (a instanceof GuiTextRenderState ta) {
+            // By reflection, every field but the lazily built layout: 26.2 made most of them private, and a release
+            // jar runs remapped, so they are found by type rather than by name. Test-only (verify mode).
             GuiTextRenderState tb = (GuiTextRenderState) b;
-            return ta.font == tb.font && ta.x == tb.x && ta.y == tb.y && ta.color == tb.color
-                    && ta.backgroundColor == tb.backgroundColor && ta.dropShadow == tb.dropShadow
-                    && Objects.equals(ta.pose, tb.pose) && Objects.equals(ta.scissor, tb.scissor)
-                    && sameText(ta.text, tb.text);
+            ta.ensurePrepared();
+            tb.ensurePrepared();
+            for (java.lang.reflect.Field f : textFields()) {
+                try {
+                    Object va = f.get(ta);
+                    Object vb = f.get(tb);
+                    boolean same = va instanceof FormattedCharSequence sa && vb instanceof FormattedCharSequence sb
+                            ? sameText(sa, sb)
+                            : va instanceof net.minecraft.client.gui.Font ? va == vb : Objects.equals(va, vb);
+                    if (!same) {
+                        return false;
+                    }
+                } catch (IllegalAccessException e) {
+                    return false;
+                }
+            }
+            return true;
         }
         GuiElementRenderState[] pa = com.killer560.hub.hud.GuiRects.partsOf(a);
         if (pa != null) {
@@ -392,6 +417,25 @@ public final class MapDrawCache {
         }
         // Vanilla's rectangle, blit and item states are records: equals is value for value.
         return a.equals(b);
+    }
+
+    private static java.util.List<java.lang.reflect.Field> textFields;
+
+    /** GuiTextRenderState's instance fields except its prepared glyph layout. */
+    private static java.util.List<java.lang.reflect.Field> textFields() {
+        if (textFields == null) {
+            java.util.List<java.lang.reflect.Field> out = new ArrayList<>();
+            for (java.lang.reflect.Field f : GuiTextRenderState.class.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())
+                        || net.minecraft.client.gui.Font.PreparedText.class.isAssignableFrom(f.getType())) {
+                    continue;
+                }
+                f.setAccessible(true);
+                out.add(f);
+            }
+            textFields = out;
+        }
+        return textFields;
     }
 
     private static boolean sameText(FormattedCharSequence a, FormattedCharSequence b) {
