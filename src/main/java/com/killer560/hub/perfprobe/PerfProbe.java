@@ -152,6 +152,32 @@ public final class PerfProbe {
         exit(stat);
     }
 
+    // ---- screens (Screen.extractRenderStateWithTooltipAndSubtitles) ---------------------------------------------
+
+    private static final Map<Class<?>, Stat> SCREENS = new java.util.IdentityHashMap<>();
+
+    /** Start timing the open screen's draw (fps-gui-1015). Pair with {@link #exitScreen(Object)} in a finally. */
+    public static void enterScreen() {
+        if (onRenderThread()) {
+            enter();
+        }
+    }
+
+    /** Ends {@link #enterScreen()}: key {@code screen.<SimpleName> extract}, kind frame. Self time is the screen's own
+     *  draw (vanilla's and every mod mixin inside it) minus probed listeners nested inside. */
+    public static void exitScreen(Object screen) {
+        if (!onRenderThread()) {
+            return;
+        }
+        Class<?> c = screen.getClass();
+        Stat stat = SCREENS.get(c);
+        if (stat == null) {
+            stat = stat("screen." + c.getSimpleName() + " extract", "frame");
+            SCREENS.put(c, stat);
+        }
+        exit(stat);
+    }
+
     // ---- timing -------------------------------------------------------------------------------------------------
 
     private static boolean onRenderThread() {
