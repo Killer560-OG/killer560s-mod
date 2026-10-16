@@ -87,7 +87,7 @@ public final class I4SensorsFeature {
         if (overlay) {
             return;
         }
-        String raw = message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.raw(message);
         String plain = ChatFormatting.stripFormatting(raw);
         if (plain == null) {
             plain = raw;

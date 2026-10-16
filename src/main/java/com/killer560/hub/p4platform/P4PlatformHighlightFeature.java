@@ -76,8 +76,7 @@ public final class P4PlatformHighlightFeature {
         // Deliberately NOT gated on isEnabled(): the state has to be tracked whether or not the highlight
         // is currently switched on, otherwise turning it on after the Core line (or while SkyblockGate is
         // still settling) leaves platformActive false for the rest of the fight.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = ChatObserver.strip(message);
         if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             platformActive = true;
         } else if (GOLDOR_START_REGEX.matcher(raw).matches() || com.killer560.hub.fastleap.Floor7Tracker.P5_START.matcher(raw).matches()) {

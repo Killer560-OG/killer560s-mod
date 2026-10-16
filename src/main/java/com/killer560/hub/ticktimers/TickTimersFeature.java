@@ -150,8 +150,7 @@ public final class TickTimersFeature {
         // un-stripped string - DungeonState's own BOSS_START_PATTERN fix already confirmed real Hypixel
         // boss/sidebar lines embed §-codes mid-word, which silently breaks an exact/regex match unless
         // formatting is stripped first. Every trigger here is real boss dialogue of that exact kind.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.strip(message);
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
         } else if (MAXOR_START_REGEX.matcher(raw).matches()) {

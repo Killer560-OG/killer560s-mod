@@ -715,7 +715,7 @@ public final class SimonSaysFeature {
     // ------------------------------------------------------------------
 
     private static void onChatMessage(Component message) {
-        String raw = message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.raw(message);
         SimonSaysConfig cfg = SimonSaysConfig.getInstance();
 
         if (cfg.isDiagnosticLoggingEnabled() && raw.toLowerCase(Locale.ROOT).contains("simon says")) {

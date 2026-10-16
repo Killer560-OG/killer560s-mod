@@ -143,7 +143,7 @@ public final class TerminalTimersFeature {
     }
 
     private static void onChatLine(Component message) {
-        String plain = net.minecraft.ChatFormatting.stripFormatting(message.getString());
+        String plain = ChatObserver.strip(message);
         if (plain == null) {
             return;
         }

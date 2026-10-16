@@ -234,7 +234,7 @@ public final class ExperimentsProfitTracker {
             return;
         }
         try {
-            String text = message.getString();
+            String text = com.killer560.hub.util.ChatObserver.raw(message);
             long now = System.currentTimeMillis();
             if (chatWindowGame != null && now <= chatWindowEndsAtMs) {
                 Matcher line = REWARD_LINE.matcher(text);

@@ -69,7 +69,7 @@ public final class DungeonKeys {
     }
 
     public static void register() {
-        ChatObserver.subscribe(m -> onChat(m.getString()));
+        ChatObserver.subscribe(m -> onChat(ChatObserver.raw(m)));
     }
 
     static void onChat(String raw) {

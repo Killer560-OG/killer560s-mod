@@ -106,7 +106,7 @@ public final class WitherDoorsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
-                onChat(message.getString());
+                onChat(com.killer560.hub.util.ChatObserver.raw(message));
             }
         });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDoorsFeature::onWorldRender);

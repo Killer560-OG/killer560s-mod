@@ -29,7 +29,7 @@ public final class MagicFindTracker {
         // ChatObserver, not Fabric CHAT/GAME: drop lines are exactly the kind other mods cancel via ALLOW_GAME
         // and re-add (rewritten) straight to ChatComponent, which Fabric listeners never see. This mod never
         // prints a "(N% ... Magic Find)" line itself, so its own client messages can't match.
-        ChatObserver.subscribe(message -> onMessage(message.getString()));
+        ChatObserver.subscribe(message -> onMessage(ChatObserver.raw(message)));
     }
 
     /** A line someone typed: optional channel prefix, optional rank, a name, then ": ". Drop lines never have one. */

@@ -232,7 +232,7 @@ public final class PlayerStatsFeature {
         if (!overlay || !PlayerStatsConfig.getInstance().isEnabled()) {
             return message;
         }
-        String raw = message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.raw(message);
 
         Matcher healthMatch = HEALTH_REGEX.matcher(raw);
         boolean healthHit = healthMatch.find();

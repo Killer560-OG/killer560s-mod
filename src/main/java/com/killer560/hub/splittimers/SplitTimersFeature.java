@@ -227,8 +227,7 @@ public final class SplitTimersFeature {
             return;
         }
         // Stripped: real Hypixel lines can embed §-codes mid-word.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        onLine(plain != null ? plain : message.getString(), System.currentTimeMillis());
+        onLine(ChatObserver.strip(message), System.currentTimeMillis());
     }
 
     /** One chat line at {@code now}. Package-private so the testkit can drive a run with exact times. */
