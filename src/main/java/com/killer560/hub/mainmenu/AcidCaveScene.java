@@ -155,6 +155,12 @@ final class AcidCaveScene {
     // ---- drawing --------------------------------------------------------------------------------------------------
 
     static void draw(GuiRects r, int w, int h, double t, int accent, int panel, float density) {
+        draw(r, w, h, t, accent, panel, density, false);
+    }
+
+    /** The cave; with {@code boss} the slime boss rises from the lake and the character stands close up on the left
+     *  ({@link SlimeBossScene}) in place of the ledge and the fight. */
+    static void draw(GuiRects r, int w, int h, double t, int accent, int panel, float density, boolean boss) {
         if (w != builtW || h != builtH) {
             layout(w, h);
         }
@@ -190,6 +196,9 @@ final class AcidCaveScene {
 
         waterfall(r, w, h, t, acid, hot, density);
         lake(r, w, h, t, acid, hot, density);
+        if (boss) {
+            SlimeBossScene.boss(r, w, h, acid, hot, lakeY, s);
+        }
 
         // ---- green fog over the lake and up the sides
         for (int k = 0; k < 3; k++) {
@@ -226,7 +235,7 @@ final class AcidCaveScene {
 
         // ---- the ledge and the fight
         int lip = MenuStyle.alpha(hot, 0x60);
-        for (int i = 0; i < steps; i++) {
+        for (int i = 0; i < (boss ? 0 : steps); i++) {
             fill(r, stepX0[i], stepTop[i], stepX1[i], h, rockNear);
             fill(r, stepX0[i], stepTop[i], stepX1[i], stepTop[i] + px, lip);
         }
@@ -238,7 +247,11 @@ final class AcidCaveScene {
             fill(r, x0, top, x0 + Math.round(18 * s), h, rockNear);
             fill(r, x0, top, x0 + Math.round(18 * s), top + px, lip);
         }
-        fight(r, w, t, acid, hot);
+        if (boss) {
+            SlimeBossScene.character(r, w, h, hot, s);
+        } else {
+            fight(r, w, t, acid, hot);
+        }
 
         // ---- the green tint over everything
         r.fill(0, 0, w, h, MenuStyle.alpha(acid, 0x0A));

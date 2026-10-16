@@ -31,14 +31,17 @@ public final class MainMenuScenes {
      *  forest?"): FOREST is {@link MainMenuFireflies} (layered trees, canopy, undergrowth, light shafts); SIMPLE is
      *  {@link MainMenuFirefliesSimple}, the first lighter scene; ACID is {@link AcidCaveScene}, the designer's acid cave
      *  (2026-10-15: "an acid looking cave with an acid lake and waterfall ... a silhouette of my character fighting a big
-     *  green slime"), the default. FOREST and SIMPLE stay selectable here. */
-    public enum GreenScene { FOREST, SIMPLE, ACID }
+     *  green slime"); BOSS is {@link SlimeBossScene}, the designer's second idea (2026-10-15: "the hollow knight is just the
+     *  silhouette of a minecraft looking character, and the radiance is the slime boss ... the only animation being the
+     *  screen swaying a little side to side"), the default. FOREST, SIMPLE and ACID stay selectable here. */
+    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS }
 
-    public static final GreenScene GREEN_SCENE = GreenScene.ACID;
+    public static final GreenScene GREEN_SCENE = GreenScene.BOSS;
 
     private static GreenScene greenScene = GREEN_SCENE;
 
-    /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"});
+    /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"},
+     *  {@code "BOSS"});
      *  null or empty goes back to the constant's choice. */
     public static void setGreenSceneForTest(String name) {
         greenScene = name == null || name.isEmpty() ? GREEN_SCENE : GreenScene.valueOf(name);
@@ -109,14 +112,16 @@ public final class MainMenuScenes {
                 switch (greenScene) {
                     case SIMPLE -> MainMenuFirefliesSimple.draw(r, w, h, t, accent, panel, text, look.density());
                     case FOREST -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
-                    default -> AcidCaveScene.draw(r, w, h, t, accent, panel, look.density());
+                    case ACID -> AcidCaveScene.draw(r, w, h, t, accent, panel, look.density());
+                    default -> SlimeBossScene.draw(r, w, h, t, accent, panel, look.density());
                 }
             }
             case SOFT_LIGHT -> softLight(r, w, h, t, accent, panel, light, look.density());
             default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 9);
         }
-        // The acid cave frames itself with its walls, and its lake is the light source: the vignette would put it out.
-        if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES || greenScene != GreenScene.ACID) {
+        // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
+        if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
+                || (greenScene != GreenScene.ACID && greenScene != GreenScene.BOSS)) {
             vignette(r, w, h, light);
         }
         r.submit();
