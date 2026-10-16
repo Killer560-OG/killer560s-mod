@@ -310,6 +310,7 @@ final class RewardChest {
         finished = true;
         Minecraft client = Minecraft.getInstance();
         camera.release(client.player);
+        AutoPuzzleActivity.ended();
         LOGGER.info("[AutoPuzzles] {}: reward chest step over - {}", tag, why);
     }
 

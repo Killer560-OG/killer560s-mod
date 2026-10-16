@@ -58,6 +58,16 @@ public final class AutoPuzzleActivity {
         markLag = com.killer560.hub.util.ServerLag.mark();
     }
 
+    /**
+     * The auto's last step is over (its reward chest claimed): the working spell ends now, not {@link #GRACE_TICKS}
+     * later - the grace is for gaps INSIDE a run, and after the last step it only held Autopilot, Auto Secret and Auto
+     * Routes for two seconds of nothing (killer560's rule: no fixed waits). Anything that marks again afterwards starts
+     * a new spell.
+     */
+    static void ended() {
+        lastMark = Integer.MIN_VALUE / 2;
+    }
+
     /** True while an auto puzzle marked itself within the last {@link #GRACE_TICKS} ticks. */
     public static boolean isWorking() {
         return ticks - lastMark <= GRACE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(markLag);
