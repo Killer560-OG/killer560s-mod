@@ -943,8 +943,14 @@ public final class SimFloorLayout {
 
         /**
          * Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall - only
-         * where the cut lands on floor he can walk (RoomDoors.carvable). {@link #carveOnce(boolean)} with false is
+         * where the cut lands on floor he can walk (RoomDoors.carvable), and of every such wall on the floor the one
+         * with the least wall behind its plane ({@link RoomDoors#carveCost}). {@link #carveOnce(boolean)} with false is
          * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did.
+         *
+         * <p>Thinnest first because every carve is a doorway Hypixel does not have, and a thick one is a tunnel through
+         * a decorated wall: Quad Lava's east wall is three thick behind a red terracotta panel, and the first walkable
+         * wall in cell order went through it (testkit 1446, 2026-10-15). Taking the first in cell order made about
+         * four carves in five (1,302 of 1,658 over a 2,240-floor sweep) cut more than a one-thick wall.
          */
         boolean carveOnce() {
             return carveOnce(true);
@@ -954,6 +960,11 @@ public final class SimFloorLayout {
         int carvedBlind;
 
         boolean carveOnce(boolean checked) {
+            int bestCost = Integer.MAX_VALUE;
+            int bestCell = -1;
+            int bestTry = -1;
+            Candidate bestRoom = null;
+            int bestRotation = -1;
             for (int cell = 0; cell < GRID * GRID; cell++) {
                 if (occupied[cell] >= 0 || !insideCell(cell)) {
                     continue;
@@ -970,44 +981,68 @@ public final class SimFloorLayout {
                         // attaches to (testkit 1446's Entrance W0 control, 1 floor in 30, 2026-10-15).
                         continue;
                     }
-                    if (checked && !carvableFrom(nb, cx, cz, side)) {
+                    // The green room stays a last resort: its walls only once no other room's will do (tryNo >= 4).
+                    int cost = checked ? carveCostFrom(nb, cx, cz, side) : 0;
+                    if (cost < 0) {
                         continue;   // the cut would open onto a wall, a platform or a drop - RoomDoors.carvable
+                    }
+                    cost += tryNo < 4 ? 0 : 1000;
+                    if (cost >= bestCost) {
+                        continue;
                     }
                     for (Candidate c : order) {
                         if (c.area(0) != 1 || !available(c) || forbiddenPair(c.type(), nb.type())) {
                             continue;
                         }
-                        for (int r = 0; r < 4; r++) {
+                        int found = -1;
+                        for (int r = 0; r < 4 && found < 0; r++) {
                             if (c.byRotation()[r].edges().contains(RoomDoors.edge(side, 0))) {
-                                commitFill(c, r, cx, cz, side);
-                                carvedNotes.add(c.name() + " at " + cx + "," + cz + " through " + nb.name()
-                                        + (checked ? "" : " (NOT a walkable cut - nothing else fitted)"));
-                                carvedBlind += checked ? 0 : 1;
-                                return true;
+                                found = r;
                             }
                         }
+                        if (found >= 0) {
+                            bestCost = cost;
+                            bestCell = cell;
+                            bestTry = tryNo;
+                            bestRoom = c;
+                            bestRotation = found;
+                            break;
+                        }
+                    }
+                    if (!checked && bestRoom != null) {
+                        break;   // the blind carve keeps its old order: the first that fits
                     }
                 }
+                if ((!checked || bestCost == 0) && bestRoom != null) {
+                    break;   // nothing beats a wall the cut comes straight through
+                }
             }
-            return false;
+            if (bestRoom == null) {
+                return false;
+            }
+            int cx = bestCell % GRID;
+            int cz = bestCell / GRID;
+            int side = bestTry % 4;
+            Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
+            commitFill(bestRoom, bestRotation, cx, cz, side);
+            carvedNotes.add(bestRoom.name() + " at " + cx + "," + cz + " through " + nb.name()
+                    + (checked ? (bestCost % 1000 == 0 ? "" : " (" + bestCost % 1000 + " blocks behind its wall)")
+                    : " (NOT a walkable cut - nothing else fitted)"));
+            carvedBlind += checked ? 0 : 1;
+            return true;
         }
 
         /**
-         * Whether a door carved from the empty cell {@code (cx, cz)} into its neighbour {@code nb} on {@code side}
-         * lands somewhere he can walk in and back out of: {@link RoomDoors#carvable} at nb's placed rotation, on
-         * the wall facing the empty cell. A room it cannot measure is refused.
+         * {@link RoomDoors#carveCost} of the cut from the empty cell {@code (cx, cz)} into its neighbour {@code nb} on
+         * {@code side}, at nb's placed rotation, on the wall facing the empty cell; -1 when it does not land somewhere
+         * he can walk in and back out of, or nb cannot be measured.
          */
-        private boolean carvableFrom(Placement nb, int cx, int cz, int side) {
-            RoomDoors.Mask m = RoomDoors.carvable(nb.name());
-            if (m == null) {
-                return false;
-            }
-            m = RoomDoors.rotate(m, nb.rotation());
+        private int carveCostFrom(Placement nb, int cx, int cz, int side) {
             int wall = (side + 2) % 4;
             int nx = cx + RoomDoors.DX[side];
             int nz = cz + RoomDoors.DZ[side];
             int index = wall == RoomDoors.NORTH || wall == RoomDoors.SOUTH ? nx - nb.originX() : nz - nb.originZ();
-            return m.has(wall, index);
+            return RoomDoors.carveCost(nb.name(), nb.rotation(), nb.cellsX(), nb.cellsZ(), wall, index);
         }
 
         private void commitFill(Candidate c, int r, int ox, int oz, int forcedSide) {

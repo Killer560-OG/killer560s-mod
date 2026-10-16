@@ -39,6 +39,11 @@ import java.util.TreeMap;
  * -Dpinroom=Quiz -Dpincell=14 pins that room at that cell (cellZ * 6 + cellX) on every floor, as the Map Designer
  * does, and -Ddumpdrop=N prints the first N floors that dropped it. "floors that dropped the fixed pin" counts
  * floors whose generate() left a pin (-Dpin or -Dpinroom) off.
+ *
+ * <p>The sweep also counts doors on an edge a room does not measure as a doorway (the fill pass's carves) by wall: thin
+ * (at most 2 solid blocks behind the wall plane, RoomDoors.carveCost), THICK (a walkable tunnel) or BLIND, and the
+ * blocks they tunnel; -Doffdoor=true lists them per room edge. -Dcarvestats=true [-Dverbose=true] instead prints how many
+ * walkable carve edges the library has (per room with verbose).
  */
 public final class LayoutSim {
 
@@ -118,6 +123,23 @@ public final class LayoutSim {
             System.out.println("keepshapes " + keep + ": " + rooms.size() + " of " + before + " rooms kept");
         }
         boolean noRecency = Boolean.getBoolean("norecency");
+        if (Boolean.getBoolean("carvestats")) {
+            int total = 0;
+            for (String n : rooms.keySet()) {
+                com.killer560.hub.roomsim.RoomDoors.Mask c = com.killer560.hub.roomsim.RoomDoors.carvable(n);
+                total += c == null ? 0 : c.edges().size();
+                if (Boolean.getBoolean("verbose") && c != null) {
+                    StringBuilder b = new StringBuilder();
+                    for (int e : c.edges()) {
+                        b.append("NESW".charAt(com.killer560.hub.roomsim.RoomDoors.sideOf(e)))
+                                .append(com.killer560.hub.roomsim.RoomDoors.indexOf(e)).append(' ');
+                    }
+                    System.out.println("  " + n + ": " + b);
+                }
+            }
+            System.out.println("carvable edges over " + rooms.size() + " rooms: " + total);
+            return;
+        }
         if (Boolean.getBoolean("sweep")) {
             sweep(rooms, floors, noRecency);
             return;
@@ -212,7 +234,13 @@ public final class LayoutSim {
     private static final String[] FAILS = {"path length != slider", "fairy not on path", "wither doors != path",
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
             "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
-            "trap with != 2 doors (info)", "room outside floor rectangle"};
+            "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)"};
+
+    /** -Doffdoor=true: room:capture-frame edge (and whether RoomDoors.carvable has it) -> floors, for doors off a doorway. */
+    private static final Map<String, Integer> OFF_DOORWAY = new TreeMap<>();
+    private static final Map<String, Integer> OFF_KIND = new TreeMap<>();
+    /** Solid blocks behind the wall plane, summed over every walkable off-doorway door: what the carves tunnel. */
+    private static final long[] OFF_BEHIND = new long[1];
 
     private static void sweep(Map<String, RoomLibrary.Room> rooms, int perCombo, boolean noRecency)
             throws Exception {
@@ -384,6 +412,13 @@ public final class LayoutSim {
         System.out.println("puzzles placed minus slider -> floors: " + PUZZLE_DIFF);
         System.out.println("puzzle rooms with != 1 door (name:doors -> count): " + PUZZLE_DOORS);
         System.out.println("trap rooms by door count when != 2 (doors -> count): " + TRAP_DOORS);
+        System.out.println("doors off a measured doorway by wall (thin = one-thick wall he can walk, THICK = a "
+                + "walkable tunnel, BLIND = not walkable): " + OFF_KIND + "; solid blocks tunnelled behind wall planes: "
+                + OFF_BEHIND[0]);
+        if (Boolean.getBoolean("offdoor")) {
+            System.out.println("doors off a measured doorway (room edge -> doors):");
+            OFF_DOORWAY.forEach((k, v) -> System.out.println("  " + v + "  " + k));
+        }
         System.out.printf("variety: consecutive F7s share %.1f rooms; %d distinct rooms used of %d%n",
                 pairs > 0 ? (double) shared / pairs : 0.0, distinct.size(), rooms.size());
     }
@@ -466,6 +501,8 @@ public final class LayoutSim {
             cellDoor[between] = a == blood || b == blood ? 3 : a == entrance || b == entrance ? 4 : 1;
             adj.get(a).add(new int[]{b, between});
             adj.get(b).add(new int[]{a, between});
+            bad[14] |= offDoorway(f.rooms().get(a), l.aX(), l.aZ(), l.bX() - l.aX(), l.bZ() - l.aZ());
+            bad[14] |= offDoorway(f.rooms().get(b), l.bX(), l.bZ(), l.aX() - l.bX(), l.aZ() - l.bZ());
         }
         int[] from = new int[f.rooms().size()];
         int[] via = new int[f.rooms().size()];
@@ -527,6 +564,39 @@ public final class LayoutSim {
         boolean[] wither = com.killer560.hub.roomsim.SimWitherDoors.compute(cellRoom, cellDoor, names);
         bad[2] = !java.util.Arrays.equals(wither, expectWither);
         return bad;
+    }
+
+    /**
+     * Whether the door from {@code p}'s cell (x, z) towards (dx, dz) is on an edge RoomDoors.of does not measure as a
+     * doorway; recorded in {@link #OFF_DOORWAY} by the capture-frame edge (N/E/S/W + tile index).
+     */
+    private static boolean offDoorway(SimFloorLayout.Placement p, int x, int z, int dx, int dz) {
+        int side = dz < 0 ? 0 : dx > 0 ? 1 : dz > 0 ? 2 : 3;
+        int index = side == 0 || side == 2 ? x - p.originX() : z - p.originZ();
+        com.killer560.hub.roomsim.RoomDoors.Mask m = com.killer560.hub.roomsim.RoomDoors.of(p.name());
+        if (m == null) {
+            return false;
+        }
+        com.killer560.hub.roomsim.RoomDoors.Mask turned = com.killer560.hub.roomsim.RoomDoors.rotate(m, p.rotation());
+        if (turned.has(side, index)) {
+            return false;
+        }
+        com.killer560.hub.roomsim.RoomDoors.Mask one = new com.killer560.hub.roomsim.RoomDoors.Mask(p.cellsX(),
+                p.cellsZ(), java.util.Set.of(com.killer560.hub.roomsim.RoomDoors.edge(side, index)));
+        com.killer560.hub.roomsim.RoomDoors.Mask back = com.killer560.hub.roomsim.RoomDoors.rotate(one,
+                (360 - p.rotation()) % 360);
+        int e = back.edges().iterator().next();
+        Map<Integer, Integer> costs = com.killer560.hub.roomsim.RoomDoors.carveCost(p.name());
+        Integer cost = costs == null ? null : costs.get(e);
+        String kind = cost == null ? "BLIND" : cost <= 2 ? "thin" : "THICK";
+        OFF_KIND.merge(kind, 1, Integer::sum);
+        if (cost != null) {
+            OFF_BEHIND[0] += cost;
+        }
+        String key = p.name() + " " + "NESW".charAt(com.killer560.hub.roomsim.RoomDoors.sideOf(e))
+                + com.killer560.hub.roomsim.RoomDoors.indexOf(e) + " " + kind;
+        OFF_DOORWAY.merge(key, 1, Integer::sum);
+        return true;
     }
 
     /** What is wrong with a floor's structure, or null. */

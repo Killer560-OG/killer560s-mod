@@ -22,9 +22,9 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Auto Tic Tac Toe - port of QUOI {@code TicTacToeSolver.kt}'s {@code auto}: whenever the solver has a best move and
- * it is within reach (eye distance squared &lt;= 30), interact that board cell, at most every 500ms. QUOI re-clicks
- * every 500ms until the board changes; this caps it at 3 attempts per move (safety addition) and never clicks while
- * sneaking or with a screen open.
+ * it is within reach (eye distance squared &lt;= 30), interact that board cell. QUOI re-clicks every 500ms until the
+ * board changes; this caps it at 3 attempts per move (safety addition) and never clicks while sneaking or with a screen
+ * open. Since 2026-10-15 only a RETRY of the same square waits those 500 ms: a new move goes the tick it is read.
  * <p>
  * killer560, 2026-09-27: "have it pathfind to the room, have it aura the first click for the puzzle, then walk
  * towards that chest and get close enough to aura it as an option as well. Same secret concept. Then have it walk
@@ -84,12 +84,13 @@ final class AutoTicTacToe {
 
     private static BlockPos attemptPos = null;
     private static int attempts = 0;
+    /** The solver's move as last seen, and the square last clicked: a click on the same square again is a retry. */
+    private static BlockPos seenBest = null;
+    private static BlockPos lastClickedPos = null;
     private static long lastClickMs = 0L;
     private static boolean wasInRoom = false;
     private static boolean roomSpotAttempted = false;
     private static int totalPlaced = 0;
-    /** The placement count when the current attempt streak began - see the reset below. */
-    private static int attemptPlacedCount = -1;
     /** One attempt per room visit, so a board that reads as finished for many ticks queues a single walk. */
     private static boolean walkOutAttempted = false;
 
@@ -127,14 +128,25 @@ final class AutoTicTacToe {
             AutoPuzzleActivity.note("Tic Tac Toe");
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        CAMERA.keep(client.player);
         if (WARP.isActive()) {
-            CAMERA.keep(client.player);
             WARP.tick(client);
             if (WARP.isActive()) {
                 AutoPuzzleActivity.note("Tic Tac Toe");
                 return;
             }
-            CAMERA.release(client.player);
+            // Landed this tick. Onto the board spot with a move to make: the body turns onto it now, under the camera, and
+            // the click goes next tick (the landing's sneak is let go in this one) - no turn tick of the click's own, no
+            // 2-tick landing wait. Anywhere else (by the secret, where Secret Aura clicks with its own turn) the camera
+            // goes back now, as before: a hold of ours would read to the aura's turn as somebody else turning him.
+            boolean onBoard = chestStage == ChestStage.NONE || chestStage == ChestStage.DONE
+                    || chestStage == ChestStage.WALK_BACK;
+            if (onBoard && best != null && com.killer560.hub.util.BlockHits.boxDistanceSq(new Vec3(client.player.getX(),
+                    client.player.getY() + AutoPuzzleUtil.EYE_STANDING, client.player.getZ()), best) <= REACH_SQ) {
+                AutoPuzzleUtil.aimBodyAt(client.player, best, CAMERA);
+            } else {
+                CAMERA.release(client.player);
+            }
         }
         if (!roomSpotAttempted && cr != null && McCompat.screen(client) == null && !ClearExecutor.isBusy()) {
             // RIGHT IN FRONT OF THE BOARD (killer560, 2026-10-15: "It should just etherwarp right infront of the board
@@ -217,7 +229,18 @@ final class AutoTicTacToe {
             }
             return;
         }
-        if (now - lastClickMs < CLICK_GAP_MS && !approaching) {
+        if (!java.util.Objects.equals(best, seenBest)) {
+            // A new move (the computer replied, or a new round): a fresh problem - no retry gap, a fresh set of attempts.
+            seenBest = best;
+            lastClickedPos = null;
+            attemptPos = best;
+            attempts = 0;
+        }
+        // CLICK_GAP_MS paces a RETRY of the same square only (QUOI re-clicks every 500 ms until the board changes). A new
+        // move goes the tick it is read: main held every move 500 ms after the last click, which on Hypixel (a reply a
+        // second or two later) was mostly hidden and in the sim (a reply 5 ticks later) never was.
+        boolean retry = best.equals(lastClickedPos);
+        if (retry && now - lastClickMs < CLICK_GAP_MS && !approaching) {
             return;
         }
         // To the BOX, matching the limit - see the note in AutoWater.
@@ -233,19 +256,12 @@ final class AutoTicTacToe {
         if (approaching) {
             stopApproach(client, "the move at " + AutoPuzzleUtil.fmt(best) + " is in reach");
         }
-        if (now - lastClickMs < CLICK_GAP_MS) {
+        if (retry && now - lastClickMs < CLICK_GAP_MS) {
             return;
         }
-        // Reset on a new ROUND as well as a new cell.
-        //
-        // attempts only reset when the target cell changed, so if a later round's first move happened to be
-        // the same cell that had already used up its three attempts, the auto never clicked again. The board
-        // state moving on is the signal that this is a different problem, not a retry of the old one.
-        if (!best.equals(attemptPos) || totalPlaced != attemptPlacedCount) {
-            attemptPos = best;
-            attemptPlacedCount = totalPlaced;
-            attempts = 0;
-        }
+        // Attempts reset on a new ROUND as well as a new cell: the move changing at all (above, through "no move" while
+        // the computer replies) is the signal that this is a different problem, not a retry of the old one. It used to
+        // compare totalPlaced, which every click moves, so a retry always looked new and MAX_ATTEMPTS never applied.
         if (attempts >= MAX_ATTEMPTS) {
             waitFor("used all " + MAX_ATTEMPTS + " clicks on " + AutoPuzzleUtil.fmt(best) + " and the board did not change");
             return;
@@ -255,6 +271,7 @@ final class AutoTicTacToe {
         }
         attempts++;
         lastClickMs = now;
+        lastClickedPos = best;
         if (!AutoPuzzleUtil.interactBlock(client, best)) {
             LOGGER.warn("[AutoPuzzles] TicTacToe: no clickable shape at {} (state={})", best, client.level.getBlockState(best));
             attempts = MAX_ATTEMPTS;
@@ -267,6 +284,12 @@ final class AutoTicTacToe {
         if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
             advanceChest(ChestStage.WALK_TO_CHEST, "first move placed");
             chestAuraAttempts = 0;
+            // In this same tick: the warp toward the secret turns him and puts sneak down now, after the click, and its use
+            // goes next tick (the click's own tick reports the new look, so the use is not read as the click's tail).
+            tickChest(client, player, cr);
+        }
+        if (!WARP.isActive()) {
+            CAMERA.release(player); // a body readied for this click under the camera goes back under his view
         }
     }
 
@@ -627,6 +650,7 @@ final class AutoTicTacToe {
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: got the "), ModChat.good("secret"),
                     ModChat.text("."));
             advanceChest(ChestStage.WALK_BACK, "the chest is open");
+            tickChest(client, player, LiveMapFeature.currentRoomClayAndRotation()); // the warp back starts this tick
             return;
         }
         double dist = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal));
@@ -663,6 +687,8 @@ final class AutoTicTacToe {
         approachTries = 0;
         attemptPos = null;
         attempts = 0;
+        seenBest = null;
+        lastClickedPos = null;
         lastClickMs = 0L;
         roomSpotAttempted = false;
         totalPlaced = 0;

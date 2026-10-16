@@ -198,11 +198,24 @@ public final class AutoPuzzleUtil {
         return new Vec3(player.getX(), player.getY() + h, player.getZ());
     }
 
-    /** QUOI {@code player.at(pos)}: {@code BlockPos(x, ceil(y - 1), z) == pos}. */
+    /**
+     * QUOI {@code player.at(pos)}: {@code BlockPos(x, ceil(y - 1), z) == pos} - or hovering up to {@link #LANDING_HOVER}
+     * over its top. An etherwarp lands him 0.05 over the block and gravity sets him down the tick after; QUOI's test read
+     * that landing tick as "not there yet", so every reposition saw its arrival a tick late (93-solve-*-timing,
+     * 2026-10-15: landing to the sneak let go 2 ticks on main).
+     */
     public static boolean at(LocalPlayer player, BlockPos pos) {
         BlockPos floor = new BlockPos(Mth.floor(player.getX()), (int) Math.floor(Math.ceil(player.getY() - 1.0)), Mth.floor(player.getZ()));
-        return floor.equals(pos);
+        if (floor.equals(pos)) {
+            return true;
+        }
+        double over = player.getY() - (pos.getY() + 1.0);
+        return over >= 0.0 && over < LANDING_HOVER && Mth.floor(player.getX()) == pos.getX()
+                && Mth.floor(player.getZ()) == pos.getZ();
     }
+
+    /** How far over a block's top an etherwarp landing leaves him for its first tick (0.05), with a hair to spare. */
+    private static final double LANDING_HOVER = 0.08;
 
     /** QUOI {@code isMoving}. */
     public static boolean isMoving(LocalPlayer player) {
@@ -537,8 +550,12 @@ public final class AutoPuzzleUtil {
         } else {
             com.killer560.hub.livemap.autoclear.ClearExecutor.etherPath(target, onArrive);
         }
+        mapTripOurs = true;
         return true;
     }
+
+    /** True from a puzzle auto's own Interactive Map trip ({@link #pathIfMapOn}) until it is over. */
+    private static boolean mapTripOurs = false;
 
     // ------------------------------------------------------------------ chest secrets (killer560, 2026-09-27)
 
@@ -801,11 +818,22 @@ public final class AutoPuzzleUtil {
     }
 
     /** The body turn for a puzzle click the reported look does not reach (util/TurnFirst); the camera never moves. */
-    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst(() -> { },
+            FreeCam::anyEngaged);
 
     /** Every puzzle tick, FIRST, whatever the gates: holds a turned body for its click and gives it back after. */
     static void turnTick(Minecraft client) {
         TURN.tick(client.player);
+        if (mapTripOurs) {
+            // A trip a puzzle auto asked the Interactive Map for lands him where the auto wanted him: its landings are the
+            // auto's own, so the gate's 6-tick teleport settle must not hold the auto's next shot or warp (Lower Blaze's
+            // far-spot walks, 93-solve-lowerblaze-timing 2026-10-15: every warp 6 ticks after the map's landing). Renewed
+            // every tick of the trip and once more on its last, so the waiver outlasts the settle the landing starts.
+            com.killer560.hub.util.ActionGate.expectSelfTeleport(ActionGate.Actor.PUZZLE_WORLD, ActionGate.TELEPORT_SETTLE_TICKS);
+            if (!com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                mapTripOurs = false;
+            }
+        }
     }
 
     /**
@@ -824,6 +852,70 @@ public final class AutoPuzzleUtil {
         BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, client.player.getEyePosition());
         return aim == null || TURN.readyBlock(client.player, client.level, pos, aim.getLocation(),
                 client.player.getEyePosition().distanceTo(aim.getLocation()) + 1.0);
+    }
+
+    /**
+     * Whether the look the server was last told (the BODY's, never the held camera's) meets {@code pos} within reach from
+     * where he stands: a click now is one the reported look makes, so {@link #gateWorldClick(Minecraft, BlockPos)} lets it
+     * straight through. The same test as {@code TurnFirst.readyBlock}, from his standing eye (a landing leaves him crouched
+     * for the one tick the release of sneak takes; the click goes once he stands).
+     */
+    public static boolean aimedAt(LocalPlayer player, BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || pos == null) {
+            return true;
+        }
+        Vec3 eye = settledEye(player);
+        BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, eye);
+        if (aim == null) {
+            return true; // nothing to aim at; the click's own null handling decides
+        }
+        double reach = eye.distanceTo(aim.getLocation()) + 1.0;
+        VoxelShape shape = client.level.getBlockState(pos).getShape(client.level, pos);
+        Vec3 end = eye.add(com.killer560.hub.util.TurnFirst.look(player).scale(reach));
+        return shape.isEmpty() ? new net.minecraft.world.phys.AABB(pos).clip(eye, end).isPresent()
+                : shape.clip(eye, end, pos) != null;
+    }
+
+    /**
+     * Turns the BODY onto {@code pos} from his standing eye, under {@code camera} (engaged here if it is not), so the next
+     * movement packet reports the look and the click on it can go the very next tick with no turn tick of its own - the
+     * way Auto Water readies its next lever (water-late-1015). Nothing is sent. No-op when he already looks at it.
+     * {@code camera} is only taken when no puzzle camera is held already.
+     * @return true when the body was turned
+     */
+    static boolean aimBodyAt(LocalPlayer player, BlockPos pos, FreeCam camera) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || pos == null || aimedAt(player, pos)) {
+            return false;
+        }
+        Vec3 eye = settledEye(player);
+        BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, eye);
+        if (aim == null) {
+            return false;
+        }
+        if (!FreeCam.anyEngaged()) {
+            // Under another puzzle camera already (Water Board's chest under Auto Water's), that one keeps the view and
+            // hands the body back; a second engaged here would let go of it on its own release and jump the view.
+            camera.engage(player);
+        }
+        float[] dir = direction(eye, aim.getLocation());
+        rotateCamera(player, dir[0], dir[1]);
+        return true;
+    }
+
+    /**
+     * His STANDING eye where he will be next tick: on an etherwarp's landing tick he hovers up to {@link #LANDING_HOVER}
+     * over the block and gravity sets him on it the tick after, so a look aimed from the hovering eye can pass a small
+     * target's edge by from the settled one, and the click's own check (from the settled eye) turns him again.
+     */
+    private static Vec3 settledEye(LocalPlayer player) {
+        double feet = player.getY();
+        double top = Math.floor(feet);
+        if (!player.onGround() && feet - top < LANDING_HOVER) {
+            feet = top;
+        }
+        return new Vec3(player.getX(), feet + EYE_STANDING, player.getZ());
     }
 
     /** The same for an entity (a Three Weirdos NPC): an interact the reported look misses draws GrimAC Hitboxes. */

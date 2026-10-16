@@ -207,6 +207,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   ended in "could not open your inventory" (traced in the code for killer560's "it says cannot open inventory", not
   reproduced on the old jar; fixed 2026-10-08). Open from
   `client.execute(...)` (as every other command here does) or from the next tick once no screen is up.
+  `client.execute` only defers because the real chat Enter is itself a `Minecraft.execute` task (KeyboardHandler wraps
+  GLFW's key callback in one; a nested execute is queued while a task runs). The testkit's `TestInput.pressKey` is not a
+  task, so there the execute ran at once and /killer560 never opened the menu in the 1900 video; it opens in the game
+  and through testkit 1920's real-key path (2026-10-15).
 
 - **A setting that resizes the menu it sits in must not relayout mid-drag.** HUD Scale sizes the mod's screens since
   2026-10-08 (`AutoScale.menuFactor`); `AutoScaleScreenMixin` relays a screen out when its factor changes, which rebuilds
