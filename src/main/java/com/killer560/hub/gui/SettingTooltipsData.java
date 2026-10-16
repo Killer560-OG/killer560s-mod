@@ -922,7 +922,7 @@ final class SettingTooltipsData {
         d.put("auto quiz", "Clicks the correct answer in the Quiz room (cheat build only).");
         d.put("quiz click delay", "Delay before Auto Quiz clicks the answer, 0-2000 ms.");
         d.put("auto three weirdos", "Opens the correct Three Weirdos chest for you (cheat build only).");
-        d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms.");
+        d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms. Default 0: the chest is clicked the tick it is known and in reach.");
         d.put("talk to npcs", "Also right-clicks the three Weirdo NPCs so they speak.");
         d.put("secret aura", "Clicks nearby dungeon secrets for you (cheat build only).");
         d.put("in boss", "Levers in the boss fight (F7/M7 P3). Turns on the S2 Section Levers options below, and with Secret Aura on lets it click the other P3 levers too. Works with Secret Aura off. The Lights device is its own Lights Device tab (cheat build only).");
