@@ -36,7 +36,7 @@ public final class ScreenChrome {
             r.fill(x - i, y - i + 4, x + w + i, y + h + i + 4, MenuStyle.shadow(a / 2));
         }
         r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.FRAME_RING);
-        MenuStyle.bevel(r, x, y, w, h, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        MenuStyle.panel(r, x, y, w, h);
         r.fill(x + 1, y + 1, x + w - 1, y + 2, MenuStyle.HILITE_SOFT);
         r.submit();
     }
@@ -171,7 +171,7 @@ public final class ScreenChrome {
             r.fill(x - i, y - i, x + w + i, y + h + i, MenuStyle.shadow((0x28 + (2 - i) * 0x18) / 2));
         }
         r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.FRAME_RING);
-        MenuStyle.bevel(r, x, y, w, h, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        MenuStyle.panel(r, x, y, w, h);
         r.fill(x + 1, y + 1, x + w - 1, y + 2, MenuStyle.HILITE_SOFT);
         r.submit();
     }
