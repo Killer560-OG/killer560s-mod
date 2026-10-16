@@ -71,17 +71,10 @@ public final class TitleScreenLooks {
         l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
         l.add(plain(MenuTheme.DARK, "Starfield", "Dark's starfield."));
         l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light."));
-        l.add(green("Designer's Picture", MainMenuScenes.GreenScene.TARGET, GreenTheme.DEFAULT_GRADIENT,
-                "TARGET: the designer's picture, animated (the default), with gradient C."));
-        l.add(green("Slime Boss", MainMenuScenes.GreenScene.BOSS, GreenTheme.DEFAULT_GRADIENT,
-                "BOSS: the drawn slime boss, with gradient C."));
-        l.add(green("Acid Cave", MainMenuScenes.GreenScene.ACID, GreenTheme.DEFAULT_GRADIENT, "ACID: the acid cave."));
-        l.add(green("Forest", MainMenuScenes.GreenScene.FOREST, GreenTheme.DEFAULT_GRADIENT, "FOREST: the layered forest."));
-        l.add(green("Simple", MainMenuScenes.GreenScene.SIMPLE, GreenTheme.DEFAULT_GRADIENT, "SIMPLE: the first fireflies scene."));
-        l.add(green("Gradient A", MainMenuScenes.GreenScene.BOSS, GreenTheme.Gradient.FOREST_NIGHT,
-                "The slime boss with the menu's gradient A (Forest Night). The gradient shows in Mod Settings."));
-        l.add(green("Gradient B", MainMenuScenes.GreenScene.BOSS, GreenTheme.Gradient.MOSS_FLOOR,
-                "The slime boss with the menu's gradient B (Moss Floor). The gradient shows in Mod Settings."));
+        // killer560 (2026-10-16): the designer's picture with droplets is Green's final look - "Remove the other ones from
+        // the title screen gui instance." The other Green scenes stay in code (MainMenuScenes.GreenScene) but not here.
+        l.add(green("Slime Boss", MainMenuScenes.GreenScene.TARGET, GreenTheme.DEFAULT_GRADIENT,
+                "TARGET: the designer's picture, animated, with droplets (Green's final look), gradient C."));
         l.add(plain(MenuTheme.CUSTOM, "Aurora", "Custom's aurora, in the menu's Custom colors."));
         LOOKS = Collections.unmodifiableList(l);
     }
