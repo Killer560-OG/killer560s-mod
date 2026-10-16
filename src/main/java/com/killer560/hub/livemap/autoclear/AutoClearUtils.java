@@ -307,6 +307,58 @@ public final class AutoClearUtils {
     }
 
     /**
+     * The room's recorded standing spot {@link #pathToRoom} goes to (by name, or by tile core), made a full landing (a
+     * block beside it within 3), or null when the room has none or it is not standable - the press then goes to the
+     * whole tile. Client thread. {@code quiet}: no log lines (TripCache resolving goals ahead of any press).
+     */
+    public static BlockPos overrideGoal(DungeonLayout layout, int room, int tileIdx, boolean quiet) {
+        Minecraft client = Minecraft.getInstance();
+        String name = layout.name(room);
+        int[] cr = layout.clayRotation(room);
+        int[] override = ROOM_OVERRIDES.get(name);
+        if (override == null && CORE_OVERRIDES.containsKey(name) && client.level != null) {
+            BlockPos c = DungeonLayout.cellCenter(tileIdx);
+            override = CORE_OVERRIDES.get(name).get(RoomDatabase.getCore(client.level, c.getX(), c.getZ()));
+        }
+        if (override == null || cr == null) {
+            return null;
+        }
+        RoomEntry.Pos rel = new RoomEntry.Pos();
+        rel.x = override[0];
+        rel.y = override[1];
+        rel.z = override[2];
+        // A database y is a HYPIXEL height; the sim shifts the whole floor, so it has to move with it
+        // or the override points at air a hundred blocks above the room.
+        BlockPos goal = RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2]).above(DungeonLayout.simYOffset());
+        // THE OVERRIDE IS A PREFERENCE, NOT A REQUIREMENT. killer560 (2026-10-01): "it doesn't need to go
+        // the exact spot that I click instead it just needs to go to that room [...] It can choose anywhere
+        // in that room whatever is fastest." An override that is not standable - the room's own geometry
+        // differs by a block, or the sim pasted something into that cell - used to fail the whole press
+        // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
+        if (!TeleportUtils.landable(goal) || !TeleportUtils.underCover(goal)) {
+            // A full landing a step or two away keeps the trip where the spot means it to go. Water Board's
+            // (15, 58, 9) is a bottom stone-brick stair (no full top, so not a landing): falling back to the
+            // whole tile landed him up on the doorway at y 69, and Auto Water then needed two more warps down to
+            // the lever floor (killer560's run, 2026-10-15 16:11:39-41; the stair read in testkit
+            // 93-solve-waterboard-timing).
+            BlockPos near = TeleportUtils.nearestEtherwarpable(goal);
+            if (near != null && near.distSqr(goal) <= NEAR_OVERRIDE_SQ) {
+                if (!quiet) {
+                    LOGGER.info("[Path] {}'s recorded spot {} is not a full landing - using {} beside it", name,
+                            goal.toShortString(), near.toShortString());
+                }
+                return near;
+            }
+            if (!quiet) {
+                LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
+                        + " standable block in the clicked tile instead", name, goal);
+            }
+            return null;
+        }
+        return goal;
+    }
+
+    /**
      * QUOI {@code pathToRoom}. Type 0: the room's override spot (by name, or by tile core) when the rotation is known,
      * else the etherwarpable block nearest the tile centre. Type 1 (route start ring) falls back to type 0.
      */
@@ -316,45 +368,7 @@ public final class AutoClearUtils {
         }
         Minecraft client = Minecraft.getInstance();
         String name = layout.name(room);
-        int[] cr = layout.clayRotation(room);
-        int[] override = ROOM_OVERRIDES.get(name);
-        if (override == null && CORE_OVERRIDES.containsKey(name) && client.level != null) {
-            BlockPos c = DungeonLayout.cellCenter(tileIdx);
-            override = CORE_OVERRIDES.get(name).get(RoomDatabase.getCore(client.level, c.getX(), c.getZ()));
-        }
-        BlockPos goal = null;
-        if (override != null && cr != null) {
-            RoomEntry.Pos rel = new RoomEntry.Pos();
-            rel.x = override[0];
-            rel.y = override[1];
-            rel.z = override[2];
-            // A database y is a HYPIXEL height; the sim shifts the whole floor, so it has to move with it
-            // or the override points at air a hundred blocks above the room.
-            goal = RoomDatabase.toRealCoord(rel, cr[0], cr[1], cr[2])
-                    .above(DungeonLayout.simYOffset());
-            // THE OVERRIDE IS A PREFERENCE, NOT A REQUIREMENT. killer560 (2026-10-01): "it doesn't need to go
-            // the exact spot that I click instead it just needs to go to that room [...] It can choose anywhere
-            // in that room whatever is fastest." An override that is not standable - the room's own geometry
-            // differs by a block, or the sim pasted something into that cell - used to fail the whole press
-            // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
-            if (!TeleportUtils.landable(goal) || !TeleportUtils.underCover(goal)) {
-                // A full landing a step or two away keeps the trip where the spot means it to go. Water Board's
-                // (15, 58, 9) is a bottom stone-brick stair (no full top, so not a landing): falling back to the
-                // whole tile landed him up on the doorway at y 69, and Auto Water then needed two more warps down to
-                // the lever floor (killer560's run, 2026-10-15 16:11:39-41; the stair read in testkit
-                // 93-solve-waterboard-timing).
-                BlockPos near = TeleportUtils.nearestEtherwarpable(goal);
-                if (near != null && near.distSqr(goal) <= NEAR_OVERRIDE_SQ) {
-                    LOGGER.info("[Path] {}'s recorded spot {} is not a full landing - using {} beside it", name,
-                            goal.toShortString(), near.toShortString());
-                    goal = near;
-                } else {
-                    LOGGER.info("[Path] {}'s recorded spot {} is not standable - using the nearest"
-                            + " standable block in the clicked tile instead", name, goal);
-                    goal = null;
-                }
-            }
-        }
+        BlockPos goal = overrideGoal(layout, room, tileIdx, false);
         boolean wholeTile = false;
         if (goal == null && client.player != null) {
             // INSIDE THE CLICKED TILE, nearest to him - see TeleportUtils.etherwarpableInTile for why the old

@@ -306,6 +306,9 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         }
         g.blocksChanged((sx << 4) + x0, (sy << 4) + y0, (sz << 4) + z0, (sx << 4) + x1, (sy << 4) + y1,
                 (sz << 4) + z1);
+        // The precomputed trips through that box are dropped, every other one is planned again soon (TripCache).
+        TripCache.blocksChanged((sx << 4) + x0, (sy << 4) + y0, (sz << 4) + z0, (sx << 4) + x1, (sy << 4) + y1,
+                (sz << 4) + z1);
     }
 
     private static byte[] fill(Level level, LevelChunkSection section, int bx, int by, int bz) {
@@ -433,6 +436,8 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
             if (g != null) {
                 g.columnChanged(chunkX, chunkZ);
             }
+            TripCache.blocksChanged(chunkX << 4, Integer.MIN_VALUE / 2, chunkZ << 4, (chunkX << 4) + 15,
+                    Integer.MAX_VALUE / 2, (chunkZ << 4) + 15);
         }
     }
 

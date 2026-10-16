@@ -29,11 +29,99 @@ import java.util.List;
  */
 public final class EtherwarpPathfinder {
 
-    private static final org.slf4j.Logger LOGGER =
-            com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+    /** INFO lines are dropped while the planner thread precomputes trips ({@link #planForCache}): one per search. */
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.mutedWhen(
+            com.killer560.hub.util.ModLog.get("killer560smod-livemap"), EtherwarpPathfinder::precomputing);
 
     private EtherwarpPathfinder() {
     }
+
+    // ------------------------------------------------------------------------------------------- precomputed trips
+
+    /** Set on the planner thread for the length of one {@link #planForCache}. */
+    private static final ThreadLocal<boolean[]> PRECOMPUTE = ThreadLocal.withInitial(() -> new boolean[1]);
+
+    private static boolean precomputing() {
+        return PRECOMPUTE.get()[0];
+    }
+
+    /** What {@link #planForCache} found: the hops, whether the full floor graph planned them (not the quick one), and
+     *  whether the last hop lands ON {@code to} (a block goal; a tile goal: in the tile). */
+    public record CachePlan(List<Node> path, boolean onFull, boolean onGoal, BlockPos lastLanding) {
+    }
+
+    /**
+     * Planner thread. The plan a map press for this goal would get from the floor graph right now - the same search
+     * ({@link #findDungeonPath} / {@link #findDungeonPathToTile}) - for TripCache to keep, but never the expensive
+     * fallbacks: when the graph has nothing (or only lands NEAR an exact goal) it answers null, and a press for that
+     * goal plans for itself as before. No INFO lines.
+     */
+    public static CachePlan planForCache(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
+                                         DungeonLayout layout, boolean exact) {
+        boolean[] flag = PRECOMPUTE.get();
+        flag[0] = true;
+        lastPlanOnFull = false;
+        lastPlanNear = false;
+        try {
+            List<Node> path = planFloor(from, to, tileIdx, cfg, dist, layout, exact, MAP_EXACT_NANOS, false);
+            if (path == null || path.isEmpty() || lastPlanNear && tileIdx < 0 && exact) {
+                return null;
+            }
+            // Where the last hop lands, cast exactly as the plan was checked (the next hop's block for the others).
+            Level level = Minecraft.getInstance().level;
+            if (level == null) {
+                return null;
+            }
+            Node n = path.get(path.size() - 1);
+            EtherSearch es = new EtherSearch(new LevelEtherGrid(level));
+            double[] look = new double[3];
+            EtherSearch.look(n.yaw, n.pitch, look);
+            double ey = n.y + EtherSearch.SNEAK_EYE;
+            int r = es.cast(n.x, ey, n.z, n.x + look[0] * dist, ey + look[1] * dist, n.z + look[2] * dist);
+            if (r != EtherSearch.LANDS) {
+                return null;
+            }
+            BlockPos last = new BlockPos(es.hitX, es.hitY, es.hitZ);
+            return new CachePlan(List.copyOf(path), lastPlanOnFull, !lastPlanNear && (tileIdx >= 0 || last.equals(to)),
+                    last);
+        } finally {
+            flag[0] = false;
+        }
+    }
+
+    /**
+     * Client thread: whether a floor-graph search now takes milliseconds and needs nothing finished first - the quick
+     * graph warm (and the full one not re-warming after a change, which a search would finish inside itself), no block
+     * change waiting to be applied. TripCache asks this before it queues anything on the planner thread.
+     */
+    public static boolean searchReady(double range) {
+        FloorGraphs g = graph;
+        if (g == null || graphLevel != Minecraft.getInstance().level || graphRange != range
+                || LevelEtherGrid.hasPendingChanges()) {
+            return false;
+        }
+        if (g.full.warmDone()) {
+            return true;
+        }
+        // FloorGraphs.plan's own rule: a full graph that once warmed on the whole floor ("knows the floor") is re-warming
+        // after a change and a search would finish that first; one that only ever warmed a corner (the sealed entrance
+        // before the gate opens) is not used at all - the quick graph plans, in milliseconds.
+        if (g.quick == null || !g.quick.warmDone()) {
+            return false;
+        }
+        boolean known = g.full.warmedOnce() && g.full.warmedNodes() >= FloorGraphs.KNOWN_RATIO * g.quick.nodeCount();
+        return !known;
+    }
+
+    /** Whether the full floor graph is warm (a quick-graph plan is worth planning again once it is). Any thread. */
+    public static boolean fullWarm() {
+        FloorGraphs g = graph;
+        return g != null && graphLevel == Minecraft.getInstance().level && g.full.warmDone();
+    }
+
+    /** Planner thread, for {@link #planForCache}: the last plan was the full graph's, and it only landed near its goal. */
+    private static boolean lastPlanOnFull;
+    private static boolean lastPlanNear;
 
     /** QUOI {@code PathConfig}. {@code timeout} is milliseconds for the whole search. */
     public record PathConfig(float yawStep, float pitchStep, double hWeight, long timeout) {
@@ -348,13 +436,29 @@ public final class EtherwarpPathfinder {
         }
         // FloorGraphs.plan: the full graph once it is warm (finishing a re-warm after a block change first); before
         // that, the quick graph, which warms first and in about half a second.
-        List<EtherSearch.Hop> path = graphs.plan(grid, () -> new LevelEtherGrid(level), workers(), workerCount, start,
-                goal, exactFallback, t0, cfg.timeout() * 1_000_000L, MAX_WARPS);
+        graphs.noColdTry = precomputing();
+        List<EtherSearch.Hop> path;
+        try {
+            path = graphs.plan(grid, () -> new LevelEtherGrid(level), workers(), workerCount, start,
+                    goal, exactFallback, t0, cfg.timeout() * 1_000_000L, MAX_WARPS);
+        } finally {
+            graphs.noColdTry = false;
+        }
         if (graphs.usedExact) {
             kind = "tile, then its block";
         }
         WarpGraph graph = graphs.used;
         boolean warm = graph.warmDone() || graph.warmedOnce();
+        if (precomputing()) {
+            // TripCache: the graph's plan or nothing. No exact refinement (a press has none either: MAP_EXACT_NANOS), and
+            // none of the fallbacks below - a goal the graph cannot plan is left for the press to plan for itself.
+            lastPlanOnFull = graph == graphs.full && graph.warmDone();
+            lastPlanNear = path != null && (graph.endedNear || graphs.usedExact);
+            if (airy || path == null) {
+                return null;
+            }
+            return toNodes(path);
+        }
         if (airy && path != null && !path.isEmpty() && !landsOn(view, path, to, dist)) {
             // Planned in the world WITH the picked blocks: with them gone a hop can fly past its landing. Not a plan
             // here (the exact search below plans in the right world, unbounded).
