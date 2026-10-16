@@ -1742,6 +1742,17 @@ public final class SimBuilder {
     }
 
     /**
+     * Test aid: the quarter turn a lone ONE-TILE room is pasted at (0, 90, 180 or 270), so a puzzle auto can be played at
+     * every rotation the room meets in a generated floor. 0 - the default, and what the menu always uses - is unchanged.
+     * Bigger rooms always paste at 0: their cells and an L's missing quarter are worked out for that turn only.
+     */
+    private static volatile int singleRoomRotation = 0;
+
+    public static void setSingleRoomRotationForTest(int rotation) {
+        singleRoomRotation = Math.floorMod(rotation, 360) / 90 * 90;
+    }
+
+    /**
      * {@link #buildSingleRoom(Minecraft, String)}, saying whether All Rooms asked for it ({@code fromCycle}): any
      * other single-room load ends the cycle, so {@code /next} and {@code /back} stop working on a room loaded by
      * itself ({@link SimRoomCycle#isActive}).
@@ -1763,6 +1774,7 @@ public final class SimBuilder {
             return;
         }
         SimRoomCycle.noteSingleRoomLoad(fromCycle);
+        final int rotation = tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
         // An EVEN cell. GRID/2 is 5, which is odd, and rooms live on even cells - so a single-room build
         // landed at -105, half a tile off the lattice every grid-keyed feature measures against (the live
         // map, the room scan, secret routes). The room itself looked right, because the paste and the secrets
@@ -1797,10 +1809,10 @@ public final class SimBuilder {
             SimRoomIndex.clear();
             // The cells the map is given (publishSingleRoomMap) and the sidebar's map code use, so an L's left-out
             // quarter is outside the room for every lookup, not only for the map.
-            SimRoomIndex.add(room, centre, centre, 0, cellsOf(singleRoomCells(room, centre)));
+            SimRoomIndex.add(room, centre, centre, rotation, cellsOf(singleRoomCells(room, centre)));
             SimAltitude.plan(level, new String[]{room.name});
             wipeWholeGrid(level);
-            SimBuildQueue.submit(level, room, centre, centre, 0);
+            SimBuildQueue.submit(level, room, centre, centre, rotation);
             // An L's fourth quarter is NOT the room: its capture holds whatever stood beside it on the day (Entrance in
             // his Lava Ravine, Chains in Market). Built, that is a piece of another room standing in a quarter the
             // map says is empty, and the spawn could land in it. Cleared after the paste, from the box's outer edge to
@@ -1831,7 +1843,7 @@ public final class SimBuilder {
                     sealX0 + room.sizeX - 1, sealZ0 + room.sizeZ - 1, skip);
             SimBuildQueue.whenDone(() -> {
                 // After the geometry, never before: a chest placed first would be overwritten by the paste.
-                int secrets = SimSecrets.place(level, room, centre, centre, 0);
+                int secrets = SimSecrets.place(level, room, centre, centre, rotation);
                 // THE PUZZLES, which a single-room load has never armed.
                 //
                 // This is the one line, and it explains most of a day's reports at once. killer560
@@ -1854,7 +1866,7 @@ public final class SimBuilder {
                 snapPlayerTo(client, level, centre, centre, room);
                 client.execute(() -> SimSecrets.report(roomName, secrets));
                 client.execute(() -> {
-                    publishSingleRoomMap(room, centre);
+                    publishSingleRoomMap(room, centre, rotation);
                     SimWorld.buildFinished(client, null);
                     ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
                 });
@@ -1880,13 +1892,13 @@ public final class SimBuilder {
      * quarter turn off it, which spins every relative coordinate about that corner. Same fault as the generated
      * floor's, and fixed the same way; see the long note at the {@code clayByRoom} assignment in {@link #build}.
      */
-    private static void publishSingleRoomMap(RoomLibrary.Room room, int centre) {
+    private static void publishSingleRoomMap(RoomLibrary.Room room, int centre, int rotation) {
         int[] cellRoom = singleRoomCells(room, centre);
         int[] cellDoor = new int[cellRoom.length];   // DOOR_NONE everywhere: a single room has nothing to connect to
         // From SimRoomIndex, which armFloor may have corrected off this room's own furniture - see its
         // correct(). Falls back to computing it when the room is somehow not in the index.
-        int dbRotation = Math.floorMod(RoomCaptureRotation.of(room), 360);
-        int[] clay = SimSecrets.clayCorner(room, centre, centre, 0, dbRotation);
+        int dbRotation = Math.floorMod(rotation + RoomCaptureRotation.of(room), 360);
+        int[] clay = SimSecrets.clayCorner(room, centre, centre, rotation, dbRotation);
         int clayX = clay[0];
         int clayZ = clay[1];
         for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
