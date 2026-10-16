@@ -1176,7 +1176,52 @@ public final class ClearExecutor {
     /** Ticks the queued hop has waited for the server to hear its look (util/RightClick). */
     private static int pendingHeldTicks;
 
+    /**
+     * A hop whose use util/RightClick judged the server would take as an unpaired block click's second half (its 1.8 ray
+     * met a block this client could not click, and no look with agreeing rays landed): its look, block and spot, the tick
+     * it went, and its landing's index in {@link #issued}. Nothing is queued behind it; with no landing inside
+     * {@code RightClick.eatenRetryTicks} it is sent again - that use cleared the stored click, so the second one fires.
+     * Before (fullclear-1016, his sim run 17:00:06): the next four hops chained off a landing that never came, all refused.
+     */
+    private static float[] eatenHop;
+    private static BlockPos eatenBlock;
+    private static Vec3 eatenFrom;
+    private static long eatenAt;
+    private static long eatenLag;
+    private static int eatenIndex;
+    private static int eatenResends;
+
+    /** Hops sent again after an eaten use - read by the testkit. */
+    public static int eatenResends() {
+        return eatenResends;
+    }
+
+    /** Sends an eaten hop again once its round trip has passed with no landing; drops it once its landing is answered. */
+    private static void tickEatenHop() {
+        if (eatenHop == null) {
+            return;
+        }
+        if (confirmed > eatenIndex || issued.size() <= eatenIndex) {
+            eatenHop = null; // it landed after all (or the queue went): nothing to send again
+            return;
+        }
+        if (clientTicks - eatenAt <= com.killer560.hub.util.RightClick.eatenRetryTicks() + ServerLag.ticksSince(eatenLag)) {
+            waitReason = "a hop the server took as a block click's second half";
+            return;
+        }
+        LOGGER.info("[Path] Warp: no landing {} tick(s) after a use the server took as the block click's second half - the "
+                + "click is paired now, sending the hop again", clientTicks - eatenAt);
+        pendingInteract = eatenHop;
+        pendingBlock = eatenBlock;
+        pendingFrom = eatenFrom;
+        pendingHeldTicks = 0;
+        eatenHop = null;
+        eatenResends++;
+        ticksSinceProgress = 0;
+    }
+
     public static void cancel() {
+        eatenHop = null;
         goalFastArrival = false;
         if (awaiting != null) {
             awaiting = null;
@@ -1345,6 +1390,7 @@ public final class ClearExecutor {
         }
         // Before this tick's hop: the body is given back once the path has no hop left to send.
         BODY.tick(client.player, aiming());
+        tickEatenHop();
         doInteract(client);
         updateDelays();
         applySneakFallback(client);
@@ -1703,6 +1749,7 @@ public final class ClearExecutor {
     /** Everything about the running queue except the goal (callers keep or drop that themselves). */
     private static void dropQueue() {
         noteStrayWarps();
+        eatenHop = null;
         sendNow = false;
         hold = false;
         nodes = null;
@@ -1741,6 +1788,7 @@ public final class ClearExecutor {
     }
 
     private static void reset() {
+        eatenHop = null;
         awaiting = null;
         inflight = null;
         nodes = null;
@@ -1928,10 +1976,19 @@ public final class ClearExecutor {
         // The body faces the hop for this tick's movement packet; only the camera stays still (see BODY).
         BODY.turn(player, yaw, pitch);
         int usesBefore = com.killer560.hub.util.RightClick.usesSent();
+        int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
         try {
             sendHop(client, player, yaw, pitch);
         } finally {
             ownUses += com.killer560.hub.util.RightClick.usesSent() - usesBefore;
+        }
+        if (com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore && !issued.isEmpty()) {
+            eatenHop = new float[]{Mth.wrapDegrees(yaw), pitch};
+            eatenBlock = pendingBlock;
+            eatenFrom = pendingFrom;
+            eatenAt = clientTicks;
+            eatenLag = ServerLag.mark();
+            eatenIndex = issued.size() - 1;
         }
     }
 
@@ -1981,8 +2038,8 @@ public final class ClearExecutor {
         if (syncDelay != 0 || globalDelay > 0 || nodes == null || nodes.isEmpty()) {
             return false;
         }
-        if (pendingInteract != null) {
-            return false;   // a hop is still waiting to be sent (util/RightClick): never queue another behind it
+        if (pendingInteract != null || eatenHop != null) {
+            return false;   // a hop is still waiting to be sent, or to be sent again (util/RightClick): nothing behind it
         }
         if (compDelay == 0) {
             active = false;

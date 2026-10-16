@@ -219,6 +219,15 @@ public final class RouteExecutor {
     private static int warpPacedTicks;
     /** Ticks this warp's use waited for the server to hear its look first, a block click being unpaired (util/RightClick). */
     private static int warpTurnFirstTicks;
+    /** The warp's use went out as one util/RightClick judged the server would take as an unpaired click's second half:
+     *  with no landing inside {@code RightClick.eatenRetryTicks} it goes again (the click is paired by then). */
+    private static boolean warpEaten;
+    /** Warps sent again after an eaten use - read by the testkit. */
+    private static int eatenResends;
+
+    public static int eatenResends() {
+        return eatenResends;
+    }
 
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
@@ -2307,7 +2316,9 @@ public final class RouteExecutor {
             notePacedWarp();
             actionOrigin = player.position();
             teleportPacketSeen = false;
+            int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
             useHeldItem(client, player, warpYaw, warpPitch, false);
+            warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
@@ -2344,6 +2355,20 @@ public final class RouteExecutor {
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
                 return true;
+            } else if (warpEaten && !teleportPacketSeen
+                    && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()) {
+                // The use went out as the second half of an unpaired block click (util/RightClick: the server's ray met a
+                // block this client could not click, and no other look landed with rays that agree). That use cleared the
+                // server's stored click whatever became of it, so the same warp sent again is an ordinary right click and
+                // fires - one round trip lost, where the 61-tick timeout below left him off every node's ring until Route
+                // Stall stopped the route (fullclear-1016: Crypt #5, Cathedral #15).
+                LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after a use the server took as the block "
+                        + "click's second half - the click is paired now, sending the warp again", stepTicks);
+                warpEaten = false;
+                eatenResends++;
+                step = Step.AIM;
+                stepTicks = 0;
+                return false;
             } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                         + "recorded landing {}", stepTicks, fmt(player.position()),

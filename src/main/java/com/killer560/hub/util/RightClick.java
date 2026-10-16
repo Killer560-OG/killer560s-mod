@@ -493,8 +493,30 @@ public final class RightClick {
         return unpaired;
     }
 
+    /** Uses this class judged the server would take as an earlier block click's second half (ever; only goes up). A
+     *  sender compares it before and after its own use: when it went up, that use is expected to do nothing. */
     public static int barePairedUses() {
         return barePairedUses;
+    }
+
+    /**
+     * How long a sender waits for the landing of a use {@link #barePairedUses} judged eaten before it sends the use
+     * again: the measured round trip ({@link PingTracker#automationMs}) and half again, rounded up to ticks, plus 2 -
+     * 3 ticks on a local server. The eaten use cleared the server's stored verdict whatever happened to it (the server
+     * pairs a use with the click once), so the second one goes as an ordinary right click in the air and fires. If the
+     * judgement was wrong and the first use fired after all (Hypixel traced from an eye this class did not expect), its
+     * landing arrives inside the round trip and nothing is sent again. Callers add {@link ServerLag} on top.
+     * <p>
+     * Why it is needed at all (fullclear-1016, his sim run 2026-10-16 16:59:25 Cathedral #15 and 17:00:06 Crypt): the
+     * server's 1.8 ray (1.54 eye) can meet leaves this client's 1.27 look never reaches, {@link #reaimIfUnpairable}
+     * found no look that lands on the block with rays that agree, and the warp went out to be dropped. Auto Routes then
+     * waited its 61-tick landing timeout off every node's ring and stood until Route Stall stopped the route; the
+     * Interactive Map chained four hops from a landing that never happened, all refused.
+     */
+    public static int eatenRetryTicks() {
+        // Before the first pong the tab-list latency stands in, about 1 ms on Hypixel: too short to bet a second warp on.
+        int ping = PingTracker.hasMeasurement() ? PingTracker.automationMs() : Math.max(PingTracker.tabListMs(), 300);
+        return Math.max(3, (int) Math.ceil(ping * 1.5 / 50.0) + 2);
     }
 
     public static int blockHalvesSent() {
