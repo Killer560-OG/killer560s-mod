@@ -505,7 +505,7 @@ public final class AutoRoutesRenderer {
             m.preFill = new RangeReplay[n];
             m.lines = new RangeReplay[n];
             m.postFill = new RangeReplay[n];
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; PER_SHAPE && i < n; i++) {
                 if (m.fillMid[i] > m.fillStart[i]) {
                     m.preFill[i] = new RangeReplay(m, false, m.fillStart[i], m.fillMid[i]);
                 }
