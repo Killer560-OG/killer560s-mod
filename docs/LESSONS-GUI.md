@@ -589,3 +589,20 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   Java 25. BufferBuilder overrides none of them, so for a plain BufferBuilder the same JOML calls into scratch vectors plus
   `setColor(int argb)` (one `memPutInt`, same bytes) write identical vertices: Auto Routes' bare node shapes went from
   25.8 KB to 0.2 KB a frame with pixel-identical shots. `WorldRenderUtils` and every other world draw still use the helpers.
+- **Out-of-world menus run at 60 fps whatever Max Framerate says** (javap 26.1.2 and 26.2): `FramerateLimitTracker.
+  getFramerateLimit()` returns `OUT_OF_LEVEL_MENU_LIMIT` 60 when there is no level and a screen or overlay is open, and 30
+  (`SHORT_AFK`) after 60 s without input under the default Inactivity FPS Limit AFK. `mixin/MainMenuFramerateMixin` lifts
+  only the first to max(120, Max Framerate) while the themed scene shows (light-hq-1016: 59.7 -> 119.3 fps measured, 2262
+  unlimited). A frame-rate test that runs after a long session reads the AFK 30 unless it calls `onInputReceived()` first.
+- **A vertex-colour gradient cannot be dithered, so a faint one bands** (light-hq-1016): `GuiRects`/`fillGradient` colours
+  are interpolated and rounded to the 8-bit framebuffer once per layer, so a 20-level sky gradient was 42-row bands with
+  every column stepping on the same row (and R, G, B stepping on different rows: coloured stripes). `mainmenu/SceneShaders`
+  composites a scene in float in its own fragment shader and adds blue noise once. Judge banding by how many columns step
+  TOGETHER between two rows (1.00 banded, 0.33 dithered), not by run length: correct +-0.5 LSB dither still holds a level
+  for ~20 rows near an exact level, which fooled the first instrument.
+- **Custom GUI shader parameters ride in a texture** (light-hq-1016): a `GuiElementRenderState` cannot bind a uniform
+  block, so `SceneShaders` writes floats bit-exact into an RGBA8 `DynamicTexture` (`setPixelABGR(Float.floatToRawIntBits)`;
+  the shader rebuilds them with `uintBitsToFloat(r | g<<8 | b<<16 | a<<24)`) and the VERTEX shader reads them into flat
+  varyings, so fragments fetch nothing. `GUI_TEXTURED_SNIPPET` (position, uv, colour, Sampler0) and the vanilla
+  `position_tex_color` shader are byte-identical in 26.1.2 and 26.2. A PNG's `.png.mcmeta` `"blur": true` gives a GUI
+  blit linear filtering on both (`ReloadableTexture` reads `TextureContents.blur()`).
