@@ -309,6 +309,11 @@ final class AutoBlaze {
         }
 
         Entity blaze = blazes.get(0);
+        if (blaze.isRemoved()) {
+            // The solver's list is a tick behind the server's report of the kill: shooting at a blaze already gone would
+            // send the volley on through its spot at the next one up, out of order. Next tick's list has it right.
+            return;
+        }
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blaze);
         if (blaze != loggedTarget) {
             loggedTarget = blaze;
@@ -471,41 +476,37 @@ final class AutoBlaze {
 
     /**
      * The last volley's result as the server reports it (killer560, 2026-10-15: continue the moment the volley's result
-     * is known). The volley's arrows are the arrows that appear near his eye in the ticks right after the shot; it is
-     * resolved when the target is gone, or when every one of them has ended (removed by the server, or stuck in a
-     * block). An arrow that ended inside the target's hitbox was a hit: then the server's report of what it did is
-     * waited for - the target gone or its label changed (health left) - before the next volley, because a solver list
-     * one tick stale would aim the next volley at a blaze already dead and through it at the next one up.
-     * Liveness only, never the normal path: with no arrow of the volley seen at all it falls back to the simulated
-     * flight, and a volley still unresolved 40 ticks past that is let go with a log line.
+     * is known). The volley's arrows are the arrows that appear near his eye in the ticks right after the shot. The
+     * result is known when the target is gone (its kill reported) or when none of them can still reach it: each one
+     * removed by the server (a hit - the server reports what the hit did in the same update - or a refused one), stuck
+     * in a block, or flown on past the target (a Terminator's side arrows). Liveness only, never the normal path: with
+     * no arrow of the volley seen at all it falls back to the simulated flight, and an arrow still short of the target
+     * 40 ticks past that is let go with a log line. (Was: the simulated flight plus a fixed 4 ticks.)
      */
     private static final class VolleyWatch {
-        /** Each arrow of the volley with its last seen {position, motion}. */
-        private final java.util.Map<net.minecraft.world.entity.projectile.arrow.AbstractArrow, Vec3[]> arrows =
+        private final java.util.Map<net.minecraft.world.entity.projectile.arrow.AbstractArrow, Boolean> arrows =
                 new java.util.IdentityHashMap<>();
         private long shotTick;
         private int flightTicks;
         private Vec3 eye = Vec3.ZERO;
-        private AABB targetBox = new AABB(0, 0, 0, 0, 0, 0);
+        private Vec3 targetCentre = Vec3.ZERO;
         private String targetLabel;
-        private boolean hit;
-        private long hitTick;
+        private long struckTick = -1;
         private boolean logged;
 
         void shot(Vec3 eye, Entity target, AABB targetBox, int flightTicks) {
             arrows.clear();
+            this.targetLabel = target == null ? null : nameOf(target);
+            this.struckTick = -1;
             this.shotTick = com.killer560.hub.util.ActionGate.currentTick();
             this.flightTicks = flightTicks;
             this.eye = eye;
-            this.targetBox = targetBox.inflate(0.6);
-            this.targetLabel = target == null ? null : nameOf(target);
-            this.hit = false;
+            this.targetCentre = targetBox.getCenter();
             this.logged = false;
         }
 
         boolean resolved(Minecraft client, Entity target) {
-            long now = com.killer560.hub.util.ActionGate.currentTick();
-            long since = now - shotTick;
+            long since = com.killer560.hub.util.ActionGate.currentTick() - shotTick;
             if (target == null || target.isRemoved()) {
                 return done("the target is gone", since);
             }
@@ -516,53 +517,42 @@ final class AutoBlaze {
                 // The volley leaves his eye: pick its arrows up as they appear.
                 for (var a : client.level.getEntitiesOfClass(net.minecraft.world.entity.projectile.arrow.AbstractArrow.class,
                         new AABB(eye, eye).inflate(4.0), a -> a.tickCount <= 4)) {
-                    arrows.putIfAbsent(a, new Vec3[]{a.position(), a.getDeltaMovement()});
+                    arrows.putIfAbsent(a, Boolean.TRUE);
                 }
             }
             if (arrows.isEmpty()) {
-                if (since > 3 && since >= flightTicks) {
-                    return done("no arrow of the volley was seen - its simulated flight is over", since);
-                }
-                return false;
+                return since > 3 && since >= flightTicks
+                        && done("no arrow of the volley was seen - its simulated flight is over", since);
             }
-            boolean allEnded = true;
-            for (var e : arrows.entrySet()) {
-                var a = e.getKey();
-                boolean ended = a.isRemoved()
+            Vec3 toTarget = targetCentre.subtract(eye);
+            double reach = toTarget.length();
+            boolean struck = false;
+            for (var a : arrows.keySet()) {
+                boolean removed = a.isRemoved();
+                struck |= removed;
+                boolean ended = removed
                         || ((com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor) a).killer560smod$isInGround();
-                if (!ended) {
-                    e.setValue(new Vec3[]{a.position(), a.getDeltaMovement()});
-                    // Flown on past the target (a Terminator's side arrows, a miss): it can no longer be the one that
-                    // kills it, so the result does not wait for it to come down somewhere.
-                    Vec3 centre = targetBox.getCenter();
-                    Vec3 toTarget = centre.subtract(eye);
-                    double reach = toTarget.length();
-                    boolean past = reach > 1.0e-3 && a.position().subtract(eye).dot(toTarget.scale(1.0 / reach)) > reach + 2.0;
-                    if (!past) {
-                        allEnded = false;
-                    }
-                } else if (!hit && (targetBox.contains(e.getValue()[0]) || targetBox.clip(e.getValue()[0],
-                        e.getValue()[0].add(e.getValue()[1].scale(1.5))).isPresent())) {
-                    // Ended inside the target's box, or on its way into it: the last position the client saw is up to a
-                    // tick's flight (3 blocks) short of the impact.
-                    hit = true;
-                    hitTick = now;
+                boolean past = reach > 1.0e-3 && a.position().subtract(eye).dot(toTarget.scale(1.0 / reach)) > reach + 2.0;
+                if (!ended && !past) {
+                    return since > flightTicks + 40
+                            && done("an arrow of the volley is still short of the target 40 ticks past its flight", since);
                 }
             }
-            if (!allEnded) {
-                return since > flightTicks + 40
-                        && done("an arrow of the volley still flies 40 ticks past its simulated flight", since);
+            if (struck && targetLabel != null && targetLabel.equals(nameOf(target))) {
+                // An arrow the server removed struck something. If it was the target, what it did (the kill, the health
+                // left) comes in the server's same update or the next; shooting on a solver list that has not had it
+                // yet aims at a blaze already dead and through it at the next one up. So: the target's label changing
+                // or the target going settles it at once, and otherwise the update after the removal does.
+                if (struckTick < 0) {
+                    struckTick = com.killer560.hub.util.ActionGate.currentTick();
+                    return false;
+                }
+                if (com.killer560.hub.util.ActionGate.currentTick() <= struckTick) {
+                    return false;
+                }
             }
-            if (!hit) {
-                return done("every arrow of the volley ended away from the target (a miss)", since);
-            }
-            if (targetLabel != null && !targetLabel.equals(nameOf(target))) {
-                return done("the target was hit (its label changed)", since);
-            }
-            if (now - hitTick > 40) {
-                return done("the target was hit and the server reported nothing of it in 40 ticks", since);
-            }
-            return false; // a hit: the server's report of what it did is on its way
+            return done("no arrow of the volley can still reach the target" + (struck ? " (one struck something)" : ""),
+                    since);
         }
 
         private boolean done(String why, long since) {
