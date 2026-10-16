@@ -590,7 +590,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   `setColor(int argb)` (one `memPutInt`, same bytes) write identical vertices: Auto Routes' bare node shapes went from
   25.8 KB to 0.2 KB a frame with pixel-identical shots. `WorldRenderUtils` and every other world draw still use the helpers.
 - A painted main menu that must move smoothly at full resolution cannot use `g.blit` tiles (GUI_TEXTURED samples NEAREST,
+- **In a `GuiRects` batch every pose CHANGE costs a pose copy** (the copy is shared only while the pose stays the same), so a
   so a sub-pixel offset snaps a whole pixel). Amber's Aurora (2026-10-16) submits one `BlitRenderState` with its own
+  shape drawn as several push/translate/pop pieces allocates per piece. Ocean's Cavern Falls drew each streak under three poses
   pipeline built on `RenderPipelines.GUI_TEXTURED_SNIPPET` (which already declares Sampler0 in 26.1.2 and 26.2, so no
+  and each mist column under its own: 8085 quads at 35.4 B/quad against the old waterfall's 28.9 (testkit 1690). Drawing each
   `withSampler0`) and a `TextureSetup` with the LINEAR clamp sampler; the clock rides in the vertex colour (24-bit loop
+  streak, puff and ring under ONE scaled pose (integer units of w/12, len/256, a column's eighth) made it 5136 quads at
   fraction) because a GUI element has no uniform of its own. Booted and checked on both versions by testkit 1695.
+  30.8 B/quad with the same picture (ocean-waterfall-1016).
