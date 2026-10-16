@@ -1758,13 +1758,26 @@ public final class ClearExecutor {
             }
         }
         // Same direction as the target, expressed relative to the running (unwrapped) yaw.
-        float yaw = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
-        float pitch = Mth.clamp(interact[1], -90f, 90f);
+        float yaw0 = player.getYRot() + Mth.wrapDegrees(interact[0] - player.getYRot());
+        float pitch0 = Mth.clamp(interact[1], -90f, 90f);
         // A right click on a block may be waiting on the server for its second half, and the server's look meets a block
         // (util/RightClick): the hop would be taken as that click's end and not warp. The body faces the hop now, so this
         // tick's movement packet tells the server, and it goes next tick; canNext queues nothing behind it meanwhile.
         // From where the server has him: the planned spot, which the client may not have seen him land on yet.
         Vec3 serverFeet = pendingFrom != null && player.position().distanceTo(pendingFrom) >= 1.0 ? pendingFrom : null;
+        // The server's ray along this look (from the 1.8 eye) meets a block this client's look cannot reach, so no click
+        // could pair the use and it would be dropped: aim at the same block along a look whose rays agree. The turn to it
+        // below costs the one tick (killer560, 2026-10-15: "nothing that flags or breaks"); rays that agree cost nothing.
+        Vec3 aimFeet = serverFeet != null ? serverFeet : player.position();
+        float[] reaim = pendingBlock == null ? null : com.killer560.hub.util.RightClick.reaimIfUnpairable(client, player,
+                serverFeet, new Vec3(aimFeet.x, aimFeet.y + TeleportUtils.eyeHeight(true), aimFeet.z), pendingBlock,
+                hopRange() + 1.0, yaw0, pitch0, "[Path] Warp");
+        if (reaim != null) {
+            interact = new float[]{Mth.wrapDegrees(reaim[0]), reaim[1]};
+            pendingInteract = interact;
+        }
+        final float yaw = reaim != null ? reaim[0] : yaw0;
+        final float pitch = reaim != null ? reaim[1] : pitch0;
         if (com.killer560.hub.util.RightClick.mustTurnFirst(player, serverFeet, yaw, pitch, "[Path] Warp")) {
             BODY.turn(player, yaw, pitch);
             waitReason = "the server hearing the hop's look first (a block click is unpaired)";

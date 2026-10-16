@@ -2251,6 +2251,22 @@ public final class RouteExecutor {
             // use as the click's second half (util/RightClick). So when a block click is unpaired the server hears this
             // look first - turned on the firing tick above when the sneak was not yet out, which costs nothing; only a
             // warp that would otherwise go on the click's own tick waits, one tick.
+            // The server's ray along this look (from the 1.8 eye) meets a block this client's look cannot reach, so no
+            // click could pair the use and the server would drop it: aim at the same block along a look whose rays agree.
+            // turnFirst below then turns to it - the one tick, only on that mismatch (killer560, 2026-10-15).
+            if (!AutoRoutesConfig.getInstance().isLegitMode() && warpTarget != null) {
+                Vec3 at = player.position();
+                float[] re = com.killer560.hub.util.RightClick.reaimIfUnpairable(client, player, null,
+                        new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z), warpTarget,
+                        com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0,
+                        player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()), Mth.clamp(warpPitch, -90f, 90f),
+                        "[AutoRoutes] Etherwarp");
+                if (re != null) {
+                    warpYaw = re[0];
+                    warpPitch = re[1];
+                    warpAimFrom = at;
+                }
+            }
             if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
                 warpTurnFirstTicks++;
                 return false;

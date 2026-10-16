@@ -342,6 +342,127 @@ public final class RightClick {
         return true;
     }
 
+    /** The block a vanilla right click along {@code yaw}/{@code pitch} would click from this client's eye, or null. */
+    private static BlockHitResult clientPick(Minecraft client, LocalPlayer player, float yaw, float pitch) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(look(yaw, pitch).scale(player.blockInteractionRange()));
+        BlockHitResult hit = client.level.clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+                player));
+        return hit == null || hit.getType() != HitResult.Type.BLOCK ? null : hit;
+    }
+
+    /**
+     * True when a use at {@code yaw}/{@code pitch} could only go out to be dropped: a block click may be unpaired, the
+     * server will trace this look (it has heard it already, or the caller turns to it first because the heard look meets
+     * a block), the server's ray along it from {@code serverFeet} (null: the last movement packet's spot) meets a block
+     * within {@link #SERVER_TRACE} - so the use needs a block half to pair with - and this client's own look along it
+     * reaches no block it may click (nothing within reach, or one a right click would open while not sneaking). The 1.8
+     * eye the server traces from is 0.27 above the modern sneaking one, so the two rays can disagree; a click on a block
+     * this client cannot see is never sent (killer560, 2026-10-15), so the warp would be taken as the click's second half.
+     */
+    public static boolean unpairable(Minecraft client, LocalPlayer player, Vec3 serverFeet, float yaw, float pitch) {
+        if (!unpaired || player == null || client.level == null) {
+            return false;
+        }
+        checkLevel(player);
+        if (!unpaired) {
+            return false;
+        }
+        Vec3 feet = serverFeet != null ? serverFeet : sentFeet(player);
+        boolean traced = sameLook(player, yaw, pitch) || serverRay(player, feet, sentYaw, sentPitch) != null;
+        if (!traced || serverRay(player, feet, yaw, pitch) == null) {
+            return false; // goes as a right click in the air (or with the heard look's verdict): nothing to pair
+        }
+        BlockHitResult hit = clientPick(client, player, yaw, pitch);
+        if (hit == null) {
+            return true;
+        }
+        return !player.getLastSentInput().shift() && opens(client.level.getBlockState(hit.getBlockPos()).getBlock());
+    }
+
+    /**
+     * When {@link #unpairable} holds for the etherwarp look {@code yaw}/{@code pitch} onto {@code target}: another look
+     * from {@code eye} that the etherwarp lands on {@code target} with too (the same check as
+     * {@code TeleportUtils.getEtherwarpDirection}: the real ray, {@code dist} blocks) and that is not unpairable - its
+     * server ray meets nothing within reach, or this client can click what it meets. Nearest to the old look first.
+     * Null when the look is fine as it is, or when no other look works (the caller then sends the old one, as before).
+     * The caller turns to the new look; the server hears it on this tick's movement packet and the warp goes next tick -
+     * one tick, and only on a detected mismatch.
+     */
+    public static float[] reaimIfUnpairable(Minecraft client, LocalPlayer player, Vec3 serverFeet, Vec3 eye, BlockPos target,
+                                            double dist, float yaw, float pitch, String who) {
+        if (target == null || eye == null || !unpairable(client, player, serverFeet, yaw, pitch)) {
+            return null;
+        }
+        float[] best = null;
+        double bestCost = Double.MAX_VALUE;
+        for (double[] o : REAIM_POINTS) {
+            Vec3 point = new Vec3(target.getX() + o[0], target.getY() + o[1], target.getZ() + o[2]);
+            com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r =
+                    com.killer560.hub.livemap.autoclear.TeleportUtils.getDirection(eye, point);
+            if (r == null) {
+                continue;
+            }
+            com.killer560.hub.livemap.autoclear.TeleportUtils.RaycastResult land =
+                    com.killer560.hub.livemap.autoclear.TeleportUtils.getEtherPos(eye, r.yaw(), r.pitch(), dist);
+            if (land == null || !land.succeeded() || !target.equals(land.pos())) {
+                continue;
+            }
+            float ny = yaw + Mth.wrapDegrees(r.yaw() - yaw);
+            float np = Mth.clamp(r.pitch(), -90f, 90f);
+            if (unpairable(client, player, serverFeet, ny, np)) {
+                continue;
+            }
+            double cost = Math.abs(ny - yaw) + Math.abs(np - pitch);
+            if (cost < bestCost) {
+                bestCost = cost;
+                best = new float[]{ny, np};
+            }
+        }
+        if (best != null) {
+            LOGGER.info("{}: re-aimed {} / {} -> {} / {} at {} - the server's ray along the old look meets a block this "
+                            + "client's look cannot reach, so no click could pair the use; the new look's rays agree. The "
+                            + "warp goes next tick.", who, String.format(Locale.US, "%.2f", Mth.wrapDegrees(yaw)),
+                    String.format(Locale.US, "%.2f", pitch), String.format(Locale.US, "%.2f", Mth.wrapDegrees(best[0])),
+                    String.format(Locale.US, "%.2f", best[1]), target.toShortString());
+            reaims++;
+        } else {
+            LOGGER.warn("{}: the old look cannot be paired and no other look lands on {} with rays that agree - sending it "
+                    + "as it is", who, target.toShortString());
+        }
+        return best;
+    }
+
+    /** Points inside the target block's faces a re-aimed etherwarp may aim at: a 5x5 grid on the top, 3x3 on each side. */
+    private static final double[][] REAIM_POINTS = reaimPoints();
+
+    private static double[][] reaimPoints() {
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        double[] g5 = {0.1, 0.3, 0.5, 0.7, 0.9};
+        double[] g3 = {0.2, 0.5, 0.8};
+        for (double x : g5) {
+            for (double z : g5) {
+                out.add(new double[]{x, 0.97, z});
+            }
+        }
+        for (double a : g3) {
+            for (double y : g3) {
+                out.add(new double[]{0.03, y, a});
+                out.add(new double[]{0.97, y, a});
+                out.add(new double[]{a, y, 0.03});
+                out.add(new double[]{a, y, 0.97});
+            }
+        }
+        return out.toArray(new double[0][]);
+    }
+
+    private static int reaims;
+
+    /** Warps re-aimed by {@link #reaimIfUnpairable} - read by the testkit. */
+    public static int reaims() {
+        return reaims;
+    }
+
     /** Whether the server's last-heard look is {@code yaw}/{@code pitch} (any wrapping, within 0.05 degrees). */
     public static boolean heard(LocalPlayer player, float yaw, float pitch) {
         return sameLook(player, yaw, pitch);
