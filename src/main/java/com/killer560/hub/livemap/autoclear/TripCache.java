@@ -143,6 +143,15 @@ public final class TripCache {
             return phase;
         }
 
+        public boolean onFull() {
+            return onFull;
+        }
+
+        /** Per hop: the eye, then the landing block's centre (six doubles a hop). A copy. */
+        public double[] corridor() {
+            return corridor.clone();
+        }
+
         /** Planned before the latest block change, or on the quick graph while the full one is warm now. */
         public boolean stale() {
             return epoch < TripCache.epoch.get() || !onFull && EtherwarpPathfinder.fullWarm();
@@ -217,7 +226,7 @@ public final class TripCache {
     private static volatile int searches;
     private static volatile int stored;
     private static volatile int failures;
-    private static int lookupsHit;
+    private static volatile int lookupsHit;
     private static String lastRejectWhy = "";
 
     /** ClearExecutor ran this trip. */
@@ -406,6 +415,41 @@ public final class TripCache {
         return new int[]{missing, wants.size()};
     }
 
+    /** Test hook (testkit): no new searches are queued while set (what is cached stays, block changes still apply). */
+    public static volatile boolean testPaused;
+
+    /** For the testkit: {wanted, planned, failed, missing, planned on the quick graph} of one phase's trips wanted now. */
+    public static int[] phaseStatus(int phase) {
+        int wanted = 0;
+        int have = 0;
+        int failed = 0;
+        int missing = 0;
+        int quick = 0;
+        for (Want w : wants) {
+            if (w.phase() != phase) {
+                continue;
+            }
+            wanted++;
+            Map<String, Entry> byFrom = TRIPS.get(w.goalKey());
+            Entry e = byFrom == null ? null : byFrom.get(w.fromKey());
+            Need need = needs(w);
+            if (e != null && e.from.distanceToSqr(w.from()) < 0.09) {
+                have++;
+                quick += e.onFull ? 0 : 1;
+            } else if (need == Need.MISSING) {
+                missing++;
+            } else {
+                failed++;
+            }
+        }
+        return new int[]{wanted, have, failed, missing, quick};
+    }
+
+    /** For the testkit: where phase 1 is planned from now, or null. */
+    public static Vec3 origin() {
+        return origin;
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(com.killer560.hub.util.FeatureGuard.end("TripCache.tick", TripCache::tick));
     }
@@ -485,7 +529,7 @@ public final class TripCache {
             buildWants(layout, player);
         }
         notePhase1();
-        if (jobInFlight || ClearExecutor.tripSearchWaiting() || !EtherwarpPathfinder.searchReady(range)) {
+        if (jobInFlight || testPaused || ClearExecutor.tripSearchWaiting() || !EtherwarpPathfinder.searchReady(range)) {
             return;
         }
         // Nothing to do since the last look, and nothing it depends on has moved: no scan this tick.
@@ -759,7 +803,9 @@ public final class TripCache {
                 quick++;
             }
         }
-        if (wanted == 0 || open > 0 || ROOMS.size() < roomCountNow()) {
+        // Most of them planned, not just looked at: behind a sealed gate (the sim before the run starts) every search
+        // finds nothing, which is not "ready".
+        if (wanted == 0 || open > 0 || failed * 2 > wanted || ROOMS.size() < roomCountNow()) {
             return;
         }
         long now = System.currentTimeMillis();
