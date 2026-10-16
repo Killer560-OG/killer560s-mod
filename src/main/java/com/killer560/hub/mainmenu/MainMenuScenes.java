@@ -22,10 +22,14 @@ public final class MainMenuScenes {
     /** Which background Amber's scene draws (killer560, 2026-10-15: "send me a quick video of it and I will tell you to
      *  swap back or not"). NEW is {@link AmberForgeScene} (the dusk colonnade); EMBERS is the original drifting embers,
      *  kept below; SIMPLE is {@link AmberCalmScene}, the embers refined (depth, a low warm glow, faint heat haze). He
-     *  preferred the simpler style, so the default went back to EMBERS until he picks between EMBERS and SIMPLE. */
-    public enum AmberScene { NEW, EMBERS, SIMPLE }
+     *  preferred the simpler style, so the default went back to EMBERS until he picks between EMBERS and SIMPLE. AURORA is
+     *  {@link AmberAuroraScene}, his orange aurora picture animated (2026-10-16), Amber's scene only with
+     *  {@link #previewScenes()} ({@link #AMBER_SCENE_PREVIEW}). */
+    public enum AmberScene { NEW, EMBERS, SIMPLE, AURORA }
 
     public static final AmberScene AMBER_SCENE = AmberScene.EMBERS;
+    /** Amber's scene in the Title Screen GUI instance ({@link #previewScenes()}) until he approves it for the others. */
+    public static final AmberScene AMBER_SCENE_PREVIEW = AmberScene.AURORA;
 
     /** Which background Green's Fireflies scene draws (killer560, 2026-10-15: "can you make the main menu more of a
      *  forest?"): FOREST is {@link MainMenuFireflies} (layered trees, canopy, undergrowth, light shafts); SIMPLE is
@@ -96,13 +100,15 @@ public final class MainMenuScenes {
         greenScene = name == null || name.isEmpty() ? null : GreenScene.valueOf(name);
     }
 
-    private static AmberScene amberScene = AMBER_SCENE;
+    /** The session's Amber pick (the Title Screen Switcher, a test), or null for the default. */
+    private static AmberScene amberScene;
     private static long testClockMs = -1L;
 
-    /** The Amber scene drawn now: {@link #AMBER_SCENE} unless something (the Title Screen Switcher, a test) chose
-     *  another for this session. */
+    /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE_PREVIEW} with {@link #previewScenes()},
+     *  else {@link #AMBER_SCENE}. */
     public static AmberScene amberScene() {
-        return amberScene;
+        AmberScene a = amberScene;
+        return a != null ? a : previewScenes() ? AMBER_SCENE_PREVIEW : AMBER_SCENE;
     }
 
     /** The Green scene drawn now (see {@link #amberScene()}). */
@@ -111,10 +117,10 @@ public final class MainMenuScenes {
         return g != null ? g : defaultGreenScene();
     }
 
-    /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to {@link #AMBER_SCENE}.
-     *  Changes no setting. */
+    /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to the default
+     *  ({@link #amberScene()}). Changes no setting. */
     public static void setAmberScene(AmberScene scene) {
-        amberScene = scene == null ? AMBER_SCENE : scene;
+        amberScene = scene;
     }
 
     /** Draws {@code scene} for Green this session (the Title Screen Switcher); null goes back to {@link #GREEN_SCENE}. */
@@ -129,13 +135,13 @@ public final class MainMenuScenes {
 
     /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
     public static void setOldEmbersForTest(boolean old) {
-        amberScene = old ? AmberScene.EMBERS : AMBER_SCENE;
+        amberScene = old ? AmberScene.EMBERS : null;
     }
 
-    /** Test hook (testkit 1568/1569): draws the named Amber scene ({@code "NEW"}, {@code "EMBERS"}, {@code "SIMPLE"});
-     *  null or empty goes back to the constant's choice. */
+    /** Test hook (testkit 1568/1569/1695): draws the named Amber scene ({@code "NEW"}, {@code "EMBERS"}, {@code "SIMPLE"},
+     *  {@code "AURORA"}); null or empty goes back to the default. */
     public static void setAmberSceneForTest(String name) {
-        amberScene = name == null || name.isEmpty() ? AMBER_SCENE : AmberScene.valueOf(name);
+        amberScene = name == null || name.isEmpty() ? null : AmberScene.valueOf(name);
     }
 
     /** Test probe (testkit 1568): while set, {@link #draw} adds the bytes it allocated, the frames and the rectangles
@@ -183,6 +189,15 @@ public final class MainMenuScenes {
             }
             return;
         }
+        if (look.scene() == MainMenuThemeConfig.Scene.EMBERS && amberScene() == AmberScene.AURORA) {
+            // His picture is the base (through its shader), drawn before the batch so the embers land on top of it.
+            AmberAuroraScene.drawImage(g, w, h, t);
+            heroRects = 0;
+            AmberAuroraScene.drawOverlays(r, w, h, t, look.density());
+            r.submit();
+            probe(r, probeStart);
+            return;
+        }
         DarkScene dark = darkScene();
         if (look.scene() == MainMenuThemeConfig.Scene.STARFIELD
                 && (dark == DarkScene.MILKY_WAY || dark == DarkScene.MILKY_WAY_HERO)) {
@@ -199,7 +214,7 @@ public final class MainMenuScenes {
         base(r, w, h, accent, panel, light);
         switch (look.scene()) {
             case EMBERS -> {
-                switch (amberScene) {
+                switch (amberScene()) {
                     case NEW -> AmberForgeScene.draw(r, w, h, t, accent, look.density());
                     case SIMPLE -> AmberCalmScene.draw(r, w, h, t, accent, look.density());
                     default -> embers(r, w, h, t, accent, look.density());

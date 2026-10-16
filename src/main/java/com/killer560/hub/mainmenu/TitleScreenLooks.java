@@ -65,9 +65,11 @@ public final class TitleScreenLooks {
     static {
         List<Look> l = new ArrayList<>();
         l.add(new Look("Vanilla", "", null, null, null, null, null, "The vanilla title screen: the themed main menu off."));
-        l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers (the default)."));
+        l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers (the default elsewhere)."));
         l.add(amber("New", MainMenuScenes.AmberScene.NEW, "NEW: the dusk colonnade (AmberForgeScene)."));
         l.add(amber("Simple", MainMenuScenes.AmberScene.SIMPLE, "SIMPLE: the embers refined (AmberCalmScene)."));
+        l.add(amber("Aurora", MainMenuScenes.AmberScene.AURORA,
+                "AURORA: your orange aurora picture, animated (AmberAuroraScene); Amber's default in this instance."));
         l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
         // killer560 (2026-10-16): "let's use the one with the player" - Dark lists only that look. MILKY_WAY (without her)
         // and STARS stay in code (MainMenuScenes.DarkScene) but not here.
@@ -175,7 +177,7 @@ public final class TitleScreenLooks {
         }
         boolean wasVanilla = !MainMenuTheme.active();
         current = look;
-        MainMenuScenes.setAmberScene(look.amber() != null ? look.amber() : MainMenuScenes.AMBER_SCENE);
+        MainMenuScenes.setAmberScene(look.amber());
         MainMenuScenes.setGreenScene(look.green());
         GreenTheme.setGradient(look.gradient() != null ? look.gradient() : GreenTheme.DEFAULT_GRADIENT);
         MainMenuScenes.setDarkScene(look.variant() instanceof MainMenuScenes.DarkScene d ? d : null);
@@ -199,7 +201,7 @@ public final class TitleScreenLooks {
             return;
         }
         current = null;
-        MainMenuScenes.setAmberScene(MainMenuScenes.AMBER_SCENE);
+        MainMenuScenes.setAmberScene(null);
         MainMenuScenes.setDarkScene(null);
         MainMenuScenes.setGreenScene(null);
         GreenTheme.setGradient(GreenTheme.DEFAULT_GRADIENT);
