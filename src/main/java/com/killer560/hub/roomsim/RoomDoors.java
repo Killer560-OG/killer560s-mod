@@ -299,7 +299,7 @@ public final class RoomDoors {
         if (x < 0 || z < 0 || x >= room.sizeX || z >= room.sizeZ || y < room.minY || y > room.maxY) {
             return false;
         }
-        short idx = room.blocks[room.index(x, y, z)];
+        short idx = room.blockAt(room.index(x, y, z));
         if (idx < 0 || idx >= room.palette.size()) {
             return false;
         }
@@ -478,7 +478,7 @@ public final class RoomDoors {
                 || y < room.minY || y > room.maxY) {
             return true;
         }
-        short idx = room.blocks[room.index(x, y, z)];
+        short idx = room.blockAt(room.index(x, y, z));
         if (idx < 0 || idx >= room.palette.size()) {
             return true;
         }

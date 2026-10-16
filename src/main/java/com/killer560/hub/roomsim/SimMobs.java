@@ -124,6 +124,45 @@ public final class SimMobs {
     }
 
     /** One position snapshot of a starred mob still alive, taken on the server thread. */
+    /**
+     * Builds the next {@link #starredSnapshot} against the last one and hands the last one back when every entry came
+     * out equal (fps-sim-1015): the sim's mobs stand still, so rebuilding a record per starred mob and a list copy
+     * every tick made the same list over and over (~10 KB a tick on an F7). Equal means what the record's own equals
+     * means, so the list readers see is the same as before. Server thread, one per call.
+     */
+    private static final class SnapshotBuilder {
+        private final List<StarredEntry> prev;
+        private int n;
+        private List<StarredEntry> built;
+
+        SnapshotBuilder(List<StarredEntry> prev) {
+            this.prev = prev;
+        }
+
+        void add(UUID id, double x, double y, double z) {
+            if (built == null) {
+                if (n < prev.size()) {
+                    StarredEntry e = prev.get(n);
+                    if (e.id().equals(id) && Double.compare(e.x(), x) == 0 && Double.compare(e.y(), y) == 0
+                            && Double.compare(e.z(), z) == 0) {
+                        n++;
+                        return;
+                    }
+                }
+                built = new ArrayList<>(prev.subList(0, n));
+            }
+            built.add(new StarredEntry(id, x, y, z));
+            n++;
+        }
+
+        List<StarredEntry> finish() {
+            if (built == null) {
+                return n == prev.size() ? prev : List.copyOf(prev.subList(0, n));
+            }
+            return List.copyOf(built);
+        }
+    }
+
     private record StarredEntry(UUID id, double x, double y, double z) {
     }
 
@@ -735,11 +774,11 @@ public final class SimMobs {
      * starred mob is already dead.
      */
     private static void refreshStarred(ServerLevel level) {
-        List<StarredEntry> alive = new ArrayList<>();
+        SnapshotBuilder alive = new SnapshotBuilder(starredSnapshot);
         for (UUID id : STARRED) {
             Entity entity = level.getEntity(id);
             if (entity != null && entity.isAlive()) {
-                alive.add(new StarredEntry(id, entity.getX(), entity.getY(), entity.getZ()));
+                alive.add(id, entity.getX(), entity.getY(), entity.getZ());
             } else if (!STARRED_DEAD.contains(id)) {
                 double[] at = STARRED_AT.get(id);
                 if (entity != null || (at != null
@@ -757,12 +796,13 @@ public final class SimMobs {
         }
         for (FelMarker fel : FELS) {
             if (fel.starred && !fel.woken && !fel.skull.isRemoved()) {
-                alive.add(new StarredEntry(fel.skull.getUUID(), fel.skull.getX(), fel.skull.getY(), fel.skull.getZ()));
+                alive.add(fel.skull.getUUID(), fel.skull.getX(), fel.skull.getY(), fel.skull.getZ());
             }
         }
-        starredSnapshot = List.copyOf(alive);
+        List<StarredEntry> snapshot = alive.finish();
+        starredSnapshot = snapshot;
 
-        if (!alive.isEmpty()) {
+        if (!snapshot.isEmpty()) {
             hadStarred = true;
         } else if (hadStarred) {
             hadStarred = false;

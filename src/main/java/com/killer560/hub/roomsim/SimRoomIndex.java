@@ -214,4 +214,15 @@ public final class SimRoomIndex {
     public static int size() {
         return ROOMS.size();
     }
+
+    private static final List<Placed> VIEW = java.util.Collections.unmodifiableList(ROOMS);
+
+    /**
+     * The placed rooms without a copy, for a per-tick reader (fps-sim-1015). Iterate it with for-each: a
+     * {@link CopyOnWriteArrayList}'s iterator walks a snapshot, so a rebuild clearing the list mid-loop is safe; do
+     * not index into it.
+     */
+    public static List<Placed> placedView() {
+        return VIEW;
+    }
 }

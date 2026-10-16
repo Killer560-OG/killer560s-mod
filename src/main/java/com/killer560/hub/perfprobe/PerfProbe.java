@@ -23,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * ticks, level render, chat, screen events...) and every Fabric HUD layer it adds is wrapped in a proxy that times the
  * call; each mod HUD element drawn by {@code HudElementRegistry.drawAt} is timed too. Time is SELF time on the render
  * thread (a nested probed call is subtracted from its caller), and allocation is the render thread's allocated bytes
- * over the same window. Calls on other threads (the integrated server's ticks in the sim) are kept apart, inclusive.
+ * over the same window. Calls on other threads (the integrated server's ticks in the sim) are kept apart, inclusive (time and that
+ * thread's allocation).
  *
  * <p>Not covered: the mod's mixins into vanilla code (nametags, item rendering, slot drawing...) and anything a feature
  * ticks from another feature's listener (CheatUtils ticks several). JFR (testkit {@code tools/fps-jfr.py}) covers those.
@@ -115,6 +116,7 @@ public final class PerfProbe {
                 enter();
             }
             long t0 = onRender ? 0L : System.nanoTime();
+            long b0 = onRender ? 0L : allocated();
             try {
                 return method.invoke(delegate, args);
             } catch (InvocationTargetException e) {
@@ -123,7 +125,7 @@ public final class PerfProbe {
                 if (onRender) {
                     exit(stat);
                 } else {
-                    recordOff(stat, System.nanoTime() - t0);
+                    recordOff(stat, System.nanoTime() - t0, allocated() - b0);
                 }
             }
         }
@@ -229,7 +231,7 @@ public final class PerfProbe {
         }
     }
 
-    private static void recordOff(Stat stat, long ns) {
+    private static void recordOff(Stat stat, long ns, long bytes) {
         Stat off = stat.off;
         if (off == null) {
             synchronized (stat) {
@@ -243,6 +245,7 @@ public final class PerfProbe {
         synchronized (off) {
             off.calls++;
             off.ns += ns;
+            off.bytes += bytes;
             if (ns > off.maxNs) {
                 off.maxNs = ns;
             }
