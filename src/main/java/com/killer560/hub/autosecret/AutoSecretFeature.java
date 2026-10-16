@@ -283,6 +283,8 @@ public final class AutoSecretFeature {
         lastRoomName = null;
         secreted.clear();
         puzzleHoldSaid = null;
+        puzzleHoldRoom = null;
+        puzzleHoldsSaid.clear();
         noRouteSaid.clear();
         instaTried.clear();
         puzzlesDone.clear();
@@ -503,8 +505,16 @@ public final class AutoSecretFeature {
         return new int[]{Math.min(r.secrets(), Math.max(found, routeFoundAtStart + got)), r.secrets()};
     }
 
-    /** The auto puzzle last waited under, so the hold is said once per puzzle rather than every tick. */
+    /** The auto puzzle last waited under, for the "is done - carrying on" log line. */
     private static String puzzleHoldSaid;
+    /**
+     * Every hold reason already said in chat for {@link #puzzleHoldRoom}: a reason is said once per room, however often
+     * the hold comes and goes or the name it carries changes (killer560, 2026-10-15: "Waiting for Auto Ice Path chest to
+     * finish" and "Waiting for Auto Puzzles to finish" posted to his chat every tick, alternating). The status line
+     * ({@link #status}, the HUD) shows the current one throughout.
+     */
+    private static final java.util.Set<String> puzzleHoldsSaid = new java.util.HashSet<>();
+    private static String puzzleHoldRoom;
 
     /**
      * While an auto puzzle is working, nothing here starts a trip, a route or a door, and no wait times out
@@ -525,10 +535,16 @@ public final class AutoSecretFeature {
         }
         String puzzle = com.killer560.hub.autopuzzles.AutoPuzzleActivity.what();
         status = "Waiting: " + puzzle + " is working";
+        if (!java.util.Objects.equals(target, puzzleHoldRoom)) {
+            puzzleHoldRoom = target;
+            puzzleHoldsSaid.clear();
+        }
         if (!puzzle.equals(puzzleHoldSaid)) {
             puzzleHoldSaid = puzzle;
-            LOGGER.info("[AutoSecret] waiting: {} is working (phase {})", puzzle, phase);
-            say(ModChat.dim("Waiting for " + puzzle + " to finish"));
+            if (puzzleHoldsSaid.add(puzzle)) {
+                LOGGER.info("[AutoSecret] waiting: {} is working (phase {})", puzzle, phase);
+                say(ModChat.dim("Waiting for " + puzzle + " to finish"));
+            }
         }
         return true;
     }

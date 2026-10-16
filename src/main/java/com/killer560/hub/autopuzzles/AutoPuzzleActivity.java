@@ -37,11 +37,25 @@ public final class AutoPuzzleActivity {
         }
     }
 
-    /** An auto puzzle is driving him this tick. Public for the testkit, which stands in for a puzzle with it. */
+    /** The tag every click, use and map walk sent through {@link AutoPuzzleUtil} marks with. */
+    static final String GENERIC = "Puzzles";
+
+    /**
+     * An auto puzzle is driving him this tick. Public for the testkit, which stands in for a puzzle with it.
+     * <p>
+     * The name is the one the working spell began with, upgraded once from the generic {@link #GENERIC} to the first
+     * auto that names itself, and kept until the spell ends: several marks land in one tick (Ice Path's chest step marks
+     * "Ice Path", its free camera "Ice Path chest", its click "Puzzles"), and taking the last of them made the name
+     * alternate tick by tick - and every reader that says the name once per change (Autopilot's "Waiting for ... to
+     * finish" in his chat, Auto Routes' "Arming: inert" line) said it twenty times a second (killer560, 2026-10-15).
+     */
     public static void note(String tag) {
+        String t = tag == null ? "" : tag;
+        if (!isWorking() || what.isEmpty() || (GENERIC.equals(what) && !t.isEmpty() && !GENERIC.equals(t))) {
+            what = t;
+        }
         lastMark = ticks;
         markLag = com.killer560.hub.util.ServerLag.mark();
-        what = tag == null ? "" : tag;
     }
 
     /** True while an auto puzzle marked itself within the last {@link #GRACE_TICKS} ticks. */
@@ -51,6 +65,7 @@ public final class AutoPuzzleActivity {
 
     /** The auto that marked last, for chat and log lines ("Auto Water"). */
     public static String what() {
-        return what.isEmpty() ? "an auto puzzle" : "Auto " + what;
+        // The free cameras' log tags are run together ("IcePath", "TicTacToe"); a chat line spells the name out.
+        return what.isEmpty() ? "an auto puzzle" : "Auto " + what.replaceAll("(?<=[a-z])(?=[A-Z])", " ");
     }
 }

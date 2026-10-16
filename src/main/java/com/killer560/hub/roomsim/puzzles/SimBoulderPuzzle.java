@@ -466,8 +466,20 @@ public final class SimBoulderPuzzle {
         return n;
     }
 
-    /** Whether the boxes have been pushed so a way runs from the near row to the far one - the puzzle solved. */
+    /**
+     * Whether Boulder counts as done: its reward chest was opened, or the boxes were pushed so a way runs from the near
+     * row to the far one. On Hypixel opening the chest behind the boxes is what completes Boulder, however he got to it
+     * (killer560, 2026-10-15: "boulder should finish after grabbing that chest on sim, not actually if you do the puzzle
+     * or not") - Auto Boulder with Secret Aura on runs along the roof and never presses a button, and the sim kept the
+     * tab line and the map's tick off for that whole run. The tab list ({@code SimTabList}) and the map
+     * ({@code SimRoomState}) both read this. The pushes still stop at {@link #complete}, the board's own state.
+     */
     public static boolean isComplete() {
+        return complete || rewardOpened;
+    }
+
+    /** Whether the boxes leave a way through - the board itself solved, whatever the chest. */
+    public static boolean isPathOpen() {
         return complete;
     }
 
@@ -515,6 +527,7 @@ public final class SimBoulderPuzzle {
         BlockState[] start = startCells.clone();
         server.execute(() -> {
             complete = false;
+            rewardOpened = false;
             lay(server.overworld(), start);
         });
     }

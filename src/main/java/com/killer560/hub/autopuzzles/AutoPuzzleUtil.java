@@ -544,7 +544,7 @@ public final class AutoPuzzleUtil {
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
             return false;
         }
-        AutoPuzzleActivity.note("Puzzles");
+        AutoPuzzleActivity.note(AutoPuzzleActivity.GENERIC);
         if (exact) {
             com.killer560.hub.livemap.autoclear.ClearExecutor.etherPathExact(target, onArrive);
         } else {
@@ -813,7 +813,7 @@ public final class AutoPuzzleUtil {
         }
         // Every puzzle click claims this gate, so the click-only autos (Quiz, Three Weirdos) read as working too;
         // they never move him, and 93-solve-quiz/-threeweirdos found them invisible to the hold (2026-10-15).
-        AutoPuzzleActivity.note("Puzzles");
+        AutoPuzzleActivity.note(AutoPuzzleActivity.GENERIC);
         return true;
     }
 
@@ -934,7 +934,7 @@ public final class AutoPuzzleUtil {
      *  Callers must have claimed the tick with {@link #gateWorldClick()} first.
      *  @return false (nothing sent) if the block has no shape */
     public static boolean interactBlock(Minecraft client, BlockPos pos) {
-        AutoPuzzleActivity.note("Puzzles");
+        AutoPuzzleActivity.note(AutoPuzzleActivity.GENERIC);
         BlockState state = client.level.getBlockState(pos);
         VoxelShape shape = state.getShape(client.level, pos);
         if (shape.isEmpty()) {

@@ -33,6 +33,14 @@ import java.util.Set;
  * <p>Nothing here waits on a clock. The chest is looked for every tick until it is there (a reward chest appears on
  * the solve, a tick or two after the last move); a click is retried only when the chest did not open after it. The body
  * is turned onto the chest the tick it becomes clickable (a landing, or in reach) and the click goes the next tick.
+ *
+ * <p>A click worked when the server's chest WINDOW arrives ({@link com.killer560.hub.util.ChestWindows}), whether or not
+ * a screen shows: with Auto Close Chest on the packet is cancelled and answered with a close, so no screen opens and the
+ * lid is open for a tick at most. Reading only the screen and the lid, Auto Ice Path took his claimed chest for an
+ * unopened one, clicked twice more and then waited half a minute for a chest to "appear" (killer560, 2026-10-15, "it
+ * gets stuck on ice fill after grabbing the chest"). A click with no answer is retried once the answer is overdue - his
+ * measured round trip plus any server stall, not a fixed wait - and once a chest has been found, finding no other ends
+ * the step at once.
  */
 final class RewardChest {
 
@@ -40,8 +48,9 @@ final class RewardChest {
     private static final double REACH = 4.4;
     /** Ticks to keep looking for a chest after the solve before saying there is none. */
     private static final int LOOK_TICKS = 200;
-    /** Ticks after a click with no chest opening before it is clicked again. Server round trip, not a safety wait. */
-    private static final int RETRY_TICKS = 10;
+    /** Ticks past the measured round trip before a click with no window counts as unanswered: the tick the click
+     *  goes out and the tick the answer is read. */
+    private static final int ANSWER_SLACK_TICKS = 2;
     private static final int MAX_CLICKS = 3;
 
     private final String tag;
@@ -60,6 +69,10 @@ final class RewardChest {
     private final Set<BlockPos> opened = new HashSet<>();
     private final Set<BlockPos> warpTried = new HashSet<>();
     private boolean clickedAwaitingScreen = false;
+    /** {@link com.killer560.hub.util.ChestWindows#count} as the last click went out. */
+    private int windowMark = 0;
+    /** A chest was found this run - so "no chest" from now on means none left, not "not there yet". */
+    private boolean everFound = false;
     private int hops = 0;
     private String lastNote = "";
     /** The last {@link #pick} could not see the whole chest box: part of it is not loaded on the client. */
@@ -116,6 +129,8 @@ final class RewardChest {
         opened.clear();
         warpTried.clear();
         clickedAwaitingScreen = false;
+        windowMark = 0;
+        everFound = false;
         hops = 0;
         lastNote = "";
         unloaded = false;
@@ -137,6 +152,10 @@ final class RewardChest {
         ticks++;
         sinceClick++;
         AutoPuzzleActivity.note(tag);
+        if (clickedAwaitingScreen && target != null && com.killer560.hub.util.ChestWindows.since(windowMark)) {
+            done(target, McCompat.screen(client) != null ? "its window opened" : "its window arrived (not shown)");
+            return;
+        }
         if (McCompat.screen(client) != null) {
             if (clickedAwaitingScreen && target != null) {
                 done(target, "its window opened");
@@ -168,17 +187,20 @@ final class RewardChest {
                 if (unloaded) {
                     // Unknown, not "none": a chunk the client does not have reads as air. Never give up on that.
                     note("part of the chest area is not loaded yet - waiting for it");
+                } else if (everFound || !opened.isEmpty()) {
+                    // A chest was there and is dealt with (opened, or given up on): nothing more will appear.
+                    finish("no other reward chest");
                 } else if (ticks > LOOK_TICKS) {
-                    finish(opened.isEmpty() ? "no reward chest appeared in the room in " + LOOK_TICKS / 20 + " s"
-                            : "no other reward chest");
+                    finish("no reward chest appeared in the room in " + LOOK_TICKS / 20 + " s");
                 } else {
                     note("waiting for the reward chest to appear");
                 }
                 return;
             }
+            everFound = true;
             clicks = 0;
             hops = 0;
-            sinceClick = RETRY_TICKS;
+            sinceClick = Integer.MAX_VALUE / 2;
             warpTried.clear();
             LOGGER.info("[AutoPuzzles] {}: reward chest at {} (relative {})", tag, AutoPuzzleUtil.fmt(target),
                     AutoPuzzleUtil.fmt(PuzzleCoords.relative(target, cr)));
@@ -218,8 +240,8 @@ final class RewardChest {
             note("the reward chest is out of reach and no spot in reach of it can be got to");
             return;
         }
-        if (sinceClick < RETRY_TICKS) {
-            return; // a click went out; the open lid or the window is what moves this on
+        if (clicks > 0 && sinceClick <= answerTicks()) {
+            return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
         }
         // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
         // onto the chest in the tick it becomes clickable - the landing, or the first tick it is in reach - under this
@@ -250,6 +272,8 @@ final class RewardChest {
         if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
             return;
         }
+        // Marked BEFORE the click goes: the integrated server can answer on its own thread before the next line runs.
+        int mark = com.killer560.hub.util.ChestWindows.count();
         if (!AutoPuzzleUtil.interactBlock(client, target)) {
             opened.add(target);
             target = null;
@@ -258,8 +282,15 @@ final class RewardChest {
         clicks++;
         sinceClick = 0;
         clickedAwaitingScreen = true;
+        windowMark = mark;
         LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {})", tag,
                 AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks);
+    }
+
+    /** Ticks a click's window takes to come back: his measured round trip, any server stall in progress, and the slack. */
+    private static int answerTicks() {
+        int ping = Math.max(0, com.killer560.hub.util.PingTracker.automationMs());
+        return (ping + 49) / 50 + com.killer560.hub.util.ServerLag.expectedDelayTicks() + ANSWER_SLACK_TICKS;
     }
 
     private void done(BlockPos chest, String why) {

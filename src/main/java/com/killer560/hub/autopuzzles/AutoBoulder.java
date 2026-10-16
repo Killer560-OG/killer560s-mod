@@ -143,6 +143,9 @@ public final class AutoBoulder {
     private static boolean unloadedWarned = false;
     private static int scanCooldown = 0;
     private static boolean sawContainer = false;
+    /** {@code util/ChestWindows.count} as the current stage began: a chest window in the chest stages is the chest's,
+     *  shown or not (Auto Close Chest cancels the screen). */
+    private static int stageWindows = 0;
     private static int presses = 0;
     private static long lastPressMs = 0L;
     private static long buttonMissingSinceMs = 0L;
@@ -270,6 +273,10 @@ public final class AutoBoulder {
         if (System.currentTimeMillis() - engagedMs > ROOM_TIMEOUT_MS) {
             giveUp(client, "still not done after " + ROOM_TIMEOUT_MS / 1000 + " s");
             return false;
+        }
+        if ((stage == Stage.AWAIT_AURA || stage == Stage.TO_CHEST)
+                && com.killer560.hub.util.ChestWindows.since(stageWindows)) {
+            sawContainer = true;
         }
         if (McCompat.screen(client) != null) {
             if (stage == Stage.AWAIT_AURA || stage == Stage.TO_CHEST) {
@@ -1244,6 +1251,7 @@ public final class AutoBoulder {
     private static void advance(Stage next, String why) {
         LOGGER.info("[AutoPuzzles] Boulder: {} -> {} ({})", stage, next, why);
         stage = next;
+        stageWindows = com.killer560.hub.util.ChestWindows.count();
         stageStartMs = System.currentTimeMillis();
         stageLag = com.killer560.hub.util.ServerLag.mark();
         loggedWait = null;

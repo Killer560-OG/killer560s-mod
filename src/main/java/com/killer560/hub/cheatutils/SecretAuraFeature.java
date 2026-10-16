@@ -99,6 +99,9 @@ public final class SecretAuraFeature {
     private static final Map<Long, Boolean> leverInitialState = new HashMap<>();
     private static long lastClickMs = 0;
     private static Long lastClickKey = null;
+    /** {@code util/ChestWindows.count} as the last chest click went out: a chest window since then is its answer, shown
+     *  or not (Auto Close Chest cancels the screen, so "a screen opened" never fires with it on). */
+    private static int lastClickWindows = 0;
     /** Redstone Key skulls seen in reach this run; one that stops being a key skull has been picked up (by anyone). */
     private static final Set<Long> keySkullsSeen = new HashSet<>();
     /**
@@ -145,9 +148,14 @@ public final class SecretAuraFeature {
         if (client.level != null && (!done.isEmpty() || !attempts.isEmpty() || !leverInitialState.isEmpty())) {
             // Runs even while a screen is open: a chest's GUI opening right after our click means it worked
             // (its lid open-ness can already be back to 0 by the time the GUI is closed again).
-            if (McCompat.screen(client) != null && lastClickKey != null && now - lastClickMs < 2000) {
-                markDone(lastClickKey, "screen opened after click");
-                lastClickKey = null;
+            if (lastClickKey != null && now - lastClickMs < 2000) {
+                if (McCompat.screen(client) != null) {
+                    markDone(lastClickKey, "screen opened after click");
+                    lastClickKey = null;
+                } else if (com.killer560.hub.util.ChestWindows.since(lastClickWindows)) {
+                    markDone(lastClickKey, "chest window arrived after click");
+                    lastClickKey = null;
+                }
             }
             updateDone(client, now);
         }
@@ -307,6 +315,7 @@ public final class SecretAuraFeature {
         attempts.put(key, new Attempt(count, now, powered));
         lastClickMs = now;
         lastClickKey = "chest".equals(bestKind) ? key : null;
+        lastClickWindows = com.killer560.hub.util.ChestWindows.count();
 
         // A SURFACE hit, not the block's centre with a hardcoded east face.
         //
