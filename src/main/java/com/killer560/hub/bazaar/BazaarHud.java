@@ -47,7 +47,10 @@ public final class BazaarHud {
 
     /** True while HUD layers must not draw: the Bazaar is on screen and Hide HUDs in Bazaar is on. */
     public static boolean hidesHud() {
-        return BazaarConfig.getInstance().isHideHuds() && bazaarOnScreen();
+        // Asked by every HUD layer every frame (about 25 a frame): the no-screen case, nearly every frame of play,
+        // answers before the config lookup.
+        return McCompat.screen(Minecraft.getInstance()) != null && BazaarConfig.getInstance().isHideHuds()
+                && bazaarOnScreen();
     }
 
     /** The Bazaar screen, or a Bazaar menu drawn as it, is the open screen. */

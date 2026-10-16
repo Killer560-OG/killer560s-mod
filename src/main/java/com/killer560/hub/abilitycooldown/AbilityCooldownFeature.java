@@ -162,9 +162,10 @@ public final class AbilityCooldownFeature {
             AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
             java.util.List<Line> out = new java.util.ArrayList<>();
             for (ItemAbility ability : AbilityCooldownState.running()) {
-                double remaining = AbilityCooldownState.remainingMs(ability) / 1000.0;
-                out.add(new Line(String.format(Locale.US, "%s: %.1fs", ability.label(), remaining),
-                        cfg.isColorByRemaining() ? colorFor(remaining) : COLOR_FAR));
+                long ms = AbilityCooldownState.remainingMs(ability);
+                double remaining = ms / 1000.0;
+                int color = cfg.isColorByRemaining() ? colorFor(remaining) : COLOR_FAR;
+                out.add(cachedLine(ability, ms, remaining, color));
                 if (out.size() >= cfg.getMaxLines()) {
                     return out;
                 }
@@ -178,6 +179,26 @@ public final class AbilityCooldownFeature {
                 }
             }
             return out;
+        }
+
+        // One row per ability, kept while its shown tenth and colour are the same: the text was a String.format per
+        // running ability per frame, and again for width()/height() (2026-10-15). "%.1f" rounds the exact decimal
+        // ms/1000 half up, so every ms in ((t - 0.05) s, (t + 0.05) s] shows t: the tenth key (ms + 50) / 100 is that t.
+        private static final Line[] ROW = new Line[ItemAbility.values().length];
+        private static final long[] ROW_KEY = new long[ItemAbility.values().length];
+
+        private static Line cachedLine(ItemAbility ability, long ms, double remaining, int color) {
+            int i = ability.ordinal();
+            long key = ((ms + 50) / 100) * 0x1_0000_0000L + (color & 0xFFFFFFFFL);
+            Line line = ROW[i];
+            if (line == null || ROW_KEY[i] != key || !Minecraft.getInstance().isSameThread()) {
+                line = new Line(String.format(Locale.US, "%s: %.1fs", ability.label(), remaining), color);
+                if (Minecraft.getInstance().isSameThread()) {
+                    ROW[i] = line;
+                    ROW_KEY[i] = key;
+                }
+            }
+            return line;
         }
 
         private static int colorFor(double remainingSeconds) {

@@ -634,6 +634,84 @@ public final class StatElements {
     /** The readout a text element draws: the live value, or (in the HUD editor) its label until there is one; null
      *  when it draws nothing. */
     private static String text(Readout r, boolean preview) {
+        String text = liveTextCached(r);
+        if (text == null && preview) {
+            text = r.label;
+        }
+        return text;
+    }
+
+    // The text readouts' strings, rebuilt only when a number they show changes: a frame asked for each one three times
+    // (hasValue for the layout, textWidth, the draw), and each answer was one or two String.format("%,d") calls
+    // (2026-10-15). Keys are the inputs liveText reads for that readout. Render thread only; anywhere else just builds.
+    private static final long[] textKeyA = new long[N];
+    private static final long[] textKeyB = new long[N];
+    private static final Object[] textKeyC = new Object[N];
+    private static final boolean[] textValid = new boolean[N];
+    private static final String[] textValue = new String[N];
+
+    private static String liveTextCached(Readout r) {
+        if (!Minecraft.getInstance().isSameThread()) {
+            return liveText(r);
+        }
+        long a;
+        long b;
+        Object c = null;
+        switch (r) {
+            case HEALTH_TEXT -> {
+                a = PlayerStatsFeature.healthCur;
+                b = PlayerStatsFeature.healthMax;
+            }
+            case MANA_TEXT -> {
+                a = PlayerStatsFeature.manaCur;
+                b = PlayerStatsFeature.manaMax;
+            }
+            case OVERFLOW_TEXT -> {
+                a = PlayerStatsFeature.overflowMana;
+                b = 0;
+            }
+            case INTELLIGENCE_TEXT -> {
+                a = PlayerStatsFeature.manaMax;
+                b = 0;
+            }
+            case DEFENCE_TEXT -> {
+                a = PlayerStatsFeature.defenceValue;
+                b = 0;
+            }
+            case EFFECTIVE_HEALTH_TEXT -> {
+                a = PlayerStatsFeature.healthCur;
+                b = PlayerStatsFeature.defenceValue;
+            }
+            case VITALITY_TEXT -> {
+                a = PlayerStatsFeature.vitalityCur;
+                b = PlayerStatsFeature.vitalityMax;
+            }
+            case XP_TEXT -> {
+                float[] xp = xp();
+                if (xp == null) {
+                    return null;
+                }
+                a = (long) xp[0];
+                b = Float.floatToIntBits(xp[1]);
+            }
+            default -> {
+                a = PlayerStatsFeature.otherCur;
+                b = PlayerStatsFeature.otherMax;
+                c = PlayerStatsFeature.otherIcon;
+            }
+        }
+        int i = r.ordinal();
+        if (!textValid[i] || textKeyA[i] != a || textKeyB[i] != b || textKeyC[i] != c) {
+            textValue[i] = liveText(r);
+            textKeyA[i] = a;
+            textKeyB[i] = b;
+            textKeyC[i] = c;
+            textValid[i] = true;
+        }
+        return textValue[i];
+    }
+
+    private static String liveText(Readout r) {
         String text = switch (r) {
             case HEALTH_TEXT -> PlayerStatsFeature.healthCur < 0 ? null
                     : "❤ " + fmt(PlayerStatsFeature.healthCur) + "/" + fmt(PlayerStatsFeature.healthMax);
@@ -659,9 +737,6 @@ public final class StatElements {
                     : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
                     + PlayerStatsFeature.otherIcon;
         };
-        if (text == null && preview) {
-            text = r.label;
-        }
         return text;
     }
 

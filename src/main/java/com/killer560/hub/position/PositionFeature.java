@@ -64,6 +64,13 @@ public final class PositionFeature {
     private static boolean lastShowBlock;
     private static boolean lastShowVelocity;
     private static String[] lastLines = new String[0];
+    private static String xLine;
+    private static String yLine;
+    private static String zLine;
+    private static String yawLine;
+    private static String pitchLine;
+    private static String blockLine;
+    private static String velocityLine;
 
     private PositionFeature() {
     }
@@ -131,38 +138,66 @@ public final class PositionFeature {
             return lastLines;
         }
 
+        // Only the lines whose own inputs changed are re-formatted (2026-10-15): turning changes the Yaw line alone, so
+        // the X/Y/Z lines keep their String objects - no DecimalFormat call, and the HUD text cache's visual order for
+        // them stays valid - instead of all five being rebuilt every frame of a turn.
+        boolean settingsSame = cacheValid && lastDecimalPlaces == decimalPlaces;
+        if (!settingsSame || lastX != x || xLine == null) {
+            xLine = coordLine("X", x, decimalPlaces);
+        }
+        if (!settingsSame || lastY != y || yLine == null) {
+            yLine = coordLine("Y", y, decimalPlaces);
+        }
+        if (!settingsSame || lastZ != z || zLine == null) {
+            zLine = coordLine("Z", z, decimalPlaces);
+        }
         int count = 3 + (showFacing ? 2 : 0) + (showBlock ? 1 : 0) + (showVelocity ? 1 : 0);
         String[] out = new String[count];
         int i = 0;
-        out[i++] = coordLine("X", x, decimalPlaces);
-        out[i++] = coordLine("Y", y, decimalPlaces);
-        out[i++] = coordLine("Z", z, decimalPlaces);
+        out[i++] = xLine;
+        out[i++] = yLine;
+        out[i++] = zLine;
         if (showFacing) {
-            float wrappedYaw = Mth.wrapDegrees(yaw);
-            LINE_BUILDER.setLength(0);
-            LINE_BUILDER.append("§6Yaw §f").append(format(yaw, decimalPlaces))
-                    .append(" (").append(format(wrappedYaw, decimalPlaces)).append(')');
-            if (frozen) {
-                LINE_BUILDER.append(" §8body ").append(format(bodyYaw, decimalPlaces));
+            if (!settingsSame || !lastShowFacing || yawLine == null || lastYaw != yaw || lastFrozen != frozen
+                    || (frozen && lastBodyYaw != bodyYaw)) {
+                float wrappedYaw = Mth.wrapDegrees(yaw);
+                LINE_BUILDER.setLength(0);
+                LINE_BUILDER.append("§6Yaw §f").append(format(yaw, decimalPlaces))
+                        .append(" (").append(format(wrappedYaw, decimalPlaces)).append(')');
+                if (frozen) {
+                    LINE_BUILDER.append(" §8body ").append(format(bodyYaw, decimalPlaces));
+                }
+                yawLine = LINE_BUILDER.toString();
             }
-            out[i++] = LINE_BUILDER.toString();
+            out[i++] = yawLine;
 
-            LINE_BUILDER.setLength(0);
-            LINE_BUILDER.append("§6Pitch §f").append(format(pitch, decimalPlaces));
-            out[i++] = LINE_BUILDER.toString();
+            if (!settingsSame || !lastShowFacing || pitchLine == null || lastPitch != pitch) {
+                LINE_BUILDER.setLength(0);
+                LINE_BUILDER.append("§6Pitch §f").append(format(pitch, decimalPlaces));
+                pitchLine = LINE_BUILDER.toString();
+            }
+            out[i++] = pitchLine;
         }
         if (showBlock) {
-            LINE_BUILDER.setLength(0);
-            LINE_BUILDER.append("§6Block: §f").append(block.getX()).append(", ")
-                    .append(block.getY()).append(", ").append(block.getZ());
-            out[i++] = LINE_BUILDER.toString();
+            if (!cacheValid || !lastShowBlock || blockLine == null || lastBlockX != block.getX()
+                    || lastBlockY != block.getY() || lastBlockZ != block.getZ()) {
+                LINE_BUILDER.setLength(0);
+                LINE_BUILDER.append("§6Block: §f").append(block.getX()).append(", ")
+                        .append(block.getY()).append(", ").append(block.getZ());
+                blockLine = LINE_BUILDER.toString();
+            }
+            out[i++] = blockLine;
         }
         if (showVelocity) {
-            LINE_BUILDER.setLength(0);
-            LINE_BUILDER.append("§6Velocity: §fX ").append(format(velocity.x, decimalPlaces))
-                    .append(" Y ").append(format(velocity.y, decimalPlaces))
-                    .append(" Z ").append(format(velocity.z, decimalPlaces));
-            out[i++] = LINE_BUILDER.toString();
+            if (!settingsSame || !lastShowVelocity || velocityLine == null || lastVelX != velocity.x
+                    || lastVelY != velocity.y || lastVelZ != velocity.z) {
+                LINE_BUILDER.setLength(0);
+                LINE_BUILDER.append("§6Velocity: §fX ").append(format(velocity.x, decimalPlaces))
+                        .append(" Y ").append(format(velocity.y, decimalPlaces))
+                        .append(" Z ").append(format(velocity.z, decimalPlaces));
+                velocityLine = LINE_BUILDER.toString();
+            }
+            out[i++] = velocityLine;
         }
 
         lastX = x;

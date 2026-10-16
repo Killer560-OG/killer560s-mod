@@ -531,23 +531,49 @@ public final class WitherDragonsFeature {
         }
 
         private static List<String> lines() {
-            List<String> out = new ArrayList<>();
             Minecraft client = Minecraft.getInstance();
             if (McCompat.screen(client) instanceof HudEditorScreen) {
-                out.add("§8» §5Purple: §a4500ms");
-                out.add("§cRed: §a4500ms");
-                return out;
+                return List.of("§8» §5Purple: §a4500ms", "§cRed: §a4500ms");
             }
             if (!WitherDragonsConfig.getInstance().isEnabled() || !WitherDragonsConfig.getInstance().isDragonTimer() || !P5State.inP5()) {
-                return out;
+                return List.of();
             }
-            for (WitherDragon d : WitherDragon.values()) {
+            List<String> out = new ArrayList<>();
+            // The timers count server ticks, so the text changes 20 times a second at most; it was rebuilt (a
+            // String.format per dragon in Seconds style) for every frame and again for width()/height() (2026-10-15).
+            WitherDragon[] dragons = WitherDragon.values();
+            WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+            boolean same = cachedLines != null && cachedPriority == priorityDragon && cachedStyle == cfg.getTimerStyle()
+                    && cachedSymbol == cfg.isTimerSymbol() && cachedTicks.length == dragons.length;
+            for (int i = 0; same && i < dragons.length; i++) {
+                same = cachedTicks[i] == dragons[i].timeToSpawn;
+            }
+            if (same && client.isSameThread()) {
+                return cachedLines;
+            }
+            int[] ticks = new int[dragons.length];
+            for (int i = 0; i < dragons.length; i++) {
+                WitherDragon d = dragons[i];
+                ticks[i] = d.timeToSpawn;
                 if (d.timeToSpawn > 0) {
                     out.add((d == priorityDragon ? "§8» " : "") + d.colored() + ": " + formatTimer(d.timeToSpawn));
                 }
             }
+            if (client.isSameThread()) {
+                cachedLines = out;
+                cachedTicks = ticks;
+                cachedPriority = priorityDragon;
+                cachedStyle = cfg.getTimerStyle();
+                cachedSymbol = cfg.isTimerSymbol();
+            }
             return out;
         }
+
+        private static List<String> cachedLines;
+        private static int[] cachedTicks = new int[0];
+        private static WitherDragon cachedPriority;
+        private static Object cachedStyle;
+        private static boolean cachedSymbol;
 
         @Override
         public boolean isEnabledInSettings() {
