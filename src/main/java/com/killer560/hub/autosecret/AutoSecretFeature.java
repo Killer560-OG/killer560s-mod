@@ -456,7 +456,7 @@ public final class AutoSecretFeature {
         leaveStartClock = routeStartClock;
         leaveFoundAtStart = routeFoundAtStart;
         int[] counted = roomCount(room);
-        String taking = takingHere(client, room, counted);
+        String taking = takingHere(client, room, counted, 0);
         if (taking == null && (counted == null || counted[0] >= counted[1])) {
             LOGGER.info("[AutoSecret] {}: every secret counted at the route's end{} - leaving this tick", room,
                     counted == null ? " (no secrets to count)" : " (" + counted[0] + "/" + counted[1] + ": "
@@ -491,7 +491,7 @@ public final class AutoSecretFeature {
         Minecraft client = Minecraft.getInstance();
         int[] counted = roomCount(leaveWaitRoom);   // with this room's own start, see leaveStartClock
         boolean done = counted == null || counted[0] >= counted[1];
-        String taking = takingHere(client, leaveWaitRoom, counted);
+        String taking = takingHere(client, leaveWaitRoom, counted, leaveWaitTicks);
         boolean timedOut = leaveWaitTicks >= TAKE_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(leaveWaitLag);
         if (taking != null && !timedOut) {
             // A secret in reach is still being taken: no cap but the timeout, and no sneak under its click.
@@ -544,6 +544,8 @@ public final class AutoSecretFeature {
     private static String leaveTakingSaid;
     /** An item secret is due when his body is this close to its block (the sim's spawn range, killer560's number). */
     private static final double ITEM_DUE_RANGE = 3.0;
+    /** Ticks an item secret by his feet is waited for before it has appeared (it appears after 5 in range). */
+    private static final int ITEM_APPEAR_TICKS = 15;
 
     /**
      * killer560, 2026-10-15: "it will leave a room before a secret is grabbed and registered". What, at the end of
@@ -552,7 +554,7 @@ public final class AutoSecretFeature {
      * database by his feet that he has not picked up (it appears a moment after he arrives and is picked up a moment
      * after that). A secret the route left out of reach is not waited for: that is the 6-tick cap's case.
      */
-    private static String takingHere(Minecraft client, String room, int[] counted) {
+    private static String takingHere(Minecraft client, String room, int[] counted, int waited) {
         if (client.player == null) {
             return null;
         }
@@ -572,10 +574,18 @@ public final class AutoSecretFeature {
             double dx = Math.max(0, Math.max(at.getX() - body.maxX, body.minX - (at.getX() + 1)));
             double dy = Math.max(0, Math.max(at.getY() - body.maxY, body.minY - (at.getY() + 1)));
             double dz = Math.max(0, Math.max(at.getZ() - body.maxZ, body.minZ - (at.getZ() + 1)));
-            if (dx * dx + dy * dy + dz * dz <= ITEM_DUE_RANGE * ITEM_DUE_RANGE
-                    && !com.killer560.hub.autoroutes.RouteRunMemory.gotNear("item",
-                    net.minecraft.world.phys.Vec3.atCenterOf(at), 2.5)) {
-                return "the item at " + at.toShortString();
+            net.minecraft.world.phys.Vec3 centre = net.minecraft.world.phys.Vec3.atCenterOf(at);
+            if (dx * dx + dy * dy + dz * dz > ITEM_DUE_RANGE * ITEM_DUE_RANGE
+                    || com.killer560.hub.autoroutes.RouteRunMemory.gotNear("item", centre, 2.5)) {
+                continue;
+            }
+            // Before it appears, only for as long as an item takes to appear: one that never does (taken by a teammate,
+            // or a database position the room does not have) is not waited for past that.
+            boolean lying = client.level != null && !client.level.getEntitiesOfClass(
+                    net.minecraft.world.entity.item.ItemEntity.class,
+                    new net.minecraft.world.phys.AABB(centre, centre).inflate(2.5)).isEmpty();
+            if (lying || waited < ITEM_APPEAR_TICKS) {
+                return "the item at " + at.toShortString() + (lying ? "" : " (not there yet)");
             }
         }
         return null;
@@ -584,8 +594,9 @@ public final class AutoSecretFeature {
     /**
      * {found, total} of a room's secrets, or null when it has none to count (or is not on the map): the larger of the map's
      * count (the action bar's "x/y", or a green check) and the count when ITS trip began ({@link #leaveFoundAtStart},
-     * never the next room's) plus every secret of his taken in the room since ({@link com.killer560.hub.autoroutes.RouteRunMemory}, counted on the click or pickup itself - the
-     * action bar only says so on its next update).
+     * never the next room's) plus every secret of his taken in the room since
+     * ({@link com.killer560.hub.autoroutes.RouteRunMemory}, counted on the click or pickup itself - the action bar only
+     * says so on its next update).
      */
     private static int[] roomCount(String name) {
         RoomStatus.Room r = roomNamed(name);
