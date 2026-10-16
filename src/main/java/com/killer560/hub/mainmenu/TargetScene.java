@@ -20,9 +20,11 @@ import org.joml.Matrix3x2fStack;
  *   <li>streaks falling down the acid waterfall and foam flickering where it lands on the slime's crown;</li>
  *   <li>the slime's glow pulsing gently, shimmer drifting across the lake, fog drifting over the water, a few motes rising
  *       at the sides;</li>
- *   <li>the whole view swaying very slowly side to side (killer560's earlier ask).</li>
+ *   <li>glowing droplets dripping from the cave ceiling at three depths (killer560, 2026-10-16): each forms on the
+ *       rock, stretches, falls with gravity trailing a short streak, and lands with a ripple on the lake or a splat on the
+ *       ledge; only two faint far ones fall through the middle;</li>
  * </ul>
- * Nothing moves under the title or the buttons beyond the slow sway of the fog behind them.
+ * The view itself never moves (killer560, 2026-10-16: the side-to-side sway was removed); only those parts do.
  */
 final class TargetScene {
 
@@ -37,17 +39,11 @@ final class TargetScene {
     private static final int HOT = 0xFFDCFFB8;
     private static final int WHITE = 0xFFFFFFFF;
 
-    /** Seconds per full sway. */
-    private static final double SWAY_PERIOD = 14.0;
-
-    /** Puts the pose into the picture's space (1920x1080 stretched over the screen), swayed and a touch enlarged so the
-     *  sway never shows an edge. */
+    /** Puts the pose into the picture's space (1920x1080 stretched over the screen). The view itself stays still
+     *  (killer560, 2026-10-16: no whole-screen sway; only the parts move). */
     private static void enter(Matrix3x2fStack pose, int w, int h, double t) {
-        float sway = (float) (Math.sin(t * Math.PI * 2 / SWAY_PERIOD) * 10.0);
         pose.pushMatrix();
         pose.scale(w / (float) TW, h / (float) TH);
-        pose.translate(-14f + sway, -8f);
-        pose.scale((TW + 28f) / TW, (TH + 16f) / TH);
     }
 
     static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
@@ -100,6 +96,180 @@ final class TargetScene {
         return v < 0 ? 0 : v > 1 ? 1 : v;
     }
 
+    /** How many droplet sources the ceiling has (testkit 1651 checks the scene has them). */
+    static final int DROPS = 24;
+    /** Where the lake's surface is, and the ledge's top, in the picture's space. */
+    private static final int LAKE_Y = 852;
+    private static final int LEDGE_Y = 842;
+    private static final int LEDGE_END = 520;
+
+    /**
+     * The droplets. Each source has a place on the ceiling, a depth (0 far: small and faint; 1 near: bigger, brighter, with a
+     * glow) and a period; within the period a drop forms (swelling and stretching), falls under gravity with a streak as
+     * long as its speed, then rings out on the lake or splats on the ledge.
+     */
+    private static void drips(GuiRects r, double t) {
+        for (int i = 0; i < DROPS; i++) {
+            double hx = MainMenuScenes.hash(i, 730);
+            double x;
+            double depth;
+            if (i < 2) {
+                // Two faint far ones through the middle, behind the menu.
+                x = 640 + hx * 640;
+                depth = 0;
+            } else if (i % 2 == 0) {
+                x = 70 + hx * 480;      // the left: over the ledge and the near lake
+                depth = MainMenuScenes.hash(i, 731);
+            } else {
+                x = 1360 + hx * 480;    // the right: either side of the waterfall
+                if (x > 1462 && x < 1596) {
+                    x += 150;
+                }
+                depth = MainMenuScenes.hash(i, 731);
+            }
+            double ceil = 24 + MainMenuScenes.hash(i, 732) * 70;
+            double form = 1.4 + MainMenuScenes.hash(i, 733) * 2.2;
+            double g = 2300 * (0.7 + 0.3 * depth);
+            boolean ledge = x < LEDGE_END;
+            double land = ledge ? LEDGE_Y : LAKE_Y;
+            double fall = Math.sqrt(2.0 * (land - ceil) / g);
+            double splash = 0.55;
+            double period = form + fall + splash + MainMenuScenes.hash(i, 734) * 1.5;
+            double tt = (t + MainMenuScenes.hash(i, 735) * period) % period;
+            double radius = 1.1 + depth * 2.6;
+            int alpha = (int) (0x80 + 0x7F * depth);
+            if (tt < form) {
+                // Forming: a bead swelling on the rock, then stretching before it lets go.
+                double f = tt / form;
+                double rr = radius * (0.35 + 0.65 * f);
+                double stretch = 1 + 0.9 * f * f * f;
+                softDot(r, x, ceil + rr * stretch, rr, stretch, HOT, alpha, depth);
+            } else if (tt < form + fall) {
+                double ft = tt - form;
+                double y = ceil + 0.5 * g * ft * ft;
+                double v = g * ft;
+                double streak = Math.min(110, v * 0.026 * (0.6 + 0.4 * depth));
+                streak(r, x, y - streak, y, radius * 0.9, HOT, alpha / 2);
+                softDot(r, x, y, radius, 1.35, HOT, alpha, depth);
+            } else {
+                double f = (tt - form - fall) / splash;
+                if (f > 1) {
+                    continue;
+                }
+                int a = (int) (alpha * (1 - f) * (1 - f));
+                double e = 1 - (1 - f) * (1 - f); // eases out
+                if (ledge) {
+                    // A splat: a flattened blob spreading and fading, a few specks thrown out.
+                    softDot(r, x, land - 1, radius * (1.3 + 2.0 * e), 0.35, HOT, a, depth);
+                    for (int k = 0; k < 4; k++) {
+                        double dir = (k < 2 ? -1 : 1) * (0.6 + 0.5 * MainMenuScenes.hash(i * 4 + k, 736));
+                        double sx = x + dir * 26 * e * (0.6 + depth);
+                        double sy = land - 3 - 26 * f * (1 - f) * (0.6 + depth) * (0.7 + 0.6 * MainMenuScenes.hash(i * 4 + k, 737));
+                        softDot(r, sx, sy, 0.8 + depth * 0.8, 1, HOT, a, 0);
+                    }
+                } else {
+                    // A ripple ring spreading on the water, a second one behind it, and a little rebound drop.
+                    double rw = (5 + 46 * e) * (0.5 + depth);
+                    ring(r, x, land + 2, rw, rw * 0.22, 1.2 + depth, HOT, a);
+                    if (f > 0.2) {
+                        double f2 = (f - 0.2) / 0.8;
+                        double e2 = 1 - (1 - f2) * (1 - f2);
+                        double rw2 = (3 + 30 * e2) * (0.5 + depth);
+                        ring(r, x, land + 2, rw2, rw2 * 0.22, 1, HOT, (int) (a * 0.6));
+                    }
+                    if (f < 0.6) {
+                        double up = Math.sin(Math.PI * f / 0.6) * 20 * (0.5 + depth);
+                        softDot(r, x, land - up, radius * 0.6, 1.2, HOT, a, 0);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * An antialiased disc of {@code radius} (stretched vertically by {@code stretch}) centred on a sub-pixel position: the
+     * pose is moved by the fraction, rows are spans whose edge pixels carry the partial coverage, and a soft halo of
+     * stacked faint discs surrounds it for the near drops ({@code glow} 0..1).
+     */
+    private static void softDot(GuiRects r, double cx, double cy, double radius, double stretch, int rgb, int alpha,
+                                double glow) {
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.translate((float) cx, (float) cy);
+        if (glow > 0.35) {
+            int halo = (int) (0x1A * glow);
+            for (int k = 3; k >= 1; k--) {
+                disc(r, radius * (1 + k * 1.1), stretch, rgb, halo);
+            }
+        }
+        disc(r, radius, stretch, rgb, alpha);
+        pose.popMatrix();
+    }
+
+    /** A disc at the pose's origin, in quarter-pixel rows so a small one still reads round. */
+    private static void disc(GuiRects r, double radius, double stretch, int rgb, int alpha) {
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.scale(0.25f, (float) (0.25 * stretch));
+        double big = radius * 4;
+        int rows = (int) Math.ceil(big);
+        for (int dy = -rows; dy < rows; dy++) {
+            double mid = dy + 0.5;
+            double q = big * big - mid * mid;
+            if (q <= 0) {
+                continue;
+            }
+            double half = Math.sqrt(q);
+            int core = (int) Math.floor(half);
+            double frac = half - core;
+            if (core > 0) {
+                r.fill(-core, dy, core, dy + 1, MenuStyle.alpha(rgb, alpha));
+            }
+            int ea = (int) (alpha * frac);
+            if (ea > 2) {
+                r.fill(-core - 1, dy, -core, dy + 1, MenuStyle.alpha(rgb, ea));
+                r.fill(core, dy, core + 1, dy + 1, MenuStyle.alpha(rgb, ea));
+            }
+        }
+        pose.popMatrix();
+    }
+
+    /** A soft trail from y0 (clear) to y1 (alpha), {@code width} wide, sub-pixel placed, faded at its sides. */
+    private static void streak(GuiRects r, double x, double y0, double y1, double width, int rgb, int alpha) {
+        if (y1 - y0 < 1) {
+            return;
+        }
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.translate((float) (x - width / 2), (float) y0);
+        pose.scale((float) (width / 8), (float) ((y1 - y0) / 64));
+        for (int k = 0; k < 8; k++) {
+            double edge = 1 - Math.abs(k - 3.5) / 4.0;
+            int a = (int) (alpha * edge);
+            r.gradient(k, 0, k + 1, 64, MenuStyle.alpha(rgb, 0), MenuStyle.alpha(rgb, a));
+        }
+        pose.popMatrix();
+    }
+
+    /** An antialiased elliptical ring (rx, ry) of {@code thick} pixels, centred on a sub-pixel position; its far half
+     *  (the top, on the water) is fainter. */
+    private static void ring(GuiRects r, double cx, double cy, double rx, double ry, double thick, int rgb, int alpha) {
+        if (alpha <= 2 || rx < 1) {
+            return;
+        }
+        int steps = (int) Math.max(24, rx * 1.6);
+        Matrix3x2fStack pose = r.graphics().pose();
+        for (int k = 0; k < steps; k++) {
+            double a0 = Math.PI * 2 * k / steps;
+            int al = (int) (alpha * (Math.sin(a0) < 0 ? 0.55 : 1.0));
+            pose.pushMatrix();
+            pose.translate((float) (cx + Math.cos(a0) * rx), (float) (cy + Math.sin(a0) * ry));
+            pose.scale((float) (thick * 1.6), (float) thick);
+            r.fill(-1, -1, 1, 1, MenuStyle.alpha(rgb, al / 2));
+            pose.popMatrix();
+        }
+    }
+
     static void drawOverlays(GuiRects r, int w, int h, double t) {
         Matrix3x2fStack pose = r.graphics().pose();
         enter(pose, w, h, t);
@@ -138,7 +308,7 @@ final class TargetScene {
             double y = 552 - 4 * (14 + MainMenuScenes.hash(i, 711) * 22) * ph * (1 - ph);
             int a = (int) (0xC0 * (1 - ph));
             if (a > 8) {
-                r.fill((int) x, (int) y, (int) x + 3, (int) y + 3, MenuStyle.alpha(HOT, a));
+                softDot(r, x, y, 1.4, 1, HOT, a, 0);
             }
         }
 
@@ -162,6 +332,9 @@ final class TargetScene {
         }
         MainMenuScenes.glow(r, (int) (160 + 30 * Math.sin(t * 0.2)), 900, 260, 120, LIME, 0x14, 3);
 
+        // ---- droplets dripping from the ceiling
+        drips(r, t);
+
         // ---- motes rising at the sides
         for (int i = 0; i < 26; i++) {
             double ph = (t * (0.02 + MainMenuScenes.hash(i, 717) * 0.03) + MainMenuScenes.hash(i, 718)) % 1.0;
@@ -170,7 +343,7 @@ final class TargetScene {
             double y = 900 - ph * 820;
             int a = (int) (0xB0 * Math.sin(Math.PI * ph) * (0.5 + 0.5 * Math.sin(t * 1.7 + i * 3.1)));
             if (a > 8) {
-                r.fill((int) x, (int) y, (int) x + 3, (int) y + 3, MenuStyle.alpha(HOT, a));
+                softDot(r, x, y, 1.4, 1, HOT, a, 0);
             }
         }
         pose.popMatrix();
