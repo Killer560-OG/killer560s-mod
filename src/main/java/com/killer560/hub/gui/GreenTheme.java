@@ -70,33 +70,41 @@ public final class GreenTheme {
     }
 
     // Built once: the stops and glow rings are constants, so drawing a panel allocates nothing beyond the fills themselves.
-    private static final Background FOREST_NIGHT_BG = new Background(
-            new int[]{0xFF17301C, 0xFF0F1D12, 0xFF070D08}, 0, 0);
-    private static final Background MOSS_FLOOR_BG = new Background(
-            new int[]{0xFF0A140C, 0xFF112015, 0xFF1D3622}, 0, 0);
-    private static final Background CANOPY_GLOW_BG = new Background(
-            new int[]{0xFF132717, 0xFF0C170E, 0xFF060B07}, ACCENT, 0x0A);
+    // A and C share their stops on purpose, so C's screenshot differs from A's by the glow alone.
+    private static final int[] NIGHT = {0xFF17301C, 0xFF0F1D12, 0xFF070D08};
+    private static final Background FOREST_NIGHT_BG = new Background(NIGHT, 0, 0);
+    private static final Background MOSS_FLOOR_BG = new Background(new int[]{0xFF0A140C, 0xFF112015, 0xFF1D3622}, 0, 0);
+    private static final Background CANOPY_GLOW_BG = new Background(NIGHT, ACCENT, 0x08);
 
     /**
-     * A panel fill: vertical {@code stops} spaced evenly from top to bottom, then (when {@code glowAlpha > 0}) a glow of
-     * {@code glowColour} spreading down from the top centre, drawn as nested translucent boxes that stack brighter toward
-     * the middle (a radial falloff out of plain fills).
+     * A theme background: vertical stops spaced evenly from top to bottom for the outer panel ({@link #panel}), the
+     * sidebar and drawer ({@link #side}, a little deeper) and the well the cards sit in ({@link #well}, deeper still), and
+     * optionally a glow of one colour spreading down from the top centre of the well, drawn as nested translucent boxes
+     * that stack brighter toward the middle (a radial falloff out of plain fills).
      */
     static final class Background {
         private static final int RINGS = 8;
-        final int[] stops;
+        final int[] panel;
+        final int[] side;
+        final int[] well;
         final int[] ringColours;
 
         Background(int[] stops, int glowColour, int glowAlpha) {
-            this.stops = stops;
+            this.panel = stops;
+            this.side = new int[stops.length];
+            this.well = new int[stops.length];
+            for (int i = 0; i < stops.length; i++) {
+                side[i] = MenuStyle.mix(stops[i], 0xFF000000, 0.15f);
+                well[i] = MenuStyle.mix(stops[i], 0xFF000000, 0.5f);
+            }
             this.ringColours = new int[glowAlpha > 0 ? RINGS : 0];
             for (int i = 0; i < ringColours.length; i++) {
                 ringColours[i] = MenuStyle.alpha(glowColour, glowAlpha);
             }
         }
 
-        /** Fills the panel's inside (x0..x1, y0..y1). */
-        void fill(GuiRects r, int x0, int y0, int x1, int y1) {
+        /** Fills x0..x1, y0..y1 with {@code stops}, and the glow over it when {@code glow}. */
+        void fill(GuiRects r, int x0, int y0, int x1, int y1, int[] stops, boolean glow) {
             int h = y1 - y0;
             int n = stops.length - 1;
             for (int i = 0; i < n; i++) {
@@ -104,14 +112,16 @@ public final class GreenTheme {
                 int b = y0 + h * (i + 1) / n;
                 r.gradient(x0, a, x1, b, stops[i], stops[i + 1]);
             }
+            if (!glow) {
+                return;
+            }
             int w = x1 - x0;
             int cx = x0 + w / 2;
             for (int i = 0; i < ringColours.length; i++) {
-                // ring i: widest first; each smaller one adds its alpha on top, so the centre top is brightest
+                // ring i: widest first, each fading to clear at its foot; the smaller ones stack on top toward the centre
                 float f = 1f - i / (float) RINGS;
                 int hw = Math.round(w * 0.5f * f);
-                int hh = Math.round(h * 0.55f * f);
-                // fade the edges: the vertical gradient inside each ring goes to clear at its foot
+                int hh = Math.round(h * 0.6f * f);
                 r.gradient(cx - hw, y0, cx + hw, y0 + hh, ringColours[i], ringColours[i] & 0x00FFFFFF);
             }
         }

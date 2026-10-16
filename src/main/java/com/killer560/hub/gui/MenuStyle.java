@@ -322,7 +322,45 @@ public final class MenuStyle {
             bevel(r, x, y, w, h, PANEL_TOP, PANEL_BOTTOM);
             return;
         }
-        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1);
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.panel, false);
+        bevelEdges(r, x, y, w, h);
+    }
+
+    /** The menu's sidebar: {@link #bevel} in {@link #SIDE_TOP}..{@link #SIDE_BOTTOM}, or the theme's own background. */
+    public static void sidePanel(GuiRects r, int x, int y, int w, int h) {
+        GreenTheme.Background bg = PANEL_BG;
+        if (bg == null || w <= 2 || h <= 2) {
+            bevel(r, x, y, w, h, SIDE_TOP, SIDE_BOTTOM);
+            return;
+        }
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.side, false);
+        bevelEdges(r, x, y, w, h);
+    }
+
+    /** The settings drawer: {@link #bevel} in {@link #DRAWER_TOP}..{@link #DRAWER_BOTTOM}, or the theme's own background. */
+    public static void drawerPanel(GuiRects r, int x, int y, int w, int h) {
+        GreenTheme.Background bg = PANEL_BG;
+        if (bg == null || w <= 2 || h <= 2) {
+            bevel(r, x, y, w, h, DRAWER_TOP, DRAWER_BOTTOM);
+            return;
+        }
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.side, false);
+        bevelEdges(r, x, y, w, h);
+    }
+
+    /** The well the feature cards sit in: {@link #well} in {@link #WELL}, or the theme's own background (with its glow). */
+    public static void pageWell(GuiRects r, int x, int y, int w, int h) {
+        GreenTheme.Background bg = PANEL_BG;
+        if (bg == null) {
+            well(r, x, y, w, h, WELL);
+            return;
+        }
+        bg.fill(r, x + 1, y + 1, x + w - 1, y + h - 1, bg.well, true);
+        wellEdges(r, x, y, w, h);
+    }
+
+    /** {@link #bevel}'s outline and light/dark inner edges, without its fill. */
+    private static void bevelEdges(GuiRects r, int x, int y, int w, int h) {
         r.outline(x, y, w, h, BLACK);
         r.fill(x + 1, y + 1, x + w - 1, y + 2, HILITE);
         r.fill(x + 1, y + 2, x + 2, y + h - 1, HILITE);
@@ -333,6 +371,11 @@ public final class MenuStyle {
     /** A recessed well: dark fill, black outline, a soft inner shadow along the top and left, a faint light bottom-right lip. */
     public static void well(GuiRects r, int x, int y, int w, int h, int fill) {
         r.fill(x + 1, y + 1, x + w - 1, y + h - 1, fill);
+        wellEdges(r, x, y, w, h);
+    }
+
+    /** {@link #well}'s outline, inner shadow and lip, without its fill (the same fills in the same order). */
+    private static void wellEdges(GuiRects r, int x, int y, int w, int h) {
         r.outline(x, y, w, h, BLACK);
         // inset 3px 3px 8px #000 approximated by three fading strips
         int[] a = {0xB0, 0x60, 0x28};
