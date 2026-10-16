@@ -216,13 +216,24 @@ public final class MainMenuScenes {
                     default -> SlimeBossScene.draw(r, w, h, t, accent, panel, look.density());
                 }
             }
-            case SOFT_LIGHT -> softLight(r, w, h, t, accent, panel, light, look.density());
+            case SOFT_LIGHT -> {
+                // the smooth version (killer560, 2026-10-16: "can you smooth out the light one"), preview only until approved
+                if (previewScenes()) {
+                    SoftLightSmooth.draw(r, w, h, t, accent, panel, light, count(9000, w, h, look.density(), 12, 34));
+                } else {
+                    softLight(r, w, h, t, accent, panel, light, look.density());
+                }
+            }
             default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 9);
         }
         // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
         if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
                 || (greenScene() != GreenScene.ACID && greenScene() != GreenScene.BOSS)) {
-            vignette(r, w, h, light);
+            if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && previewScenes()) {
+                SoftLightSmooth.vignette(r, w, h, light);
+            } else {
+                vignette(r, w, h, light);
+            }
         }
         heroRects = 0;
         r.submit();
