@@ -115,3 +115,10 @@ registers on a Fabric event, and every Fabric HUD layer it adds, in a timing pro
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
 the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
+
+## Dungeon Map draw cache (`livemap/MapDrawCache`)
+The Dungeon Map HUD keeps the render-state elements it painted and hands them over again while nothing it is painted
+from changed. `-Dkiller560.livemap.verifyCache=true` (or `MapDrawCache.setVerify(true)`) also paints every replayed
+frame afresh, unsubmitted, and compares the two element by element; `MapDrawCache.stats()` is {replays, paints,
+compared, differed within the paint's own tick, differed after it}, `lastMismatch()` names the last stale element.
+Testkit 95-perf-livemap runs it.
