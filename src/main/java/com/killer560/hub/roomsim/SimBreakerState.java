@@ -193,7 +193,8 @@ public final class SimBreakerState {
     }
 
     private static void tick(net.minecraft.server.MinecraftServer server) {
-        java.util.List<Broken> due = new java.util.ArrayList<>();
+        // Allocated only when a block is due (fps-sim-1015): this runs every tick of every singleplayer world.
+        java.util.List<Broken> due = java.util.List.of();
         int chargesNow;
         synchronized (SimBreakerState.class) {
             tickCounter++;
@@ -202,6 +203,9 @@ public final class SimBreakerState {
                 charges++;
             }
             while (!PENDING.isEmpty() && PENDING.peek().dueAtTick() <= tickCounter) {
+                if (due.isEmpty()) {
+                    due = new java.util.ArrayList<>();
+                }
                 due.add(PENDING.poll());
             }
             chargesNow = charges;

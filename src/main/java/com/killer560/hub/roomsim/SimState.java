@@ -142,7 +142,7 @@ public final class SimState {
         if (code == null || code.isBlank()) {
             return null;
         }
-        MapCode.Decoded decoded = MapCode.decode(code);
+        MapCode.Decoded decoded = decodedMap(code);
         if (decoded == null) {
             return null;
         }
@@ -173,5 +173,29 @@ public final class SimState {
 
     public static String mapCode() {
         return mapCode;
+    }
+
+    /** One map code and what it decodes to (null for a code that does not decode). Immutable, swapped whole. */
+    private record DecodedCode(String code, MapCode.Decoded decoded) {
+    }
+
+    private static volatile DecodedCode lastDecoded;
+
+    /**
+     * {@link MapCode#decode} of this code, decoded once per distinct code (fps-sim-1015).
+     *
+     * <p>{@link #roomNameAt} runs every client tick for the tab list and the sidebar, and on the server for every
+     * ability packet; decoding the whole floor's base64 code each time was ~3 KB of arrays per call. The decoded
+     * arrays are only read here, never handed out, so sharing them between calls is safe. Any thread: the cache is
+     * one immutable record in a volatile field.
+     */
+    private static MapCode.Decoded decodedMap(String code) {
+        DecodedCode c = lastDecoded;
+        if (c != null && (c.code() == code || c.code().equals(code))) {
+            return c.decoded();
+        }
+        MapCode.Decoded d = MapCode.decode(code);
+        lastDecoded = new DecodedCode(code, d);
+        return d;
     }
 }
