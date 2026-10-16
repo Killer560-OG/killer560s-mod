@@ -147,7 +147,8 @@ public final class F7SpotsRenderer {
         if (!distance) {
             return label;
         }
-        String d = String.format(Locale.US, "%.0fm", dist);
+        // Math.round is "%.0f"'s HALF_UP for a distance (never negative), without building a Formatter per spot per frame.
+        String d = Math.round(dist) + "m";
         return hasLabel ? label + " §7(" + d + ")" : d;
     }
 

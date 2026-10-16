@@ -106,58 +106,111 @@ public final class EtherwarpFeature {
         if (ctx == null) {
             return;
         }
-        List<EtherwarpWaypoint> saved = EtherwarpWaypointsStore.forRoom(ctx.room().name);
-        if (saved.isEmpty()) {
+        RoomCache room = roomCache(ctx, cfg);
+        if (room.boxes.length == 0) {
             return;
-        }
-        float[] rgb = cfg.highlightRgb();
-        int argb = cfg.getColor();
-        float alpha = ((argb >> 24) & 0xFF) / 255f;
-        if (alpha <= 0f) {
-            alpha = 1f;
         }
         Vec3 eye = client.player.getEyePosition();
         double maxSq = cfg.getHighlightDistance() * cfg.getHighlightDistance();
 
-        List<EtherwarpWaypointsRenderer.Entry> entries = new ArrayList<>(saved.size());
-        List<EtherwarpWaypoint> visible = new ArrayList<>(saved.size());
-        List<AABB> visibleBoxes = new ArrayList<>(saved.size());
-        for (EtherwarpWaypoint w : saved) {
-            BlockPos real = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(toPos(w),
-                    new int[]{ctx.clayX(), ctx.clayZ(), ctx.rotation()});
+        // Only the distance test is per frame: the room's boxes, their entries and their numbers are built once per
+        // room / saved-list change / colour (FPS pass, 2026-10-15: forRoom's scan and sort, a coordinate transform, an
+        // AABB, an entry and a label String per waypoint per frame before). The entry list is fresh each frame: the
+        // renderer's callback may read it later in the frame on 26.2.
+        List<EtherwarpWaypointsRenderer.Entry> entries = new ArrayList<>(room.boxes.length);
+        int[] visible = room.visible;
+        int n = 0;
+        for (int i = 0; i < room.boxes.length; i++) {
+            BlockPos real = room.blocks[i];
             if (eye.distanceToSqr(real.getX() + 0.5, real.getY() + 0.5, real.getZ() + 0.5) > maxSq) {
                 continue;
             }
-            // The block the waypoint is in - a full unit box, same as before this rewrite (no hitbox shape
-            // to copy the way Secret Waypoints has one per secret type; this just marks a spot).
-            AABB box = new AABB(real).inflate(0.002);
-            entries.add(new EtherwarpWaypointsRenderer.Entry(box, rgb[0], rgb[1], rgb[2], alpha));
-            visible.add(w);
-            visibleBoxes.add(box);
+            entries.add(room.entries[i]);
+            visible[n++] = i;
         }
         EtherwarpWaypointsRenderer.draw(context, entries, cfg.getStyle(), cfg.isThroughWalls());
-        drawNumbers(context, visible, visibleBoxes);
+        drawNumbers(context, room, n);
+    }
+
+    /** What {@link #onWorldRender} draws for one room, built by {@link #roomCache}. Render thread. */
+    private static final class RoomCache {
+        final int version;
+        final String room;
+        final int clayX;
+        final int clayZ;
+        final int rotation;
+        final int argb;
+        final BlockPos[] blocks;
+        /** The block the waypoint is in - a full unit box, same as before (this just marks a spot). */
+        final AABB[] boxes;
+        final EtherwarpWaypointsRenderer.Entry[] entries;
+        final String[] labels;
+        final int[] visible;
+
+        RoomCache(int version, String room, int clayX, int clayZ, int rotation, int argb, List<EtherwarpWaypoint> saved,
+                  float[] rgb, float alpha) {
+            this.version = version;
+            this.room = room;
+            this.clayX = clayX;
+            this.clayZ = clayZ;
+            this.rotation = rotation;
+            this.argb = argb;
+            int n = saved.size();
+            blocks = new BlockPos[n];
+            boxes = new AABB[n];
+            entries = new EtherwarpWaypointsRenderer.Entry[n];
+            labels = new String[n];
+            visible = new int[n];
+            for (int i = 0; i < n; i++) {
+                EtherwarpWaypoint w = saved.get(i);
+                blocks[i] = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(toPos(w), new int[]{clayX, clayZ, rotation});
+                boxes[i] = new AABB(blocks[i]).inflate(0.002);
+                entries[i] = new EtherwarpWaypointsRenderer.Entry(boxes[i], rgb[0], rgb[1], rgb[2], alpha);
+                labels[i] = "#" + w.order;
+            }
+        }
+    }
+
+    private static RoomCache roomCache = null;
+
+    private static RoomCache roomCache(RoomContext ctx, EtherwarpWaypointsConfig cfg) {
+        int version = EtherwarpWaypointsStore.version();
+        int argb = cfg.getColor();
+        String name = ctx.room().name;
+        RoomCache c = roomCache;
+        if (c == null || c.version != version || c.argb != argb || c.clayX != ctx.clayX() || c.clayZ != ctx.clayZ()
+                || c.rotation != ctx.rotation() || !c.room.equals(name)) {
+            float alpha = ((argb >> 24) & 0xFF) / 255f;
+            if (alpha <= 0f) {
+                alpha = 1f;
+            }
+            c = new RoomCache(version, name, ctx.clayX(), ctx.clayZ(), ctx.rotation(), argb,
+                    EtherwarpWaypointsStore.forRoom(name), cfg.highlightRgb(), alpha);
+            roomCache = c;
+        }
+        return c;
     }
 
     /** The waypoint's placement-order number, floating just above its box - see the class doc's "numbered in
      *  order of the room" note. Same camera-relative billboard text {@code SecretWaypointsFeature.drawNames}
      *  uses, kept a separate pass from the boxes above since text always goes through the font's own buffer. */
-    private static void drawNumbers(LevelRenderContext ctx, List<EtherwarpWaypoint> waypoints, List<AABB> boxes) {
+    private static void drawNumbers(LevelRenderContext ctx, RoomCache room, int count) {
         var poseStack = ctx.poseStack();
-        if (poseStack == null || waypoints.isEmpty()) {
+        if (poseStack == null || count == 0) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         var cam = McRender.cameraPos(ctx);
         var font = mc.font;
-        for (int i = 0; i < waypoints.size(); i++) {
-            AABB box = boxes.get(i);
+        for (int j = 0; j < count; j++) {
+            int i = room.visible[j];
+            AABB box = room.boxes[i];
             double x = (box.minX + box.maxX) * 0.5;
             double y = box.maxY + 0.35;
             double z = (box.minZ + box.maxZ) * 0.5;
             double dist = Math.sqrt(cam.distanceToSqr(x, y, z));
             float s = 0.025f * (float) Math.min(6.0, Math.max(1.0, dist / 10.0));
-            String label = "#" + waypoints.get(i).order;
+            String label = room.labels[i];
             poseStack.pushPose();
             try {
                 poseStack.translate(x - cam.x, y - cam.y, z - cam.z);

@@ -547,3 +547,14 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - A field made lazy behind a getter must not be read raw anywhere else. `GreenTheme.gradient` became null-until-`gradient()`
   (d7bdc71e) while `background()` still switched on the field, so the first Green menu draw threw NPE and the themed main
   menu turned itself off for the session (the vanilla title showed; 2026-10-16). Grep the class for the bare field.
+- **On 26.1.2 every switch of render type in a world render event was a draw call.** None of the types the mod draws
+  with is a fixed buffer of the level `BufferSource`, so they share one buffer and `getBuffer` for a different type ends
+  the previous batch (javap `MultiBufferSource$BufferSource.getBuffer`, `lastSharedType`). Dungeon ESP's fill + outline
+  per mob made 40 draw calls a frame for 20 mobs and allocated 89-112 KB (testkit 95-perf-world on main 69505e45).
+  `McRender.inCameraSpace` now writes into the mod's own source inside AFTER_TRANSLUCENT_FEATURES / _TERRAIN, every
+  type a fixed buffer, drawn once after the event (ESP: 2 draw calls, 6.6 KB); 26.2's submit collector already groups by
+  type. The probe's CPU microseconds did NOT drop measurably (building and uploading the same vertices dominates, and the
+  driver's per-draw work is not in the probe), so judge this kind of change on draw calls and bytes. The probe now books
+  that draw under `compat.McRender`, so add it back when comparing a feature with main.
+  A per-item loop should still feed a `util/BoxBatch` rather than one `inCameraSpace` per box: each call allocates its
+  lambda and colour array, and the ESP's per-box AABB/Vec3 were most of its 112 KB.

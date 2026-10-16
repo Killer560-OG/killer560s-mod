@@ -53,6 +53,22 @@ final class EspRenderer {
                         .build())).sortOnUpload().createRenderSetup());
     }
 
+    /** The line type an outline uses: the no-depth copy through walls, vanilla's depth-tested one otherwise. */
+    static RenderType lineType(boolean throughWalls) {
+        return throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT;
+    }
+
+    /** The fill type {@link #filled} uses. */
+    static RenderType fillType(boolean throughWalls) {
+        return throughWalls ? ThroughWalls.FILLED : RenderTypes.debugFilledBox();
+    }
+
+    /** The colour's alpha as {@link #rgba} reads it (0 means opaque). */
+    static float alpha(int argb) {
+        float a = ((argb >>> 24) & 0xFF) / 255f;
+        return a <= 0f ? 1f : a;
+    }
+
     static void outline(LevelRenderContext context, AABB box, int argb, float lineWidth, boolean throughWalls) {
         float[] c = rgba(argb, 1.0f);
         McRender.inCameraSpace(context, throughWalls ? ThroughWalls.LINES : RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {

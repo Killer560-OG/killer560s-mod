@@ -99,7 +99,9 @@ public final class DoorKeysFeature {
         currentKey = null;
         ring = null;
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand)) {
+            // A key stand's "Wither Key" / "Blood Key" is its custom name (an unnamed stand is "Armor Stand"), so an
+            // unnamed one - most of a dungeon's stands - is turned away before its name String is built (FPS pass).
+            if (!(entity instanceof ArmorStand) || !entity.hasCustomName()) {
                 continue;
             }
             String name = ChatFormatting.stripFormatting(entity.getName().getString());
@@ -126,7 +128,28 @@ public final class DoorKeysFeature {
     private static double[] ringFor(Minecraft client, Entity key) {
         Vec3 p = key.position();
         double radius = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
+        double[] last = ring;
+        if (last != null && last[0] == p.x && last[1] == p.y && last[2] == p.z && last[3] == radius) {
+            return last; // unchanged: keep it, and the ring points built from it
+        }
         return new double[]{p.x, p.y, p.z, radius};
+    }
+
+    /** The circle's points, built once per {@link #ring} (it changes only when the key moves), never mutated after. */
+    private static double[] ringPointsFor = null;
+    private static Vec3[] ringPoints = null;
+
+    private static Vec3[] ringPoints(double[] circle) {
+        if (circle != ringPointsFor) {
+            Vec3[] pts = new Vec3[RING_SEGMENTS + 1];
+            for (int i = 0; i <= RING_SEGMENTS; i++) {
+                double a = Math.PI * 2.0 * i / RING_SEGMENTS;
+                pts[i] = new Vec3(circle[0] + Math.cos(a) * circle[3], circle[1], circle[2] + Math.sin(a) * circle[3]);
+            }
+            ringPoints = pts;
+            ringPointsFor = circle;
+        }
+        return ringPoints;
     }
 
     /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. With the Sphere style it is the sphere's
@@ -168,11 +191,8 @@ public final class DoorKeysFeature {
         if (circle == null) {
             return;
         }
-        List<Vec3> points = new java.util.ArrayList<>(RING_SEGMENTS + 1);
-        for (int i = 0; i <= RING_SEGMENTS; i++) {
-            double a = Math.PI * 2.0 * i / RING_SEGMENTS;
-            points.add(new Vec3(circle[0] + Math.cos(a) * circle[3], circle[1], circle[2] + Math.sin(a) * circle[3]));
-        }
+        // Built on the ring's change, not every frame (65 Vec3 and a list per frame before; FPS pass).
+        Vec3[] points = ringPoints(circle);
         // killer560, 2026-09-27: "Door keys tracer line is still jacked up" - it was starting from
         // client.player.getEyePosition(), which only moves once per game tick and lagged behind the
         // smoothly-interpolated camera, reading as attached to the player's head instead of the crosshair.
@@ -208,8 +228,8 @@ public final class DoorKeysFeature {
         }
 
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
-            for (int i = 0; i + 1 < points.size(); i++) {
-                line(pose, buffer, points.get(i), points.get(i + 1), 2f);
+            for (int i = 0; i + 1 < points.length; i++) {
+                line(pose, buffer, points[i], points[i + 1], 2f);
             }
             if (cfg.isShowTracer()) {
                 line(pose, buffer, tracerStart, target, thickness);
