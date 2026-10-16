@@ -544,3 +544,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   ran 4 units into "Secrets" (killer560's screenshot, 2026-10-15; Size and Secrets did the same sorted). `SimMenuScreen
   .columns()` now measures each column's heading with either arrow and every listed cell, keeps 8 units between columns,
   gives Name the rest with "...", and drops whole columns before anything can touch. testkit 97-sim-menu-tidy measures it.
+- A field made lazy behind a getter must not be read raw anywhere else. `GreenTheme.gradient` became null-until-`gradient()`
+  (d7bdc71e) while `background()` still switched on the field, so the first Green menu draw threw NPE and the themed main
+  menu turned itself off for the session (the vanilla title showed; 2026-10-16). Grep the class for the bare field.
