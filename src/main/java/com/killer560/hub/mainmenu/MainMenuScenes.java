@@ -239,11 +239,10 @@ public final class MainMenuScenes {
             return;
         }
         if (look.scene() == MainMenuThemeConfig.Scene.WATERFALL && oceanScene() == OceanScene.CAVERN_FALLS) {
-            // His waterfall picture is the base, blitted before the batch so the batch's overlays land on top of it.
-            PictureScene sc = OceanFallsScene.SCENE;
-            sc.drawImage(g, w, h, t);
-            heroRects = sc.rippleTiles;
-            sc.drawOverlays(r, w, h, t, look.density());
+            // His waterfall picture through its shader (the water flowing), before the batch so the overlays land on top.
+            OceanFallsScene.drawImage(g, w, h, t);
+            heroRects = 0;
+            OceanFallsScene.drawOverlays(r, w, h, t, look.density());
             r.submit();
             probe(r, probeStart);
             return;

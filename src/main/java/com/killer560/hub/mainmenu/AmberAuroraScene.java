@@ -93,7 +93,12 @@ final class AmberAuroraScene {
 
     /** The scene clock as the shader reads it: a 24-bit fraction of the loop in the colour's rgb, alpha full. */
     static int timeColour(double t) {
-        double phase = ((t % LOOP) + LOOP) % LOOP / LOOP;
+        return timeColour(t, LOOP);
+    }
+
+    /** The same for a shader whose loop is {@code loop} seconds (Ocean's falls). */
+    static int timeColour(double t, double loop) {
+        double phase = ((t % loop) + loop) % loop / loop;
         int code = (int) Math.min(0xFFFFFF, Math.floor(phase * 16_777_216.0));
         return 0xFF000000 | code;
     }

@@ -1,7 +1,22 @@
 package com.killer560.hub.mainmenu;
 
 import com.killer560.hub.hud.GuiRects;
+import com.killer560.hub.util.ModLog;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.render.TextureSetup;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.state.gui.BlitRenderState;
+import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.resources.Identifier;
+import org.joml.Matrix3x2f;
 import org.joml.Matrix3x2fStack;
+import org.slf4j.Logger;
 
 /**
  * Ocean's main menu after killer560's waterfall picture (2026-10-16: "can you do a similar thing with this new waterfall
@@ -9,13 +24,20 @@ import org.joml.Matrix3x2fStack;
  * small glowing falls, mist where it all lands on a dark lake, glowing specks, a character standing on the rocks at the
  * lower left.
  * <p>
- * The base is the picture itself ({@code textures/gui/ocean_falls.png}, 1920x1080), with the title, button panel and chips
- * it had baked in filled from the scene around them, every streak carried straight through in its own column
- * ({@code killer560s-mod-logs/waterfall-picture/make_waterfall.py}). On top, all in the picture's own 1920x1080 space and
- * all at sub-pixel positions (the pose carries the fraction; nothing snaps to whole pixels):
+ * The base is {@code textures/gui/ocean_falls.png}, 1920x2160: on top the picture with its baked-in menu removed
+ * ({@code killer560s-mod-logs/waterfall-picture/make_waterfall.py}) and most of its streak lines lifted out where water
+ * falls; below, maps of where water falls, its streaks, where it lands and the lake ({@code make_waterfall_maps.py}). One
+ * full-screen quad draws it through the {@code killer560smod:pipeline/ocean_falls} shader
+ * ({@code shaders/core/ocean_falls.fsh}, sampled LINEAR, so smooth at full resolution): the whole mass of the falls rolls
+ * down in turbulent sheets and surges, every streak of the picture is lit by dashes pouring down its own column at a
+ * heavy-water speed, fine threads rush down in front, spray churns up where it lands and the lake glints (killer560,
+ * 2026-10-16, after the first clip: "the water in that looks still"). The cliffs, the character and the land stay still.
+ * If the pipeline is unavailable (VulkanMod, a failure) the plate is drawn still under the overlays.
+ * <p>
+ * On top, in the picture's 1920x1080 space at sub-pixel positions (the pose carries the fraction):
  * <ul>
- *   <li>soft glowing streaks falling continuously at many speeds, far ones thin, faint and slow, near ones wider, brighter
- *       and faster, each ending in the mist (or on the cliff top, or above the character's head) by fading away;</li>
+ *   <li>bright soft streaks in front at many speeds, each ending in the mist (or on the cliff top, or above the
+ *       character's head) by fading away;</li>
  *   <li>the four small cliff-side falls running, a little foam pulsing at each foot;</li>
  *   <li>mist billowing up and drifting where the falls land, over a broad band of haze that breathes;</li>
  *   <li>ripples spreading on the lake and glints coming and going on it, most of them in the reflections;</li>
@@ -67,8 +89,78 @@ final class OceanFallsScene {
             .overlay(new Lake(56, 12, 541))
             .overlay(new Specks(SPECKS, 34, 561));
 
-    static void drawImage(net.minecraft.client.gui.GuiGraphicsExtractor g, int w, int h, double t) {
-        SCENE.drawImage(g, w, h, t);
+    private static final Logger LOGGER = ModLog.get("killer560smod-mainmenu");
+    /** The shader's loop, seconds (its sines turn a whole number of times a loop). */
+    static final double LOOP = 600.0;
+    static final Identifier TEXTURE = Identifier.fromNamespaceAndPath("killer560smod", "textures/gui/ocean_falls.png");
+
+    private static RenderPipeline pipeline;
+    private static boolean failed;
+    private static GpuTextureView setupView;
+    private static TextureSetup setup;
+
+    /** Test probe (testkit 1690): frames drawn through the shader, and frames drawn still because it was unavailable. */
+    public static long shaderFrames;
+    public static long stillFrames;
+
+    /** Registers the pipeline at client init, so it is in RenderPipelines' static list before the shaders precompile. */
+    static void register() {
+        if (pipeline != null || failed) {
+            return;
+        }
+        if (FabricLoader.getInstance().isModLoaded("vulkanmod")) {
+            failed = true;
+            return;
+        }
+        try {
+            Identifier shader = Identifier.fromNamespaceAndPath("killer560smod", "core/ocean_falls");
+            pipeline = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/ocean_falls"))
+                    .withVertexShader(shader)
+                    .withFragmentShader(shader)
+                    .build());
+        } catch (RuntimeException | LinkageError e) {
+            fail("pipeline registration", e);
+        }
+    }
+
+    private static void fail(String what, Throwable e) {
+        if (!failed) {
+            failed = true;
+            LOGGER.warn("[MainMenu] Ocean's falls shader disabled ({} failed): {}; the picture is drawn still", what,
+                    e.toString());
+        }
+    }
+
+    /** Whether the shader is in use (testkit 1690). */
+    public static boolean shaderActive() {
+        return pipeline != null && !failed;
+    }
+
+    /** The picture through the shader (or still), before the frame's batch. */
+    static void drawImage(GuiGraphicsExtractor g, int w, int h, double t) {
+        if (pipeline != null && !failed) {
+            try {
+                AbstractTexture tex = Minecraft.getInstance().getTextureManager().getTexture(TEXTURE);
+                GpuTextureView view = tex.getTextureView();
+                if (setup == null || view != setupView) {
+                    setupView = view;
+                    setup = TextureSetup.singleTexture(view, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+                }
+                g.guiRenderState.addGuiElement(new BlitRenderState(pipeline, setup, new Matrix3x2f(g.pose()), 0, 0, w, h,
+                        0f, 1f, 0f, 0.5f, AmberAuroraScene.timeColour(t, LOOP), g.scissorStack.peek()));
+                shaderFrames++;
+                return;
+            } catch (RuntimeException | LinkageError e) {
+                fail("draw", e);
+            }
+        }
+        Matrix3x2fStack pose = g.pose();
+        pose.pushMatrix();
+        pose.scale(w / (float) TW, h / (float) TH);
+        g.blit(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 0f, 0f, TW, TH, TW, TH, TW, TH * 2);
+        pose.popMatrix();
+        stillFrames++;
     }
 
     static void drawOverlays(GuiRects r, int w, int h, double t, float density) {
