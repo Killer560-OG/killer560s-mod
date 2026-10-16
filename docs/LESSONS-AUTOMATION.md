@@ -375,7 +375,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   lands before the use is the client/server tick phase, which drifts through a session; when it does, the action starts over
   under it ("window arrived after the await was met", logged since) and acts a tick or two later. 96-ar-1015-reaim's control
   read 2 for 1 in session runs on the rightclick-reaim tip as much as on merged main; it reruns a side the window landed in.
-- **A sim crypt undead dies to the first Spirit Sceptre bat** (one health, 30-damage blast), usually before the next use is
-  due 4 ticks later, so a sceptre crypt node's "2 uses each" (crypt-aim-1015) shows only on tough mobs; testkit
-  96-ar-1015-cryptaim sets 1000 health for that variant. Crypt mobs are told by NAME (`autoroutes/CryptMobs`), never by
+- **A sceptre crypt node's reach check must not stop at its own bat.** `WeaponReach.batImpact` ends at the first living
+  entity on the line, and the node's sceptre bat in flight is one, so the mob it had just shot read "out of reach" for a
+  tick and the node turned to the next mob between a mob's two uses (96-ar-1015-cryptaim "2 mobs": 14, 13, 14 - read at
+  first as the mob dying early). `cryptMobOwed` traces blocks only (crypt-aim-2-1016): A, A, B, B, C, C. Crypt mobs are
+  told by Hypixel's whole name tag (`autoroutes/CryptMobs.TAG`, "Crypt Undead" or "Prince" with its health), never by
   "appeared near me", since entering a room brings every mob into tracking range at once.
