@@ -105,8 +105,8 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
             // The signed-in account stands out (killer560, 2026-10-16: "Make Active a bit more noticeable"): the card
             // itself takes the theme's accent, a two-pixel accent frame, a full-height accent bar, the name in the
             // accent and a solid ACTIVE pill - where it had a thin outline and a small green tag.
-            top = MenuStyle.mix(MenuStyle.CARD_TOP, MenuStyle.OR, 0.26f + 0.06f * hv);
-            bottom = MenuStyle.mix(MenuStyle.CARD_BOTTOM, MenuStyle.OR, 0.14f + 0.06f * hv);
+            top = MenuStyle.mix(MenuStyle.CARD_TOP, MenuStyle.OR, 0.30f + 0.06f * hv);
+            bottom = MenuStyle.mix(MenuStyle.CARD_BOTTOM, MenuStyle.OR, 0.18f + 0.06f * hv);
         }
         MenuStyle.bevel(r, x, y, w, h, top, bottom);
         if (signedIn) {

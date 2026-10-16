@@ -547,3 +547,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - A field made lazy behind a getter must not be read raw anywhere else. `GreenTheme.gradient` became null-until-`gradient()`
   (d7bdc71e) while `background()` still switched on the field, so the first Green menu draw threw NPE and the themed main
   menu turned itself off for the session (the vanilla title showed; 2026-10-16). Grep the class for the bare field.
+- **A one-unit grid on a mod screen is not even.** A mod screen's GUI unit is guiScale x Auto Scale screen pixels, 2.25 at
+  1920x1080 GUI 3, so the map designer's 1-unit lines came out 2 and 3 px wide and its cells 112 and 113 px apart (testkit
+  75-sim-designer-grid on main, 2026-10-16). Anything that must line up to the pixel is laid out in its own whole-pixel unit
+  (`SimMapEditorScreen.layoutGrid`: pose scaled by `gk / pixelsPerUnit`, `gk = round(pixelsPerUnit)`), with mouse hits
+  mapped through the same numbers.
