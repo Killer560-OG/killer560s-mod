@@ -358,3 +358,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **Pace a jittered click from when it is SENT, not when it is decided** (Auto E-Table, 2026-10-15, testkit 289). The
+  solver stamped "last click" at the decision while Random Delay held the click back up to its max, so with Click Delay
+  400 and Random Delay 500 two Chronomatron clicks landed 3 ticks (150 ms) apart, and a bigger draw could swap two. Also
+  Click Delay and First Click Delay went down to 0 (one click every tick), and the old default was 200. Now: one puzzle
+  click in flight at a time, stamped at the send; a Click Delay spacing check where every click is sent; both delays
+  floor at 150 ms in setter, loader and slider.
