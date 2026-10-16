@@ -295,11 +295,13 @@ final class AutoBlaze {
             currentTarget = null;
         }
         if (waitingForUpdate) {
-            // The arrow's own flight, simulated at the shot, not distance / 2.5: a steep shot up the shaft spends most
-            // of its time climbing, and the old estimate let a second shot go before the first had landed. When the
-            // first then killed the blaze, the second flew on through the empty space and killed the next blaze up
-            // out of order (93-solve, Mod Only Test captures, 2026-10-04: 28.8 blocks at pitch -84).
-            if (now - lastShotTime > shotFlightMs) {
+            // Never a second volley before the first one's result is known: a second shot sent while the first is in
+            // the air flies on through the space the first just emptied and kills the next blaze up out of order
+            // (93-solve, Mod Only Test captures, 2026-10-04: 28.8 blocks at pitch -84). The result is what the server
+            // reports (VolleyWatch): the target gone, or every arrow of the volley ended - a miss at once, a hit once
+            // the server has reported what it did to the target. No fixed margin (killer560, 2026-10-15; it was the
+            // simulated flight plus 4 ticks).
+            if (VOLLEY.resolved(client, target)) {
                 waitingForUpdate = false;
             } else {
                 return;
@@ -395,8 +397,9 @@ final class AutoBlaze {
         lastShotTime = now;
         waitingForUpdate = true;
         currentTarget = blaze;
-        shotFlightMs = (flightTicks(AutoPuzzleUtil.arrowOrigin(eye, hitDir[0], terminator), hitDir[0], hitDir[1],
-                hitboxes.get(0).aabb().getCenter()) + 4) * 50L;
+        shotFlightMs = flightTicks(AutoPuzzleUtil.arrowOrigin(eye, hitDir[0], terminator), hitDir[0], hitDir[1],
+                hitboxes.get(0).aabb().getCenter()) * 50L;
+        VOLLEY.shot(eye, blaze, hitboxes.get(0).aabb(), (int) (shotFlightMs / 50L));
         if (!standing.equals(shotsFrom)) {
             shotsFrom = standing;
             shotsHere = 0;
@@ -461,8 +464,117 @@ final class AutoBlaze {
         LOGGER.info("[AutoPuzzles] Blaze: {}", what);
     }
 
-    /** How long the last shot's arrow needs to reach its target, with a few ticks' margin - see the wait in tick(). */
+    /** How long the last shot's arrow needs to reach its target, simulated - {@link VolleyWatch}'s fallback only. */
     private static long shotFlightMs = 0L;
+
+    private static final VolleyWatch VOLLEY = new VolleyWatch();
+
+    /**
+     * The last volley's result as the server reports it (killer560, 2026-10-15: continue the moment the volley's result
+     * is known). The volley's arrows are the arrows that appear near his eye in the ticks right after the shot; it is
+     * resolved when the target is gone, or when every one of them has ended (removed by the server, or stuck in a
+     * block). An arrow that ended inside the target's hitbox was a hit: then the server's report of what it did is
+     * waited for - the target gone or its label changed (health left) - before the next volley, because a solver list
+     * one tick stale would aim the next volley at a blaze already dead and through it at the next one up.
+     * Liveness only, never the normal path: with no arrow of the volley seen at all it falls back to the simulated
+     * flight, and a volley still unresolved 40 ticks past that is let go with a log line.
+     */
+    private static final class VolleyWatch {
+        /** Each arrow of the volley with its last seen {position, motion}. */
+        private final java.util.Map<net.minecraft.world.entity.projectile.arrow.AbstractArrow, Vec3[]> arrows =
+                new java.util.IdentityHashMap<>();
+        private long shotTick;
+        private int flightTicks;
+        private Vec3 eye = Vec3.ZERO;
+        private AABB targetBox = new AABB(0, 0, 0, 0, 0, 0);
+        private String targetLabel;
+        private boolean hit;
+        private long hitTick;
+        private boolean logged;
+
+        void shot(Vec3 eye, Entity target, AABB targetBox, int flightTicks) {
+            arrows.clear();
+            this.shotTick = com.killer560.hub.util.ActionGate.currentTick();
+            this.flightTicks = flightTicks;
+            this.eye = eye;
+            this.targetBox = targetBox.inflate(0.6);
+            this.targetLabel = target == null ? null : nameOf(target);
+            this.hit = false;
+            this.logged = false;
+        }
+
+        boolean resolved(Minecraft client, Entity target) {
+            long now = com.killer560.hub.util.ActionGate.currentTick();
+            long since = now - shotTick;
+            if (target == null || target.isRemoved()) {
+                return done("the target is gone", since);
+            }
+            if (client.level == null) {
+                return true;
+            }
+            if (since <= 3) {
+                // The volley leaves his eye: pick its arrows up as they appear.
+                for (var a : client.level.getEntitiesOfClass(net.minecraft.world.entity.projectile.arrow.AbstractArrow.class,
+                        new AABB(eye, eye).inflate(4.0), a -> a.tickCount <= 4)) {
+                    arrows.putIfAbsent(a, new Vec3[]{a.position(), a.getDeltaMovement()});
+                }
+            }
+            if (arrows.isEmpty()) {
+                if (since > 3 && since >= flightTicks) {
+                    return done("no arrow of the volley was seen - its simulated flight is over", since);
+                }
+                return false;
+            }
+            boolean allEnded = true;
+            for (var e : arrows.entrySet()) {
+                var a = e.getKey();
+                boolean ended = a.isRemoved()
+                        || ((com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor) a).killer560smod$isInGround();
+                if (!ended) {
+                    e.setValue(new Vec3[]{a.position(), a.getDeltaMovement()});
+                    // Flown on past the target (a Terminator's side arrows, a miss): it can no longer be the one that
+                    // kills it, so the result does not wait for it to come down somewhere.
+                    Vec3 centre = targetBox.getCenter();
+                    Vec3 toTarget = centre.subtract(eye);
+                    double reach = toTarget.length();
+                    boolean past = reach > 1.0e-3 && a.position().subtract(eye).dot(toTarget.scale(1.0 / reach)) > reach + 2.0;
+                    if (!past) {
+                        allEnded = false;
+                    }
+                } else if (!hit && (targetBox.contains(e.getValue()[0]) || targetBox.clip(e.getValue()[0],
+                        e.getValue()[0].add(e.getValue()[1].scale(1.5))).isPresent())) {
+                    // Ended inside the target's box, or on its way into it: the last position the client saw is up to a
+                    // tick's flight (3 blocks) short of the impact.
+                    hit = true;
+                    hitTick = now;
+                }
+            }
+            if (!allEnded) {
+                return since > flightTicks + 40
+                        && done("an arrow of the volley still flies 40 ticks past its simulated flight", since);
+            }
+            if (!hit) {
+                return done("every arrow of the volley ended away from the target (a miss)", since);
+            }
+            if (targetLabel != null && !targetLabel.equals(nameOf(target))) {
+                return done("the target was hit (its label changed)", since);
+            }
+            if (now - hitTick > 40) {
+                return done("the target was hit and the server reported nothing of it in 40 ticks", since);
+            }
+            return false; // a hit: the server's report of what it did is on its way
+        }
+
+        private boolean done(String why, long since) {
+            if (!logged) {
+                logged = true;
+                LOGGER.info("[AutoPuzzles] Blaze: volley result known {} tick(s) after the shot (simulated flight {}) - {}",
+                        since, flightTicks, why);
+            }
+            arrows.clear();
+            return true;
+        }
+    }
 
     /** Ticks until a 3.0 / 0.99 drag / 0.05 gravity arrow comes closest to {@code target} - QUOI's own flight model. */
     private static int flightTicks(Vec3 from, float yaw, float pitch, Vec3 target) {
@@ -1192,8 +1304,8 @@ final class AutoBlaze {
             auraWaitLag = com.killer560.hub.util.ServerLag.mark();
         }
         boolean alive = !blazes.isEmpty();
-        if (alive && now - lastShotTime <= shotFlightMs) {
-            return; // the final volley is still in the air: a chest may only open once the room is done
+        if (alive && waitingForUpdate && !VOLLEY.resolved(client, currentTarget)) {
+            return; // the final volley's result is not in yet: a chest may only open once the room is done
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
         if (target == null) {
