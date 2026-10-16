@@ -115,3 +115,9 @@ registers on a Fabric event, and every Fabric HUD layer it adds, in a timing pro
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
 the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
+## World render batch (`compat/McRender`, 26.1.2)
+Inside `AFTER_TRANSLUCENT_FEATURES` and `AFTER_TRANSLUCENT_TERRAIN`, `McRender.inCameraSpace` writes into the mod's own
+buffer source and draws each render type once after the event's last listener (see `McRender.registerBatching`).
+`McRender.batchStats()` returns `{geometry callbacks batched, batches drawn}` since launch (both 0 on 26.2, whose submit
+collector groups by type itself); the probe attributes the batch's draw to `compat.McRender <event>`, not to the
+features that filled it. Testkit 95-perf-world reads both, plus its own draw-call counter.
