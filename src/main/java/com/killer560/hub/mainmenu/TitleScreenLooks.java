@@ -175,7 +175,7 @@ public final class TitleScreenLooks {
         boolean wasVanilla = !MainMenuTheme.active();
         current = look;
         MainMenuScenes.setAmberScene(look.amber() != null ? look.amber() : MainMenuScenes.AMBER_SCENE);
-        MainMenuScenes.setGreenScene(look.green() != null ? look.green() : MainMenuScenes.GREEN_SCENE);
+        MainMenuScenes.setGreenScene(look.green());
         GreenTheme.setGradient(look.gradient() != null ? look.gradient() : GreenTheme.DEFAULT_GRADIENT);
         version++;
         // The themed layout (column, panel, no Realms) and the vanilla one are built at init, so crossing between them
@@ -198,7 +198,7 @@ public final class TitleScreenLooks {
         }
         current = null;
         MainMenuScenes.setAmberScene(MainMenuScenes.AMBER_SCENE);
-        MainMenuScenes.setGreenScene(MainMenuScenes.GREEN_SCENE);
+        MainMenuScenes.setGreenScene(null);
         GreenTheme.setGradient(GreenTheme.DEFAULT_GRADIENT);
         version++;
         relayout = true;

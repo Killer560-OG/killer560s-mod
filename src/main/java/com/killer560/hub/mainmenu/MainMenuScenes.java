@@ -39,13 +39,29 @@ public final class MainMenuScenes {
 
     public static final GreenScene GREEN_SCENE = GreenScene.TARGET;
 
-    private static GreenScene greenScene = GREEN_SCENE;
+    /** What every other instance shows until killer560 approves the new pictures (2026-10-16: "for these new pictures only
+     *  push them to my title screen instance not the others yet"): the scene that was last deployed. */
+    public static final GreenScene GREEN_SCENE_RELEASED = GreenScene.FOREST;
+
+    /** True in the Title Screen GUI instance (its marker) or with -Dkiller560smod.previewScenes=true (the testkit's scene
+     *  checks): the new main menu pictures. Everywhere else the released ones. */
+    public static boolean previewScenes() {
+        return TitleScreenLooks.enabled() || Boolean.getBoolean("killer560smod.previewScenes");
+    }
+
+    /** The Green scene this game shows by default: {@link #GREEN_SCENE} with {@link #previewScenes()}, otherwise
+     *  {@link #GREEN_SCENE_RELEASED}. */
+    public static GreenScene defaultGreenScene() {
+        return previewScenes() ? GREEN_SCENE : GREEN_SCENE_RELEASED;
+    }
+
+    private static GreenScene greenScene;
 
     /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"},
      *  {@code "BOSS"}, {@code "TARGET"});
      *  null or empty goes back to the constant's choice. */
     public static void setGreenSceneForTest(String name) {
-        greenScene = name == null || name.isEmpty() ? GREEN_SCENE : GreenScene.valueOf(name);
+        greenScene = name == null || name.isEmpty() ? null : GreenScene.valueOf(name);
     }
 
     private static AmberScene amberScene = AMBER_SCENE;
@@ -59,7 +75,8 @@ public final class MainMenuScenes {
 
     /** The Green scene drawn now (see {@link #amberScene()}). */
     public static GreenScene greenScene() {
-        return greenScene;
+        GreenScene g = greenScene;
+        return g != null ? g : defaultGreenScene();
     }
 
     /** Draws {@code scene} for Amber this session (the Title Screen Switcher); null goes back to {@link #AMBER_SCENE}.
@@ -70,7 +87,7 @@ public final class MainMenuScenes {
 
     /** Draws {@code scene} for Green this session (the Title Screen Switcher); null goes back to {@link #GREEN_SCENE}. */
     public static void setGreenScene(GreenScene scene) {
-        greenScene = scene == null ? GREEN_SCENE : scene;
+        greenScene = scene;
     }
 
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
@@ -118,7 +135,7 @@ public final class MainMenuScenes {
         int panel = look.panelColour() | 0xFF000000;
         int text = look.text() | 0xFF000000;
         boolean light = MenuStyle.luminance(panel) > 0.5f;
-        boolean target = look.scene() == MainMenuThemeConfig.Scene.FIREFLIES && greenScene == GreenScene.TARGET;
+        boolean target = look.scene() == MainMenuThemeConfig.Scene.FIREFLIES && greenScene() == GreenScene.TARGET;
         if (target) {
             // The designer's picture is the base, blitted before the batch so the batch's overlays land on top of it.
             TargetScene.drawImage(g, w, h, t);
@@ -146,7 +163,7 @@ public final class MainMenuScenes {
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
             case FIREFLIES -> {
-                switch (greenScene) {
+                switch (greenScene()) {
                     case SIMPLE -> MainMenuFirefliesSimple.draw(r, w, h, t, accent, panel, text, look.density());
                     case FOREST -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
                     case ACID -> AcidCaveScene.draw(r, w, h, t, accent, panel, look.density());
@@ -158,7 +175,7 @@ public final class MainMenuScenes {
         }
         // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
         if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
-                || (greenScene != GreenScene.ACID && greenScene != GreenScene.BOSS)) {
+                || (greenScene() != GreenScene.ACID && greenScene() != GreenScene.BOSS)) {
             vignette(r, w, h, light);
         }
         r.submit();
