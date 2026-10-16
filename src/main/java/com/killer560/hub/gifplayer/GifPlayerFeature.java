@@ -258,10 +258,8 @@ public final class GifPlayerFeature {
             reload();
         }
         // killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont show in the storage or any inventory".
-        if (com.killer560.hub.hud.GuiOverlays.containerOpen()) {
-            return;
-        }
-        if (!GifPlayerConfig.getInstance().isEnabled()) {
+        // The switch first: it is off for nearly everyone, and the container test reads the screen (2026-10-15).
+        if (!GifPlayerConfig.getInstance().isEnabled() || com.killer560.hub.hud.GuiOverlays.containerOpen()) {
             return;
         }
         for (Map.Entry<String, LoadedGif> mapEntry : loaded.entrySet()) {

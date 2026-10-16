@@ -168,6 +168,12 @@ public final class HudConfig {
         return saved != null ? saved : new int[]{defaultX, defaultY};
     }
 
+    /** The position the player saved for this element, or null if it was never moved. The array is the stored one:
+     *  read it, never write it. */
+    public int[] savedPosition(String id) {
+        return positions.get(id);
+    }
+
     /** True once the player has moved this element themselves (a scale-only entry does not count). Used by
      *  {@link HudElementRegistry#resolvePosition} to clamp only defaults, never a deliberate placement. */
     public boolean hasPosition(String id) {

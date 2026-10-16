@@ -864,10 +864,95 @@ public final class ScoreCalculatorFeature {
         return score < 270 ? SCORE_RED : score < 300 ? SCORE_YELLOW : ModChat.GOOD;
     }
 
+    private static final ScoreCalculator.Result DEMO_RESULT =
+            new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+");
+
+    // The HUD's lines as last built, and every input they were built from (render thread only). The element drew,
+    // measured and re-measured them from a fresh buildLines on every frame - about 20 segments, their strings and
+    // lists, 7 KB a frame (95-perf-features, 2026-10-15) - while the score behind them changes every 10 ticks at most.
+    private static List<List<Segment>> cachedLines = List.of();
+    private static int[][] cachedSegmentX = new int[0][];
+    private static net.minecraft.client.gui.Font cachedWidthFont;
+    private static boolean cacheValid;
+    private static boolean cDemo;
+    private static ScoreCalculator.Result cResult;
+    private static boolean cPaul;
+    private static int cFound;
+    private static int cCrypts;
+    private static int cDeaths;
+    private static String cFloor;
+    private static boolean cMimic;
+    private static boolean cPrince;
+    private static int cBats;
+    private static boolean cBreakdown;
+    private static boolean cSecretsNeeded;
+    private static boolean cCryptsDeaths;
+    private static boolean cMimicPrince;
+
+    /** {@link #buildLines}, reused while none of its inputs changed. Off the render thread it just builds. */
+    private static List<List<Segment>> lines(ScoreCalculatorConfig cfg, boolean demo) {
+        if (!Minecraft.getInstance().isSameThread()) {
+            return buildLines(cfg, demo);
+        }
+        ScoreCalculator.Result r = demo ? DEMO_RESULT : lastResult;
+        boolean paul = !demo && lastInputs != null && lastInputs.paul();
+        String floor = DungeonState.getFloor();
+        int bats = batKillers.size();
+        if (cacheValid && cDemo == demo && java.util.Objects.equals(cResult, r) && cPaul == paul
+                && cFound == secretsFound && cCrypts == crypts && cDeaths == deaths
+                && java.util.Objects.equals(cFloor, floor) && cMimic == mimicKilled && cPrince == princeKilled
+                && cBats == bats && cBreakdown == cfg.isShowBreakdown() && cSecretsNeeded == cfg.isShowSecretsNeeded()
+                && cCryptsDeaths == cfg.isShowCryptsDeaths() && cMimicPrince == cfg.isShowMimicPrince()) {
+            return cachedLines;
+        }
+        cachedLines = buildLines(cfg, demo);
+        cachedWidthFont = null;
+        cacheValid = true;
+        cDemo = demo;
+        cResult = r;
+        cPaul = paul;
+        cFound = secretsFound;
+        cCrypts = crypts;
+        cDeaths = deaths;
+        cFloor = floor;
+        cMimic = mimicKilled;
+        cPrince = princeKilled;
+        cBats = bats;
+        cBreakdown = cfg.isShowBreakdown();
+        cSecretsNeeded = cfg.isShowSecretsNeeded();
+        cCryptsDeaths = cfg.isShowCryptsDeaths();
+        cMimicPrince = cfg.isShowMimicPrince();
+        return cachedLines;
+    }
+
+    /** Where each segment of each of {@code lines} starts in {@code font}, plus the line's width as the last entry, kept
+     *  with the cached lines it was measured from. */
+    private static int[][] segmentX(net.minecraft.client.gui.Font font, List<List<Segment>> lines) {
+        if (lines == cachedLines && font == cachedWidthFont) {
+            return cachedSegmentX;
+        }
+        int[][] out = new int[lines.size()][];
+        for (int i = 0; i < out.length; i++) {
+            List<Segment> line = lines.get(i);
+            int[] xs = new int[line.size() + 1];
+            int w = 0;
+            for (int j = 0; j < line.size(); j++) {
+                xs[j] = w;
+                w += font.width(line.get(j).text());
+            }
+            xs[line.size()] = w;
+            out[i] = xs;
+        }
+        if (lines == cachedLines) {
+            cachedSegmentX = out;
+            cachedWidthFont = font;
+        }
+        return out;
+    }
+
     private static List<List<Segment>> buildLines(ScoreCalculatorConfig cfg, boolean demo) {
         List<List<Segment>> lines = new ArrayList<>();
-        ScoreCalculator.Result r = demo ? new ScoreCalculator.Result(302, 100, 100, 60, 40, 100, 2, 36, 60, 57, 3, "S+")
-                : lastResult;
+        ScoreCalculator.Result r = demo ? DEMO_RESULT : lastResult;
         if (r == null) {
             return lines;
         }
@@ -970,7 +1055,7 @@ public final class ScoreCalculatorFeature {
         private static List<List<Segment>> currentLines() {
             ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
             boolean demo = inEditor() && (lastResult == null || !DungeonState.isInDungeon());
-            return buildLines(cfg, demo);
+            return lines(cfg, demo);
         }
 
         @Override
@@ -980,12 +1065,8 @@ public final class ScoreCalculatorFeature {
                 return 100;
             }
             int max = 40;
-            for (List<Segment> line : currentLines()) {
-                int w = 0;
-                for (Segment s : line) {
-                    w += font.width(s.text());
-                }
-                max = Math.max(max, w);
+            for (int[] xs : segmentX(font, currentLines())) {
+                max = Math.max(max, xs[xs.length - 1]);
             }
             return max + 1;
         }
@@ -1017,11 +1098,15 @@ public final class ScoreCalculatorFeature {
             }
             Font font = client.font;
             int lineY = y;
-            for (List<Segment> line : buildLines(cfg, editor && (lastResult == null || !DungeonState.isInDungeon()))) {
-                int lineX = x;
-                for (Segment s : line) {
-                    graphics.text(font, s.text(), lineX, lineY, 0xFF000000 | s.color(), cfg.isTextShadow());
-                    lineX += font.width(s.text());
+            List<List<Segment>> lines = lines(cfg, editor && (lastResult == null || !DungeonState.isInDungeon()));
+            int[][] segX = segmentX(font, lines);
+            boolean shadow = cfg.isTextShadow();
+            for (int i = 0; i < lines.size(); i++) {
+                List<Segment> line = lines.get(i);
+                int[] xs = segX[i];
+                for (int j = 0; j < line.size(); j++) {
+                    Segment s = line.get(j);
+                    graphics.text(font, s.text(), x + xs[j], lineY, 0xFF000000 | s.color(), shadow);
                 }
                 lineY += 10;
             }

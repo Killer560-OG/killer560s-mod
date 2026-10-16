@@ -28,16 +28,27 @@ public final class HudAvoid {
     private HudAvoid() {
     }
 
-    private static final java.util.Map<String, long[]> MEMO_AT = new java.util.HashMap<>();
-    private static final java.util.Map<String, int[]> MEMO = new java.util.HashMap<>();
+    /** One remembered answer for a (self, other) pair. */
+    private static final class Memo {
+        final String otherId;
+        long atMs;
+        int[] result;
+
+        Memo(String otherId) {
+            this.otherId = otherId;
+        }
+    }
+
+    /** self id -> its memo. Keyed on the element's own id with the other id kept inside, so a frame's lookup builds no
+     *  "self|other" key string (it did, every frame, 2026-10-15). An element that avoids a second element replaces it. */
+    private static final java.util.Map<String, Memo> MEMO = new java.util.HashMap<>();
 
     /** Where {@code self} draws so it does not cover the element {@code otherId}, or null to use its own position. */
     public static int[] clear(HudElement self, String otherId) {
         long now = System.currentTimeMillis();
-        String key = self.id() + "|" + otherId;
-        long[] at = MEMO_AT.get(key);
-        if (at != null && now - at[0] < MEMO_MS) {
-            return MEMO.get(key);
+        Memo memo = MEMO.get(self.id());
+        if (memo != null && memo.otherId.equals(otherId) && now - memo.atMs < MEMO_MS) {
+            return memo.result;
         }
         int[] out;
         try {
@@ -45,8 +56,12 @@ public final class HudAvoid {
         } catch (RuntimeException e) {
             out = null; // never let a measuring problem move or break an element
         }
-        MEMO_AT.put(key, new long[]{now});
-        MEMO.put(key, out);
+        if (memo == null || !memo.otherId.equals(otherId)) {
+            memo = new Memo(otherId);
+            MEMO.put(self.id(), memo);
+        }
+        memo.atMs = now;
+        memo.result = out;
         return out;
     }
 
