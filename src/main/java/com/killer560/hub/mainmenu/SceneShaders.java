@@ -76,6 +76,9 @@ public final class SceneShaders {
     /** Test probe: shader elements submitted since the last reset (the testkit's proof the shader path ran). */
     public static int elements;
 
+    /** Test probe: quads submitted through these pipelines since launch. */
+    public static long quads;
+
     public static void register() {
         if (softLight != null || failed) {
             return;
@@ -228,6 +231,7 @@ public final class SceneShaders {
             }
             g.guiRenderState.addGuiElement(this);
             elements++;
+            quads += n;
         }
 
         @Override

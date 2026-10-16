@@ -201,6 +201,7 @@ public final class MainMenuScenes {
             probe(r, probeStart);
             return;
         }
+        long shaderQuads0 = SceneShaders.quads;
         if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && previewScenes()
                 && SoftLightSmooth.drawShaded(g, w, h, t, accent, panel, light, count(9000, w, h, look.density(), 12, 34),
                 baseTop(accent, panel, light), baseBottom(accent, panel, light))) {
@@ -208,6 +209,9 @@ public final class MainMenuScenes {
             heroRects = 0;
             r.submit();
             probe(r, probeStart);
+            if (allocProbe) {
+                allocQuads += SceneShaders.quads - shaderQuads0; // the probe's "drawn parts" are the shader quads here
+            }
             return;
         }
         base(r, w, h, accent, panel, light);
