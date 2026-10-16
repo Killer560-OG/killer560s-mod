@@ -172,7 +172,7 @@ public final class AutoStatusHud {
             RunPlan.Snapshot plan = RunPlan.of(RunPlan.Source.AUTO_CLEAR);
             if (plan != null) {
                 s.cLeft = plan.rooms().size();
-            } else {
+            } else if (AutoClearFeature.isStandaloneRun()) {
                 if (slow || slowLeft < 0) {
                     slowLeft = AutoClearFeature.mobRoomsLeft();
                 }
