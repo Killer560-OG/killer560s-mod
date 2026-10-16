@@ -2,6 +2,7 @@ package com.killer560.hub.util;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import org.slf4j.Logger;
 
 import java.util.Locale;
@@ -33,6 +34,9 @@ public final class SackCommands {
     private static final Pattern UNKNOWN_COMMAND =
             Pattern.compile("^Unknown or incomplete command\\. See below for error(?:\\n[^\\n]{0,256})?$");
 
+    /** The same reply as a translatable component (vanilla servers), whatever language the client renders it in. */
+    private static final String UNKNOWN_KEY = "command.unknown.command";
+
     private static Object session;
     private static boolean dead;
     private static long sentAtMs;
@@ -42,7 +46,8 @@ public final class SackCommands {
     }
 
     public static void register() {
-        ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
+        ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message),
+                message.getContents() instanceof TranslatableContents tc && UNKNOWN_KEY.equals(tc.getKey())));
     }
 
     /** True only on Hypixel Skyblock, on a connection where {@code /gfs} has not been answered "unknown command". */
@@ -78,8 +83,8 @@ public final class SackCommands {
         awaiting = false;
     }
 
-    static void onChat(String plain) {
-        if (plain == null || !awaiting || !UNKNOWN_COMMAND.matcher(plain).matches()) {
+    static void onChat(String plain, boolean unknownKey) {
+        if (plain == null || !awaiting || !(unknownKey || UNKNOWN_COMMAND.matcher(plain).matches())) {
             return;
         }
         awaiting = false;
