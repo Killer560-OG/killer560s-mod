@@ -410,7 +410,8 @@ public final class LiveMapConfig {
         return roomPx;
     }
 
-    public void setRoomPx(int roomPx) {
+    /** Load-only: Room Size is no longer a setting (see {@link #migrateRoomPx}), so nothing else may set it. */
+    private void setRoomPx(int roomPx) {
         this.roomPx = Math.max(8, Math.min(40, roomPx));
     }
 
