@@ -262,12 +262,26 @@ public final class PositionFeature {
             if (player == null || font == null) {
                 return 90;
             }
+            String[] lines = lines(PositionConfig.getInstance(), player);
+            // Measured once per new set of lines: each font.width of a formatted line builds a Style per colour code.
+            if (lines == widthLines && font == widthFont) {
+                return widthValue;
+            }
             int max = 20;
-            for (String line : lines(PositionConfig.getInstance(), player)) {
+            for (String line : lines) {
                 max = Math.max(max, font.width(line) + 1);
+            }
+            if (Minecraft.getInstance().isSameThread()) {
+                widthLines = lines;
+                widthFont = font;
+                widthValue = max;
             }
             return max;
         }
+
+        private static String[] widthLines;
+        private static Font widthFont;
+        private static int widthValue;
 
         @Override
         public int height() {
