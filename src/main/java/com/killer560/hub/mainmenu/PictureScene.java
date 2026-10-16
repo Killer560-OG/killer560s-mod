@@ -386,14 +386,16 @@ final class PictureScene {
     }
 
     /**
-     * Stars twinkling smoothly (killer560, 2026-10-16: "make the whole thing a bit smoother ... the pulsating lights", then
-     * "make the stars pulsate a bit more"): the bright ones at {@code stars} (x, y pairs found in the picture) breathe
-     * clearly - a soft round glow growing and dimming with a soft cross whose arms taper away; the medium ones at
-     * {@code mids} shimmer as soft dots over the painted ones; and {@code faint} small soft dots at sub-pixel places above
-     * {@code skyBottom} fade in and out on their own slow clocks, none inside {@code calm} (x0, y0, x1, y1: the title).
-     * Every brightness follows an eased curve, so nothing pops.
+     * Stars twinkling smoothly (killer560, 2026-10-16: "make the whole thing a bit smoother ... the pulsating lights", "make
+     * the stars pulsate a bit more", then "make it so all of the stars are able to fade, not just some of them"): the bright
+     * ones at {@code stars} (x, y pairs) breathe clearly - a soft round glow growing and dimming with a soft cross whose arms
+     * taper away; every other star of the picture, at {@code points} (x, y, brightness triples, lifted out of the texture),
+     * fades between a fifth of its brightness and all of it on its own slow clock, as a soft point (a centre pixel and a
+     * fainter plus around it); and {@code faint} small soft dots at sub-pixel places above {@code skyBottom} come and go,
+     * none inside {@code calm} (x0, y0, x1, y1: the title). Every brightness follows an eased curve, so nothing pops. The
+     * lists never hold a point on the character or the land (make_textures.py leaves them out).
      */
-    record Twinkles(int[] stars, int[] mids, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
+    record Twinkles(int[] stars, int[] points, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
             if (density <= 0) {
@@ -403,17 +405,27 @@ final class PictureScene {
                 double x = stars[i] + 0.5;
                 double y = stars[i + 1] + 0.5;
                 double tw = ease(0.5 + 0.5 * Math.sin(t * (0.5 + 1.0 * hash(i, salt + 1)) + hash(i, salt) * 6.28));
-                int a = (int) Math.round(255 * (0.08 + 0.80 * tw));
+                int a = (int) Math.round(255 * (0.10 + 0.80 * tw));
                 softDot(r, x, y, 1.0 + 1.3 * tw, 1, rgb, a, 0.3 + 0.7 * tw);
                 cross(r, x, y, 5 + 12 * tw, rgb, (int) Math.round(a * 0.5));
             }
-            for (int i = 0; i < mids.length; i += 2) {
-                double x = mids[i] + 0.5;
-                double y = mids[i + 1] + 0.5;
-                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.6 + 1.4 * hash(i, salt + 5)) + hash(i, salt + 4) * 6.28));
-                int a = (int) Math.round(255 * 0.62 * tw * tw);
-                if (a > 2) {
-                    softDot(r, x, y, 0.9 + 0.6 * tw, 1, rgb, a, 0);
+            for (int i = 0; i < points.length; i += 3) {
+                int x = points[i];
+                int y = points[i + 1];
+                double v = points[i + 2] / 255.0;
+                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.35 + 1.3 * hash(i, salt + 5)) + hash(i, salt + 4) * 6.28));
+                double k = v * (0.20 + 0.80 * tw);
+                int core = (int) Math.round(255 * Math.min(1, k * 1.15));
+                int arm = (int) Math.round(255 * k * 0.42);
+                if (core > 1) {
+                    r.fill(x, y, x + 1, y + 1, MenuStyle.alpha(rgb, core));
+                }
+                if (arm > 1) {
+                    int c = MenuStyle.alpha(rgb, arm);
+                    r.fill(x - 1, y, x, y + 1, c);
+                    r.fill(x + 1, y, x + 2, y + 1, c);
+                    r.fill(x, y - 1, x + 1, y, c);
+                    r.fill(x, y + 1, x + 1, y + 2, c);
                 }
             }
             for (int i = 0; i < faint; i++) {
@@ -426,12 +438,41 @@ final class PictureScene {
                 if (s <= 0) {
                     continue;
                 }
-                int a = (int) Math.round(255 * 0.65 * s * s);
+                int a = (int) Math.round(255 * 0.55 * s * s);
                 if (a > 2) {
                     softDot(r, x, y, 0.8 + 0.7 * hash(i, salt + 13), 1, rgb, a, 0);
                 }
             }
         }
+    }
+
+    /** x, y, brightness triples from a text resource (one star per line, '#' starts a comment); empty if it is missing. */
+    static int[] loadPoints(String path) {
+        java.util.ArrayList<Integer> v = new java.util.ArrayList<>();
+        try (java.io.InputStream in = PictureScene.class.getResourceAsStream(path)) {
+            if (in == null) {
+                return new int[0];
+            }
+            for (String line : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+                String[] f = line.split("\\s+");
+                if (f.length >= 3) {
+                    v.add(Integer.parseInt(f[0]));
+                    v.add(Integer.parseInt(f[1]));
+                    v.add(Integer.parseInt(f[2]));
+                }
+            }
+        } catch (java.io.IOException | NumberFormatException e) {
+            return new int[0];
+        }
+        int[] out = new int[v.size() - v.size() % 3];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = v.get(i);
+        }
+        return out;
     }
 
     /** A soft cross at (cx, cy): four arms one pixel wide whose alpha falls smoothly to nothing over {@code arm} px. */
