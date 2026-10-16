@@ -651,7 +651,7 @@ public final class AutoSecretFeature {
         int found = r.secrets() - r.unfound();
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(leaveStartClock,
+        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.secretsSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return new int[]{Math.min(r.secrets(), Math.max(found, leaveFoundAtStart + got)), r.secrets()};
     }
@@ -664,7 +664,7 @@ public final class AutoSecretFeature {
         }
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.whatSince(leaveStartClock,
+        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.secretsWhatSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return "map " + (r.secrets() - r.unfound()) + "/" + r.secrets() + ", run " + fmtPercent(
                 DungeonInfoFeature.secretsFoundPercent()) + "%, at the trip's start " + leaveFoundAtStart + " + yours since "

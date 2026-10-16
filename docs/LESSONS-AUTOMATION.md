@@ -481,3 +481,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   opened): the Magnetic Talisman range picked it up while #4/#5 acted, #6 opened its own window and closed it unused,
   and #7 waited 20 s for a secret already taken until Route Stall stopped the route. `finishAction` now keeps the carry a
   node began with when it has no await (`nodeCarry`). Testkit 96-ar-1016-carry (main: #3 never warps).
+- **A lever is not one of a room's secrets.** Auto Routes' awaits count his lever flips (a route records one to wait on),
+  and Auto Secret's room count reused that memory, so "Museum: every secret counted (5/5: map 4/5)" with the lever as the
+  fifth and the room left a secret short - three runs of three (fullclear-1016 runs 002-004; 5/5 in 005-007 with the fix).
+  `RouteRunMemory.secretsSince` / `secretsWhatSince` leave levers out; awaits still count them.
