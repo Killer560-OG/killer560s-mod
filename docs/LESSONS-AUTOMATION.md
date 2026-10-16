@@ -358,3 +358,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **With Auto Close Chest on, a chest click never shows a screen** (his setting; 2026-10-15, "stuck on ice fill after
+  grabbing the chest", his log: the sim server opened the chest on click 1). The mixin cancels the open-screen packet and
+  answers with a close, so the lid is open a tick at most and `getOpenNess(0f)` (the previous tick's value) often reads 0.
+  The reward-chest step read the screen and the lid only: three clicks, "did not open", then a ten-second "appear" wait
+  under Autopilot (93-solve-*-chest-autoclose on main). Anything asking "did my chest click work" reads
+  `util/ChestWindows` (fed at the packet hook's HEAD in every build): RewardChest, Secret Aura, Auto Boulder, Auto Tic Tac Toe.
+  Do not deduplicate those packets by container id - a server numbers windows per player from 1, so every new sim world's
+  first chest repeats the last world's id; the hook's double run (network thread, then render thread) is one packet object.
+- `AutoPuzzleActivity`'s name was the LAST mark of a tick, and one tick of a chest step marks three ("Ice Path", "Ice Path
+  chest", "Puzzles"), so every "say it once per change" reader said it every tick (his chat: Autopilot's "Waiting for ..."
+  twenty times a second; Auto Routes' "Arming: inert"). The name now holds for the working spell; Auto Secret says each
+  reason once per room (102-sim-autosecret).
