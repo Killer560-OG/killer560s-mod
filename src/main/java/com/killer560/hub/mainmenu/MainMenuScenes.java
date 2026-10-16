@@ -27,6 +27,26 @@ public final class MainMenuScenes {
 
     public static final AmberScene AMBER_SCENE = AmberScene.EMBERS;
 
+    /** Which background Green's Fireflies scene draws (killer560, 2026-10-15: "can you make the main menu more of a
+     *  forest?"): FOREST is {@link MainMenuFireflies} (layered trees, canopy, undergrowth, light shafts); SIMPLE is
+     *  {@link MainMenuFirefliesSimple}, the first lighter scene; ACID is {@link AcidCaveScene}, the designer's acid cave
+     *  (2026-10-15: "an acid looking cave with an acid lake and waterfall ... a silhouette of my character fighting a big
+     *  green slime"); BOSS is {@link SlimeBossScene}, the designer's second idea (2026-10-15: "the hollow knight is just the
+     *  silhouette of a minecraft looking character, and the radiance is the slime boss ... the only animation being the
+     *  screen swaying a little side to side"), the default. FOREST, SIMPLE and ACID stay selectable here. */
+    public enum GreenScene { FOREST, SIMPLE, ACID, BOSS }
+
+    public static final GreenScene GREEN_SCENE = GreenScene.BOSS;
+
+    private static GreenScene greenScene = GREEN_SCENE;
+
+    /** Test hook (testkit 1651/1653): draws the named Green scene ({@code "FOREST"}, {@code "SIMPLE"}, {@code "ACID"},
+     *  {@code "BOSS"});
+     *  null or empty goes back to the constant's choice. */
+    public static void setGreenSceneForTest(String name) {
+        greenScene = name == null || name.isEmpty() ? GREEN_SCENE : GreenScene.valueOf(name);
+    }
+
     private static AmberScene amberScene = AMBER_SCENE;
     private static long testClockMs = -1L;
 
@@ -88,11 +108,22 @@ public final class MainMenuScenes {
             case WATERFALL -> waterfall(r, w, h, t, accent, panel, text, look.density());
             case STARFIELD -> starfield(r, w, h, t, accent, text, look.density());
             case AURORA -> aurora(r, w, h, t, accent, look.switchOn() | 0xFF000000, look.density());
-            case FIREFLIES -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
+            case FIREFLIES -> {
+                switch (greenScene) {
+                    case SIMPLE -> MainMenuFirefliesSimple.draw(r, w, h, t, accent, panel, text, look.density());
+                    case FOREST -> MainMenuFireflies.draw(r, w, h, t, accent, panel, text, look.density());
+                    case ACID -> AcidCaveScene.draw(r, w, h, t, accent, panel, look.density());
+                    default -> SlimeBossScene.draw(r, w, h, t, accent, panel, look.density());
+                }
+            }
             case SOFT_LIGHT -> softLight(r, w, h, t, accent, panel, light, look.density());
             default -> glow(r, w / 2, 55, Math.min(w * 0.55, 300), Math.min(h * 0.4, 110), accent, 0x24, 9);
         }
-        vignette(r, w, h, light);
+        // The acid cave and the slime boss light themselves (the lake, the boss): the vignette would put them out.
+        if (look.scene() != MainMenuThemeConfig.Scene.FIREFLIES
+                || (greenScene != GreenScene.ACID && greenScene != GreenScene.BOSS)) {
+            vignette(r, w, h, light);
+        }
         r.submit();
         if (allocProbe) {
             allocBytes += allocatedNow() - probeStart;

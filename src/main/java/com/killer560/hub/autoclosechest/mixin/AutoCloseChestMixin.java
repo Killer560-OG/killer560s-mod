@@ -18,6 +18,13 @@ public abstract class AutoCloseChestMixin {
 
     @Inject(method = "handleOpenScreen", at = @At("HEAD"), cancellable = true)
     private void killer560smod$autoCloseSecretChest(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
+        // Every build, before anything can cancel it: a chest click's answer is this packet, shown or not
+        // (util/ChestWindows - Auto Close Chest hid every reward chest's window from the autos waiting on it).
+        try {
+            com.killer560.hub.util.ChestWindows.noteOpenPacket(packet);
+        } catch (RuntimeException e) {
+            ModLog.get("killer560smod-autoclosechest").error("[AutoCloseChest] chest window count threw", e);
+        }
         // Cheat build only: the whole body sits inside the constant, so in a legit jar javac leaves this
         // handler empty and the screen always opens.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

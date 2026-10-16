@@ -91,8 +91,10 @@ public final class ArchitectDraftFeature {
                 return;
             }
             lastMs = now;
-            if (mine && cfg.isAutoGet()) {
-                client.player.connection.sendCommand(COMMAND);
+            // Through SackCommands: Hypixel Skyblock only, and never on a server that answered /gfs "unknown command".
+            // When it cannot send, the click message (if on) is still offered below.
+            if (mine && cfg.isAutoGet()
+                    && com.killer560.hub.util.SackCommands.send(client, COMMAND.substring("gfs ".length()))) {
                 ModChat.send("Architect", ModChat.text("Puzzle failed - getting an "), ModChat.value("Architect's First Draft"),
                         ModChat.text(" from your sack."));
                 return;

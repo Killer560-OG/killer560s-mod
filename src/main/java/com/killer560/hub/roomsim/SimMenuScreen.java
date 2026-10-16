@@ -508,30 +508,108 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         return contentBottom - roomRowsTop();
     }
 
+    /** The least space between two columns' text, in GUI units. */
+    private static final int COL_GAP = 8;
+    /** The columns right of Name, right to left as they are laid out. */
+    private static final SimMenuPrefs.RoomSort[] SIDE_KEYS = {SimMenuPrefs.RoomSort.ROUTES, SimMenuPrefs.RoomSort.CRYPTS,
+            SimMenuPrefs.RoomSort.SECRETS, SimMenuPrefs.RoomSort.SIZE, SimMenuPrefs.RoomSort.TYPE};
+    private static final String[] SIDE_LABELS = {"Routes", "Crypts", "Secrets", "Size", "Type"};
+    /** Which side column a narrow page gives up first, as indexes into {@link #SIDE_KEYS}: Type, Crypts, Size, Secrets, Routes. */
+    private static final int[] DROP_ORDER = {4, 1, 3, 2, 0};
+
+    /** {@link #columns()}'s last answer and what it was worked out for. */
+    private List<Col> colsCache;
+    private List<String> colsListed;
+    private int colsX = Integer.MIN_VALUE;
+    private int colsW;
+    private boolean colsReady;
+    private int colsFont;
+
     /**
      * The columns, laid out right to left so the name gets whatever is left. killer560 (2026-10-15): "you have so
      * much space can you make better use of it on this page" - the type, size, secrets, crypts and routes that used to
-     * be one "no routes" word at the far end of each row. A narrow page drops Type and Crypts first.
+     * be one "no routes" word at the far end of each row.
+     *
+     * <p>killer560 (2026-10-15): "sometimes this text can overlap so make that something that can't happen" - the
+     * widths were fixed numbers, and "Crypts ▼" (the sort arrow) is wider than the 34 Crypts had, so it ran into
+     * "Secrets". Every side column is now as wide as the widest thing it can show - its heading with either arrow, and
+     * every listed room's cell - with {@link #COL_GAP} between columns. Name takes what is left and ellipsizes; when
+     * that would be too little, a column goes (Type, Crypts, Size, Secrets, then Routes) rather than anything overlap.
      */
     private List<Col> columns() {
-        boolean wide = contentW >= 380;
+        boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
+        net.minecraft.client.gui.Font f = MenuStyle.font();
+        int probe = f.width("Secrets ▼0");
+        if (colsCache != null && colsListed == listed && colsX == contentX && colsW == contentW && colsReady == ready
+                && colsFont == probe) {
+            return colsCache;
+        }
+        int[] need = new int[SIDE_KEYS.length];
+        for (int i = 0; i < SIDE_KEYS.length; i++) {
+            need[i] = Math.max(f.width(SIDE_LABELS[i] + " ▼"), f.width(SIDE_LABELS[i] + " ▲"));
+            for (String room : listed) {
+                need[i] = Math.max(need[i], f.width(cellText(SIDE_KEYS[i], room, ready)));
+            }
+        }
+        int left = contentX + 8;
         int right = contentX + contentW - 10;
+        int nameMin = Math.max(70, Math.max(f.width(nameHeading() + " ▼"), f.width(nameHeading() + " ▲")));
+        boolean[] on = new boolean[SIDE_KEYS.length];
+        java.util.Arrays.fill(on, true);
+        for (int drop = 0; ; drop++) {
+            int used = 0;
+            for (int i = 0; i < SIDE_KEYS.length; i++) {
+                used += on[i] ? need[i] + COL_GAP : 0;
+            }
+            if (right - left - used >= nameMin || drop >= DROP_ORDER.length) {
+                break;
+            }
+            on[DROP_ORDER[drop]] = false;
+        }
         List<Col> out = new ArrayList<>();
-        int[] w = {64, 40, 46, 30, 64};
-        SimMenuPrefs.RoomSort[] keys = {SimMenuPrefs.RoomSort.ROUTES, SimMenuPrefs.RoomSort.CRYPTS,
-                SimMenuPrefs.RoomSort.SECRETS, SimMenuPrefs.RoomSort.SIZE, SimMenuPrefs.RoomSort.TYPE};
-        String[] labels = {"Routes", "Crypts", "Secrets", "Size", "Type"};
-        for (int i = 0; i < keys.length; i++) {
-            if (!wide && (keys[i] == SimMenuPrefs.RoomSort.CRYPTS || keys[i] == SimMenuPrefs.RoomSort.TYPE)) {
+        int x = right;
+        for (int i = 0; i < SIDE_KEYS.length; i++) {
+            if (!on[i]) {
                 continue;
             }
-            right -= w[i];
-            boolean alignRight = keys[i] != SimMenuPrefs.RoomSort.TYPE && keys[i] != SimMenuPrefs.RoomSort.SIZE;
-            out.add(new Col(keys[i], labels[i], right, w[i] - 6, alignRight));
+            x -= need[i];
+            boolean alignRight = SIDE_KEYS[i] != SimMenuPrefs.RoomSort.TYPE && SIDE_KEYS[i] != SimMenuPrefs.RoomSort.SIZE;
+            out.add(new Col(SIDE_KEYS[i], SIDE_LABELS[i], x, need[i], alignRight));
+            x -= COL_GAP;
         }
-        out.add(new Col(SimMenuPrefs.RoomSort.NAME, "Name", contentX + 8, right - contentX - 14, false));
+        out.add(new Col(SimMenuPrefs.RoomSort.NAME, "Name", left, Math.max(0, x - left), false));
         java.util.Collections.reverse(out);
-        return out;
+        colsCache = List.copyOf(out);
+        colsListed = listed;
+        colsX = contentX;
+        colsW = contentW;
+        colsReady = ready;
+        colsFont = probe;
+        return colsCache;
+    }
+
+    /** "Name (N)" - the Name heading without its sort arrow. */
+    private String nameHeading() {
+        return "Name (" + listed.size() + ")";
+    }
+
+    /** What a room's row shows in column {@code key}. Measured by {@link #columns()} and drawn by the row, so they agree. */
+    private static String cellText(SimMenuPrefs.RoomSort key, String name, boolean ready) {
+        return switch (key) {
+            case NAME -> name;
+            case TYPE -> !ready ? "-"
+                    : SimRoomFilter.kindLabel(SimRoomFilter.kindKey(name)) + (SimRoomFilter.isRare(name) ? " *" : "");
+            case SIZE -> SimRoomFilter.shapeKey(name);
+            case SECRETS -> ready ? String.valueOf(SimRoomFilter.secretsOf(name)) : "-";
+            case CRYPTS -> ready ? String.valueOf(SimRoomFilter.cryptsOf(name)) : "-";
+            case ROUTES -> {
+                // Each room's Auto Routes at a glance: a node count when it has a route, "no routes" when it is one
+                // worth routing that has none, a dash for the rooms the routes view leaves out (puzzles, Blood,
+                // Entrance, Fairy, 0 secrets).
+                String marker = routeMarker(name);
+                yield marker == null ? "-" : marker;
+            }
+        };
     }
 
     /** {x, y, w, h} of room row {@code index} as drawn now (it may be scrolled out of the well). For the testkit. */
@@ -662,11 +740,11 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         hr.submit();
         for (Col c : cols) {
             boolean sorted = c.key() == prefs.roomSort;
-            String label = (c.key() == SimMenuPrefs.RoomSort.NAME ? c.label() + " (" + listed.size() + ")" : c.label())
-                    + (sorted ? (prefs.roomDescending ? " ▼" : " ▲") : "");
+            String label = MenuStyle.ellipsize((c.key() == SimMenuPrefs.RoomSort.NAME ? nameHeading() : c.label())
+                    + (sorted ? (prefs.roomDescending ? " ▼" : " ▲") : ""), c.w());
             boolean hot = mouseY >= wellTop && mouseY < top && mouseX >= c.x() - 3 && mouseX < c.x() + c.w() + 3;
             int colour = sorted ? MenuStyle.OR : hot ? MenuStyle.TXT_HOVER : MenuStyle.DIM;
-            int lw = this.font.width(label);
+            int lw = MenuStyle.font().width(label);
             MenuStyle.text(g, label, c.right() ? c.x() + c.w() - lw : c.x(), wellTop + 3, colour);
         }
         int hovered = roomAt(mouseX, mouseY);
@@ -703,33 +781,16 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
 
     private void drawRoomRow(GuiGraphicsExtractor g, List<Col> cols, String name, int y, boolean hover, boolean ready) {
         for (Col c : cols) {
-            String text;
-            int colour = MenuStyle.TXT;
-            switch (c.key()) {
-                case NAME -> {
-                    text = name;
-                    colour = hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT;
-                }
-                case TYPE -> {
-                    String kind = SimRoomFilter.kindKey(name);
-                    text = !ready ? "-" : SimRoomFilter.kindLabel(kind) + (SimRoomFilter.isRare(name) ? " *" : "");
-                    colour = ready ? kindColour(kind) : MenuStyle.DIM;
-                }
-                case SIZE -> text = SimRoomFilter.shapeKey(name);
-                case SECRETS -> text = ready ? String.valueOf(SimRoomFilter.secretsOf(name)) : "-";
-                case CRYPTS -> text = ready ? String.valueOf(SimRoomFilter.cryptsOf(name)) : "-";
-                case ROUTES -> {
-                    // Each room's Auto Routes at a glance: green node count when it has a route, a dim "no routes"
-                    // when it is one worth routing that has none, a dash for the rooms the routes view leaves out
-                    // (puzzles, Blood, Entrance, Fairy, 0 secrets).
-                    String marker = routeMarker(name);
-                    text = marker == null ? "-" : marker;
-                    colour = SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
-                }
-                default -> text = "";
-            }
-            String fitted = this.font.plainSubstrByWidth(text, c.w());
-            int x = c.right() ? c.x() + c.w() - this.font.width(fitted) : c.x();
+            int colour = switch (c.key()) {
+                case NAME -> hover ? MenuStyle.TXT_HOVER : MenuStyle.TXT;
+                case TYPE -> ready ? kindColour(SimRoomFilter.kindKey(name)) : MenuStyle.DIM;
+                // Green when the room has a route, dim for "no routes" and the dash.
+                case ROUTES -> SimRoomRoutes.routeNodes(name) > 0 ? ScreenChrome.readable(0xFF55FF55) : MenuStyle.DIM;
+                default -> MenuStyle.TXT;
+            };
+            // The side columns are measured to fit their cells (columns()); only Name can be cut, with "...".
+            String fitted = MenuStyle.ellipsize(cellText(c.key(), name, ready), c.w());
+            int x = c.right() ? c.x() + c.w() - MenuStyle.font().width(fitted) : c.x();
             MenuStyle.text(g, fitted, x, y, colour);
         }
     }
@@ -784,14 +845,14 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             prefs.runFloor = "All";
         }
         runs = SimRunHistory.runs(prefs.runSort, prefs.runFloor);
-        int sw = this.font.width("Sort: Best Score") + 14;
+        int sw = runSortWidth();
         addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Sort: " + prefs.runSort.label), (b, dir) -> {
             prefs.runSort = SettingsButtonWidget.step(prefs.runSort, dir);
             prefs.save();
             scroll = 0;
             rebuildWidgets();
         }).bounds(contentX, contentY, sw, 18).build());
-        int fw = this.font.width("Floor: M7 (Master)") + 14;
+        int fw = runFloorWidth();
         addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Floor: " + prefs.runFloor), (b, dir) -> {
             List<String> all = SimRunHistory.floors();
             int i = Math.max(0, all.indexOf(prefs.runFloor));
@@ -800,6 +861,19 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
             scroll = 0;
             rebuildWidgets();
         }).bounds(contentX + sw + 4, contentY, fw, 18).build());
+    }
+
+    private int runSortWidth() {
+        return this.font.width("Sort: Best Score") + 14;
+    }
+
+    private int runFloorWidth() {
+        return this.font.width("Floor: M7 (Master)") + 14;
+    }
+
+    /** Sort and Floor side by side, from the page's left edge. */
+    private int runButtonsWidth() {
+        return runSortWidth() + 4 + runFloorWidth();
     }
 
     private int cardsTop() {
@@ -876,7 +950,11 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         int top = cardsTop();
         int h = cardsHeight();
         String count = runs.size() + (runs.size() == 1 ? " run" : " runs");
-        MenuStyle.text(g, count, contentX + contentW - this.font.width(count), contentY + 5, MenuStyle.DIM);
+        // Right of Sort and Floor, and only when it fits there: on a narrow page it would run under the Floor button.
+        int countX = contentX + contentW - this.font.width(count);
+        if (countX >= contentX + runButtonsWidth() + COL_GAP) {
+            MenuStyle.text(g, count, countX, contentY + 5, MenuStyle.DIM);
+        }
         if (runs.isEmpty()) {
             ScreenChrome.well(g, contentX - 1, top - 1, contentW + 2, h + 2);
             String none = SimRunHistory.runs().isEmpty()

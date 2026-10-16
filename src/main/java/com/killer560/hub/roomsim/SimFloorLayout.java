@@ -568,6 +568,27 @@ public final class SimFloorLayout {
      * is deliberately NOT one - it is an ordinary room with "trap" in its name, and killer560 asked for "new or
      * old trap".
      */
+    /**
+     * A room Hypixel only ever gives ONE door: a puzzle, a trap, Blood, the Entrance, a champion (miniboss) room or a
+     * rare room. Measured against his own run history (2026-10-15, 50 real F7 maps): every Entrance, Blood, Old/New
+     * Trap, puzzle and champion room on them had exactly one door, while ordinary rooms had up to four or more on a
+     * 1x1 - more than their captures show, because a capture only records the doorways open on the run it was taken
+     * on. Every one of these types measures exactly one doorway in the shipped captures (RoomDoors.of), so the layout
+     * only ever joins them there; the fill pass's carve through a wall must never pick one.
+     */
+    public static boolean isDeadEnd(String name, String type) {
+        if (isTrap(name, type)) {
+            return true;
+        }
+        if (type == null) {
+            return false;
+        }
+        return switch (type.toUpperCase(Locale.ROOT)) {
+            case "PUZZLE", "BLOOD", "ENTRANCE", "CHAMPION", "RARE" -> true;
+            default -> false;
+        };
+    }
+
     static boolean isTrap(String name, String type) {
         if (type != null && type.equalsIgnoreCase("TRAP")) {
             return true;
@@ -945,9 +966,10 @@ public final class SimFloorLayout {
          * Step 3: a 1x1 whose own doorway faces a neighbour, the door carved through that neighbour's wall - only
          * where the cut lands on floor he can walk (RoomDoors.carvable), and of every such wall on the floor the one
          * with the least wall behind its plane ({@link RoomDoors#carveCost}). {@link #carveOnce(boolean)} with false is
-         * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did.
+         * the last resort that carves anyway, so the cell, trap and puzzle guarantees hold as they did. Never into a
+         * room {@link #isDeadEnd} - that cut would be its second door.
          *
-         * <p>Thinnest first because every carve is a doorway Hypixel does not have, and a thick one is a tunnel through
+         * <p>Thinnest first because every carve is a doorway the capture does not have, and a thick one is a tunnel through
          * a decorated wall: Quad Lava's east wall is three thick behind a red terracotta panel, and the first walkable
          * wall in cell order went through it (testkit 1446, 2026-10-15). Taking the first in cell order made about
          * four carves in five (1,302 of 1,658 over a 2,240-floor sweep) cut more than a one-thick wall.
@@ -971,22 +993,19 @@ public final class SimFloorLayout {
                 }
                 int cx = cell % GRID;
                 int cz = cell / GRID;
-                for (int tryNo = 0; tryNo < 8; tryNo++) {
-                    int side = tryNo % 4;
+                for (int tryNo = 0; tryNo < 4; tryNo++) {
+                    int side = tryNo;
                     Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
-                    if (nb == null || "BLOOD".equalsIgnoreCase(nb.type()) || isOneDoor(nb.type())
-                            || ((tryNo < 4 || !checked) && "ENTRANCE".equalsIgnoreCase(nb.type()))) {
-                        // Blood and a puzzle have exactly one way in; the green room only as a last resort, and never
-                        // blind: an unchecked cut there went through the back staircase wall killer560 said nothing
-                        // attaches to (testkit 1446's Entrance W0 control, 1 floor in 30, 2026-10-15).
+                    if (nb == null || isDeadEnd(nb.name(), nb.type())) {
+                        // A room Hypixel only ever gives one door is never carved into, not even as a last resort:
+                        // the cut would be its second door (killer560, 2026-10-15: "Old Trap does not have a door off
+                        // of the back of it, only the one entrance").
                         continue;
                     }
-                    // The green room stays a last resort: its walls only once no other room's will do (tryNo >= 4).
                     int cost = checked ? carveCostFrom(nb, cx, cz, side) : 0;
                     if (cost < 0) {
                         continue;   // the cut would open onto a wall, a platform or a drop - RoomDoors.carvable
                     }
-                    cost += tryNo < 4 ? 0 : 1000;
                     if (cost >= bestCost) {
                         continue;
                     }
@@ -1026,7 +1045,7 @@ public final class SimFloorLayout {
             Placement nb = at(cx + RoomDoors.DX[side], cz + RoomDoors.DZ[side]);
             commitFill(bestRoom, bestRotation, cx, cz, side);
             carvedNotes.add(bestRoom.name() + " at " + cx + "," + cz + " through " + nb.name()
-                    + (checked ? (bestCost % 1000 == 0 ? "" : " (" + bestCost % 1000 + " blocks behind its wall)")
+                    + (checked ? (bestCost == 0 ? "" : " (" + bestCost + " blocks behind its wall)")
                     : " (NOT a walkable cut - nothing else fitted)"));
             carvedBlind += checked ? 0 : 1;
             return true;

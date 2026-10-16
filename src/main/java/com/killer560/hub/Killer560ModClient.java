@@ -213,6 +213,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.fonts.CustomFonts.register();
         AutoMeowFeature.register();
         com.killer560.hub.architect.ArchitectDraftFeature.register();
+        com.killer560.hub.util.SackCommands.register();
         ExperimentsFeature.register();
         StorageOverlayFeature.register();
         DungeonState.register();

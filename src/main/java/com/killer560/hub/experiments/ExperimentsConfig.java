@@ -1,5 +1,6 @@
 package com.killer560.hub.experiments;
 
+import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -17,10 +18,29 @@ public final class ExperimentsConfig {
      *  from the automation (see {@link #enabled} and {@link #isAutonomousMode()}). Written by every
      *  {@link #save()}; a file without it is pre-split and gets the one-time fix-up in {@link #load()}.
      *  No setting's KEY changed in that split - only which of two now-independent toggles owns it. */
-    private static final int CURRENT_CONFIG_VERSION = 1;
+    private static final int CURRENT_CONFIG_VERSION = 2;
 
+    /** Floor of Random Delay (max): 0 turns the jitter off. */
     public static final int MIN_DELAY_MS = 0;
     public static final int MAX_DELAY_MS = 1000;
+    /** Floor of Click Delay and First Click Delay, enforced by the setters, the loader and the sliders alike
+     *  (2026-10-15). Until then both went down to 0, which clicks every client tick (20 a second); nothing in the
+     *  click path itself stops a config from asking for that. 150 ms is three ticks, and the testkit's own fast
+     *  Auto E-Table runs have always used it. */
+    public static final int MIN_CLICK_DELAY_MS = 150;
+
+    // killer560's own settings (2026-10-15: "make sure these are the default settings for anyone when they use auto
+    // etable"). A fresh install, a missing key and a profile reset all give these; see load() for older files. Except
+    // (killer560, same day): the three Superpairs skips and the Titanic purchase stay OFF by default, and an older file
+    // keeps whatever it says for them.
+    public static final boolean DEFAULT_SUPERPAIRS_VALUABLE_ONLY = false;
+    public static final boolean DEFAULT_SKIP_GRAND_EXP_BOTTLES = false;
+    public static final boolean DEFAULT_SKIP_GUARDIAN_PETS = false;
+    public static final int DEFAULT_DELAY_MS = 400;
+    public static final int DEFAULT_FIRST_CLICK_DELAY_MS = 600;
+    public static final int DEFAULT_RANDOM_DELAY_MAX_MS = 50;
+    public static final double DEFAULT_TITANIC_MAX_PRICE = 0;
+    public static final int DEFAULT_AUTO_RENEW_COUNT = 0;
     public static final int MIN_AUTO_RENEW_COUNT = 0;
     public static final int MAX_AUTO_RENEW_COUNT = 3;
     public static final double MIN_TITANIC_MAX_PRICE = 0;
@@ -49,12 +69,12 @@ public final class ExperimentsConfig {
      *  else - useful since Superpairs clicks are a limited resource (base amount plus whatever bonus
      *  Chronomatron/Ultrasequencer earned), so killer560 may want to spend them on the non-plain-XP
      *  pairs instead. */
-    private boolean superpairsValuableOnly = false;
+    private boolean superpairsValuableOnly = DEFAULT_SUPERPAIRS_VALUABLE_ONLY;
     /** Never pair a Grand Experience Bottle (Titanics still paired) - killer560, 2026-10-05. */
-    private boolean skipGrandExpBottles = false;
+    private boolean skipGrandExpBottles = DEFAULT_SKIP_GRAND_EXP_BOTTLES;
     /** Never pair a Guardian pet, any rarity - killer560, 2026-10-05. */
-    private boolean skipGuardianPets = false;
-    private int delayMs = 200;
+    private boolean skipGuardianPets = DEFAULT_SKIP_GUARDIAN_PETS;
+    private int delayMs = DEFAULT_DELAY_MS;
     /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier
      *  itself, clicks the puzzles, claims rewards and buys renews, so the whole thing can be left running
      *  AFK. Until 2026-09-30 this was one half of a two-way Mode switch under {@link #enabled} - the other
@@ -65,7 +85,7 @@ public final class ExperimentsConfig {
     /** Extra one-time wait before the first click of EACH newly-revealed round inside Chronomatron/
      *  Ultrasequencer specifically (see {@link ExperimentSolver}) - every other click, and every
      *  menu-navigation click, is unaffected by this setting. */
-    private int firstClickDelayMs = 1000;
+    private int firstClickDelayMs = DEFAULT_FIRST_CLICK_DELAY_MS;
     private ExperimentStopStrategy stopStrategy = ExperimentStopStrategy.MAX_CLICKS;
     /** Only takes effect while autonomousMode is also on - blocks killer560's own mouse/keyboard input
      *  to container screens while autonomous mode is running, so an accidental click/keypress can't
@@ -74,16 +94,18 @@ public final class ExperimentsConfig {
     private boolean blockInputEnabled = false;
     /** How many "Renew Experiments" charge-purchases to make per day, 0-3, matching Hypixel's own
      *  real "You've renewed N/3 charges today!" cap - 0 (default) means never auto-buy. */
-    private int autoRenewCount = 0;
+    private int autoRenewCount = DEFAULT_AUTO_RENEW_COUNT;
     /** Max Bazaar buy price (coins) autonomous mode will pay to instantly buy a Titanic Experience
-     *  Bottle when the table's own "Missing experience?" prompt shows up - 0 (default) means never
-     *  auto-buy. No practical minimum beyond 0; capped at 3,000,000 per killer560's own limit. */
-    private double titanicMaxPriceCoins = 0;
+     *  Bottle when the table's own "Missing experience?" prompt shows up - 0 means never auto-buy
+     *  (the default; killer560, 2026-10-15: off for everyone). No practical minimum beyond 0; capped at
+     *  3,000,000 per killer560's own limit. */
+    private double titanicMaxPriceCoins = DEFAULT_TITANIC_MAX_PRICE;
     /** Random extra delay (0-1000ms) added on top of whatever fixed delay already decided it was
      *  time to click - applies to every click the mod performs (solver clicks, menu navigation,
      *  claiming rewards, buying charges/bottles), per killer560's explicit "added onto any click it
-     *  performs." 0 (default) disables it entirely - every click fires immediately, same as before. */
-    private int randomDelayMaxMs = 0;
+     *  performs." 0 disables it; 50 ms by default since 2026-10-15. It only ever ADDS time: the gap
+     *  between two clicks is at least Click Delay whatever the jitter draws (see ExperimentsFeature). */
+    private int randomDelayMaxMs = DEFAULT_RANDOM_DELAY_MAX_MS;
     /** Autonomous mode only: before starting/resuming a run, back out to {@code /pets} and equip the
      *  best owned Guardian (highest rarity, then highest level), then reopen the table - once per
      *  run. ON by default since 2026-10-04 (killer560: "For auto etable have auto swap to guardian pet on by
@@ -132,49 +154,71 @@ public final class ExperimentsConfig {
         try {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
+            int version = ConfigJson.getInt(obj, "configVersion", 0);
+            // Each key is read on its own and falls back to its default when it is missing or not a value of the
+            // right kind. Until 2026-10-15 one bad value (a hand-edited "delayMs": "fast") threw out of the whole
+            // read and every setting in the file was lost to the defaults.
             ExperimentsConfig cfg = new ExperimentsConfig();
-            cfg.enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
-            cfg.superpairsEnabled = !obj.has("superpairsEnabled") || obj.get("superpairsEnabled").getAsBoolean();
-            cfg.superpairsValuableOnly = obj.has("superpairsValuableOnly") && obj.get("superpairsValuableOnly").getAsBoolean();
-            cfg.skipGrandExpBottles = obj.has("skipGrandExpBottles") && obj.get("skipGrandExpBottles").getAsBoolean();
-            cfg.skipGuardianPets = obj.has("skipGuardianPets") && obj.get("skipGuardianPets").getAsBoolean();
-            cfg.delayMs = obj.has("delayMs")
-                    ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("delayMs").getAsInt())) : 200;
-            cfg.autonomousMode = obj.has("autonomousMode") && obj.get("autonomousMode").getAsBoolean();
-            cfg.firstClickDelayMs = obj.has("firstClickDelayMs")
-                    ? Math.max(0, Math.min(MAX_FIRST_CLICK_DELAY_MS, obj.get("firstClickDelayMs").getAsInt())) : 1000;
-            if (obj.has("stopStrategy")) {
-                try {
-                    cfg.stopStrategy = ExperimentStopStrategy.valueOf(obj.get("stopStrategy").getAsString());
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-            cfg.blockInputEnabled = obj.has("blockInputEnabled") && obj.get("blockInputEnabled").getAsBoolean();
-            cfg.autoRenewCount = obj.has("autoRenewCount")
-                    ? Math.max(MIN_AUTO_RENEW_COUNT, Math.min(MAX_AUTO_RENEW_COUNT, obj.get("autoRenewCount").getAsInt())) : 0;
-            cfg.titanicMaxPriceCoins = obj.has("titanicMaxPriceCoins")
-                    ? Math.max(MIN_TITANIC_MAX_PRICE, Math.min(MAX_TITANIC_MAX_PRICE, obj.get("titanicMaxPriceCoins").getAsDouble())) : 0;
-            cfg.randomDelayMaxMs = obj.has("randomDelayMaxMs")
-                    ? Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, obj.get("randomDelayMaxMs").getAsInt())) : 0;
-            cfg.autoSwapGuardianPet = !obj.has("autoSwapGuardianPet") || obj.get("autoSwapGuardianPet").getAsBoolean();
-            cfg.clickProtectionEnabled = !obj.has("clickProtectionEnabled") || obj.get("clickProtectionEnabled").getAsBoolean();
-            cfg.notifyMaxClicksReached = !obj.has("notifyMaxClicksReached") || obj.get("notifyMaxClicksReached").getAsBoolean();
-            cfg.profitTrackerEnabled = !obj.has("profitTrackerEnabled") || obj.get("profitTrackerEnabled").getAsBoolean();
-            cfg.superpairsAdaptiveTimeout = obj.has("superpairsAdaptiveTimeout") && obj.get("superpairsAdaptiveTimeout").getAsBoolean();
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.superpairsEnabled = ConfigJson.getBool(obj, "superpairsEnabled", true);
+            cfg.superpairsValuableOnly = ConfigJson.getBool(obj, "superpairsValuableOnly", DEFAULT_SUPERPAIRS_VALUABLE_ONLY);
+            cfg.skipGrandExpBottles = ConfigJson.getBool(obj, "skipGrandExpBottles", DEFAULT_SKIP_GRAND_EXP_BOTTLES);
+            cfg.skipGuardianPets = ConfigJson.getBool(obj, "skipGuardianPets", DEFAULT_SKIP_GUARDIAN_PETS);
+            cfg.delayMs = clampInt(obj, "delayMs", DEFAULT_DELAY_MS, MIN_CLICK_DELAY_MS, MAX_DELAY_MS);
+            cfg.autonomousMode = ConfigJson.getBool(obj, "autonomousMode", false);
+            cfg.firstClickDelayMs = clampInt(obj, "firstClickDelayMs", DEFAULT_FIRST_CLICK_DELAY_MS,
+                    MIN_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
+            cfg.stopStrategy = ConfigJson.getEnum(obj, "stopStrategy", ExperimentStopStrategy.class, ExperimentStopStrategy.MAX_CLICKS);
+            cfg.blockInputEnabled = ConfigJson.getBool(obj, "blockInputEnabled", false);
+            cfg.autoRenewCount = clampInt(obj, "autoRenewCount", DEFAULT_AUTO_RENEW_COUNT, MIN_AUTO_RENEW_COUNT, MAX_AUTO_RENEW_COUNT);
+            double titanic = ConfigJson.getDouble(obj, "titanicMaxPriceCoins", DEFAULT_TITANIC_MAX_PRICE);
+            cfg.titanicMaxPriceCoins = Math.max(MIN_TITANIC_MAX_PRICE, Math.min(MAX_TITANIC_MAX_PRICE, titanic));
+            cfg.randomDelayMaxMs = clampInt(obj, "randomDelayMaxMs", DEFAULT_RANDOM_DELAY_MAX_MS, MIN_DELAY_MS, MAX_DELAY_MS);
+            cfg.autoSwapGuardianPet = ConfigJson.getBool(obj, "autoSwapGuardianPet", true);
+            cfg.clickProtectionEnabled = ConfigJson.getBool(obj, "clickProtectionEnabled", true);
+            cfg.notifyMaxClicksReached = ConfigJson.getBool(obj, "notifyMaxClicksReached", true);
+            cfg.profitTrackerEnabled = ConfigJson.getBool(obj, "profitTrackerEnabled", true);
+            cfg.superpairsAdaptiveTimeout = ConfigJson.getBool(obj, "superpairsAdaptiveTimeout", false);
             // One-time fix-up for a file written before the 2026-09-30 solver/automation split. Back then
             // "enabled: false" meant the WHOLE Experimentation Table feature was off and "autonomousMode"
             // was a dead leftover underneath it; now the two are independent, so that file would otherwise
             // come back with the automation newly live. Keyed off the version so it can only ever happen
             // once - applying it on every load would permanently couple the two toggles back together and
             // silently undo "solver off, automation on".
-            int version = com.killer560.hub.util.ConfigJson.getInt(obj, "configVersion", 0);
             if (version < 1 && !cfg.enabled) {
                 cfg.autonomousMode = false;
+            }
+            // Version 2 (2026-10-15): killer560's delays became the defaults. A file written before then gets the
+            // new default for every delay still at the OLD default (it was never chosen), and keeps every one its
+            // owner changed. The skips and the Titanic price are not migrated: their defaults did not change. The
+            // delay floor needs no step here: clampInt already raised anything below MIN_CLICK_DELAY_MS.
+            if (version < 2) {
+                if (clampInt(obj, "delayMs", OLD_DEFAULT_DELAY_MS, 0, MAX_DELAY_MS) == OLD_DEFAULT_DELAY_MS) {
+                    cfg.delayMs = DEFAULT_DELAY_MS;
+                }
+                if (clampInt(obj, "firstClickDelayMs", OLD_DEFAULT_FIRST_CLICK_DELAY_MS, 0, MAX_FIRST_CLICK_DELAY_MS)
+                        == OLD_DEFAULT_FIRST_CLICK_DELAY_MS) {
+                    cfg.firstClickDelayMs = DEFAULT_FIRST_CLICK_DELAY_MS;
+                }
+                if (clampInt(obj, "randomDelayMaxMs", 0, MIN_DELAY_MS, MAX_DELAY_MS) == 0) {
+                    cfg.randomDelayMaxMs = DEFAULT_RANDOM_DELAY_MAX_MS;
+                }
             }
             instance = cfg;
         } catch (Exception e) {
             instance = new ExperimentsConfig();
         }
+    }
+
+    /** The defaults before 2026-10-15, for {@link #load()}'s version-2 step only. */
+    private static final int OLD_DEFAULT_DELAY_MS = 200;
+    private static final int OLD_DEFAULT_FIRST_CLICK_DELAY_MS = 1000;
+
+    /** An int setting clamped to {@code [min, max]}; {@code def} when missing, not a number, or NaN. Read as a
+     *  double so an out-of-range number clamps instead of overflowing an int. */
+    private static int clampInt(JsonObject obj, String key, int def, int min, int max) {
+        double v = ConfigJson.getDouble(obj, key, def);
+        return (int) Math.max(min, Math.min(max, Math.round(v)));
     }
 
     public void save() {
@@ -252,7 +296,7 @@ public final class ExperimentsConfig {
     }
 
     public void setDelayMs(int delayMs) {
-        this.delayMs = Math.max(MIN_DELAY_MS, Math.min(MAX_DELAY_MS, delayMs));
+        this.delayMs = Math.max(MIN_CLICK_DELAY_MS, Math.min(MAX_DELAY_MS, delayMs));
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - per killer560's explicit
@@ -281,7 +325,7 @@ public final class ExperimentsConfig {
     }
 
     public void setFirstClickDelayMs(int firstClickDelayMs) {
-        this.firstClickDelayMs = Math.max(0, Math.min(MAX_FIRST_CLICK_DELAY_MS, firstClickDelayMs));
+        this.firstClickDelayMs = Math.max(MIN_CLICK_DELAY_MS, Math.min(MAX_FIRST_CLICK_DELAY_MS, firstClickDelayMs));
     }
 
     public ExperimentStopStrategy getStopStrategy() {

@@ -401,6 +401,16 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   lost the outline on 4 of 27 frames until the overlay moved to `COLLECT_SUBMITS` (0 of 27, both versions). The camera was
   never stale: the probe in 1322 showed McRender's camera equal to the main camera every frame. 36 other registrations
   still use AFTER_TRANSLUCENT_FEATURES.
+- **On 26.1.2 a block entity paints over anything drawn into the immediate buffer source before the solid features.**
+  `COLLECT_SUBMITS` fires before `renderSolidFeatures`, and McRender's 26.1.2 path writes into `context.bufferSource()`,
+  whose shared buffer is ended (drawn) the moment the feature renderers ask for their first buffer; neither
+  `LINES_TRANSLUCENT` nor `debugFilledBox` writes depth, so a chest, ender chest or trapped chest model drawn afterwards
+  covered the Etherwarp Overlay box except the half of each line outside its silhouette ("etherwarp on chest corners does
+  not really show up", killer560 2026-10-15; testkit 1324 on main: Filled 0/50, Outline 0/63 on a chest, full blocks and
+  slabs fine; 26.2 never had it, because its McRender already submits). The overlay now submits through
+  `context.submitNodeCollector().order(0).submitCustomGeometry` (same call on both versions), which `CustomFeatureRenderer`
+  draws after the model parts of the same pass (javap 26.1.2). Any other `COLLECT_SUBMITS` drawer that must show on a
+  block entity needs the same.
 
 - **A font scoped to one screen must be decided per text render state, not per frame.** GUI text is measured while a
   screen lays out and draws, but PREPARED later, after every screen and the HUD have submitted (`GuiTextRenderState.
@@ -518,3 +528,19 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
   main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
   (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
+- **A right-anchored HUD box drawn from a rounded x drifts.** The Custom Scoreboard's right wall was `round(x) + width * scale`,
+  so at a non-integer drawn scale (Auto Scale makes nearly every real one so) it moved up to a pixel each time the board's
+  width changed, and a Min Width box kept its text on the left so the text's right end moved by the slack (testkit 1668,
+  2026-10-15). Draw it shifted by `round(w * scale) - w * scale` (`anchorShift`) and put the text block against the wall
+  (`blockOffset`); the hover layout must use the same shift and block.
+- **Hiding a container's slots does not stop vanilla hovering them.** The terminal Custom GUI cancelled `extractSlot`,
+  the tooltip and the background, but `extractContents` still set `hoveredSlot` from the private `getHoveredSlot(DD)`, so
+  the white hover highlight (`extractSlotHighlightBack/Front`, not part of `extractSlot`) lit up the invisible slots and the
+  hotbar-number and drop keys sent SWAP/THROW on them (killer560, 2026-10-15; testkit 1015-menu-term-hidden-slots on main:
+  1024 px changed, `0/0/SWAP`, `0/0/THROW`). Answer null from `getHoveredSlot` while slots are hidden; every hover reader
+  (highlight, tooltip, keys, scroll, other features) goes quiet at once (javap 26.1.2 and 26.2).
+- **A table column sized by a fixed number overlaps the moment its heading grows.** Load a Room's columns were 30-64
+  units wide, and "Crypts ▼" (the sort arrow adds a space and a glyph) is 44 against Crypts' 34, so with Crypts sorted it
+  ran 4 units into "Secrets" (killer560's screenshot, 2026-10-15; Size and Secrets did the same sorted). `SimMenuScreen
+  .columns()` now measures each column's heading with either arrow and every listed cell, keeps 8 units between columns,
+  gives Name the rest with "...", and drops whole columns before anything can touch. testkit 97-sim-menu-tidy measures it.

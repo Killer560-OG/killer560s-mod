@@ -1999,7 +1999,7 @@ public class ModScreen extends Screen {
             r.fill(panelX - i, panelY - i + 4, panelX + panelW + i, panelY + panelH + i + 4, MenuStyle.shadow(a / 2));
         }
         r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, MenuStyle.FRAME_RING);
-        MenuStyle.bevel(r, panelX, panelY, panelW, panelH, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        MenuStyle.panel(r, panelX, panelY, panelW, panelH);
         r.outline(panelX, panelY, panelW, panelH, MenuStyle.BLACK);
         r.fill(panelX + 1, panelY + 1, panelX + panelW - 1, panelY + 2, MenuStyle.HILITE_SOFT);
         r.submit();
@@ -2084,7 +2084,7 @@ public class ModScreen extends Screen {
     private void drawSidebar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, sideX, sideY, sideW, sideH, 3);
-        MenuStyle.bevel(r, sideX, sideY, sideW, sideH, MenuStyle.SIDE_TOP, MenuStyle.SIDE_BOTTOM);
+        MenuStyle.sidePanel(r, sideX, sideY, sideW, sideH);
         for (int y : sideSeparators) {
             MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, y);
         }
@@ -2157,14 +2157,14 @@ public class ModScreen extends Screen {
 
     private void drawPageWell(GuiGraphicsExtractor g) {
         GuiRects r = GuiRects.begin(g);
-        MenuStyle.well(r, gridX, gridY, gridW, gridH, MenuStyle.WELL);
+        MenuStyle.pageWell(r, gridX, gridY, gridW, gridH);
         MenuStyle.scrollbar(r, gridX + gridW - 7, gridY + 5, gridH - 10, drawnScroll, maxScroll, visibleContentHeight);
         r.submit();
     }
 
     private void drawGrid(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         GuiRects r = GuiRects.begin(g);
-        MenuStyle.well(r, gridX, gridY, gridW, gridH, MenuStyle.WELL);
+        MenuStyle.pageWell(r, gridX, gridY, gridW, gridH);
         r.submit();
         int clipTop = gridY + 2;
         int clipBottom = gridY + gridH - 2;
@@ -2317,7 +2317,7 @@ public class ModScreen extends Screen {
         for (int i = 1; i <= 4; i++) {
             r.fill(drawerX - i, drawerY + 1, drawerX - i + 1, drawerY + drawerH - 1, MenuStyle.shadow(0x70 - i * 0x14));
         }
-        MenuStyle.bevel(r, drawerX, drawerY, drawerW, drawerH, MenuStyle.DRAWER_TOP, MenuStyle.DRAWER_BOTTOM);
+        MenuStyle.drawerPanel(r, drawerX, drawerY, drawerW, drawerH);
         // title bar
         r.gradient(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 25, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
         r.fill(drawerX + 1, drawerY + 1, drawerX + drawerW - 1, drawerY + 2, MenuStyle.HILITE);

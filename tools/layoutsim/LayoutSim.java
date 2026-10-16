@@ -43,7 +43,9 @@ import java.util.TreeMap;
  * <p>The sweep also counts doors on an edge a room does not measure as a doorway (the fill pass's carves) by wall: thin
  * (at most 2 solid blocks behind the wall plane, RoomDoors.carveCost), THICK (a walkable tunnel) or BLIND, and the
  * blocks they tunnel; -Doffdoor=true lists them per room edge. -Dcarvestats=true [-Dverbose=true] instead prints how many
- * walkable carve edges the library has (per room with verbose).
+ * walkable carve edges the library has (per room with verbose). -Ddoorstats=true prints every room's measured doorways
+ * (DOORS lines, for tools/layoutsim/hyp_doors.py); the sweep also fails a one-door room (SimFloorLayout.isDeadEnd) with
+ * other than one door.
  */
 public final class LayoutSim {
 
@@ -123,6 +125,20 @@ public final class LayoutSim {
             System.out.println("keepshapes " + keep + ": " + rooms.size() + " of " + before + " rooms kept");
         }
         boolean noRecency = Boolean.getBoolean("norecency");
+        if (Boolean.getBoolean("doorstats")) {
+            // -Ddoorstats=true: every room's measured doorways (capture frame) with its database type and shape.
+            for (String n : rooms.keySet()) {
+                com.killer560.hub.roomsim.RoomDoors.Mask m = com.killer560.hub.roomsim.RoomDoors.of(n);
+                StringBuilder b = new StringBuilder();
+                for (int e : m.edges()) {
+                    b.append("NESW".charAt(com.killer560.hub.roomsim.RoomDoors.sideOf(e)))
+                            .append(com.killer560.hub.roomsim.RoomDoors.indexOf(e)).append(' ');
+                }
+                System.out.println("DOORS\t" + n + "\t" + SimFloorGen.typeOf(n) + "\t" + SimFloorGen.shapeOf(n) + "\t"
+                        + m.tilesX() + "x" + m.tilesZ() + "\t" + m.edges().size() + "\t" + b.toString().trim());
+            }
+            return;
+        }
         if (Boolean.getBoolean("carvestats")) {
             int total = 0;
             for (String n : rooms.keySet()) {
@@ -234,7 +250,10 @@ public final class LayoutSim {
     private static final String[] FAILS = {"path length != slider", "fairy not on path", "wither doors != path",
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
             "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
-            "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)"};
+            "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)", "one-door room with != 1 door"};
+
+    /** Dead-end rooms (SimFloorLayout.isDeadEnd) by name:doors, when they do not have exactly one door. */
+    private static final Map<String, Integer> DEAD_END_DOORS = new TreeMap<>();
 
     /** -Doffdoor=true: room:capture-frame edge (and whether RoomDoors.carvable has it) -> floors, for doors off a doorway. */
     private static final Map<String, Integer> OFF_DOORWAY = new TreeMap<>();
@@ -412,6 +431,8 @@ public final class LayoutSim {
         System.out.println("puzzles placed minus slider -> floors: " + PUZZLE_DIFF);
         System.out.println("puzzle rooms with != 1 door (name:doors -> count): " + PUZZLE_DOORS);
         System.out.println("trap rooms by door count when != 2 (doors -> count): " + TRAP_DOORS);
+        System.out.println("one-door rooms (trap, puzzle, Blood, Entrance, champion, rare) with != 1 door (name:doors -> "
+                + "count): " + DEAD_END_DOORS);
         System.out.println("doors off a measured doorway by wall (thin = one-thick wall he can walk, THICK = a "
                 + "walkable tunnel, BLIND = not walkable): " + OFF_KIND + "; solid blocks tunnelled behind wall planes: "
                 + OFF_BEHIND[0]);
@@ -534,6 +555,10 @@ public final class LayoutSim {
             if ("PUZZLE".equals(t) && doorCount[i] != 1) {
                 bad[11] = true;
                 PUZZLE_DOORS.merge(f.rooms().get(i).name() + ":" + doorCount[i], 1, Integer::sum);
+            }
+            if (SimFloorLayout.isDeadEnd(f.rooms().get(i).name(), t) && doorCount[i] != 1) {
+                bad[15] = true;
+                DEAD_END_DOORS.merge(f.rooms().get(i).name() + ":" + doorCount[i], 1, Integer::sum);
             }
             if ("TRAP".equals(t) && doorCount[i] != 2) {
                 bad[12] = true;

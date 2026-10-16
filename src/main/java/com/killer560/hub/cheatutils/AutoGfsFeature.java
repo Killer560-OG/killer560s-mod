@@ -3,7 +3,10 @@ package com.killer560.hub.cheatutils;
 import com.killer560.hub.scoreboard.ScoreboardData;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.SackCommands;
 import net.minecraft.client.Minecraft;
+import org.slf4j.Logger;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
@@ -13,7 +16,8 @@ import java.util.EnumSet;
 import java.util.Set;
 
 /**
- * Auto GFS - refills sack items with {@code /gfs <sack_id> <amount>} while on Hypixel/p3sim. Command syntax is
+ * Auto GFS - refills sack items with {@code /gfs <sack_id> <amount>} on Hypixel Skyblock only (p3sim has no /gfs;
+ * every send goes through {@link SackCommands}, which waits for the answer). Command syntax is
  * identical in both references: NoammAddons {@code AutoGFS.kt} ({@code "gfs $id $count"}, e.g.
  * {@code gfs ender_pearl 12}) and QUOI {@code PlayerUtils.fillItemFromSack} ({@code "gfs $sackName $missing"}).
  * <ul>
@@ -31,6 +35,7 @@ import java.util.Set;
  */
 public final class AutoGfsFeature {
 
+    private static final Logger LOGGER = ModLog.get("killer560smod-autogfs");
     private static final long COMMAND_SPACING_MS = 3000;
 
     private enum RefillItem {
@@ -61,19 +66,32 @@ public final class AutoGfsFeature {
         }
     }
 
+    /** Sends of one item that brought nothing back before it is left alone for the rest of the world. */
+    static final int MAX_TRIES = 3;
+
     private static final Set<RefillItem> emptySacks = EnumSet.noneOf(RefillItem.class);
     private static final Deque<RefillItem> pending = new ArrayDeque<>();
+    private static final int[] misses = new int[RefillItem.values().length];
     private static long lastCheckMs = 0;
     private static long lastCommandMs = 0;
     private static Object lastLevel = null;
+    /** The item whose /gfs is out and unanswered, and how many of it were held when it was sent. */
+    private static RefillItem sent = null;
+    private static int countAtSend = 0;
 
     private AutoGfsFeature() {
     }
 
     static void onChat(String plain) {
         for (RefillItem item : RefillItem.values()) {
-            if (plain.equals("You have no " + item.emptyName + " in your Sacks!") && emptySacks.add(item)) {
-                pending.remove(item);
+            if (plain.equals("You have no " + item.emptyName + " in your Sacks!")) {
+                if (emptySacks.add(item)) {
+                    pending.remove(item);
+                }
+                if (sent == item) {
+                    sent = null;
+                    SackCommands.answered();
+                }
             }
         }
     }
@@ -83,7 +101,28 @@ public final class AutoGfsFeature {
             lastLevel = client.level;
             emptySacks.clear();
             pending.clear();
+            java.util.Arrays.fill(misses, 0);
+            sent = null;
             lastCheckMs = System.currentTimeMillis(); // give the new world one interval before the first check
+        }
+        // One /gfs at a time, and never another until this one is answered (2026-10-15: a server with no /gfs got
+        // the same command every interval forever). The items arriving is the answer; the sack-empty line and an
+        // unknown-command reply are handled in onChat/SackCommands; silence until the timeout counts as a miss, and
+        // MAX_TRIES misses leave that item alone until the next world.
+        if (sent != null) {
+            if (client.player != null && count(client, sent) > countAtSend) {
+                misses[sent.ordinal()] = 0;
+                sent = null;
+                SackCommands.answered();
+            } else if (!SackCommands.awaiting()) {
+                if (++misses[sent.ordinal()] >= MAX_TRIES && emptySacks.add(sent)) {
+                    LOGGER.warn("[AutoGfs] /gfs {} brought nothing back {} times - leaving it until the next world",
+                            sent.sackName, MAX_TRIES);
+                }
+                sent = null;
+            } else {
+                return;
+            }
         }
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         // Real bug found (2026-09-20, killer560: "it isn't doing anything at all"): this was hardcoded to
@@ -97,7 +136,7 @@ public final class AutoGfsFeature {
         boolean containerOpen = ActionGate.containerScreenOpen(client);
         String gate = !cfg.isAutoGfsEnabled() ? "disabled"
                 : client.player == null ? "no-player"
-                : !CheatUtils.isOnDungeonServer(client) ? "not on hypixel/p3sim"
+                : !SackCommands.available(client) ? "no /gfs here (not Hypixel Skyblock, or it answered unknown command)"
                 : cfg.isGfsDungeonKuudraOnly() && !ScoreboardData.inIsland("Catacombs", "Kuudra") ? "not in a dungeon or Kuudra"
                 : containerOpen ? "a container screen is open" : null;
         if (gate != null) {
@@ -145,14 +184,19 @@ public final class AutoGfsFeature {
             pending.poll(); // nothing left to pull for this one - not an action, so no gate slot spent
             return;
         }
-        if (!ActionGate.tryAct(ActionGate.Actor.AUTO_GFS)) {
+        if (SackCommands.awaiting() || !ActionGate.tryAct(ActionGate.Actor.AUTO_GFS)) {
+            return;
+        }
+        int before = count(client, item);
+        String args = item.sackName + " " + amount;
+        if (!SackCommands.send(client, args)) {
             return;
         }
         pending.poll();
         lastCommandMs = now;
-        String command = "gfs " + item.sackName + " " + amount;
-        client.player.connection.sendCommand(command);
-        ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Auto GFS: "), ModChat.value("/" + command));
+        sent = item;
+        countAtSend = before;
+        ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Auto GFS: "), ModChat.value("/gfs " + args));
     }
 
     /** @return how many to pull, or 0 if no refill is due. */

@@ -493,7 +493,7 @@ public final class AutoRoutesCommands {
             case USE_ITEM -> ModChat.dim(status.contains("(empty hand)") ? " - right-clicks the block it looks at, by hand."
                     : " - matched on the item, not the slot.");
             case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
-            case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies.");
+            case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies (a Spirit Sceptre then aims at each crypt mob, two uses each).");
             case BAT -> ModChat.dim(" - place it where the bat flies; uses the Bat Weapon straight down until a secret bat dies.");
             case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");
             default -> ModChat.text("");

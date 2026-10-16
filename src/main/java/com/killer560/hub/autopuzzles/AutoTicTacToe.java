@@ -443,6 +443,9 @@ final class AutoTicTacToe {
     /** Two-warp detours taken on this leg (see {@link AutoPuzzleUtil#hopToward}). */
     private static int hops = 0;
     private static final java.util.Set<BlockPos> chestSpotsTried = new java.util.HashSet<>();
+    /** {@code util/ChestWindows.count} as the chest stage began: a chest window in the AURA stage is the secret's, shown
+     *  or not (Auto Close Chest cancels the screen, so the window check below never saw it). */
+    private static int chestStageWindows = 0;
 
     private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
         AutoPuzzleActivity.note("Tic Tac Toe");
@@ -450,6 +453,11 @@ final class AutoTicTacToe {
             if (chestStage == ChestStage.AURA) {
                 advanceChest(ChestStage.WALK_BACK, "the chest's window opened");
             }
+            return;
+        }
+        if (chestStage == ChestStage.AURA && com.killer560.hub.util.ChestWindows.since(chestStageWindows)) {
+            advanceChest(ChestStage.WALK_BACK, "the chest's window arrived (not shown)");
+            tickChest(client, player, cr); // the warp back starts this tick, as for an open lid
             return;
         }
         if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
@@ -621,6 +629,7 @@ final class AutoTicTacToe {
     private static void advanceChest(ChestStage next, String why) {
         LOGGER.info("[AutoPuzzles] TicTacToe: grab secret {} -> {} ({})", chestStage, next, why);
         chestStage = next;
+        chestStageWindows = com.killer560.hub.util.ChestWindows.count();
         chestLegStartMs = System.currentTimeMillis();
         legPaths = 0;
         hops = 0;

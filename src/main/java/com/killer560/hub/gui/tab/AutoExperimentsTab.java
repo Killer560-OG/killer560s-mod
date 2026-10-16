@@ -138,15 +138,20 @@ public class AutoExperimentsTab extends BaseTab {
         // 2026-10-04, killer560: "make the timeouts bars and remove the boxes I can type in. Have the bars be
         // in 50ms increments." The three typed boxes and their Set buttons became these sliders; same
         // fields, same JSON keys.
-        widgets.add(msSlider(contentX, y, contentWidth, "Click Delay", ExperimentsConfig.MAX_DELAY_MS,
+        // Click Delay and First Click Delay start at MIN_CLICK_DELAY_MS (150) since 2026-10-15: at 0 the bot clicked
+        // every tick.
+        widgets.add(msSlider(contentX, y, contentWidth, "Click Delay",
+                ExperimentsConfig.MIN_CLICK_DELAY_MS, ExperimentsConfig.MAX_DELAY_MS,
                 () -> ExperimentsConfig.getInstance().getDelayMs(),
                 ms -> ExperimentsConfig.getInstance().setDelayMs(ms)));
         y += 22;
-        widgets.add(msSlider(contentX, y, contentWidth, "First Click Delay", ExperimentsConfig.MAX_FIRST_CLICK_DELAY_MS,
+        widgets.add(msSlider(contentX, y, contentWidth, "First Click Delay",
+                ExperimentsConfig.MIN_CLICK_DELAY_MS, ExperimentsConfig.MAX_FIRST_CLICK_DELAY_MS,
                 () -> ExperimentsConfig.getInstance().getFirstClickDelayMs(),
                 ms -> ExperimentsConfig.getInstance().setFirstClickDelayMs(ms)));
         y += 22;
-        widgets.add(msSlider(contentX, y, contentWidth, "Random Delay (max)", ExperimentsConfig.MAX_DELAY_MS,
+        widgets.add(msSlider(contentX, y, contentWidth, "Random Delay (max)",
+                ExperimentsConfig.MIN_DELAY_MS, ExperimentsConfig.MAX_DELAY_MS,
                 () -> ExperimentsConfig.getInstance().getRandomDelayMaxMs(),
                 ms -> ExperimentsConfig.getInstance().setRandomDelayMaxMs(ms)));
         y += 28;
@@ -205,13 +210,14 @@ public class AutoExperimentsTab extends BaseTab {
         return widgets;
     }
 
-    /** A 0..max ms slider that snaps to {@link ExperimentsConfig#DELAY_STEP_MS} and saves as it moves. The
+    /** A min..max ms slider that snaps to {@link ExperimentsConfig#DELAY_STEP_MS} and saves as it moves. The
      *  snapped fraction is written back into {@code value}, which also positions the handle, so the handle
-     *  jumps between steps instead of sliding continuously. */
-    private static ThemedSliderButton msSlider(int x, int y, int width, String label, int maxMs,
+     *  jumps between steps instead of sliding continuously. {@code minMs} must be a multiple of the step. */
+    private static ThemedSliderButton msSlider(int x, int y, int width, String label, int minMs, int maxMs,
             IntSupplier getter, IntConsumer setter) {
+        double range = maxMs - minMs;
         return new ThemedSliderButton(x, y, width, 20, msText(label, getter.getAsInt()),
-                getter.getAsInt() / (double) maxMs) {
+                (getter.getAsInt() - minMs) / range) {
             @Override
             protected void updateMessage() {
                 setMessage(msText(label, getter.getAsInt()));
@@ -220,10 +226,10 @@ public class AutoExperimentsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 int step = ExperimentsConfig.DELAY_STEP_MS;
-                int snapped = (int) Math.round(this.value * maxMs / step) * step;
-                setter.accept(Math.max(0, Math.min(maxMs, snapped)));
+                int snapped = minMs + (int) Math.round(this.value * range / step) * step;
+                setter.accept(Math.max(minMs, Math.min(maxMs, snapped)));
                 ExperimentsConfig.getInstance().save();
-                this.value = getter.getAsInt() / (double) maxMs;
+                this.value = (getter.getAsInt() - minMs) / range;
             }
         };
     }

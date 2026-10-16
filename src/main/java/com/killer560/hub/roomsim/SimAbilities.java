@@ -295,6 +295,7 @@ public final class SimAbilities {
                 return InteractionResult.PASS;
             }
             markAbilityUsed();
+            blockClicksClaimed++; // mixin/SimUseHalfMixin: vanilla's right click still sends its use half after this
             return sendHeldSlotFirst(client);
         }
         if (isAbilityItem(id)) {
@@ -323,6 +324,23 @@ public final class SimAbilities {
      * Hypixel never saw this - there the callback passes and vanilla sends the slot first - so the sim now does
      * exactly what vanilla would have done at that point.
      */
+    /**
+     * Block clicks this client hook has claimed for an ability item ({@link #onClientUse} with a block, only goes up).
+     * On Hypixel the same click is a block whose right click PASSes on the client (stone, with a sword or shovel), so
+     * vanilla's {@code startUseItem} goes on to send the use half in the same tick and the 1.8 server pairs the two. This
+     * hook answers the click instead (SUCCESS keeps vanilla's prediction off a reskinned block item), which used to end
+     * {@code startUseItem} there: only the block half went out, util/RightClick kept that click unpaired for good, and
+     * every later warp whose server ray met a wall waited a tick for it (96-ar-chain after 96-ar-awaitskip's Hyperion
+     * click, 2026-10-15). {@code mixin/SimUseHalfMixin} reads this around vanilla's {@code useItemOn} call and lets
+     * {@code startUseItem} carry on to the use half, as on Hypixel; the sim's server pairs it with the click
+     * ({@link #ABILITY_CLICK_PAIR_TICKS}), one right click, one ability.
+     */
+    public static int blockClicksClaimed() {
+        return blockClicksClaimed;
+    }
+
+    private static int blockClicksClaimed;
+
     private static InteractionResult sendHeldSlotFirst(Minecraft client) {
         if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeEnsureHasSentCarriedItem();

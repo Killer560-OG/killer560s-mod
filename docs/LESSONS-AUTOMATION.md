@@ -358,3 +358,36 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **Pace a jittered click from when it is SENT, not when it is decided** (Auto E-Table, 2026-10-15, testkit 289). The
+  solver stamped "last click" at the decision while Random Delay held the click back up to its max, so with Click Delay
+  400 and Random Delay 500 two Chronomatron clicks landed 3 ticks (150 ms) apart, and a bigger draw could swap two. Also
+  Click Delay and First Click Delay went down to 0 (one click every tick), and the old default was 200. Now: one puzzle
+  click in flight at a time, stamped at the send; a Click Delay spacing check where every click is sent; both delays
+  floor at 150 ms in setter, loader and slider.
+- **The sim's ability hook ended vanilla's right click after its block half** (2026-10-15, 96-ar-chain after 96-ar-awaitskip:
+  every corner warp waited a tick, `[0, 0, 1, ...]`, on the deployed jars too - order, not a merge). `SimAbilities.onClientUse`
+  answers a block click with an ability item SUCCESS (no prediction for a reskinned block item), and `Minecraft.startUseItem`
+  stops at a Success; on Hypixel the same click PASSes (stone with a sword or shovel) and the use half follows in the tick,
+  pairing it. So `util/RightClick` held a crypt node's Hyperion floor click unpaired for good. `roomsim/mixin/SimUseHalfMixin`
+  turns that Success into PASS inside `startUseItem` only, so vanilla sends the use half; the sim's server pairs it.
+  Testkit 96-ar-awaitskip asserts nothing is left unpaired.
+- **In the sim a clicked chest's window races the warp its await fires.** It arrives 1-2 ticks after the click, so whether it
+  lands before the use is the client/server tick phase, which drifts through a session; when it does, the action starts over
+  under it ("window arrived after the await was met", logged since) and acts a tick or two later. 96-ar-1015-reaim's control
+  read 2 for 1 in session runs on the rightclick-reaim tip as much as on merged main; it reruns a side the window landed in.
+- **A sim crypt undead dies to the first Spirit Sceptre bat** (one health, 30-damage blast), usually before the next use is
+  due 4 ticks later, so a sceptre crypt node's "2 uses each" (crypt-aim-1015) shows only on tough mobs; testkit
+  96-ar-1015-cryptaim sets 1000 health for that variant. Crypt mobs are told by NAME (`autoroutes/CryptMobs`), never by
+  "appeared near me", since entering a room brings every mob into tracking range at once.
+- **With Auto Close Chest on, a chest click never shows a screen** (his setting; 2026-10-15, "stuck on ice fill after
+  grabbing the chest", his log: the sim server opened the chest on click 1). The mixin cancels the open-screen packet and
+  answers with a close, so the lid is open a tick at most and `getOpenNess(0f)` (the previous tick's value) often reads 0.
+  The reward-chest step read the screen and the lid only: three clicks, "did not open", then a ten-second "appear" wait
+  under Autopilot (93-solve-*-chest-autoclose on main). Anything asking "did my chest click work" reads
+  `util/ChestWindows` (fed at the packet hook's HEAD in every build): RewardChest, Secret Aura, Auto Boulder, Auto Tic Tac Toe.
+  Do not deduplicate those packets by container id - a server numbers windows per player from 1, so every new sim world's
+  first chest repeats the last world's id; the hook's double run (network thread, then render thread) is one packet object.
+- `AutoPuzzleActivity`'s name was the LAST mark of a tick, and one tick of a chest step marks three ("Ice Path", "Ice Path
+  chest", "Puzzles"), so every "say it once per change" reader said it every tick (his chat: Autopilot's "Waiting for ..."
+  twenty times a second; Auto Routes' "Arming: inert"). The name now holds for the working spell; Auto Secret says each
+  reason once per room (102-sim-autosecret).

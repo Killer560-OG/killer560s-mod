@@ -2998,6 +2998,38 @@ detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the ja
   walkable at all. Leaving the cell empty would break "every floor fills its real rectangle". Testkit 1446's TUNNEL
   phase sums the cut over 150 seeded F7s.
 
+## One-door rooms got a second door through the fill's carve (2026-10-15, sim-oldtrap-1015)
+
+killer560 (sim F7, Old Trap joined to Museum and to Teleport Maze): "Old Trap does not have a door off of the back of it,
+only the one entrance." Not doorway detection: `RoomDoors.of` measures one doorway on Old Trap (E0), New Trap, Blood, the
+Entrance, all eleven puzzles, the four champion rooms and the five rare rooms, in the jar's and his Mod Only Test library.
+The second door was the fill pass's carve through a neighbour's wall, which skipped only Blood and puzzles and took the
+Entrance as a last resort - so Old Trap's back wall (W0, opposite its doorway) was a carve target, and so were New Trap's,
+the Entrance's and the rare rooms'. `tools/layoutsim -Dsweep=true -Dbounded=true -Dnorecency=true -Dseed=1` on his
+library: 180 of 2,240 floors had one of them on two doors (Entrance 89, Old Trap 52, New Trap 37, Rail Track / Rare
+Pillars / Tombstone / Three Floors 7). `SimFloorLayout.isDeadEnd` (trap, PUZZLE, BLOOD, ENTRANCE, CHAMPION, RARE) is now
+never a carve target: 0 floors, every other guarantee unchanged; with a random NORMAL room pinned, dropped pins 153 -> 185
+of 2,240 (different random draws, so partly noise).
+
+**What Hypixel has, from his own runs.** `RunRecord` maps in his Dungeons instance's run history (50 real F7s, no
+rotations stored) compared rotation-free with the measured masks (some quarter turn of the mask must hold every real
+door; `tools/layoutsim/hyp_doors.py` over `run.sh -Ddoorstats=true`). Every Entrance, Blood, Old/New Trap, puzzle and champion room had
+exactly ONE door on every map (Entrance 50/50, Blood 50/50, Old Trap 17, New Trap 32, puzzles 9-20 each, champions
+8-20). Ordinary rooms are the opposite: 52 rooms had more doors on a real map than their capture measures (Cathedral 2
+measured / up to 7 real, Pipes 2/7, Pit 3/7, Pedestal 1/5, Balcony 1/4, Catwalk 1/4, Red Blue 1/4, Knight 2/4, Fairy
+2/4, ...). A capture only records the doorways open on the run it was taken on; Hypixel walls up the rest. So for an
+ordinary room the measured mask is a lower bound and a carve through its wall is a door Hypixel can have; for the
+one-door types it is exact and a carve is always wrong. Rare rooms never appeared in his 50 runs; they are treated as
+one-door because every capture of them measures one.
+## Boulder is done when its chest is opened (2026-10-15, chest-stall-1015)
+killer560: "boulder should finish after grabbing that chest on sim, not actually if you do the puzzle or not." On Hypixel
+opening the chest behind the boxes is what completes Boulder. `SimBoulderPuzzle.isComplete` read only the board (a way
+through the boxes), so a Secret Aura run along the roof - no button pressed - left the tab line on ✦ and the map's tick
+off, and Autopilot waited out its puzzle timeout. `isComplete` is now "the chest was opened, or the board is solved"
+(both `SimTabList` and `SimRoomState` read it); `isPathOpen` is the board alone, which the presses still stop at and
+93-solve-boulder's button mode checks; a reset clears the chest too. 93-solve-boulder-chest-unsolved: complete the
+tick the chest opens, tab ✔ 1-4 ticks later; main never.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the

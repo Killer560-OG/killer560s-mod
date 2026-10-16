@@ -227,11 +227,11 @@ final class SettingTooltipsData {
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");
         d.put("auto-swap to guardian pet", "Before a run, equips your best Guardian pet via /pets (cheat build, Autonomous mode).");
         d.put("stop at", "When to leave Chronomatron and Ultrasequencer: Max Clicks or Max XP (cheat build, Autonomous mode).");
-        d.put("auto experimentation table/click delay", "Wait between the bot's game clicks, 0-1000 ms in 50 ms steps (cheat build only).");
-        d.put("first click delay", "Extra wait before the first click of each Chronomatron or Ultrasequencer round, 0-3000 ms (cheat build).");
-        d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps.");
+        d.put("auto experimentation table/click delay", "Least time between two of the bot's clicks, 150-1000 ms in 50 ms steps, 400 by default (cheat build only).");
+        d.put("first click delay", "Wait before the first click of each Chronomatron or Ultrasequencer round, 150-3000 ms, 600 by default (cheat build).");
+        d.put("random delay (max)", "Cheat build: max random extra delay added to every bot click, 0-1000 ms in 50 ms steps, 50 by default. It only adds time.");
         d.put("auto-renew charges", "Cheat build: how many Renew Experiments charges (0-3) the bot buys per day.");
-        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 disables. Drag in 50k steps or type an exact amount.");
+        d.put("max titanic price", "Cheat build: the most the bot pays for a Titanic Experience Bottle, 0 (the default) disables. Drag in 50k steps or type an exact amount.");
         d.put("chat/set", "Applies the percent typed in the box as the cat sound volume.");
         d.put("hud elements/set", "Applies the value typed in the box next to it.");
         d.put("set", "Applies the number typed in the box next to it.");
@@ -478,7 +478,7 @@ final class SettingTooltipsData {
         d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Escape clears it.");
         d.put("auto routes/bat weapon", "What a bat node (/ar add bat) uses straight down, again and again, until a secret bat dies near you after one of your uses.");
         d.put("auto routes/bat attack time", "How long a bat node keeps using the Bat Weapon without a bat kill before the route moves on.");
-        d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses at the crypt it was aimed at, again and again, until a crypt or prince of yours dies.");
+        d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses straight down, again and again, until a crypt or prince of yours dies. The Spirit Sceptre goes down twice, then is used at each crypt undead or prince in reach, two uses each, before the route moves on.");
         d.put("run while map open", "ON: routes keep working while the Interactive Map is open (its own warps still stop them).");
         d.put("recording", "Cheat build: record a route with /ar start record and /ar stop record, or the keys under the buttons.");
         d.put("start recording", "Starts recording your movement, camera and actions in this room (/ar start record).");

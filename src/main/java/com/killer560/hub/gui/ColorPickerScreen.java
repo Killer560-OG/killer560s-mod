@@ -259,7 +259,7 @@ public class ColorPickerScreen extends Screen {
         r.fill(0, 0, this.width, this.height, MenuStyle.BACKDROP);
         MenuStyle.dropShadow(r, panelX, panelY, panelW, panelH, 3);
         r.outline(panelX - 1, panelY - 1, panelW + 2, panelH + 2, MenuStyle.FRAME_RING);
-        MenuStyle.bevel(r, panelX, panelY, panelW, panelH, MenuStyle.PANEL_TOP, MenuStyle.PANEL_BOTTOM);
+        MenuStyle.panel(r, panelX, panelY, panelW, panelH);
 
         // Saturation/Value square for the current hue - top-left = white (sat 0, val 1), bottom-left =
         // black (val 0), right edge = fully saturated. Coarse 4px steps, submitted as one element.

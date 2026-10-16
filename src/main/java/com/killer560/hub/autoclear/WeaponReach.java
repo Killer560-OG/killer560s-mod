@@ -151,7 +151,7 @@ public final class WeaponReach {
         return impact;
     }
 
-    static boolean sceptreHits(Vec3 impact, AABB mob) {
+    public static boolean sceptreHits(Vec3 impact, AABB mob) {
         double r = SCEPTRE_RADIUS - MARGIN;
         return mob.distanceToSqr(impact) <= r * r;
     }
