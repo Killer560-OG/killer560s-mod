@@ -1321,8 +1321,6 @@ final class SettingTooltipsData {
         d.put("interactive map/ticks between etherwarps", "Cheat build: client ticks from one etherwarp of a map path to the next; 1 warps every tick.");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
-        d.put("interactive map/precompute trips", "Cheat build: plans trips to every room as soon as the floor is known, and from"
-                + " each route's end to every other room, so a press warps at once. Each trip is checked again before it is used.");
         d.put("double-press start node", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
         d.put("double-press window", "How long a second press on the same room still counts as a double press, 150-1000 ms.");
         d.put("interactive map/show etherwarp path", "Cheat build: draws a circle at each etherwarp hop of your queued path, joined by lines.");

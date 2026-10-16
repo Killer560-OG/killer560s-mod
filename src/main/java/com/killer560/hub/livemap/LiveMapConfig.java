@@ -144,8 +144,6 @@ public final class LiveMapConfig {
      *  refuses a second search while one is in flight, and a path planned from a position you have since warped
      *  away from can never execute ({@code ClearNode.inside} wants you within 0.32 blocks of its first hop). */
     private boolean mapRetargetMidPath = true;
-    /** Interactive Map trips planned ahead of any press (livemap/autoclear/TripCache), killer560 2026-10-15. */
-    private boolean precomputeTrips = true;
     /** killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to start
      *  secreting." - a second press on the same room inside {@link #mapDoublePressMs} goes to that room's Auto
      *  Routes START node instead of to the room's own standing spot. */
@@ -230,7 +228,6 @@ public final class LiveMapConfig {
                 cfg.setEtherwarpTickGap(ConfigJson.getInt(obj, "etherwarpTickGap", 1));
                 cfg.showEtherwarpPath = ConfigJson.getBool(obj, "showEtherwarpPath", false);
                 cfg.mapRetargetMidPath = ConfigJson.getBool(obj, "mapRetargetMidPath", true);
-                cfg.precomputeTrips = ConfigJson.getBool(obj, "precomputeTrips", true);
                 cfg.mapDoublePressStartNode = ConfigJson.getBool(obj, "mapDoublePressStartNode", true);
                 cfg.setMapDoublePressMs(ConfigJson.getInt(obj, "mapDoublePressMs", 400));
 
@@ -332,7 +329,6 @@ public final class LiveMapConfig {
             obj.addProperty("etherwarpTickGap", etherwarpTickGap);
             obj.addProperty("showEtherwarpPath", showEtherwarpPath);
             obj.addProperty("mapRetargetMidPath", mapRetargetMidPath);
-            obj.addProperty("precomputeTrips", precomputeTrips);
             obj.addProperty("mapDoublePressStartNode", mapDoublePressStartNode);
             obj.addProperty("mapDoublePressMs", mapDoublePressMs);
 
@@ -943,14 +939,6 @@ public final class LiveMapConfig {
 
     public void setMapRetargetMidPath(boolean v) {
         this.mapRetargetMidPath = v;
-    }
-
-    public boolean isPrecomputeTrips() {
-        return precomputeTrips;
-    }
-
-    public void setPrecomputeTrips(boolean v) {
-        this.precomputeTrips = v;
     }
 
     public boolean isMapDoublePressStartNode() {

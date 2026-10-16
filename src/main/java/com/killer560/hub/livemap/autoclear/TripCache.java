@@ -40,8 +40,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * giving way between searches to a trip somebody asked for ({@link ClearExecutor#tripSearchWaiting}). Only once a search
  * takes milliseconds ({@link EtherwarpPathfinder#searchReady}: the quick graph warm and no change waiting); a trip planned
  * on the quick graph is planned again once the full graph is warm. The client tick only picks the next batch and
- * resolves a few goals; nothing at all runs outside a dungeon, in the boss, or with the setting
- * ({@link LiveMapConfig#isPrecomputeTrips}) or the Interactive Map off. At most {@link #MAX_ENTRIES} trips are kept.
+ * resolves a few goals; nothing at all runs outside a dungeon, in the boss, or with the Interactive Map switched off
+ * (killer560, 2026-10-15: it runs whenever the Interactive Map is on in a dungeon, map screen open or not - no setting of
+ * its own). At most {@link #MAX_ENTRIES} trips are kept.
  *
  * <p><b>A cached trip is only a starting point.</b> {@link ClearExecutor} takes one when he stands within
  * {@link #MATCH_XZ} of where it starts and checks it on the spot like any plan (every hop cast in the world as it is now,
@@ -69,7 +70,9 @@ public final class TripCache {
     private static final int SETTLE_TICKS = 4;
     /** Rooms whose goals are worked out again at most this many a tick, and how often a room's goals are refreshed. */
     private static final int ROOMS_PER_TICK = 1;
-    private static final int NEW_ROOMS_PER_TICK = 6;
+    private static final int NEW_ROOMS_PER_TICK = 3;
+    /** A tick's room goal work stops after this long (a recorded spot that is not a landing scans a sphere). */
+    private static final long ROOMS_BUDGET_NANOS = 250_000L;
     private static final int ROOM_REFRESH_TICKS = 100;
     /** How often the list of trips wanted is rebuilt, in ticks (and at once when an origin or the rooms change). */
     private static final int WANTS_TICKS = 4;
@@ -165,6 +168,8 @@ public final class TripCache {
     private static final AtomicLong epoch = new AtomicLong();
     private static volatile long lastChangeMs;
     private static final java.util.concurrent.atomic.AtomicInteger SIZE = new java.util.concurrent.atomic.AtomicInteger();
+    /** Trips removed (dropped, rejected, evicted), ever: a removal can make an earlier want need planning again. */
+    private static final java.util.concurrent.atomic.AtomicInteger removals = new java.util.concurrent.atomic.AtomicInteger();
 
     static String fromKey(Vec3 v) {
         return (int) Math.floor(v.x) + "," + (int) Math.floor(v.y) + "," + (int) Math.floor(v.z);
@@ -251,6 +256,7 @@ public final class TripCache {
         Map<String, Entry> byFrom = TRIPS.get(e.goal.key());
         if (byFrom != null && byFrom.remove(fromKey(e.from), e)) {
             SIZE.decrementAndGet();
+            removals.incrementAndGet();
         }
         LOGGER.info("[Path] precomputed trip to {} from {} dropped: {}", e.goal.key(), fmt(e.from), why);
     }
@@ -300,6 +306,7 @@ public final class TripCache {
         }
         if (n > 0) {
             SIZE.addAndGet(-n);
+            removals.addAndGet(n);
             dropped += n;
         }
     }
@@ -385,7 +392,7 @@ public final class TripCache {
     private static long idleKey() {
         long k = wantsVersion;
         k = k * 31 + epoch.get();
-        k = k * 31 + SIZE.get();
+        k = k * 31 + removals.get();
         k = k * 31 + generation;
         k = k * 31 + (EtherwarpPathfinder.fullWarm() ? 1 : 0);
         return k;
@@ -419,6 +426,9 @@ public final class TripCache {
         }
         return new int[]{missing, wants.size()};
     }
+
+    /** Test hook (testkit): as if it were not there - nothing cached, nothing looked up (the "searched" side of an A/B). */
+    public static volatile boolean testDisabled;
 
     /** Test hook (testkit): no new searches are queued while set (what is cached stays, block changes still apply). */
     public static volatile boolean testPaused;
@@ -461,7 +471,7 @@ public final class TripCache {
 
     private static boolean enabledNow() {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
-        return cfg.isInteractiveMapEnabled() && cfg.isPrecomputeTrips();
+        return cfg.isInteractiveMapEnabled() && !testDisabled;
     }
 
     /** Everything forgotten: a new world, the setting off, out of the dungeon. */
@@ -609,7 +619,9 @@ public final class TripCache {
         int fresh = 0;
         int refreshed = 0;
         int n = layout.roomCount();
-        for (int room = 0; room < n && fresh < NEW_ROOMS_PER_TICK && refreshed < ROOMS_PER_TICK; room++) {
+        long t0 = System.nanoTime();
+        for (int room = 0; room < n && fresh < NEW_ROOMS_PER_TICK && refreshed < ROOMS_PER_TICK
+                && (fresh + refreshed == 0 || System.nanoTime() - t0 < ROOMS_BUDGET_NANOS); room++) {
             int[] tiles = layout.tiles(room);
             if (tiles == null || tiles.length == 0) {
                 continue;
@@ -787,25 +799,45 @@ public final class TripCache {
 
     /** Missing trips first (in priority order), then stale ones - not until the block changes have gone quiet. */
     private static List<Want> nextBatch() {
+        // Everything before the cursor was neither missing nor stale when last looked at, and nothing that could change
+        // that has moved since (scanKey): the scan starts there, so a tick costs a few lookups, not one per trip wanted.
+        long key = idleKey();
+        if (key != scanKey) {
+            scanKey = key;
+            cursor = 0;
+        }
         List<Want> missing = new ArrayList<>();
         List<Want> stale = new ArrayList<>();
         boolean quiet = System.currentTimeMillis() - lastChangeMs >= CHANGE_QUIET_MS;
-        for (Want w : wants) {
+        List<Want> list = wants;
+        int first = -1;
+        for (int i = Math.min(cursor, list.size()); i < list.size(); i++) {
+            Want w = list.get(i);
             Need need = needs(w);
-            if (need == Need.MISSING && missing.size() < BATCH) {
+            if (need == Need.NONE) {
+                continue;
+            }
+            if (first < 0) {
+                first = i;
+            }
+            if (need == Need.MISSING) {
                 missing.add(w);
-            } else if (need == Need.STALE && quiet && stale.size() < BATCH) {
+                if (missing.size() >= BATCH) {
+                    break;
+                }
+            } else if (quiet && stale.size() < BATCH) {
                 stale.add(w);
             }
-            if (missing.size() >= BATCH) {
-                break;
-            }
         }
+        cursor = first < 0 ? list.size() : first;
         if (!missing.isEmpty()) {
             return missing;
         }
         return stale;
     }
+
+    private static long scanKey = Long.MIN_VALUE;
+    private static int cursor;
 
     /** The first time phase 1 from the floor's first origin has every trip it wants (or knows it cannot have it). */
     private static void notePhase1() {
@@ -967,6 +999,7 @@ public final class TripCache {
             Map<String, Entry> byFrom = TRIPS.get(e.goal.key());
             if (byFrom != null && byFrom.remove(fromKey(e.from), e)) {
                 SIZE.decrementAndGet();
+                removals.incrementAndGet();
             }
         }
     }
