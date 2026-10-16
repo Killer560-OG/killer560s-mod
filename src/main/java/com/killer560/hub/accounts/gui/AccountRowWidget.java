@@ -46,6 +46,12 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
     boolean banned;
     /** Where the row's buttons begin: text stops short of it. */
     int textRight;
+    /** Where the card is drawn: the screen clips the widget's own box to the list (so a card scrolled half under the
+     *  footer neither takes clicks there nor overlaps it), while the card still draws whole under the list's scissor. */
+    int drawY;
+    int drawH = 28;
+    /** Whether its Copy ID / proxy buttons show at all (partly in the list); they take clicks only when wholly in. */
+    boolean buttonsShown;
 
     final MenuAnim.Tween hover = new MenuAnim.Tween(MenuAnim.HOVER_MS, false);
 
@@ -90,9 +96,9 @@ final class AccountRowWidget extends net.minecraft.client.gui.components.Abstrac
         hover.set(isHovered() && active ? 1f : 0f);
         float hv = hover.get();
         int x = getX();
-        int y = getY();
+        int y = drawY;
         int w = getWidth();
-        int h = getHeight();
+        int h = drawH;
 
         GuiRects r = GuiRects.begin(g);
         if (signedIn) {

@@ -348,9 +348,14 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             AccountRowWidget row = this.rows.get(i);
             int y = top + i * STRIDE - shown + entranceOffset(i);
             row.setX(x);
-            row.setY(y);
             row.setWidth(w);
-            row.setHeight(ROW_H);
+            row.drawY = y;
+            row.drawH = ROW_H;
+            int listBottom = this.listY + this.listH;
+            int vy0 = Math.max(y, this.listY);
+            int vy1 = Math.min(y + ROW_H, listBottom);
+            row.setY(vy0);
+            row.setHeight(Math.max(1, vy1 - vy0));
             int by = y + (ROW_H - BTN_H) / 2;
             AbstractWidget copy = this.rowButtons.get(2 * i);
             AbstractWidget proxy = this.rowButtons.get(2 * i + 1);
@@ -361,9 +366,10 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             copy.setX(cx);
             copy.setY(by);
             row.textRight = cx;
-            boolean in = y + ROW_H > this.listY && y < this.listY + this.listH;
+            boolean in = vy1 > vy0;
             row.visible = in;
-            copy.visible = in && by + BTN_H > this.listY && by < this.listY + this.listH;
+            row.buttonsShown = in && by + BTN_H > this.listY && by < listBottom;
+            copy.visible = in && by >= this.listY && by + BTN_H <= listBottom;
             proxy.visible = copy.visible;
         }
     }
@@ -770,9 +776,15 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                     row.extractRenderState(graphics, mx, my, partialTick);
                     AbstractWidget copy = this.rowButtons.get(2 * i);
                     AbstractWidget proxy = this.rowButtons.get(2 * i + 1);
-                    if (copy.visible) {
+                    if (row.buttonsShown) {
+                        // drawn while partly in the list (cut by the scissor), clickable only when wholly in it
+                        boolean was = copy.visible;
+                        copy.visible = true;
+                        proxy.visible = true;
                         copy.extractRenderState(graphics, mx, my, partialTick);
                         proxy.extractRenderState(graphics, mx, my, partialTick);
+                        copy.visible = was;
+                        proxy.visible = was;
                     }
                 } finally {
                     MenuAnim.popFade(prev);
