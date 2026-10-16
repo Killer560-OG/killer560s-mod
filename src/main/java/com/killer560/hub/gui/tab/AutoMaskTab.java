@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.maskinvincibility.MaskInvincibilityConfig;
+import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -11,12 +12,17 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Auto Mask - the cheat-build mask/Phoenix auto-swap ({@link com.killer560.hub.maskinvincibility.MaskSwapper}),
- *  moved out of {@link MaskInvincibilityTab}'s "Cheat Build - Auto Mask" divider into its own section on
- *  2026-10-04, per killer560: "Move auto mask into its own section as well." Only added to {@link DungeonTab}
- *  on the cheat build, so its header is red ({@link #isCheatOnly()}). Same fields and JSON keys as before; it
- *  reacts to the procs Mask Invincibility detects, so it still needs that switched on. */
-public class AutoMaskTab extends BaseTab {
+/** Auto Mask - the cheat-build mask/Phoenix auto-swap ({@link com.killer560.hub.maskinvincibility.AutoMask} deciding,
+ *  {@link com.killer560.hub.maskinvincibility.MaskSwapper} swapping), moved out of {@link MaskInvincibilityTab}'s
+ *  "Cheat Build - Auto Mask" divider into its own section on 2026-10-04, per killer560: "Move auto mask into its own
+ *  section as well." Only added to {@link DungeonTab} on the cheat build, so its header is red ({@link #isCheatOnly()}).
+ *  It reacts to the procs Mask Invincibility detects and reads its cooldowns, so it still needs that switched on.
+ *  <p>
+ *  Rows (killer560, 2026-10-16): the switch, Mode (Keybind / Full Auto), the Swap Key or a line saying what Full Auto
+ *  does, Swap Order, Dungeons Only, Boss Only, then the swap's own Step Delay (ticks), Phoenix Route and Return To Slot. */
+public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
+
+    private boolean capturing = false;
 
     public AutoMaskTab() {
         super("Auto Mask");
@@ -28,6 +34,35 @@ public class AutoMaskTab extends BaseTab {
     }
 
     @Override
+    public boolean isListeningForKey() {
+        return capturing;
+    }
+
+    @Override
+    public void onKeyCaptured(int keyCode) {
+        applyCapture(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
+    }
+
+    @Override
+    public boolean supportsMouseCapture() {
+        return true;
+    }
+
+    @Override
+    public void onMouseCaptured(int button) {
+        applyCapture(KeyUtil.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
+        MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+        if (capturing) {
+            cfg.setSwapKey(code);
+            cfg.save();
+        }
+        capturing = false;
+    }
+
+    @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -36,6 +71,8 @@ public class AutoMaskTab extends BaseTab {
         int y = contentY;
         MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
         int col1 = contentX;
+        int gap = 8;
+        int half = (contentWidth - gap) / 2;
 
         // Auto Mask as a whole (killer560, 2026-10-13) - first, so it is the card's switch even while Mask Invincibility is off.
         widgets.add(SettingsButtonWidget.builder(onOff("Auto Mask", cfg.isAutoSwapEnabled()), btn -> {
@@ -51,17 +88,53 @@ public class AutoMaskTab extends BaseTab {
 
         if (!cfg.isEnabled()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("\u00a77Turn on Mask Invincibility in its own section to use this."),
+                    Component.literal("§7Turn on Mask Invincibility in its own section to use this."),
                     Minecraft.getInstance().font));
             return widgets;
         }
 
+        widgets.add(SettingsButtonWidget.cycling(modeLabel(cfg), (btn, dir) -> {
+                    cfg.setAutoMaskMode(SettingsButtonWidget.step(cfg.getAutoMaskMode(), dir));
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, half, 18).build());
+        y += 22;
 
+        if (cfg.getAutoMaskMode() == MaskInvincibilityConfig.AutoMaskMode.KEYBIND) {
+            widgets.add(SettingsButtonWidget.builder(swapKeyLabel(cfg), btn -> {
+                        capturing = true;
+                        btn.setMessage(Component.literal("Press any key..."));
+                    }).bounds(contentX, y, half, 18).build());
+            y += 22;
+        } else {
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    Component.literal("§7Swaps once the worn mask or Phoenix procs."),
+                    Minecraft.getInstance().font));
+            y += 16;
+        }
 
+        widgets.add(SettingsButtonWidget.cycling(swapOrderLabel(cfg), (btn, dir) -> {
+                    cfg.setSwapOrder(SettingsButtonWidget.step(cfg.getSwapOrder(), dir));
+                    cfg.save();
+                    btn.setMessage(swapOrderLabel(cfg));
+                }).bounds(contentX, y, half, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(onOff("Dungeons Only", cfg.isAutoMaskDungeonsOnly()), btn -> {
+                    cfg.setAutoMaskDungeonsOnly(!cfg.isAutoMaskDungeonsOnly());
+                    cfg.save();
+                    btn.setMessage(onOff("Dungeons Only", cfg.isAutoMaskDungeonsOnly()));
+                }).bounds(contentX, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Boss Only", cfg.isAutoMaskBossOnly()), btn -> {
+                    cfg.setAutoMaskBossOnly(!cfg.isAutoMaskBossOnly());
+                    cfg.save();
+                    btn.setMessage(onOff("Boss Only", cfg.isAutoMaskBossOnly()));
+                }).bounds(contentX + half + gap, y, half, 18).build());
+        y += 22;
+
+        int range = MaskInvincibilityConfig.MAX_STEP_DELAY_TICKS - MaskInvincibilityConfig.MIN_STEP_DELAY_TICKS;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, stepDelayLabel(cfg),
-                (cfg.getSwapStepDelayMs() - MaskInvincibilityConfig.MIN_STEP_DELAY_MS)
-                        / (double) (MaskInvincibilityConfig.MAX_STEP_DELAY_MS
-                        - MaskInvincibilityConfig.MIN_STEP_DELAY_MS)) {
+                (cfg.getSwapStepDelayTicks() - MaskInvincibilityConfig.MIN_STEP_DELAY_TICKS) / (double) range) {
             @Override
             protected void updateMessage() {
                 setMessage(stepDelayLabel(cfg));
@@ -69,17 +142,15 @@ public class AutoMaskTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                int range = MaskInvincibilityConfig.MAX_STEP_DELAY_MS - MaskInvincibilityConfig.MIN_STEP_DELAY_MS;
-                cfg.setSwapStepDelayMs((int) (Math.round(
-                        (MaskInvincibilityConfig.MIN_STEP_DELAY_MS + this.value * range) / 25.0) * 25));
+                cfg.setSwapStepDelayTicks(MaskInvincibilityConfig.MIN_STEP_DELAY_TICKS
+                        + (int) Math.round(this.value * range));
                 cfg.save();
             }
         });
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(phoenixRouteLabel(cfg), btn -> {
-                    cfg.setPhoenixRoute(cfg.getPhoenixRoute() == MaskInvincibilityConfig.PhoenixRoute.ROD
-                            ? MaskInvincibilityConfig.PhoenixRoute.PETS : MaskInvincibilityConfig.PhoenixRoute.ROD);
+        widgets.add(SettingsButtonWidget.cycling(phoenixRouteLabel(cfg), (btn, dir) -> {
+                    cfg.setPhoenixRoute(SettingsButtonWidget.step(cfg.getPhoenixRoute(), dir));
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, 220, 18).build());
@@ -99,8 +170,24 @@ public class AutoMaskTab extends BaseTab {
         return widgets;
     }
 
+    private static Component modeLabel(MaskInvincibilityConfig cfg) {
+        return Component.literal("Mode: §b" + cfg.getAutoMaskMode().label());
+    }
+
+    private Component swapKeyLabel(MaskInvincibilityConfig cfg) {
+        if (capturing) {
+            return Component.literal("Press any key...");
+        }
+        return Component.literal("Swap Key: " + CommandKeybindsTab.bindName(cfg.getSwapKey()));
+    }
+
+    private static Component swapOrderLabel(MaskInvincibilityConfig cfg) {
+        return Component.literal("Swap Order: §b" + cfg.getSwapOrder().label());
+    }
+
     private static Component stepDelayLabel(MaskInvincibilityConfig cfg) {
-        return Component.literal("Swap Step Delay: " + cfg.getSwapStepDelayMs() + "ms");
+        int t = cfg.getSwapStepDelayTicks();
+        return Component.literal("Swap Step Delay: " + t + (t == 1 ? " tick" : " ticks"));
     }
 
     private static Component phoenixRouteLabel(MaskInvincibilityConfig cfg) {
