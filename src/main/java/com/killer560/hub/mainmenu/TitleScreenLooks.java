@@ -82,7 +82,7 @@ public final class TitleScreenLooks {
         // the title screen gui instance." The other Green scenes stay in code (MainMenuScenes.GreenScene) but not here.
         l.add(green("Slime Boss", MainMenuScenes.GreenScene.TARGET, GreenTheme.DEFAULT_GRADIENT,
                 "TARGET: the designer's picture, animated, with droplets (Green's final look), gradient C."));
-        l.add(plain(MenuTheme.CUSTOM, "Aurora", "Custom's aurora, in the menu's Custom colors."));
+        l.add(plain(MenuTheme.CUSTOM, "Plain", "Custom: no scene of its own (killer560 2026-10-16), the plain background in the Custom colors."));
         LOOKS = Collections.unmodifiableList(l);
     }
 

@@ -121,7 +121,9 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
             case DARK -> MainMenuThemeConfig.Scene.STARFIELD;
             case LIGHT -> MainMenuThemeConfig.Scene.SOFT_LIGHT;
             case GREEN -> MainMenuThemeConfig.Scene.FIREFLIES;
-            case CUSTOM -> MainMenuThemeConfig.Scene.AURORA;
+            // killer560 (2026-10-16): "remove aurora from custom, we won't have a custom one" - Custom gets no painted
+            // scene of its own; held to the Title Screen GUI instance until the new looks release together.
+            case CUSTOM -> MainMenuScenes.previewScenes() ? MainMenuThemeConfig.Scene.PLAIN : MainMenuThemeConfig.Scene.AURORA;
             // A theme added later: a light one gets the soft light, a dark one embers in its own colours.
             default -> com.killer560.hub.gui.MenuStyle.luminance(theme.base()[1]) > 0.5f
                     ? MainMenuThemeConfig.Scene.SOFT_LIGHT : MainMenuThemeConfig.Scene.EMBERS;
