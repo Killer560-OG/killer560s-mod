@@ -4,9 +4,11 @@ import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.hud.GuiRects;
 
 /**
- * The slime boss scene's character as a smooth, natural silhouette (the theme's designer, 2026-10-16: "un-minecraft-ify my
- * skin and put that in there. It looks weird all pixelated."): slender human proportions, long flowing hair after the
- * AGreenCatgirl skin's long back hair, a clean blade held low toward the boss, the edges facing the boss lit.
+ * The slime boss scene's character as a smooth silhouette after the theme's designer's reference (2026-10-16: "could you
+ * make the actual silhouette kind of based more on this? ... instead of flowing hair ... use a hoodie"): a girl in an
+ * oversized hoodie with the hood up and cat ears on the hood, the hem at mid-thigh, slim legs, sneakers, natural
+ * proportions (the hooded head about a seventh of her height). She stands on the left facing the boss, one sleeve hanging,
+ * the other hand holding a clean blade low and forward; the edges facing the boss are lit.
  * <p>
  * The shape is a union of soft primitives (ellipses and tapered capsules) measured as a signed distance in real screen
  * pixels. Once per screen size it is rasterised into spans at screen resolution - inside pixels dark, the one-pixel edge at
@@ -21,39 +23,38 @@ final class SmoothSilhouette {
 
     private static final int SHADOW = 0xFF030704;
 
-    // ---- the shape, in head heights; x toward the boss (right), y down from the top of the head -------------------
+    // ---- the shape, in head heights; x toward the boss (right), y down from the top of the hood ---------------------
     /** Ellipses: cx, cy, rx, ry. */
     private static final float[][] ELLIPSES = {
-            {0.03f, 0.50f, 0.36f, 0.50f},   // head
-            {-0.07f, 0.44f, 0.42f, 0.50f},  // hair over the crown and the back of the head
-            {1.13f, 2.96f, 0.10f, 0.10f},   // the sword hand
+            {0.00f, 0.62f, 0.50f, 0.58f},   // the hood, up
+            {0.04f, 0.98f, 0.40f, 0.30f},   // its lower edge round the face
+            {0.00f, 1.52f, 0.70f, 0.36f},   // the hoodie's shoulders, dropped and baggy
+            {1.24f, 2.76f, 0.12f, 0.11f},   // the sword hand
+            {-0.62f, 2.98f, 0.11f, 0.10f},  // the other hand, half in its sleeve
+            {-0.16f, 6.74f, 0.27f, 0.16f},  // sneakers, toes toward the boss
+            {0.48f, 6.78f, 0.29f, 0.16f},
     };
     /** Tapered capsules: ax, ay, bx, by, ra, rb. */
     private static final float[][] CAPSULES = {
-            // neck, shoulders, torso, hips
-            {0.02f, 0.85f, 0.00f, 1.25f, 0.12f, 0.12f},
-            {-0.40f, 1.38f, 0.38f, 1.38f, 0.15f, 0.15f},
-            {0.00f, 1.35f, 0.00f, 2.55f, 0.36f, 0.26f},
-            {0.00f, 2.50f, 0.00f, 3.05f, 0.27f, 0.36f},
-            // legs, running off the bottom of the screen
-            {-0.16f, 3.00f, -0.34f, 4.60f, 0.20f, 0.14f},
-            {-0.34f, 4.60f, -0.48f, 6.40f, 0.14f, 0.09f},
-            {0.17f, 3.00f, 0.36f, 4.60f, 0.20f, 0.14f},
-            {0.36f, 4.60f, 0.34f, 6.40f, 0.14f, 0.09f},
-            // the back arm, hanging
-            {-0.40f, 1.42f, -0.52f, 2.35f, 0.12f, 0.10f},
-            {-0.52f, 2.35f, -0.46f, 3.10f, 0.10f, 0.08f},
-            // the sword arm, reaching forward and down
-            {0.38f, 1.42f, 0.68f, 2.28f, 0.12f, 0.10f},
-            {0.68f, 2.28f, 1.10f, 2.92f, 0.10f, 0.08f},
-            // long hair down the back, a strand lifting behind, the ends tapering, a fringe in front
-            {-0.22f, 0.60f, -0.42f, 1.60f, 0.30f, 0.24f},
-            {-0.42f, 1.60f, -0.56f, 2.45f, 0.24f, 0.13f},
-            {-0.56f, 2.45f, -0.78f, 2.95f, 0.13f, 0.015f},
-            {-0.28f, 1.45f, -0.36f, 2.60f, 0.15f, 0.02f},
-            {-0.34f, 0.85f, -0.98f, 1.85f, 0.13f, 0.015f},
-            {-0.44f, 1.20f, -0.90f, 2.30f, 0.10f, 0.012f},
-            {0.18f, 0.12f, 0.34f, 0.52f, 0.11f, 0.02f},
+            // cat ears on the hood
+            {-0.30f, 0.30f, -0.40f, -0.18f, 0.17f, 0.03f},
+            {0.24f, 0.27f, 0.34f, -0.20f, 0.17f, 0.03f},
+            // the hoodie's body, oversized, to a squared hem at mid-thigh
+            {0.00f, 1.55f, 0.00f, 2.80f, 0.64f, 0.62f},
+            {-0.46f, 2.95f, 0.46f, 2.95f, 0.22f, 0.22f},
+            // the hanging sleeve
+            {-0.56f, 1.55f, -0.72f, 2.30f, 0.22f, 0.20f},
+            {-0.72f, 2.30f, -0.64f, 2.86f, 0.20f, 0.17f},
+            // the sword arm's sleeve, reaching forward and down
+            {0.56f, 1.55f, 0.80f, 2.25f, 0.22f, 0.20f},
+            {0.80f, 2.25f, 1.12f, 2.68f, 0.19f, 0.15f},
+            // slim legs: thighs, knees, calves, ankles (the front one a little forward)
+            {-0.22f, 3.00f, -0.24f, 4.85f, 0.19f, 0.12f},
+            {-0.24f, 4.85f, -0.20f, 6.55f, 0.12f, 0.07f},
+            {-0.27f, 5.00f, -0.23f, 5.90f, 0.13f, 0.09f},
+            {0.20f, 3.00f, 0.30f, 4.85f, 0.19f, 0.12f},
+            {0.30f, 4.85f, 0.38f, 6.58f, 0.12f, 0.07f},
+            {0.27f, 5.00f, 0.35f, 5.90f, 0.13f, 0.09f},
     };
     /** The blade's direction (down and forward, toward the lake in front of the boss), unit length. */
     private static final float BX = 0.60f;
@@ -70,8 +71,8 @@ final class SmoothSilhouette {
             d = Math.min(d, capsule(x, y, c[0], c[1], c[2], c[3], c[4], c[5]));
         }
         // The sword: grip and pommel behind the hand, a crossguard across it, the blade tapering to a point.
-        double hx = 1.13;
-        double hy = 2.96;
+        double hx = 1.24;
+        double hy = 2.76;
         d = Math.min(d, capsule(x, y, hx - BX * 0.28, hy - BY * 0.28, hx + BX * 0.12, hy + BY * 0.12, 0.045, 0.045));
         double px = hx - BX * 0.32;
         double py = hy - BY * 0.32;
@@ -123,14 +124,14 @@ final class SmoothSilhouette {
         builtScale = scale;
         int sw = w * scale;
         int sh = h * scale;
-        double unit = sh * 0.115;          // one head height in real pixels
-        double ox = sw * 0.13;             // the head's centre
-        double oy = sh * 0.33;             // the top of the head
+        double unit = sh * 0.098;          // one head height in real pixels (she is about seven tall)
+        double ox = sw * 0.14;             // the hood's centre
+        double oy = sh * 0.29;             // the top of the hood
         double rimPx = Math.max(2.0, sh / 360.0);
-        int left = Math.max(0, (int) Math.floor(ox - 1.15 * unit));
-        int right = Math.min(sw, (int) Math.ceil(ox + 2.95 * unit));
-        int top = Math.max(0, (int) Math.floor(oy - 0.1 * unit));
-        int bottom = sh;
+        int left = Math.max(0, (int) Math.floor(ox - 1.2 * unit));
+        int right = Math.min(sw, (int) Math.ceil(ox + 3.4 * unit));
+        int top = Math.max(0, (int) Math.floor(oy - 0.4 * unit));
+        int bottom = Math.min(sh, (int) Math.ceil(oy + 7.1 * unit));
         int cols = right - left;
         int[] row = new int[Math.max(1, cols)];
         // Open runs from the row above: start x, end x, class, the rect index they extend.
