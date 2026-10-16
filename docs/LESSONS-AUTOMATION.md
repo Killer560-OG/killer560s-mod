@@ -335,6 +335,16 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   client's look never reaches: no block half can be sent and the warp is dropped under an unpaired click. Never click a
   block the client cannot see; `RightClick.reaimIfUnpairable` aims at the same block along a look whose rays agree and the
   warp goes one tick later (ClearExecutor hops, Auto Routes warps). Testkit 96-ar-1015-reaim builds the mismatch.
+- **A run-time etherwarp aim must HOLD, not just land** (killer560 2026-10-15: path nodes "still taking me to the wrong
+  block"). The planner proves every saved hop within `EtherSearch.AIM_MARGIN`; the aims worked out while flying
+  (`TeleportUtils.getEtherwarpDirection` for a hop fired 0.05 over its spot, `RightClick.reaimIfUnpairable`) only checked
+  the exact float look. From a block-centre stand, lines to face points on the tenths/half lattice often pass EXACTLY through
+  a block's vertical edge, and the server, reading the running yaw a few bits off, takes the voxel tie the other way: his
+  Mod Only Test 22:47:07 run re-aimed at -149, 261, -188 (eye -150.5, -191.5 to face point 0.3/0.7 crosses x -149, z -188
+  at one t) and the sim's cast stopped in -149, 262, -189. Both now prefer a look that lands for +-AIM_MARGIN, over
+  off-lattice points too. Also: "Etherwarp: landed" is any landing within 2 blocks of the planned feet, so a hop on the
+  neighbouring block counted as landed; every landing is now judged by its block ("landed OFF its planned block", WARN).
+  Testkit 1015-sim-pathland.
 - **Every bow puzzle's shot after a landing waited the gate's 6-tick teleport settle.** `AutoReposition` waived it for 3
   ticks at the USE, the sim lands 2 ticks after the use, and the landing starts its own 6-tick settle, so Blaze, Beams and
   Ice Path shot exactly 6 ticks after each landing (93-solve-*-timing on main, 2026-10-15; on Hypixel the round trip is
