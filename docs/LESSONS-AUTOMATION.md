@@ -358,3 +358,14 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
   never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
   `ClearExecutor.isBusy()`.
+- **The sim's ability hook ended vanilla's right click after its block half** (2026-10-15, 96-ar-chain after 96-ar-awaitskip:
+  every corner warp waited a tick, `[0, 0, 1, ...]`, on the deployed jars too - order, not a merge). `SimAbilities.onClientUse`
+  answers a block click with an ability item SUCCESS (no prediction for a reskinned block item), and `Minecraft.startUseItem`
+  stops at a Success; on Hypixel the same click PASSes (stone with a sword or shovel) and the use half follows in the tick,
+  pairing it. So `util/RightClick` held a crypt node's Hyperion floor click unpaired for good. `roomsim/mixin/SimUseHalfMixin`
+  turns that Success into PASS inside `startUseItem` only, so vanilla sends the use half; the sim's server pairs it.
+  Testkit 96-ar-awaitskip asserts nothing is left unpaired.
+- **In the sim a clicked chest's window races the warp its await fires.** It arrives 1-2 ticks after the click, so whether it
+  lands before the use is the client/server tick phase, which drifts through a session; when it does, the action starts over
+  under it ("window arrived after the await was met", logged since) and acts a tick or two later. 96-ar-1015-reaim's control
+  read 2 for 1 in session runs on the rightclick-reaim tip as much as on merged main; it reruns a side the window landed in.
