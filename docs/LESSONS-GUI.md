@@ -523,6 +523,12 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   width changed, and a Min Width box kept its text on the left so the text's right end moved by the slack (testkit 1668,
   2026-10-15). Draw it shifted by `round(w * scale) - w * scale` (`anchorShift`) and put the text block against the wall
   (`blockOffset`); the hover layout must use the same shift and block.
+- **Hiding a container's slots does not stop vanilla hovering them.** The terminal Custom GUI cancelled `extractSlot`,
+  the tooltip and the background, but `extractContents` still set `hoveredSlot` from the private `getHoveredSlot(DD)`, so
+  the white hover highlight (`extractSlotHighlightBack/Front`, not part of `extractSlot`) lit up the invisible slots and the
+  hotbar-number and drop keys sent SWAP/THROW on them (killer560, 2026-10-15; testkit 1015-menu-term-hidden-slots on main:
+  1024 px changed, `0/0/SWAP`, `0/0/THROW`). Answer null from `getHoveredSlot` while slots are hidden; every hover reader
+  (highlight, tooltip, keys, scroll, other features) goes quiet at once (javap 26.1.2 and 26.2).
 - **A table column sized by a fixed number overlaps the moment its heading grows.** Load a Room's columns were 30-64
   units wide, and "Crypts ▼" (the sort arrow adds a space and a glyph) is 44 against Crypts' 34, so with Crypts sorted it
   ran 4 units into "Secrets" (killer560's screenshot, 2026-10-15; Size and Secrets did the same sorted). `SimMenuScreen
