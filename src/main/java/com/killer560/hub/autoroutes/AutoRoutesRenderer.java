@@ -243,6 +243,7 @@ public final class AutoRoutesRenderer {
         int paletteActiveArgb;
         boolean paletteBuilt;
         float[] palette;            // 4 floats per slot
+        int[] packed;               // the same colours as BufferBuilder.setColor(int) takes them, one per slot
         int[] argb;                 // per list position: the colour drawn (active or base), for the label
 
         int lineSegCount() {
@@ -316,6 +317,7 @@ public final class AutoRoutesRenderer {
             float[] chain = WorldRenderUtils.argbToFloats(activeArgb);
             put(p, count * SLOTS * 4, chain, 0.4f);
             palette = p;
+            packed = pack(p);
             argb = a;
         }
 
@@ -618,6 +620,26 @@ public final class AutoRoutesRenderer {
     // ---- the two replays ----
 
     /**
+     * Each 4-float colour as the ARGB int whose {@code BufferBuilder.setColor(int)} writes the same four bytes as
+     * {@code setColor(r, g, b, a)}: VertexConsumer's {@code setColor(float x4)} is {@code setColor((int) (r * 255f), ...)}
+     * and BufferBuilder writes those as bytes R, G, B, A (four {@code memPutByte}, each an FFM segment on Java 25 -
+     * the largest allocation left under the replay, JFR 2026-10-16); {@code setColor(int)} is {@code memPutInt} of
+     * {@code toABGR(argb)}, the same bytes in the same order on a little-endian or a big-endian machine (javap, both
+     * versions).
+     */
+    static int[] pack(float[] rgba) {
+        int[] out = new int[rgba.length / 4];
+        for (int i = 0; i < out.length; i++) {
+            int r = (int) (rgba[i * 4] * 255.0f);
+            int g = (int) (rgba[i * 4 + 1] * 255.0f);
+            int b = (int) (rgba[i * 4 + 2] * 255.0f);
+            int a = (int) (rgba[i * 4 + 3] * 255.0f);
+            out[i] = (a & 0xFF) << 24 | (r & 0xFF) << 16 | (g & 0xFF) << 8 | (b & 0xFF);
+        }
+        return out;
+    }
+
+    /**
      * Render-thread scratch for the replays. {@code VertexConsumer.addVertex(Matrix4fc, x, y, z)} is
      * {@code addVertex(matrix.transformPosition(x, y, z, new Vector3f()))} and {@code setNormal(Pose, x, y, z)} is
      * {@code setNormal(pose.transformNormal(x, y, z, new Vector3f()))} (javap, 26.1.2 and 26.2 alike): a Vector3f per
@@ -647,27 +669,23 @@ public final class AutoRoutesRenderer {
         public void draw(PoseStack.Pose pose, VertexConsumer buffer) {
             Mesh m = mesh;
             float[] pal = m.palette;
+            int[] pk = m.packed;
             for (int k = 0; k < m.count; k++) {
                 int i = m.order[k];
                 if (m.visible[i]) {
-                    segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, m.lineStart[i], m.lineEnd[i]);
+                    segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, pk, m.lineStart[i], m.lineEnd[i], 0f);
                 }
             }
-            segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, m.chainStart, m.chainEnd);
+            segments(pose, buffer, m.seg, m.segSlot, m.segWidth, pal, pk, m.chainStart, m.chainEnd, 0f);
             float[] p = path;
             if (p != null) {
-                segments(pose, buffer, p, null, null, PATH_RGBA, 0, p.length / 6, pathWidth);
+                segments(pose, buffer, p, null, null, PATH_RGBA, PATH_PACKED, 0, p.length / 6, pathWidth);
             }
-        }
-
-        private static void segments(PoseStack.Pose pose, VertexConsumer buffer, float[] seg, int[] slots, float[] widths,
-                                     float[] pal, int from, int to) {
-            segments(pose, buffer, seg, slots, widths, pal, from, to, 0f);
         }
 
         /** {@code slots}/{@code widths} null: every segment {@code pal[0..3]} at {@code width}. */
         private static void segments(PoseStack.Pose pose, VertexConsumer buffer, float[] seg, int[] slots, float[] widths,
-                                     float[] pal, int from, int to, float width) {
+                                     float[] pal, int[] packed, int from, int to, float width) {
             boolean fast = plain(buffer);
             org.joml.Matrix4f mat = pose.pose();
             org.joml.Vector3f v = POS;
@@ -681,12 +699,14 @@ public final class AutoRoutesRenderer {
                 float ex = seg[o + 3], ey = seg[o + 4], ez = seg[o + 5];
                 float dx = ex - sx, dy = ey - sy, dz = ez - sz;
                 if (fast) {
-                    // VertexConsumer.addVertex(Pose, ...) / setNormal(Pose, ...) exactly, minus their new Vector3f.
+                    // VertexConsumer.addVertex(Pose, ...) / setColor(float x4) / setNormal(Pose, ...) exactly, minus
+                    // their new Vector3f and the per-byte colour puts.
+                    int col = packed[c >> 2];
                     pose.transformNormal(dx, dy, dz, nv);
                     mat.transformPosition(sx, sy, sz, v);
-                    buffer.addVertex(v.x, v.y, v.z).setColor(r, g, b, a).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
+                    buffer.addVertex(v.x, v.y, v.z).setColor(col).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
                     mat.transformPosition(ex, ey, ez, v);
-                    buffer.addVertex(v.x, v.y, v.z).setColor(r, g, b, a).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
+                    buffer.addVertex(v.x, v.y, v.z).setColor(col).setNormal(nv.x, nv.y, nv.z).setLineWidth(w);
                 } else {
                     buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
                     buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, a).setNormal(pose, dx, dy, dz).setLineWidth(w);
@@ -704,6 +724,7 @@ public final class AutoRoutesRenderer {
             Mesh m = mesh;
             float[] pal = m.palette;
             float[] f = m.fill;
+            int[] pk = m.packed;
             var matrix = pose.pose();
             boolean fast = plain(buffer);
             org.joml.Vector3f p = POS;
@@ -717,7 +738,7 @@ public final class AutoRoutesRenderer {
                     int c = m.fillSlot[v] * 4;
                     if (fast) {
                         matrix.transformPosition(f[o], f[o + 1], f[o + 2], p);
-                        buffer.addVertex(p.x, p.y, p.z).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
+                        buffer.addVertex(p.x, p.y, p.z).setColor(pk[m.fillSlot[v]]);
                     } else {
                         buffer.addVertex(matrix, f[o], f[o + 1], f[o + 2]).setColor(pal[c], pal[c + 1], pal[c + 2], pal[c + 3]);
                     }
@@ -757,6 +778,7 @@ public final class AutoRoutesRenderer {
 
     /** The path's colour: WorldRenderUtils.renderLineStrip(..., 1f, 0.65f, 0.2f, PATH_ALPHA, ...) as before. */
     private static final float[] PATH_RGBA = {1f, 0.65f, 0.2f, PATH_ALPHA};
+    private static final int[] PATH_PACKED = pack(PATH_RGBA);
 
     /**
      * The recorded movement as a faint polyline - where playback will actually walk - as line segments (renderLineStrip's
