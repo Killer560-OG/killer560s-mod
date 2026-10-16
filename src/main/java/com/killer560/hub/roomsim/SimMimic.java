@@ -1,6 +1,5 @@
 package com.killer560.hub.roomsim;
 
-import com.killer560.hub.util.ModChat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -270,9 +269,8 @@ public final class SimMimic {
         BlockPos at = pos.immutable();
         level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
         mimicMob = SimMobs.spawnMimic(level, at);
+        // Logged, never said: Hypixel sends no chat line for a mimic (killer560, 2026-10-16: "in sim remove the mimic line").
         LOGGER.info("Sim mimic: chest at {} opened, mimic {} spawned", at.toShortString(), mimicMob);
-        Minecraft.getInstance().execute(() ->
-                ModChat.send("Sim", ModChat.text("MIMIC - kill it for "), ModChat.value("+2 bonus")));
         return true;
     }
 
@@ -287,8 +285,6 @@ public final class SimMimic {
             mimicMob = null;
             SimScore.mimicKilled();
             LOGGER.info("Sim mimic: killed");
-            Minecraft.getInstance().execute(() -> ModChat.send("Sim", ModChat.text("MIMIC killed - "),
-                    ModChat.value("+2 bonus")));
         }
     }
 

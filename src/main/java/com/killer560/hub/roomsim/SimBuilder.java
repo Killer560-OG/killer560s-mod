@@ -1967,6 +1967,9 @@ public final class SimBuilder {
                     SimWorld.buildFinished(client, null);
                     if (reset) {
                         ModChat.send("Sim", ModChat.text("Room reset"));
+                    } else if (SimRoomCycle.isActive()) {
+                        // All Rooms already said "Room N/M: <name>" for this load - one line per room (2026-10-16).
+                        ModChat.log("Sim", ModChat.text("Built "), ModChat.value(roomName));
                     } else {
                         ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
                     }

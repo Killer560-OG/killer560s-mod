@@ -656,8 +656,6 @@ final class AutoTicTacToe {
     /** Secret Aura takes it when it will; otherwise (or when it has not in {@link #AURA_TICKS}) the auto clicks it. */
     private static void auraChest(Minecraft client, LocalPlayer player) {
         if (chestTaken(client)) {
-            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Tic Tac Toe: got the "), ModChat.good("secret"),
-                    ModChat.text("."));
             advanceChest(ChestStage.WALK_BACK, "the chest is open");
             tickChest(client, player, LiveMapFeature.currentRoomClayAndRotation()); // the warp back starts this tick
             return;

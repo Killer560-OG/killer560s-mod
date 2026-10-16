@@ -241,7 +241,6 @@ final class AutoBlaze {
                     say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
                 } else {
                     LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
-                    ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Blaze: "), ModChat.good("done"), ModChat.text("."));
                     REPOSITION.cancel(client);
                     AutoReposition.releaseSneak(client);
                     CAMERA.release(player); // the last shot has landed: body back under his view, camera handed back
@@ -1357,8 +1356,6 @@ final class AutoBlaze {
             LOGGER.warn("[AutoPuzzles] Blaze: no clickable shape at {} (attempt {}/{})", target, secretAuraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Higher/Lower: aura'd the "), ModChat.good("secret"),
-                ModChat.text("."));
         secretAuraTick = ticks;
         LOGGER.info("[AutoPuzzles] Blaze: aura'd the secret at {} from {} (tick {})", AutoPuzzleUtil.fmt(target),
                 fmt(player.position()), ticks);

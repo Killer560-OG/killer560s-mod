@@ -128,7 +128,7 @@ public final class AutoBeams {
             activePair = null;
         }
         if (lastPairCount >= 0 && pairs.size() < lastPairCount && ++solvedPairs == 4) {
-            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Creeper Beams: "), ModChat.good("done"), ModChat.text("."));
+            ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Creeper Beams: "), ModChat.good("done"), ModChat.text("."));
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
             CAMERA.release(client.player);

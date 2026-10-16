@@ -307,7 +307,6 @@ final class Autopilot {
             if (!what.equals(lastBloodFirstWait)) {
                 lastBloodFirstWait = what;
                 LOGGER.info("[Autopilot] Blood First: the next door wants {} - planning the rest meanwhile", what);
-                AutoSecretFeature.sayAutopilot("Blood First: waiting on " + what + " - doing the rest of the floor meanwhile");
             }
             return null;
         }
