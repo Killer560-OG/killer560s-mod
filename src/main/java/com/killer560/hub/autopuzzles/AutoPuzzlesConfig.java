@@ -44,7 +44,11 @@ public final class AutoPuzzlesConfig {
     private boolean autoQuizEnabled = false;
     private int quizDelayMs = 250;
     private boolean autoWeirdosEnabled = false;
-    private int weirdosDelayMs = 250;
+    // 0 since 2026-10-16 (killer560: "make it click through them every tick if possible to make it as fast as possible
+    // as the default"): the chest goes the tick it is known and in reach. A file still at the old default of 250 is moved
+    // to 0 once (weirdosDelayMigrated); one set to anything else keeps it.
+    static final int OLD_WEIRDOS_DELAY_DEFAULT = 250;
+    private int weirdosDelayMs = 0;
     // QUOI's ThreeWeirdos auto also right-clicks the 3 "CLICK" NPC stands so they say their lines.
     private boolean weirdosTalkToNpcs = false;
 
@@ -113,6 +117,9 @@ public final class AutoPuzzlesConfig {
             cfg.quizDelayMs = clampDelay(ConfigJson.getInt(obj, "quizDelayMs", cfg.quizDelayMs));
             cfg.autoWeirdosEnabled = ConfigJson.getBool(obj, "autoWeirdosEnabled", false);
             cfg.weirdosDelayMs = clampDelay(ConfigJson.getInt(obj, "weirdosDelayMs", cfg.weirdosDelayMs));
+            if (!ConfigJson.getBool(obj, "weirdosDelayMigrated", false) && cfg.weirdosDelayMs == OLD_WEIRDOS_DELAY_DEFAULT) {
+                cfg.weirdosDelayMs = 0;
+            }
             cfg.weirdosTalkToNpcs = ConfigJson.getBool(obj, "weirdosTalkToNpcs", false);
             cfg.autoBlazeEnabled = ConfigJson.getBool(obj, "autoBlazeEnabled", false);
             cfg.autoBeamsEnabled = ConfigJson.getBool(obj, "autoBeamsEnabled", false);
@@ -147,6 +154,7 @@ public final class AutoPuzzlesConfig {
             obj.addProperty("quizDelayMs", quizDelayMs);
             obj.addProperty("autoWeirdosEnabled", autoWeirdosEnabled);
             obj.addProperty("weirdosDelayMs", weirdosDelayMs);
+            obj.addProperty("weirdosDelayMigrated", true);
             obj.addProperty("weirdosTalkToNpcs", weirdosTalkToNpcs);
             obj.addProperty("autoBlazeEnabled", autoBlazeEnabled);
             obj.addProperty("autoBeamsEnabled", autoBeamsEnabled);
