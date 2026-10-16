@@ -450,6 +450,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   block click.** Precomputed trips first ran with the planned-ahead path's every-hop `sendNow`; with testkit
   1015-sim-clickgap's click primer a hop went while the previous landing was still on its way, `RightClick` judged it from
   the planned spot, the server traced it from the spot before and paired it with the click: "warp 5 never landed" (twice in
-  two runs; main's searched presses never send that way). A precomputed trip now sends only its FIRST hop early
-  (`sendNowFirstOnly`) and the rest at a searched trip's ticks; 1015-sim-clickgap passes. Auto Secret's planned-ahead trips
-  still send every hop early - not reproduced under clicks there, not changed.
+  two runs; main's searched presses never send that way). Since autosecret-early-1016 every early-sending trip (planned
+  ahead or precomputed) sends a hop early only while `RightClick.unpaired()` is false; otherwise it goes the next tick
+  through `doInteract`'s turn-first check. 1015-sim-clickgap 3 of 3 runs, 0 hops ignored; 144/146 timing unchanged. The
+  other early senders (Auto Routes' landing-tick warp, AutoReposition) only send after the landing is known and already
+  go through `RightClick.mustTurnFirst`.

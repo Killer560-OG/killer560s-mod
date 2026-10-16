@@ -554,13 +554,6 @@ public final class ClearExecutor {
     private static volatile Preplan preplan;
     /** The queue now running was planned ahead: each hop goes out on the tick it is worked out (see {@link #onTickStart}). */
     private static boolean sendNow = false;
-    /**
-     * With {@link #sendNow}: only the FIRST hop goes on the tick it is worked out (a precomputed trip - that is the
-     * planning delay removed); every later hop keeps the ordinary pace and send tick, exactly as a searched trip's. Sending
-     * every hop a tick early under an unpaired block click had a hop traced by the server from the spot before the last
-     * landing and taken as the click's second half ("warp 5 never landed", testkit 1015-sim-clickgap on this branch).
-     */
-    private static boolean sendNowFirstOnly = false;
     /** The tick a pre-planned queue swapped to its item on: no use goes out on that tick (held-item first, use next). */
     private static long swappedOnTick = Long.MIN_VALUE;
     /** A pre-planned trip may wait at most this long for the request that matches it. */
@@ -769,7 +762,6 @@ public final class ClearExecutor {
                 ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
         sendNow = true;
-        sendNowFirstOnly = lastLanding != null;   // a precomputed trip; a path planned ahead keeps its every-hop pace
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
         if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV) && swapById(AOTV)) {
@@ -1369,15 +1361,15 @@ public final class ClearExecutor {
             position = new double[]{p.x, p.y, p.z};
         }
         handleQueue(position, nodes);
-        if (sendNow && pendingInteract != null && !hasSwappedThisTick) {
+        // Never early while a block click may still be waiting on the server for its second half (util/RightClick): the
+        // hop would go while the previous landing is still on its way, judged from the planned spot, and the server -
+        // tracing from where it last had him - took it as the click's second half ("warp 5 never landed", testkit
+        // 1015-sim-clickgap, 2026-10-16). It goes next tick instead, through doInteract's own turn-first check.
+        if (sendNow && pendingInteract != null && !hasSwappedThisTick && !com.killer560.hub.util.RightClick.unpaired()) {
             // A queue planned ahead sends each hop on the tick it is worked out rather than the next: the same START slot,
             // ahead of this tick's movement packet, as the hop that would have gone next tick - one tick sooner, and the
             // pace between hops unchanged. Not on a tick that swapped the item (held-item first, the use a tick later).
             doInteract(client);
-        }
-        if (sendNowFirstOnly && !issued.isEmpty()) {
-            sendNow = false;   // the first hop is out: the rest at the ordinary pace
-            sendNowFirstOnly = false;
         }
     }
 
