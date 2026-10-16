@@ -520,4 +520,4 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   cache on `FontSet.reload`). Record only the OUTERMOST call: recording every hooked call put each element in twice
   (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
   be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one - its
-  first run found the Predictive Rooms version bumping every tick (the map repainted every tick under ALL ON).
+  paint count is what found Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).
