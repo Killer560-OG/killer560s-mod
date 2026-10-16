@@ -54,8 +54,10 @@ import java.util.concurrent.Executors;
  * proxy"): one menu-theme panel filling the window, a toolbar (a search box once there are {@value #SEARCH_MIN} or more
  * accounts, and a "Playing as" chip), the accounts as full-width cards ({@link AccountRowWidget}: skin head, name, an
  * Active pill on the signed-in account, its proxy - none, its own, or the Universal one - and its ban status, with Copy ID
- * and the proxy button at the right end) in a smoothly scrolling list, a status line, and a footer with Back, Direct
- * Session Login, Set Universal Proxy and the Universal switch. What each control does is unchanged.
+ * and the proxy button at the right end) in a smoothly scrolling list, a status line while there is a status, and a
+ * footer with Back, Direct Session Login, Set Universal Proxy and the Universal switch. What each control does is
+ * unchanged. Since 2026-10-16 the signed-in account's card takes the accent and an ACTIVE pill, and the standing
+ * "Click an account to switch to it." hint is gone, its row given to the list.
  */
 public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
 
@@ -191,7 +193,11 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         this.listX = contentX;
         this.listY = this.toolbar ? this.toolbarY + 18 + 6 : this.panelY + ScreenChrome.HEADER_H + 9;
         this.listW = contentW;
-        this.listH = Math.max(STRIDE + 6, this.statusY - 5 - this.listY);
+        // No standing "Click an account to switch to it." hint any more (killer560, 2026-10-16: "remove the 'Click an
+        // account to switch to it' line"): the status row is only there while there is a status to show (signing in,
+        // copied, an error - each of which lays the screen out again), and otherwise the list runs down to the footer.
+        int listBottom = this.statusMessage != null ? this.statusY - 5 : this.footerTop - 8;
+        this.listH = Math.max(STRIDE + 6, listBottom - this.listY);
 
         // Footer buttons go in BEFORE the rows, so a click on the footer is never taken by a row scrolled under it.
         int gap = 4;
@@ -783,8 +789,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         }
 
         // status line and the footer's rule
-        String status = this.statusMessage != null ? this.statusMessage
-                : this.accounts.isEmpty() ? "" : "Click an account to switch to it.";
+        String status = this.statusMessage != null ? this.statusMessage : "";
         int sc = switch (this.statusMessage == null ? Kind.INFO : this.statusKind) {
             case BUSY -> MenuStyle.OR;
             case OK -> ScreenChrome.good();
