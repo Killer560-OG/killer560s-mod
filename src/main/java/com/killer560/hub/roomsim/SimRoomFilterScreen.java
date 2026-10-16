@@ -96,7 +96,7 @@ public class SimRoomFilterScreen extends Screen implements MenuThemedScreen {
     /** The Map Designer's filters - what its Filters button opens. */
     public SimRoomFilterScreen(Screen parent) {
         this(parent, SimRoomFilters.DESIGNER,
-                "Narrows the list, Fill and Generate. Required rooms always generate.");
+                "Narrows the list and Generate. Required rooms always generate.");
     }
 
     public SimRoomFilterScreen(Screen parent, SimRoomFilter filter, String note) {
