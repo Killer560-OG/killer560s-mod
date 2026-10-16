@@ -2038,6 +2038,7 @@ public final class RouteExecutor {
             }
             LOGGER.info("[AutoRoutes] Node #{} PATH: flying {} saved warp(s) to #{}", route.indexOf(node) + 1,
                     node.pathHops.size(), route.indexOf(dest) + 1);
+            pathOffBlock = 0;
             loadHop(node, 0);
         }
         if (!tickWarp(client, player, node)) {
@@ -2052,7 +2053,9 @@ public final class RouteExecutor {
             tickPath(client, player, node);
             return;
         }
-        LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed", route.indexOf(node) + 1, node.pathHops.size());
+        // "landed" is any landing within LANDING_TOLERANCE of the planned feet; checkLandingBlock judged each by its block.
+        LOGGER.info("[AutoRoutes] Node #{} PATH: all {} warp(s) landed, {}", route.indexOf(node) + 1, node.pathHops.size(),
+                pathOffBlock == 0 ? "each on its planned block" : pathOffBlock + " of them OFF the planned block");
         finishAction();
         noteLanding(node);
     }
@@ -2111,8 +2114,13 @@ public final class RouteExecutor {
             return AIM_OK;
         }
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
-        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget,
-                com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
+        if (rot == null) {
+            // None of the sample points: every point of every face the planner would try (path-wrongblock-1015). A hop
+            // planned from the settled eye and fired 0.05 above it can lose all of them to a lip it grazed.
+            rot = TeleportUtils.exactEtherwarpDirection(eye, warpTarget, range);
+        }
         if (rot == null) {
             return AIM_NO_RAY;
         }
@@ -2140,7 +2148,11 @@ public final class RouteExecutor {
         double dz = warpSpot.z - pos.z;
         double h = Math.sqrt(dx * dx + dz * dz);
         Vec3 v = player.getDeltaMovement();
-        boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004;
+        // The saved look belongs to the spot's EYE too: on a landing tick he stands 0.05 over it, and the saved look fired
+        // from there went over a slab lip at the sim's -26, 259, -128 and was refused (1015-sim-pathland, Quartz Knight). He
+        // drops onto the spot the next tick by himself (gravity, not a wait), so "on it" includes the height.
+        boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004
+                && Math.abs(pos.y - warpSpot.y) < REAIM_EPSILON;
         if (settled || warpCentreTicks > CENTRE_TIMEOUT) {
             clearMovement();
             LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled
@@ -2325,6 +2337,7 @@ public final class RouteExecutor {
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
+                checkLandingBlock(client, player, node);
                 landingConfirmed = teleportPacketSeen;
                 // Whether the sneak stays held for what comes next is planSneak's call, from finishAction.
                 RouteRotation.rebase();
@@ -2347,6 +2360,53 @@ public final class RouteExecutor {
             }
         }
         return false;
+    }
+
+    /** Landings (path hops and etherwarp nodes) that put him on a block other than the planned one - read by the testkit. */
+    private static int offBlockLandings;
+    /** Off-block landings of the path pair flying now, for its "all N warp(s) landed" line. */
+    private static int pathOffBlock;
+
+    public static int offBlockLandings() {
+        return offBlockLandings;
+    }
+
+    /**
+     * A landing within {@link #LANDING_TOLERANCE} of the planned feet counts as landed - that is what lets the route
+     * carry on - but two blocks is room for the block next to the plan's (killer560, 2026-10-15: "sometimes the path nodes
+     * are still taking me to the wrong block"). Here the landing is judged by its BLOCK: the feet over {@link #warpTarget}
+     * (its column, at its standing height). A miss is logged with the planned and the actual block and counted; the route
+     * goes on from where he is, as before (the next warp is aimed from here).
+     */
+    private static void checkLandingBlock(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (warpTarget == null || client.level == null) {
+            return;
+        }
+        Vec3 at = player.position();
+        double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(client.level, warpTarget);
+        boolean on = Mth.floor(at.x) == warpTarget.getX() && Mth.floor(at.z) == warpTarget.getZ()
+                && Math.abs(at.y - (standY + 0.05)) < 0.3;
+        if (on) {
+            return;
+        }
+        offBlockLandings++;
+        if (hopIndex >= 0) {
+            pathOffBlock++;
+        }
+        BlockPos under = BlockPos.containing(at.x, at.y - 0.05 - 1e-3, at.z);
+        if (client.level.getBlockState(under).getCollisionShape(client.level, under).isEmpty()) {
+            under = under.below();
+        }
+        String what = hopIndex >= 0 ? "path #" + (route.indexOf(node) + 1) + " warp " + (hopIndex + 1) + "/"
+                + node.pathHops.size() : "etherwarp #" + (route.indexOf(node) + 1);
+        LOGGER.warn("[AutoRoutes] Etherwarp ({}): landed OFF its planned block - planned {} ({}, feet {}), landed at {} on {}"
+                        + " ({}), {} blocks from the planned feet; aimed {} / {} from {}", what, warpTarget.toShortString(),
+                client.level.getBlockState(warpTarget).getBlock().getName().getString(),
+                fmt(new Vec3(warpTarget.getX() + 0.5, standY + 0.05, warpTarget.getZ() + 0.5)), fmt(at),
+                under.toShortString(), client.level.getBlockState(under).getBlock().getName().getString(),
+                String.format(Locale.US, "%.2f", at.distanceTo(new Vec3(warpTarget.getX() + 0.5, standY + 0.05,
+                        warpTarget.getZ() + 0.5))), String.format(Locale.US, "%.4f", Mth.wrapDegrees(warpYaw)),
+                String.format(Locale.US, "%.4f", warpPitch), warpAimFrom == null ? "?" : fmt(warpAimFrom));
     }
 
     /** Ticks an etherwarp node has waited on a block standing in its line ({@link #newBlockInLine}); 0 when not. */
