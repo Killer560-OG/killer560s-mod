@@ -1887,7 +1887,7 @@ public final class ClearExecutor {
         if (data == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read-only, no deep copy (fps-auto-1015)
         return tag.getStringOr("id", null);
     }
 

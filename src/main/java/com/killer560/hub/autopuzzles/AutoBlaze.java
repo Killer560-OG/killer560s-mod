@@ -178,8 +178,11 @@ final class AutoBlaze {
     }
 
     static void tick(Minecraft client, String roomName) {
-        List<Entity> blazes = BlazeSolverFeature.getOrderedBlazes();
-        GUARD.observe(blazes.isEmpty());
+        // The solver's list (a copy) is only built when the guard can still learn from it or the auto will use it.
+        List<Entity> blazes = GUARD.observing() ? BlazeSolverFeature.getOrderedBlazes() : null;
+        if (blazes != null) {
+            GUARD.observe(blazes.isEmpty());
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         boolean inRoom = LOWER.equals(roomName) || HIGHER.equals(roomName);
         if (!cfg.isAutoBlazeEnabled() || !inRoom) {
@@ -189,6 +192,9 @@ final class AutoBlaze {
             }
             wasInRoom = false;
             return;
+        }
+        if (blazes == null) {
+            blazes = BlazeSolverFeature.getOrderedBlazes();
         }
         LocalPlayer player = client.player;
         if (!wasInRoom && player != null) {

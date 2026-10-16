@@ -74,8 +74,13 @@ final class AutoWater {
     }
 
     static void tick(Minecraft client, String roomName) {
-        WaterSolverFeature.NextClick next = WaterSolverFeature.nextClick();
-        GUARD.observe(next == null && WaterSolverFeature.getCountedClicks() == 0);
+        // nextClick() walks every lever's times and looks the room up: only while the guard can still learn from it or
+        // the auto runs (fps-auto-1015). It has no side effects, so reading it after the gate gives the same answer.
+        boolean observing = GUARD.observing();
+        WaterSolverFeature.NextClick next = observing ? WaterSolverFeature.nextClick() : null;
+        if (observing) {
+            GUARD.observe(next == null && WaterSolverFeature.getCountedClicks() == 0);
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoWaterEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
@@ -84,6 +89,9 @@ final class AutoWater {
             }
             wasInRoom = false;
             return;
+        }
+        if (!observing) {
+            next = WaterSolverFeature.nextClick();
         }
         wasInRoom = true;
         CAMERA.keep(client.player);

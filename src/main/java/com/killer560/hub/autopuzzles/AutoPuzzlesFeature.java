@@ -183,10 +183,12 @@ public final class AutoPuzzlesFeature {
             AutoTeleportMaze.levelChanged(client);
             AutoIceFill.levelChanged(client);
         }
-        if (QuizSolverFeature.getCorrectAnswerPos() == null) {
+        // Latches: once set they stay set until the next world, so the solver is only asked while they are not.
+        if (!quizSolverClearedThisLevel && QuizSolverFeature.getCorrectAnswerPos() == null) {
             quizSolverClearedThisLevel = true;
         }
-        if (WeirdosSolverFeature.getCorrectChestPos() == null && WeirdosSolverFeature.getWrongChestCount() == 0) {
+        if (!weirdosSolverClearedThisLevel && WeirdosSolverFeature.getCorrectChestPos() == null
+                && WeirdosSolverFeature.getWrongChestCount() == 0) {
             weirdosSolverClearedThisLevel = true;
         }
         if (client.player == null || client.level == null || client.gameMode == null) {
