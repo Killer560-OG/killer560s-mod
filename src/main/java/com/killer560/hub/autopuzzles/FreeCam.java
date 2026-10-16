@@ -112,6 +112,21 @@ final class FreeCam {
         LOGGER.info("[AutoPuzzles] {}: free camera released", tag);
     }
 
+    /**
+     * Passes the held camera straight to {@code next} without letting go of it: the view stays exactly where it is and
+     * {@code next}'s run carries on from it (Auto Blaze back from a missed final volley's secret trip to shooting again).
+     * A release here and an engage there would drop the hold for a moment and let {@code next} pick a view of its own.
+     */
+    void handTo(FreeCam next, LocalPlayer player) {
+        if (!engaged) {
+            return;
+        }
+        next.engage(player); // the lease is still held, so next keeps the view on screen
+        engaged = false;
+        engagedCount = Math.max(0, engagedCount - 1);
+        LOGGER.info("[AutoPuzzles] {}: free camera handed to {}", tag, next.tag);
+    }
+
     /** A world change: let go without touching a body that may belong to the new world. */
     void drop() {
         if (engaged) {

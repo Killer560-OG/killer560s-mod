@@ -934,7 +934,14 @@ final class AutoBlaze {
             }
         }
         if (secretStage != SecretStage.AURA && !SECRET_WARP.isActive()) {
-            SECRET_CAM.release(player); // held only for the last-leg warp and the chest click it readies
+            // Held only for the last-leg warp and the chest click it readies. A blaze still listed means shooting resumes
+            // (the final volley missed): the shooting's camera takes the hold over as it is, view unmoved
+            // (93-solve-blazemiss-*: a release then a fresh engage facing the room's centre swung the view 135 degrees).
+            if (!blazes.isEmpty()) {
+                SECRET_CAM.handTo(CAMERA, player);
+            } else {
+                SECRET_CAM.release(player);
+            }
         }
     }
 
