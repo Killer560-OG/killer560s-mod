@@ -346,6 +346,13 @@ public final class GuiRects {
                 data[o + 1], data[o + 2], data[o + 3], data[o + 4], data[o + 5], scissors[i]);
     }
 
+    /** The fills a batch {@link #submit} handed over as one element, as vanilla render states, or null for any other
+     *  element (the Dungeon Map's draw cache compares a replayed batch with a fresh one in verify mode; Batch's equals
+     *  is identity). Test/verify only: builds new states on every call. */
+    public static GuiElementRenderState[] partsOf(Object element) {
+        return element instanceof Batch b ? b.parts() : null;
+    }
+
     private static final class Batch implements GuiElementRenderState {
         private final int[] data;
         private final Matrix3x2fc[] poses;

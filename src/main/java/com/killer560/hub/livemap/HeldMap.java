@@ -34,6 +34,25 @@ public final class HeldMap {
     private static final Set<Integer> SIM_VISITED = new HashSet<>();
     private static int simGeneration = Integer.MIN_VALUE;
     private static int simTick = Integer.MIN_VALUE;
+    /** Bumped whenever {@link #SIM_VISITED} changes (the Dungeon Map's draw cache keys on it). */
+    private static int simVersion = 0;
+
+    private static boolean simAdd(int room) {
+        if (SIM_VISITED.add(room)) {
+            simVersion++;
+            return true;
+        }
+        return false;
+    }
+
+    /** What the sim's stand-in answers can have changed since the last different value. Refreshes it first, as every
+     *  question asked of it does; on Hypixel (not emulated) it never runs the refresh. */
+    static int drawVersion() {
+        if (emulated()) {
+            simRefresh();
+        }
+        return simVersion;
+    }
 
     private HeldMap() {
     }
@@ -160,6 +179,7 @@ public final class HeldMap {
         if (gen != simGeneration) {
             simGeneration = gen;
             SIM_VISITED.clear();
+            simVersion++;
         }
         if (tick == simTick) {
             return;
@@ -171,17 +191,17 @@ public final class HeldMap {
             RoomEntry e = layout.entry(r);
             String n = layout.name(r);
             if ((e != null && "ENTRANCE".equalsIgnoreCase(e.type)) || "Entrance".equalsIgnoreCase(n)) {
-                SIM_VISITED.add(r);
+                simAdd(r);
             }
         }
         if (client.player != null && layout.currentRoom() >= 0 && insideRoom(layout, layout.currentRoom(),
-                client.player.getX(), client.player.getZ()) && SIM_VISITED.add(layout.currentRoom())) {
+                client.player.getX(), client.player.getZ()) && simAdd(layout.currentRoom())) {
             LOGGER.info("[HeldMap] sim: {} opened (you at {}, {})", layout.name(layout.currentRoom()),
                     Math.round(client.player.getX()), Math.round(client.player.getZ()));
         }
         for (LiveMapReads.Mate m : LiveMapReads.teammates(client)) {
             int r = layout.roomAtWorld(m.x(), m.z());
-            if (r >= 0 && insideRoom(layout, r, m.x(), m.z()) && SIM_VISITED.add(r)) {
+            if (r >= 0 && insideRoom(layout, r, m.x(), m.z()) && simAdd(r)) {
                 LOGGER.info("[HeldMap] sim: {} opened ({} at {}, {})", layout.name(r), m.name(), Math.round(m.x()),
                         Math.round(m.z()));
             }
@@ -272,13 +292,14 @@ public final class HeldMap {
     /** Test hook: forget who has stood where in the sim (a new run without rebuilding the floor). */
     public static void resetSimVisits() {
         SIM_VISITED.clear();
+        simVersion++;
         simTick = Integer.MIN_VALUE;
     }
 
     /** Test hook: the sim stand-in counts layout room {@code room} as stood in (opened). */
     public static void simVisit(int room) {
         simRefresh();
-        SIM_VISITED.add(room);
+        simAdd(room);
     }
 
     /** Test hook: the sim stand-in's opened rooms, by layout room id. */

@@ -135,3 +135,10 @@ buffer source and draws each render type once after the event's last listener (s
 `McRender.batchStats()` returns `{geometry callbacks batched, batches drawn}` since launch (both 0 on 26.2, whose submit
 collector groups by type itself); the probe attributes the batch's draw to `compat.McRender <event>`, not to the
 features that filled it. Testkit 95-perf-world reads both, plus its own draw-call counter.
+
+## Dungeon Map draw cache (`livemap/MapDrawCache`)
+The Dungeon Map HUD keeps the render-state elements it painted and hands them over again while nothing it is painted
+from changed. `-Dkiller560.livemap.verifyCache=true` (or `MapDrawCache.setVerify(true)`) also paints every replayed
+frame afresh, unsubmitted, and compares the two element by element; `MapDrawCache.stats()` is {replays, paints,
+compared, differed within the paint's own tick, differed after it}, `lastMismatch()` names the last stale element.
+Testkit 95-perf-livemap runs it.

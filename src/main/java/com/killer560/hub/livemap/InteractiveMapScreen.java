@@ -225,9 +225,14 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
         try {
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, hoveredDoor);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
+            // Every room into ONE render-state element, as the HUD map does (hud/GuiRects: rooms never overlap one
+            // another, so the pixels are the same); each room was its own element, placement-tested against the rest.
+            com.killer560.hub.hud.GuiRects roomRects = com.killer560.hub.hud.GuiRects.begin(graphics);
             for (int gid = 0; gid < groups.size(); gid++) {
-                drawRoom(graphics, groups.get(gid), gid, false, cfg, ox, oy, ppu);
+                MapPainter.drawRoom(roomRects, groups.get(gid), gid, MapPainter.roomColor(groups.get(gid), cfg),
+                        ox, oy, ppu);
             }
+            roomRects.submit();
             if (hoveredGroup >= 0) {
                 drawHoveredTile(graphics, groups.get(hoveredGroup), hoveredCell, cfg, ox, oy, ppu);
             }

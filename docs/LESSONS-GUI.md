@@ -571,3 +571,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   11,712 B with them cached; Advanced Position 7,607 vs 7,476. Caching text saves the String.format/concatenation time,
   not the ~70 B per drawn character `GuiGraphicsExtractor.text` costs. And `Font.width` of a string with `§` codes builds
   a `Style` per code: Advanced Position's width() was 1,600 B a call until it was memoised on the line array.
+- **A HUD element's render-state elements can be replayed on a later frame** (`livemap/MapDrawCache`, 2026-10-15): hand
+  the same `ColoredRectangleRenderState`/`GuiTextRenderState` objects to `GuiRenderState` again, through the same `add*`
+  calls in the same order, and they layer exactly as a fresh draw (a text state even keeps its glyph layout, so drop the
+  cache on `FontSet.reload`). Record only the OUTERMOST call: recording every hooked call put each element in twice
+  (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
+  be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one, and
+  the paint count is what found Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).
