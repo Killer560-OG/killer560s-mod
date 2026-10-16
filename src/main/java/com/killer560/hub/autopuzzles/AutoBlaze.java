@@ -761,6 +761,12 @@ final class AutoBlaze {
         if (REPOSITION.isActive() || blazes.isEmpty()) {
             return;
         }
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            // The Interactive Map is moving him (a path this asked for): a warp of our own on top of its warps never sees
+            // its own landing and times out 40 ticks later (93-solve-blazemiss-lower-timing, 2026-10-15: landing to the
+            // next shot 41 ticks, on main too). Pick the next spot once he is where the map put him.
+            return;
+        }
         BlockPos[] spots = higher ? HIGHER_SPOTS : LOWER_SPOTS;
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blazes.get(0));
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
