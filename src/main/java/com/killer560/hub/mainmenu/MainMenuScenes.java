@@ -52,7 +52,8 @@ public final class MainMenuScenes {
     /** The Green scene this game shows by default: {@link #GREEN_SCENE} with {@link #previewScenes()}, otherwise
      *  {@link #GREEN_SCENE_RELEASED}. */
     public static GreenScene defaultGreenScene() {
-        return previewScenes() ? GREEN_SCENE : GREEN_SCENE_RELEASED;
+        // Released to every instance 2026-10-16 ("push it to all instances as the viridian theme").
+        return GREEN_SCENE;
     }
 
     private static GreenScene greenScene;

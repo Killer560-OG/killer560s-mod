@@ -17,7 +17,9 @@ import com.killer560.hub.hud.GuiRects;
 public final class GreenTheme {
 
     /** What the theme is called in every list and label. */
-    public static final String NAME = "Green";
+    /** killer560 (2026-10-16): "push it to all instances as the viridian theme". The enum stays GREEN, so saved
+     *  configs still load. */
+    public static final String NAME = "Viridian";
 
     /** Hue ~135: a leaf green that reads on the panel (contrast 8.6 there). */
     public static final int ACCENT = 0xFF62C27A;
@@ -51,7 +53,7 @@ public final class GreenTheme {
     public static Gradient gradient() {
         Gradient g = gradient;
         if (g == null) {
-            g = com.killer560.hub.mainmenu.MainMenuScenes.previewScenes() ? DEFAULT_GRADIENT : RELEASED_GRADIENT;
+            g = DEFAULT_GRADIENT; // released everywhere 2026-10-16 with the Viridian name
             gradient = g;
         }
         return g;
