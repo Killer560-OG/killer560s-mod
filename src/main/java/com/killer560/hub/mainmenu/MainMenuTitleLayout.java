@@ -126,6 +126,7 @@ public final class MainMenuTitleLayout {
         registered = true;
         // Amber's Aurora shader pipeline must be in RenderPipelines' static list before the first resource reload.
         AmberAuroraScene.register();
+        OceanFallsScene.register();
         ScreenEvents.AFTER_INIT.addPhaseOrdering(Event.DEFAULT_PHASE, PHASE);
         ScreenEvents.AFTER_INIT.register(PHASE, (client, screen, scaledWidth, scaledHeight) -> {
             if (screen instanceof TitleScreen) {
