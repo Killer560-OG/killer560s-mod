@@ -699,11 +699,8 @@ public final class SimItems {
                         ModChat.value("prince"), scored ? ModChat.text("") : ModChat.dim(" (no score - "
                                 + "the run has already had its prince point)")));
             }
-            // One charge per detonation. It was free before, so a single Superboom cleared a whole floor.
-            sp.getInventory().getNonEquipmentItems().stream()
-                    .filter(st -> "SUPERBOOM_TNT".equals(
-                            com.killer560.hub.cheatutils.CheatUtils.skyblockId(st)))
-                    .findFirst().ifPresent(st -> st.shrink(1));
+            // Not consumed in the sim. killer560 (2026-10-15): "make it so superboom is no longer used on sim so you
+            // keep the item after using it" - practice runs should never run out (it took one per detonation before).
         }
         // No chat line. killer560 (2026-09-30): "Also dont have ti send the chat message." On Hypixel a
         // Superboom is silent; the explosion is the feedback.
