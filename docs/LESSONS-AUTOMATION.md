@@ -345,3 +345,16 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   him on it the tick after; `ceil(y - 1)` is then the block above, so every reposition saw its own arrival a tick late (main:
   landing to the sneak let go 2 ticks). `AutoPuzzleUtil.at` also accepts up to 0.08 over the top; a look aimed on that tick
   is aimed from the settled standing eye (`settledEye`), or a small target's edge is passed by once he drops 0.05.
+- **Auto Blaze's "arrow flight + 4 ticks" was a fixed margin on every miss.** A volley that killed already ended the wait
+  (the target's label stand removed), but a miss - a wall, a refused hit - held the next volley the simulated flight plus
+  4 ticks (93-solve-blazemiss-*-timing on main: 5 to 6 ticks after the volley's arrows had ended; the chest after a
+  missed final volley up to 16). `AutoBlaze.VolleyWatch` takes the volley's arrows as they appear by his eye and calls the
+  result in when none can still reach the target: removed by the server, stuck (`AbstractArrowInGroundAccessor`), or
+  moving away from it (velocity against the direction to it - a Terminator's side arrows). A removed arrow waits for the
+  server's next update unless the target's label already changed, so a kill reported a tick late is still seen. And the
+  solver's list holds a blaze for a tick after its kill (it re-reads after the autos), so the order is filtered of
+  removed entities - aiming at the dead one would send the volley through its spot at the next one up. Branch: 0 or less
+  in every volley; no kill out of order in 93 kills.
+- Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
+  never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
+  `ClearExecutor.isBusy()`.
