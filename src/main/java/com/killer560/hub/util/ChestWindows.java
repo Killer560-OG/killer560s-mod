@@ -18,7 +18,9 @@ import java.util.Set;
  *
  * <p>Fed by {@code autoclosechest.mixin.AutoCloseChestMixin} for every open-screen packet, in every build. That hook runs
  * twice for a packet that is not cancelled (once on the network thread, once again on the render thread after vanilla's
- * hand-off); consecutive windows always have different container ids, so the second sighting of one id is not counted.
+ * hand-off), with the same packet object both times, so the second sighting of one packet is not counted. (Not the
+ * container id: a server numbers windows per player from 1, so a new world's first chest has the id the last world's
+ * did - deduplicating by id swallowed the first chest window of every later sim run.)
  */
 public final class ChestWindows {
 
@@ -28,7 +30,8 @@ public final class ChestWindows {
             MenuType.GENERIC_3x3);
 
     private static volatile int count;
-    private static volatile int lastId = Integer.MIN_VALUE;
+    /** The last packet counted, by identity only. */
+    private static ClientboundOpenScreenPacket lastPacket;
 
     private ChestWindows() {
     }
@@ -39,11 +42,10 @@ public final class ChestWindows {
             return;
         }
         synchronized (ChestWindows.class) {
-            int id = packet.getContainerId();
-            if (id == lastId) {
+            if (packet == lastPacket) {
                 return;
             }
-            lastId = id;
+            lastPacket = packet;
             count++;
         }
     }
