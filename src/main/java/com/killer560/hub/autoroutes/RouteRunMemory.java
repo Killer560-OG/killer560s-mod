@@ -120,6 +120,18 @@ public final class RouteRunMemory {
         return n;
     }
 
+    /** What {@link #gotSince} counts, one entry per secret ("chest at x, y, z"), for log lines. */
+    public static List<String> whatSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
+        check();
+        List<String> out = new ArrayList<>();
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && g.pos() != null && where.test(g.pos())) {
+                out.add(g.what());
+            }
+        }
+        return out;
+    }
+
     /** Whether he got a secret of this kind ({@code "item"}, {@code "block"}, {@code "bat"}) within {@code range} blocks
      *  of {@code pos} this run. */
     public static boolean gotNear(String kind, Vec3 pos, double range) {

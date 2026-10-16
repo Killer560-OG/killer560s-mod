@@ -451,7 +451,8 @@ public final class AutoSecretFeature {
         String taking = takingHere(client, room, counted);
         if (taking == null && (counted == null || counted[0] >= counted[1])) {
             LOGGER.info("[AutoSecret] {}: every secret counted at the route's end{} - leaving this tick", room,
-                    counted == null ? " (no secrets to count)" : " (" + counted[0] + "/" + counted[1] + ")");
+                    counted == null ? " (no secrets to count)" : " (" + counted[0] + "/" + counted[1] + ": "
+                            + countWhy(room) + ")");
             leaveWaitRoom = null;
             ClearExecutor.setHold(false);
         } else {
@@ -509,8 +510,8 @@ public final class AutoSecretFeature {
             why = "not every secret counted (" + counted[0] + "/" + counted[1] + ") and none in reach - the "
                     + LAST_NODE_WAIT_TICKS + "-tick cap";
         }
-        LOGGER.info("[AutoSecret] {}: {} after {} tick(s) of the last-node wait (tick {}) - the next warp goes now",
-                leaveWaitRoom, why, leaveWaitTicks, ClearExecutor.clientTick());
+        LOGGER.info("[AutoSecret] {}: {} after {} tick(s) of the last-node wait (tick {}) - the next warp goes now ({})",
+                leaveWaitRoom, why, leaveWaitTicks, ClearExecutor.clientTick(), countWhy(leaveWaitRoom));
         leaveWaitRoom = null;
         leaveTakingSaid = null;
         ClearExecutor.setHold(false);
@@ -583,6 +584,21 @@ public final class AutoSecretFeature {
         int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(routeStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return new int[]{Math.min(r.secrets(), Math.max(found, routeFoundAtStart + got)), r.secrets()};
+    }
+
+    /** Where {@link #roomCount}'s number came from, for the last-node wait's log lines. */
+    private static String countWhy(String name) {
+        RoomStatus.Room r = roomNamed(name);
+        if (r == null) {
+            return "not on the map";
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = roomIdOf(layout, name);
+        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.whatSince(routeStartClock,
+                p -> layout.roomAtWorld(p.x, p.z) == id);
+        return "map " + (r.secrets() - r.unfound()) + "/" + r.secrets() + ", run " + fmtPercent(
+                DungeonInfoFeature.secretsFoundPercent()) + "%, at the trip's start " + routeFoundAtStart + " + yours since "
+                + got;
     }
 
     /** The auto puzzle last waited under, so the hold is said once per puzzle rather than every tick. */
