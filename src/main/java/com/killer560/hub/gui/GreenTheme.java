@@ -40,8 +40,10 @@ public final class GreenTheme {
         CANOPY_GLOW
     }
 
-    /** The one shown. Not a setting (yet): the designer picks one and it becomes the only one or a choice. */
-    private static Gradient gradient = Gradient.FOREST_NIGHT;
+    /** The one shown. Not a setting: the designer picked C (2026-10-15: "the last gradient looks the best"); A and B stay
+     *  for the testkit's comparison shots. */
+    public static final Gradient DEFAULT_GRADIENT = Gradient.CANOPY_GLOW;
+    private static Gradient gradient = DEFAULT_GRADIENT;
 
     public static Gradient gradient() {
         return gradient;
