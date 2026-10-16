@@ -110,8 +110,9 @@ No property. Both show only while their key is held in the key modes, and a harn
 ## Callback profiler (`perfprobe/PerfProbe`)
 `-Dkiller560.perf.probe=true` on a dev jar (not `-Prelease=true`) wraps every listener a `com.killer560.hub` class
 registers on a Fabric event, and every Fabric HUD layer it adds, in a timing proxy, and times each mod HUD element in
-`HudElementRegistry.drawAt`: self time and render-thread allocation per key (`<owner class> <event>` or
-`<owner> HUD[<id>]`). Read by reflection: `PerfProbe.snapshot()` (TSV: key, kind tick/frame/event/server, calls,
+`HudElementRegistry.drawAt`, and the open screen's whole draw (`Screen.extractRenderStateWithTooltipAndSubtitles`, key
+`screen.<SimpleName> extract`, vanilla's work and every mod mixin inside it): self time and render-thread allocation per
+key (`<owner class> <event>` or `<owner> HUD[<id>]`). Read by reflection: `PerfProbe.snapshot()` (TSV: key, kind tick/frame/event/server, calls,
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
-the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
+the probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).

@@ -514,3 +514,11 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
   main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
   (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
+- **A screen drawn every frame must not lay out, split or Bidi its text every frame.** The mod menu allocated 340 KB a
+  frame on its card grid and 700 KB with a drawer open (testkit 95-perf-screens, 2026-10-15): about 45% was ICU Bidi from
+  `text(Font, String)` (vanilla reorders every String, every call; a `Component` keeps its order, a fresh
+  `Component.literal(..).withStyle(BOLD)` per frame does not), 30% was `GuiRects` building a render state, a pose copy
+  and four bounds objects per fill, and 20% was each card's word-wrap (`String.split` regex, a candidate string per
+  word). The menu now draws inside `HudTextCache`'s scope, `GuiRects` keeps parts as ints (vanilla's states only for a
+  lone part) and card text, tooltip lines and message splits are kept until their inputs change: 86 / 163 KB. Read a
+  widget's message by object identity (`setMessage` replaces it; nothing edits one in place), not `getString()` per call.
