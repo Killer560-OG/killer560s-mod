@@ -54,7 +54,8 @@ public final class PathfindingFeature {
         // START: this drives AutoSoulRunner and EnderPearlHopper, which both send interactions. See
         // ActionGate's class doc.
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("PathfindingFeature.tick", PathfindingFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(PathWorldRenderer::render);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Pathfinding render", () -> PathfindingConfig.getInstance().isEnabledRaw()), PathWorldRenderer::render));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Auto Fairy Souls' camera turns every render frame (WalkCamera), not in 20 Hz tick steps.
             LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> AutoWalker.frame());

@@ -59,7 +59,8 @@ public final class IceFillSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("IceFillSolverFeature", client -> tick(client)));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(IceFillSolverFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
+                com.killer560.hub.util.FeatureBits.register("IceFill Solver render", () -> IceFillSolverConfig.getInstance().isEnabledRaw()), IceFillSolverFeature::onWorldRender));
     }
 
     private static IceFillData loadData() {

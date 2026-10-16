@@ -83,7 +83,8 @@ public final class BeamsSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeamsSolverFeature.tick", BeamsSolverFeature::tick));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(BeamsSolverFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
+                com.killer560.hub.util.FeatureBits.register("Beams Solver render", () -> BeamsSolverConfig.getInstance().isEnabledRaw()), BeamsSolverFeature::onWorldRender));
     }
 
     private static List<CandidatePair> loadCandidates() {

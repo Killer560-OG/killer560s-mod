@@ -60,7 +60,8 @@ public final class IcePathSolverFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("IcePathSolverFeature.tick", IcePathSolverFeature::tick));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(IcePathSolverFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
+                com.killer560.hub.util.FeatureBits.register("IcePath Solver render", () -> IcePathSolverConfig.getInstance().isEnabledRaw()), IcePathSolverFeature::onWorldRender));
     }
 
     /** Real block positions (corner vectors, y=66) of the solution, starting at the silverfish's cell. */

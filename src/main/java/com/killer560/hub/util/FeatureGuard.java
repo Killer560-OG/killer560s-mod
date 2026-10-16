@@ -76,6 +76,75 @@ public final class FeatureGuard {
         };
     }
 
+    // ---- gated: skip a switched-off feature with one boolean read (FeatureBits) -----------------------------------
+
+    /** {@link #start} that calls {@code guarded} only while {@link FeatureBits bit} {@code bit} is on. Use only when
+     *  the handler provably does nothing while the bit's gate is false (its first check returns). */
+    public static ClientTickEvents.StartTick start(String name, int bit, ClientTickEvents.StartTick guarded) {
+        ClientTickEvents.StartTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.StartTick.class, guarded);
+        return client -> {
+            if (!FeatureBits.on(bit)) {
+                FeatureBits.skipped(bit);
+                return;
+            }
+            if (anyDisabled && DISABLED.contains(name)) {
+                return;
+            }
+            try {
+                handler.onStartTick(client);
+            } catch (Throwable t) {
+                failed(name, t);
+            }
+        };
+    }
+
+    /** {@link #end} that calls {@code guarded} only while {@link FeatureBits bit} {@code bit} is on (see the start one). */
+    public static ClientTickEvents.EndTick end(String name, int bit, ClientTickEvents.EndTick guarded) {
+        ClientTickEvents.EndTick handler = com.killer560.hub.perfprobe.PerfProbe.wrapListener(ClientTickEvents.EndTick.class, guarded);
+        return client -> {
+            if (!FeatureBits.on(bit)) {
+                FeatureBits.skipped(bit);
+                return;
+            }
+            if (anyDisabled && DISABLED.contains(name)) {
+                return;
+            }
+            try {
+                handler.onEndTick(client);
+            } catch (Throwable t) {
+                failed(name, t);
+            }
+        };
+    }
+
+    /** A level-render listener called only while bit {@code bit} is on. No try/catch is added (as before). */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures afterFeatures(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures listener) {
+        var inner = com.killer560.hub.perfprobe.PerfProbe.wrapListener(
+                net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentFeatures.class, listener);
+        return context -> {
+            if (!FeatureBits.on(bit)) {
+                FeatureBits.skipped(bit);
+                return;
+            }
+            inner.afterTranslucentFeatures(context);
+        };
+    }
+
+    /** As {@link #afterFeatures}, for AFTER_TRANSLUCENT_TERRAIN. */
+    public static net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain afterTerrain(
+            int bit, net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain listener) {
+        var inner = com.killer560.hub.perfprobe.PerfProbe.wrapListener(
+                net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AfterTranslucentTerrain.class, listener);
+        return context -> {
+            if (!FeatureBits.on(bit)) {
+                FeatureBits.skipped(bit);
+                return;
+            }
+            inner.afterTranslucentTerrain(context);
+        };
+    }
+
     /**
      * Several END_CLIENT_TICK handlers that are registered back to back, as ONE Fabric listener that runs them in the
      * same order, each guarded under its own name exactly as {@link #end} would (fps-idle-1015, 2026-10-15). A tick
