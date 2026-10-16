@@ -14,8 +14,8 @@ import java.util.List;
  * started from the client entrypoint, so they ran alongside the game's own resource loading and added their garbage to
  * its collections before the title screen. Neither is needed before the first world: the sim's screens and Predictive
  * Rooms already wait on {@code RoomLibrary.isReady()} and start the load themselves if it has not begun, and the
- * warm-up only has to finish before the first Fast Align. So they start on the first client tick with no loading
- * overlay up, which is the title screen arriving.
+ * warm-up only has to finish before the first Fast Align. So they start on the first client tick with a screen (or a
+ * world) up, which is the title screen arriving.
  *
  * <p>Client thread only. A task registered after that point runs on the next tick.
  */
@@ -37,7 +37,10 @@ public final class AfterStartup {
     }
 
     private static void tick(Minecraft client) {
-        if (PENDING.isEmpty() || client.getOverlay() != null) {
+        // The first screen (the title screen, or first-launch onboarding) is only set once the initial resource load
+        // has finished; before that there is no screen, just the loading overlay. (Minecraft.getOverlay() would say
+        // it directly but is gone in 26.2.)
+        if (PENDING.isEmpty() || (com.killer560.hub.compat.McCompat.screen(client) == null && client.level == null)) {
             return;
         }
         List<Runnable> now = new ArrayList<>(PENDING);
