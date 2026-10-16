@@ -2809,10 +2809,17 @@ public final class RouteExecutor {
         // Reach and line of sight in the sceptre's own terms: the bat flown from his eye at the mob's centre explodes on
         // the first block or mob it meets, and the 6-block blast must take in the mob's box (com.killer560.hub.autoclear
         // .WeaponReach, the numbers Auto Clear plans with). A crypt mob behind a wall the blast cannot reach is skipped.
+        // Blocks only: WeaponReach.batImpact also stops at any living entity on the line, and the node's own sceptre bat
+        // in flight is one - it made the mob read "out of reach" for a tick and the node turned to the next mob between
+        // a mob's two uses (crypt-aim-2-1016, 96-ar-1015-cryptaim "2 mobs": 14, 13, 14).
         Vec3 eye = player.getEyePosition();
-        Vec3 dir = mob.getBoundingBox().getCenter().subtract(eye).normalize();
-        Vec3 impact = com.killer560.hub.autoclear.WeaponReach.batImpact(client.level, player, eye, dir);
-        return com.killer560.hub.autoclear.WeaponReach.sceptreHits(impact, mob.getBoundingBox()) ? mob : null;
+        AABB box = mob.getBoundingBox();
+        Vec3 end = eye.add(box.getCenter().subtract(eye).normalize().scale(com.killer560.hub.autoclear.WeaponReach.SCEPTRE_PLAN_RANGE));
+        BlockHitResult wall = client.level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, player));
+        Vec3 impact = wall.getType() == HitResult.Type.MISS ? end : wall.getLocation();
+        java.util.Optional<Vec3> onMob = box.clip(eye, impact);
+        return onMob.isPresent() || com.killer560.hub.autoclear.WeaponReach.sceptreHits(impact, box) ? mob : null;
     }
 
     /**
