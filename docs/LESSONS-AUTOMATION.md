@@ -391,3 +391,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   chest", "Puzzles"), so every "say it once per change" reader said it every tick (his chat: Autopilot's "Waiting for ..."
   twenty times a second; Auto Routes' "Arming: inert"). The name now holds for the working spell; Auto Secret says each
   reason once per room (102-sim-autosecret).
+- Idle automation cost is invisible to 95-perf-features, which never switches automation on (`PerfBench.NEVER_ON`):
+  measure it with testkit 95-perf-autoidle (fps-auto-1015). The biggest find there: Secret Aura's in-range cube asked the
+  done-set first, and `done.contains(pos.asLong())` boxes a Long, so every block of the ~2,000-block cube cost 16 B every
+  tick (32.9 KB/tick idle in the sim's Entrance) before any block was read. Read the block, drop what `classify` can never
+  answer for, then box. The chunk-section palette prefilter alone did not help: a room's sections almost always hold a
+  decorative skull.
