@@ -125,9 +125,13 @@ final class AutoTeleportMaze {
     }
 
     static void tick(Minecraft client, String roomName) {
-        Set<BlockPos> visited = TeleportMazeSolverFeature.getVisited();
-        GUARD.observe(visited.isEmpty());
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
+        // A live view of the solver's set; only taken when something below can read it (fps-auto-1015).
+        Set<BlockPos> visited = GUARD.observing() || startWalking || cfg.isAutoTeleportMazeEnabled()
+                ? TeleportMazeSolverFeature.getVisited() : null;
+        if (visited != null) {
+            GUARD.observe(visited.isEmpty());
+        }
         // The walk onto the start pad after a map arrival runs before the room test: the map's spot for this room
         // is its doorway (AutoClearUtils' relative 15,68,-2), which the live map can file under the corridor or the
         // room next door rather than the maze.

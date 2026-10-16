@@ -455,3 +455,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   through `doInteract`'s turn-first check. 1015-sim-clickgap 3 of 3 runs, 0 hops ignored; 144/146 timing unchanged. The
   other early senders (Auto Routes' landing-tick warp, AutoReposition) only send after the landing is known and already
   go through `RightClick.mustTurnFirst`.
+- Idle automation cost is invisible to 95-perf-features, which never switches automation on (`PerfBench.NEVER_ON`):
+  measure it with testkit 95-perf-autoidle (fps-auto-1015). The biggest find there: Secret Aura's in-range cube asked the
+  done-set first, and `done.contains(pos.asLong())` boxes a Long, so every block of the ~2,000-block cube cost 16 B every
+  tick (32.9 KB/tick idle in the sim's Entrance) before any block was read. Read the block, drop what `classify` can never
+  answer for, then box. The chunk-section palette prefilter alone did not help: a room's sections almost always hold a
+  decorative skull.

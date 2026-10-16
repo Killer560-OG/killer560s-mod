@@ -157,7 +157,7 @@ public final class AutoRoutesProgressHud {
 
         @Override
         public int width() {
-            List<Line> l = lines();
+            List<Line> l = shown();
             if (l.isEmpty()) {
                 return 20;
             }
@@ -170,7 +170,7 @@ public final class AutoRoutesProgressHud {
 
         @Override
         public int height() {
-            return HudText.height(Math.max(1, lines().size()), PITCH);
+            return HudText.height(Math.max(1, shown().size()), PITCH);
         }
 
         @Override
@@ -181,7 +181,7 @@ public final class AutoRoutesProgressHud {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            List<Line> l = lines();
+            List<Line> l = shown();
             if (l.isEmpty()) {
                 return;
             }
@@ -202,9 +202,28 @@ public final class AutoRoutesProgressHud {
                     || !cfg.isProgressHud()) {
                 return;
             }
-            HudElementRegistry.drawAt(graphics, ELEMENT);
+            // Built once per frame (fps-auto-1015): render() and the box's width() and height() each rebuilt them,
+            // a room lookup and string building three times a frame; with nothing to show nothing is laid out.
+            List<Line> l = lines();
+            if (l.isEmpty()) {
+                return;
+            }
+            frameLines = l;
+            try {
+                HudElementRegistry.drawAt(graphics, ELEMENT);
+            } finally {
+                frameLines = null;
+            }
         } catch (RuntimeException e) {
             // never take the HUD frame down over a status line
         }
+    }
+
+    /** This frame's rows while {@link #draw} runs, else null (the editor and the testkit ask {@link #lines()}). */
+    private static List<Line> frameLines;
+
+    private static List<Line> shown() {
+        List<Line> l = frameLines;
+        return l != null ? l : lines();
     }
 }

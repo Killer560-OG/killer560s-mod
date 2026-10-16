@@ -97,8 +97,11 @@ public final class AutoBeams {
     }
 
     static void tick(Minecraft client, String roomName) {
-        List<BlockPos[]> pairs = BeamsSolverFeature.getActivePairs();
-        GUARD.observe(pairs.isEmpty());
+        // The solver's pairs (a fresh list) are only built when the guard can still learn from them or the auto runs.
+        List<BlockPos[]> pairs = GUARD.observing() ? BeamsSolverFeature.getActivePairs() : null;
+        if (pairs != null) {
+            GUARD.observe(pairs.isEmpty());
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoBeamsEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
@@ -108,6 +111,9 @@ public final class AutoBeams {
             wasInRoom = false;
             active = false;
             return;
+        }
+        if (pairs == null) {
+            pairs = BeamsSolverFeature.getActivePairs();
         }
         wasInRoom = true;
         CAMERA.keep(client.player);

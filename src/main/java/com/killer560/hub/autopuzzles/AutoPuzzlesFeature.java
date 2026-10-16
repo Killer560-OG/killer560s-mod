@@ -147,7 +147,8 @@ public final class AutoPuzzlesFeature {
             AutoTeleportMaze.levelChanged(client);
             AutoIceFill.levelChanged(client);
         }
-        if (QuizSolverFeature.getCorrectAnswerPos() == null) {
+        // Latches: once set they stay set until the next world, so the solver is only asked while they are not.
+        if (!quizSolverClearedThisLevel && QuizSolverFeature.getCorrectAnswerPos() == null) {
             quizSolverClearedThisLevel = true;
         }
         AutoWeirdos.observeSolver();

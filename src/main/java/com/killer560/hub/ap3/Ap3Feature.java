@@ -1010,6 +1010,12 @@ public final class Ap3Feature {
             if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
                 return;
             }
+            // value() is null (nothing drawn) when it is not running and has no stop within the timeout: no layout then
+            // (fps-auto-1015; the stopwatch HUD is on by default with AP3, so every AP3 frame paid it).
+            if (Ap3Executor.stopwatchRunningMs() < 0 && (Ap3Executor.lastStopwatchMs() < 0
+                    || System.currentTimeMillis() - Ap3Executor.stopwatchStoppedAtMs() > STOPWATCH_HUD_TIMEOUT_MS)) {
+                return;
+            }
             HudElementRegistry.drawAt(graphics, STOPWATCH_HUD);
         } catch (RuntimeException e) {
             // never take the HUD frame down over a stopwatch

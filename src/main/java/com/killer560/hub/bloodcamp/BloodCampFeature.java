@@ -207,8 +207,9 @@ public final class BloodCampFeature {
         // Every floor's Blood Room, never the boss fight - NoammAddons' own gate. This used to be F7/M7 only,
         // which is why it worked in F7 and silently did nothing everywhere else. The tracking also runs for Dungeon
         // ESP's Blood Mobs (it highlights the mobs found here), even with Blood Camp itself off.
-        return (BloodCampConfig.getInstance().isEnabled() || com.killer560.hub.mobesp.MobEspConfig.getInstance()
-                .isBloodMobsEnabled()) && DungeonState.isInDungeon()
+        // The field read first: outside a dungeon (most frames) no config is consulted (fps-auto-1015).
+        return DungeonState.isInDungeon() && (BloodCampConfig.getInstance().isEnabled()
+                || com.killer560.hub.mobesp.MobEspConfig.getInstance().isBloodMobsEnabled())
                 && !com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
@@ -408,6 +409,7 @@ public final class BloodCampFeature {
         Minecraft client = Minecraft.getInstance();
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            TAG_MEMO.clear(); // entity ids belong to the level
             bloodMobs.clear();
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
@@ -822,6 +824,33 @@ public final class BloodCampFeature {
         return isAttackableMob(e) && BLOOD_IDS.contains(e.getId());
     }
 
+    /**
+     * {@code BloodMobNames.isBloodTag(strip(stand.getName().getString()).trim())}, remembered per stand for as long as
+     * its name Component is the same object (a name changes only by a new one arriving in the entity's data). The scan
+     * below reads every named stand of the loaded world every 5 ticks, and the sim's and a real floor's mob and secret
+     * labels made that a Component flatten, a strip and a regex each, every time (fps-auto-1015).
+     */
+    private static boolean isBloodTagCached(ArmorStand stand) {
+        net.minecraft.network.chat.Component name = stand.getName();
+        TagMemo m = TAG_MEMO.get(stand.getId());
+        if (m != null && m.name == name) {
+            return m.tag;
+        }
+        String plain = com.killer560.hub.util.ChatObserver.stripCodes(name.getString()).trim();
+        boolean tag = BloodMobNames.isBloodTag(plain);
+        if (TAG_MEMO.size() > 4096) {
+            TAG_MEMO.clear(); // entity ids of a long session; the memo only saves work, losing it costs one re-read
+        }
+        TAG_MEMO.put(stand.getId(), new TagMemo(name, tag));
+        return tag;
+    }
+
+    private record TagMemo(net.minecraft.network.chat.Component name, boolean tag) {
+    }
+
+    private static final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<TagMemo> TAG_MEMO =
+            new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
+
     private static void tagBloodMobs(Minecraft client, long now) {
         BLOOD_IDS.removeIf(id -> {
             Entity e = client.level.getEntity(id);
@@ -832,8 +861,7 @@ public final class BloodCampFeature {
         if (now % 5 == 0) {
             for (Entity e : client.level.entitiesForRendering()) {
                 if (e instanceof ArmorStand stand && stand.hasCustomName()) {
-                    String plain = com.killer560.hub.util.ChatObserver.stripCodes(stand.getName().getString()).trim();
-                    if (BloodMobNames.isBloodTag(plain)) {
+                    if (isBloodTagCached(stand)) {
                         Entity mob = BloodMobNames.mobFor(client, stand);
                         if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId)) {
                             BLOOD_IDS.add(mob.getId());

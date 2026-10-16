@@ -36,6 +36,15 @@ final class AutoGuard {
         }
     }
 
+    /**
+     * Whether {@link #observe} can still change anything this level. Once the solver has been seen empty, a further
+     * observe only re-clears {@code staleLogged}, which is already false, so a caller may skip building the solver
+     * state it would pass (a list copy per auto per tick, with every auto off: fps-auto-1015).
+     */
+    boolean observing() {
+        return !clearedThisLevel;
+    }
+
     void levelChanged() {
         clearedThisLevel = false;
         solverOffWarned = false;
