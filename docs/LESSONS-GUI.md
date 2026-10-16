@@ -514,3 +514,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
   main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
   (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
+- **A HUD element's render-state elements can be replayed on a later frame** (`livemap/MapDrawCache`, 2026-10-15): hand
+  the same `ColoredRectangleRenderState`/`GuiTextRenderState` objects to `GuiRenderState` again, through the same `add*`
+  calls in the same order, and they layer exactly as a fresh draw (a text state even keeps its glyph layout, so drop the
+  cache on `FontSet.reload`). Record only the OUTERMOST call: recording every hooked call put each element in twice
+  (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
+  be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one - its
+  first run found the Predictive Rooms version bumping every tick (the map repainted every tick under ALL ON).
