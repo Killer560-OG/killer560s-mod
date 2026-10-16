@@ -819,6 +819,20 @@ public final class ClearExecutor {
         if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
             swappedOnTick = clientTicks;
         }
+        // A secret clicked while held (Secret Aura, AOTV in hand) leaves that click unpaired, and the first warp would
+        // spend a tick turning so the server hears its look first (util/RightClick). Turned now, while it waits - only
+        // with no click coming (holdSneak), as the aura's own turn and click must not be moved under it.
+        if (active && client.player != null) {
+            reaimFirstHop(client);
+            if (nodes != null && !nodes.isEmpty() && nodes.get(0) instanceof ClearNode.EtherNode first) {
+                LocalPlayer player = client.player;
+                float yaw = player.getYRot() + Mth.wrapDegrees(first.yaw - player.getYRot());
+                float pitch = Mth.clamp(first.pitch, -90f, 90f);
+                if (com.killer560.hub.util.RightClick.mustTurnFirst(player, null, yaw, pitch, null)) {
+                    BODY.turn(player, yaw, pitch);
+                }
+            }
+        }
         return true;
     }
 
