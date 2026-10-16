@@ -12,8 +12,6 @@ import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -23,45 +21,31 @@ import java.util.regex.Pattern;
  *
  * <p>Told by NAME, never by "a mob that appeared near me": entering a room brings every mob in it into tracking range at
  * once, so a spawn cannot be told from a mob coming into view. Hypixel names a crypt's undead on its name-tag armour stand,
- * {@code [Lv89] Crypt Undead 45k❤}, with no star (it does not count toward the clear); some are named after Hypixel staff
- * instead (an "Admin" version, a player entity with that name), and a prince is {@code Prince <Name>}. The names are
- * Devonian's {@code HideNoStarTag} exceptions (his copy, {@code UsersHunterdevonian}), which is the list of unstarred
- * dungeon mobs whose tags that feature must keep. The sim's own crypt mob is a zombie with the custom name
- * {@code Crypt Undead} or {@code Crypt Prince} ({@code roomsim.SimMobs.spawnCrypt}), read the same way.
+ * {@code ⚔ Crypt Undead 512.6k❤}, with no star (it does not count toward the clear), and there are only two kinds,
+ * Crypt Undead and Prince (killer560, 2026-10-16, from a run screenshot). The sim's own crypt mob carries the same tag as
+ * its custom name ({@code roomsim.SimMobs.spawnCrypt}), read the same way.
  */
 public final class CryptMobs {
 
-    /** Devonian's name-tag shape: optional level, a symbol or two, the name, then the health and the heart. Bounded. */
-    private static final Pattern TAG = Pattern.compile(
-            "^(?:\\[Lv\\d{1,4}] )?[^\\sA-Za-z]{0,4} ?([A-Za-z_. ]{1,40}) [\\dkMB.,/]{1,24}❤$");
-    private static final Pattern PRINCE = Pattern.compile("^(?:Crypt )?Prince(?: [A-Z][a-z]{1,15})?$");
-    /** Staff-named crypt undead (Devonian HideNoStarTag). */
-    private static final Set<String> STAFF = Set.of(
-            "hypixel", "sfarnham", "aPunch", "Jayavarmen", "Don Pireso", "codename_B", "WilliamTiger", "TheMGRF",
-            "Ob111", "Sylent", "Bloozing", "Nitroholic", "Minikloon", "Relenter", "Externalizable", "Plancke", "ChiLynn",
-            "skyerzz", "Magicboys", "Cecer", "Likaos", "Linfoot", "Dctr", "_onah", "falloutowns", "LadyBleu",
-            "Revengeee", "Bembo", "flameboy101", "JamieTheGeek", "Judg3", "Rezzus", "AgentK", "Thorlon", "Vinny",
-            "fudgiethewhale", "DistrictGecko", "Dueces", "Cheesey", "BlocksKey", "DEADORKAI", "Plummel", "AdamWho",
-            "Winghide", "MistressEldrid");
+    /**
+     * Hypixel's crypt-mob name tag, whole (killer560's run screenshot, 2026-10-16: {@code ⚔ Crypt Undead 512.6k❤}): an
+     * optional icon of one to three symbols (no letter, digit or space, so no {@code [VIP] Name:} chat prefix fits), one
+     * of exactly the two names, a space, the health (up to four digits, an optional one-to-three-digit fraction, an
+     * optional k / M / B) and the heart. Anchored, every quantifier bounded.
+     */
+    static final Pattern TAG = Pattern.compile(
+            "^(?:[^\\sA-Za-z0-9]{1,3} )?(Crypt Undead|Prince) \\d{1,4}(?:\\.\\d{1,3})?[kMB]?❤$");
 
     private CryptMobs() {
     }
 
-    /** Whether a mob or name-tag name (formatting stripped) is a crypt undead or a prince. */
+    /** Whether a mob or name-tag name (formatting codes stripped) is a crypt undead's or a prince's tag. */
     static boolean isCryptName(String raw) {
         if (raw == null) {
             return false;
         }
         String name = ChatFormatting.stripFormatting(raw).trim();
-        if (name.isEmpty() || name.length() > 80 || name.contains("✯")) {
-            return false;
-        }
-        Matcher m = TAG.matcher(name);
-        if (m.matches()) {
-            name = m.group(1).trim();
-        }
-        return name.equals("Crypt Undead") || name.startsWith("Crypt Undead ") || PRINCE.matcher(name).matches()
-                || STAFF.contains(name);
+        return name.length() <= 48 && TAG.matcher(name).matches();
     }
 
     /** A living mob that can be a crypt's undead at all: not an armour stand, bat, him, or a real player. */
@@ -72,7 +56,7 @@ public final class CryptMobs {
         if (!l.isAlive() || l.isRemoved() || l.isDeadOrDying()) {
             return false;
         }
-        // A real player has a version-4 UUID; Hypixel's NPC-style mobs (the staff-named undead) are version 2.
+        // A real player has a version-4 UUID; Hypixel's NPC-style mobs are version 2.
         return !(e instanceof Player p) || p.getUUID().version() != 4;
     }
 

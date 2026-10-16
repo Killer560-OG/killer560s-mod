@@ -483,6 +483,9 @@ public final class SimMobs {
         BATS.put(bat, pos.immutable());
     }
 
+    /** The health a sim crypt mob's tag shows: hypixelskyblock.minecraft.wiki, Crypt Undead, Floor VII (512,578). */
+    static final double CRYPT_UNDEAD_TAG_HEALTH = 512_578;
+
     /** Crypt undead alive in the world, id to whether it is the prince that scores. */
     private static final java.util.Map<UUID, Boolean> CRYPT_MOBS = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -505,7 +508,12 @@ public final class SimMobs {
             SimZombie undead = new SimZombie(McEntities.ZOMBIE, level);
             // killer560 (2026-10-06): "have crypt mobs spawn with the word crypt above them". No star, so nothing
             // that looks for starred mobs counts it.
-            undead.setCustomName(Component.literal(scoringPrince ? "Crypt Prince" : "Crypt Undead"));
+            // Hypixel's tag, exactly (killer560's run screenshot, 2026-10-16: "⚔ Crypt Undead 512.6k❤"; only Crypt
+            // Undead and Prince exist), so the client reads the sim's crypt mobs as it reads Hypixel's
+            // (autoroutes.CryptMobs.TAG). The health shown is the wiki's Floor VII Crypt Undead (512,578); the
+            // mob itself still dies to one hit, like every sim mob.
+            undead.setCustomName(Component.literal("⚔ " + (scoringPrince ? "Prince" : "Crypt Undead") + " "
+                    + shortHealth(CRYPT_UNDEAD_TAG_HEALTH) + "❤"));
             undead.setCustomNameVisible(true);
             // ON THE FLOOR. killer560 (2026-10-13): "make sure the princes and the crypts spawn on the floor once they
             // explode" - a sim mob has no AI and so no gravity, and Big Red Flag's prince was placed above the top
