@@ -602,7 +602,7 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
 - **Out-of-world menus run at 60 fps whatever Max Framerate says** (javap 26.1.2 and 26.2): `FramerateLimitTracker.
   getFramerateLimit()` returns `OUT_OF_LEVEL_MENU_LIMIT` 60 when there is no level and a screen or overlay is open, and 30
   (`SHORT_AFK`) after 60 s without input under the default Inactivity FPS Limit AFK. `mixin/MainMenuFramerateMixin` lifts
-  only the first to max(120, Max Framerate) while the themed scene shows (light-hq-1016: 59.7 -> 119.3 fps measured, 2262
+  only the first to the Max Framerate (a setting under 120 is kept, killer560 2026-10-16) while the themed scene shows (light-hq-1016: 59.7 -> 119.3 fps measured, 2262
   unlimited). A frame-rate test that runs after a long session reads the AFK 30 unless it calls `onInputReceived()` first.
 - **A vertex-colour gradient cannot be dithered, so a faint one bands** (light-hq-1016): `GuiRects`/`fillGradient` colours
   are interpolated and rounded to the 8-bit framebuffer once per layer, so a 20-level sky gradient was 42-row bands with
