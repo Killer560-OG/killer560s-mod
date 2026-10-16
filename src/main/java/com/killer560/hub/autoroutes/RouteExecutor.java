@@ -2714,7 +2714,7 @@ public final class RouteExecutor {
             // Sceptre crypt node goes on until every crypt mob it has seen is dead or has had its CRYPT_SHOTS_EACH aimed
             // uses (and their bats have landed) - not merely until the kill count, which would leave the others alive.
             boolean sceptreCrypt = !bat && weapon == AutoRoutesConfig.CryptWeapon.SPIRIT_SCEPTRE;
-            CryptSeek seek = sceptreCrypt ? cryptSeekState(client, player) : CryptSeek.NONE;
+            CryptSeek seek = sceptreCrypt ? cryptSeekState(client, player, goal) : CryptSeek.NONE;
             if (seek == CryptSeek.DONE) {
                 int dead = 0;
                 int shotOut = 0;
@@ -2815,7 +2815,7 @@ public final class RouteExecutor {
      * One tick of a Spirit Sceptre crypt node's bookkeeping: takes in every crypt mob near him (one that spawns a tick
      * late is taken the tick it is seen), notes its own sceptre bats in flight, and says where the node stands.
      */
-    private static CryptSeek cryptSeekState(Minecraft client, LocalPlayer player) {
+    private static CryptSeek cryptSeekState(Minecraft client, LocalPlayer player, int goal) {
         if (client.level == null) {
             return CryptSeek.NONE;
         }
@@ -2838,15 +2838,19 @@ public final class RouteExecutor {
             return CryptSeek.NONE;
         }
         boolean allGone = true;
+        int dead = 0;
         for (int id : cryptShots.keySet()) {
             if (cryptMobGone(client, id)) {
                 cryptHandled = true;
+                dead++;
             } else {
                 allGone = false;
             }
         }
         if (allGone) {
-            return CryptSeek.DONE;
+            // Every one it saw is dead: done the tick it sees it, without the tab list's count a second later - unless
+            // its await asks for more kills than it saw die, when it goes on as it always did (down, for the rest).
+            return dead >= goal ? CryptSeek.DONE : CryptSeek.NONE;
         }
         for (int id : cryptShots.keySet()) {
             if (cryptMobOwed(client, player, id) != null) {
