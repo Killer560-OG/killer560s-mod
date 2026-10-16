@@ -95,7 +95,7 @@ public record MainMenuLook(int[] colours, MenuTheme theme, MainMenuThemeConfig.S
     /** A Title Screen Switcher look: its theme with that theme's own background, everything else as Match gives it. */
     static MainMenuLook preview(TitleScreenLooks.Look look, MainMenuThemeConfig cfg, MenuConfig menu) {
         return new MainMenuLook(coloursOf(look.theme(), menu), look.theme(), sceneFor(look.theme()),
-                cfg.isParticles() ? 1f : 0f, 1f, true, true);
+                cfg.isParticles() ? 1f : 0f, 1f, true);
     }
 
     /** A theme's five colours; CUSTOM is the mod menu's Custom set. */

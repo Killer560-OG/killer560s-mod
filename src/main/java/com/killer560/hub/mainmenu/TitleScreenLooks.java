@@ -71,8 +71,10 @@ public final class TitleScreenLooks {
         l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
         l.add(plain(MenuTheme.DARK, "Starfield", "Dark's starfield."));
         l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light."));
+        l.add(green("Designer's Picture", MainMenuScenes.GreenScene.TARGET, GreenTheme.DEFAULT_GRADIENT,
+                "TARGET: the designer's picture, animated (the default), with gradient C."));
         l.add(green("Slime Boss", MainMenuScenes.GreenScene.BOSS, GreenTheme.DEFAULT_GRADIENT,
-                "BOSS: the slime boss (the default), with gradient C."));
+                "BOSS: the drawn slime boss, with gradient C."));
         l.add(green("Acid Cave", MainMenuScenes.GreenScene.ACID, GreenTheme.DEFAULT_GRADIENT, "ACID: the acid cave."));
         l.add(green("Forest", MainMenuScenes.GreenScene.FOREST, GreenTheme.DEFAULT_GRADIENT, "FOREST: the layered forest."));
         l.add(green("Simple", MainMenuScenes.GreenScene.SIMPLE, GreenTheme.DEFAULT_GRADIENT, "SIMPLE: the first fireflies scene."));
