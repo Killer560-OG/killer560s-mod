@@ -589,3 +589,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   Java 25. BufferBuilder overrides none of them, so for a plain BufferBuilder the same JOML calls into scratch vectors plus
   `setColor(int argb)` (one `memPutInt`, same bytes) write identical vertices: Auto Routes' bare node shapes went from
   25.8 KB to 0.2 KB a frame with pixel-identical shots. `WorldRenderUtils` and every other world draw still use the helpers.
+- A painted main menu that must move smoothly at full resolution cannot use `g.blit` tiles (GUI_TEXTURED samples NEAREST,
+  so a sub-pixel offset snaps a whole pixel). Amber's Aurora (2026-10-16) submits one `BlitRenderState` with its own
+  pipeline built on `RenderPipelines.GUI_TEXTURED_SNIPPET` (which already declares Sampler0 in 26.1.2 and 26.2, so no
+  `withSampler0`) and a `TextureSetup` with the LINEAR clamp sampler; the clock rides in the vertex colour (24-bit loop
+  fraction) because a GUI element has no uniform of its own. Booted and checked on both versions by testkit 1695.
