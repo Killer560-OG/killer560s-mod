@@ -86,9 +86,12 @@ public final class McRender {
      * a version that changes how any of that works changes one place.
      */
     public static void inCameraSpace(LevelRenderContext context, RenderType type, Geometry geometry) {
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
+        MultiBufferSource.BufferSource bufferSource = batching ? batch : context.bufferSource();
         if (bufferSource == null) {
             return;
+        }
+        if (batching) {
+            batchedDraws++;
         }
         PoseStack poseStack = context.poseStack();
         Vec3 cam = cameraPos(context);
@@ -97,6 +100,126 @@ public final class McRender {
         geometry.draw(poseStack.last(), bufferSource.getBuffer(type));
         poseStack.popPose();
     }
+    // --------------------------------------------------------------------------- one draw call per type (FPS pass)
+    //
+    // 26.1.2 hands every render event the level's immediate BufferSource, and none of the types the mod draws with
+    // (debugFilledBox, LINES_TRANSLUCENT, the features' no-depth copies) is one of its fixed buffers: they all share
+    // ONE buffer, and getBuffer for a different type ENDS the one before it (javap, MultiBufferSource$BufferSource.
+    // getBuffer: lastSharedType -> endBatch). So every switch between a box's fill and its outline, or between one
+    // feature's lines and the next feature's fills, was a build + sort + upload + draw call: an ESP box with a fill was
+    // two draw calls, a teammate with a label three. Inside the two events below, inCameraSpace writes into a source
+    // of the mod's own instead, where every type is a fixed buffer (added the first time it is seen), so nothing ends
+    // anything until the event's last listener has run; then each type is drawn once. Same vertices, same render
+    // types, same moment of the frame (vanilla ends its own source right after both events, LevelRenderer
+    // lambda$addMainPass$0); only the order BETWEEN types changes, which shows only where two translucent shapes
+    // overlap. 26.2 needs none of this: its submit collector already groups custom geometry by type.
+
+    private static final net.minecraft.resources.Identifier BATCH_OPEN =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "world_batch_open");
+    private static final net.minecraft.resources.Identifier BATCH_FLUSH =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "world_batch_flush");
+    /** Render thread only. */
+    private static WorldBatch batch;
+    private static boolean batching;
+    private static long batchedDraws;
+    private static long batchFlushes;
+
+    /** The mod's own buffer source: every type a fixed buffer, so a type switch never ends a batch. */
+    private static final class WorldBatch extends MultiBufferSource.BufferSource {
+        WorldBatch() {
+            super(new com.mojang.blaze3d.vertex.ByteBufferBuilder(256), new java.util.LinkedHashMap<>());
+        }
+
+        @Override
+        public VertexConsumer getBuffer(RenderType type) {
+            if (!fixedBuffers.containsKey(type)) {
+                fixedBuffers.put(type, new com.mojang.blaze3d.vertex.ByteBufferBuilder(type.bufferSize()));
+            }
+            return super.getBuffer(type);
+        }
+
+        boolean hasWork() {
+            return !startedBuilders.isEmpty();
+        }
+
+        /**
+         * Frees everything, for a batch that went wrong (a listener threw before the flush, or a builder could not
+         * build): the next frame starts a fresh one rather than drawing or appending to half-written buffers.
+         */
+        void release() {
+            startedBuilders.clear();
+            for (com.mojang.blaze3d.vertex.ByteBufferBuilder b : fixedBuffers.values()) {
+                try {
+                    b.close();
+                } catch (RuntimeException ignored) {
+                    // freeing is best effort
+                }
+            }
+            fixedBuffers.clear();
+            try {
+                sharedBuffer.close();
+            } catch (RuntimeException ignored) {
+                // freeing is best effort
+            }
+        }
+    }
+
+    /** Client init, once: opens the batch before the default phase of each event and draws it after. */
+    public static void registerBatching() {
+        var features = net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES;
+        features.addPhaseOrdering(BATCH_OPEN, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        features.addPhaseOrdering(net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE, BATCH_FLUSH);
+        features.register(BATCH_OPEN, context -> openBatch());
+        features.register(BATCH_FLUSH, context -> flushBatch());
+        var terrain = net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN;
+        terrain.addPhaseOrdering(BATCH_OPEN, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        terrain.addPhaseOrdering(net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE, BATCH_FLUSH);
+        terrain.register(BATCH_OPEN, context -> openBatch());
+        terrain.register(BATCH_FLUSH, context -> flushBatch());
+    }
+
+    private static void openBatch() {
+        if (batch != null && batching) {
+            // The last event never reached its flush: a listener before it threw.
+            batch.release();
+            batch = null;
+        }
+        if (batch == null) {
+            batch = new WorldBatch();
+        }
+        batching = true;
+    }
+
+    private static void flushBatch() {
+        if (!batching) {
+            return;
+        }
+        batching = false;
+        if (batch.hasWork()) {
+            batchFlushes++;
+            try {
+                batch.endBatch();
+            } catch (RuntimeException e) {
+                // A geometry callback that threw half way through a vertex leaves a builder that cannot build. Drop
+                // this frame's batch rather than let the exception into LevelRenderer (and keep the next frame's).
+                batch.release();
+                batch = null;
+                if (!batchFailureLogged) {
+                    batchFailureLogged = true;
+                    com.killer560.hub.util.ModLog.get("killer560smod-render")
+                            .error("World render batch failed; this frame's mod geometry was dropped", e);
+                }
+            }
+        }
+    }
+
+    private static boolean batchFailureLogged;
+
+    /** Testkit: {geometry callbacks written into the batch, batches drawn} since launch (26.2: both 0). */
+    public static long[] batchStats() {
+        return new long[]{batchedDraws, batchFlushes};
+    }
+
     /**
      * Draws text in the world.
      *

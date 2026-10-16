@@ -109,6 +109,18 @@ public final class McRender {
      * push, translate by the negated camera, take the pose, get the buffer, draw, pop. They live here now, so
      * a version that changes how any of that works changes one place.
      */
+    /**
+     * Client init. 26.1.2 batches each world render event's geometry into one draw call per type here; 26.2 has
+     * nothing to do, because its submit collector already groups custom geometry by render type.
+     */
+    public static void registerBatching() {
+    }
+
+    /** Testkit: {geometry callbacks batched, batches drawn}; always 0 on 26.2 (see {@link #registerBatching}). */
+    public static long[] batchStats() {
+        return new long[]{0L, 0L};
+    }
+
     public static void inCameraSpace(LevelRenderContext context, RenderType type, Geometry geometry) {
         PoseStack poseStack = context.poseStack();
         Vec3 cam = cameraPos(context);
