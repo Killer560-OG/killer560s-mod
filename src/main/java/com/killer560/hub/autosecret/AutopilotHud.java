@@ -116,6 +116,11 @@ final class AutopilotHud {
                     || !ELEMENT.isEnabledInSettings()) {
                 return;
             }
+            // Nothing to show (lines() == null with the menu shut, checked above): no layout, no pose push
+            // (fps-auto-1015; the setting is on by default, so every dungeon frame paid it).
+            if (!AutoSecretFeature.isAutopilot() && (lastStop == null || System.currentTimeMillis() - lastStopMs >= 6000L)) {
+                return;
+            }
             HudElementRegistry.drawAt(graphics, ELEMENT);
         } catch (RuntimeException e) {
             // never take the HUD frame down over a status line

@@ -1493,6 +1493,10 @@ public final class AutoClearFeature {
                     || !cfg.isStatusHud()) {
                 return;
             }
+            // Nothing to show (the status lines are null when idle with the menu shut): skip the layout (fps-auto-1015).
+            if (!running && (lastReason == null || System.currentTimeMillis() - lastReasonMs >= 6000L)) {
+                return;
+            }
             HudElementRegistry.drawAt(graphics, STATUS_HUD);
         } catch (RuntimeException e) {
             // never take the HUD frame down over a status line

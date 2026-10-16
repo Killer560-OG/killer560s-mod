@@ -51,7 +51,13 @@ public final class BloodRush {
             if (overlay) {
                 return;
             }
-            String plain = ChatFormatting.stripFormatting(message.getString());
+            String raw = message.getString();
+            // Stripping and trimming only shorten a line, so one shorter than the 31-character target can never match:
+            // no regex for it (fps-auto-1015).
+            if (raw.length() < 31) {
+                return;
+            }
+            String plain = ChatFormatting.stripFormatting(raw);
             // Anchored: "contains" let any player typing the line in chat stop Blood Rush.
             if (plain != null && plain.trim().equals("The BLOOD DOOR has been opened!")) {
                 bloodOpenedMessage = true;

@@ -207,8 +207,9 @@ public final class BloodCampFeature {
         // Every floor's Blood Room, never the boss fight - NoammAddons' own gate. This used to be F7/M7 only,
         // which is why it worked in F7 and silently did nothing everywhere else. The tracking also runs for Dungeon
         // ESP's Blood Mobs (it highlights the mobs found here), even with Blood Camp itself off.
-        return (BloodCampConfig.getInstance().isEnabled() || com.killer560.hub.mobesp.MobEspConfig.getInstance()
-                .isBloodMobsEnabled()) && DungeonState.isInDungeon()
+        // The field read first: outside a dungeon (most frames) no config is consulted (fps-auto-1015).
+        return DungeonState.isInDungeon() && (BloodCampConfig.getInstance().isEnabled()
+                || com.killer560.hub.mobesp.MobEspConfig.getInstance().isBloodMobsEnabled())
                 && !com.killer560.hub.livemap.LiveMapFeature.isInBoss();
     }
 
@@ -370,7 +371,9 @@ public final class BloodCampFeature {
         if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
             watcherEntityId = null;
         }
-        bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+        if (!bloodMobs.isEmpty()) { // no iterator and capturing lambda per remove packet when nothing is tracked
+            bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+        }
     }
 
     /** Real base64 "textures" property value off a real player-head ItemStack - same real

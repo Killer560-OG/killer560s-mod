@@ -448,11 +448,32 @@ public final class TerminalSolverFeature {
             endTracking();
             return;
         }
-        String rawTitle = screen.getTitle().getString();
-        // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which read
-        // their letter / colour out of it.
-        String title = TerminalType.normalizeTitle(rawTitle);
-        TerminalType type = matchType(title, cfg);
+        // Two mixins call this at the head of every screen frame, so with the solver on, ANY open container (a
+        // storage page, the bazaar) rebuilt its title string, normalized it and ran up to six regexes twice a frame.
+        // A screen's title Component is fixed when it opens, so the answer is kept per (screen, title, enabled
+        // types) and worked out again only when one of them changes (fps-auto-1015).
+        net.minecraft.network.chat.Component titleComponent = screen.getTitle();
+        int typeMask = enabledTypeMask(cfg);
+        String rawTitle;
+        String title;
+        TerminalType type;
+        if (screen == memoScreen && titleComponent == memoTitleComponent && typeMask == memoTypeMask) {
+            rawTitle = memoRawTitle;
+            title = memoTitle;
+            type = memoType;
+        } else {
+            rawTitle = titleComponent.getString();
+            // Normalized (colour codes and resource-pack glyphs out) for matching AND for Starts With / Select, which
+            // read their letter / colour out of it.
+            title = TerminalType.normalizeTitle(rawTitle);
+            type = matchType(title, cfg);
+            memoScreen = screen;
+            memoTitleComponent = titleComponent;
+            memoTypeMask = typeMask;
+            memoRawTitle = rawTitle;
+            memoTitle = title;
+            memoType = type;
+        }
         if (type == null) {
             noteUnmatchedTerminalTitle(rawTitle, title);
             endTracking();
@@ -1551,7 +1572,7 @@ public final class TerminalSolverFeature {
     }
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
-        for (TerminalType type : TerminalType.values()) {
+        for (TerminalType type : TERMINAL_TYPES) { // values() clones the array on every call
             if (!isTypeEnabled(type, cfg)) {
                 continue;
             }
@@ -1561,6 +1582,27 @@ public final class TerminalSolverFeature {
         }
         return null;
     }
+
+    /** refreshState's per-screen title memo (render thread only). Holds the screen until the next one is seen. */
+    private static Object memoScreen;
+    private static net.minecraft.network.chat.Component memoTitleComponent;
+    private static int memoTypeMask = -1;
+    private static String memoRawTitle;
+    private static String memoTitle;
+    private static TerminalType memoType;
+
+    /** One bit per {@link TerminalType} whose detection is on: what {@link #matchType} depends on besides the title. */
+    private static int enabledTypeMask(TerminalSolverConfig cfg) {
+        int mask = 0;
+        for (TerminalType type : TERMINAL_TYPES) {
+            if (isTypeEnabled(type, cfg)) {
+                mask |= 1 << type.ordinal();
+            }
+        }
+        return mask;
+    }
+
+    private static final TerminalType[] TERMINAL_TYPES = TerminalType.values();
 
     private static boolean isTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
         return switch (type) {

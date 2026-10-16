@@ -118,7 +118,16 @@ public final class TerminalQolFeature {
             terminalOpenedAtMs = -1L;
             return;
         }
-        TerminalType type = matchType(container.getTitle().getString());
+        // A screen's title Component is fixed when it opens: match it once, not every tick and input (fps-auto-1015).
+        net.minecraft.network.chat.Component title = container.getTitle();
+        TerminalType type;
+        if (title == memoTitle) {
+            type = memoType;
+        } else {
+            type = matchType(title.getString());
+            memoTitle = title;
+            memoType = type;
+        }
         if (type == null) {
             currentType = null;
             currentScreenIdentity = 0;
@@ -132,6 +141,9 @@ public final class TerminalQolFeature {
             terminalOpenedAtMs = System.currentTimeMillis();
         }
     }
+
+    private static net.minecraft.network.chat.Component memoTitle;
+    private static TerminalType memoType;
 
     /** Title -> terminal type, on the shared {@link TerminalType} regexes (formatting stripped first, the same
      *  way every other chat/title match in this mod does - a real Hypixel title can carry mid-word § codes). */
