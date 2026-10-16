@@ -914,6 +914,10 @@ final class AutoBlaze {
     // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
 
     private static void tickSecret(Minecraft client, LocalPlayer player, List<Entity> blazes) {
+        // Renewed every tick of the trip, AURA included: the chest can take seconds to appear (the final volley still in
+        // the air), and a lapsed lease drops the camera onto a body turned at the chest (93-solve-lowerblaze's camera
+        // check, 2026-10-15).
+        SECRET_CAM.keep(player);
         if (McCompat.screen(client) != null) {
             return;
         }
@@ -927,6 +931,16 @@ final class AutoBlaze {
             case WALK -> walkToSecret(client, player);
             case AURA -> auraSecret(client, player, blazes);
             default -> {
+            }
+        }
+        if (secretStage != SecretStage.AURA && !SECRET_WARP.isActive()) {
+            // Held only for the last-leg warp and the chest click it readies. A blaze still listed means shooting resumes
+            // (the final volley missed): the shooting's camera takes the hold over as it is, view unmoved
+            // (93-solve-blazemiss-*: a release then a fresh engage facing the room's centre swung the view 135 degrees).
+            if (!blazes.isEmpty()) {
+                SECRET_CAM.handTo(CAMERA, player);
+            } else {
+                SECRET_CAM.release(player);
             }
         }
     }
@@ -1089,13 +1103,13 @@ final class AutoBlaze {
             secretStage = SecretStage.DONE;
             return;
         }
+        SECRET_CAM.keep(player);
         if (SECRET_WARP.isActive()) {
-            SECRET_CAM.keep(player);
             SECRET_WARP.tick(client);
             if (SECRET_WARP.isActive()) {
                 return;
             }
-            SECRET_CAM.release(player);
+            // Landed: the camera is handed back by tickSecret unless the chest click is next (see below).
         }
         BlockPos goal = standGoal();
         boolean busy = com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy();
@@ -1111,6 +1125,12 @@ final class AutoBlaze {
             LOGGER.info("[AutoPuzzles] Blaze: at {} for the secret at {} (tick {})", fmt(player.position()),
                     AutoPuzzleUtil.fmt(secretReal), ticks);
             secretStage = secretIsChest ? SecretStage.AURA : SecretStage.DONE;
+            if (secretIsChest) {
+                // The body turns onto the chest now, under the camera, so the click goes next tick with no turn tick of
+                // its own (main: the landing's 2-tick sneak wait, then a turn, then the click - 4 ticks after landing).
+                BlockPos chest = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
+                AutoPuzzleUtil.aimBodyAt(player, chest != null ? chest : secretReal, SECRET_CAM);
+            }
             return;
         }
         if (busy) {

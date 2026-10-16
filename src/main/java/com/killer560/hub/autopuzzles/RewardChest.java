@@ -31,7 +31,8 @@ import java.util.Set;
  * a block that has it in reach. Every block it finds that way is clicked once each (Ice Fill holds two).
  *
  * <p>Nothing here waits on a clock. The chest is looked for every tick until it is there (a reward chest appears on
- * the solve, a tick or two after the last move); a click is retried only when the chest did not open after it.
+ * the solve, a tick or two after the last move); a click is retried only when the chest did not open after it. The body
+ * is turned onto the chest the tick it becomes clickable (a landing, or in reach) and the click goes the next tick.
  */
 final class RewardChest {
 
@@ -146,13 +147,16 @@ final class RewardChest {
             done(target, "its lid is open");
             return;
         }
+        camera.keep(player);
+        boolean landed = false;
         if (warp.isActive()) {
-            camera.keep(player);
             warp.tick(client);
             if (warp.isActive()) {
                 return;
             }
-            camera.release(player);
+            // Landed this tick (or the warp ended): the camera stays held while the body turns onto the chest below, so
+            // the click goes the very next tick; it is handed back once the chest is open.
+            landed = true;
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null || client.level == null) {
@@ -217,6 +221,18 @@ final class RewardChest {
         if (sinceClick < RETRY_TICKS) {
             return; // a click went out; the open lid or the window is what moves this on
         }
+        // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
+        // onto the chest in the tick it becomes clickable - the landing, or the first tick it is in reach - under this
+        // step's free camera, and the click goes the next tick, once the movement packet has reported the look and the
+        // landing's sneak is let go. Before, the landing waited 2 ticks for the sneak and then TurnFirst turned it.
+        if (landed || !AutoPuzzleUtil.aimedAt(player, target)) {
+            if (AutoPuzzleUtil.aimBodyAt(player, target, camera) || landed) {
+                if (player.isShiftKeyDown()) {
+                    AutoReposition.releaseSneak(client);
+                }
+                return;
+            }
+        }
         if (clicks >= MAX_CLICKS) {
             LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s)", tag,
                     AutoPuzzleUtil.fmt(target), clicks);
@@ -247,6 +263,7 @@ final class RewardChest {
     }
 
     private void done(BlockPos chest, String why) {
+        camera.release(Minecraft.getInstance().player);
         opened.add(chest);
         clickedAwaitingScreen = false;
         LOGGER.info("[AutoPuzzles] {}: reward chest at {} opened ({})", tag, AutoPuzzleUtil.fmt(chest), why);

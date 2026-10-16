@@ -32,6 +32,8 @@ final class FreeCam {
 
     private final String tag;
     private boolean engaged;
+    /** Puzzle free cameras engaged right now, mod-wide (see {@link #anyEngaged}). */
+    private static int engagedCount;
 
     FreeCam(String tag) {
         this.tag = tag;
@@ -39,6 +41,15 @@ final class FreeCam {
 
     boolean isEngaged() {
         return engaged;
+    }
+
+    /**
+     * Whether an auto puzzle holds the camera right now. The puzzle autos' click turn ({@code AutoPuzzleUtil.TURN}) asks
+     * this: under one of these the hold is the auto's OWN, so the turn for its click goes at once instead of waiting for
+     * "whoever else is turning him" (util/TurnFirst's 10-tick foreign wait, which held Auto Water's levers 11 ticks late).
+     */
+    static boolean anyEngaged() {
+        return engagedCount > 0;
     }
 
     /** {@link #engage(LocalPlayer, float, float)} from where he is looking now. */
@@ -57,6 +68,7 @@ final class FreeCam {
             return;
         }
         engaged = true;
+        engagedCount++;
         AutoPuzzleActivity.note(tag);
         ViewFreeze.hold(viewYaw, Mth.clamp(viewPitch, -90f, 90f));
         LOGGER.info("[AutoPuzzles] {}: free camera held", tag);
@@ -80,6 +92,7 @@ final class FreeCam {
             return;
         }
         engaged = false;
+        engagedCount = Math.max(0, engagedCount - 1);
         float viewYaw = ViewFreeze.viewYaw();
         float viewPitch = ViewFreeze.viewPitch();
         if (player != null && !Float.isNaN(viewYaw)) {
@@ -99,10 +112,26 @@ final class FreeCam {
         LOGGER.info("[AutoPuzzles] {}: free camera released", tag);
     }
 
+    /**
+     * Passes the held camera straight to {@code next} without letting go of it: the view stays exactly where it is and
+     * {@code next}'s run carries on from it (Auto Blaze back from a missed final volley's secret trip to shooting again).
+     * A release here and an engage there would drop the hold for a moment and let {@code next} pick a view of its own.
+     */
+    void handTo(FreeCam next, LocalPlayer player) {
+        if (!engaged) {
+            return;
+        }
+        next.engage(player); // the lease is still held, so next keeps the view on screen
+        engaged = false;
+        engagedCount = Math.max(0, engagedCount - 1);
+        LOGGER.info("[AutoPuzzles] {}: free camera handed to {}", tag, next.tag);
+    }
+
     /** A world change: let go without touching a body that may belong to the new world. */
     void drop() {
         if (engaged) {
             engaged = false;
+            engagedCount = Math.max(0, engagedCount - 1);
             ViewFreeze.release();
         }
     }

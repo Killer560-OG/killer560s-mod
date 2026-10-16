@@ -144,7 +144,11 @@ final class AutoIcePath {
         }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
-            return;
+            if (REPOSITION.isActive() || !AutoReposition.landedThisTick()) {
+                return;
+            }
+            // Landed this tick: carry on below, so a second warp (onto the cell after a hop that sees it) is started in
+            // this tick - its sneak taken straight back, its use next tick - while the shot waits for the next tick.
         }
         boolean reposition = cfg.isEtherwarpReposition();
         long now = System.currentTimeMillis();
@@ -172,6 +176,9 @@ final class AutoIcePath {
         if (!AutoPuzzleUtil.at(player, currSpot)) {
             getOnto(client, player, currSpot, reposition);
             return;
+        }
+        if (AutoReposition.landedThisTick()) {
+            return; // the shot goes the tick after the landing, not in it
         }
         AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
         if (bow != AutoPuzzleUtil.BowState.HELD) {
