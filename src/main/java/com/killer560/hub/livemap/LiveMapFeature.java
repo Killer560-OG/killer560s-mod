@@ -562,6 +562,14 @@ public final class LiveMapFeature {
         clayXGrid[idx] = clayX;
         clayZGrid[idx] = clayZ;
         rotationGrid[idx] = rotation;
+        rotationVersion++;
+    }
+
+    /** Bumped whenever a room's clay corner or rotation is found ({@link DungeonLayout#current} keys on it). */
+    private static int rotationVersion = 0;
+
+    static int rotationVersion() {
+        return rotationVersion;
     }
 
     /** @return the tile index holding this room's rotation/corner (main tile first), or -1. */
@@ -1513,6 +1521,9 @@ public final class LiveMapFeature {
                 k.add(layout.doorBits(w));
             }
             boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+            // No teammate has reported a room's secrets (solo, or no interop): every lookup would say so, and each one
+            // normalised the name with a regex - one snapshot a tick instead.
+            teammateRooms = !com.killer560.hub.interop.PartyInteropState.roomSnapshot().isEmpty();
             for (RoomGroup group : groups) {
                 RoomEntry entry = group.entry;
                 if (entry == null || entry.name == null) {
@@ -1537,7 +1548,12 @@ public final class LiveMapFeature {
             k.add(guessed ? SpecialRoomGuess.puzzleCount() : 0).add(guessed ? HeldMap.drawVersion() : 0);
         }
 
+        private static boolean teammateRooms;
+
         private static long teammateFound(String roomName) {
+            if (!teammateRooms) {
+                return Long.MIN_VALUE;
+            }
             com.killer560.hub.interop.PartyInteropState.Fact<com.killer560.hub.interop.PartyInteropState.RoomSecrets> fact =
                     com.killer560.hub.interop.PartyInteropState.roomSecrets(roomName);
             return fact == null ? Long.MIN_VALUE : fact.value().found();
