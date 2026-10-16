@@ -291,36 +291,14 @@ final class AutoWater {
         return gapTicks <= budget ? then.pos() : null;
     }
 
-    /** Whether the look the server was last told (the body's) meets the lever within reach: a click now is a click the
-     *  reported look makes, so the gate's TurnFirst lets it straight through. Same test as {@code TurnFirst.readyBlock}. */
+    /** Whether the look the server was last told (the body's) meets the lever within reach - see AutoPuzzleUtil. */
     private static boolean aimedAt(LocalPlayer player, BlockPos lever) {
-        Minecraft client = Minecraft.getInstance();
-        net.minecraft.world.phys.BlockHitResult aim =
-                com.killer560.hub.util.BlockHits.surface(client.level, lever, player.getEyePosition());
-        if (aim == null) {
-            return true; // nothing to aim at; the click's own null handling decides
-        }
-        double reach = player.getEyePosition().distanceTo(aim.getLocation()) + 1.0;
-        net.minecraft.world.phys.shapes.VoxelShape shape = client.level.getBlockState(lever).getShape(client.level, lever);
-        Vec3 eye = player.getEyePosition();
-        Vec3 end = eye.add(com.killer560.hub.util.TurnFirst.look(player).scale(reach));
-        return shape.isEmpty() ? new net.minecraft.world.phys.AABB(lever).clip(eye, end).isPresent()
-                : shape.clip(eye, end, lever) != null;
+        return AutoPuzzleUtil.aimedAt(player, lever);
     }
 
     /** Turns the BODY onto the lever (the camera stays on the held view - {@link #CAMERA}); reported this tick. */
     private static void aimBody(LocalPlayer player, BlockPos lever) {
-        Minecraft client = Minecraft.getInstance();
-        net.minecraft.world.phys.BlockHitResult aim =
-                com.killer560.hub.util.BlockHits.surface(client.level, lever, player.getEyePosition());
-        if (aim == null) {
-            return;
-        }
-        CAMERA.engage(player);
-        // From the STANDING eye: on the landing tick he is still crouched, and the click goes once he stands.
-        Vec3 eye = new Vec3(player.getX(), player.getY() + AutoPuzzleUtil.EYE_STANDING, player.getZ());
-        float[] dir = AutoPuzzleUtil.direction(eye, aim.getLocation());
-        AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
+        AutoPuzzleUtil.aimBodyAt(player, lever, CAMERA);
     }
 
     /** Standing eye to the lever's box, with a little margin under the 4.5 the server enforces. */

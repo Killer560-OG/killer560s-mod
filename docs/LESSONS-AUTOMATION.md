@@ -304,8 +304,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   puzzle's `FreeCam` holds the view for its whole run. So every Auto Water click whose lever the reported look did not
   already meet went 11 ticks after it was due (his Hypixel run 2026-10-15 16:11:52/54, "11 tick(s) late"; the sim, testkit
   93-solve-waterboard-timing, main 12 ticks after the solver's CLICK ME, the branch 1). Auto Water now turns its own body
-  onto the next lever as soon as he stands where it is in reach, so the click needs no turn. Any other caller of
-  `gateWorldClick(client, pos)` that holds a `FreeCam` (Tic Tac Toe, RewardChest) can hit the same wait.
+  onto the next lever as soon as he stands where it is in reach, so the click needs no turn. Since puzzles-nowait-1015 the
+  puzzle autos' own `TurnFirst` takes a `FreeCam.anyEngaged()` hold as its own and never waits on it (testkit
+  1015-grim-puzzle-nowait's turn rounds: turned the tick after the landing, clicked the next, GrimAC clean); Secret Aura's
+  `TurnFirst` still waits on it, so Tic Tac Toe hands its camera back before the aura's chest.
 - **"Click, then warp" costs one tick, not seven.** Auto Water's warp after a lever went 7 ticks late: a 200 ms gate, QUOI's
   2-tick sneak wait, and `RightClick.mustTurnFirst`'s turn tick (the heard look still met the lever). `AutoReposition` in
   next-tick mode puts the sneak down AND turns the body in the tick it starts (that tick's input and movement packets carry
@@ -333,3 +335,26 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   client's look never reaches: no block half can be sent and the warp is dropped under an unpaired click. Never click a
   block the client cannot see; `RightClick.reaimIfUnpairable` aims at the same block along a look whose rays agree and the
   warp goes one tick later (ClearExecutor hops, Auto Routes warps). Testkit 96-ar-1015-reaim builds the mismatch.
+- **Every bow puzzle's shot after a landing waited the gate's 6-tick teleport settle.** `AutoReposition` waived it for 3
+  ticks at the USE, the sim lands 2 ticks after the use, and the landing starts its own 6-tick settle, so Blaze, Beams and
+  Ice Path shot exactly 6 ticks after each landing (93-solve-*-timing on main, 2026-10-15; on Hypixel the round trip is
+  longer still). The landing now re-waives the whole settle for bow warps too, and a trip a puzzle auto asks the
+  Interactive Map for (`AutoPuzzleUtil.pathIfMapOn`) waives it for its landings (Lower Blaze's far-spot walks: 6 ticks
+  after each). Also gone with the next-tick mode for every auto: QUOI's 2-tick sneak wait and 2-tick wait after a landing.
+- **QUOI's `at(spot)` reads an etherwarp's landing tick as "not there yet".** He lands 0.05 over the block and gravity sets
+  him on it the tick after; `ceil(y - 1)` is then the block above, so every reposition saw its own arrival a tick late (main:
+  landing to the sneak let go 2 ticks). `AutoPuzzleUtil.at` also accepts up to 0.08 over the top; a look aimed on that tick
+  is aimed from the settled standing eye (`settledEye`), or a small target's edge is passed by once he drops 0.05.
+- **Auto Blaze's "arrow flight + 4 ticks" was a fixed margin on every miss.** A volley that killed already ended the wait
+  (the target's label stand removed), but a miss - a wall, a refused hit - held the next volley the simulated flight plus
+  4 ticks (93-solve-blazemiss-*-timing on main: 5 to 6 ticks after the volley's arrows had ended; the chest after a
+  missed final volley up to 16). `AutoBlaze.VolleyWatch` takes the volley's arrows as they appear by his eye and calls the
+  result in when none can still reach the target: removed by the server, stuck (`AbstractArrowInGroundAccessor`), or
+  moving away from it (velocity against the direction to it - a Terminator's side arrows). A removed arrow waits for the
+  server's next update unless the target's label already changed, so a kill reported a tick late is still seen. And the
+  solver's list holds a blaze for a tick after its kill (it re-reads after the autos), so the order is filtered of
+  removed entities - aiming at the dead one would send the volley through its spot at the next one up. Branch: 0 or less
+  in every volley; no kill out of order in 93 kills.
+- Auto Blaze started its own reposition while an Interactive Map trip it had asked for was still moving him; the warp
+  never saw its landing and timed out 40 ticks later (blazemiss-lower, main and branch). `cyclePosition` waits while
+  `ClearExecutor.isBusy()`.

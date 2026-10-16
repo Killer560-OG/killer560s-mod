@@ -2975,6 +2975,29 @@ Only `/mage` is exposed; `captureCurrent(client, name)` takes any room. Testkit 
 refusal, swaps the stitched tile's centre column for the good one's so the room validates, and compares the decoded
 file with the server's world: 602,745 blocks, 0 differ.
 
+## 1446 after the re-capture: one test edge that no longer existed, and the fill's tunnels (2026-10-15, sim-doorblock-1015)
+
+Testkit 1446 failed on main 4a2b306d with "Mage N1 ... 4 of 30" and "Quad Lava E0 ... 1 of 30". Neither was doorway
+detection: `RoomDoors.of` measures Mage W0/E1 and no Quad Lava E0 on both the jar's and his Mod Only Test library.
+- **Mage N1 is not an edge of the new Mage.** The stitched capture was 65x33 (two tiles on X, the second Altar's); the
+  /mage re-capture is 33x65, two tiles on Z. A 1-wide room has no N1, and the scenario's edge, turned and laid out by
+  `RoomDoors.doorCells`, pointed at the cell EAST of Mage - so it counted doors between two other rooms. The scenario
+  now refuses an edge off the room's tile grid and pins Mage only to build and walk its doors.
+- **Quad Lava E0 was the fill pass's carve**, which is by design (a cell no strict room fits gets a 1x1 whose doorway
+  faces a neighbour, carved through the neighbour's wall where `RoomDoors.carvable` says the cut lands on floor). The
+  carve took the FIRST walkable wall in cell order, and about four in five cut more than a one-thick wall: in
+  `tools/layoutsim -Dsweep=true -Dbounded=true -Dnorecency=true -Dseed=1 -Doffdoor=true` (2,240 floors) the doors off a
+  measured doorway were 248 through a one-thick wall, 1,278 tunnels and 83 blind, 14,302 solid blocks cut behind wall
+  planes. `RoomDoors.carveCost` counts, per walkable edge, the solid capture blocks in the two columns behind the wall
+  plane that the 3-deep cut reaches (lower three rows, 0..18; 341 of the library's 557 walkable cuts read 0, 121 read
+  18, Quad Lava E0 reads 14), and `carveOnce` takes the least over the whole floor (the Entrance still only when nothing
+  else fits). After: 339 thin, 1,179 tunnels, 77 blind, 12,126 blocks; every layoutsim guarantee unchanged. With Quad Lava
+  pinned (his library, 840 F7s) E0 is joined on 2 floors instead of 5.
+- What is left is forced: a cell whose every neighbour faces it with a thick wall. Refusing thick walls outright
+  (tried: at most 2 blocks behind) sent 882 carves to the BLIND tier instead of 153, which is worse - a blind cut is not
+  walkable at all. Leaving the cell empty would break "every floor fills its real rectangle". Testkit 1446's TUNNEL
+  phase sums the cut over 150 seeded F7s.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the

@@ -465,9 +465,10 @@ public class Killer560ModClient implements ClientModInitializer {
                         .executes(context -> {
                             Minecraft client = Minecraft.getInstance();
                             client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0f));
-                            // Deferred via client.execute (matches the macro mod's own proven-working
-                            // /start command pattern) rather than calling setScreen synchronously from
-                            // inside command execution, in case that context matters.
+                            // Deferred via client.execute: ChatScreen sets the screen to null right after the
+                            // command returns, so a setScreen here would be undone. A real chat Enter runs as a
+                            // Minecraft.execute task (GLFW's key callback), so this execute is queued until after
+                            // that; testkit 1920 checks it (docs/LESSONS-GUI.md, "closed again by the chat screen").
                             client.execute(() -> {
                                 client.setScreenAndShow(new ModScreen(McCompat.screen(client)));
                             });
