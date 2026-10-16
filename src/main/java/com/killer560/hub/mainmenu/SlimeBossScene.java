@@ -94,10 +94,14 @@ final class SlimeBossScene {
         int px = Math.max(1, Math.round(s));
         MainMenuScenes.glow(r, cx, lakeY + (int) (8 * s), S * 1.1, (h - lakeY) * 0.8, hot, 0x48, 4);
         r.fill(x0 - (int) (6 * s), lakeY - px, x1 + (int) (6 * s), lakeY + 2 * px, MenuStyle.alpha(glare, 0xC0));
-        for (int k = 0; k < 4; k++) {
-            int rw = (int) (S * (0.66 + k * 0.2));
-            int rh = Math.max(2, (int) ((6 + k * 5) * s));
-            r.outline(cx - rw, lakeY + 2 * px + k * px, rw * 2, rh, MenuStyle.alpha(hot, 0x80 - k * 0x18));
+        // Ripples spreading from it: short bright lines either side, longer and fainter further out.
+        for (int k = 0; k < 5; k++) {
+            int y = lakeY + (3 + k * 4) * px;
+            int in = (int) (S * (0.55 + k * 0.16));
+            int len = (int) (S * (0.14 + k * 0.06));
+            int a = 0x90 - k * 0x18;
+            r.fill(cx - in - len, y, cx - in, y + px, MenuStyle.alpha(hot, a));
+            r.fill(cx + in, y, cx + in + len, y + px, MenuStyle.alpha(hot, a));
         }
     }
 
@@ -131,32 +135,45 @@ final class SlimeBossScene {
      * shifted toward the glow in the rim colour, then dark, so only the edges facing the boss are lit.
      */
     static void character(GuiRects r, int w, int h, int hot, float s) {
-        float u = h * 0.027f;
-        float hx = w * 0.125f; // head centre
-        float hy = h * 0.22f;  // head top
+        float u = h * 0.0195f;
+        float hx = w * 0.13f; // head centre
+        float hy = h * 0.36f; // head top
         int shift = Math.max(1, Math.round(1.5f * s));
-        body(r, hx + shift, hy - shift / 2f, u, MenuStyle.alpha(hot, 0xB8));
-        body(r, hx, hy, u, SHADOW);
+        int rim = MenuStyle.alpha(hot, 0xB8);
+        // Part by part, back to front, each with its own lit edge, so the head, body and sword arm read apart.
+        for (int part = 0; part < 4; part++) {
+            body(r, hx + shift, hy - shift / 2f, u, part, rim);
+            body(r, hx, hy, u, part, SHADOW);
+        }
     }
 
-    private static void body(GuiRects r, float hx, float hy, float u, int c) {
-        // Hair down the back (to the left, away from the boss), its ends uneven.
-        rect(r, hx - 5.2f * u, hy + 0.8f * u, hx - 1.5f * u, hy + 11.5f * u, c);
-        rect(r, hx - 3.4f * u, hy + 11f * u, hx - 2.0f * u, hy + 13.2f * u, c);
-        rect(r, hx - 4.8f * u, hy + 11f * u, hx - 3.4f * u, hy + 12.4f * u, c);
-        // The back arm, hanging.
-        rect(r, hx - 6.4f * u, hy + 9.5f * u, hx - 3.2f * u, hy + 21.5f * u, c);
-        // Body and legs (the legs run off the bottom of the screen).
-        rect(r, hx - 4f * u, hy + 9f * u, hx + 4f * u, hy + 21f * u, c);
-        rect(r, hx - 4f * u, hy + 21f * u, hx - 0.2f * u, hy + 34f * u, c);
-        rect(r, hx + 0.2f * u, hy + 21f * u, hx + 4f * u, hy + 34f * u, c);
-        // The head with its hat layer: nine pixels where the head is eight.
-        rect(r, hx - 4.5f * u, hy, hx + 4.5f * u, hy + 9f * u, c);
-        if (EARS) {
-            rect(r, hx - 3.8f * u, hy - 1.1f * u, hx - 1.6f * u, hy, c);
-            rect(r, hx - 3.2f * u, hy - 2.1f * u, hx - 2.2f * u, hy - 1f * u, c);
-            rect(r, hx + 1.6f * u, hy - 1.1f * u, hx + 3.8f * u, hy, c);
-            rect(r, hx + 2.2f * u, hy - 2.1f * u, hx + 3.2f * u, hy - 1f * u, c);
+    private static void body(GuiRects r, float hx, float hy, float u, int part, int c) {
+        if (part == 0) {
+            // Hair down the back (to the left, away from the boss), its ends uneven.
+            rect(r, hx - 5.2f * u, hy + 0.8f * u, hx - 1.5f * u, hy + 11.5f * u, c);
+            rect(r, hx - 3.4f * u, hy + 11f * u, hx - 2.0f * u, hy + 13.2f * u, c);
+            rect(r, hx - 4.8f * u, hy + 11f * u, hx - 3.4f * u, hy + 12.4f * u, c);
+            // The back arm, hanging.
+            rect(r, hx - 6.4f * u, hy + 9.5f * u, hx - 3.2f * u, hy + 21.5f * u, c);
+            return;
+        }
+        if (part == 1) {
+            // Body and legs (the legs run off the bottom of the screen).
+            rect(r, hx - 4f * u, hy + 9f * u, hx + 4f * u, hy + 21f * u, c);
+            rect(r, hx - 4f * u, hy + 21f * u, hx - 0.2f * u, hy + 34f * u, c);
+            rect(r, hx + 0.2f * u, hy + 21f * u, hx + 4f * u, hy + 34f * u, c);
+            return;
+        }
+        if (part == 2) {
+            // The head with its hat layer: nine pixels where the head is eight.
+            rect(r, hx - 4.5f * u, hy, hx + 4.5f * u, hy + 9f * u, c);
+            if (EARS) {
+                rect(r, hx - 3.8f * u, hy - 1.1f * u, hx - 1.6f * u, hy, c);
+                rect(r, hx - 3.2f * u, hy - 2.1f * u, hx - 2.2f * u, hy - 1f * u, c);
+                rect(r, hx + 1.6f * u, hy - 1.1f * u, hx + 3.8f * u, hy, c);
+                rect(r, hx + 2.2f * u, hy - 2.1f * u, hx + 3.2f * u, hy - 1f * u, c);
+            }
+            return;
         }
         // The sword arm reaching forward and down, the sword pointing at the lake in front.
         double shX = hx + 3.0 * u;
