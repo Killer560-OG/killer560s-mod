@@ -255,6 +255,16 @@ public final class TeleportUtils {
             }
         }
         if (fragile != null) {
+            // Every point of every visible face, down to a sixteenth of a block: the planner's own "one warp reaches it"
+            // (EtherSearch.aimExact), which only takes aims that hold. Only for a block already seen to be reachable.
+            Level level = level();
+            if (level != null) {
+                EtherSearch es = new EtherSearch(new LevelEtherGrid(level));
+                if (es.aimExact(from.x, from.y, from.z, to.getX(), to.getY(), to.getZ(), dist)
+                        && holdsOn(from, es.aimYaw, es.aimPitch, dist, to)) {
+                    return new Rotation(es.aimYaw, es.aimPitch, fragile.distance());
+                }
+            }
             fragileAims++;
         }
         return fragile;
