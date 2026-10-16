@@ -147,7 +147,7 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `util/FeatureBits` bit whose gate reads only STORED switches (`isEnabledRaw()`, never `SkyblockGate.allows()` or the
   dungeon state), recomputed only after `FeatureBits.changed()`. So every setter of a gated field and the config's
   `load()` (wrapped as `load(){ load0(); changed(); }`, which covers profile apply) must call it; a gated tick wrapper
-  still runs the handler once on its first switched-off tick, so an off branch that resets state does so exactly once.
+  still runs the handler once on its first switched-off tick, so an off branch that resets state does so exactly once. ( does the same for a render listener that clears its last frame: Blood Camp.)
   Gate only a handler whose off branch is a bare return or a reset nothing else writes while off; a handler that ticks a
   helper, watches the world or checks a key first is not gated. A forgotten `changed()` is caught by a 1-in-64 re-check
   that logs ERROR and turns the bit on; testkit 95-perf-bits drives every bit through its setters and `load()`.
