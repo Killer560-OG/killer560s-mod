@@ -382,8 +382,10 @@ public final class RoomPredictor {
                 if (ignored(observed)) {
                     continue;
                 }
-                BlockPos p = BlockPos.of(obsPos[i]);
-                int expected = expectedAt(c, p.getX(), p.getY() - off, p.getZ());
+                // The packed position read in place: a BlockPos per observation per candidate was most of this
+                // tick's allocation (95-perf-features ALL ON, 2026-10-15).
+                long packed = obsPos[i];
+                int expected = expectedAt(c, BlockPos.getX(packed), BlockPos.getY(packed) - off, BlockPos.getZ(packed));
                 if (expected < 0 || ignored(expected)) {
                     continue;
                 }
@@ -491,10 +493,29 @@ public final class RoomPredictor {
                         p.evidence());
             }
         }
+        if (!sameDrawn(PREDICTIONS, next)) {
+            predictionsVersion++;   // only when the map would draw something else: it repaints on every bump
+        }
         PREDICTIONS.clear();
         PREDICTIONS.putAll(next);
-        predictionsVersion++;
         setStatus(obsCount + " block(s) seen, " + PREDICTIONS.size() + " prediction(s)");
+    }
+
+    /** Whether two prediction sets draw the same: per tile, the same name, type, certain and unsure tiles. */
+    private static boolean sameDrawn(Map<Integer, Prediction> a, Map<Integer, Prediction> b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (Map.Entry<Integer, Prediction> e : a.entrySet()) {
+            Prediction x = e.getValue();
+            Prediction y = b.get(e.getKey());
+            if (y == null || !x.name().equals(y.name()) || !x.type().equals(y.type())
+                    || !Arrays.equals(x.certainTiles(), y.certainTiles())
+                    || !Arrays.equals(x.uncertainTiles(), y.uncertainTiles())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean touchesOpened(Candidate c) {
