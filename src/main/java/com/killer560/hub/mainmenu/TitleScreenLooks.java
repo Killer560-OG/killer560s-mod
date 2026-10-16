@@ -68,7 +68,9 @@ public final class TitleScreenLooks {
         l.add(amber("Embers", MainMenuScenes.AmberScene.EMBERS, "EMBERS: the original drifting embers (the default)."));
         l.add(amber("New", MainMenuScenes.AmberScene.NEW, "NEW: the dusk colonnade (AmberForgeScene)."));
         l.add(amber("Simple", MainMenuScenes.AmberScene.SIMPLE, "SIMPLE: the embers refined (AmberCalmScene)."));
-        l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
+        l.add(variant(MenuTheme.OCEAN, "Waterfall", MainMenuScenes.OceanScene.WATERFALL, "Ocean's waterfall."));
+        l.add(variant(MenuTheme.OCEAN, "Cavern Falls", MainMenuScenes.OceanScene.CAVERN_FALLS,
+                "CAVERN_FALLS: your waterfall picture, animated (glowing falls, mist, the lake)."));
         // killer560 (2026-10-16): "let's use the one with the player" - Dark lists only that look. MILKY_WAY (without her)
         // and STARS stay in code (MainMenuScenes.DarkScene) but not here.
         l.add(variant(MenuTheme.DARK, "Milky Way", MainMenuScenes.DarkScene.MILKY_WAY_HERO,
@@ -156,7 +158,8 @@ public final class TitleScreenLooks {
             Look l = LOOKS.get(i);
             if (l.theme() == theme && (l.amber() == null || l.amber() == MainMenuScenes.amberScene())
                     && (l.green() == null || (l.green() == MainMenuScenes.greenScene() && l.gradient() == GreenTheme.gradient()))
-                    && (l.variant() == null || l.variant() == MainMenuScenes.darkScene())) {
+                    && (l.variant() == null || l.variant() == MainMenuScenes.darkScene()
+                        || l.variant() == MainMenuScenes.oceanScene())) {
                 return i;
             }
         }
@@ -179,6 +182,7 @@ public final class TitleScreenLooks {
         MainMenuScenes.setGreenScene(look.green());
         GreenTheme.setGradient(look.gradient() != null ? look.gradient() : GreenTheme.DEFAULT_GRADIENT);
         MainMenuScenes.setDarkScene(look.variant() instanceof MainMenuScenes.DarkScene d ? d : null);
+        MainMenuScenes.setOceanScene(look.variant() instanceof MainMenuScenes.OceanScene o ? o : null);
         version++;
         // The themed layout (column, panel, no Realms) and the vanilla one are built at init, so crossing between them
         // re-inits the title screen; any other change is drawn live from the next frame.
@@ -201,6 +205,7 @@ public final class TitleScreenLooks {
         current = null;
         MainMenuScenes.setAmberScene(MainMenuScenes.AMBER_SCENE);
         MainMenuScenes.setDarkScene(null);
+        MainMenuScenes.setOceanScene(null);
         MainMenuScenes.setGreenScene(null);
         GreenTheme.setGradient(GreenTheme.DEFAULT_GRADIENT);
         version++;

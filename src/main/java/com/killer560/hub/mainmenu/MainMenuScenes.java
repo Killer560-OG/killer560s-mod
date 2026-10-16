@@ -67,6 +67,33 @@ public final class MainMenuScenes {
         darkScene = name == null || name.isEmpty() ? null : DarkScene.valueOf(name);
     }
 
+    /** Ocean's background (killer560, 2026-10-16: his waterfall picture, "can you do a similar thing with this new
+     *  waterfall one"): WATERFALL is the drawn waterfall below; CAVERN_FALLS is {@link OceanFallsScene}, his picture
+     *  animated ({@link PictureScene}), shown only with {@link #previewScenes()} until he approves it. */
+    public enum OceanScene { WATERFALL, CAVERN_FALLS }
+
+    public static final OceanScene OCEAN_SCENE = OceanScene.CAVERN_FALLS;
+    public static final OceanScene OCEAN_SCENE_RELEASED = OceanScene.WATERFALL;
+
+    private static OceanScene oceanScene;
+
+    /** The Ocean scene drawn now: the session's pick, else {@link #OCEAN_SCENE} with {@link #previewScenes()}, else the
+     *  released one. */
+    public static OceanScene oceanScene() {
+        OceanScene o = oceanScene;
+        return o != null ? o : previewScenes() ? OCEAN_SCENE : OCEAN_SCENE_RELEASED;
+    }
+
+    /** Draws {@code scene} for Ocean this session (the Title Screen Switcher); null goes back to the default. */
+    public static void setOceanScene(OceanScene scene) {
+        oceanScene = scene;
+    }
+
+    /** Test hook (testkit 1690-1693): the named Ocean scene; null or empty goes back to the default. */
+    public static void setOceanSceneForTest(String name) {
+        oceanScene = name == null || name.isEmpty() ? null : OceanScene.valueOf(name);
+    }
+
     /** Test probe: tiles a picture scene's ripples (a character's cape) redrew in the last frame (0 = none). */
     public static int heroRects;
 
@@ -189,6 +216,16 @@ public final class MainMenuScenes {
             boolean hero = dark == DarkScene.MILKY_WAY_HERO;
             // His picture is the base, blitted before the batch so the batch's overlays land on top of it.
             PictureScene sc = MilkyWayTexScene.scene(hero);
+            sc.drawImage(g, w, h, t);
+            heroRects = sc.rippleTiles;
+            sc.drawOverlays(r, w, h, t, look.density());
+            r.submit();
+            probe(r, probeStart);
+            return;
+        }
+        if (look.scene() == MainMenuThemeConfig.Scene.WATERFALL && oceanScene() == OceanScene.CAVERN_FALLS) {
+            // His waterfall picture is the base, blitted before the batch so the batch's overlays land on top of it.
+            PictureScene sc = OceanFallsScene.SCENE;
             sc.drawImage(g, w, h, t);
             heroRects = sc.rippleTiles;
             sc.drawOverlays(r, w, h, t, look.density());
