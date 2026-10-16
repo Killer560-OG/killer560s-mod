@@ -914,6 +914,10 @@ final class AutoBlaze {
     // ------------------------------------------------------------------ Auto Secret (killer560, 2026-09-27)
 
     private static void tickSecret(Minecraft client, LocalPlayer player, List<Entity> blazes) {
+        // Renewed every tick of the trip, AURA included: the chest can take seconds to appear (the final volley still in
+        // the air), and a lapsed lease drops the camera onto a body turned at the chest (93-solve-lowerblaze's camera
+        // check, 2026-10-15).
+        SECRET_CAM.keep(player);
         if (McCompat.screen(client) != null) {
             return;
         }
