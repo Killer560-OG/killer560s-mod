@@ -266,7 +266,10 @@ final class PictureScene {
             int x = driftAmp == 0 ? cx : (int) (cx + driftAmp * Math.sin(t * driftFreq));
             int alpha = (int) (a0 + aK * v);
             if (soft) {
-                Px.softGlow(p, x, cy, rx + rxK * v, ry, rgb, alpha / 255.0);
+                // eased between its low and high (no linger-then-jump at the turns), unrounded
+                double e = c1 == 0 ? v : ease((v - (c0 - c1)) / (2 * c1)) * (2 * c1) + (c0 - c1);
+                double xs = cx + driftAmp * Math.sin(t * driftFreq);
+                Px.softGlow(p, xs, cy, rx + rxK * e, ry, rgb, (a0 + aK * e) / 255.0);
             } else {
                 MainMenuScenes.glow(r, x, cy, rx + rxK * v, ry, rgb, alpha, layers);
             }
@@ -376,9 +379,17 @@ final class PictureScene {
         }
     }
 
+    /** 0..1 with zero slope at both ends (no pop when something starts or stops fading). */
+    static double ease(double v) {
+        v = clamp(v);
+        return v * v * (3 - 2 * v);
+    }
+
     /**
-     * Stars twinkling as crisp crosses at the given points (x, y pairs found in the picture), plus {@code faint} small ones
-     * flickering at random places above {@code skyBottom}, none inside {@code calm} (x0, y0, x1, y1: the title).
+     * Stars twinkling smoothly (killer560, 2026-10-16: "make the whole thing a bit smoother ... the pulsating lights"): the
+     * bright ones at the given points (x, y pairs found in the picture) as a soft round glow with a faint soft cross whose
+     * arms taper away, their brightness eased up and down; plus {@code faint} small soft dots at sub-pixel places above
+     * {@code skyBottom} that fade in and out on their own slow clocks, none inside {@code calm} (x0, y0, x1, y1: the title).
      */
     record Twinkles(int[] stars, int faint, int skyBottom, int[] calm, int rgb, int salt) implements Overlay {
         @Override
@@ -387,44 +398,66 @@ final class PictureScene {
                 return;
             }
             for (int i = 0; i < stars.length; i += 2) {
-                int x = stars[i];
-                int y = stars[i + 1];
-                double tw = 0.5 + 0.5 * Math.sin(t * (0.8 + 1.6 * hash(i, salt + 1)) + hash(i, salt) * 6.28);
-                tw = tw * tw;
-                int arm = 3 + (int) Math.round(5 * tw);
-                double a = 0.25 + 0.55 * tw;
-                p.fill(x - arm, y, x + arm + 1, y + 1, Px.alpha(rgb, a * 0.55));
-                p.fill(x, y - arm, x + 1, y + arm + 1, Px.alpha(rgb, a * 0.55));
-                p.fill(x - 1, y - 1, x + 2, y + 2, Px.alpha(rgb, a));
+                double x = stars[i] + 0.5;
+                double y = stars[i + 1] + 0.5;
+                double tw = ease(0.5 + 0.5 * Math.sin(t * (0.45 + 0.9 * hash(i, salt + 1)) + hash(i, salt) * 6.28));
+                int a = (int) Math.round(255 * (0.18 + 0.50 * tw));
+                softDot(r, x, y, 1.3 + 0.5 * tw, 1, rgb, a, 0.5 + 0.5 * tw);
+                cross(r, x, y, 9 + 4 * tw, rgb, (int) Math.round(a * 0.45));
             }
             for (int i = 0; i < faint; i++) {
-                int x = (int) (hash(i, salt + 10) * 1920);
-                int y = (int) (hash(i, salt + 11) * skyBottom);
+                double x = hash(i, salt + 10) * 1920;
+                double y = hash(i, salt + 11) * skyBottom;
                 if (x > calm[0] && x < calm[2] && y > calm[1] && y < calm[3]) {
                     continue;
                 }
-                double tw = Math.max(0, Math.sin(t * (0.7 + 1.9 * hash(i, salt + 12)) + i * 2.3));
-                if (tw < 0.05) {
+                double s = Math.sin(t * (0.25 + 0.6 * hash(i, salt + 12)) + i * 2.3);
+                if (s <= 0) {
                     continue;
                 }
-                int s = hash(i, salt + 13) > 0.7 ? 3 : 2;
-                p.fill(x, y, x + s, y + s, Px.alpha(rgb, 0.55 * tw * tw));
+                int a = (int) Math.round(255 * 0.5 * s * s);
+                if (a > 2) {
+                    softDot(r, x, y, 0.8 + 0.6 * hash(i, salt + 13), 1, rgb, a, 0);
+                }
             }
         }
     }
 
+    /** A soft cross at (cx, cy): four arms one pixel wide whose alpha falls smoothly to nothing over {@code arm} px. */
+    static void cross(GuiRects r, double cx, double cy, double arm, int rgb, int alpha) {
+        if (alpha <= 2) {
+            return;
+        }
+        Matrix3x2fStack pose = r.graphics().pose();
+        pose.pushMatrix();
+        pose.translate((float) cx, (float) cy);
+        int c = MenuStyle.alpha(rgb, alpha);
+        int none = MenuStyle.alpha(rgb, 0);
+        for (int k = 0; k < 4; k++) {
+            pose.pushMatrix();
+            pose.rotate((float) (Math.PI / 2 * k));
+            pose.translate(-0.5f, 0f);
+            pose.scale(1f, (float) (arm / 32.0));
+            // a vertical arm from the centre (full) to its tip (clear), half a pixel either side of the axis
+            r.gradient(0, -32, 1, 0, none, c);
+            pose.popMatrix();
+        }
+        pose.popMatrix();
+    }
+
     /**
      * A shooting star every {@code period} s or so, starting at a new place each time in the left or right sky band (never
-     * across the middle, where the title and buttons are), drawn in {@code block}-px squares.
+     * across the middle, where the title and buttons are): a soft head and a tail that fades smoothly to nothing, both at
+     * sub-pixel positions, the whole of it easing in and out.
      */
-    record Meteor(double period, int tw, int th, int block, int rgb, int salt) implements Overlay {
+    record Meteor(double period, int tw, int th, double width, int rgb, int salt) implements Overlay {
         @Override
         public void draw(GuiRects r, Px p, double t, float density) {
             if (density <= 0) {
                 return;
             }
             int shot = (int) Math.floor(t / period);
-            double life = 0.9;
+            double life = 1.1;
             double q = (t - shot * period - hash(shot, salt) * 2.5) / life;
             if (q < 0 || q > 1) {
                 return;
@@ -434,23 +467,32 @@ final class PictureScene {
             double sy = th * (0.05 + 0.25 * hash(shot, salt + 3));
             double ang = Math.toRadians(left ? 22 + 25 * hash(shot, salt + 4) : 158 - 25 * hash(shot, salt + 4));
             double dist = 260 + 120 * hash(shot, salt + 5);
-            double dx = Math.cos(ang);
-            double dy = Math.sin(ang);
             double ease = 1 - Math.pow(1 - q, 1.6);
-            double hx = sx + dx * dist * ease;
-            double hy = sy + dy * dist * ease;
-            double fade = Math.sin(Math.PI * Math.min(1, q * 1.15));
-            double tail = 130 * Math.min(1, q * 3);
-            for (double d = 0; d < tail; d += block) {
-                double f = d / tail;
-                int x = (int) Math.round((hx - dx * d) / block) * block;
-                int y = (int) Math.round((hy - dy * d) / block) * block;
-                p.fill(x, y, x + block, y + block, Px.alpha(rgb, fade * Math.pow(1 - f, 1.6) * 0.8));
+            double hx = sx + Math.cos(ang) * dist * ease;
+            double hy = sy + Math.sin(ang) * dist * ease;
+            double fade = ease(q / 0.25) * ease((1 - q) / 0.45);
+            double tail = 150 * ease(q / 0.35);
+            int a = (int) Math.round(255 * fade);
+            if (a <= 2) {
+                return;
             }
-            int x = (int) Math.round(hx / block) * block;
-            int y = (int) Math.round(hy / block) * block;
-            p.fill(x - block, y - block, x + 2 * block, y + 2 * block, Px.alpha(rgb, fade * 0.18));
-            p.fill(x, y, x + block, y + block, Px.alpha(rgb, fade));
+            Matrix3x2fStack pose = r.graphics().pose();
+            pose.pushMatrix();
+            pose.translate((float) hx, (float) hy);
+            // rotate so that +y points back along the tail
+            pose.rotate((float) (ang + Math.PI / 2));
+            int none = MenuStyle.alpha(rgb, 0);
+            // a wide faint glow and a thin bright core, both fading to nothing at the tail's end
+            pose.pushMatrix();
+            pose.scale((float) (width * 3), (float) (tail / 64.0));
+            r.gradient(-1, 0, 1, 64, MenuStyle.alpha(rgb, (int) (a * 0.12)), none);
+            pose.popMatrix();
+            pose.pushMatrix();
+            pose.scale((float) width, (float) (tail / 64.0));
+            r.gradient(-1, 0, 1, 64, MenuStyle.alpha(rgb, (int) (a * 0.75)), none);
+            pose.popMatrix();
+            pose.popMatrix();
+            softDot(r, hx, hy, width * 0.9, 1, rgb, a, 0.8);
         }
     }
 

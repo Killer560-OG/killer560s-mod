@@ -24,8 +24,9 @@ final class MilkyWayTexScene {
     private static final int TH = 1080;
 
     /** The brightest stars of the picture (x, y in its 1920x1080 space), found by make_textures.py. */
-    private static final int[] STARS = {840, 196, 633, 579, 49, 511, 223, 689, 1842, 176, 743, 87, 1701, 374, 96, 304, 1356,
-            37, 1552, 221, 1347, 417, 1328, 654, 1207, 625, 1069, 584, 165, 416, 352, 622, 1608, 500, 579, 776};
+    private static final int[] STARS = {743, 87, 49, 511, 633, 579, 840, 199, 223, 689, 1356, 37, 1842, 176, 1347, 417, 1701,
+            374, 96, 304, 1552, 221, 165, 416, 1207, 625, 348, 622, 1605, 500, 1069, 584, 1328, 654, 1820, 511, 1267, 559, 1170,
+            574, 579, 776, 968, 513};
     /** The title band, where no faint star flickers. */
     private static final int[] CALM = {634, 0, 1286, 194};
 
@@ -46,7 +47,7 @@ final class MilkyWayTexScene {
         // haze drifting along the hills
         s.overlay(new PictureScene.Fog(4, TW, 880, 26, 380, 26, 9, 5, 0xFF9EA4AE, 11, 0, true, 1201));
         s.overlay(new PictureScene.Twinkles(STARS, 70, (int) (TH * 0.66), CALM, 0xFFFFFFFF, 1211));
-        s.overlay(new PictureScene.Meteor(7.0, TW, TH, 4, 0xFFFFFFFF, 1231));
+        s.overlay(new PictureScene.Meteor(7.0, TW, TH, 1.6, 0xFFFFFFFF, 1231));
         return s;
     }
 

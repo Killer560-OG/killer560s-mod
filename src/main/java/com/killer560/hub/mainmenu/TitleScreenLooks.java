@@ -69,11 +69,10 @@ public final class TitleScreenLooks {
         l.add(amber("New", MainMenuScenes.AmberScene.NEW, "NEW: the dusk colonnade (AmberForgeScene)."));
         l.add(amber("Simple", MainMenuScenes.AmberScene.SIMPLE, "SIMPLE: the embers refined (AmberCalmScene)."));
         l.add(plain(MenuTheme.OCEAN, "Waterfall", "Ocean's waterfall."));
-        l.add(variant(MenuTheme.DARK, "Milky Way + Character", MainMenuScenes.DarkScene.MILKY_WAY_HERO,
-                "MILKY_WAY_HERO: your Milky Way picture in black and white, the caped character on the hill (new, the default)."));
-        l.add(variant(MenuTheme.DARK, "Milky Way", MainMenuScenes.DarkScene.MILKY_WAY,
-                "MILKY_WAY: the same picture without the character (new)."));
-        l.add(variant(MenuTheme.DARK, "Starfield", MainMenuScenes.DarkScene.STARS, "STARS: Dark's original starfield."));
+        // killer560 (2026-10-16): "let's use the one with the player" - Dark lists only that look. MILKY_WAY (without her)
+        // and STARS stay in code (MainMenuScenes.DarkScene) but not here.
+        l.add(variant(MenuTheme.DARK, "Milky Way", MainMenuScenes.DarkScene.MILKY_WAY_HERO,
+                "MILKY_WAY_HERO: your Milky Way picture in black and white, the caped character on the hill."));
         l.add(plain(MenuTheme.LIGHT, "Soft Light", "Light's soft light."));
         // killer560 (2026-10-16): the designer's picture with droplets is Green's final look - "Remove the other ones from
         // the title screen gui instance." The other Green scenes stay in code (MainMenuScenes.GreenScene) but not here.
