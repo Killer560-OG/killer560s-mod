@@ -71,7 +71,6 @@ public final class AutoClearSettings {
         y[0] += 24;
 
         toggleCell(widgets, x, y[0], half, "Hyperion Hops", cfg::isHyperionHops, cfg::setHyperionHops, null);
-        toggleCell(widgets, x + half + GAP, y[0], right, "Clear Status HUD", cfg::isStatusHud, cfg::setStatusHud, null);
         y[0] += 24;
 
         int span = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
