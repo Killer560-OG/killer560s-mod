@@ -95,7 +95,13 @@ public final class PathfindingConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         PathfindingConfig cfg = new PathfindingConfig();
         instance = cfg;
         if (!Files.exists(CONFIG_PATH)) {
@@ -181,6 +187,7 @@ public final class PathfindingConfig {
 
     public void setEnabled(boolean v) {
         this.enabled = v;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isShowPath() {

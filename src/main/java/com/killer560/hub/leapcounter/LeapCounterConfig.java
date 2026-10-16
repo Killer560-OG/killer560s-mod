@@ -74,7 +74,13 @@ public final class LeapCounterConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         LeapCounterConfig cfg = new LeapCounterConfig();
         JsonObject obj = null;
         if (Files.exists(CONFIG_PATH)) {
@@ -129,7 +135,7 @@ public final class LeapCounterConfig {
     // ---- master ----
     public boolean isEnabled() { return enabled && SkyblockGate.allows(); }
     public boolean getEnabledRaw() { return enabled; }
-    public void setEnabled(boolean v) { enabled = v; }
+    public void setEnabled(boolean v) { enabled = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     // ---- expected leaps ----
     public int getCountS1() { return countS1; }

@@ -34,7 +34,7 @@ public final class AbilityKeybindsFeature {
     }
 
     public static void register() {
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", AbilityKeybindsFeature::tick));
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AbilityKeybindsFeature.tick", com.killer560.hub.util.FeatureBits.register("Ability Keybinds tick", () -> AbilityKeybindsConfig.getInstance().isEnabledRaw()), AbilityKeybindsFeature::tick));
     }
 
     private static void tick(Minecraft client) {

@@ -39,7 +39,13 @@ public final class ClassSelectionOverlayConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         ClassSelectionOverlayConfig cfg = new ClassSelectionOverlayConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -74,6 +80,6 @@ public final class ClassSelectionOverlayConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 }

@@ -55,7 +55,13 @@ public final class PosmsgConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         PosmsgConfig cfg = new PosmsgConfig();
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): a genuine parse failure
         // here used to be silently swallowed and then this method unconditionally saved the freshly-
@@ -320,7 +326,7 @@ public final class PosmsgConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public List<PosmsgEntry> entries() {

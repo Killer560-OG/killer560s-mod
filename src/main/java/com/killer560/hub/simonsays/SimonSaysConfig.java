@@ -139,7 +139,23 @@ public final class SimonSaysConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isSolverEnabledRaw() {
+        return solverEnabled;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new SimonSaysConfig();
             return;
@@ -249,7 +265,7 @@ public final class SimonSaysConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isSolverEnabled() {
@@ -257,7 +273,7 @@ public final class SimonSaysConfig {
     }
 
     public void setSolverEnabled(boolean solverEnabled) {
-        this.solverEnabled = solverEnabled;
+        this.solverEnabled = solverEnabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public Style getStyle() {

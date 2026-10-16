@@ -202,7 +202,7 @@ public final class ExperimentsFeature {
         com.killer560.hub.util.ServerLag.register();
         // Profit tracker (2026-09-15 roadmap) - its own tick/chat hooks, gated only on its own toggle
         // (not the solver's master toggle), since logging claimed rewards needs no solver at all.
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", ExperimentsProfitTracker::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ExperimentsProfitTracker.tick", com.killer560.hub.util.FeatureBits.register("Experiments Profit Tracker tick", () -> ExperimentsConfig.getInstance().isProfitTrackerEnabledRaw()), ExperimentsProfitTracker::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
                 ExperimentsProfitTracker.onGameMessage(message);

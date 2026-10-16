@@ -42,7 +42,7 @@ public final class LeapCounterFeature {
     public static void register() {
         LeapCounterConfig.getInstance();
         ChatObserver.subscribe(LeapCounterFeature::onChat);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LeapCounterFeature.tick", LeapCounterFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LeapCounterFeature.tick", com.killer560.hub.util.FeatureBits.register("Leap Counter tick", () -> LeapCounterConfig.getInstance().getEnabledRaw()), LeapCounterFeature::tick));
         // Own Fabric HUD layer, like F7 Spots' crush HUD: HudInGameRenderer only draws the ids on its own list.
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "leapcounter_" + HUD.id()),

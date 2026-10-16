@@ -77,7 +77,18 @@ public final class ArrowAlignConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isSolverEnabledRaw() {
+        return solverEnabled;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new ArrowAlignConfig();
             return;
@@ -145,7 +156,7 @@ public final class ArrowAlignConfig {
     }
 
     public void setSolverEnabled(boolean solverEnabled) {
-        this.solverEnabled = solverEnabled;
+        this.solverEnabled = solverEnabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isHighlightFrames() {

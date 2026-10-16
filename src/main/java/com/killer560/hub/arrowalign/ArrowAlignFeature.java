@@ -114,7 +114,8 @@ public final class ArrowAlignFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ArrowAlignFeature.tick", ArrowAlignFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ArrowAlignFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Arrow Align render", () -> ArrowAlignConfig.getInstance().isSolverEnabledRaw()), ArrowAlignFeature::onWorldRender));
         // Trigger Bot and Aura click only from tick() (START_CLIENT_TICK). They also ran from the world-render hook for
         // millisecond delays until 2026-10-11, and a click sent from a frame follows the tick's movement packet: GrimAC
         // Post on every one (testkit 788). Delays are whole ticks now - see tickTriggerBot / tickAura.

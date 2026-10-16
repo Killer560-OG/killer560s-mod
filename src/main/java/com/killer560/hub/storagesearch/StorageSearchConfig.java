@@ -121,7 +121,18 @@ public final class StorageSearchConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
+    private static void load0() {
         StorageSearchConfig cfg = new StorageSearchConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -234,7 +245,7 @@ public final class StorageSearchConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     /** Live list - callers mutate it through {@link #addBind}/{@link #setBind}/{@link #removeBind} and then save. */

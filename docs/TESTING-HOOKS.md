@@ -117,6 +117,11 @@ self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cos
 the probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
 
+## Feature bits (`util/FeatureBits`)
+
+- `FeatureBits.snapshot()` returns `name=true|false` per gated listener after a refresh; `count()` how many are
+  registered. Testkit 95-perf-bits reads them (and the `ON`/`names` fields directly, to see a bit without refreshing).
+
 ## Title Screen Switcher (`mainmenu/TitleScreenLooks`)
 
 The switcher exists only in the Prism instance "Title Screen GUI" (killer560, 2026-10-16: it "will never be loaded into a
