@@ -258,6 +258,30 @@ public final class RouteNode {
     }
 
     /**
+     * {@code contains(RouteCoords.toReal(frame, relativePos()), height, playerBox)} with no Vec3, array or AABB: the
+     * same arithmetic in the same order ({@link #boundingBox}'s corners through AABB's min/max, then
+     * {@code AABB.intersects}), for the idle arm test that runs it for every node of the room every tick.
+     */
+    public boolean containsIn(RouteCoords.Frame frame, double height, AABB p) {
+        double rx = RouteCoords.realX(frame, x, z);
+        double ry = RouteCoords.realY(y);
+        double rz = RouteCoords.realZ(frame, x, z);
+        double r = Math.max(0.1, radius) / 2.0;
+        double x1 = rx - r;
+        double x2 = rx + r;
+        double y2 = ry + Math.max(0.1, height);
+        double z1 = rz - r;
+        double z2 = rz + r;
+        double minX = Math.min(x1, x2);
+        double minY = Math.min(ry, y2);
+        double minZ = Math.min(z1, z2);
+        double maxX = Math.max(x1, x2);
+        double maxY = Math.max(ry, y2);
+        double maxZ = Math.max(z1, z2);
+        return minX < p.maxX && maxX > p.minX && minY < p.maxY && maxY > p.minY && minZ < p.maxZ && maxZ > p.minZ;
+    }
+
+    /**
      * The centre of the whole block {@code v} is in: {@code floor(v) + 0.5} (killer560, 2026-10-04: "Make it so nodes
      * need to snap to a whole block for the autoroutes"). Auto Routes nodes used AP3's half-block grid
      * ({@code Ap3Node.snapCentre}) until then; AP3 keeps it. Snapped in WORLD space and then made room-relative: a room
