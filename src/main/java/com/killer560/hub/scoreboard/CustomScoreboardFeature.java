@@ -80,7 +80,7 @@ public final class CustomScoreboardFeature {
     private static long lastUnknownWarningMs = 0L;
 
     /** Where the board was last drawn in game, for hover/click hit-testing. */
-    private record Layout(List<ScoreboardLine> lines, int x, int y, float scale, int contentX, int contentY,
+    private record Layout(List<ScoreboardLine> lines, float x, int y, float scale, int contentX, int contentY,
                           int contentW, int lineStep, int lineHeight) {
     }
 
@@ -487,11 +487,13 @@ public final class CustomScoreboardFeature {
         } catch (RuntimeException e) {
             return;
         }
+        // The anchored wall sits on a whole GUI pixel whatever the board's width (anchorShift).
+        float drawX = pos[0] + anchorShift(font, lines, cfg, scale);
         graphics.pose().pushMatrix();
         try {
             // The real board; Element#render is only the HUD editor's preview and does not stamp.
             HudSeen.markDrawn(ELEMENT_ID);
-            graphics.pose().translate(pos[0], pos[1]);
+            graphics.pose().translate(drawX, pos[1]);
             graphics.pose().scale(scale, scale);
             com.killer560.hub.hud.HudTextCache.begin(); // the board's lines keep their visual order between frames
             try {
@@ -512,8 +514,9 @@ public final class CustomScoreboardFeature {
             return; // hover and click only exist while chat is open; nothing to lay out for them
         }
         int inset = borderSize(cfg) + cfg.getPadding();
-        Layout layout = new Layout(lines, pos[0], pos[1], scale, inset, inset, innerWidth(font, lines, cfg),
-                font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
+        // The text block, where drawBoard puts it: against the anchored side of the box (blockOffset).
+        Layout layout = new Layout(lines, drawX, pos[1], scale, inset + blockOffset(font, lines, cfg), inset,
+                contentWidth(font, lines), font.lineHeight + cfg.getLineSpacing(), font.lineHeight);
         lastLayout = layout;
         if (cfg.isLineActions()) {
             try {
@@ -753,6 +756,35 @@ public final class CustomScoreboardFeature {
         return Math.max(contentWidth(font, lines), cfg.getMinWidth() - 2 * (cfg.getPadding() + borderSize(cfg)));
     }
 
+    /**
+     * How far right, in GUI pixels, to draw a right-anchored board from its element box's whole-pixel x, so that its
+     * right wall lands exactly on the box's right edge ({@code x + round(width * scale)}, which the anchor keeps at
+     * {@code screen - gap}). Without it the board was drawn from the rounded left x and its right wall sat at
+     * {@code x + width * scale}, which at any non-integer scale (Auto Scale and HUD Scale make nearly every real scale
+     * one) wandered up to a pixel as the width changed - 663 / 664 at 0.72, testkit 1668 (2026-10-15). 0 when
+     * left-anchored: the left wall is the whole-pixel x itself.
+     */
+    static float anchorShift(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg, float scale) {
+        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) {
+            return 0f;
+        }
+        int boxW = boxWidth(font, lines, cfg);
+        return Math.round(Math.max(20, boxW) * scale) - boxW * scale; // Element#width is max(20, boxWidth)
+    }
+
+    /**
+     * Where the text block starts inside the inner area: 0 on a left-anchored board, and on a right-anchored one the
+     * slack between a Min Width box and the widest line, so the block hugs the right wall and the furthest right point
+     * of any line never moves (killer560, 2026-10-15). Before, a Min Width wider than the text kept the block on the
+     * left, and on the right anchor the text's right end moved with every width change (581 -> 615, testkit 1668).
+     */
+    static int blockOffset(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
+        if (cfg.getAnchorSide() != CustomScoreboardConfig.Side.RIGHT) {
+            return 0;
+        }
+        return Math.max(0, innerWidth(font, lines, cfg) - contentWidth(font, lines));
+    }
+
     /** Distance from the board's top-left corner to its first line's text: border plus padding (what
      *  {@link #drawBoard} adds). The visual editor maps its drawn rows back to entries with it. */
     static int textInset(CustomScoreboardConfig cfg) {
@@ -783,7 +815,6 @@ public final class CustomScoreboardFeature {
                           CustomScoreboardConfig cfg, boolean inGame) {
         int b = borderSize(cfg);
         int pad = cfg.getPadding();
-        int contentW = innerWidth(font, lines, cfg);
         int w = boxWidth(font, lines, cfg);
         int h = boxHeight(font, lines, cfg);
         int radius = cfg.isRoundedCorners() ? Math.min(cfg.getCornerRadius(), Math.min(w, h) / 2) : 0;
@@ -818,7 +849,10 @@ public final class CustomScoreboardFeature {
             }
         }
 
-        int textX = x + b + pad;
+        // Lines align inside the text block (as wide as the widest line), and the block sits against the anchored
+        // side: so whatever Text Align is, the outermost point of the text on that side is the block's own edge.
+        int blockW = contentWidth(font, lines);
+        int textX = x + b + pad + blockOffset(font, lines, cfg);
         int lineStep = font.lineHeight + cfg.getLineSpacing();
         for (int i = 0; i < lines.size(); i++) {
             ScoreboardLine line = lines.get(i);
@@ -828,8 +862,8 @@ public final class CustomScoreboardFeature {
             // Only a centered or right-aligned line needs its own width (a font measure per line per frame otherwise).
             int lx = switch (line.align()) {
                 case LEFT -> textX;
-                case CENTER -> textX + (contentW - lineWidth(font, line, now)) / 2;
-                case RIGHT -> textX + contentW - lineWidth(font, line, now);
+                case CENTER -> textX + (blockW - lineWidth(font, line, now)) / 2;
+                case RIGHT -> textX + blockW - lineWidth(font, line, now);
             };
             int ly = y + b + pad + i * lineStep;
             g.text(font, line.text(), lx, ly, 0xFFFFFFFF, cfg.isTextShadow());
@@ -1167,7 +1201,17 @@ public final class CustomScoreboardFeature {
                 return;
             }
             List<ScoreboardLine> lines = previewLines();
-            drawBoard(graphics, client.font, x, y, lines, previewTitleRows, cfg, false);
+            // The editor draws this at its whole-pixel box position and the element's scale, like the in-game layer:
+            // the same sub-pixel shift (in this element's own units) keeps the anchored wall where the game has it.
+            float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(this);
+            float shift = scale > 0f ? anchorShift(client.font, lines, cfg, scale) / scale : 0f;
+            graphics.pose().pushMatrix();
+            try {
+                graphics.pose().translate(shift, 0f);
+                drawBoard(graphics, client.font, x, y, lines, previewTitleRows, cfg, false);
+            } finally {
+                graphics.pose().popMatrix();
+            }
         }
     }
 }

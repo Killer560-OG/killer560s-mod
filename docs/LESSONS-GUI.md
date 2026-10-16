@@ -518,3 +518,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
   main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
   (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
+- **A right-anchored HUD box drawn from a rounded x drifts.** The Custom Scoreboard's right wall was `round(x) + width * scale`,
+  so at a non-integer drawn scale (Auto Scale makes nearly every real one so) it moved up to a pixel each time the board's
+  width changed, and a Min Width box kept its text on the left so the text's right end moved by the slack (testkit 1668,
+  2026-10-15). Draw it shifted by `round(w * scale) - w * scale` (`anchorShift`) and put the text block against the wall
+  (`blockOffset`); the hover layout must use the same shift and block.
