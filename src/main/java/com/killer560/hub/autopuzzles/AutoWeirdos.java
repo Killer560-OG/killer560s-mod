@@ -54,8 +54,10 @@ final class AutoWeirdos {
     static final double SPOT_NPC_REACH = 2.8;
     /** Standing eye to a chest's box from a spot, a little inside the 4.5 the server enforces. */
     static final double SPOT_CHEST_REACH = 4.3;
-    /** How far (eye to box) a CLICK stand may be and still be one of this room's weirdos. */
+    /** How far (eye to box) a CLICK stand may be and still be one of this room's weirdos when the live map has no
+     *  bounds for the room; with bounds, anywhere inside them counts (from the doorway the weirdos are ~21 blocks off). */
     private static final double NPC_SCAN = 16.0;
+    private static final double NPC_SCAN_IN_ROOM = 48.0;
     /** Moves tried for one set of weirdos (or the chest) before the auto gives up and says so. */
     private static final int MAX_MOVES = 3;
 
@@ -266,7 +268,7 @@ final class AutoWeirdos {
         moveToWeirdos(client, player, left);
     }
 
-    /** Every un-talked "CLICK" stand of this room, eye to box within {@link #NPC_SCAN} and inside the room's bounds. */
+    /** Every un-talked "CLICK" stand of this room: inside the live map's bounds for it, or within {@link #NPC_SCAN}. */
     private static List<Entity> untalkedStands(Minecraft client, LocalPlayer player) {
         int idx = LiveMapFeature.currentRoomIndex();
         int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
@@ -276,7 +278,8 @@ final class AutoWeirdos {
             if (!(entity instanceof ArmorStand) || talked.contains(entity.getId())) {
                 continue;
             }
-            if (BlockHits.boxDistanceSq(eye, entity.getBoundingBox()) > NPC_SCAN * NPC_SCAN) {
+            double scan = bounds == null ? NPC_SCAN : NPC_SCAN_IN_ROOM;
+            if (BlockHits.boxDistanceSq(eye, entity.getBoundingBox()) > scan * scan) {
                 continue;
             }
             if (bounds != null && (entity.getX() < bounds[0] || entity.getX() > bounds[2] + 1
