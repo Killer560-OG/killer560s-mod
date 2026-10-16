@@ -72,6 +72,8 @@ final class AutoWeirdos {
     private static boolean solverClearedThisLevel = false;
     private static com.killer560.hub.roomdatabase.RoomEntry lastRoom;
     private static final Set<Integer> talked = new HashSet<>();
+    /** The solver held a chest or a wrong chest last tick (its going empty again is a new round). */
+    private static boolean solverHadAnswer = false;
 
     /** Walking toward a spot: what it was for, when it started, how long it may take. */
     private static boolean walking = false;
@@ -136,6 +138,18 @@ final class AutoWeirdos {
         CAMERA.keep(player);
 
         BlockPos chest = WeirdosSolverFeature.getCorrectChestPos();
+        boolean solverEmpty = chest == null && WeirdosSolverFeature.getWrongChestCount() == 0;
+        if (solverEmpty && solverHadAnswer) {
+            // The solver forgot this room's answer: a new round (the sim deals one after a wrong chest, or a rebuilt
+            // room). The weirdos speak again, so they are talked to again.
+            talked.clear();
+            moveFor = null;
+            moves = 0;
+        }
+        solverHadAnswer = !solverEmpty;
+        // A weirdo that is no longer in the world (the room was rebuilt, or he walked out of its range) is not one
+        // talked to: the stands there now are new ones.
+        talked.removeIf(id -> client.level.getEntity(id) == null);
         if (chest == null) {
             // Solver reset (dungeon left / boss / world change) - a later correct chest is a new room.
             actedPos = null;
@@ -649,6 +663,7 @@ final class AutoWeirdos {
         moveFor = null;
         moves = 0;
         lastRoom = null;
+        solverHadAnswer = false;
     }
 
     /** Test aid: weirdos talked to in this room. */

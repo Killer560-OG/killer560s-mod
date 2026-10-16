@@ -2322,7 +2322,7 @@ nobody at the keys except where the scenario says so.
   SERVER copy (inside `ServerGamePacketListenerImpl.handleInteract`, javap of fabric-events-interaction 5.2.8) now
   speaks, with `ServerPlayer.sendSystemMessage`; left clicks pass on the client and are answered (and cancelled) on
   the server. Auto Three Weirdos logs each NPC it talks to and every reason it waits. It still never walks to the
-  NPCs; the scenario places him.
+  NPCs; the scenario places him. (Since weirdos-reach-1015 it moves into reach itself - see docs/LESSONS-AUTOMATION.md.)
 - **Water Board: QUOI's spots are out of reach.** Standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54
   eye-to-box, past 4.5. The auto now warps only when the lever is not already in reach, onto the standable lever-floor
   block nearest QUOI's spot whose standing eye is within 4.3 of the lever and which an etherwarp can aim at (read off
