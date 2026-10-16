@@ -628,7 +628,7 @@ public final class SecretAuraFeature {
             }
             BlockState state = client.level.getBlockState(pos);
             String kind = classify(client, cfg, pos, state, false, leversAllowed, chestsAllowed);
-            if (kind == null || "redstoneNode".equals(kind)) {
+            if (kind == null) {
                 continue;
             }
             if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0f
@@ -641,7 +641,9 @@ public final class SecretAuraFeature {
                 continue;   // flipped
             }
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
-            if ("essence".equals(kind) || "redstoneKey".equals(kind)) {
+            // The redstone node too, once a key is found (killer560, 2026-10-16: the placing is the room's key secret,
+            // so Auto Secret must not leave with the key found and not yet put in); the tick's own skull measure.
+            if ("essence".equals(kind) || "redstoneKey".equals(kind) || "redstoneNode".equals(kind)) {
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
                     continue;
                 }
@@ -667,6 +669,19 @@ public final class SecretAuraFeature {
      */
     public static void noteWindowOpened() {
         windowOpenedAtMs = System.currentTimeMillis();
+    }
+
+    /**
+     * A Redstone Key has gone (picked up, by him or anyone) within {@link #KEY_WATCH_RANGE} and this aura has not put it
+     * in yet. Auto Routes' await counts his click on the redstone block as the key's secret at once while this holds.
+     */
+    public static boolean keyFoundNotPlaced() {
+        return keyFound;
+    }
+
+    /** He put the found key in himself (Auto Routes' await saw his click): nothing is left for this aura to place. */
+    public static void noteKeyPlaced() {
+        keyFound = false;
     }
 
     /** Shared with {@code secrettrigger.SecretTriggerbotFeature}: whether this secret is already looted/flipped. */
