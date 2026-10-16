@@ -20,6 +20,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(GuiRenderState.class)
 public abstract class MapDrawCacheGuiRenderStateMixin {
 
+    /** Every return of the hooked methods: a call made from inside one of them is the render state's own, not drawn. */
+    @Inject(method = {"addGuiElement", "addText", "addItem", "addPicturesInPictureState", "addBlitToCurrentLayer",
+            "addGlyphToCurrentLayer", "up", "nextStratum", "blurBeforeThisStratum"}, at = @At("RETURN"))
+    private void killer560smod$mapCacheReturn(CallbackInfo ci) {
+        MapDrawCache.onReturn();
+    }
+
     @Inject(method = "addGuiElement", at = @At("HEAD"), cancellable = true)
     private void killer560smod$mapCacheElement(GuiElementRenderState state, CallbackInfo ci) {
         if (MapDrawCache.onAdd(0, state)) {

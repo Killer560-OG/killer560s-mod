@@ -1421,8 +1421,14 @@ public final class LiveMapFeature {
 
                 // Players: their positions are a per-tick snapshot (InteractiveMapFeature.playersCached), so this part
                 // is painted once a tick and handed over again for the other frames of that tick.
-                boolean names = cfg.isLeapNames() && client.player != null
-                        && com.killer560.hub.fastleap.LeapManager.isLeapItem(client.player.getMainHandItem());
+                // The held item only changes on a tick; reading its SkyBlock id every frame was an allocation a frame.
+                int tick = tickCount();
+                if (tick != namesTick) {
+                    namesTick = tick;
+                    namesThisTick = cfg.isLeapNames() && client.player != null
+                            && com.killer560.hub.fastleap.LeapManager.isLeapItem(client.player.getMainHandItem());
+                }
+                boolean names = cfg.isLeapNames() && namesThisTick;
                 paintNames = names;
                 MapDrawCache.Key mk = MapDrawCache.frameKey(MARKER_KEY.begin(), graphics);
                 mk.add(ox).add(oy).add(ppu).add(tickCount()).add(resetGeneration).add(names)
@@ -1451,14 +1457,16 @@ public final class LiveMapFeature {
         private static boolean paintNames;
         private static List<String> paintLines;
 
-        private static final MapDrawCache.Segment MAP_SEGMENT = new MapDrawCache.Segment();
-        private static final MapDrawCache.Segment MARKER_SEGMENT = new MapDrawCache.Segment();
-        private static final MapDrawCache.Segment EXTRA_SEGMENT = new MapDrawCache.Segment();
+        private static final MapDrawCache.Segment MAP_SEGMENT = new MapDrawCache.Segment("map");
+        private static final MapDrawCache.Segment MARKER_SEGMENT = new MapDrawCache.Segment("marker");
+        private static final MapDrawCache.Segment EXTRA_SEGMENT = new MapDrawCache.Segment("extra");
         private static final MapDrawCache.Key MAP_KEY = new MapDrawCache.Key();
         private static final MapDrawCache.Key MARKER_KEY = new MapDrawCache.Key();
         private static final MapDrawCache.Key EXTRA_KEY = new MapDrawCache.Key();
         private static final MapDrawCache.Key TICK_KEY = new MapDrawCache.Key();
         private static int tickKeyTick = Integer.MIN_VALUE;
+        private static int namesTick = Integer.MIN_VALUE;
+        private static boolean namesThisTick;
 
         private static final Runnable PAINT_MAP = () -> paintMap(paintGraphics, paintX, paintY, paintCfg, paintClient,
                 paintLayout, paintOx, paintOy, paintPpu);

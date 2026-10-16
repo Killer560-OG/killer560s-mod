@@ -74,9 +74,29 @@ public final class MapDrawCache {
         if (s == null) {
             return false;
         }
+        if (depth > 0) {
+            // Called from inside a recorded call (addGuiElement opens a new layer with up() when the element overlaps
+            // one below): that is the render state's own doing and happens again when the outer call is replayed.
+            depth++;
+            return false;
+        }
         s.add(kind, arg);
-        return swallow;
+        if (swallow) {
+            return true;
+        }
+        depth = 1;
+        return false;
     }
+
+    /** From the mixin at every return of the same methods. */
+    public static void onReturn() {
+        if (depth > 0) {
+            depth--;
+        }
+    }
+
+    /** How deep inside a recorded render-state call the render thread is (0 outside one). */
+    private static int depth;
 
     public static void onFontReload() {
         fontGeneration++;
@@ -217,6 +237,11 @@ public final class MapDrawCache {
         private int builtTick;
         private int lastHitTick;
         private Segment scratch;
+        private final String name;
+
+        Segment(String name) {
+            this.name = name;
+        }
 
         private void add(int kind, Object arg) {
             if (count == kinds.length) {
@@ -257,11 +282,13 @@ public final class MapDrawCache {
             clear();
             recording = this;
             swallow = false;
+            depth = 0;
             try {
                 paint.run();
                 valid = true;
             } finally {
                 recording = null;
+                depth = 0;
             }
             this.key.copyFrom(key);
             builtTick = tick;
@@ -293,24 +320,28 @@ public final class MapDrawCache {
 
         private void verify(Runnable paint, int tick) {
             if (scratch == null) {
-                scratch = new Segment();
+                scratch = new Segment(name + " (fresh)");
             }
             scratch.clear();
             recording = scratch;
             swallow = true;
+            depth = 0;
             try {
                 paint.run();
+            } catch (RuntimeException e) {
+                lastMismatch = name + ": the fresh paint threw " + e;
             } finally {
                 recording = null;
                 swallow = false;
+                depth = 0;
             }
             STATS[2]++;
             if (!sameElements(this, scratch)) {
                 STATS[builtTick == tick ? 3 : 4]++;
                 if (builtTick != tick) {
-                    lastMismatch = describeMismatch(this, scratch);
+                    lastMismatch = name + ": " + describeMismatch(this, scratch);
                 } else {
-                    lastSameTickMismatch = describeMismatch(this, scratch);
+                    lastSameTickMismatch = name + ": " + describeMismatch(this, scratch);
                 }
             }
             scratch.clear();
@@ -346,7 +377,7 @@ public final class MapDrawCache {
 
     private static String describeMismatch(Segment a, Segment b) {
         if (a.count != b.count) {
-            return "count " + a.count + " vs fresh " + b.count;
+            return "count " + a.count + " " + outline(a) + " vs fresh " + b.count + " " + outline(b);
         }
         for (int i = 0; i < a.count; i++) {
             if (a.kinds[i] != b.kinds[i] || !sameElement(a.args[i], b.args[i])) {
@@ -354,6 +385,16 @@ public final class MapDrawCache {
             }
         }
         return "";
+    }
+
+    /** The first elements of a segment, kind and class, for a mismatch report. */
+    private static String outline(Segment s) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < Math.min(s.count, 12); i++) {
+            sb.append(i == 0 ? "" : ", ").append(s.kinds[i]).append(':')
+                    .append(s.args[i] == null ? "-" : s.args[i].getClass().getSimpleName());
+        }
+        return sb.append(s.count > 12 ? ", ...]" : "]").toString();
     }
 
     private static String describe(Object o) {
