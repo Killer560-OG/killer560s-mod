@@ -514,3 +514,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   board sat at `x * 0.8` (228 px in from the right edge on a 1366x768 window) instead of against it (testkit 1661/1667 on
   main, 2026-10-15). An element that must hug an edge keeps its own anchor and serves it from `layoutPosition()`
   (`HudElement.keepOnScreen` / `storeEditorPosition` also make Edit HUD clamp and hand the drop back to it).
+- **Most of a text HUD's per-frame allocation is vanilla's glyphs, not the mod's strings.** Measured per draw with the
+  PerfProbe (testkit 95-perf-hud, 2026-10-15): Score Calculator 13,375 B on main with its lines rebuilt every frame,
+  11,712 B with them cached; Advanced Position 7,607 vs 7,476. Caching text saves the String.format/concatenation time,
+  not the ~70 B per drawn character `GuiGraphicsExtractor.text` costs. And `Font.width` of a string with `§` codes builds
+  a `Style` per code: Advanced Position's width() was 1,600 B a call until it was memoised on the line array.
