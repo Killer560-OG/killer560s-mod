@@ -39,6 +39,11 @@ import java.util.TreeMap;
  * -Dpinroom=Quiz -Dpincell=14 pins that room at that cell (cellZ * 6 + cellX) on every floor, as the Map Designer
  * does, and -Ddumpdrop=N prints the first N floors that dropped it. "floors that dropped the fixed pin" counts
  * floors whose generate() left a pin (-Dpin or -Dpinroom) off.
+ *
+ * <p>The sweep also counts doors on an edge a room does not measure as a doorway (the fill pass's carves) by wall: thin
+ * (at most 2 solid blocks behind the wall plane, RoomDoors.carveCost), THICK (a walkable tunnel) or BLIND, and the
+ * blocks they tunnel; -Doffdoor=true lists them per room edge. -Dcarvestats=true [-Dverbose=true] instead prints how many
+ * walkable carve edges the library has (per room with verbose).
  */
 public final class LayoutSim {
 
