@@ -123,9 +123,9 @@ public final class SpotifyLyricsFeature {
     private static void registerChatListeners() {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) ->
-                        updatePartyStatus(message.getString()));
+                        updatePartyStatus(com.killer560.hub.util.ChatObserver.raw(message)));
         ClientReceiveMessageEvents.GAME.register(
-                (message, overlay) -> updatePartyStatus(message.getString()));
+                (message, overlay) -> updatePartyStatus(com.killer560.hub.util.ChatObserver.raw(message)));
     }
 
     private static void updatePartyStatus(String text) {

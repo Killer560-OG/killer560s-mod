@@ -116,8 +116,7 @@ public final class QuizSolverFeature {
         if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String msg = plain != null ? plain : message.getString();
+        String msg = ChatObserver.strip(message);
 
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {

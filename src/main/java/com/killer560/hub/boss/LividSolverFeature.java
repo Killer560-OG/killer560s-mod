@@ -110,8 +110,7 @@ public final class LividSolverFeature {
         if (!LividSolverConfig.getInstance().isEnabled() || !onFloor5()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = ChatObserver.strip(message);
         if (raw.equals(LIVID_START_LINE)) {
             invulnTicks = INVULN_TICKS;
         }

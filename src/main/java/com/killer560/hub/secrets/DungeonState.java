@@ -125,8 +125,7 @@ public final class DungeonState {
     }
 
     private static void onChatMessage(Component message) {
-        String raw = message.getString();
-        String plain = com.killer560.hub.util.ChatObserver.stripCodes(raw);
+        String plain = ChatObserver.strip(message);
         if (plain != null && BOSS_START_PATTERN.matcher(plain).find() && isF7OrM7()) {
             LOGGER.info("[Secrets] Boss phase started (real Maxor chat line matched)");
             bossPhaseActive = true;
@@ -337,6 +336,11 @@ public final class DungeonState {
         // (FPS sweep, 2026-10-07: this flattening was the largest always-on tick cost in a dungeon after Dungeon Info).
         boolean onClientThread = client.isSameThread();
         Object[] key = null;
+        // Compared in place against the last key first: the usual tick (nothing changed) allocates no key array
+        // (fps-idle-1015: ~330 B a tick in a dungeon, with every feature off).
+        if (onClientThread && sameAsLastKey(scoreboard, sidebar, entries)) {
+            return sidebarText;
+        }
         if (onClientThread) {
             key = new Object[3 + entries.size() * 5];
             int k = 0;
@@ -371,6 +375,36 @@ public final class DungeonState {
     /** What {@link #readSidebarText} last built, and from what (client thread only). */
     private static Object[] sidebarKey;
     private static String sidebarText = "";
+
+    /** {@link #sameSidebarKey} of the key {@link #readSidebarText} would build now against the last one, without building it. */
+    private static boolean sameAsLastKey(Scoreboard scoreboard, Objective sidebar,
+                                         java.util.Collection<PlayerScoreEntry> entries) {
+        Object[] b = sidebarKey;
+        if (b == null || b.length != 3 + entries.size() * 5) {
+            return false;
+        }
+        if (b[0] != sidebar || b[1] != sidebar.getDisplayName() || b[2] != net.minecraft.locale.Language.getInstance()) {
+            return false;
+        }
+        int k = 3;
+        for (PlayerScoreEntry entry : entries) {
+            String owner = entry.owner();
+            Object last = b[k];
+            if (owner != last && !(owner != null && owner.equals(last))) {
+                return false;
+            }
+            if (b[k + 1] != entry.display()) {
+                return false;
+            }
+            PlayerTeam team = scoreboard.getPlayersTeam(owner);
+            if (b[k + 2] != team || b[k + 3] != (team == null ? null : team.getPlayerPrefix())
+                    || b[k + 4] != (team == null ? null : team.getPlayerSuffix())) {
+                return false;
+            }
+            k += 5;
+        }
+        return true;
+    }
 
     /** Element by element: identity for components, teams and objectives; equals for the owner name strings. */
     private static boolean sameSidebarKey(Object[] a, Object[] b) {

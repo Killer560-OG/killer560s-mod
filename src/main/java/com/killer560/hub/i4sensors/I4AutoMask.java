@@ -95,6 +95,9 @@ public final class I4AutoMask {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
+        if (!plain.contains(" saved ")) {
+            return; // every pop line below says it (fps-idle-1015)
+        }
         DeathItem popped = BONZO_POP.matcher(plain).find() ? DeathItem.BONZO
                 : SPIRIT_POP.matcher(plain).find() ? DeathItem.SPIRIT
                 : PHOENIX_POP.matcher(plain).find() ? DeathItem.PHOENIX : null;

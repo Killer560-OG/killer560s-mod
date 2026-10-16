@@ -51,7 +51,7 @@ public final class BloodRush {
             if (overlay) {
                 return;
             }
-            String plain = ChatFormatting.stripFormatting(message.getString());
+            String plain = com.killer560.hub.util.ChatObserver.strip(message);
             // Anchored: "contains" let any player typing the line in chat stop Blood Rush.
             if (plain != null && plain.trim().equals("The BLOOD DOOR has been opened!")) {
                 bloodOpenedMessage = true;

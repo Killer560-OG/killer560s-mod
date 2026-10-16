@@ -62,13 +62,13 @@ public final class AutoDialogueFeature {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message).trim();
-        Matcher npc = NPC_LINE.matcher(plain);
+        Matcher npc = plain.startsWith("[NPC] ") ? NPC_LINE.matcher(plain) : null; // anchored on it (fps-idle-1015)
         long nowMs = System.currentTimeMillis();
         while (!recentNpcTimes.isEmpty() && nowMs - recentNpcTimes.peekFirst() > NPC_CONTEXT_MS) {
             recentNpcTimes.pollFirst();
             recentNpcTexts.pollFirst();
         }
-        if (npc.matches()) {
+        if (npc != null && npc.matches()) {
             lastNpcName = npc.group(1).trim();
             lastNpcAtMs = nowMs;
             recentNpcTexts.addLast(npc.group(2));

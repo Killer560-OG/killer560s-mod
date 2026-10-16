@@ -122,8 +122,8 @@ public final class BridgeFeature {
     }
 
     private static void onChat(String plain) {
-        if (plain == null || plain.isEmpty()) {
-            return;
+        if (plain == null || plain.isEmpty() || !plain.startsWith("[BOSS] Goldor: ") && !plain.startsWith("The Core ")) {
+            return; // P3_START / CORE_OPEN are anchored on these (fps-idle-1015)
         }
         if (OdinCodec.P3_START.matcher(plain).matches()) {
             p3Active = true;

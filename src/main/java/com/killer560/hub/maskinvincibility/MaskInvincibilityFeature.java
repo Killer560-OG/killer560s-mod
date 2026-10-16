@@ -109,8 +109,7 @@ public final class MaskInvincibilityFeature {
         // Real bug found and fixed (2026-09-14, pre-testing bug-review pass): matched the raw un-stripped
         // string - real Hypixel chat lines are confirmed (DungeonState's own BOSS_START_PATTERN fix) to
         // embed §-codes mid-word, which can silently break a regex match.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.strip(message);
         for (Type t : Type.values()) {
             if (t.pattern.matcher(raw).matches()) {
                 activeRemaining.put(t, t.activeTicks);

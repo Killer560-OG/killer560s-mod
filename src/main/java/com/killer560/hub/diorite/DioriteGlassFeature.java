@@ -67,8 +67,7 @@ public final class DioriteGlassFeature {
         if (!DioriteGlassConfig.getInstance().isEnabled()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = ChatObserver.strip(message);
         if (STORM_START_REGEX.matcher(raw).matches()) {
             stormPhaseActive = true;
         } else if (STORM_END_REGEX.matcher(raw).matches()) {

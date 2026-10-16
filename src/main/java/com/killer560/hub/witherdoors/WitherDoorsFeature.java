@@ -106,7 +106,7 @@ public final class WitherDoorsFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) {
-                onChat(message.getString());
+                onChat(com.killer560.hub.util.ChatObserver.strip(message));
             }
         });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDoorsFeature::onWorldRender);
@@ -146,15 +146,18 @@ public final class WitherDoorsFeature {
             java.util.regex.Pattern.compile("^The BLOOD DOOR has been opened!?$");
 
     private static void onChat(String raw) {
-        String msg = ChatFormatting.stripFormatting(raw);
+        String msg = com.killer560.hub.util.ChatObserver.stripCodes(raw);
         if (msg == null) {
             return;
         }
         msg = msg.trim();
-        if (MORT_START.matcher(msg).matches()) {
+        if (msg.startsWith("[NPC] Mort: ") && MORT_START.matcher(msg).matches()) {
             mortSeen = true;
             invalidateCache();
             return;
+        }
+        if (!com.killer560.hub.doorkeys.DungeonKeys.mayBeKeyOrDoorLine(msg)) {
+            return; // none of the key / door lines below (fps-idle-1015)
         }
         // ANCHORED, mirroring AutoDoorOpenerFeature - which this class's own doc says it mirrors, and
         // which was anchored on 2026-09-29 while this copy was left on contains(). Display only here (it

@@ -132,7 +132,7 @@ public final class KingRelicsFeature {
         if (!active()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = com.killer560.hub.util.ChatObserver.strip(message);
         if (plain == null) {
             return;
         }

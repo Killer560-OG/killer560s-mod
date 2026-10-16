@@ -119,8 +119,7 @@ public final class AutoPuzzlesFeature {
         if (!AutoPuzzlesConfig.getInstance().isAutoQuizEnabled()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String msg = (plain != null ? plain : message.getString()).trim();
+        String msg = ChatObserver.strip(message).trim();
         // Same line QuizSolverFeature uses to clear the previous question's answer - re-arm for the next one
         // even if the next answer arrives in the same tick (so the null gap is never observed).
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")

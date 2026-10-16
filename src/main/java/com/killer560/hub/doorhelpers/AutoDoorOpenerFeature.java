@@ -67,11 +67,14 @@ public final class AutoDoorOpenerFeature {
     private static final java.util.regex.Pattern BLOOD_DOOR_OPENED = com.killer560.hub.doorkeys.DungeonKeys.BLOOD_DOOR_OPENED;
 
     static void onChat(String raw) {
-        String msg = ChatFormatting.stripFormatting(raw);
+        String msg = com.killer560.hub.util.ChatObserver.stripCodes(raw);
         if (msg == null) {
             return;
         }
         msg = msg.trim();
+        if (!com.killer560.hub.doorkeys.DungeonKeys.mayBeKeyOrDoorLine(msg)) {
+            return; // none of the lines below (fps-idle-1015)
+        }
         // ANCHORED, because arming this makes the client SEND A CLICK.
         //
         // These were `contains`, so any player typing "has obtained Wither Key" in any channel armed a
