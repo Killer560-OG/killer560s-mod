@@ -43,7 +43,9 @@ import java.util.TreeMap;
  * <p>The sweep also counts doors on an edge a room does not measure as a doorway (the fill pass's carves) by wall: thin
  * (at most 2 solid blocks behind the wall plane, RoomDoors.carveCost), THICK (a walkable tunnel) or BLIND, and the
  * blocks they tunnel; -Doffdoor=true lists them per room edge. -Dcarvestats=true [-Dverbose=true] instead prints how many
- * walkable carve edges the library has (per room with verbose).
+ * walkable carve edges the library has (per room with verbose). -Ddoorstats=true prints every room's measured doorways
+ * (DOORS lines, for tools/layoutsim/hyp_doors.py); the sweep also fails a one-door room (SimFloorLayout.isDeadEnd) with
+ * other than one door.
  */
 public final class LayoutSim {
 
