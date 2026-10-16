@@ -93,8 +93,9 @@ public final class EtherwarpHopper {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        return data == null ? null : data.copyTag();
+        // Read-only view: range() reads all nine hotbar slots every tick the floor graph is kept warm, and copyTag()
+        // there deep-copied every Skyblock item's whole ExtraAttributes tree each time (fps-auto-1015).
+        return com.killer560.hub.util.ItemNbt.view(stack);
     }
 
     public static boolean isBusy() {

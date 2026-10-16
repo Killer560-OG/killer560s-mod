@@ -74,12 +74,21 @@ public final class EtherwarpWaypointsStore {
         return max + 1;
     }
 
+    /** Bumped by every change to the saved list, so a renderer can cache what it derives from it. */
+    private static int version;
+
+    public static int version() {
+        return version;
+    }
+
     public static void add(EtherwarpWaypoint waypoint) {
         all().add(waypoint);
+        version++;
     }
 
     public static void remove(String id) {
         all().removeIf(w -> w.id.equals(id));
+        version++;
     }
 
     /** killer560, 2026-09-27: "If i do clear it should only clear the ones in the room I am in." @return how
@@ -90,10 +99,12 @@ public final class EtherwarpWaypointsStore {
         }
         int before = all().size();
         all().removeIf(w -> roomName.equals(w.roomName));
+        version++;
         return before - all().size();
     }
 
     public static void load() {
+        version++;
         waypoints = new ArrayList<>();
         if (!Files.exists(PATH)) {
             return;

@@ -135,6 +135,8 @@ public final class RoomPredictor {
     private static final List<Candidate>[] BY_TILE = new List[TILES * TILES];
     private static final Map<String, int[]> NORM_CACHE = new HashMap<>();
     private static final Map<Integer, Prediction> PREDICTIONS = new HashMap<>();
+    /** Bumped whenever {@link #PREDICTIONS} is replaced or cleared (the Dungeon Map's draw cache keys on it). */
+    private static int predictionsVersion = 0;
 
     private static int generation = Integer.MIN_VALUE;
     private static Object level = null;
@@ -193,6 +195,7 @@ public final class RoomPredictor {
         ALL.clear();
         Arrays.fill(BY_TILE, null);
         PREDICTIONS.clear();
+        predictionsVersion++;
         dirty = false;
     }
 
@@ -218,13 +221,51 @@ public final class RoomPredictor {
         double jx = ((sampleSeed % 4) + 0.5) / 4.0;
         double jy = ((sampleSeed / 4) + 0.5) / 4.0;
         int[] floor = HeldMap.floorTiles();
+        if (obsCount >= MAX_OBSERVATIONS) {
+            return; // record() keeps nothing more, whatever a ray meets
+        }
+        // Which tiles a hit may be recorded in, for this sweep (he does not move during it): isTarget, once per tile.
+        boolean anyTarget = false;
+        for (int tz = 0; tz < TILES; tz++) {
+            for (int tx = 0; tx < TILES; tx++) {
+                boolean t = tx < floor[0] && tz < floor[1] && isTarget(client, tz * 2 * DungeonLayout.GRID + tx * 2);
+                SWEEP_TARGET[tz * TILES + tx] = t;
+                anyTarget |= t;
+            }
+        }
+        if (!anyTarget) {
+            return; // every hit would be thrown away (all opened, or only the tile he stands in)
+        }
         for (int i = 0; i < RAYS_X; i++) {
             for (int j = 0; j < RAYS_Y; j++) {
                 double u = ((i + jx) / RAYS_X) * 2 - 1;
                 double v = ((j + jy) / RAYS_Y) * 2 - 1;
-                Vec3 dir = f.add(right.scale(u * tanH)).add(up.scale(v * tanV)).normalize();
-                Vec3 end = eye.add(dir.scale(RAY_RANGE));
-                HitResult hit = client.level.clip(new ClipContext(eye, end, ClipContext.Block.VISUAL,
+                // The same arithmetic as f.add(right.scale(u * tanH)).add(up.scale(v * tanV)).normalize() and
+                // eye.add(dir.scale(RAY_RANGE)), operation for operation, without the five Vec3 between them.
+                double su = u * tanH;
+                double sv = v * tanV;
+                double dx = f.x + right.x * su + up.x * sv;
+                double dy = f.y + right.y * su + up.y * sv;
+                double dz = f.z + right.z * su + up.z * sv;
+                double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (len < 1.0E-5F) {
+                    dx = 0;
+                    dy = 0;
+                    dz = 0;
+                } else {
+                    dx /= len;
+                    dy /= len;
+                    dz /= len;
+                }
+                double ex = eye.x + dx * RAY_RANGE;
+                double ey = eye.y + dy * RAY_RANGE;
+                double ez = eye.z + dz * RAY_RANGE;
+                // A ray whose whole reach (plus the block a hit can round to) lies over tiles none of which is a
+                // target can only meet blocks record() throws away: not cast. Exact, never skips a ray that could count.
+                if (!reachesTarget(Math.min(eye.x, ex), Math.min(eye.z, ez), Math.max(eye.x, ex), Math.max(eye.z, ez))) {
+                    continue;
+                }
+                HitResult hit = client.level.clip(new ClipContext(eye, new Vec3(ex, ey, ez), ClipContext.Block.VISUAL,
                         ClipContext.Fluid.NONE, client.player));
                 if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) {
                     continue;
@@ -232,6 +273,25 @@ public final class RoomPredictor {
                 record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
             }
         }
+    }
+
+    /** {@link #isTarget} per tile (tz * TILES + tx) for the sweep in progress; false off the floor. */
+    private static final boolean[] SWEEP_TARGET = new boolean[TILES * TILES];
+
+    /** Whether any tile under the x/z box (widened a block each way) is a target this sweep. */
+    private static boolean reachesTarget(double minX, double minZ, double maxX, double maxZ) {
+        int tx0 = Math.max(0, Math.floorDiv((int) Math.floor(minX) - 1 - ORIGIN, TILE_PITCH));
+        int tz0 = Math.max(0, Math.floorDiv((int) Math.floor(minZ) - 1 - ORIGIN, TILE_PITCH));
+        int tx1 = Math.min(TILES - 1, Math.floorDiv((int) Math.floor(maxX) + 1 - ORIGIN, TILE_PITCH));
+        int tz1 = Math.min(TILES - 1, Math.floorDiv((int) Math.floor(maxZ) + 1 - ORIGIN, TILE_PITCH));
+        for (int tz = tz0; tz <= tz1; tz++) {
+            for (int tx = tx0; tx <= tx1; tx++) {
+                if (SWEEP_TARGET[tz * TILES + tx]) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static void record(Minecraft client, BlockPos pos, Vec3 eye, Vec3 hitAt, int[] floor) {
@@ -245,9 +305,8 @@ public final class RoomPredictor {
         if (lx < EDGE || lz < EDGE || lx > RoomLibrary.TILE - 1 - EDGE || lz > RoomLibrary.TILE - 1 - EDGE) {
             return;
         }
-        int gridIdx = tz * 2 * DungeonLayout.GRID + tx * 2;
-        if (!isTarget(client, gridIdx)) {
-            return;
+        if (!SWEEP_TARGET[tz * TILES + tx]) {
+            return; // isTarget, worked out once for the sweep
         }
         long key = pos.asLong();
         if (OBS_INDEX.containsKey(key) || obsCount >= MAX_OBSERVATIONS) {
@@ -379,8 +438,10 @@ public final class RoomPredictor {
                 if (ignored(observed)) {
                     continue;
                 }
-                BlockPos p = BlockPos.of(obsPos[i]);
-                int expected = expectedAt(c, p.getX(), p.getY() - off, p.getZ());
+                // The packed position read in place: a BlockPos per observation per candidate was most of this
+                // tick's allocation (95-perf-features ALL ON, 2026-10-15).
+                long packed = obsPos[i];
+                int expected = expectedAt(c, BlockPos.getX(packed), BlockPos.getY(packed) - off, BlockPos.getZ(packed));
                 if (expected < 0 || ignored(expected)) {
                     continue;
                 }
@@ -466,18 +527,20 @@ public final class RoomPredictor {
             }
             long all = -1L;
             long any = 0L;
-            Set<String> turns = new LinkedHashSet<>();
+            // One placement (turn and anchor) left among them; it was a set of "rot@ax,az" strings, one per candidate.
+            boolean oneTurn = true;
+            Candidate first = standing.get(0);
             for (Candidate c : standing) {
                 all &= c.tiles;
                 any |= c.tiles;
-                turns.add(c.rot + "@" + c.ax + "," + c.az);
+                oneTurn &= c.rot == first.rot && c.ax == first.ax && c.az == first.az;
             }
             String name = names.iterator().next();
             RoomEntry entry = RoomDatabase.lookupByName(name);
             String type = entry != null && entry.type != null ? entry.type.toUpperCase(Locale.ROOT) : "NORMAL";
             int gridIdx = (t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2;
             next.put(gridIdx, new Prediction(gridIdx, name, type, tilesOf(all), tilesOf(any & ~all),
-                    turns.size() == 1, standing.size(), EVIDENCE[t]));
+                    oneTurn, standing.size(), EVIDENCE[t]));
         }
         for (Map.Entry<Integer, Prediction> e : next.entrySet()) {
             Prediction old = PREDICTIONS.get(e.getKey());
@@ -488,9 +551,29 @@ public final class RoomPredictor {
                         p.evidence());
             }
         }
+        if (!sameDrawn(PREDICTIONS, next)) {
+            predictionsVersion++;   // only when the map would draw something else: it repaints on every bump
+        }
         PREDICTIONS.clear();
         PREDICTIONS.putAll(next);
         setStatus(obsCount + " block(s) seen, " + PREDICTIONS.size() + " prediction(s)");
+    }
+
+    /** Whether two prediction sets draw the same: per tile, the same name, type, certain and unsure tiles. */
+    private static boolean sameDrawn(Map<Integer, Prediction> a, Map<Integer, Prediction> b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (Map.Entry<Integer, Prediction> e : a.entrySet()) {
+            Prediction x = e.getValue();
+            Prediction y = b.get(e.getKey());
+            if (y == null || !x.name().equals(y.name()) || !x.type().equals(y.type())
+                    || !Arrays.equals(x.certainTiles(), y.certainTiles())
+                    || !Arrays.equals(x.uncertainTiles(), y.uncertainTiles())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean touchesOpened(Candidate c) {
@@ -563,6 +646,10 @@ public final class RoomPredictor {
     /** Every current prediction, by the tile it was made for. */
     public static List<Prediction> predictions() {
         return new ArrayList<>(PREDICTIONS.values());
+    }
+
+    public static int predictionsVersion() {
+        return predictionsVersion;
     }
 
     public static Prediction predictionFor(int gridIdx) {

@@ -57,8 +57,7 @@ final class CommandChatListener {
             if (!PartyCommandsConfig.getInstance().isEnabled()) {
                 return;
             }
-            String plain = ChatFormatting.stripFormatting(message.getString());
-            String raw = (plain != null ? plain : message.getString()).trim();
+            String raw = com.killer560.hub.util.ChatObserver.strip(message).trim();
             if (raw.length() > 512) {
                 return;   // no command line is this long; never run the patterns over a wall of text
             }

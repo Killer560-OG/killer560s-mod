@@ -84,6 +84,10 @@ public final class ScoreboardData {
         readTab(client);
         island = "";
         for (String line : tabPlain) {
+            // Only an "Area: " / "Dungeon: " line can match; the rest of the ~80 entries skip the Matcher.
+            if (!line.contains("Area: ") && !line.contains("Dungeon: ")) {
+                continue;
+            }
             Matcher m = ScoreboardPattern.TAB_AREA.matcher(line.trim());
             if (m.matches()) {
                 island = m.group("island").trim();
@@ -191,7 +195,38 @@ public final class ScoreboardData {
         return start + end;
     }
 
-    private static String lastColorCode(String s) {
+    /** The last run of consecutive colour/format codes in {@code s} - what the last {@code find()} of
+     *  {@link #COLOR_CODES} returns - or null. A scan, not a Matcher: this runs for every team-built sidebar line on
+     *  every refresh, and its Matcher was the scoreboard's largest allocation (95-perf JFR, 2026-10-15). */
+    static String lastColorCode(String s) {
+        int n = s.length();
+        int lastStart = -1;
+        int lastEnd = -1;
+        int i = 0;
+        while (i < n) {
+            if (s.charAt(i) == '§' && i + 1 < n && isCodeChar(s.charAt(i + 1))) {
+                int start = i;
+                i += 2;
+                while (i + 1 < n && s.charAt(i) == '§' && isCodeChar(s.charAt(i + 1))) {
+                    i += 2;
+                }
+                lastStart = start;
+                lastEnd = i;
+            } else {
+                i++;
+            }
+        }
+        return lastStart < 0 ? null : s.substring(lastStart, lastEnd);
+    }
+
+    /** One character of {@code [0-9a-fk-orA-FK-OR]}. */
+    private static boolean isCodeChar(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'k' && c <= 'o') || c == 'r'
+                || (c >= 'A' && c <= 'F') || (c >= 'K' && c <= 'O') || c == 'R';
+    }
+
+    /** {@link #lastColorCode} as the regex answers it, for the testkit's equivalence check. */
+    static String lastColorCodeRegex(String s) {
         Matcher m = COLOR_CODES.matcher(s);
         String last = null;
         while (m.find()) {

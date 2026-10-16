@@ -150,8 +150,7 @@ public final class TickTimersFeature {
         // un-stripped string - DungeonState's own BOSS_START_PATTERN fix already confirmed real Hypixel
         // boss/sidebar lines embed §-codes mid-word, which silently breaks an exact/regex match unless
         // formatting is stripped first. Every trigger here is real boss dialogue of that exact kind.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = com.killer560.hub.util.ChatObserver.strip(message);
         if (NECRON_REGEX.matcher(raw).matches()) {
             necronTicks = 60;
         } else if (MAXOR_START_REGEX.matcher(raw).matches()) {
@@ -285,10 +284,28 @@ public final class TickTimersFeature {
     }
 
     private static String value(int time, TickTimersConfig cfg) {
-        return cfg.isDisplayInTicks()
-                ? time + (cfg.isShowSymbol() ? "t" : "")
-                : String.format(Locale.US, "%.1f%s", time / 20f, cfg.isShowSymbol() ? "s" : "");
+        if (cfg.isDisplayInTicks()) {
+            return time + (cfg.isShowSymbol() ? "t" : "");
+        }
+        // The seconds text for a tick count, remembered: the HUD asks for every active timer each frame and again for
+        // width()/height(), and the count only moves once a server tick (2026-10-15: a String.format each time).
+        boolean symbol = cfg.isShowSymbol();
+        int slot = time & (VALUE_SLOTS - 1);
+        if (!Minecraft.getInstance().isSameThread()) {
+            return String.format(Locale.US, "%.1f%s", time / 20f, symbol ? "s" : "");
+        }
+        if (VALUE_TEXT[slot] == null || VALUE_TIME[slot] != time || VALUE_SYMBOL[slot] != symbol) {
+            VALUE_TEXT[slot] = String.format(Locale.US, "%.1f%s", time / 20f, symbol ? "s" : "");
+            VALUE_TIME[slot] = time;
+            VALUE_SYMBOL[slot] = symbol;
+        }
+        return VALUE_TEXT[slot];
     }
+
+    private static final int VALUE_SLOTS = 64;
+    private static final String[] VALUE_TEXT = new String[VALUE_SLOTS];
+    private static final int[] VALUE_TIME = new int[VALUE_SLOTS];
+    private static final boolean[] VALUE_SYMBOL = new boolean[VALUE_SLOTS];
 
     public static final class TickTimersHudElement implements HudElement {
         @Override

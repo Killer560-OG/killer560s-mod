@@ -604,6 +604,15 @@ public final class MapPainter {
         return best;
     }
 
+    /** For the Dungeon Map's draw cache: runs the mimic scan when it is due, exactly as painting a room does, and says
+     *  how many tiles are latched (they are only ever added within a run; a grid reset bumps the map's version). */
+    static int mimicDrawVersion() {
+        if (LiveMapConfig.getInstance().isMimicScan()) {
+            refreshMimicScanIfStale();
+        }
+        return MIMIC_TILES.size();
+    }
+
     private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
         // The scan that knows the mimic's room in advance is the cheat build's Funny Map with Show Mimic Room
         // (killer560, 2026-10-15: "In the normal map it cannot scan for mimic to know which rooms has it").
@@ -1125,6 +1134,14 @@ public final class MapPainter {
     }
 
     private static void drawSprite(GuiGraphicsExtractor graphics, String[] rows, float cx, float cy, float size, int color) {
+        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+        drawSprite(rects, rows, cx, cy, size, color);
+        rects.submit();
+    }
+
+    /** The runs of one sprite into a batch: one GUI element instead of one per run (a checkmark is about a dozen). */
+    private static void drawSprite(com.killer560.hub.hud.GuiRects graphics, String[] rows, float cx, float cy, float size,
+                                   int color) {
         int h = rows.length;
         int w = rows[0].length();
         float unit = size / w;
@@ -1529,6 +1546,8 @@ public final class MapPainter {
         }
         graphics.pose().pushMatrix();
         graphics.pose().scale(1f / TRI_RES, 1f / TRI_RES);
+        // The rows as one render-state element (hud/GuiRects: same fills, same order, same pixels).
+        com.killer560.hub.hud.GuiRects rows = com.killer560.hub.hud.GuiRects.begin(graphics);
         int runStart = top;
         int runW = -1;
         for (int r = top; r < bottom; r++) {
@@ -1536,13 +1555,14 @@ public final class MapPainter {
             int w = Math.max(1, Math.round((r + 0.5f - tipY * TRI_RES) * 0.5f));
             if (w != runW) {
                 if (runW > 0) {
-                    graphics.fill(-runW, runStart, runW, r, color);
+                    rows.fill(-runW, runStart, runW, r, color);
                 }
                 runStart = r;
                 runW = w;
             }
         }
-        graphics.fill(-runW, runStart, runW, bottom, color);
+        rows.fill(-runW, runStart, runW, bottom, color);
+        rows.submit();
         graphics.pose().popMatrix();
     }
 

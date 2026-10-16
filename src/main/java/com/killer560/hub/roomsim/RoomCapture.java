@@ -253,14 +253,14 @@ public final class RoomCapture {
                     int section = (wy >> 4) - bottomSection;
                     if (section >= 0 && section < sections.length && sections[section] != null
                             && sections[section].hasOnlyAir()) {
-                        r.blocks[r.index(x, capturedY, z)] = air;
+                        r.setBlockAt(r.index(x, capturedY, z), air);
                         continue;
                     }
                     cursor.set(wx, wy, wz);
                     BlockState state = level.getBlockState(cursor);
                     // The FULL state, as the recorder stored it: a stair's facing is part of the room.
-                    r.blocks[r.index(x, capturedY, z)] = r.paletteFor(
-                            net.minecraft.commands.arguments.blocks.BlockStateParser.serialize(state));
+                    r.setBlockAt(r.index(x, capturedY, z), r.paletteFor(
+                            net.minecraft.commands.arguments.blocks.BlockStateParser.serialize(state)));
                 }
                 r.seenColumn[z * r.sizeX + x] = true;
             }

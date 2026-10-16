@@ -59,11 +59,26 @@ public final class RouteCoords {
         // negated angle (fixed 2026-09-20: it had been rotating room-relative coords the wrong way, putting
         // every point a room-width outside the room at those two rotations). These two must agree - this
         // file keeps its own sub-block rotation but delegates whole blocks to RoomDatabase.
+        return new double[]{rotX(x, z, degrees), rotZ(x, z, degrees)};
+    }
+
+    /** {@link #rotate}'s x, without the array (fps-auto-1015: the idle arm test runs it for every node every tick). */
+    private static double rotX(double x, double z, int degrees) {
         return switch (normalize(degrees)) {
-            case 90 -> new double[]{1.0 - z, x};
-            case 180 -> new double[]{1.0 - x, 1.0 - z};
-            case 270 -> new double[]{z, 1.0 - x};
-            default -> new double[]{x, z};
+            case 90 -> 1.0 - z;
+            case 180 -> 1.0 - x;
+            case 270 -> z;
+            default -> x;
+        };
+    }
+
+    /** {@link #rotate}'s z, without the array. */
+    private static double rotZ(double x, double z, int degrees) {
+        return switch (normalize(degrees)) {
+            case 90 -> x;
+            case 180 -> 1.0 - z;
+            case 270 -> 1.0 - x;
+            default -> z;
         };
     }
 
@@ -93,6 +108,19 @@ public final class RouteCoords {
     public static Vec3 toReal(Frame f, double rx, double ry, double rz) {
         double[] r = rotate(rx, rz, f.rotation());
         return new Vec3(r[0] + f.clayX(), ry + shift(), r[1] + f.clayZ());
+    }
+
+    /** {@link #toReal(Frame, double, double, double)}'s three components one by one, with no Vec3 or array. */
+    public static double realX(Frame f, double rx, double rz) {
+        return rotX(rx, rz, f.rotation()) + f.clayX();
+    }
+
+    public static double realY(double ry) {
+        return ry + shift();
+    }
+
+    public static double realZ(Frame f, double rx, double rz) {
+        return rotZ(rx, rz, f.rotation()) + f.clayZ();
     }
 
     public static Vec3 toReal(Frame f, Vec3 relative) {

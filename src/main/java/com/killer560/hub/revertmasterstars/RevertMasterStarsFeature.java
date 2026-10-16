@@ -24,10 +24,38 @@ public final class RevertMasterStarsFeature {
     private RevertMasterStarsFeature() {
     }
 
+    /**
+     * Name object -> what {@link #rebuild} made of it (the same object when it has no master stars). On the client
+     * thread only: {@code ItemStack.getHoverName} runs for every slot, tooltip and item label drawn, each frame, and
+     * the answer is a pure function of the name's text and styles, which a stack's name object never changes - so the
+     * text is built and searched once per name instead of once per call (mixin FPS pass, 2026-10-15). Other threads
+     * (the integrated server) compute it as before.
+     */
+    private static final java.util.Map<Component, Component> CACHE = new java.util.IdentityHashMap<>();
+
     public static Component modifyHoverName(Component component) {
         if (!RevertMasterStarsConfig.getInstance().isEnabled()) {
             return component;
         }
+        if (component == null) {
+            return rebuild(component);
+        }
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || !mc.isSameThread()) {
+            return rebuild(component);
+        }
+        Component known = CACHE.get(component);
+        if (known == null) {
+            known = rebuild(component);
+            if (CACHE.size() >= 2048) {
+                CACHE.clear();
+            }
+            CACHE.put(component, known);
+        }
+        return known;
+    }
+
+    private static Component rebuild(Component component) {
         String text = component.getString();
         int starsStart = findMasterStars(text);
         if (starsStart == -1) {

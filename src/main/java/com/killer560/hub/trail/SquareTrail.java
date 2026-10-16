@@ -122,6 +122,7 @@ final class SquareTrail {
         float half = squareSize / 2f;
         float baseAlpha = opacityPercent / 100f;
         int drawn = 0;
+        BATCH.clear();
         for (int i = 0; i < visible; i++) {
             int idx = Math.floorMod(head - 1 - i, TrailConfig.MAX_LENGTH);
             float alpha = baseAlpha;
@@ -135,12 +136,17 @@ final class SquareTrail {
             double x = xs[idx];
             double y = ys[idx];
             double z = zs[idx];
-            AABB box = new AABB(x - half, y, z - half, x + half, y + SQUARE_THICKNESS, z + half);
-            WorldRenderUtils.renderFilledBox(context, box, rgb[0], rgb[1], rgb[2], alpha);
+            // The same box renderFilledBox drew per square, collected and drawn in one call (FPS pass, 2026-10-15: an
+            // AABB, a lambda and a camera-space push per square per frame before, up to 100 squares).
+            BATCH.add(x - half, y, z - half, x + half, y + SQUARE_THICKNESS, z + half, rgb[0], rgb[1], rgb[2], alpha);
             drawn++;
         }
+        BATCH.drawFilled(context, net.minecraft.client.renderer.rendertype.RenderTypes.debugFilledBox());
         return drawn;
     }
+
+    /** Render-thread scratch for {@link #render}. */
+    private final com.killer560.hub.util.BoxBatch BATCH = new com.killer560.hub.util.BoxBatch();
 
     private static float[] rgbToFloats(int rgb) {
         return new float[]{((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f};

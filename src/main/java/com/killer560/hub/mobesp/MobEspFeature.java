@@ -199,10 +199,16 @@ public final class MobEspFeature {
         // highlights, through walls; the legit highlight only to one that passed the line-of-sight test in accept().
         boolean witherTracer = (wantWitherEsp || wantWitherHighlight) && cfg.isWitherTracerEnabled();
 
-        Map<Integer, Box> foundBoxes = new LinkedHashMap<>();
-        Map<Integer, Integer> foundGlows = new LinkedHashMap<>();
-        Map<Integer, Integer> foundTracers = new LinkedHashMap<>();
-        Set<Integer> liveStands = new HashSet<>();
+        // Reused every tick, and published below only when they differ from what is drawn (FPS pass, 2026-10-15: four
+        // fresh collections and three copies per tick before, ~3 KB, whether or not anything had changed).
+        Map<Integer, Box> foundBoxes = FOUND_BOXES;
+        Map<Integer, Integer> foundGlows = FOUND_GLOWS;
+        Map<Integer, Integer> foundTracers = FOUND_TRACERS;
+        Set<Integer> liveStands = LIVE_STANDS;
+        foundBoxes.clear();
+        foundGlows.clear();
+        foundTracers.clear();
+        liveStands.clear();
         int stars = 0;
         int bats = 0;
         int withers = 0;
@@ -273,10 +279,22 @@ public final class MobEspFeature {
             losCache.values().removeIf(v -> tickCounter - (v >>> 1) > 100L);
         }
 
-        boxTargets = Map.copyOf(foundBoxes);
-        glowTargets = Map.copyOf(foundGlows);
-        tracerTargets = Map.copyOf(foundTracers);
+        if (!foundBoxes.equals(boxTargets)) {
+            boxTargets = Map.copyOf(foundBoxes);
+        }
+        if (!foundGlows.equals(glowTargets)) {
+            glowTargets = Map.copyOf(foundGlows);
+        }
+        if (!foundTracers.equals(tracerTargets)) {
+            tracerTargets = Map.copyOf(foundTracers);
+        }
     }
+
+    /** Client-thread scratch for {@link #tick}. */
+    private static final Map<Integer, Box> FOUND_BOXES = new LinkedHashMap<>();
+    private static final Map<Integer, Integer> FOUND_GLOWS = new LinkedHashMap<>();
+    private static final Map<Integer, Integer> FOUND_TRACERS = new LinkedHashMap<>();
+    private static final Set<Integer> LIVE_STANDS = new HashSet<>();
 
     /**
      * killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
@@ -393,20 +411,46 @@ public final class MobEspFeature {
                 EspRenderer.tracer(context, eyes, centre, target.getValue(), thickness, true);
             }
         }
+        // Every box into four reusable lists (fill / outline x depth-tested / through walls), each drawn with ONE call:
+        // per box this used to be a fill call and an outline call, each with its own colour array and lambda, plus an
+        // AABB and two Vec3 for the interpolated box (FPS pass, 2026-10-15). Same boxes, same colours, same types.
+        FILL_DEPTH.clear();
+        FILL_WALLS.clear();
+        LINE_DEPTH.clear();
+        LINE_WALLS.clear();
         for (Map.Entry<Integer, Box> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
             if (entity == null || entity.isRemoved()) {
                 continue;
             }
             Box box = target.getValue();
-            Vec3 lerped = entity.getPosition(partialTick);
-            AABB aabb = entity.getBoundingBox().move(lerped.subtract(entity.position()));
+            // entity.getBoundingBox().move(entity.getPosition(partialTick).subtract(entity.position())), without the
+            // three allocations.
+            double dx = net.minecraft.util.Mth.lerp(partialTick, entity.xo, entity.getX()) - entity.getX();
+            double dy = net.minecraft.util.Mth.lerp(partialTick, entity.yo, entity.getY()) - entity.getY();
+            double dz = net.minecraft.util.Mth.lerp(partialTick, entity.zo, entity.getZ()) - entity.getZ();
+            AABB bb = entity.getBoundingBox();
+            int argb = box.argb();
+            float r = ((argb >> 16) & 0xFF) / 255f, g = ((argb >> 8) & 0xFF) / 255f, b = (argb & 0xFF) / 255f;
+            float a = EspRenderer.alpha(argb);
             if (box.filled()) {
-                EspRenderer.filled(context, aabb, box.argb(), box.throughWalls());
+                (box.throughWalls() ? FILL_WALLS : FILL_DEPTH).add(bb.minX + dx, bb.minY + dy, bb.minZ + dz,
+                        bb.maxX + dx, bb.maxY + dy, bb.maxZ + dz, r, g, b, a * 0.35f);
             }
-            EspRenderer.outline(context, aabb, box.argb(), lineWidth, box.throughWalls());
+            (box.throughWalls() ? LINE_WALLS : LINE_DEPTH).add(bb.minX + dx, bb.minY + dy, bb.minZ + dz,
+                    bb.maxX + dx, bb.maxY + dy, bb.maxZ + dz, r, g, b, a);
         }
+        FILL_DEPTH.drawFilled(context, EspRenderer.fillType(false));
+        FILL_WALLS.drawFilled(context, EspRenderer.fillType(true));
+        LINE_DEPTH.drawOutlines(context, EspRenderer.lineType(false), lineWidth);
+        LINE_WALLS.drawOutlines(context, EspRenderer.lineType(true), lineWidth);
     }
+
+    /** Render-thread scratch for {@link #render}, reused every frame. */
+    private static final com.killer560.hub.util.BoxBatch FILL_DEPTH = new com.killer560.hub.util.BoxBatch();
+    private static final com.killer560.hub.util.BoxBatch FILL_WALLS = new com.killer560.hub.util.BoxBatch();
+    private static final com.killer560.hub.util.BoxBatch LINE_DEPTH = new com.killer560.hub.util.BoxBatch();
+    private static final com.killer560.hub.util.BoxBatch LINE_WALLS = new com.killer560.hub.util.BoxBatch();
 
     /**
      * Every starred mob the client can see right now, resolved the way the ESP resolves them (the "star ... heart" stand

@@ -5,7 +5,9 @@
 	"package": "com.killer560.hub.livemap.mixin",
 	"client": [
 		"LiveMapPacketListenerMixin",
-		"LiveMapKeyboardInputMixin"
+		"LiveMapKeyboardInputMixin",
+		"MapDrawCacheGuiRenderStateMixin",
+		"MapDrawCacheFontSetMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

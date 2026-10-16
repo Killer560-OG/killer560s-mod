@@ -718,7 +718,7 @@ public final class LeapManager {
         if (data == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read-only, no deep copy (fps-auto-1015)
         return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 

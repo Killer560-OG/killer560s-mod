@@ -154,37 +154,92 @@ public final class TeammatesFeature {
         float lineWidth = cfg.getLineWidth();
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         Vec3 selfPos = client.player.getPosition(partialTick);
+        // Boxes into two reusable lists drawn with one call each, labels after them (FPS pass, 2026-10-15: a fill call,
+        // an outline call and a String.format per teammate per frame before). Same boxes, colours and text.
+        FILLS.clear();
+        LINES.clear();
+        int labels = 0;
         for (Map.Entry<Integer, Integer> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
             if (!(entity instanceof Player player) || player.isRemoved()) {
                 continue;
             }
             int color = target.getValue();
-            Vec3 lerped = player.getPosition(partialTick);
-            AABB box = player.getBoundingBox().move(lerped.subtract(player.position()));
+            double lx = net.minecraft.util.Mth.lerp(partialTick, player.xo, player.getX());
+            double ly = net.minecraft.util.Mth.lerp(partialTick, player.yo, player.getY());
+            double lz = net.minecraft.util.Mth.lerp(partialTick, player.zo, player.getZ());
+            double dx = lx - player.getX(), dy = ly - player.getY(), dz = lz - player.getZ();
+            AABB bb = player.getBoundingBox();
+            float a = TeammatesEspRenderer.alpha(color);
+            float r = ((color >> 16) & 0xFF) / 255f, g = ((color >> 8) & 0xFF) / 255f, b = (color & 0xFF) / 255f;
             if (filled) {
-                TeammatesEspRenderer.filled(context, box, color, throughWalls);
+                FILLS.add(bb.minX + dx, bb.minY + dy, bb.minZ + dz, bb.maxX + dx, bb.maxY + dy, bb.maxZ + dz,
+                        r, g, b, a * 0.35f);
             }
-            TeammatesEspRenderer.outline(context, box, color, lineWidth, throughWalls);
+            LINES.add(bb.minX + dx, bb.minY + dy, bb.minZ + dz, bb.maxX + dx, bb.maxY + dy, bb.maxZ + dz, r, g, b, a);
 
-            String label = labelText(cfg, player.getGameProfile().name(), selfPos.distanceTo(lerped));
+            double ddx = lx - selfPos.x, ddy = ly - selfPos.y, ddz = lz - selfPos.z;
+            String label = labelText(cfg, player.getId(), player.getGameProfile().name(),
+                    Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz));
             if (label != null) {
-                renderLabel(context, lerped.x, lerped.y + player.getBbHeight() + 0.5, lerped.z, label,
-                        0xFF000000 | (color & 0xFFFFFF));
+                if (labels == LABEL_TEXT.length) {
+                    LABEL_TEXT = java.util.Arrays.copyOf(LABEL_TEXT, labels * 2);
+                    LABEL_POS = java.util.Arrays.copyOf(LABEL_POS, labels * 2 * 4);
+                }
+                LABEL_TEXT[labels] = label;
+                LABEL_POS[labels * 4] = lx;
+                LABEL_POS[labels * 4 + 1] = ly + player.getBbHeight() + 0.5;
+                LABEL_POS[labels * 4 + 2] = lz;
+                LABEL_POS[labels * 4 + 3] = 0xFF000000 | (color & 0xFFFFFF);
+                labels++;
             }
+        }
+        FILLS.drawFilled(context, TeammatesEspRenderer.fillType(throughWalls));
+        LINES.drawOutlines(context, TeammatesEspRenderer.lineType(throughWalls), lineWidth);
+        for (int i = 0; i < labels; i++) {
+            renderLabel(context, LABEL_POS[i * 4], LABEL_POS[i * 4 + 1], LABEL_POS[i * 4 + 2], LABEL_TEXT[i],
+                    (int) LABEL_POS[i * 4 + 3]);
+            LABEL_TEXT[i] = null;
         }
     }
 
+    /** Render-thread scratch for {@link #render}. */
+    private static final com.killer560.hub.util.BoxBatch FILLS = new com.killer560.hub.util.BoxBatch();
+    private static final com.killer560.hub.util.BoxBatch LINES = new com.killer560.hub.util.BoxBatch();
+    private static String[] LABEL_TEXT = new String[8];
+    private static double[] LABEL_POS = new double[8 * 4];
+
+    /** One label per teammate entity id, rebuilt only when what it says changes (render thread). */
+    private static final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<Label> LABELS =
+            new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
+
+    private record Label(String name, int mode, long metres, String text) {
+    }
+
     /** {@code F7SpotsRenderer.labelText}: name, name + distance, or distance alone; null when neither is on. */
-    private static String labelText(TeammatesConfig cfg, String name, double distance) {
-        if (!cfg.isShowName() && !cfg.isShowDistance()) {
+    private static String labelText(TeammatesConfig cfg, int id, String name, double distance) {
+        boolean showName = cfg.isShowName();
+        boolean showDistance = cfg.isShowDistance();
+        if (!showName && !showDistance) {
             return null;
         }
-        if (!cfg.isShowDistance()) {
+        if (!showDistance) {
             return name;
         }
-        String d = String.format(Locale.US, "%.0fm", distance);
-        return cfg.isShowName() ? name + " §7(" + d + ")" : d;
+        // Math.round is String.format("%.0f")'s HALF_UP for a distance (never negative), without the Formatter.
+        long metres = Math.round(distance);
+        int mode = showName ? 1 : 0;
+        Label cached = LABELS.get(id);
+        if (cached != null && cached.metres() == metres && cached.mode() == mode && cached.name().equals(name)) {
+            return cached.text();
+        }
+        if (LABELS.size() > 64) {
+            LABELS.clear(); // ids of players long gone; the party is never this big
+        }
+        String d = metres + "m";
+        String text = showName ? name + " §7(" + d + ")" : d;
+        LABELS.put(id, new Label(name, mode, metres, text));
+        return text;
     }
 
     /** {@code F7SpotsRenderer.renderLabel} - the same billboard transform Thorn's stun spots use. */

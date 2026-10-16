@@ -65,13 +65,28 @@ public final class SecretsFeature {
         if (server == null || server.ip == null) {
             return false;
         }
+        // Asked by every getShape of every button, lever, chest and skull (raycasts, the outline, the integrated
+        // server's own lookups) while Secrets is on: a pure function of the address string, so it is worked out once
+        // per address object instead of lower-casing a copy of it on each call (mixin FPS pass, 2026-10-15).
+        IpVerdict last = lastIpVerdict;
+        if (last != null && last.ip == server.ip) {
+            return last.dungeon;
+        }
         String ip = server.ip.toLowerCase(Locale.US);
-        return ip.contains("hypixel.net") || ip.contains("p3sim.net");
+        boolean dungeon = ip.contains("hypixel.net") || ip.contains("p3sim.net");
+        lastIpVerdict = new IpVerdict(server.ip, dungeon);
+        return dungeon;
     }
+
+    private record IpVerdict(String ip, boolean dungeon) {
+    }
+
+    /** Read from the render thread and the integrated server's thread alike; the record is immutable. */
+    private static volatile IpVerdict lastIpVerdict;
 
     public static boolean shouldExpandLevers() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isLeversEnabled() || !passesDungeonsOnlyGate(cfg)) {
+        if (!cfg.isMasterEnabled() || !cfg.isLeversEnabled() || !isOnDungeonServer() || !passesDungeonsOnlyGate(cfg)) {
             return false;
         }
         return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
@@ -79,7 +94,7 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandButtons() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        if (!cfg.isMasterEnabled() || !isOnDungeonServer() || !cfg.isButtonsEnabled() || !passesDungeonsOnlyGate(cfg)) {
+        if (!cfg.isMasterEnabled() || !cfg.isButtonsEnabled() || !isOnDungeonServer() || !passesDungeonsOnlyGate(cfg)) {
             return false;
         }
         return !cfg.isBossOnly() || DungeonState.isBossPhaseActive();
@@ -91,12 +106,12 @@ public final class SecretsFeature {
 
     public static boolean shouldExpandChests() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isChestsEnabled() && passesDungeonsOnlyGate(cfg);
+        return cfg.isMasterEnabled() && cfg.isChestsEnabled() && isOnDungeonServer() && passesDungeonsOnlyGate(cfg);
     }
 
     public static boolean shouldExpandEssence() {
         SecretsConfig cfg = SecretsConfig.getInstance();
-        return cfg.isMasterEnabled() && isOnDungeonServer() && cfg.isEssenceEnabled() && passesDungeonsOnlyGate(cfg);
+        return cfg.isMasterEnabled() && cfg.isEssenceEnabled() && isOnDungeonServer() && passesDungeonsOnlyGate(cfg);
     }
 
     // Real player-head skin profile IDs for Wither Essence, per NoammAddons' own DungeonUtils.isSecret

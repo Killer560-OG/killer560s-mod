@@ -58,7 +58,7 @@ public final class CheatUtils {
     }
 
     private static void onChat(Component message) {
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = ChatObserver.strip(message);
         if (plain == null) {
             return;
         }

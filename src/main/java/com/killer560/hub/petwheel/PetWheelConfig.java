@@ -106,7 +106,13 @@ public final class PetWheelConfig {
         }
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         PetWheelConfig cfg = new PetWheelConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -165,7 +171,7 @@ public final class PetWheelConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     /** Slices on the wheel at once: every pet on it (the Slices setting was removed 2026-10-11 - the wheel lays

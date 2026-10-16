@@ -55,12 +55,13 @@ public final class QuizSolverFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(QuizSolverFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", com.killer560.hub.util.FeatureBits.register("Quiz Solver tick", () -> QuizSolverConfig.getInstance().isEnabledRaw()), client -> {
             onTick();
         }));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(QuizSolverFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
+                com.killer560.hub.util.FeatureBits.register("Quiz Solver render", () -> QuizSolverConfig.getInstance().isEnabledRaw()), QuizSolverFeature::onWorldRender));
     }
 
     private static Map<String, List<String>> loadAnswers() {
@@ -116,8 +117,7 @@ public final class QuizSolverFeature {
         if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String msg = plain != null ? plain : message.getString();
+        String msg = ChatObserver.strip(message);
 
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {

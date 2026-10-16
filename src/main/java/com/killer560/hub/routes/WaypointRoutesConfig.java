@@ -56,7 +56,13 @@ public final class WaypointRoutesConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         WaypointRoutesConfig cfg = new WaypointRoutesConfig();
         instance = cfg;
         if (!Files.exists(CONFIG_PATH)) {
@@ -122,8 +128,14 @@ public final class WaypointRoutesConfig {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
+    /** The stored switch alone (no Skyblock Only gate): FeatureBits' gate. */
+    public boolean isEnabledRaw() {
+        return enabled;
+    }
+
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        com.killer560.hub.util.FeatureBits.changed();
     }
 
     public int getKeyCode(int which) {

@@ -77,7 +77,13 @@ public final class P3NavConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new P3NavConfig();
             return;
@@ -147,7 +153,7 @@ public final class P3NavConfig {
     }
 
     public boolean getGateHighlightRaw() { return gateHighlight; }
-    public void setGateHighlight(boolean v) { gateHighlight = v; }
+    public void setGateHighlight(boolean v) { gateHighlight = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public int getGateColor() { return gateColor; }
     public void setGateColor(int v) { gateColor = v; }
@@ -174,7 +180,7 @@ public final class P3NavConfig {
     }
 
     public boolean getTerminalEspRaw() { return terminalEsp; }
-    public void setTerminalEsp(boolean v) { terminalEsp = v; }
+    public void setTerminalEsp(boolean v) { terminalEsp = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public int getTerminalColor() { return terminalColor; }
     public void setTerminalColor(int v) { terminalColor = v; }
@@ -200,7 +206,7 @@ public final class P3NavConfig {
     }
 
     public boolean getDeviceEspRaw() { return deviceEsp; }
-    public void setDeviceEsp(boolean v) { deviceEsp = v; }
+    public void setDeviceEsp(boolean v) { deviceEsp = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public int getDeviceColor() { return deviceColor; }
     public void setDeviceColor(int v) { deviceColor = v; }

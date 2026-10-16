@@ -45,7 +45,7 @@ public final class QuiverDisplayFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuiverDisplayFeature.tick", QuiverDisplayFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuiverDisplayFeature.tick", com.killer560.hub.util.FeatureBits.register("Quiver Display tick", () -> QuiverDisplayConfig.getInstance().isEnabledRaw()), QuiverDisplayFeature::tick));
     }
 
     private static void tick(Minecraft client) {

@@ -87,11 +87,7 @@ public final class I4SensorsFeature {
         if (overlay) {
             return;
         }
-        String raw = message.getString();
-        String plain = ChatFormatting.stripFormatting(raw);
-        if (plain == null) {
-            plain = raw;
-        }
+        String plain = com.killer560.hub.util.ChatObserver.strip(message);
         Minecraft client = Minecraft.getInstance();
         if (!isOnDungeonServer(client)) {
             return;

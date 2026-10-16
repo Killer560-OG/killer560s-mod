@@ -81,6 +81,9 @@ public final class LiveMapFeature {
     /** Bumped every client tick. Renderers key their per-frame caches off this (fps report 2026-09-20: the map
      *  rebuilt the party list, the layout snapshot and every room label on every single frame). */
     private static int tickCounter = 0;
+    /** Bumped whenever anything the map paints from in this class changes: the room grouping (rebuilt on every grid,
+     *  tile-identity or map-item change), a grid reset, or a room's found-secrets count. {@link MapDrawCache}'s key. */
+    private static int mapVersion = 0;
 
     public enum Tile {
         UNKNOWN, ROOM, DOOR_NORMAL, DOOR_WITHER, DOOR_BLOOD, DOOR_ENTRANCE
@@ -204,7 +207,7 @@ public final class LiveMapFeature {
         InteractiveMapFeature.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
-                onActionBar(message.getString());
+                onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
             }
         });
     }
@@ -228,6 +231,7 @@ public final class LiveMapFeature {
         groups.clear();
         groupsDirty = true;
         resetGeneration++;
+        mapVersion++;
         foundSecretsByRoom.clear();
         MapPainter.forgetMimics();
         DungeonMapScanner.reset();
@@ -558,6 +562,14 @@ public final class LiveMapFeature {
         clayXGrid[idx] = clayX;
         clayZGrid[idx] = clayZ;
         rotationGrid[idx] = rotation;
+        rotationVersion++;
+    }
+
+    /** Bumped whenever a room's clay corner or rotation is found ({@link DungeonLayout#current} keys on it). */
+    private static int rotationVersion = 0;
+
+    static int rotationVersion() {
+        return rotationVersion;
     }
 
     /** @return the tile index holding this room's rotation/corner (main tile first), or -1. */
@@ -591,6 +603,7 @@ public final class LiveMapFeature {
      *  different names or the result would exceed the room's shape tile count, so bad data degrades to
      *  single tiles instead of wrong merges. */
     private static void rebuildGroups() {
+        mapVersion++;
         int n = GRID * GRID;
         int[] parent = new int[n];
         int[] tileCount = new int[n];
@@ -770,7 +783,10 @@ public final class LiveMapFeature {
             int found = Integer.parseInt(m.group(1));
             int max = Integer.parseInt(m.group(2));
             if (max == group.entry.secrets) {
-                foundSecretsByRoom.put(group.entry.name, found);
+                Integer before = foundSecretsByRoom.put(group.entry.name, found);
+                if (before == null || before != found) {
+                    mapVersion++;
+                }
             }
         } catch (NumberFormatException ignored) {
         }
@@ -1046,6 +1062,12 @@ public final class LiveMapFeature {
         return resetGeneration;
     }
 
+    /** See {@link #mapVersion}. Rebuilds the grouping first if it is due, as every reader of it does. */
+    static int mapVersion() {
+        ensureGroups();
+        return mapVersion;
+    }
+
     /** Client ticks since load - the invalidation key for every per-frame render cache in this package. */
     static int tickCount() {
         return tickCounter;
@@ -1251,13 +1273,23 @@ public final class LiveMapFeature {
             return s;
         }
 
-        /** Extra Info's lines, or none when the Map Extras toggle is off. One list for the drawing and the box. */
+        /** Extra Info's lines, or none when the Map Extras toggle is off. One list for the drawing and the box. Built once
+         *  a client tick (the score, crypts and deaths it shows change on ticks and chat lines): it was built twice a
+         *  frame, by {@link #height()} and by the draw, each a dozen string concatenations and a score calculation. */
         private static List<String> extraInfoLines() {
             if (!com.killer560.hub.mapping.MappingConfig.getInstance().isExtraInfoEnabled()) {
                 return List.of();
             }
-            return com.killer560.hub.scorecalc.ScoreCalculatorFeature.mapInfoLines(false);
+            int tick = tickCount();
+            if (extraLinesTick != tick || extraLines == null) {
+                extraLinesTick = tick;
+                extraLines = com.killer560.hub.scorecalc.ScoreCalculatorFeature.mapInfoLines(false);
+            }
+            return extraLines;
         }
+
+        private static List<String> extraLines;
+        private static int extraLinesTick = Integer.MIN_VALUE;
 
         private static int extraInfoHeight(List<String> lines) {
             return lines.isEmpty() ? 0 : EXTRA_GAP + lines.size() * extraRow() + 1;
@@ -1334,7 +1366,24 @@ public final class LiveMapFeature {
             try {
                 HudSeen.markDrawn(id());
                 renderMap(graphics, x, y, cfg, client);
-                renderExtraInfo(graphics, x, y + mapPx(), cfg, extraInfoLines());
+                List<String> lines = extraInfoLines();
+                if (!lines.isEmpty()) {
+                    int ey = y + mapPx();
+                    MapDrawCache.Key k = MapDrawCache.frameKey(EXTRA_KEY.begin(), graphics);
+                    k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.isTextShadow()).ref(lines);
+                    paintGraphics = graphics;
+                    paintX = x;
+                    paintY = ey;
+                    paintCfg = cfg;
+                    paintLines = lines;
+                    try {
+                        EXTRA_SEGMENT.draw(graphics, k, PAINT_EXTRA);
+                    } finally {
+                        paintGraphics = null;
+                        paintCfg = null;
+                        paintLines = null;
+                    }
+                }
             } finally {
                 if (peeking) {
                     graphics.pose().popMatrix();
@@ -1349,6 +1398,199 @@ public final class LiveMapFeature {
          *  checkmarks - the same geometry and palette as the held map itself. */
         private void renderMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client) {
             float ppu = cfg.getRoomPx() / 16f;
+            // The floor's whole grid, scaled to fill the fixed outline and centred in it - chosen from the
+            // floor being played, never from what has been revealed, so nothing moves or shrinks during a run.
+            // Applied by moving the origin and multiplying the pixels-per-unit, so every drawing call below is
+            // untouched: doors, rooms, labels, teammates and the player arrow all scale together through ppu.
+            // Per-tick snapshot, never per frame: capture() walks all 121 cells and block-checks every wither/blood
+            // door (fps report 2026-09-20).
+            DungeonLayout layout = DungeonLayout.current();
+            float[] fit = floorFitCached();
+            ppu *= fit[0];
+            float ox = x + 2 + fit[1] * ppu;
+            float oy = y + 2 + fit[2] * ppu;
+
+            paintGraphics = graphics;
+            paintX = x;
+            paintY = y;
+            paintCfg = cfg;
+            paintClient = client;
+            paintLayout = layout;
+            paintOx = ox;
+            paintOy = oy;
+            paintPpu = ppu;
+            try {
+                // Rooms, doors, labels, marks, reported and predicted rooms: painted again only when something they are
+                // painted from changes (MapDrawCache); every other frame hands the same elements over again.
+                MapDrawCache.Key k = MapDrawCache.frameKey(MAP_KEY.begin(), graphics);
+                k.add(x).add(y).add(ox).add(oy).add(ppu);
+                mapInputs(k, cfg, layout);
+                MAP_SEGMENT.draw(graphics, k, PAINT_MAP);
+
+                // Players: their positions are a per-tick snapshot (InteractiveMapFeature.playersCached), so this part
+                // is painted once a tick and handed over again for the other frames of that tick.
+                // The held item only changes on a tick; reading its SkyBlock id every frame was an allocation a frame.
+                int tick = tickCount();
+                if (tick != namesTick) {
+                    namesTick = tick;
+                    namesThisTick = cfg.isLeapNames() && client.player != null
+                            && com.killer560.hub.fastleap.LeapManager.isLeapItem(client.player.getMainHandItem());
+                }
+                boolean names = cfg.isLeapNames() && namesThisTick;
+                paintNames = names;
+                MapDrawCache.Key mk = MapDrawCache.frameKey(MARKER_KEY.begin(), graphics);
+                mk.add(ox).add(oy).add(ppu).add(tickCount()).add(resetGeneration).add(names)
+                        .add(cfg.isShowTeammates()).add(cfg.isClassRecolorTeammates()).add(cfg.isPlayerHeads())
+                        .add(cfg.getIconScale());
+                MARKER_SEGMENT.draw(graphics, mk, PAINT_MARKERS);
+                namesShown = names;
+            } finally {
+                paintGraphics = null;
+                paintCfg = null;
+                paintClient = null;
+                paintLayout = null;
+            }
+        }
+
+        // ---- what one frame paints from (render thread only; set around each segment's draw, cleared after) ----
+        private static GuiGraphicsExtractor paintGraphics;
+        private static int paintX;
+        private static int paintY;
+        private static LiveMapConfig paintCfg;
+        private static Minecraft paintClient;
+        private static DungeonLayout paintLayout;
+        private static float paintOx;
+        private static float paintOy;
+        private static float paintPpu;
+        private static boolean paintNames;
+        private static List<String> paintLines;
+
+        private static final MapDrawCache.Segment MAP_SEGMENT = new MapDrawCache.Segment("map");
+        private static final MapDrawCache.Segment MARKER_SEGMENT = new MapDrawCache.Segment("marker");
+        private static final MapDrawCache.Segment EXTRA_SEGMENT = new MapDrawCache.Segment("extra");
+        private static final MapDrawCache.Key MAP_KEY = new MapDrawCache.Key();
+        private static final MapDrawCache.Key MARKER_KEY = new MapDrawCache.Key();
+        private static final MapDrawCache.Key EXTRA_KEY = new MapDrawCache.Key();
+        private static final MapDrawCache.Key TICK_KEY = new MapDrawCache.Key();
+        private static int tickKeyTick = Integer.MIN_VALUE;
+        private static int namesTick = Integer.MIN_VALUE;
+        private static boolean namesThisTick;
+
+        private static final Runnable PAINT_MAP = () -> paintMap(paintGraphics, paintX, paintY, paintCfg, paintClient,
+                paintLayout, paintOx, paintOy, paintPpu);
+        private static final Runnable PAINT_MARKERS = () -> paintMarkers(paintGraphics, paintCfg, paintClient, paintOx,
+                paintOy, paintPpu, paintNames);
+        private static final Runnable PAINT_EXTRA = () -> renderExtraInfo(paintGraphics, paintX, paintY, paintCfg,
+                paintLines);
+
+        /**
+         * Everything the map part is painted from, besides where it lands ({@link MapDrawCache#frameKey}): the settings
+         * it reads, the version counters of the state it reads, and - once a client tick, because they are lookups -
+         * the per-room answers that have no counter (sim puzzle states, teammates' secret counts, reported rooms, the
+         * doors' lock blocks). The verify mode (testkit 95-perf-livemap) is what shows nothing is missing here.
+         */
+        private static void mapInputs(MapDrawCache.Key k, LiveMapConfig cfg, DungeonLayout layout) {
+            for (int c : cfg.palette()) {
+                k.add(c);
+            }
+            k.add(cfg.getDarkenUnopened()).add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
+                    .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
+                    .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())
+                    .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx());
+            com.killer560.hub.livemap.predict.PredictiveRoomsConfig pc =
+                    com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance();
+            boolean predicted = pc.isEnabled();
+            boolean guessed = pc.isSpecialGuess() && MapPainter.hideUnrevealed();
+            k.add(predicted).add(guessed);
+            k.add(mapVersion()).add(resetGeneration).add(DungeonMapScanner.version())
+                    .add(com.killer560.hub.roomsim.SimState.isActive()).add(MapPainter.hideUnrevealed())
+                    .add(MapPainter.mimicDrawVersion())
+                    .add(predicted ? com.killer560.hub.livemap.predict.RoomPredictor.predictionsVersion() : 0)
+                    .add(cfg.isCustomCheckmarks() && cfg.getCheckmarkSource() == 1 ? MapMarks.pollUserSprites() : 0);
+            k.ref(DungeonState.getFloor());
+            int tick = tickCount();
+            if (tick != tickKeyTick) {
+                tickKeyTick = tick;
+                tickInputs(TICK_KEY.begin(), layout, guessed);
+            }
+            k.addAll(TICK_KEY);
+        }
+
+        private static void tickInputs(MapDrawCache.Key k, DungeonLayout layout, boolean guessed) {
+            for (int w = 0; w < DungeonLayout.doorBitWords(); w++) {
+                k.add(layout.doorBits(w));
+            }
+            boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+            // No teammate has reported a room's secrets (solo, or no interop): every lookup would say so, and each one
+            // normalised the name with a regex - one snapshot a tick instead.
+            teammateRooms = !com.killer560.hub.interop.PartyInteropState.roomSnapshot().isEmpty();
+            for (RoomGroup group : groups) {
+                RoomEntry entry = group.entry;
+                if (entry == null || entry.name == null) {
+                    continue;
+                }
+                if (sim) {
+                    k.add(com.killer560.hub.roomsim.SimRoomState.stateFor(entry.name));
+                }
+                if (entry.secrets > 0) {
+                    k.add(teammateFound(entry.name));
+                }
+            }
+            for (PartyMapIntel.ReportedRoom rr : PartyMapIntel.reportedRoomsView()) {
+                k.ref(rr);
+                if (rr.entry() != null && rr.entry().secrets > 0) {
+                    k.add(teammateFound(rr.entry().name));
+                }
+            }
+            for (PartyMapIntel.ReportedDoor rd : PartyMapIntel.reportedDoorsView()) {
+                k.ref(rd);
+            }
+            k.add(guessed ? SpecialRoomGuess.puzzleCount() : 0).add(guessed ? HeldMap.drawVersion() : 0);
+        }
+
+        private static boolean teammateRooms;
+
+        private static long teammateFound(String roomName) {
+            if (!teammateRooms) {
+                return Long.MIN_VALUE;
+            }
+            com.killer560.hub.interop.PartyInteropState.Fact<com.killer560.hub.interop.PartyInteropState.RoomSecrets> fact =
+                    com.killer560.hub.interop.PartyInteropState.roomSecrets(roomName);
+            return fact == null ? Long.MIN_VALUE : fact.value().found();
+        }
+
+        /** {@link MapPainter#floorFit}, worked out again only when what it reads can have changed. */
+        private static float[] floorFitCached() {
+            int mv = mapVersion();
+            int sv = DungeonMapScanner.version();
+            boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+            String floor = DungeonState.getFloor();
+            if (fitCache == null || mv != fitMapVersion || sv != fitScannerVersion || sim != fitSim
+                    || !java.util.Objects.equals(floor, fitFloor)) {
+                fitCache = MapPainter.floorFit(groups);
+                fitMapVersion = mv;
+                fitScannerVersion = sv;
+                fitSim = sim;
+                fitFloor = floor;
+            }
+            return fitCache;
+        }
+
+        private static float[] fitCache;
+        private static int fitMapVersion;
+        private static int fitScannerVersion;
+        private static boolean fitSim;
+        private static String fitFloor;
+
+        /** Test hook: the next frame paints every part of the map afresh. */
+        public static void invalidateDrawCache() {
+            MAP_SEGMENT.invalidate();
+            MARKER_SEGMENT.invalidate();
+            EXTRA_SEGMENT.invalidate();
+        }
+
+        private static void paintMap(GuiGraphicsExtractor graphics, int x, int y, LiveMapConfig cfg, Minecraft client,
+                                     DungeonLayout layout, float ox, float oy, float ppu) {
             int sizeW = mapPx();
             int sizeH = mapPx();
             graphics.fill(x, y, x + sizeW, y + sizeH, cfg.getMapBackground());
@@ -1356,19 +1598,6 @@ public final class LiveMapFeature {
             if ((border >>> 24) != 0) {
                 graphics.outline(x, y, sizeW, sizeH, border);
             }
-            // The floor's whole grid, scaled to fill the fixed outline and centred in it - chosen from the
-            // floor being played, never from what has been revealed, so nothing moves or shrinks during a run.
-            // Applied by moving the origin and multiplying the pixels-per-unit, so every drawing call below is
-            // untouched: doors, rooms, labels, teammates and the player arrow all scale together through ppu.
-            DungeonLayout fitLayout = DungeonLayout.current();
-            float[] fit = MapPainter.floorFit(groups);
-            ppu *= fit[0];
-            float ox = x + 2 + fit[1] * ppu;
-            float oy = y + 2 + fit[2] * ppu;
-
-            // Per-tick snapshot, never per frame: capture() walks all 121 cells and block-checks every wither/blood
-            // door (fps report 2026-09-20).
-            DungeonLayout layout = fitLayout;
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
 
@@ -1398,11 +1627,12 @@ public final class LiveMapFeature {
             }
             // Predictive Rooms and the Special Room Guess, over tiles the map does not already name (2026-10-15).
             PredictedRoomsPainter.draw(graphics, client.font, cfg, ox, oy, ppu);
+        }
 
+        private static void paintMarkers(GuiGraphicsExtractor graphics, LiveMapConfig cfg, Minecraft client, float ox,
+                                         float oy, float ppu, boolean names) {
             // Real arrow/head markers at the exact world position instead of a whole cell filled yellow. The list is
             // cached per tick - it used to run a fresh level.players() party scan every frame.
-            boolean names = cfg.isLeapNames() && client.player != null
-                    && com.killer560.hub.fastleap.LeapManager.isLeapItem(client.player.getMainHandItem());
             for (InteractiveMapFeature.MapPlayer mp : InteractiveMapFeature.playersCached(client)) {
                 if (!mp.self() && !cfg.isShowTeammates()) {
                     continue;
@@ -1410,7 +1640,6 @@ public final class LiveMapFeature {
                 MapPainter.drawMarker(graphics, client.font, mp, cfg, ox, oy, ppu, ppu,
                         cfg.isClassRecolorTeammates(), names && !mp.self(), -1, -1);
             }
-            namesShown = names;
         }
     }
 }

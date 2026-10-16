@@ -552,3 +552,34 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   75-sim-designer-grid on main, 2026-10-16). Anything that must line up to the pixel is laid out in its own whole-pixel unit
   (`SimMapEditorScreen.layoutGrid`: pose scaled by `gk / pixelsPerUnit`, `gk = round(pixelsPerUnit)`), with mouse hits
   mapped through the same numbers.
+- **On 26.1.2 every switch of render type in a world render event was a draw call.** None of the types the mod draws
+  with is a fixed buffer of the level `BufferSource`, so they share one buffer and `getBuffer` for a different type ends
+  the previous batch (javap `MultiBufferSource$BufferSource.getBuffer`, `lastSharedType`). Dungeon ESP's fill + outline
+  per mob made 40 draw calls a frame for 20 mobs and allocated 89-112 KB (testkit 95-perf-world on main 69505e45).
+  `McRender.inCameraSpace` now writes into the mod's own source inside AFTER_TRANSLUCENT_FEATURES / _TERRAIN, every
+  type a fixed buffer, drawn once after the event (ESP: 2 draw calls, 6.6 KB); 26.2's submit collector already groups by
+  type. The probe's CPU microseconds did NOT drop measurably (building and uploading the same vertices dominates, and the
+  driver's per-draw work is not in the probe), so judge this kind of change on draw calls and bytes. The probe now books
+  that draw under `compat.McRender`, so add it back when comparing a feature with main.
+  A per-item loop should still feed a `util/BoxBatch` rather than one `inCameraSpace` per box: each call allocates its
+  lambda and colour array, and the ESP's per-box AABB/Vec3 were most of its 112 KB.
+- **A screen drawn every frame must not lay out, split or Bidi its text every frame.** The mod menu allocated 340 KB a
+  frame on its card grid and 700 KB with a drawer open (testkit 95-perf-screens, 2026-10-15): about 45% was ICU Bidi from
+  `text(Font, String)` (vanilla reorders every String, every call; a `Component` keeps its order, a fresh
+  `Component.literal(..).withStyle(BOLD)` per frame does not), 30% was `GuiRects` building a render state, a pose copy
+  and four bounds objects per fill, and 20% was each card's word-wrap (`String.split` regex, a candidate string per
+  word). The menu now draws inside `HudTextCache`'s scope, `GuiRects` keeps parts as ints (vanilla's states only for a
+  lone part) and card text, tooltip lines and message splits are kept until their inputs change: 86 / 163 KB. Read a
+  widget's message by object identity (`setMessage` replaces it; nothing edits one in place), not `getString()` per call.
+- **Most of a text HUD's per-frame allocation is vanilla's glyphs, not the mod's strings.** Measured per draw with the
+  PerfProbe (testkit 95-perf-hud, 2026-10-15): Score Calculator 13,375 B on main with its lines rebuilt every frame,
+  11,712 B with them cached; Advanced Position 7,607 vs 7,476. Caching text saves the String.format/concatenation time,
+  not the ~70 B per drawn character `GuiGraphicsExtractor.text` costs. And `Font.width` of a string with `§` codes builds
+  a `Style` per code: Advanced Position's width() was 1,600 B a call until it was memoised on the line array.
+- **A HUD element's render-state elements can be replayed on a later frame** (`livemap/MapDrawCache`, 2026-10-15): hand
+  the same `ColoredRectangleRenderState`/`GuiTextRenderState` objects to `GuiRenderState` again, through the same `add*`
+  calls in the same order, and they layer exactly as a fresh draw (a text state even keeps its glyph layout, so drop the
+  cache on `FontSet.reload`). Record only the OUTERMOST call: recording every hooked call put each element in twice
+  (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
+  be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one, and
+  the paint count is what found Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).

@@ -94,25 +94,30 @@ public final class HudElementRegistry {
      *  position, clamped as usual. For a layoutPosition() that starts from where the element would otherwise be. */
     public static int[] ownPosition(HudElement element) {
         HudConfig cfg = HudConfig.getInstance();
-        boolean saved = cfg.hasPosition(element.id());
-        int[] pos = cfg.getPosition(element.id(), element.defaultX(), element.defaultY());
-        try {
-            if (saved) {
-                // Auto Scale (2026-10-05): a saved position is in BASELINE GUI pixels - the units of his 2560x1440 /
-                // GUI 3 monitor, where it was dragged - and is drawn at that times the factor, so the layout keeps
-                // its relative placement and every element stays the same fraction of the window. Where the factor
-                // is not 1 the scaled box is clamped fully on screen (memoised, so no per-frame width() calls):
-                // positions placed on a different screen shape must not end up hanging off an edge. At factor 1 the
-                // old rule stands - a deliberate half-off-screen placement is his to keep.
-                float f = AutoScale.current();
-                if (f != 1.0f) {
-                    return memoisedClamp(element, Math.round(pos[0] * f), Math.round(pos[1] * f), null);
-                }
-                return rescueIfInvisible(element, pos);
+        int[] pos = cfg.savedPosition(element.id());
+        if (pos == null) {
+            // Never dragged. Defaults are NOT multiplied: several are computed from the live screen size already (the
+            // Storage Overlay centres itself), and they are clamped on screen here anyway. The memo answers an
+            // unchanged default without the int[] getPosition built for it every frame (one per never-moved element
+            // per frame until 2026-10-15); it allocates only on a miss.
+            try {
+                return memoisedClamp(element, element.defaultX(), element.defaultY(), null);
+            } catch (RuntimeException e) {
+                return new int[]{element.defaultX(), element.defaultY()};
             }
-            // Defaults are NOT multiplied: several are computed from the live screen size already (the Storage
-            // Overlay centres itself), and they are clamped on screen below anyway.
-            return memoisedClamp(element, pos);
+        }
+        try {
+            // Auto Scale (2026-10-05): a saved position is in BASELINE GUI pixels - the units of his 2560x1440 /
+            // GUI 3 monitor, where it was dragged - and is drawn at that times the factor, so the layout keeps
+            // its relative placement and every element stays the same fraction of the window. Where the factor
+            // is not 1 the scaled box is clamped fully on screen (memoised, so no per-frame width() calls):
+            // positions placed on a different screen shape must not end up hanging off an edge. At factor 1 the
+            // old rule stands - a deliberate half-off-screen placement is his to keep.
+            float f = AutoScale.current();
+            if (f != 1.0f) {
+                return memoisedClamp(element, Math.round(pos[0] * f), Math.round(pos[1] * f), null);
+            }
+            return rescueIfInvisible(element, pos);
         } catch (RuntimeException e) {
             // A window that isn't ready yet or a width()/height() that throws must never break rendering -
             // fall back to the raw position, exactly what this method returned before the clamp existed.
@@ -184,10 +189,6 @@ public final class HudElementRegistry {
     private static final long CLAMP_REFRESH_MS = 250L;
 
     private static final java.util.Map<String, ClampMemo> CLAMP_MEMOS = new java.util.HashMap<>();
-
-    private static int[] memoisedClamp(HudElement element, int[] pos) {
-        return memoisedClamp(element, pos[0], pos[1], pos);
-    }
 
     /** {@code pos} may be null: the Auto Scale path passes the scaled x/y as ints and only allocates the array when
      *  the memo misses, so a scaled, unchanged element costs no allocation per frame (same rule as getPosition). */

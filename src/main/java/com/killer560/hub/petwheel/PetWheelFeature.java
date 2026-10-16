@@ -25,7 +25,7 @@ public final class PetWheelFeature {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PetWheelFeature.tick", PetWheelFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PetWheelFeature.tick", com.killer560.hub.util.FeatureBits.register("Pet Wheel tick", () -> PetWheelConfig.getInstance().isEnabled()), PetWheelFeature::tick));
         PetSummoner.register();
         PetWheelEditor.register();
     }

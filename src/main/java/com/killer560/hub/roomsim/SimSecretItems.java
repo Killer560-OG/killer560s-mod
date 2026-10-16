@@ -204,10 +204,14 @@ public final class SimSecretItems {
                 // Not players().get(0): a placed miniboss is a ServerPlayer and so is in this list too
                 // (ServerLevel$EntityCallbacks.onTrackingStart adds every one), and a secret must appear near
                 // the real player, not near an NPC.
-                var player = level.players().stream()
-                        .filter(p -> !SimMiniboss.isPlaced(p))
-                        .findFirst()
-                        .orElse(null);
+                // A loop, not a stream: this runs every server tick (fps-sim-1015).
+                net.minecraft.server.level.ServerPlayer player = null;
+                for (net.minecraft.server.level.ServerPlayer p : level.players()) {
+                    if (!SimMiniboss.isPlaced(p)) {
+                        player = p;
+                        break;
+                    }
+                }
                 if (player != null) {
                     magneticPickup(level, player);
                 }
@@ -244,7 +248,7 @@ public final class SimSecretItems {
      * times is not what was asked for and would make a room behave differently on a second pass.
      */
     private static void tickPending(ServerLevel level, double px, double py, double pz) {
-        List<BlockPos> ready = new ArrayList<>();
+        List<BlockPos> ready = null; // allocated only when one is due: this runs every server tick (fps-sim-1015)
         for (Map.Entry<BlockPos, Integer> entry : PENDING.entrySet()) {
             BlockPos at = entry.getKey();
             // From his BODY to the item's BLOCK, gap to gap. killer560 (2026-10-13): "I had a test where I was 3 blocks
@@ -256,6 +260,9 @@ public final class SimSecretItems {
             if (dx * dx + dy * dy + dz * dz <= TRIGGER_RANGE * TRIGGER_RANGE) {
                 int ticks = entry.getValue() + 1;
                 if (ticks > TRIGGER_TICKS) {
+                    if (ready == null) {
+                        ready = new ArrayList<>();
+                    }
                     ready.add(at);
                 } else {
                     entry.setValue(ticks);
@@ -263,6 +270,9 @@ public final class SimSecretItems {
             } else if (entry.getValue() != 0) {
                 entry.setValue(0);
             }
+        }
+        if (ready == null) {
+            return;
         }
         for (BlockPos at : ready) {
             PENDING.remove(at);

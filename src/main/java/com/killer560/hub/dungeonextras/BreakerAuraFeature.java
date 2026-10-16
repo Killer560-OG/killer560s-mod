@@ -894,7 +894,7 @@ public final class BreakerAuraFeature {
         if (data == null) {
             return 0;
         }
-        CompoundTag tag = data.copyTag();
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read-only, no deep copy (fps-auto-1015)
         if (!DUNGEON_BREAKER_SKYBLOCK_ID.equals(tag.getStringOr("id", null))) {
             return 0;
         }

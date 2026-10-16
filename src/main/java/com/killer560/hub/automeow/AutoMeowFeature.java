@@ -73,10 +73,10 @@ public final class AutoMeowFeature {
 
     public static void register() {
         ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) -> safeOnMessage(message.getString()));
+                (message, signedMessage, sender, params, receptionTimestamp) -> safeOnMessage(com.killer560.hub.util.ChatObserver.raw(message)));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!overlay) { // the action bar is not chat and must never trigger a reply
-                safeOnMessage(message.getString());
+                safeOnMessage(com.killer560.hub.util.ChatObserver.raw(message));
             }
         });
     }

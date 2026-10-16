@@ -46,6 +46,9 @@ public final class ClickSounds {
     public static final String IMPORT_PREFIX = "import:";
     /** The sound event every button click plays. */
     public static final String VANILLA_CLICK = "minecraft:ui.button.click";
+    /** {@link #VANILLA_CLICK} as an id: every sound the game plays is checked against it, so the check compares ids
+     *  rather than building each sound's id string (mixin FPS pass, 2026-10-15). */
+    private static final Identifier VANILLA_CLICK_ID = Identifier.withDefaultNamespace("ui.button.click");
     static final String NAMESPACE = "killer560smod";
     /** An imported file may be at most this big (a click is a fraction of a second; this stops a song being dropped in). */
     public static final long MAX_IMPORT_BYTES = 1024L * 1024L;
@@ -187,7 +190,7 @@ public final class ClickSounds {
      * sound (when one applies), anything else comes back untouched.
      */
     public static SoundInstance replace(SoundInstance in) {
-        if (in == null || !VANILLA_CLICK.equals(String.valueOf(in.getIdentifier()))) {
+        if (in == null || !VANILLA_CLICK_ID.equals(in.getIdentifier())) {
             return in;
         }
         SoundInstance out = in;

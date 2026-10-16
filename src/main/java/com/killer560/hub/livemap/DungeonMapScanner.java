@@ -60,6 +60,9 @@ final class DungeonMapScanner {
     private static byte[] pixels = null;
     /** Bumped whenever {@link #pixels} changes, so a cache built from them knows to rebuild. */
     private static int pixelsVersion = 0;
+    /** Bumped whenever any answer this class gives can have changed (a reset, a read that changed pixels or cells,
+     *  calibrating, the map item appearing or going). The Dungeon Map's draw cache keys on it. */
+    private static int version = 0;
     private static int mapRoomSize = 16;
     private static int startCornerX = 5;
     private static int startCornerZ = 5;
@@ -87,6 +90,11 @@ final class DungeonMapScanner {
         startCornerX = 5;
         startCornerZ = 5;
         nextCalibrationAttemptMs = 0;
+        version++;
+    }
+
+    static int version() {
+        return version;
     }
 
     static boolean isCalibrated() {
@@ -171,14 +179,21 @@ final class DungeonMapScanner {
     static boolean update(Minecraft client) {
         MapItemSavedData data = findDungeonMap(client);
         if (data == null || data.colors == null || data.colors.length < MAP_SIZE * MAP_SIZE) {
+            if (mapItemPresent) {
+                version++;
+            }
             mapItemPresent = false;
             return false;
+        }
+        if (!mapItemPresent) {
+            version++;
         }
         mapItemPresent = true;
         byte[] colors = data.colors;
         if (pixels == null || !java.util.Arrays.equals(pixels, colors)) {
             pixels = colors.clone();
             pixelsVersion++;
+            version++;
         }
         if (!calibrated) {
             long now = System.currentTimeMillis();
@@ -189,6 +204,7 @@ final class DungeonMapScanner {
             if (!calibrate(colors)) {
                 return false;
             }
+            version++;
         }
 
         int halfRoom = mapRoomSize / 2;
@@ -226,6 +242,7 @@ final class DungeonMapScanner {
         if (!changed) {
             return false;
         }
+        version++;
         for (int x = 0; x < GRID; x++) {
             for (int y = 0; y < GRID; y++) {
                 classify(y * GRID + x, x, y);

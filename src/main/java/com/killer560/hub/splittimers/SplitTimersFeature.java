@@ -227,8 +227,7 @@ public final class SplitTimersFeature {
             return;
         }
         // Stripped: real Hypixel lines can embed §-codes mid-word.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        onLine(plain != null ? plain : message.getString(), System.currentTimeMillis());
+        onLine(ChatObserver.strip(message), System.currentTimeMillis());
     }
 
     /** One chat line at {@code now}. Package-private so the testkit can drive a run with exact times. */
@@ -626,8 +625,17 @@ public final class SplitTimersFeature {
         /** The layout rows as HUD text. */
         static List<String> rowTexts(List<SplitRow> rows) {
             boolean lagless = SplitTimersConfig.getInstance().isLaglessTimes() && SplitLagClock.isTrustworthy();
+            // A finished split's row reads the same every frame; only the running one changes. Its text is reused
+            // while the row (a record: name, times, kind) and the lagless switch are unchanged, so a boss run draws
+            // one String.format a frame instead of one or two per row (2026-10-15). Render thread only.
+            boolean reuse = lagless == lastRowsLagless && Minecraft.getInstance().isSameThread();
             List<String> out = new ArrayList<>(rows.size());
-            for (SplitRow row : rows) {
+            for (int i = 0; i < rows.size(); i++) {
+                SplitRow row = rows.get(i);
+                if (reuse && i < lastRows.size() && row.equals(lastRows.get(i))) {
+                    out.add(lastRowTexts.get(i));
+                    continue;
+                }
                 out.add(switch (row.kind()) {
                     case DIVIDER -> row.name();
                     case LAG -> row.name() + "§f: " + lagSeconds(row.timeMs());
@@ -635,8 +643,17 @@ public final class SplitTimersFeature {
                             + (lagless && row.lagLessMs() >= 0L ? " §7(" + formatTime(row.lagLessMs()) + ")" : "");
                 });
             }
+            if (Minecraft.getInstance().isSameThread()) {
+                lastRows = rows;
+                lastRowTexts = out;
+                lastRowsLagless = lagless;
+            }
             return out;
         }
+
+        private static List<SplitRow> lastRows = List.of();
+        private static List<String> lastRowTexts = List.of();
+        private static boolean lastRowsLagless;
 
         /** A finished M7 run, for positioning the element in the HUD editor. */
         private static List<String> editorRows() {

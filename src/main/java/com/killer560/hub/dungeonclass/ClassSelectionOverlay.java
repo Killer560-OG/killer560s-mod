@@ -74,7 +74,7 @@ public final class ClassSelectionOverlay {
     }
 
     public static void register() {
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ClassSelectionOverlay.tick", ClassSelectionOverlay::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ClassSelectionOverlay.tick", com.killer560.hub.util.FeatureBits.register("Class Selection Overlay tick", () -> ClassSelectionOverlayConfig.getInstance().isEnabledRaw()), ClassSelectionOverlay::tick));
     }
 
     private static void tick(Minecraft client) {

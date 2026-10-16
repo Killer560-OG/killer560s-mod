@@ -1,8 +1,6 @@
 package com.killer560.hub.hud;
 
 import com.killer560.hub.dvd.DvdFeature;
-import com.killer560.hub.etherwarp.EtherwarpHudElement;
-import com.killer560.hub.experiments.ExperimentsFeature;
 import com.killer560.hub.gifplayer.GifPlayerFeature;
 import com.killer560.hub.notify.ModOverlayMessage;
 import net.minecraft.ChatFormatting;
@@ -47,17 +45,13 @@ public final class GuiOverlays {
         add("overlay_message", GuiOverlays::drawOverlayMessage);
         add("gif_player", GifPlayerFeature::renderOverlay);
         add("dvd", DvdFeature::renderOverlay);
-        add("experiments_status", ExperimentsFeature::renderOverlay);
+        // "experiments_status" (ExperimentsFeature.renderOverlay, empty since its overlay moved into the container screen)
+        // and "etherwarp_waypoints" (EtherwarpHudElement.isVisible(), always false since its HUD list was removed) were
+        // layers here that drew nothing, every frame; removed 2026-10-15. The element itself stays registered.
         add("dungeon_info", graphics -> {
             HudElement element = HudElementRegistry.byId("dungeon_info");
             // Off: draws nothing, so skip drawAt's position and pose work too (95-perf, 2026-10-15).
             if (!HudVisibility.menuOpen() && element != null && element.isEnabledInSettings()) {
-                HudElementRegistry.drawAt(graphics, element);
-            }
-        });
-        add("etherwarp_waypoints", graphics -> {
-            HudElement element = HudElementRegistry.byId("etherwarp_waypoints");
-            if (element instanceof EtherwarpHudElement e && e.isVisible()) {
                 HudElementRegistry.drawAt(graphics, element);
             }
         });

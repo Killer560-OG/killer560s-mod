@@ -177,7 +177,18 @@ public final class DungeonExtrasConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isMageBeamEnabledRaw() {
+        return mageBeamEnabled;
+    }
+
+    private static void load0() {
         DungeonExtrasConfig cfg = new DungeonExtrasConfig();
         if (Files.exists(CONFIG_PATH)) {
             try {
@@ -312,7 +323,7 @@ public final class DungeonExtrasConfig {
 
     // ---- Custom Mage Beam (both builds) ----
     public boolean isMageBeamEnabled() { return mageBeamEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
-    public void setMageBeamEnabled(boolean v) { mageBeamEnabled = v; }
+    public void setMageBeamEnabled(boolean v) { mageBeamEnabled = v; com.killer560.hub.util.FeatureBits.changed(); }
     public boolean isMageBeamHideParticles() { return mageBeamHideParticles; }
     public void setMageBeamHideParticles(boolean v) { mageBeamHideParticles = v; }
     public boolean isMageBeamFade() { return mageBeamFade; }

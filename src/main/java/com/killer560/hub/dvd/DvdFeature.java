@@ -199,10 +199,9 @@ public final class DvdFeature {
             reload();
         }
         // killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont show in the storage or any inventory".
-        if (com.killer560.hub.hud.GuiOverlays.containerOpen()) {
-            return;
-        }
-        if (!com.killer560.hub.util.SkyblockGate.allows() || !DvdConfig.getInstance().isDvdEnabled()) {
+        // The switch first: it is off for nearly everyone (2026-10-15).
+        if (!DvdConfig.getInstance().isDvdEnabled() || com.killer560.hub.hud.GuiOverlays.containerOpen()
+                || !com.killer560.hub.util.SkyblockGate.allows()) {
             return;
         }
         long now = System.currentTimeMillis();

@@ -140,6 +140,10 @@ public final class MaxorCrystalsFeature {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
+        // PICKUP and ACTIVE need "Energy Crystal", SPAWN "Maxor" (fps-idle-1015).
+        if (!plain.contains("Energy Crystal") && !plain.contains("Maxor")) {
+            return;
+        }
         MaxorConfig cfg = MaxorConfig.getInstance();
 
         if (cfg.isPlaceTimerEnabled()) {
@@ -343,6 +347,9 @@ public final class MaxorCrystalsFeature {
 
         /** The rows drawn right now - the editor's sample or the live ones; render() and the box both read it
          *  (the box was a fixed 110x29). */
+        private static String crystalLine;
+        private static int crystalTicks;
+
         private static java.util.List<String> lines() {
             Minecraft client = Minecraft.getInstance();
             MaxorConfig cfg = MaxorConfig.getInstance();
@@ -351,7 +358,17 @@ public final class MaxorCrystalsFeature {
             }
             java.util.List<String> out = new java.util.ArrayList<>(3);
             if (cfg.isSpawnTimerEnabled() && tickTimer >= 0) {
-                out.add("§bCrystals: §f" + String.format(Locale.US, "%.2f", tickTimer / 20.0));
+                // Moves once a server tick; it was a String.format every frame and again for the box (2026-10-15).
+                int ticks = tickTimer;
+                if (!client.isSameThread()) {
+                    out.add("§bCrystals: §f" + String.format(Locale.US, "%.2f", ticks / 20.0));
+                } else {
+                    if (crystalLine == null || crystalTicks != ticks) {
+                        crystalLine = "§bCrystals: §f" + String.format(Locale.US, "%.2f", ticks / 20.0);
+                        crystalTicks = ticks;
+                    }
+                    out.add(crystalLine);
+                }
             }
             if (cfg.isPlaceAlertEnabled() && inP1() && holdingUnplacedCrystal()) {
                 out.add("§e⚠ §bCrystal §e⚠");

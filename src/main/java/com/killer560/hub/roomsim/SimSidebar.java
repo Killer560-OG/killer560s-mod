@@ -71,6 +71,12 @@ public final class SimSidebar {
 
     private static boolean built;
 
+    /** What the last compose read: floor label, secrets found and total, room name. */
+    private static String inFloor;
+    private static int inFound;
+    private static int inTotal;
+    private static String inRoom;
+
     private SimSidebar() {
     }
 
@@ -108,7 +114,21 @@ public final class SimSidebar {
         if (server == null) {
             return;
         }
-        List<String> lines = compose(client);
+        // Compose only when one of its three inputs changed (fps-sim-1015): building the seven lines every tick was
+        // ~6 KB a tick for a sidebar that changes when a secret is found or he walks into another room.
+        String floor = SimState.floorLabel();
+        int found = SimScore.secretsFound();
+        int total = SimScore.secretsTotal();
+        String room = SimState.currentRoomName();
+        if (!lastLines.isEmpty() && floor.equals(inFloor) && found == inFound && total == inTotal
+                && java.util.Objects.equals(room, inRoom)) {
+            return;
+        }
+        inFloor = floor;
+        inFound = found;
+        inTotal = total;
+        inRoom = room;
+        List<String> lines = compose(floor, found, total, room);
         if (lines.equals(lastLines)) {
             return;
         }
@@ -129,13 +149,12 @@ public final class SimSidebar {
      * reset (his 2026-10-04 log, the three lines right after "Dungeon floor changed"), and Hypixel shows it too.
      * {@code SkyblockGate} reads only the objective TITLE, which stays "SKYBLOCK".
      */
-    private static List<String> compose(Minecraft client) {
+    private static List<String> compose(String floor, int found, int total, String room) {
         List<String> lines = new ArrayList<>();
         lines.add(INFO_TITLE);
         lines.add("");
-        lines.add("The Catacombs (" + SimState.floorLabel() + ")");
-        lines.add("Secrets: " + SimScore.secretsFound() + "/" + SimScore.secretsTotal());
-        String room = SimState.currentRoomName();
+        lines.add("The Catacombs (" + floor + ")");
+        lines.add("Secrets: " + found + "/" + total);
         lines.add("Room: " + (room == null || room.isBlank() ? "Entrance" : room));
         lines.add("");
         lines.add(DISCORD);

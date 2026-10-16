@@ -94,7 +94,9 @@ final class AutoWeirdos {
 
     /** Every tick, whatever the toggles, so the solver's empty state is seen (the predates-this-world guard). */
     static void observeSolver() {
-        if (WeirdosSolverFeature.getCorrectChestPos() == null && WeirdosSolverFeature.getWrongChestCount() == 0) {
+        // A latch: once set it stays set until the next world, so the solver is only asked while it is not (fps-auto-1015).
+        if (!solverClearedThisLevel && WeirdosSolverFeature.getCorrectChestPos() == null
+                && WeirdosSolverFeature.getWrongChestCount() == 0) {
             solverClearedThisLevel = true;
         }
     }

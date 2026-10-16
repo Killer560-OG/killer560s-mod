@@ -51,7 +51,8 @@ public final class TrailFeature {
 
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TrailFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(TrailFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Trail render", () -> RibbonTrailConfig.getInstance().isEnabledRaw() || TrailConfig.getInstance().isEnabledRaw()), TrailFeature::onWorldRender));
         // Disconnecting drops client.level to null anyway (tick() below would catch that on its own next
         // tick), but clearing right away avoids a one-tick window where a stale trail could show through
         // on whatever's drawn immediately after - same belt-and-suspenders reset ChunkCacheManager uses.

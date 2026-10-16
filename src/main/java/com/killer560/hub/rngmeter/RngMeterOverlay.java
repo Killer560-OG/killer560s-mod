@@ -168,15 +168,38 @@ public final class RngMeterOverlay {
     }
 
     /** Called every frame from {@link com.killer560.hub.rngmeter.mixin.AbstractContainerScreenMixin}. */
+    private static Component memoTitle;
+    private static String memoTitleText = "";
+    private static boolean memoTitleRng;
+
+    private static void memoTitle(Component title) {
+        if (title != memoTitle) {
+            String text = title.getString();
+            memoTitleRng = text.toLowerCase(Locale.US).contains("rng");
+            memoTitleText = text;
+            memoTitle = title;
+        }
+    }
+
+    /**
+     * Whether a menu title names an RNG meter ("rng", any case). Asked every frame by every container screen (the
+     * overlay) and by its hovered item's tooltip, so the title's text is built and lower-cased once per title object
+     * instead (mixin FPS pass, 2026-10-15). Render thread only.
+     */
+    public static boolean isRngTitle(Component title) {
+        memoTitle(title);
+        return memoTitleRng;
+    }
+
     public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         try {
             if (!RngMeterConfig.getInstance().isEnabled()) {
                 return;
             }
-            String title = screen.getTitle().getString();
-            if (!title.toLowerCase(Locale.US).contains("rng")) {
+            if (!isRngTitle(screen.getTitle())) {
                 return;
             }
+            String title = memoTitleText;
             if (!title.equals(committedTitle)) {
                 advanceScanStability(screen, title);
                 // Don't render off an uncommitted (not-yet-stable) scan - it may still be a stale

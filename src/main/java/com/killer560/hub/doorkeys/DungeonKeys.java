@@ -69,16 +69,19 @@ public final class DungeonKeys {
     }
 
     public static void register() {
-        ChatObserver.subscribe(m -> onChat(m.getString()));
+        ChatObserver.subscribe(m -> onChat(ChatObserver.strip(m)));
     }
 
     static void onChat(String raw) {
-        String msg = ChatFormatting.stripFormatting(raw);
+        String msg = com.killer560.hub.util.ChatObserver.stripCodes(raw);
         if (msg == null) {
             return;
         }
         msg = msg.trim();
         sync();
+        if (!mayBeKeyOrDoorLine(msg)) {
+            return;
+        }
         if (WITHER_OBTAINED.matcher(msg).matches()) {
             chatWither++;
             lastPickupLine = msg;
@@ -94,6 +97,15 @@ public final class DungeonKeys {
         } else if (BLOOD_DOOR_OPENED.matcher(msg).matches()) {
             chatBlood = false;
         }
+    }
+
+    /**
+     * Whether {@code msg} could be one of the key or door lines above (or AutoDoorOpener's / Wither Doors' "RIGHT CLICK
+     * on a WITHER door" / "... BLOOD DOOR"): every one of them contains "Key", "door" or "DOOR". A literal test in front
+     * of six Matchers for every chat line (fps-idle-1015, 2026-10-15).
+     */
+    public static boolean mayBeKeyOrDoorLine(String msg) {
+        return msg.contains("Key") || msg.contains("door") || msg.contains("DOOR");
     }
 
     /** Chat counts belong to one run: a new world forgets them. */

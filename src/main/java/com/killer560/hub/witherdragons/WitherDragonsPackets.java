@@ -8,55 +8,89 @@ import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
 /** Public bridge from {@code WitherDragonsPacketMixin} (client thread) into the package. Every call is guarded so
  *  a feature bug can never break vanilla packet handling; Skyblock Only is honoured through each feature's
- *  gated config getters. */
+ *  gated config getters.
+ *  <p>The handlers are passed as non-capturing method references with their arguments, not as capturing lambdas: these
+ *  run for every particle, sound, equipment and ping packet in every world, and a capturing lambda is an object per
+ *  packet (mixin FPS pass, 2026-10-15). What runs, and inside which guard, is unchanged. */
 public final class WitherDragonsPackets {
 
     private WitherDragonsPackets() {
     }
 
     public static void onParticles(ClientboundLevelParticlesPacket packet) {
-        guard("particles", () -> WitherDragonsFeature.onParticles(packet));
+        guard("particles", WitherDragonsFeature::onParticles, packet);
     }
 
     public static void onEquipment(ClientboundSetEquipmentPacket packet, ClientLevel level) {
-        guard("equipment/spray", () -> WitherDragonsFeature.onEquipment(packet, level));
-        guard("equipment/relic", () -> KingRelicsFeature.onEquipment(packet));
+        guard("equipment/spray", WitherDragonsFeature::onEquipment, packet, level);
+        guard("equipment/relic", KingRelicsFeature::onEquipment, packet);
     }
 
     public static void onSound(ClientboundSoundPacket packet) {
-        guard("sound", () -> WitherDragonsFeature.onSound(packet));
+        guard("sound", WitherDragonsFeature::onSound, packet);
     }
 
     public static void onTabList(ClientboundTabListPacket packet) {
-        guard("tablist", () -> P5State.onTabFooter(packet.footer()));
-        guard("tablist/blessings", () -> com.killer560.hub.blessings.BlessingTracker.onTabFooter(packet.footer()));
+        guard("tablist", WitherDragonsPackets::p5TabFooter, packet);
+        guard("tablist/blessings", WitherDragonsPackets::blessingsTabFooter, packet);
     }
 
     public static void onAddEntity(ClientboundAddEntityPacket packet, ClientLevel level) {
         // Both handlers return at once unless dragon tracking is on; asking first spares every entity packet in every
-        // world a capturing lambda and an entity lookup (FPS sweep, 2026-10-07).
+        // world an entity lookup (FPS sweep, 2026-10-07).
         if (level == null || !WitherDragonsFeature.trackingActive()) {
             return;
         }
-        guard("addEntity", () -> WitherDragonsFeature.onAddEntity(level.getEntity(packet.getId())));
+        guard("addEntity", WitherDragonsPackets::addEntity, packet, level);
     }
 
     public static void onEntityData(ClientboundSetEntityDataPacket packet, ClientLevel level) {
         if (level == null || !WitherDragonsFeature.trackingActive()) {
             return;
         }
-        guard("entityData", () -> WitherDragonsFeature.onEntityData(level.getEntity(packet.id())));
+        guard("entityData", WitherDragonsPackets::entityData, packet, level);
     }
 
     public static void onPing(int id) {
-        guard("ping", () -> ServerTickClock.onPing(id));
+        try {
+            ServerTickClock.onPing(id);
+        } catch (RuntimeException e) {
+            WitherDragonsFeature.LOGGER.error("[WitherDragons] {} handler threw", "ping", e);
+        }
     }
 
-    private static void guard(String what, Runnable action) {
+    private static void p5TabFooter(ClientboundTabListPacket packet) {
+        P5State.onTabFooter(packet.footer());
+    }
+
+    private static void blessingsTabFooter(ClientboundTabListPacket packet) {
+        com.killer560.hub.blessings.BlessingTracker.onTabFooter(packet.footer());
+    }
+
+    private static void addEntity(ClientboundAddEntityPacket packet, ClientLevel level) {
+        WitherDragonsFeature.onAddEntity(level.getEntity(packet.getId()));
+    }
+
+    private static void entityData(ClientboundSetEntityDataPacket packet, ClientLevel level) {
+        WitherDragonsFeature.onEntityData(level.getEntity(packet.id()));
+    }
+
+    private static <T> void guard(String what, Consumer<T> action, T arg) {
         try {
-            action.run();
+            action.accept(arg);
+        } catch (RuntimeException e) {
+            WitherDragonsFeature.LOGGER.error("[WitherDragons] {} handler threw", what, e);
+        }
+    }
+
+    private static <A, B> void guard(String what, BiConsumer<A, B> action, A a, B b) {
+        try {
+            action.accept(a, b);
         } catch (RuntimeException e) {
             WitherDragonsFeature.LOGGER.error("[WitherDragons] {} handler threw", what, e);
         }

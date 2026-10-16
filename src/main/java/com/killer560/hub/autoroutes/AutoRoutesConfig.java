@@ -456,12 +456,35 @@ public final class AutoRoutesConfig {
 
     private static String canonical(String id) {
         String t = id.trim();
+        // Every keybind poller asks for each of its actions by its own known id every tick: answer those with one hash
+        // lookup instead of an equalsIgnoreCase scan over the whole list (fps-auto-1015). EXACT maps each known id to
+        // the first known id the scan below would return for it, so the answer is the same.
+        String exact = EXACT_IDS == null ? null : EXACT_IDS.get(t); // null during class init
+        if (exact != null) {
+            return exact;
+        }
         for (String known : KEYBIND_IDS) {
             if (known.equalsIgnoreCase(t)) {
                 return known;
             }
         }
         return t.toLowerCase(Locale.ROOT);
+    }
+
+    /** {@link #canonical}'s answer for each id in {@link #KEYBIND_IDS}, spelled exactly as listed. */
+    private static final java.util.Map<String, String> EXACT_IDS = exactIds();
+
+    private static java.util.Map<String, String> exactIds() {
+        java.util.Map<String, String> m = new java.util.HashMap<>();
+        for (String id : KEYBIND_IDS) {
+            for (String known : KEYBIND_IDS) {
+                if (known.equalsIgnoreCase(id)) {
+                    m.putIfAbsent(id, known);
+                    break;
+                }
+            }
+        }
+        return m;
     }
 
     // ------------------------------------------------------------------------------------------- tab layout

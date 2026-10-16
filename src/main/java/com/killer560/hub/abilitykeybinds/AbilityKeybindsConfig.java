@@ -63,7 +63,13 @@ public final class AbilityKeybindsConfig {
         return isMouseCode(code) ? code : com.killer560.hub.util.KeyUtil.sanitize(code);
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new AbilityKeybindsConfig();
             return;
@@ -113,7 +119,7 @@ public final class AbilityKeybindsConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public int getAbilityKeyCode() {

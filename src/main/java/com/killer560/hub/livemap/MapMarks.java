@@ -203,7 +203,22 @@ public final class MapMarks {
     }
 
     /** The mod's own sprite for a state, in the state's colour, or null for a state with no mark. */
+    /** {@link #modSprite} by state: they never change, and were rebuilt (rows of int arrays) for every mark drawn. */
+    private static final Sprite[] MOD_SPRITES = new Sprite[5];
+
     static Sprite modSprite(int state) {
+        if (state < 0 || state >= MOD_SPRITES.length) {
+            return buildModSprite(state);
+        }
+        Sprite s = MOD_SPRITES[state];
+        if (s == null) {
+            s = buildModSprite(state);
+            MOD_SPRITES[state] = s;
+        }
+        return s;
+    }
+
+    private static Sprite buildModSprite(int state) {
         int color = MapPainter.stateColor(state);
         return switch (state) {
             case DungeonMapScanner.STATE_CLEARED, DungeonMapScanner.STATE_GREEN -> fromRows(MOD_CHECK, color);
@@ -230,20 +245,34 @@ public final class MapMarks {
         if (state < 0 || state >= FILES.length || FILES[state] == null) {
             return null;
         }
+        pollUserSprites();
+        return USER[state];
+    }
+
+    /** Bumped whenever one of his sprites is read, changed or goes (the Dungeon Map's draw cache keys on it). */
+    private static int userVersion = 0;
+
+    /** Re-reads his sprite files at most every 2 s, as {@link #userSprite} always has. @return {@link #userVersion} */
+    static int pollUserSprites() {
         long now = System.currentTimeMillis();
         if (now >= nextCheckMs) {
             nextCheckMs = now + 2000;
             for (int i = 0; i < FILES.length; i++) {
                 if (FILES[i] != null) {
+                    Sprite before = USER[i];
                     refresh(i);
+                    if (USER[i] != before) {
+                        userVersion++;
+                    }
                 }
             }
         }
-        return USER[state];
+        return userVersion;
     }
 
     /** Forgets the loaded sprites so the next draw reads the folder again (a profile load, a test). */
     public static void reloadUserSprites() {
+        userVersion++;
         java.util.Arrays.fill(USER, null);
         java.util.Arrays.fill(USER_STAMP, 0L);
         nextCheckMs = 0L;

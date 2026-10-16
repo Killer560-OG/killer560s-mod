@@ -133,8 +133,11 @@ final class AutoIceFill {
     }
 
     static void tick(Minecraft client, String roomName) {
-        List<Vec3> raw = IceFillSolverFeature.getCurrentPath();
-        GUARD.observe(raw.isEmpty());
+        // getCurrentPath() copies the whole path: only while the guard can still learn from it or the auto runs.
+        List<Vec3> raw = GUARD.observing() ? IceFillSolverFeature.getCurrentPath() : null;
+        if (raw != null) {
+            GUARD.observe(raw.isEmpty());
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoIceFillEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
@@ -143,6 +146,9 @@ final class AutoIceFill {
             }
             wasInRoom = false;
             return;
+        }
+        if (raw == null) {
+            raw = IceFillSolverFeature.getCurrentPath();
         }
         wasInRoom = true;
         CAMERA.keep(client.player);

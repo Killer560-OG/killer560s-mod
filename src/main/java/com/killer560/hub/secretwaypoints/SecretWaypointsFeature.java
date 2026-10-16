@@ -216,13 +216,16 @@ public final class SecretWaypointsFeature {
         }
         var player = client.player;
         AABB around = player.getBoundingBox().inflate(8.0);
-        java.util.Map<Integer, net.minecraft.world.phys.Vec3> items = new java.util.HashMap<>();
+        // Two reused maps instead of two new ones every tick in a dungeon (FPS pass, 2026-10-15).
+        java.util.Map<Integer, net.minecraft.world.phys.Vec3> items = SCRATCH_ITEMS;
+        items.clear();
         for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, around)) {
             items.put(e.getId(), e.position());
         }
         // Bats: a bat that flies out of range also leaves the entity list, so only a bat actually seen DYING
         // counts (its death animation keeps it around client-side for a moment) - once per bat.
-        java.util.Map<Integer, net.minecraft.world.phys.Vec3> bats = new java.util.HashMap<>();
+        java.util.Map<Integer, net.minecraft.world.phys.Vec3> bats = SCRATCH_BATS;
+        bats.clear();
         for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.ambient.Bat.class, around.inflate(8.0))) {
             if (e.isDeadOrDying()) {
                 if (!NEAR_BATS.containsKey(e.getId())) {
@@ -244,6 +247,9 @@ public final class SecretWaypointsFeature {
         NEAR_BATS.clear();
         NEAR_BATS.putAll(bats);
     }
+
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> SCRATCH_ITEMS = new java.util.HashMap<>();
+    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> SCRATCH_BATS = new java.util.HashMap<>();
 
     private static void tick() {
         boolean inDungeon = DungeonState.isInDungeon();

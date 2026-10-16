@@ -56,6 +56,22 @@ public final class DungeonLayout {
         labelGX = base.labelGX;
         labelGZ = base.labelGZ;
         this.currentRoom = currentRoom;
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            long cell = doorType[idx] & 7L | (doorLocked[idx] ? 8L : 0L);
+            doorBits[idx / 16] |= cell << ((idx % 16) * 4);
+        }
+    }
+
+    /** Every cell's door type and lock, four bits a cell, sixteen cells a word: what the Dungeon Map's doors are drawn
+     *  from, for its draw cache to compare exactly. */
+    private final long[] doorBits = new long[(GRID * GRID + 15) / 16];
+
+    long doorBits(int word) {
+        return doorBits[word];
+    }
+
+    static int doorBitWords() {
+        return (GRID * GRID + 15) / 16;
     }
 
     /** Per-tick cached snapshot for the two map renderers (client thread only). {@link #capture()} walks all 121
@@ -65,17 +81,83 @@ public final class DungeonLayout {
     public static DungeonLayout current() {
         int tick = LiveMapFeature.tickCount();
         int generation = LiveMapFeature.resetGeneration();
-        if (cached == null || tick != cachedTick || generation != cachedGeneration) {
-            cached = capture();
-            cachedTick = tick;
-            cachedGeneration = generation;
+        if (cached != null && tick == cachedTick && generation == cachedGeneration) {
+            return cached;
         }
+        // A new tick. The snapshot is taken again only when something it is made of changed - the rooms and their
+        // identities (the map's version), a clay corner or rotation, the map item's reading, a door's lock block, the
+        // floor's height shift, the world - and otherwise kept, with only the room he stands in updated. Capturing it
+        // afresh every tick was ~4 KB a tick in every dungeon for InstaClear's tracker alone (FPS pass, 2026-10-16).
+        Minecraft client = Minecraft.getInstance();
+        DungeonLayout keep = cached;
+        if (keep != null && generation == cachedGeneration && LiveMapFeature.mapVersion() == cachedMapVersion
+                && LiveMapFeature.rotationVersion() == cachedRotationVersion
+                && DungeonMapScanner.version() == cachedScannerVersion && simYOffset() == cachedYOffset
+                && client.level == cachedLevel && keep.sameLocks(client)) {
+            // As capture() does, at most once a tick: what teammates reported, local scans winning.
+            PartyMapIntel.mergeIfNeeded(tick, generation, idx -> keep.roomOf[idx] >= 0,
+                    idx -> keep.doorType[idx] != DOOR_NONE);
+            int current = client.player == null ? -1 : keep.roomAtWorld(client.player.getX(), client.player.getZ());
+            cached = current == keep.currentRoom ? keep : new DungeonLayout(keep, current);
+            cachedTick = tick;
+            return cached;
+        }
+        cachedMapVersion = LiveMapFeature.mapVersion();
+        cachedRotationVersion = LiveMapFeature.rotationVersion();
+        cachedScannerVersion = DungeonMapScanner.version();
+        cachedYOffset = simYOffset();
+        cachedLevel = client.level;
+        cached = capture();
+        cachedTick = tick;
+        cachedGeneration = generation;
         return cached;
     }
 
     private static DungeonLayout cached = null;
     private static int cachedTick = Integer.MIN_VALUE;
     private static int cachedGeneration = Integer.MIN_VALUE;
+    private static int cachedMapVersion;
+    private static int cachedRotationVersion;
+    private static int cachedScannerVersion;
+    private static int cachedYOffset;
+    private static Object cachedLevel;
+
+    /** Test hook: "" when {@link #current} equals a snapshot taken afresh now, else what differs (testkit 95-perf-livemap). */
+    public static String currentMismatch() {
+        DungeonLayout a = current();
+        DungeonLayout b = capture();
+        if (!java.util.Arrays.equals(a.roomOf, b.roomOf)) return "roomOf";
+        if (!java.util.Arrays.equals(a.doorType, b.doorType)) return "doorType";
+        if (!java.util.Arrays.equals(a.doorLocked, b.doorLocked)) return "doorLocked";
+        if (!java.util.Arrays.equals(a.names, b.names)) return "names";
+        if (!java.util.Arrays.equals(a.entries, b.entries)) return "entries";
+        if (!java.util.Arrays.deepEquals(a.clayRotation, b.clayRotation)) return "clayRotation";
+        if (!java.util.Arrays.deepEquals(a.tiles, b.tiles)) return "tiles";
+        if (!java.util.Arrays.equals(a.labelGX, b.labelGX) || !java.util.Arrays.equals(a.labelGZ, b.labelGZ)) return "labels";
+        if (a.currentRoom != b.currentRoom) return "currentRoom " + a.currentRoom + " vs " + b.currentRoom;
+        return "";
+    }
+
+    /** Whether every wither and blood door still reads locked or open exactly as {@link #capture} found it. */
+    private boolean sameLocks(Minecraft client) {
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            int type = doorType[idx];
+            if (type != DOOR_WITHER && type != DOOR_BLOOD) {
+                continue;
+            }
+            boolean locked;
+            BlockPos pos = doorBlock(idx);
+            if (client.level != null && ChunkCacheManager.isLoadedOrCached(client.level, pos)) {
+                locked = !client.level.getBlockState(pos).isAir();
+            } else {
+                locked = type == DOOR_BLOOD || DungeonMapScanner.doorTileAt(idx) == LiveMapFeature.Tile.DOOR_WITHER;
+            }
+            if (locked != doorLocked[idx]) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /** Must be called on the client thread. */
     public static DungeonLayout capture() {

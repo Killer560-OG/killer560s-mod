@@ -23,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * ticks, level render, chat, screen events...) and every Fabric HUD layer it adds is wrapped in a proxy that times the
  * call; each mod HUD element drawn by {@code HudElementRegistry.drawAt} is timed too. Time is SELF time on the render
  * thread (a nested probed call is subtracted from its caller), and allocation is the render thread's allocated bytes
- * over the same window. Calls on other threads (the integrated server's ticks in the sim) are kept apart, inclusive.
+ * over the same window. Calls on other threads (the integrated server's ticks in the sim) are kept apart, inclusive (time and that
+ * thread's allocation).
  *
  * <p>Not covered: the mod's mixins into vanilla code (nametags, item rendering, slot drawing...) and anything a feature
  * ticks from another feature's listener (CheatUtils ticks several). JFR (testkit {@code tools/fps-jfr.py}) covers those.
@@ -115,6 +116,7 @@ public final class PerfProbe {
                 enter();
             }
             long t0 = onRender ? 0L : System.nanoTime();
+            long b0 = onRender ? 0L : allocated();
             try {
                 return method.invoke(delegate, args);
             } catch (InvocationTargetException e) {
@@ -123,7 +125,7 @@ public final class PerfProbe {
                 if (onRender) {
                     exit(stat);
                 } else {
-                    recordOff(stat, System.nanoTime() - t0);
+                    recordOff(stat, System.nanoTime() - t0, allocated() - b0);
                 }
             }
         }
@@ -148,6 +150,32 @@ public final class PerfProbe {
         if (stat == null) {
             stat = stat(owner(element.getClass().getName()) + " HUD[" + id + "]", "frame");
             HUD.put(element, stat);
+        }
+        exit(stat);
+    }
+
+    // ---- screens (Screen.extractRenderStateWithTooltipAndSubtitles) ---------------------------------------------
+
+    private static final Map<Class<?>, Stat> SCREENS = new java.util.IdentityHashMap<>();
+
+    /** Start timing the open screen's draw (fps-gui-1015). Pair with {@link #exitScreen(Object)} in a finally. */
+    public static void enterScreen() {
+        if (onRenderThread()) {
+            enter();
+        }
+    }
+
+    /** Ends {@link #enterScreen()}: key {@code screen.<SimpleName> extract}, kind frame. Self time is the screen's own
+     *  draw (vanilla's and every mod mixin inside it) minus probed listeners nested inside. */
+    public static void exitScreen(Object screen) {
+        if (!onRenderThread()) {
+            return;
+        }
+        Class<?> c = screen.getClass();
+        Stat stat = SCREENS.get(c);
+        if (stat == null) {
+            stat = stat("screen." + c.getSimpleName() + " extract", "frame");
+            SCREENS.put(c, stat);
         }
         exit(stat);
     }
@@ -203,7 +231,7 @@ public final class PerfProbe {
         }
     }
 
-    private static void recordOff(Stat stat, long ns) {
+    private static void recordOff(Stat stat, long ns, long bytes) {
         Stat off = stat.off;
         if (off == null) {
             synchronized (stat) {
@@ -217,6 +245,7 @@ public final class PerfProbe {
         synchronized (off) {
             off.calls++;
             off.ns += ns;
+            off.bytes += bytes;
             if (ns > off.maxNs) {
                 off.maxNs = ns;
             }

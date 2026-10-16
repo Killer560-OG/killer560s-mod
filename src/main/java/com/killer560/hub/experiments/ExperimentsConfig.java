@@ -146,7 +146,18 @@ public final class ExperimentsConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isProfitTrackerEnabledRaw() {
+        return profitTrackerEnabled;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new ExperimentsConfig();
             return;
@@ -397,7 +408,7 @@ public final class ExperimentsConfig {
     }
 
     public void setProfitTrackerEnabled(boolean profitTrackerEnabled) {
-        this.profitTrackerEnabled = profitTrackerEnabled;
+        this.profitTrackerEnabled = profitTrackerEnabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     /** Gated like {@link #isAutonomousMode()} - the confirm-timeout only ever applies to Autonomous

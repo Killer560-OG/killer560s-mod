@@ -72,8 +72,11 @@ final class AutoIcePath {
     }
 
     static void tick(Minecraft client, String roomName) {
-        List<Vec3> path = IcePathSolverFeature.getPath();
-        GUARD.observe(path.isEmpty());
+        // Only read while the guard can still learn from it or the auto runs (fps-auto-1015).
+        List<Vec3> path = GUARD.observing() ? IcePathSolverFeature.getPath() : null;
+        if (path != null) {
+            GUARD.observe(path.isEmpty());
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!ROOM.equals(roomName)) {
             if (wasInRoom) {
@@ -93,6 +96,9 @@ final class AutoIcePath {
                 say("in Ice Path - Auto Ice Path is off in settings");
             }
             return;
+        }
+        if (path == null) {
+            path = IcePathSolverFeature.getPath();
         }
         if (!wasInRoom) {
             say("in Ice Path - auto on, reposition " + (cfg.isEtherwarpReposition() ? "on" : "off"));

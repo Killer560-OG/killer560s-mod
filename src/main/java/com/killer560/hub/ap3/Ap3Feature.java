@@ -125,7 +125,8 @@ public final class Ap3Feature {
                 Identifier.fromNamespaceAndPath("killer560smod", "ap3_force_dungeon"),
                 (graphics, deltaTracker) -> drawForceDungeonReminder(graphics));
         // Fast Align's planner, compiled by the JIT in the background so the first one in a session is not the slow one.
-        Ap3FastAlign.warmUpAsync();
+        // Once the title screen is up, not alongside the game's own loading (fps-sim-1015, util/AfterStartup).
+        com.killer560.hub.util.AfterStartup.run(Ap3FastAlign::warmUpAsync);
         LOGGER.info("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
@@ -1008,6 +1009,12 @@ public final class Ap3Feature {
             Minecraft client = Minecraft.getInstance();
             Ap3Config cfg = Ap3Config.getInstance();
             if (client.player == null || McCompat.hudHidden(client) || HudVisibility.menuOpen() || !cfg.isEnabled() || !cfg.isStopwatchHud()) {
+                return;
+            }
+            // value() is null (nothing drawn) when it is not running and has no stop within the timeout: no layout then
+            // (fps-auto-1015; the stopwatch HUD is on by default with AP3, so every AP3 frame paid it).
+            if (Ap3Executor.stopwatchRunningMs() < 0 && (Ap3Executor.lastStopwatchMs() < 0
+                    || System.currentTimeMillis() - Ap3Executor.stopwatchStoppedAtMs() > STOPWATCH_HUD_TIMEOUT_MS)) {
                 return;
             }
             HudElementRegistry.drawAt(graphics, STOPWATCH_HUD);

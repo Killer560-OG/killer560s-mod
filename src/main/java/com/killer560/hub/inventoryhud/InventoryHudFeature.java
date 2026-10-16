@@ -175,8 +175,12 @@ public final class InventoryHudFeature {
         if (bg != InventoryHudConfig.Background.NONE) {
             // Menu Theme (2026-10-15): Default keeps the colours below; anything else takes the menu theme's.
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
-            graphics.fill(x, y, x + w, y + h, withAlpha(menu == null ? PANEL_BG : menu.panel(), opacity));
-            graphics.outline(x, y, w, h, withAlpha(menu == null ? PANEL_BORDER : menu.accent(), opacity));
+            // The panel, its outline, the 27 slot backdrops and the slot grid: the same fills in the same order, all
+            // before the items, submitted as ONE render-state element (GuiRects) instead of up to 32 that each paid
+            // vanilla's intersection scan against the HUD drawn before it, every frame (2026-10-15).
+            com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+            rects.fill(x, y, x + w, y + h, withAlpha(menu == null ? PANEL_BG : menu.panel(), opacity));
+            rects.outline(x, y, w, h, withAlpha(menu == null ? PANEL_BORDER : menu.accent(), opacity));
             if (bg == InventoryHudConfig.Background.SLOTS) {
                 int slotBg = withAlpha(menu == null ? SLOT_BG : menu.card(), opacity);
                 int slotBorder = withAlpha(menu == null ? SLOT_BORDER : menu.border(), opacity);
@@ -185,17 +189,18 @@ public final class InventoryHudFeature {
                         int cx = x + pad + displayCol(cfg, row, col) * cell;
                         int cy = y + pad + displayRow(cfg, row, col) * cell;
                         if (cfg.isMiniMode()) {
-                            graphics.fill(cx, cy, cx + cell - 1, cy + cell - 1, slotBg);
+                            rects.fill(cx, cy, cx + cell - 1, cy + cell - 1, slotBg);
                         } else {
-                            graphics.fill(cx + 1, cy + 1, cx + cell - 1, cy + cell - 1, slotBg);
+                            rects.fill(cx + 1, cy + 1, cx + cell - 1, cy + cell - 1, slotBg);
                         }
                     }
                 }
                 if (!cfg.isMiniMode()) {
-                    drawSlotGrid(graphics, x + pad, y + pad, cfg.isVertical() ? ROWS : COLS,
+                    drawSlotGrid(rects, x + pad, y + pad, cfg.isVertical() ? ROWS : COLS,
                             cfg.isVertical() ? COLS : ROWS, cell, slotBorder);
                 }
             }
+            rects.submit();
         }
 
         if (player == null) {
@@ -266,13 +271,12 @@ public final class InventoryHudFeature {
      * the same - (rows + 1) + rows * (cols + 1) fills (34 for the 3x9 grid) instead of 108, each a GUI element
      * that pays vanilla's intersection scan (95-fps-bench JFR, 2026-10-05).
      */
-    private static void drawSlotGrid(GuiGraphicsExtractor graphics, int x0, int y0, int cols, int rows, int cell,
+    private static void drawSlotGrid(com.killer560.hub.hud.GuiRects rects, int x0, int y0, int cols, int rows, int cell,
                                      int color) {
         int right = x0 + cols * cell;
         int bottom = y0 + rows * cell;
-        // The same 34 fills, submitted as one render-state element (GuiRects): every separate fill was intersection-
-        // tested against the whole HUD drawn before it, every frame (95-fps-bench JFR, 2026-10-07).
-        com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+        // The same 34 fills, added to the panel's one render-state element (GuiRects): every separate fill was
+        // intersection-tested against the whole HUD drawn before it, every frame (95-fps-bench JFR, 2026-10-07).
         rects.fill(x0, y0, right, y0 + 1, color);
         for (int r = 1; r < rows; r++) {
             int ly = y0 + r * cell;
@@ -289,7 +293,6 @@ public final class InventoryHudFeature {
             }
             rects.fill(right - 1, top, right, bot, color);
         }
-        rects.submit();
     }
 
     private static int displayCol(InventoryHudConfig cfg, int row, int col) {

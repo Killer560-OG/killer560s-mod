@@ -132,7 +132,7 @@ public final class KingRelicsFeature {
         if (!active()) {
             return;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
+        String plain = com.killer560.hub.util.ChatObserver.strip(message);
         if (plain == null) {
             return;
         }
@@ -371,10 +371,23 @@ public final class KingRelicsFeature {
                 return "§3Relics: 1.90s";
             }
             if (!HudVisibility.hidesHud() && relicTicksToSpawn > 0) {
-                return "§3Relics: " + String.format(Locale.US, "%.2f", relicTicksToSpawn / 20f) + "s";
+                // Changes once a server tick; it was a String.format every frame (and again for width()), 2026-10-15.
+                int ticks = relicTicksToSpawn;
+                if (ticks != cachedTicks || cachedText == null) {
+                    String t = "§3Relics: " + String.format(Locale.US, "%.2f", ticks / 20f) + "s";
+                    if (!client.isSameThread()) {
+                        return t;
+                    }
+                    cachedText = t;
+                    cachedTicks = ticks;
+                }
+                return cachedText;
             }
             return null;
         }
+
+        private static String cachedText;
+        private static int cachedTicks;
 
         @Override
         public boolean isEnabledInSettings() {

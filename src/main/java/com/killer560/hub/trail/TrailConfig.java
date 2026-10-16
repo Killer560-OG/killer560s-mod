@@ -71,7 +71,7 @@ public final class TrailConfig {
     }
 
     public void setEnabled(boolean v) {
-        enabled = v;
+        enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public int getLength() {
@@ -123,7 +123,13 @@ public final class TrailConfig {
         teleportMode = v == null ? TeleportMode.CONNECT : v;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new TrailConfig();
             return;

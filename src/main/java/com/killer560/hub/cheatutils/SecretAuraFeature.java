@@ -94,6 +94,8 @@ public final class SecretAuraFeature {
 
     private static final Set<Long> done = new HashSet<>();
     private static final Map<Long, Long> firstSeenMs = new HashMap<>();
+    /** The scan's "seen this tick" set, reused (client thread only). */
+    private static final Set<Long> SEEN_NOW = new HashSet<>();
     private static final Map<Long, Attempt> attempts = new HashMap<>();
     /** Lever POWERED state when first observed - a change means it was flipped (by us or a teammate). */
     private static final Map<Long, Boolean> leverInitialState = new HashMap<>();
@@ -160,7 +162,10 @@ public final class SecretAuraFeature {
             }
             updateDone(client, now);
         }
-        if (client.level != null && client.player != null && cfg.isSecretAuraEnabled()) {
+        // In a dungeon only (fps-auto-1015): it walked every block entity within 10 blocks each tick in the hub and on
+        // islands too, and whatever it found there is wiped by the reset that entering a dungeon brings (a new world
+        // or a map reset generation) before anything reads it.
+        if (inDungeon && client.level != null && client.player != null && cfg.isSecretAuraEnabled()) {
             watchKeys(client);
         }
 
@@ -193,7 +198,7 @@ public final class SecretAuraFeature {
             gate = "in boss (boss levers off)";
         }
         if (gate == null && roomName != null && SKIP_ROOMS.contains(roomName)) {
-            gate = "skipped room " + roomName;
+            gate = "skipped room"; // only ever tested for null: no per-tick concatenation
         }
         // QUOI: nothing in Water Board while the board is being solved (its reward chest spawns on the solve).
         boolean puzzleOpen = roomName != null && CHESTS_AFTER_SOLVE_ROOMS.contains(roomName) && !puzzleDone(roomName);
@@ -219,13 +224,33 @@ public final class SecretAuraFeature {
         BlockPos bestPos = null;
         String bestKind = null;
         double bestDist = Double.MAX_VALUE;
-        Set<Long> seenNow = new HashSet<>();
+        Set<Long> seenNow = SEEN_NOW;
+        seenNow.clear();
+        // Ask each chunk section under the cube whether it can hold anything classify() answers for, the way Secret
+        // Waypoints' lever scan does: a section that cannot is skipped block by block, in the same order as before, so
+        // the pick (and its tie-break) is unchanged while ~1,300 block reads a tick become a few palette checks.
+        int sx0 = min.getX() >> 4;
+        int sy0 = min.getY() >> 4;
+        int sz0 = min.getZ() >> 4;
+        int nsx = (max.getX() >> 4) - sx0 + 1;
+        int nsy = (max.getY() >> 4) - sy0 + 1;
+        int nsz = (max.getZ() >> 4) - sz0 + 1;
+        boolean[] sectionMay = sectionsThatMayHold(client.level, sx0, sy0, sz0, nsx, nsy, nsz);
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
+                continue;
+            }
+            // The block first: done.contains boxes the key (a Long per block of the cube, ~33 KB a tick in a room
+            // whose sections hold a decorative skull), and for a block classify() never answers for both orders
+            // end in the same `continue` with nothing changed.
+            BlockState state = client.level.getBlockState(pos);
+            if (!mayClassify(state)) {
+                continue;
+            }
             long key = pos.asLong();
             if (done.contains(key)) {
                 continue;
             }
-            BlockState state = client.level.getBlockState(pos);
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
@@ -344,6 +369,50 @@ public final class SecretAuraFeature {
     }
 
     /** @return "chest"/"lever"/"essence"/"redstoneKey"/"redstoneNode"/"bossLever" when the aura may click it, else null. */
+    /** Every block {@link #classify} can answer for. A superset is fine; missing one would hide a secret. */
+    private static boolean mayClassify(BlockState state) {
+        Block block = state.getBlock();
+        return block == Blocks.LEVER || block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST
+                || block instanceof AbstractSkullBlock || block == Blocks.REDSTONE_BLOCK;
+    }
+
+    /**
+     * Per chunk section of the scan cube (x-major, then y, then z), whether it may hold a block {@link #classify}
+     * answers for. False only when that is certain: the chunk is loaded and the section is missing (outside the
+     * build height, read as void air), all air, or its palette has none of {@link #mayClassify}'s blocks. Anything
+     * else (a chunk the client does not have) stays true and is read block by block as before.
+     */
+    private static boolean[] sectionsThatMayHold(net.minecraft.world.level.Level level, int sx0, int sy0, int sz0,
+                                                 int nsx, int nsy, int nsz) {
+        boolean[] may = new boolean[nsx * nsy * nsz];
+        for (int ix = 0; ix < nsx; ix++) {
+            for (int iz = 0; iz < nsz; iz++) {
+                net.minecraft.world.level.chunk.ChunkAccess chunk = null;
+                try {
+                    chunk = level.getChunk(sx0 + ix, sz0 + iz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+                } catch (RuntimeException e) {
+                    chunk = null;
+                }
+                for (int iy = 0; iy < nsy; iy++) {
+                    int idx = (ix * nsy + iy) * nsz + iz;
+                    if (!(chunk instanceof net.minecraft.world.level.chunk.LevelChunk lc)) {
+                        may[idx] = true;
+                        continue;
+                    }
+                    int si = lc.getSectionIndexFromSectionY(sy0 + iy);
+                    var sections = lc.getSections();
+                    if (si < 0 || si >= sections.length) {
+                        may[idx] = false; // outside the build height: void air, which classify never answers for
+                        continue;
+                    }
+                    var section = sections[si];
+                    may[idx] = section != null && !section.hasOnlyAir() && section.maybeHas(SecretAuraFeature::mayClassify);
+                }
+            }
+        }
+        return may;
+    }
+
     private static String classify(Minecraft client, CheatUtilsConfig cfg, BlockPos pos, BlockState state,
                                    boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
         Block block = state.getBlock();
@@ -388,13 +457,21 @@ public final class SecretAuraFeature {
      * him are asked for theirs rather than every block in a 21-block cube. One that leaves the range while still there
      * is forgotten: its later pickup is not counted (848: 9 blocks counts, 11 does not).
      */
+    /** {@code Vec3.atCenterOf(p).distanceToSqr(eye)} without the Vec3: the same subtractions and sum. */
+    private static double centreDistSq(BlockPos p, Vec3 eye) {
+        double dx = eye.x - (p.getX() + 0.5);
+        double dy = eye.y - (p.getY() + 0.5);
+        double dz = eye.z - (p.getZ() + 0.5);
+        return dx * dx + dy * dy + dz * dz;
+    }
+
     private static void watchKeys(Minecraft client) {
         Vec3 eye = client.player.getEyePosition();
         double r2 = KEY_WATCH_RANGE * KEY_WATCH_RANGE;
         var it = keySkullsSeen.iterator();
         while (it.hasNext()) {
             BlockPos p = BlockPos.of(it.next());
-            if (Vec3.atCenterOf(p).distanceToSqr(eye) > r2) {
+            if (centreDistSq(p, eye) > r2) {
                 it.remove();
             } else if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
                 it.remove();
@@ -414,7 +491,7 @@ public final class SecretAuraFeature {
                     continue;
                 }
                 for (BlockPos p : lc.getBlockEntities().keySet()) {
-                    if (Vec3.atCenterOf(p).distanceToSqr(eye) <= r2 && isLooseKey(client, p)) {
+                    if (centreDistSq(p, eye) <= r2 && isLooseKey(client, p)) {
                         keySkullsSeen.add(p.asLong());
                     }
                 }

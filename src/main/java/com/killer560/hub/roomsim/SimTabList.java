@@ -103,6 +103,7 @@ public final class SimTabList {
     public static void reset() {
         VISITED.clear();
         lastComposed = List.of();
+        inPuzzleCount = -1;
         republishTicks = 0;
         headerTicks = 0;
     }
@@ -119,7 +120,7 @@ public final class SimTabList {
         if (room != null && !room.isBlank()) {
             VISITED.add(room);
         }
-        List<String> lines = compose(client);
+        List<String> lines = composeIfChanged(client);
         boolean header = headerTicks-- <= 0;
         if (header) {
             headerTicks = HEADER_EVERY;
@@ -133,6 +134,108 @@ public final class SimTabList {
         }
         lastComposed = lines;
         server.execute(() -> publish(server, lines, header));
+    }
+
+    // ---- what the last compose read (fps-sim-1015): compose only when one of these changed ----
+    private static String inSelf;
+    private static int inCleared = -1;
+    private static double inPercent = -1;
+    private static long inSecond = -1;
+    private static int inDeaths = -1;
+    private static int inCrypts = -1;
+    private static int inFound = -1;
+    private static String[] inPuzzleNames = new String[8];
+    private static byte[] inPuzzleStates = new byte[8];
+    private static int inPuzzleCount = -1;
+    private static String[] curPuzzleNames = new String[8];
+    private static byte[] curPuzzleStates = new byte[8];
+    /** Room name -> {@link SimRoomPuzzles#puzzleKey} ("" for none): the key is a pure function of the name. */
+    private static final java.util.Map<String, String> PUZZLE_KEYS = new java.util.HashMap<>();
+
+    /**
+     * {@link #compose}'s eighty lines, rebuilt only when something it reads has changed since the last build, else
+     * the same list again (fps-sim-1015). Composing every tick was ~10 KB of strings and two String.formats a tick for
+     * a list that changes about once a second (the clock). Every input compose reads is compared here, the puzzle
+     * rows by the exact state compose would print for each, so the lines published are the same ones as before.
+     */
+    private static List<String> composeIfChanged(Minecraft client) {
+        String self = client.player == null ? "" : client.player.getGameProfile().name();
+        int cleared = SimScore.roomsCleared();
+        double percent = SimScore.secretsPercent();
+        long second = Math.max(0, SimRun.elapsedMs() / 1000);
+        int deaths = SimScore.deaths();
+        int crypts = SimScore.cryptsBlown();
+        int found = SimScore.secretsFound();
+        int puzzles = puzzleStates();
+        boolean same = !lastComposed.isEmpty()
+                && self.equals(inSelf) && cleared == inCleared && Double.compare(percent, inPercent) == 0
+                && second == inSecond && deaths == inDeaths && crypts == inCrypts && found == inFound
+                && puzzles == inPuzzleCount && samePuzzles(puzzles);
+        if (same) {
+            return lastComposed;
+        }
+        inSelf = self;
+        inCleared = cleared;
+        inPercent = percent;
+        inSecond = second;
+        inDeaths = deaths;
+        inCrypts = crypts;
+        inFound = found;
+        inPuzzleCount = puzzles;
+        String[] n = inPuzzleNames;
+        byte[] st = inPuzzleStates;
+        inPuzzleNames = curPuzzleNames;
+        inPuzzleStates = curPuzzleStates;
+        curPuzzleNames = n;
+        curPuzzleStates = st;
+        return compose(client);
+    }
+
+    private static boolean samePuzzles(int count) {
+        for (int i = 0; i < count; i++) {
+            if (curPuzzleStates[i] != inPuzzleStates[i] || !curPuzzleNames[i].equals(inPuzzleNames[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Each puzzle room's row state as {@link #puzzleRows} decides it (0 unvisited, 1 failed, 2 solved, 3 open), into
+     * {@link #curPuzzleNames}/{@link #curPuzzleStates}, in placement order. Returns how many.
+     */
+    private static int puzzleStates() {
+        int n = 0;
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placedView()) {
+            String name = placed.name();
+            String key = PUZZLE_KEYS.computeIfAbsent(name, k -> {
+                String pk = SimRoomPuzzles.puzzleKey(k);
+                return pk == null ? "" : pk;
+            });
+            if (key.isEmpty()) {
+                continue;
+            }
+            byte state;
+            if (!VISITED.contains(name)) {
+                state = 0;
+            } else if (SimRoomState.isFailed(name)) {
+                state = 1;
+            } else if (com.killer560.hub.roomsim.puzzles.SimPuzzles.isComplete(key)) {
+                state = 2;
+            } else {
+                state = 3;
+            }
+            if (n == curPuzzleNames.length) {
+                curPuzzleNames = Arrays.copyOf(curPuzzleNames, n * 2);
+                curPuzzleStates = Arrays.copyOf(curPuzzleStates, n * 2);
+                inPuzzleNames = Arrays.copyOf(inPuzzleNames, n * 2);
+                inPuzzleStates = Arrays.copyOf(inPuzzleStates, n * 2);
+            }
+            curPuzzleNames[n] = name;
+            curPuzzleStates[n] = state;
+            n++;
+        }
+        return n;
     }
 
     /** All eighty slots, column-major; an empty string is a blank slot. */

@@ -963,8 +963,7 @@ public final class AutoRoutesFeature {
         RouteCoords.Frame frame = inClear ? RouteCoords.Frame.current() : null;
         if (frame == null) {
             gate(inClear ? "room not identified (no Frame from the live map)"
-                    : "not in a dungeon clear (isInDungeon=" + DungeonState.isInDungeon() + ", boss="
-                    + LiveMapFeature.isInBoss() + ")");
+                    : notInClearGate(DungeonState.isInDungeon(), LiveMapFeature.isInBoss()));
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop(inClear ? "room unknown" : "not in a dungeon room");
             }
@@ -1098,7 +1097,7 @@ public final class AutoRoutesFeature {
     private static void arm(Minecraft client, LocalPlayer player, RouteCoords.Frame frame, AutoRoutesConfig cfg) {
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
         if (route == null || route.nodes().isEmpty()) {
-            gate("no route for " + frame.roomName());
+            gate(noRouteGate(frame.roomName()));
             latchedNode = null;
             suppressArm = false;
             return;
@@ -1114,19 +1113,28 @@ public final class AutoRoutesFeature {
         // "Start node only" (the toggle, or a map arrival's hold) applies only to a route that HAS a start node. On one
         // without, it used to mean "never", so nothing in that room fired again; killer560 (2026-10-12): "they should
         // work without a start node anyways incase I dont want one treated as a start node" - so every node arms.
-        List<RouteNode> ordered = route.nodesInPathOrder();
-        boolean hasStartNode = ordered.stream().anyMatch(n -> n.start);
+        List<RouteNode> nodes = route.nodes();
+        boolean hasStartNode = false;
+        for (int i = 0; i < nodes.size(); i++) {
+            if (nodes.get(i).start) {
+                hasStartNode = true;
+                break;
+            }
+        }
         boolean startOnly = hasStartNode && (cfg.isStartFromStartNodeOnly() || mapArrivalGuard);
         // The first node (path order) whose ring he is in. Every node on that node's tile then fires with it, as one
         // stack in the approved type order - RouteExecutor.beginStack / Route#stackOf.
+        // Path order is Route#nodesInPathOrder's stable sort by pathIndex; the first ring hit in it is the hit with the
+        // lowest pathIndex, ties to the earlier node in the list - found here in one pass over the list, with no copy,
+        // sort, stream or per-node Vec3/AABB (fps-auto-1015; this runs every tick he stands in a room with a route).
         RouteNode inside = null;
-        for (RouteNode node : ordered) {
+        for (int i = 0; i < nodes.size(); i++) {
+            RouteNode node = nodes.get(i);
             if (startOnly && !node.start) {
                 continue;
             }
-            if (node.contains(RouteCoords.toReal(frame, node.relativePos()), height, playerBox)) {
+            if ((inside == null || node.pathIndex < inside.pathIndex) && node.containsIn(frame, height, playerBox)) {
                 inside = node;
-                break;
             }
         }
         if (inside == null) {
@@ -1246,6 +1254,65 @@ public final class AutoRoutesFeature {
      *  from the route, never the player's position, so it does not change every tick. */
     private static String idleGate(Route route, RouteCoords.Frame frame, boolean startOnly) {
         RouteNode start = route.startNode();
+        // Rebuilt only when one of its inputs changed (fps-auto-1015): it was a String.format, a Vec3 and a
+        // concatenation every tick he stood clear of every node, thrown away by gate() as unchanged.
+        int startIdx = start == null ? -1 : route.indexOf(start);
+        int shift = com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        if (idleGateText != null && route == idleGateRoute && frame.equals(idleGateFrame) && startOnly == idleGateStartOnly
+                && route.nodes().size() == idleGateCount && start == idleGateStart && startIdx == idleGateStartIdx
+                && shift == idleGateShift
+                && (start == null || start.x == idleGateSX && start.y == idleGateSY && start.z == idleGateSZ)) {
+            return idleGateText;
+        }
+        idleGateRoute = route;
+        idleGateFrame = frame;
+        idleGateStartOnly = startOnly;
+        idleGateCount = route.nodes().size();
+        idleGateStart = start;
+        idleGateStartIdx = startIdx;
+        idleGateShift = shift;
+        if (start != null) {
+            idleGateSX = start.x;
+            idleGateSY = start.y;
+            idleGateSZ = start.z;
+        }
+        idleGateText = buildIdleGate(route, frame, startOnly, start);
+        return idleGateText;
+    }
+
+    /** The "not in a dungeon clear" gate text, one constant per case instead of a concatenation every tick. */
+    private static String notInClearGate(boolean inDungeon, boolean boss) {
+        return inDungeon ? (boss ? "not in a dungeon clear (isInDungeon=true, boss=true)"
+                : "not in a dungeon clear (isInDungeon=true, boss=false)")
+                : (boss ? "not in a dungeon clear (isInDungeon=false, boss=true)"
+                : "not in a dungeon clear (isInDungeon=false, boss=false)");
+    }
+
+    /** "no route for <room>", rebuilt only when the room changes (it ran every tick in every room without a route). */
+    private static String noRouteGate(String room) {
+        if (!room.equals(noRouteRoom)) {
+            noRouteRoom = room;
+            noRouteText = "no route for " + room;
+        }
+        return noRouteText;
+    }
+
+    private static String noRouteRoom;
+    private static String noRouteText;
+
+    private static String idleGateText;
+    private static Route idleGateRoute;
+    private static RouteCoords.Frame idleGateFrame;
+    private static boolean idleGateStartOnly;
+    private static int idleGateCount;
+    private static RouteNode idleGateStart;
+    private static int idleGateStartIdx;
+    private static int idleGateShift;
+    private static double idleGateSX;
+    private static double idleGateSY;
+    private static double idleGateSZ;
+
+    private static String buildIdleGate(Route route, RouteCoords.Frame frame, boolean startOnly, RouteNode start) {
         String where = start == null ? "no start node, so every node arms"
                 : String.format(java.util.Locale.US, "start node #%d at %s", route.indexOf(start) + 1,
                         RouteCoords.toReal(frame, start.relativePos()));

@@ -97,7 +97,8 @@ public final class AwaitEvents {
         registered = true;
         ChatObserver.subscribe(message -> {
             String plain = ChatObserver.strip(message).trim();
-            if (com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(plain).matches()) {
+            if (plain.startsWith("A Prince falls")
+                    && com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(plain).matches()) {
                 onCryptKill("prince killed");
             }
         });

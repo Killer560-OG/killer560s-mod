@@ -110,11 +110,17 @@ No property. Both show only while their key is held in the key modes, and a harn
 ## Callback profiler (`perfprobe/PerfProbe`)
 `-Dkiller560.perf.probe=true` on a dev jar (not `-Prelease=true`) wraps every listener a `com.killer560.hub` class
 registers on a Fabric event, and every Fabric HUD layer it adds, in a timing proxy, and times each mod HUD element in
-`HudElementRegistry.drawAt`: self time and render-thread allocation per key (`<owner class> <event>` or
-`<owner> HUD[<id>]`). Read by reflection: `PerfProbe.snapshot()` (TSV: key, kind tick/frame/event/server, calls,
+`HudElementRegistry.drawAt`, and the open screen's whole draw (`Screen.extractRenderStateWithTooltipAndSubtitles`, key
+`screen.<SimpleName> extract`, vanilla's work and every mod mixin inside it): self time and render-thread allocation per
+key (`<owner class> <event>` or `<owner> HUD[<id>]`). Read by reflection: `PerfProbe.snapshot()` (TSV: key, kind tick/frame/event/server, calls,
 self ns, bytes, max ns), `reset()`, `calibrate(n)` (the probe's own per-call cost), `keyCount()`. Without the property
-the two probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
+the probe mixins are not applied at all (`PerfProbeMixinPlugin`), so the release jar and normal runs pay nothing.
 The testkit sets it for any `-Pscenario` naming `95-perf` (testkit docs/fps-bench.md).
+
+## Feature bits (`util/FeatureBits`)
+
+- `FeatureBits.snapshot()` returns `name=true|false` per gated listener after a refresh; `count()` how many are
+  registered. Testkit 95-perf-bits reads them (and the `ON`/`names` fields directly, to see a bit without refreshing).
 
 ## Title Screen Switcher (`mainmenu/TitleScreenLooks`)
 
@@ -127,3 +133,17 @@ changes. `TitleScreenLooks.setEnabledForTest(boolean)` turns it on or off for th
 override read by `MainMenuLook.current()`, `MainMenuTheme.active()` and `MenuStyle.use()`; it writes no setting.
 `MainMenuScenes.setAmberScene` / `setGreenScene` and `GreenTheme.setGradient` are the runtime choices behind it (the
 `AMBER_SCENE` / `GREEN_SCENE` / `DEFAULT_GRADIENT` constants stay the defaults).
+
+## World render batch (`compat/McRender`, 26.1.2)
+Inside `AFTER_TRANSLUCENT_FEATURES` and `AFTER_TRANSLUCENT_TERRAIN`, `McRender.inCameraSpace` writes into the mod's own
+buffer source and draws each render type once after the event's last listener (see `McRender.registerBatching`).
+`McRender.batchStats()` returns `{geometry callbacks batched, batches drawn}` since launch (both 0 on 26.2, whose submit
+collector groups by type itself); the probe attributes the batch's draw to `compat.McRender <event>`, not to the
+features that filled it. Testkit 95-perf-world reads both, plus its own draw-call counter.
+
+## Dungeon Map draw cache (`livemap/MapDrawCache`)
+The Dungeon Map HUD keeps the render-state elements it painted and hands them over again while nothing it is painted
+from changed. `-Dkiller560.livemap.verifyCache=true` (or `MapDrawCache.setVerify(true)`) also paints every replayed
+frame afresh, unsubmitted, and compares the two element by element; `MapDrawCache.stats()` is {replays, paints,
+compared, differed within the paint's own tick, differed after it}, `lastMismatch()` names the last stale element.
+Testkit 95-perf-livemap runs it.

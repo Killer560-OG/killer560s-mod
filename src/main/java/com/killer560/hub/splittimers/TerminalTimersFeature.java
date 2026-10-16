@@ -143,13 +143,13 @@ public final class TerminalTimersFeature {
     }
 
     private static void onChatLine(Component message) {
-        String plain = net.minecraft.ChatFormatting.stripFormatting(message.getString());
+        String plain = ChatObserver.strip(message);
         if (plain == null) {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        Matcher m = COMPLETE_REGEX.matcher(plain);
-        if (m.find()) {
+        Matcher m = plain.contains("d a ") ? COMPLETE_REGEX.matcher(plain) : null; // "activated a"/"completed a"
+        if (m != null && m.find()) {
             if (m.group(3).equals("terminal") && client.player != null
                     && m.group(1).equals(client.player.getGameProfile().name())) {
                 ownTerminalLineAtMs = System.currentTimeMillis();

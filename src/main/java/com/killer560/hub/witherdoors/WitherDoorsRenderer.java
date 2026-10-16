@@ -112,9 +112,23 @@ final class WitherDoorsRenderer {
         }
         net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
         Vec3 cam = McRender.cameraPos(context);
-        for (WitherDoorsFeature.DoorLabel l : labels.toArray(new WitherDoorsFeature.DoorLabel[0])) {
+        WitherDoorsFeature.DoorLabel[] all = labels.toArray(new WitherDoorsFeature.DoorLabel[0]);
+        if (labelText.length < all.length) {
+            labelFor = new WitherDoorsFeature.DoorLabel[all.length];
+            labelMetres = new long[all.length];
+            labelText = new String[all.length];
+        }
+        for (int i = 0; i < all.length; i++) {
+            WitherDoorsFeature.DoorLabel l = all[i];
             double dist = Math.sqrt(cam.distanceToSqr(l.pos()));
-            String text = l.text() + " " + Math.round(dist) + "m";
+            // The text changes only when the rounded distance does: built then, not every frame (FPS pass).
+            long metres = Math.round(dist);
+            if (labelFor[i] != l || labelMetres[i] != metres) {
+                labelFor[i] = l;
+                labelMetres[i] = metres;
+                labelText[i] = l.text() + " " + metres + "m";
+            }
+            String text = labelText[i];
             float s = 0.025f * (float) Math.min(8.0, Math.max(1.0, dist / 12.0));
             poseStack.pushPose();
             try {
@@ -129,6 +143,11 @@ final class WitherDoorsRenderer {
             }
         }
     }
+
+    /** Render-thread cache for {@link #drawLabels}: the label each slot last showed, its metres and its text. */
+    private static WitherDoorsFeature.DoorLabel[] labelFor = new WitherDoorsFeature.DoorLabel[0];
+    private static long[] labelMetres = new long[0];
+    private static String[] labelText = new String[0];
 
     private static void lineBox(PoseStack.Pose pose, VertexConsumer buffer, AABB b, float r, float g, float bl,
                                 float width) {

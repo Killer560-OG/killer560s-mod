@@ -91,7 +91,7 @@ public final class RibbonTrailConfig {
     }
 
     public void setEnabled(boolean v) {
-        enabled = v;
+        enabled = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isShowInFirstPerson() {
@@ -207,7 +207,13 @@ public final class RibbonTrailConfig {
         teleportMode = enumOr(obj, "teleportMode", TeleportMode.class, teleportMode);
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         // An old Trail file (one with a Style) is split before this file is read.
         TrailConfig.getInstance();
         RibbonTrailConfig cfg = new RibbonTrailConfig();

@@ -69,15 +69,18 @@ public final class P4PlatformHighlightFeature {
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(P4PlatformHighlightFeature::onChatMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("P4PlatformHighlightFeature", client -> tick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(P4PlatformHighlightFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("P4 Platform render", () -> P4PlatformHighlightConfig.getInstance().isEnabledRaw()), P4PlatformHighlightFeature::onWorldRender));
     }
 
     private static void onChatMessage(Component message) {
         // Deliberately NOT gated on isEnabled(): the state has to be tracked whether or not the highlight
         // is currently switched on, otherwise turning it on after the Core line (or while SkyblockGate is
         // still settling) leaves platformActive false for the rest of the fight.
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        String raw = plain != null ? plain : message.getString();
+        String raw = ChatObserver.strip(message);
+        if (!raw.startsWith("The Core ") && !raw.startsWith("[BOSS] ")) {
+            return; // all three patterns are anchored on one of these (fps-idle-1015)
+        }
         if (CORE_OPENING_REGEX.matcher(raw).matches()) {
             platformActive = true;
         } else if (GOLDOR_START_REGEX.matcher(raw).matches() || com.killer560.hub.fastleap.Floor7Tracker.P5_START.matcher(raw).matches()) {

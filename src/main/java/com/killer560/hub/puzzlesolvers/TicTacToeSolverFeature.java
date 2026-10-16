@@ -61,10 +61,11 @@ public final class TicTacToeSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TicTacToeSolverFeature.tick", TicTacToeSolverFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TicTacToeSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("TicTacToe Solver tick", () -> TicTacToeSolverConfig.getInstance().isEnabledRaw()), TicTacToeSolverFeature::tick));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(TicTacToeSolverFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
+                com.killer560.hub.util.FeatureBits.register("TicTacToe Solver render", () -> TicTacToeSolverConfig.getInstance().isEnabledRaw()), TicTacToeSolverFeature::onWorldRender));
     }
 
     /** The cell to place in right now (player's turn), or null. */

@@ -128,6 +128,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Before anything reads a config: a setting whose meaning changed between builds has to be fixed
         // before a feature loads it, not after.
         com.killer560.hub.configversion.ConfigMigrations.run();
+        // World render geometry: one draw call per render type per event (26.1.2; see McRender).
+        com.killer560.hub.compat.McRender.registerBatching();
         com.killer560.hub.autodebuff.AutoDebuffFeature.register();
         // The sim's entry point is the title screen's "Dungeon Sim" row, which MainMenuTitleLayout
         // places under Multiplayer - so there is nothing to register here.
@@ -148,9 +150,10 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimPauseEntry.register();
         com.killer560.hub.roomsim.SimSurvival.register();
         com.killer560.hub.roomsim.FloorSizeLog.register();
-        // Started here rather than when a screen asks for it: reading it is slow enough to matter
-        // and there is nothing to wait for at startup, so by the time he opens the sim it is done.
-        com.killer560.hub.roomsim.RoomLibrary.loadAsync();
+        // Started without waiting for a screen to ask for it: reading it is slow enough to matter, so by the time he
+        // opens the sim it is done. But once the title screen is up rather than during the game's own loading, which
+        // it only competed with (fps-sim-1015, util/AfterStartup).
+        com.killer560.hub.util.AfterStartup.run(com.killer560.hub.roomsim.RoomLibrary::loadAsync);
         com.killer560.hub.roomsim.SimItems.register();
         com.killer560.hub.roomsim.SimBuilder.register();
         com.killer560.hub.roomsim.SimDoors.register();
@@ -408,10 +411,14 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
 
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Killer560ModClient.checkHudEditKeybind", Killer560ModClient::checkHudEditKeybind));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PeekChatFeature.tick", com.killer560.hub.peekchat.PeekChatFeature::tick));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SweatMode.tick", c -> com.killer560.hub.util.SweatMode.tick()));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WindowModeFeature.tickApplyOnce", WindowModeFeature::tickApplyOnce));
+        // Four back-to-back END handlers as one listener, same order, each still guarded under its own name.
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.endAll(
+                new String[]{"Killer560ModClient.checkHudEditKeybind", "PeekChatFeature.tick", "SweatMode.tick",
+                        "WindowModeFeature.tickApplyOnce"},
+                Killer560ModClient::checkHudEditKeybind,
+                com.killer560.hub.peekchat.PeekChatFeature::tick,
+                c -> com.killer560.hub.util.SweatMode.tick(),
+                WindowModeFeature::tickApplyOnce));
 
         // "/ew waypoint add|remove|undo" (killer560, 2026-09-21: "change the command to /ew waypoint add. add in
         // remove that removes the closest, undo that undoes the last as well").

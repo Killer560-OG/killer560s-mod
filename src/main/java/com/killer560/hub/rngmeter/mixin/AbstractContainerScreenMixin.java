@@ -51,7 +51,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void killer560smod$scrollRngMeterOverlay(double mouseX, double mouseY, double scrollX, double scrollY,
                                                         CallbackInfoReturnable<Boolean> cir) {
-        if (!this.getTitle().getString().toLowerCase(java.util.Locale.US).contains("rng")) {
+        if (!RngMeterOverlay.isRngTitle(this.getTitle())) {
             return;
         }
         if (RngMeterOverlay.handleScroll(mouseX, mouseY, scrollY)) {
@@ -65,7 +65,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             if (!com.killer560.hub.rngmeter.RngMeterConfig.getInstance().isEnabled()) {
                 return;
             }
-            if (!this.getTitle().getString().toLowerCase(java.util.Locale.US).contains("rng")) {
+            if (!RngMeterOverlay.isRngTitle(this.getTitle())) {
                 return;
             }
             List<Component> lines = cir.getReturnValue();

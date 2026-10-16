@@ -63,7 +63,7 @@ public final class LeapRunMemory {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain != null && RUN_START.matcher(plain.trim()).matches()) {
+        if (plain != null && plain.contains("[NPC] Mort: ") && RUN_START.matcher(plain.trim()).matches()) {
             pendingTicks = 0;
         }
     }

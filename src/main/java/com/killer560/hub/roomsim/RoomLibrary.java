@@ -132,8 +132,18 @@ public final class RoomLibrary {
         /** Width and depth in blocks, from how many tiles the room occupies. */
         public int sizeX;
         public int sizeZ;
-        /** Palette index per (x, y, z); -1 means never read. */
-        public short[] blocks;
+        /**
+         * Palette index per (x, y, z); -1 means never read. Read through {@link #blockAt}/{@link #at}, written through
+         * {@link #setBlockAt}.
+         *
+         * <p>Held as ONE BYTE per block (index + 1, so 0 is "never read") while the palette has at most 255 entries,
+         * which 115 of the 134 shipped rooms do, and as shorts otherwise (fps-sim-1015). The library is loaded at
+         * startup and kept for the session (the sim and Predictive Rooms both read it), and as shorts it was 27 MB of
+         * heap for every player; mixed it is 17 MB. Exactly one of the two arrays is non-null. A write that needs an
+         * index past 254 widens the room to shorts first, so nothing a capture can do is lost.
+         */
+        private volatile short[] wide;
+        private volatile byte[] narrow;
         public final List<String> palette = new ArrayList<>();
         private final Map<String, Short> paletteIndex = new LinkedHashMap<>();
         /** Which columns have been read at least once - this is what completeness means. */
@@ -200,9 +210,81 @@ public final class RoomLibrary {
             this.sizeZ = sizeZ;
             this.minY = minY;
             this.maxY = maxY;
-            this.blocks = new short[sizeX * sizeZ * (maxY - minY + 1)];
-            java.util.Arrays.fill(this.blocks, (short) -1);
+            this.wide = new short[sizeX * sizeZ * (maxY - minY + 1)];
+            java.util.Arrays.fill(this.wide, (short) -1);
             this.seenColumn = new boolean[sizeX * sizeZ];
+        }
+
+        /** How many block slots this room holds ({@code sizeX * sizeZ * (maxY - minY + 1)}). */
+        public int blockCount() {
+            return narrow != null ? narrow.length : wide.length;
+        }
+
+        /** The palette index at a raw {@link #index}, -1 for never read. No bounds handling beyond the array's. */
+        public short blockAt(int i) {
+            byte[] n = narrow;
+            return n != null ? (short) ((n[i] & 0xFF) - 1) : wide[i];
+        }
+
+        /** Writes the palette index at a raw {@link #index}; widens the room to shorts when it does not fit a byte. */
+        void setBlockAt(int i, short id) {
+            byte[] n = narrow;
+            if (n != null) {
+                if (id >= -1 && id < 255) {
+                    n[i] = (byte) (id + 1);
+                    return;
+                }
+                widen();
+            }
+            wide[i] = id;
+        }
+
+        /** Bytes this room's block array holds. */
+        public long blockBytes() {
+            return narrow != null ? narrow.length : 2L * wide.length;
+        }
+
+        /** A copy of every block as shorts (the file form, and for tests). */
+        public short[] blockArray() {
+            if (narrow == null) {
+                return wide.clone();
+            }
+            short[] out = new short[narrow.length];
+            for (int i = 0; i < out.length; i++) {
+                out[i] = (short) ((narrow[i] & 0xFF) - 1);
+            }
+            return out;
+        }
+
+        /** Moves the blocks to one byte each when the palette allows it. Called once a room is fully read. */
+        synchronized void compact() {
+            if (narrow != null || palette.size() > 255) {
+                return;
+            }
+            short[] w = wide;
+            byte[] n = new byte[w.length];
+            for (int i = 0; i < w.length; i++) {
+                short v = w[i];
+                if (v < -1 || v >= 255) {
+                    return; // an index the palette does not explain: leave it exactly as read
+                }
+                n[i] = (byte) (v + 1);
+            }
+            narrow = n;
+            wide = null;
+        }
+
+        private synchronized void widen() {
+            byte[] n = narrow;
+            if (n == null) {
+                return;
+            }
+            short[] w = new short[n.length];
+            for (int i = 0; i < n.length; i++) {
+                w[i] = (short) ((n[i] & 0xFF) - 1);
+            }
+            wide = w;
+            narrow = null;
         }
 
         short paletteFor(String state) {
@@ -237,7 +319,7 @@ public final class RoomLibrary {
             if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
                 return -1;
             }
-            return blocks[index(x, y, z)];
+            return blockAt(index(x, y, z));
         }
 
         /**
@@ -250,7 +332,7 @@ public final class RoomLibrary {
             if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ || y < minY || y > maxY) {
                 return;
             }
-            blocks[index(x, y, z)] = paletteFor(blockId);
+            setBlockAt(index(x, y, z), paletteFor(blockId));
             seenColumn[z * sizeX + x] = true;
             fromJar = false;
         }
@@ -259,9 +341,10 @@ public final class RoomLibrary {
         void markComplete() {
             fromJar = false;
             java.util.Arrays.fill(seenColumn, true);
-            for (int i = 0; i < blocks.length; i++) {
-                if (blocks[i] == -1) {
-                    blocks[i] = paletteFor("minecraft:air");
+            int n = blockCount();
+            for (int i = 0; i < n; i++) {
+                if (blockAt(i) == -1) {
+                    setBlockAt(i, paletteFor("minecraft:air"));
                 }
             }
         }
@@ -353,7 +436,7 @@ public final class RoomLibrary {
                 boolean solid = false;
                 for (int z = 0; z < sizeZ && !solid; z++) {
                     for (int x = 0; x < sizeX; x++) {
-                        short id = blocks[index(x, y, z)];
+                        short id = blockAt(index(x, y, z));
                         if (id >= 0 && !empty.contains(id)) {
                             solid = true;
                             break;
@@ -508,6 +591,10 @@ public final class RoomLibrary {
         // the map is swapped in, so nothing can ever see an unaudited library. Still off the render thread,
         // for the same reason the reads above are.
         RoomTileAudit.run(fresh);
+        // Last, once nothing at load writes blocks any more: one byte a block where the palette allows (see Room).
+        for (Room r : fresh.values()) {
+            r.compact();
+        }
         int fromJar = 0;
         for (Room r : fresh.values()) {
             if (r.fromJar) {
@@ -859,7 +946,7 @@ public final class RoomLibrary {
         o.add("palette", pal);
         int layer = r.sizeX * r.sizeZ;
         short[] trimmed = new short[layer * (hi - lo + 1)];
-        System.arraycopy(r.blocks, (lo - r.minY) * layer, trimmed, 0, trimmed.length);
+        System.arraycopy(r.blockArray(), (lo - r.minY) * layer, trimmed, 0, trimmed.length);
         o.addProperty("blocksZ", encodeShorts(trimmed));
         o.addProperty("seenZ", encodeBits(r.seenColumn));
         o.addProperty("margin", r.margin);
@@ -916,11 +1003,11 @@ public final class RoomLibrary {
         }
         // Both formats are read: gzipped "blocksZ" and the old plain number array.
         if (o.has("blocksZ")) {
-            decodeShorts(o.get("blocksZ").getAsString(), r.blocks);
+            decodeShorts(o.get("blocksZ").getAsString(), r.wide);
         } else if (o.has("blocks")) {
             JsonArray blocks = o.getAsJsonArray("blocks");
-            for (int i = 0; i < blocks.size() && i < r.blocks.length; i++) {
-                r.blocks[i] = blocks.get(i).getAsShort();
+            for (int i = 0; i < blocks.size() && i < r.wide.length; i++) {
+                r.wide[i] = blocks.get(i).getAsShort();
             }
         }
         // Written since 2026-09-29. Older files get the inference that used to live in RoomPlacer, which is

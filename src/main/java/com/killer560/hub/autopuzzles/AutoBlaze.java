@@ -177,12 +177,20 @@ final class AutoBlaze {
         reset(client);
     }
 
+    private static List<Entity> liveBlazes() {
+        return BlazeSolverFeature.getOrderedBlazes().stream().filter(e -> !e.isRemoved()).toList();
+    }
+
     static void tick(Minecraft client, String roomName) {
         // The solver's order, less any blaze whose kill the server has already reported: the solver re-reads the room after
         // this tick, so its list still holds the one just killed, and aiming at that one sends the volley through its
         // empty spot at the next blaze up, out of order. Dropping it here moves on to the next in order at once.
-        List<Entity> blazes = BlazeSolverFeature.getOrderedBlazes().stream().filter(e -> !e.isRemoved()).toList();
-        GUARD.observe(blazes.isEmpty());
+        // Only built when the guard can still learn from it or the auto will use it (fps-auto-1015: a list copy and a
+        // stream every tick with the auto off).
+        List<Entity> blazes = GUARD.observing() ? liveBlazes() : null;
+        if (blazes != null) {
+            GUARD.observe(blazes.isEmpty());
+        }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         boolean inRoom = LOWER.equals(roomName) || HIGHER.equals(roomName);
         if (!cfg.isAutoBlazeEnabled() || !inRoom) {
@@ -192,6 +200,9 @@ final class AutoBlaze {
             }
             wasInRoom = false;
             return;
+        }
+        if (blazes == null) {
+            blazes = liveBlazes();
         }
         LocalPlayer player = client.player;
         if (!wasInRoom && player != null) {
