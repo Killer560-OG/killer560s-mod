@@ -523,3 +523,8 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   width changed, and a Min Width box kept its text on the left so the text's right end moved by the slack (testkit 1668,
   2026-10-15). Draw it shifted by `round(w * scale) - w * scale` (`anchorShift`) and put the text block against the wall
   (`blockOffset`); the hover layout must use the same shift and block.
+- **A table column sized by a fixed number overlaps the moment its heading grows.** Load a Room's columns were 30-64
+  units wide, and "Crypts ▼" (the sort arrow adds a space and a glyph) is 44 against Crypts' 34, so with Crypts sorted it
+  ran 4 units into "Secrets" (killer560's screenshot, 2026-10-15; Size and Secrets did the same sorted). `SimMenuScreen
+  .columns()` now measures each column's heading with either arrow and every listed cell, keeps 8 units between columns,
+  gives Name the rest with "...", and drops whole columns before anything can touch. testkit 97-sim-menu-tidy measures it.
