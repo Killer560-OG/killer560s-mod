@@ -97,7 +97,7 @@ final class TargetScene {
     }
 
     /** How many droplet sources the ceiling has (testkit 1651 checks the scene has them). */
-    static final int DROPS = 24;
+    static final int DROPS = 18; // 24 until killer560, 2026-10-16: "a hair too much water"
     /** Where the lake's surface is, and the ledge's top, in the picture's space. */
     private static final int LAKE_Y = 852;
     private static final int LEDGE_Y = 842;
@@ -129,12 +129,13 @@ final class TargetScene {
             }
             double ceil = 24 + MainMenuScenes.hash(i, 732) * 70;
             double form = 1.4 + MainMenuScenes.hash(i, 733) * 2.2;
-            double g = 2300 * (0.7 + 0.3 * depth);
+            // 1130 = 2300 x 0.49: drops land at 70% of the old speed and take ~1.43x as long ("falling a bit too fast").
+            double g = 1130 * (0.7 + 0.3 * depth);
             boolean ledge = x < LEDGE_END;
             double land = ledge ? LEDGE_Y : LAKE_Y;
             double fall = Math.sqrt(2.0 * (land - ceil) / g);
             double splash = 0.55;
-            double period = form + fall + splash + MainMenuScenes.hash(i, 734) * 1.5;
+            double period = form + fall + splash + MainMenuScenes.hash(i, 734) * 2.0 + 0.8; // longer gaps between drips (was 0..1.5 s)
             double tt = (t + MainMenuScenes.hash(i, 735) * period) % period;
             double radius = 1.1 + depth * 2.6;
             int alpha = (int) (0x80 + 0x7F * depth);
@@ -148,7 +149,7 @@ final class TargetScene {
                 double ft = tt - form;
                 double y = ceil + 0.5 * g * ft * ft;
                 double v = g * ft;
-                double streak = Math.min(110, v * 0.026 * (0.6 + 0.4 * depth));
+                double streak = Math.min(77, v * 0.026 * (0.6 + 0.4 * depth));
                 streak(r, x, y - streak, y, radius * 0.9, HOT, alpha / 2);
                 softDot(r, x, y, radius, 1.35, HOT, alpha, depth);
             } else {

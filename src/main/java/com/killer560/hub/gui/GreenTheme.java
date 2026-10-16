@@ -72,7 +72,7 @@ public final class GreenTheme {
                 || (text | 0xFF000000) != TEXT || (switchOn | 0xFF000000) != SWITCH_ON) {
             return null;
         }
-        return switch (gradient) {
+        return switch (gradient()) {
             case FOREST_NIGHT -> FOREST_NIGHT_BG;
             case MOSS_FLOOR -> MOSS_FLOOR_BG;
             case CANOPY_GLOW -> CANOPY_GLOW_BG;
