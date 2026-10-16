@@ -234,6 +234,11 @@ public final class TripCache {
         hits++;
     }
 
+    /** Whether a lookup that found nothing is a miss worth counting: on, in a dungeon, the floor known. */
+    static boolean counting() {
+        return enabledNow() && floorKnownMs != 0;
+    }
+
     /** ClearExecutor looked and found none for a trip it was asked for. */
     static void miss() {
         misses++;

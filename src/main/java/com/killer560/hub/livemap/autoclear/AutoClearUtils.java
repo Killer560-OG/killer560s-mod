@@ -311,7 +311,7 @@ public final class AutoClearUtils {
      * block beside it within 3), or null when the room has none or it is not standable - the press then goes to the
      * whole tile. Client thread. {@code quiet}: no log lines (TripCache resolving goals ahead of any press).
      */
-    static BlockPos overrideGoal(DungeonLayout layout, int room, int tileIdx, boolean quiet) {
+    public static BlockPos overrideGoal(DungeonLayout layout, int room, int tileIdx, boolean quiet) {
         Minecraft client = Minecraft.getInstance();
         String name = layout.name(room);
         int[] cr = layout.clayRotation(room);

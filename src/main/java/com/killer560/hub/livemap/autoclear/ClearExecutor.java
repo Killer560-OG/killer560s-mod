@@ -783,7 +783,7 @@ public final class ClearExecutor {
     private static boolean adoptCached(BlockPos to, int tileIdx, Runnable complete, LocalPlayer player) {
         TripCache.Entry e = TripCache.find(player.position(), to, tileIdx, goalExact);
         if (e == null) {
-            if (DungeonLayout.current().roomCount() > 0) {
+            if (TripCache.counting()) {
                 TripCache.miss();
             }
             return false;

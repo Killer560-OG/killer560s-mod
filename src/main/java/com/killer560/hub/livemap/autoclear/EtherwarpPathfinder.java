@@ -100,7 +100,17 @@ public final class EtherwarpPathfinder {
                 || LevelEtherGrid.hasPendingChanges()) {
             return false;
         }
-        return g.full.warmDone() || (g.quick != null && g.quick.warmDone() && !g.full.warmedOnce());
+        if (g.full.warmDone()) {
+            return true;
+        }
+        // FloorGraphs.plan's own rule: a full graph that once warmed on the whole floor ("knows the floor") is re-warming
+        // after a change and a search would finish that first; one that only ever warmed a corner (the sealed entrance
+        // before the gate opens) is not used at all - the quick graph plans, in milliseconds.
+        if (g.quick == null || !g.quick.warmDone()) {
+            return false;
+        }
+        boolean known = g.full.warmedOnce() && g.full.warmedNodes() >= FloorGraphs.KNOWN_RATIO * g.quick.nodeCount();
+        return !known;
     }
 
     /** Whether the full floor graph is warm (a quick-graph plan is worth planning again once it is). Any thread. */
