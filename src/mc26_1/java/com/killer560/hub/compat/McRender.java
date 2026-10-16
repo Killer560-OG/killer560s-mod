@@ -43,6 +43,12 @@ public final class McRender {
     private McRender() {
     }
 
+    /**
+     * Whether {@link #inCameraSpace} runs its callback LATER than the call (26.1.2 runs the callback inside the call.) A caller that hands the
+     * callback a reused scratch buffer must copy it first when this is true.
+     */
+    public static final boolean CALLBACK_RUNS_LATER = false;
+
     /** What a caller draws once the pose is in camera space. */
     public interface Geometry {
         void draw(PoseStack.Pose pose, VertexConsumer buffer);

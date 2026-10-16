@@ -189,11 +189,16 @@ public final class TrajectoriesFeature {
         List<Vec3> points = new ArrayList<>();
         AABB impactBox = null;
 
+        // One collision context for the whole arc: new ClipContext(.., player) builds CollisionContext.of(player) for
+        // every step (javap, both versions), and nothing about the player changes between the steps of one frame's
+        // arc, so every step's clip is the same with it built once (FPS pass, 2026-10-15).
+        net.minecraft.world.phys.shapes.CollisionContext collision =
+                net.minecraft.world.phys.shapes.CollisionContext.of(player);
         for (int i = 0; i < range; i++) {
             points.add(position);
             Vec3 nextPosition = position.add(motion);
             HitResult hit = level.clip(new ClipContext(position, nextPosition,
-                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, collision));
 
             if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
                 points.add(blockHit.getLocation());

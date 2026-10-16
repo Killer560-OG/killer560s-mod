@@ -193,7 +193,19 @@ public final class WorldRenderUtils {
         }
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists the tick
         // rewrites (Ice Fill's currentPath, the solvers' routes).
-        final Vec3[] pts = points.toArray(new Vec3[0]);
+        renderLineStrip(context, points.toArray(new Vec3[0]), r, g, b, a, thickness);
+    }
+
+    /**
+     * {@link #renderLineStrip(LevelRenderContext, java.util.List, float, float, float, float, float)} for points the
+     * caller already holds in an array it never changes afterwards (on 26.2 the callback reads it later in the frame),
+     * so nothing is copied.
+     */
+    public static void renderLineStrip(LevelRenderContext context, Vec3[] pts, float r, float g, float b, float a,
+                                       float thickness) {
+        if (pts.length < 2) {
+            return;
+        }
         McRender.inCameraSpace(context, RenderTypes.LINES_TRANSLUCENT, (pose, buffer) -> {
 
             for (int i = 0; i < pts.length - 1; i++) {
