@@ -116,7 +116,23 @@ public final class SimRoomState {
         if (state != STATE_FAILED && com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(roomName)) {
             return STATE_GREEN;
         }
+        // A CLEARED ROOM WITH EVERY SECRET FOUND IS A GREEN CHECKMARK, as on Hypixel's map item, wherever he is when the
+        // last one registers. killer560 (2026-10-16): "the map does not register secrets I get if I leave the room too
+        // fast". The room's "x/y Secrets" action bar line (SimActionBar) is only sent for the room he stands in, every ten
+        // server ticks, so a secret counted on the tick he warped or walked out never reached the map: ten rooms of his
+        // run were left short (Dip 0/2, Doors 1/5...). On Hypixel the map item's green check is what fills such a room in
+        // (MapPainter.secretsText reads green as every secret found). The count is the SERVER's, per the secret's own
+        // room (SimScore.foundInRoom, keyed by where the secret was, not where he is).
+        if (state == STATE_CLEARED && roomComplete(roomName)) {
+            return STATE_GREEN;
+        }
         return state;
+    }
+
+    /** Every secret of this room found this run, by the sim server's own per-room count. False for a room with none. */
+    private static boolean roomComplete(String roomName) {
+        com.killer560.hub.roomdatabase.RoomEntry entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(roomName);
+        return entry != null && entry.secrets > 0 && SimScore.foundInRoom(roomName) >= entry.secrets;
     }
 
     /** {@code DungeonMapScanner.STATE_GREEN} - the green checkmark. Literal for the same reason as {@link #STATE_FAILED}. */
