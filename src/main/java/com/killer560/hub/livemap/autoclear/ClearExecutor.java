@@ -772,15 +772,30 @@ public final class ClearExecutor {
      */
     private static boolean hold = false;
     private static int holdTicks = 0;
-    private static final int HOLD_MAX_TICKS = 40;
+    /** A safety net only: the holder lets go itself (Auto Secret's waits are bounded well inside this). */
+    private static final int HOLD_MAX_TICKS = 200;
+    /** Whether the held warp keeps the sneak down. Not while a secret is being taken: a right click made sneaking with
+     *  the AOTV in hand is the AOTV's (a warp onto the chest or skull), never the block's - on Hypixel and in the sim. */
+    private static boolean holdSneak = true;
 
     public static void setHold(boolean value) {
         hold = value;
         holdTicks = 0;
+        holdSneak = true;
+    }
+
+    /** See {@link #holdSneak}. Only while held; {@link #setHold} puts it back on. */
+    public static void setHoldSneak(boolean value) {
+        holdSneak = value;
     }
 
     public static boolean isHeld() {
         return hold;
+    }
+
+    /** A queue is held and has not sent its first warp: he has not been moved by it yet. */
+    public static boolean heldAtStart() {
+        return hold && issued.isEmpty() && syncDelay == 0;
     }
 
     /** @return true while the queue is held this tick (nothing else of it runs) */
@@ -800,7 +815,7 @@ public final class ClearExecutor {
         ticksSinceProgress = 0;
         waitReason = "held for the room's last secrets";
         boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
-        active = current.get(0) instanceof ClearNode.EtherNode && !screen;   // the sneak, never under a container
+        active = current.get(0) instanceof ClearNode.EtherNode && !screen && holdSneak;   // never under a container
         if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
             swappedOnTick = clientTicks;
         }

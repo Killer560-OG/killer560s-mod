@@ -448,17 +448,27 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] route {} finished (tick {})", room, tick);
         say(ModChat.good("Route done"), ModChat.dim(" - " + room));
         int[] counted = roomCount(room);
-        if (counted == null || counted[0] >= counted[1]) {
+        String taking = takingHere(client, room, counted);
+        if (taking == null && (counted == null || counted[0] >= counted[1])) {
             LOGGER.info("[AutoSecret] {}: every secret counted at the route's end{} - leaving this tick", room,
                     counted == null ? " (no secrets to count)" : " (" + counted[0] + "/" + counted[1] + ")");
             leaveWaitRoom = null;
             ClearExecutor.setHold(false);
         } else {
-            LOGGER.info("[AutoSecret] {}: {}/{} secret(s) counted at the route's end - the next warp waits up to {} tick(s)"
-                    + " for the rest", room, counted[0], counted[1], LAST_NODE_WAIT_TICKS);
+            if (taking != null) {
+                LOGGER.info("[AutoSecret] {}: {} secret(s) counted at the route's end, and {} is still being taken - the"
+                        + " next warp waits for it to register (up to {} tick(s), the aura re-trying it)", room,
+                        counted == null ? "all" : counted[0] + "/" + counted[1], taking, TAKE_TIMEOUT_TICKS);
+            } else {
+                LOGGER.info("[AutoSecret] {}: {}/{} secret(s) counted at the route's end - the next warp waits up to {}"
+                        + " tick(s) for the rest", room, counted[0], counted[1], LAST_NODE_WAIT_TICKS);
+            }
             leaveWaitRoom = room;
             leaveWaitTicks = 0;
+            leaveWaitLag = com.killer560.hub.util.ServerLag.mark();
+            leaveTakingSaid = taking;
             ClearExecutor.setHold(true);
+            ClearExecutor.setHoldSneak(taking == null);
             status = "Waiting at the end of " + room + " for its last secrets";
         }
         permitLeaveHere();
@@ -469,16 +479,88 @@ public final class AutoSecretFeature {
     /** One START tick of the last-node wait: let the held warp go once the room counts every secret, or at the cap. */
     private static void tickLeaveWait() {
         leaveWaitTicks++;
+        Minecraft client = Minecraft.getInstance();
         int[] counted = roomCount(leaveWaitRoom);
         boolean done = counted == null || counted[0] >= counted[1];
-        if (!done && leaveWaitTicks < LAST_NODE_WAIT_TICKS) {
+        String taking = takingHere(client, leaveWaitRoom, counted);
+        boolean timedOut = leaveWaitTicks >= TAKE_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(leaveWaitLag);
+        if (taking != null && !timedOut) {
+            // A secret in reach is still being taken: no cap but the timeout, and no sneak under its click.
+            ClearExecutor.setHoldSneak(false);
+            if (!taking.equals(leaveTakingSaid)) {
+                leaveTakingSaid = taking;
+                LOGGER.info("[AutoSecret] {}: waiting for {} to register ({} tick(s) in)", leaveWaitRoom, taking,
+                        leaveWaitTicks);
+            }
             return;
         }
+        ClearExecutor.setHoldSneak(true);
+        if (taking == null && !done && leaveWaitTicks < LAST_NODE_WAIT_TICKS) {
+            return;
+        }
+        String why;
+        if (taking != null) {
+            why = "not every secret registered: " + taking + " - the " + TAKE_TIMEOUT_TICKS + "-tick limit";
+            ModChat.send(chatName(), ModChat.bad("Leaving " + leaveWaitRoom), ModChat.dim(" - " + taking
+                    + " never registered in " + leaveWaitTicks + " ticks"));
+        } else if (done) {
+            why = "every secret counted";
+        } else {
+            why = "not every secret counted (" + counted[0] + "/" + counted[1] + ") and none in reach - the "
+                    + LAST_NODE_WAIT_TICKS + "-tick cap";
+        }
         LOGGER.info("[AutoSecret] {}: {} after {} tick(s) of the last-node wait (tick {}) - the next warp goes now",
-                leaveWaitRoom, done ? "every secret counted" : "not every secret counted (" + counted[0] + "/" + counted[1]
-                        + ") - the " + LAST_NODE_WAIT_TICKS + "-tick cap", leaveWaitTicks, ClearExecutor.clientTick());
+                leaveWaitRoom, why, leaveWaitTicks, ClearExecutor.clientTick());
         leaveWaitRoom = null;
+        leaveTakingSaid = null;
         ClearExecutor.setHold(false);
+    }
+
+    /**
+     * Ticks at most that a secret still being taken in reach holds the next warp (plus any server stall since the wait
+     * began). Secret Aura re-tries a click that did not take after 1 s, so this covers its first click (after the
+     * landing's settle), the re-try and the server's answer to it.
+     */
+    static final int TAKE_TIMEOUT_TICKS = 50;
+    private static long leaveWaitLag;
+    private static String leaveTakingSaid;
+    /** An item secret is due when his body is this close to its block (the sim's spawn range, killer560's number). */
+    private static final double ITEM_DUE_RANGE = 3.0;
+
+    /**
+     * killer560, 2026-10-15: "it will leave a room before a secret is grabbed and registered". What, at the end of
+     * {@code room}'s route, is still being taken where he stands, or null: a secret Secret Aura has in reach and has not
+     * yet seen taken; with the room not fully counted, also one it has not clicked yet, or an item secret of the room's
+     * database by his feet that he has not picked up (it appears a moment after he arrives and is picked up a moment
+     * after that). A secret the route left out of reach is not waited for: that is the 6-tick cap's case.
+     */
+    private static String takingHere(Minecraft client, String room, int[] counted) {
+        if (client.player == null) {
+            return null;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = roomIdOf(layout, room);
+        if (id < 0 || layout.roomAtWorld(client.player.getX(), client.player.getZ()) != id) {
+            return null;
+        }
+        boolean all = counted == null || counted[0] >= counted[1];
+        String aura = com.killer560.hub.cheatutils.SecretAuraFeature.takingInReach(client, all);
+        if (aura != null || all) {
+            return aura;
+        }
+        net.minecraft.world.phys.AABB body = client.player.getBoundingBox();
+        for (net.minecraft.core.BlockPos at : com.killer560.hub.secretwaypoints.SecretWaypointsFeature
+                .currentRoomItemSecrets()) {
+            double dx = Math.max(0, Math.max(at.getX() - body.maxX, body.minX - (at.getX() + 1)));
+            double dy = Math.max(0, Math.max(at.getY() - body.maxY, body.minY - (at.getY() + 1)));
+            double dz = Math.max(0, Math.max(at.getZ() - body.maxZ, body.minZ - (at.getZ() + 1)));
+            if (dx * dx + dy * dy + dz * dz <= ITEM_DUE_RANGE * ITEM_DUE_RANGE
+                    && !com.killer560.hub.autoroutes.RouteRunMemory.gotNear("item",
+                    net.minecraft.world.phys.Vec3.atCenterOf(at), 2.5)) {
+                return "the item at " + at.toShortString();
+            }
+        }
+        return null;
     }
 
     /**
@@ -525,7 +607,9 @@ public final class AutoSecretFeature {
         }
         String puzzle = com.killer560.hub.autopuzzles.AutoPuzzleActivity.what();
         status = "Waiting: " + puzzle + " is working";
-        if (!puzzle.equals(puzzleHoldSaid)) {
+        // Once per hold, not per name: Auto Water and Auto Puzzles mark the same run in turn, and saying so on every
+        // change of name logged the wait several times a tick (his 2026-10-15 log, 22:43:19).
+        if (puzzleHoldSaid == null) {
             puzzleHoldSaid = puzzle;
             LOGGER.info("[AutoSecret] waiting: {} is working (phase {})", puzzle, phase);
             say(ModChat.dim("Waiting for " + puzzle + " to finish"));

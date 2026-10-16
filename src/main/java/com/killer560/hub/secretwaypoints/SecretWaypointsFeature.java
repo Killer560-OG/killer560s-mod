@@ -487,6 +487,43 @@ public final class SecretWaypointsFeature {
     }
 
     /**
+     * The room database's ITEM secrets of the room he stands in, as world blocks - by the same rooms, corner and rotation
+     * the waypoints are drawn from, whether or not the waypoints are on. For Auto Secret, which waits at a route's end
+     * for an item it stands by (an item secret appears only once he has been near it a moment, and is picked up a moment
+     * after that). Client thread.
+     */
+    public static List<BlockPos> currentRoomItemSecrets() {
+        List<BlockPos> out = new ArrayList<>();
+        int currentIdx = LiveMapFeature.currentRoomIndex();
+        if (currentIdx < 0) {
+            return out;
+        }
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        int shift = sim ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
+        java.util.List<int[]> rooms = sim
+                ? com.killer560.hub.roomsim.SimRoomIndex.identifiedRoomsWithRotation()
+                : LiveMapFeature.identifiedRoomsWithRotation();
+        for (int[] room : rooms) {
+            RoomEntry entry = sim
+                    ? com.killer560.hub.roomsim.SimRoomIndex.roomEntryAt(room[0])
+                    : LiveMapFeature.roomEntryAt(room[0]);
+            boolean hasCell = sim
+                    ? com.killer560.hub.roomsim.SimRoomIndex.roomHasCell(room[0], currentIdx)
+                    : roomHasCell(room[0], currentIdx);
+            if (entry == null || entry.secretCoords == null || entry.secretCoords.item == null || !hasCell) {
+                continue;
+            }
+            for (RoomEntry.Pos relative : entry.secretCoords.item) {
+                BlockPos real = RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift);
+                if (!out.contains(real)) {
+                    out.add(real);
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
      * The crypt or prince waypoints in the current snapshot, as their anchor blocks - for tests, which read the
      * feature's own list rather than re-deriving it.
      *
