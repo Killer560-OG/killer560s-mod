@@ -10,6 +10,7 @@
 		"MainMenuPanoramaMixin",
 		"MainMenuSplashMixin",
 		"MainMenuTitleScreenMixin",
+		"MainMenuFramerateMixin",
 		"MainMenuRealmsNotificationsMixin",
 		"MenuCheckboxMixin",
 		"MenuEditBoxMixin",
