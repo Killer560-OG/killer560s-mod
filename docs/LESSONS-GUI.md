@@ -583,3 +583,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   (95-perf-livemap verify: "count 30 vs fresh 15", 2406 stale frames), counting depth fixed it (0 of 2817). The key must
   be every input compared exactly; the verify mode (paint afresh unsubmitted, compare) is what finds a missed one, and
   the paint count is what found Predictive Rooms bumping its version every tick (the map repainted every tick under ALL ON).
+- **Writing world vertices through VertexConsumer's Pose/Matrix/float-colour helpers allocates per vertex** (javap, 26.1.2
+  and 26.2 alike; JFR 2026-10-16, ar-render-1016): `addVertex(Matrix4fc|Pose, x, y, z)` and `setNormal(Pose, ...)` each
+  make a `new Vector3f`, and `setColor(r, g, b, a)` becomes four `MemoryUtil.memPutByte`, each an FFM segment object on
+  Java 25. BufferBuilder overrides none of them, so for a plain BufferBuilder the same JOML calls into scratch vectors plus
+  `setColor(int argb)` (one `memPutInt`, same bytes) write identical vertices: Auto Routes' bare node shapes went from
+  25.8 KB to 0.2 KB a frame with pixel-identical shots. `WorldRenderUtils` and every other world draw still use the helpers.
