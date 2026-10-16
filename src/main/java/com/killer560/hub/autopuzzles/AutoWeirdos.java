@@ -84,8 +84,8 @@ final class AutoWeirdos {
     /** The weirdos (entity ids) or the chest the current move is for; a different set is a new problem. */
     private static String moveFor = null;
     private static int moves = 0;
-    /** The ids the current walk must have in reach before it stops (the ones its spot reaches). */
-    private static final Set<Integer> walkGoal = new HashSet<>();
+    /** How many weirdos the current walk must have in reach before it stops (as many as its spot reaches). */
+    private static int walkGoal = 0;
 
     private static String loggedWait = null;
 
@@ -219,15 +219,8 @@ final class AutoWeirdos {
             }
         }
         if (walking) {
-            // Walk until every weirdo the spot was chosen for is in reach, then talk from there, one a tick.
-            boolean goalMet = true;
-            for (Entity e : left) {
-                if (walkGoal.contains(e.getId()) && !inReach.contains(e)) {
-                    goalMet = false;
-                    break;
-                }
-            }
-            if (!goalMet && !inReach.containsAll(left)) {
+            // Walk until as many weirdos as the spot was chosen for are in reach, then talk from there, one a tick.
+            if (inReach.size() < walkGoal && !inReach.containsAll(left)) {
                 tickWalk(client, player, "talking to the weirdos");
                 return;
             }
@@ -335,12 +328,7 @@ final class AutoWeirdos {
             waitFor(what + " - and no standable spot in the room has any of them within " + SPOT_NPC_REACH);
             return;
         }
-        walkGoal.clear();
-        for (Entity e : left) {
-            if (BlockHits.boxDistanceSq(spot.eye, e.getBoundingBox()) <= SPOT_NPC_REACH * SPOT_NPC_REACH) {
-                walkGoal.add(e.getId());
-            }
-        }
+        walkGoal = spot.reached;
         move(client, player, key.toString(), found, what, left.size(), chests.size());
     }
 
@@ -466,25 +454,50 @@ final class AutoWeirdos {
             return;
         }
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
-        if (cfg.isEtherwarpReposition() && hasAotv(player)) {
+        boolean canWarp = cfg.isEtherwarpReposition() && hasAotv(player);
+        if (canWarp) {
+            // The best spot a warp can land on: one as good as the best of all, else the best that can be warped onto
+            // at all (it reaches fewer - the next look from there finds the rest, a step closer).
             Spot target = null;
+            Spot fallback = null;
             for (Spot s : found) {
-                if (s.reached < spot.reached || s.chests < spot.chests) {
-                    break;
-                }
                 if (canWarpOnto(client, player, s.floor)) {
-                    target = s;
-                    break;
+                    if (s.reached >= spot.reached && s.chests >= spot.chests) {
+                        target = s;
+                    } else if (fallback == null) {
+                        fallback = s;
+                    }
+                    if (target != null) {
+                        break;
+                    }
                 }
             }
-            if (target != null) {
+            if (target == null) {
+                target = fallback;
+            }
+            if (target != null && WARP.start(client, target.floor, false, false, false)) {
                 moves++;
-                if (WARP.start(client, target.floor, false, false, false)) {
-                    loggedWait = null;
-                    LOGGER.info("[AutoPuzzles] Weirdos: {} - etherwarping onto {} (reaches {}, move {}/{})", what,
-                            AutoPuzzleUtil.fmt(target.floor), reaches(target, targets, chestCount), moves, MAX_MOVES);
-                    return;
+                loggedWait = null;
+                LOGGER.info("[AutoPuzzles] Weirdos: {} - etherwarping onto {} (reaches {}, move {}/{})", what,
+                        AutoPuzzleUtil.fmt(target.floor), reaches(target, targets, chestCount), moves, MAX_MOVES);
+                return;
+            }
+            // No line onto any of them from here (from the doorway a pillar or the room's own step can be in the way):
+            // a first warp onto a block from which one can be aimed at (AutoPuzzleUtil.hopToward, as Tic Tac Toe does).
+            List<BlockPos> goals = new ArrayList<>();
+            for (Spot s : found) {
+                if (goals.size() >= 6) {
+                    break;
                 }
+                goals.add(s.floor);
+            }
+            BlockPos hop = AutoPuzzleUtil.hopToward(client, player, goals);
+            if (hop != null && !AutoPuzzleUtil.at(player, hop) && WARP.start(client, hop, false, false, false)) {
+                moves++;
+                loggedWait = null;
+                LOGGER.info("[AutoPuzzles] Weirdos: {} - no warp line onto a spot in reach; etherwarping onto {} first "
+                        + "(move {}/{})", what, AutoPuzzleUtil.fmt(hop), moves, MAX_MOVES);
+                return;
             }
         }
         if (!cfg.isAutoPuzzlePathingEnabled()) {
@@ -493,19 +506,47 @@ final class AutoWeirdos {
                     + ") and auto-puzzle pathing is off");
             return;
         }
-        moves++;
-        BlockPos feet = spot.floor.above();
-        if (!WALK.plan(client.level, player.position(), feet)) {
-            waitFor(what + " - no walkable way to " + AutoPuzzleUtil.fmt(spot.floor));
+        // A walk: straight to the best spot when the floor between is one level, else the nearest spot BY WALKING whose
+        // standing eye has as many in reach (MazeWalk.planToSpot), else the Interactive Map, asked for the best spot.
+        BlockPos planned = null;
+        if (WALK.plan(client.level, player.position(), spot.floor.above())) {
+            planned = spot.floor;
+        } else {
+            final Spot best = spot;
+            final List<Spot> all = found;
+            BlockPos around = spot.floor;
+            BlockPos feet = MazeWalk.planToSpot(client.level, player.position(), around, 8, eye -> {
+                for (Spot s : all) {
+                    if (s.reached < best.reached) {
+                        break;
+                    }
+                    if (s.eye.distanceToSqr(eye) < 0.36) {
+                        return true;
+                    }
+                }
+                return false;
+            }, WALK);
+            planned = feet == null ? null : feet.below();
+        }
+        if (planned == null) {
+            if (AutoPuzzleUtil.pathIfMapOn(spot.floor, null, true)) {
+                moves++;
+                loggedWait = null;
+                LOGGER.info("[AutoPuzzles] Weirdos: {} - no walk and no warp line; Interactive Map to {} (move {}/{})",
+                        what, AutoPuzzleUtil.fmt(spot.floor), moves, MAX_MOVES);
+                return;
+            }
+            waitFor(what + " - no warp line, no walkable way and no Interactive Map trip to " + AutoPuzzleUtil.fmt(spot.floor));
             return;
         }
+        moves++;
         walking = true;
         walkStartMs = System.currentTimeMillis();
         walkTimeoutMs = 2000L + (long) (WALK.length(player.position()) / 3.5 * 1000.0);
         loggedWait = null;
         CAMERA.engage(player);
-        LOGGER.info("[AutoPuzzles] Weirdos: {} - walking to {} (reaches {}, {} leg(s), {} blocks, move {}/{})", what,
-                AutoPuzzleUtil.fmt(spot.floor), reaches(spot, targets, chestCount), WALK.legs(),
+        LOGGER.info("[AutoPuzzles] Weirdos: {} - walking to {} ({} leg(s), {} blocks, move {}/{})", what,
+                AutoPuzzleUtil.fmt(planned), WALK.legs(),
                 String.format(java.util.Locale.ROOT, "%.1f", WALK.length(player.position())), moves, MAX_MOVES);
         tickWalk(client, player, what);
     }
@@ -546,7 +587,7 @@ final class AutoWeirdos {
             return;
         }
         walking = false;
-        walkGoal.clear();
+        walkGoal = 0;
         client.options.keyUp.setDown(false);
         LOGGER.info("[AutoPuzzles] Weirdos: stopped walking - {}", why);
     }
