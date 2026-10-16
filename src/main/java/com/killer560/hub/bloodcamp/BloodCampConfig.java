@@ -94,7 +94,18 @@ public final class BloodCampConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isShowOverlayRaw() {
+        return showOverlay;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new BloodCampConfig();
             return;
@@ -166,7 +177,7 @@ public final class BloodCampConfig {
     }
 
     public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+        this.enabled = enabled; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public boolean isShowOverlay() {
@@ -174,7 +185,7 @@ public final class BloodCampConfig {
     }
 
     public void setShowOverlay(boolean showOverlay) {
-        this.showOverlay = showOverlay;
+        this.showOverlay = showOverlay; com.killer560.hub.util.FeatureBits.changed();
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - a real click-assist

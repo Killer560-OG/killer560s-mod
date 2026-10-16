@@ -99,7 +99,9 @@ public final class AutoRoutesFeature {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoRoutesFeature.tick", AutoRoutesFeature::tick));
         // Breaker Block Display "Waypoint" draws through walls; the pipelines must exist before the first frame.
         com.killer560.hub.util.WorldRenderUtils.initThroughWalls();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(AutoRoutesFeature::onRenderFrame);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Auto Routes render", () -> AutoRoutesConfig.getInstance().isEnabledRaw()),
+                AutoRoutesFeature::onRenderFrame));
         AwaitEvents.register();
         AutoRoutesProgressHud.register();
         LOGGER.info("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);

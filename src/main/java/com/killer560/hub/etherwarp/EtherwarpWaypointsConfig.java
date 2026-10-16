@@ -75,7 +75,7 @@ public final class EtherwarpWaypointsConfig {
     }
 
     public void setHighlightBlocks(boolean v) {
-        highlightBlocks = v;
+        highlightBlocks = v; com.killer560.hub.util.FeatureBits.changed();
     }
 
     public Style getStyle() {
@@ -116,7 +116,18 @@ public final class EtherwarpWaypointsConfig {
         return new float[] {((color >> 16) & 0xFF) / 255f, ((color >> 8) & 0xFF) / 255f, (color & 0xFF) / 255f};
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    /** The stored switch alone (no Skyblock Only gate): a FeatureBits gate. */
+    public boolean isHighlightBlocksRaw() {
+        return highlightBlocks;
+    }
+
+    private static void load0() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new EtherwarpWaypointsConfig();
             return;

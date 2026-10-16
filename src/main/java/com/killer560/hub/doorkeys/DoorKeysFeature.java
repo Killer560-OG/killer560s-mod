@@ -58,8 +58,9 @@ public final class DoorKeysFeature {
 
     public static void register() {
         DungeonKeys.register();
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DoorKeysFeature.tick", DoorKeysFeature::tick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(DoorKeysFeature::onWorldRender);
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DoorKeysFeature.tick", com.killer560.hub.util.FeatureBits.register("Door Keys tick", () -> DoorKeysConfig.getInstance().isEnabledRaw()), DoorKeysFeature::tick));
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Door Keys render", () -> DoorKeysConfig.getInstance().isEnabledRaw()), DoorKeysFeature::onWorldRender));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Register the no-depth pipeline during client init, before the renderer precompiles its list -
             // same reason MobEsp's own EspRenderer.init() exists.

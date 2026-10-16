@@ -93,7 +93,13 @@ public final class F7SpotsConfig {
         return instance;
     }
 
+    /** Loads, then tells FeatureBits a gated setting may have changed (profile apply reloads every config). */
     public static void load() {
+        load0();
+        com.killer560.hub.util.FeatureBits.changed();
+    }
+
+    private static void load0() {
         F7SpotsConfig cfg = new F7SpotsConfig();
         JsonObject obj = null;
         if (Files.exists(CONFIG_PATH)) {
@@ -231,7 +237,7 @@ public final class F7SpotsConfig {
     // ---- walk-to waypoints ----
     public boolean isWalkWaypointsEnabled() { return walkWaypoints && SkyblockGate.allows(); }
     public boolean getWalkWaypointsRaw() { return walkWaypoints; }
-    public void setWalkWaypoints(boolean v) { walkWaypoints = v; }
+    public void setWalkWaypoints(boolean v) { walkWaypoints = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public boolean isWalkLabels() { return walkLabels; }
     public void setWalkLabels(boolean v) { walkLabels = v; }
@@ -270,7 +276,7 @@ public final class F7SpotsConfig {
     // ---- aim spots ----
     public boolean isAimSpotsEnabled() { return aimSpots && SkyblockGate.allows(); }
     public boolean getAimSpotsRaw() { return aimSpots; }
-    public void setAimSpots(boolean v) { aimSpots = v; }
+    public void setAimSpots(boolean v) { aimSpots = v; com.killer560.hub.util.FeatureBits.changed(); }
 
     public boolean isAimLabels() { return aimLabels; }
     public void setAimLabels(boolean v) { aimLabels = v; }

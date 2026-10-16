@@ -102,12 +102,13 @@ public final class MaxorCrystalsFeature {
         ChatObserver.subscribe(MaxorCrystalsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MaxorCrystalsFeature.tick", MaxorCrystalsFeature::tick));
         ensureTickSubscribed();
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(context -> {
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("Maxor Crystals render", () -> MaxorConfig.getInstance().getHighlightRaw()), context -> {
             if (!SkyblockGate.allows()) {
                 return;
             }
             MaxorCrystalsRenderer.render(context);
-        });
+        }));
         LOGGER.info("[Maxor] Registered (all features default OFF)");
     }
 

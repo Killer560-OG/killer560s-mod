@@ -91,7 +91,8 @@ public final class KingRelicsFeature {
         ServerTickClock.subscribe(KingRelicsFeature::onServerTick);
         ChatObserver.subscribe(KingRelicsFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("KingRelicsFeature", client -> onClientTick()));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(KingRelicsFeature::onWorldRender);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("King Relics render", () -> WitherDragonsConfig.getInstance().isRelicsEnabledRaw() && WitherDragonsConfig.getInstance().isRelicHighlightRaw()), KingRelicsFeature::onWorldRender));
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
             if (hit != null) {
                 onBlockClick(player, level, hit.getBlockPos());

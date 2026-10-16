@@ -106,7 +106,7 @@ public final class Ap3Feature {
         // A USE node's packets go out at the START of the tick after its box was entered - the first thing on the
         // wire after the movement packet that put him there (Ap3Executor.tickStart). Registered after ActionGate's
         // own START observer (Killer560ModClient registers that first), so the tick it asks for is this one.
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("Ap3Feature.tickStart", client -> {
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("Ap3Feature.tickStart", com.killer560.hub.util.FeatureBits.register("AP3 tickStart", () -> Ap3Config.getInstance().isEnabledRaw()), client -> {
             if (Ap3Config.getInstance().isEnabled()) {
                 Ap3Executor.tickStart(client);
             }
@@ -114,7 +114,8 @@ public final class Ap3Feature {
         // Recording is deliberately outside the AP3 tick: he may want to record a movement he makes BY HAND,
         // with the mod driving nothing at all, which is the whole point of it.
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("Ap3Trajectory.onClientTick", Ap3Trajectory::onClientTick));
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(Ap3Feature::onRenderFrame);
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
+                com.killer560.hub.util.FeatureBits.register("AP3 render", () -> Ap3Config.getInstance().isEnabledRaw()), Ap3Feature::onRenderFrame));
         ChatObserver.subscribe(Ap3Feature::onChat);
         // Same shape as DungeonAlertsFeature: our own Fabric HUD layer draws the element at the HUD editor's
         // position/scale; the lead registers STOPWATCH_HUD into HudElementRegistry so it can be dragged there.
