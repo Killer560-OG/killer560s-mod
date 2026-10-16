@@ -870,13 +870,17 @@ public final class EtherwarpPathfinder {
     private static int graphMinY;
     private static int graphMaxY;
     /**
-     * The graph's height band: from Hypixel's y 0 (the bottom of the dungeon world) to 45 over the floor, as the sim
+     * The graph's height band: from Hypixel's y 0 (the bottom of the dungeon world) to 71 over the floor (y 140), as the sim
      * shifts them. Rooms reach well under the floor - Altar's lower level stands 26 below it - and the old floor - 20
      * left every landing there out, so a path node on one was "no route (proved)" from anywhere above (killer560's
      * Altar #9 -> #10, 2026-10-12, testkit 941).
      */
     private static final int BAND_BELOW_FLOOR = 69;
-    private static final int BAND_ABOVE_FLOOR = 45;
+    // Up to Hypixel's y 140, the top the live map scans rooms from (floor 69 + 71). At 45 the top of Higher Blaze, where
+    // Auto Blaze takes the reward chest 47 over the floor, held no node, and a search from there started with no landing
+    // in reach ("start 0 landing(s)"); at the end of fullclear-1016 run 004 every trip out failed and Auto Secret skipped
+    // the floor's last three puzzles. With the band to 140 the same trip plans 7 warps (testkit 1016-sim-highblaze-out).
+    private static final int BAND_ABOVE_FLOOR = 71;
     private static int graphMinX;
     private static int graphMaxX;
     private static int graphMinZ;
