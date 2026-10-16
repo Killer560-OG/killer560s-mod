@@ -178,7 +178,10 @@ final class AutoBlaze {
     }
 
     static void tick(Minecraft client, String roomName) {
-        List<Entity> blazes = BlazeSolverFeature.getOrderedBlazes();
+        // The solver's order, less any blaze whose kill the server has already reported: the solver re-reads the room after
+        // this tick, so its list still holds the one just killed, and aiming at that one sends the volley through its
+        // empty spot at the next blaze up, out of order. Dropping it here moves on to the next in order at once.
+        List<Entity> blazes = BlazeSolverFeature.getOrderedBlazes().stream().filter(e -> !e.isRemoved()).toList();
         GUARD.observe(blazes.isEmpty());
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         boolean inRoom = LOWER.equals(roomName) || HIGHER.equals(roomName);
@@ -309,11 +312,6 @@ final class AutoBlaze {
         }
 
         Entity blaze = blazes.get(0);
-        if (blaze.isRemoved()) {
-            // The solver's list is a tick behind the server's report of the kill: shooting at a blaze already gone would
-            // send the volley on through its spot at the next one up, out of order. Next tick's list has it right.
-            return;
-        }
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blaze);
         if (blaze != loggedTarget) {
             loggedTarget = blaze;
