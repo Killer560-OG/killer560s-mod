@@ -168,6 +168,11 @@ public final class ItemProtect {
                 return true;
             }
         }
+        // The star marker asks this for every slot of an open menu every frame. With no typed name on the list the
+        // answer is already no (nameMatchesProtected says so), so the item's name is not built and stripped for it.
+        if (!cfg.hasProtectedNames()) {
+            return false;
+        }
         return cfg.nameMatchesProtected(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
     }
 

@@ -8,6 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
@@ -81,7 +82,10 @@ public final class SlotTextFeature {
         if (cfg.isSkyblockOnly() && !SkyblockGate.allows()) {
             return false;
         }
-        return modeAllows(cfg.getMode(), keyHeld(cfg.getKeyCode()));
+        SlotTextConfig.Mode mode = cfg.getMode();
+        // Asked for every slot of an open menu every frame: in Always mode the key is never read, so it is not polled
+        // (a GLFW call per slot) just to be ignored (mixin FPS pass, 2026-10-15).
+        return mode == SlotTextConfig.Mode.ALWAYS || modeAllows(mode, keyHeld(cfg.getKeyCode()));
     }
 
     /** The key rule on its own, public for the tests. */
@@ -114,13 +118,27 @@ public final class SlotTextFeature {
         if (stack.isEmpty() || !visible()) {
             return;
         }
-        String title = screen.getTitle().getString();
+        String title = titleOf(screen);
         boolean playerSlot = slot.container instanceof Inventory;
         List<Entry> entries = entriesFor(stack, title, slot.index, playerSlot);
         if (entries.isEmpty()) {
             return;
         }
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
+    }
+
+    private static Component lastTitle;
+    private static String lastTitleText = "";
+
+    /** The screen title's text, worked out once per title object: {@code getString} builds a new String, and this is
+     *  asked for every slot of the menu every frame. Render thread only. */
+    private static String titleOf(AbstractContainerScreen<?> screen) {
+        Component title = screen.getTitle();
+        if (title != lastTitle) {
+            lastTitleText = title.getString();
+            lastTitle = title;
+        }
+        return lastTitleText;
     }
 
     /** Paints entries into the 16x16 box at x,y. Text wider than the box is scaled down to fit it. Public for tests. */

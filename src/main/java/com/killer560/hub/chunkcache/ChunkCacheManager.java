@@ -75,6 +75,14 @@ public final class ChunkCacheManager {
 
     /** Set while a renderer lookup is running, so the {@code getChunk} fallback stays out of its way. */
     private static final ThreadLocal<boolean[]> BYPASS = ThreadLocal.withInitial(() -> new boolean[1]);
+    /**
+     * The client thread, and its own copy of the bypass flag. Every {@code isLoaded}, collision lookup and section
+     * check runs these, mostly on the client thread, where a plain field does what the ThreadLocal does without the
+     * map lookup (mixin FPS pass, 2026-10-15). Set once in {@link #register} (client init runs on that thread); any
+     * other thread, or a read before that, sees a different thread here and takes the ThreadLocal.
+     */
+    private static Thread clientThread;
+    private static boolean clientBypass;
 
     /** Recomputed once per client tick so the hot {@code getChunk} path is one volatile read, never a config read. */
     private static volatile boolean active;
@@ -95,6 +103,7 @@ public final class ChunkCacheManager {
     }
 
     public static void register() {
+        clientThread = Thread.currentThread();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ChunkCacheManager.onClientTick", ChunkCacheManager::onClientTick));
         // Fabric fires DISCONNECT from Connection.channelInactive, which runs on the NETTY thread - while the render
         // thread is inside Minecraft.disconnect -> ClientPacketListener.clearLevel, where Fabric's lifecycle mixin walks
@@ -139,7 +148,7 @@ public final class ChunkCacheManager {
     }
 
     public static boolean isBypassed() {
-        return BYPASS.get()[0];
+        return Thread.currentThread() == clientThread ? clientBypass : BYPASS.get()[0];
     }
 
     private static boolean keepChunksLoadedRaw() {
@@ -307,8 +316,17 @@ public final class ChunkCacheManager {
 
     /** Vanilla-only lookup (renderer paths, collision, {@code ChunkSource.hasChunk}), bypassing the cache fallback. */
     public static ChunkAccess vanillaGetChunk(Level level, int x, int z, ChunkStatus status, boolean load) {
-        if (!active) {
+        if (!active || !(level instanceof ClientLevel)) {
             return level.getChunk(x, z, status, load);
+        }
+        if (Thread.currentThread() == clientThread) {
+            boolean previous = clientBypass;
+            clientBypass = true;
+            try {
+                return level.getChunk(x, z, status, load);
+            } finally {
+                clientBypass = previous;
+            }
         }
         boolean[] flag = BYPASS.get();
         boolean previous = flag[0];
@@ -322,8 +340,17 @@ public final class ChunkCacheManager {
 
     /** Vanilla-only lookup for {@code ChunkSource.hasChunk} - see {@code ChunkCacheChunkSourceMixin}. */
     public static ChunkAccess vanillaGetChunk(ChunkSource source, int x, int z, ChunkStatus status, boolean load) {
-        if (!active) {
+        if (!active || !(source instanceof net.minecraft.client.multiplayer.ClientChunkCache)) {
             return source.getChunk(x, z, status, load);
+        }
+        if (Thread.currentThread() == clientThread) {
+            boolean previous = clientBypass;
+            clientBypass = true;
+            try {
+                return source.getChunk(x, z, status, load);
+            } finally {
+                clientBypass = previous;
+            }
         }
         boolean[] flag = BYPASS.get();
         boolean previous = flag[0];
@@ -400,8 +427,17 @@ public final class ChunkCacheManager {
 
     /** Vanilla-only lookup (renderer paths), bypassing the cache fallback. */
     public static LevelChunk vanillaGetChunk(Level level, int x, int z) {
-        if (!active) {
+        if (!active || !(level instanceof ClientLevel)) {
             return level.getChunk(x, z);
+        }
+        if (Thread.currentThread() == clientThread) {
+            boolean previous = clientBypass;
+            clientBypass = true;
+            try {
+                return level.getChunk(x, z);
+            } finally {
+                clientBypass = previous;
+            }
         }
         boolean[] flag = BYPASS.get();
         boolean previous = flag[0];
