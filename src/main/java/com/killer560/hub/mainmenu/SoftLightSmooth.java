@@ -2,6 +2,7 @@ package com.killer560.hub.mainmenu;
 
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.hud.GuiRects;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2f;
 import org.joml.Matrix3x2fStack;
 
@@ -83,6 +84,96 @@ final class SoftLightSmooth {
     }
 
     private static final int[] COLS = new int[3];
+
+    /**
+     * The same scene through {@link SceneShaders} (killer560, 2026-10-16: "make that one super high quality and 120fps"):
+     * the backdrop (base gradient, rays, title glow, vignette) as one full-screen quad composited in float and dithered with
+     * blue noise, then the drifting lights as exactly antialiased discs at their sub-pixel places. The same places, colours,
+     * speeds and strengths as {@link #draw} and {@link #vignette}; the rays' three nested layers become one smooth side
+     * profile with the same total. Nothing here depends on the frame: every position is a function of {@code t}.
+     * Returns false (having drawn nothing) when the shaders are unavailable; the caller then draws the GuiRects version.
+     */
+    static boolean drawShaded(GuiGraphicsExtractor g, int w, int h, double t, int accent, int panel, boolean light, int n,
+                              int baseTop, int baseBottom) {
+        if (!SceneShaders.available()) {
+            return false;
+        }
+        int s = Math.max(1, net.minecraft.client.Minecraft.getInstance().getWindow().getGuiScale());
+        double sw = w * (double) s;
+        double sh = h * (double) s;
+        float[] p = SceneShaders.slot();
+        p[0] = s;
+        p[1] = (float) sw;
+        p[2] = (float) sh;
+        rgb(p, 3, baseTop);
+        rgb(p, 6, baseBottom);
+        rgb(p, 9, light ? 0xFFFFFFFF : MenuStyle.mix(accent, 0xFFFFFFFF, 0.5f));
+        for (int k = 0; k < 4; k++) {
+            p[12 + k] = (float) ((light ? 0x22 : 0x12) * (0.6 + 0.4 * Math.sin(t * 0.25 + k * 1.4)) / 255.0);
+            p[16 + k] = (float) (sw * (0.05 + k * 0.17));
+            p[20 + k] = (float) ((16 + k * 6) * (double) s);
+        }
+        rgb(p, 24, accent);
+        p[27] = (float) (sw / 2);
+        p[28] = (float) (55.0 * s);
+        p[29] = (float) (Math.min(w * 0.55, 300) * s * 0.85);
+        p[30] = (float) (Math.min(h * 0.4, 110) * s * 0.85);
+        p[31] = (light ? 0x18 : 0x24) / 255f;
+        p[32] = Math.max(1, h / 5) * (float) s;
+        p[33] = (light ? 0x30 : 0x80) / 255f;
+        p[34] = Math.max(1, h / 4) * (float) s;
+        p[35] = (light ? 0x38 : 0xA0) / 255f;
+        p[36] = Math.max(1, w / 6) * (float) s;
+        p[37] = (light ? 0x28 : 0x70) / 255f;
+        int slot = SceneShaders.upload();
+        if (slot < 0) {
+            return false;
+        }
+        new SceneShaders.Quads(SceneShaders.softLight, g)
+                .add(0, 0, w, h, 0, 0, (float) sw, (float) sh, 0xFF000000 | (slot << 16))
+                .submit(g);
+
+        // The drifting lights: the same paths as the blocky ones.
+        int[] cols = COLS;
+        cols[0] = accent;
+        cols[1] = MenuStyle.mix(accent, 0xFFFFFFFF, 0.5f);
+        cols[2] = light ? 0xFFFFFFFF : MenuStyle.mix(panel, 0xFFFFFFFF, 0.3f);
+        SceneShaders.Quads discs = new SceneShaders.Quads(SceneShaders.softDisc, g);
+        float off = slot * 16f;
+        for (int i = 0; i < n; i++) {
+            double r1 = MainMenuScenes.hash(i, 61);
+            double r2 = MainMenuScenes.hash(i, 62);
+            double radius = 6 + r2 * 20;
+            double travel = h + radius * 4;
+            double y = h + radius - ((t * (3 + r1 * 6) + r1 * travel * 5) % travel);
+            double x = MainMenuScenes.hash(i, 63) * w + Math.sin(t * 0.2 + i) * 18;
+            double a = (light ? 0x26 : 0x18) * (0.6 + 0.4 * Math.sin(t * 0.5 + i * 0.7));
+            int col = cols[i % cols.length];
+            disc(discs, x, y, radius, s, off, MenuStyle.alpha(col, (int) Math.round(a)));
+            disc(discs, x - radius * 0.25, y - radius * 0.25, radius * 0.45, s, off,
+                    MenuStyle.alpha(0xFFFFFFFF, (int) Math.round(a / 2)));
+        }
+        discs.submit(g);
+        return true;
+    }
+
+    private static void rgb(float[] p, int i, int c) {
+        p[i] = ((c >> 16) & 0xFF) / 255f;
+        p[i + 1] = ((c >> 8) & 0xFF) / 255f;
+        p[i + 2] = (c & 0xFF) / 255f;
+    }
+
+    /** One disc of {@code radius} GUI units at (x, y): its box a pixel and a half past the edge, uv in radius units. */
+    private static void disc(SceneShaders.Quads q, double x, double y, double radius, int s, float slotU, int argb) {
+        double rp = radius * s;
+        if (rp < 0.5 || (argb >>> 24) == 0) {
+            return;
+        }
+        double e = (rp + 1.5) / rp;
+        double half = radius * e;
+        q.add((float) (x - half), (float) (y - half), (float) (x + half), (float) (y + half),
+                (float) (slotU - e), (float) -e, (float) (slotU + e), (float) e, argb);
+    }
 
     /**
      * An antialiased disc in the current pose's pixels: placed at its sub-pixel centre (the pose moved by the fraction),

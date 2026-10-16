@@ -129,7 +129,7 @@ public final class MainMenuScenes {
 
     /** The session's Amber pick (the Title Screen Switcher, a test), or null for the default. */
     private static AmberScene amberScene;
-    private static long testClockMs = -1L;
+    private static double testClockMs = -1;
 
     /** The Amber scene drawn now: the session's pick, else {@link #AMBER_SCENE_PREVIEW} with {@link #previewScenes()},
      *  else {@link #AMBER_SCENE}. */
@@ -157,7 +157,7 @@ public final class MainMenuScenes {
 
     /** Test hook (killer560s-mod-testkit): fixes the scene clock to {@code ms}; a negative value releases it. */
     public static void setClockForTest(double ms) {
-        testClockMs = ms < 0 ? -1L : Math.round(ms);
+        testClockMs = ms < 0 ? -1 : ms; // unrounded: a 120 fps recording steps 8.33 ms
     }
 
     /** Test hook: draws the old embers ({@code true}) or the constant's choice ({@code false}) for Amber. */
@@ -184,15 +184,15 @@ public final class MainMenuScenes {
                 .getThreadAllocatedBytes(Thread.currentThread().threadId());
     }
 
-    /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. */
+    /** Seconds on the scene clock (speed applied), wrapped every hour so floats stay precise. Read from the nanosecond
+     *  clock (killer560, 2026-10-16: "120fps"): {@code Util.getMillis} steps whole milliseconds, an eighth of a 120 fps frame,
+     *  so motion read from it lands up to 12% of a frame early or late and judders. */
     static double clock(float speed) {
         if (testClockMs >= 0) {
-            return (testClockMs % 3_600_000L) / 1000.0 * speed;
+            return (testClockMs % 3_600_000.0) / 1000.0 * speed;
         }
-        // nanoseconds, not milliseconds: at 120 fps and more a frame is ~8 ms, and a millisecond clock moves things in
-        // uneven steps (killer560, 2026-10-16: "high fps")
         long ns = Util.getNanos();
-        return (ns % 3_600_000_000_000L) / 1.0e9 * speed;
+        return Math.floorMod(ns, 3_600_000_000_000L) / 1.0e9 * speed;
     }
 
     public static void draw(GuiGraphicsExtractor g, int w, int h, MainMenuLook look) {
@@ -250,6 +250,19 @@ public final class MainMenuScenes {
             OceanFallsScene.drawOverlays(r, w, h, t, look.density());
             r.submit();
             probe(r, probeStart);
+            return;
+        }
+        long shaderQuads0 = SceneShaders.quads;
+        if (look.scene() == MainMenuThemeConfig.Scene.SOFT_LIGHT && previewScenes()
+                && SoftLightSmooth.drawShaded(g, w, h, t, accent, panel, light, count(9000, w, h, look.density(), 12, 34),
+                baseTop(accent, panel, light), baseBottom(accent, panel, light))) {
+            // the whole scene went out as shader elements (mainmenu/SceneShaders): nothing for the batch
+            heroRects = 0;
+            r.submit();
+            probe(r, probeStart);
+            if (allocProbe) {
+                allocQuads += SceneShaders.quads - shaderQuads0; // the probe's "drawn parts" are the shader quads here
+            }
             return;
         }
         base(r, w, h, accent, panel, light);
@@ -314,16 +327,18 @@ public final class MainMenuScenes {
     // ---------------------------------------------------------------- shared pieces
 
     private static void base(GuiRects r, int w, int h, int accent, int panel, boolean light) {
-        int top;
-        int bottom;
-        if (light) {
-            top = MenuStyle.mix(panel, 0xFFFFFFFF, 0.35f);
-            bottom = MenuStyle.mix(panel, accent, 0.14f);
-        } else {
-            top = MenuStyle.mix(MenuStyle.mix(panel, 0xFF000000, 0.25f), accent, 0.07f);
-            bottom = MenuStyle.mix(panel, 0xFF000000, 0.78f);
-        }
-        r.gradient(0, 0, w, h, top, bottom);
+        r.gradient(0, 0, w, h, baseTop(accent, panel, light), baseBottom(accent, panel, light));
+    }
+
+    /** The backdrop gradient's top colour. */
+    static int baseTop(int accent, int panel, boolean light) {
+        return light ? MenuStyle.mix(panel, 0xFFFFFFFF, 0.35f)
+                : MenuStyle.mix(MenuStyle.mix(panel, 0xFF000000, 0.25f), accent, 0.07f);
+    }
+
+    /** The backdrop gradient's bottom colour. */
+    static int baseBottom(int accent, int panel, boolean light) {
+        return light ? MenuStyle.mix(panel, accent, 0.14f) : MenuStyle.mix(panel, 0xFF000000, 0.78f);
     }
 
     private static void vignette(GuiRects r, int w, int h, boolean light) {

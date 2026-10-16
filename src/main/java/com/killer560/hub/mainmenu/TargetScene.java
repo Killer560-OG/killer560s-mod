@@ -7,9 +7,13 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * The Green theme's main menu as the theme's designer drew it (2026-10-16, relayed by killer560: "match THIS image almost
  * exactly ... make her hair flow a little bit and the cape flow and whatnot ... a rough draw-up of the real animation").
  * <p>
- * The base is the designer's own picture (shipped as {@code textures/gui/green_boss_target.png}, 1920x1080, with the title,
- * buttons and "Playing as" chip it had baked in filled from the surrounding fog, so the real menu draws on it cleanly). On
- * top, all in the picture's own 1920x1080 space:
+ * The base is the designer's own picture (shipped as {@code textures/gui/green_boss_target.png}, with the title, buttons
+ * and "Playing as" chip it had baked in filled from the surrounding fog, so the real menu draws on it cleanly). Since
+ * 2026-10-16 ("super high res") the PNG is 2560x1440, rebuilt from his 1671x941 picture by
+ * {@code killer560s-mod-logs/theme-green-final/hq/make_hq.py} (Lanczos in linear light, a halo-free clamped sharpen, the
+ * cleanup kept), and sampled with linear filtering ({@code .png.mcmeta} blur), so it is sharp on a 1440p screen and the
+ * ripple tiles slide between texels instead of snapping. Everything below still works in a 1920x1080 picture space (UVs
+ * are normalised, so the texture's real size does not matter). On top, all in that space:
  * <ul>
  *   <li>the cape and the hair flow: those regions are redrawn as small tiles of the picture whose source is offset by a
  *       travelling sine, growing from nothing where they attach (shoulders, crown) to the most at the free ends;</li>

@@ -270,10 +270,37 @@ final class PictureScene {
                 double e = c1 == 0 ? v : ease((v - (c0 - c1)) / (2 * c1)) * (2 * c1) + (c0 - c1);
                 double xs = cx + driftAmp * Math.sin(t * driftFreq);
                 Px.softGlow(p, xs, cy, rx + rxK * e, ry, rgb, (a0 + aK * e) / 255.0);
-            } else {
+            } else if (!coneGlow(r, cx + driftAmp * Math.sin(t * driftFreq), cy, rx + rxK * v, ry, rgb, a0 + aK * v, layers)) {
                 MainMenuScenes.glow(r, x, cy, rx + rxK * v, ry, rgb, alpha, layers);
             }
         }
+    }
+
+    /**
+     * The stepped glow ({@link MainMenuScenes#glow}: {@code layers} nested ellipses of {@code alpha / layers} each) drawn by
+     * {@link SceneShaders}' {@code scene_cone_glow} as the same falloff without its steps (killer560, 2026-10-16: Viridian
+     * "super high res"): the stair of ellipses averaged into one line from the centre to a half step past the outer
+     * ellipse, at a sub-pixel centre, its alpha unrounded in time and dithered with blue noise in space, so the slime's
+     * pulse and the drifting fog show no rings and no one-pixel hops. The batch so far is submitted first so the glow
+     * stays in its place in the drawing order. False (nothing drawn) without the shaders.
+     */
+    static boolean coneGlow(GuiRects r, double cx, double cy, double rx, double ry, int rgb, double alpha, int layers) {
+        if (!SceneShaders.available() || !SceneShaders.ensure()) {
+            return false;
+        }
+        if (rx < 1 || ry < 1 || alpha <= 0 || layers <= 0) {
+            return true;
+        }
+        double per = Math.max(1, alpha / layers) / 255.0;
+        double peak = 1 - Math.pow(1 - per, layers);
+        double c = 1 + 0.5 / layers;
+        GuiGraphicsExtractor g = r.graphics();
+        r.submit();
+        new SceneShaders.Quads(SceneShaders.coneGlow, g)
+                .add((float) (cx - rx * c), (float) (cy - ry * c), (float) (cx + rx * c), (float) (cy + ry * c), -1f, -1f, 1f, 1f,
+                        MenuStyle.alpha(rgb, (int) Math.round(peak * 255)))
+                .submit(g);
+        return true;
     }
 
     /** Streaks falling down a band (a waterfall): {@code count} of them between x and x + width, top to bottom. */
@@ -288,15 +315,21 @@ final class PictureScene {
                 double sl = len + hash(i, salt + 2) * lenRange;
                 double travel = span + sl;
                 double pos = (t * sp + hash(i, salt + 3) * travel * 9) % travel;
-                int y1 = (int) Math.min(bottom, top + pos);
-                int y0 = (int) Math.max(top, top + pos - sl);
+                double y1 = Math.min(bottom, top + pos);
+                double y0 = Math.max(top, top + pos - sl);
                 if (y1 - y0 < 3) {
                     continue;
                 }
                 int sx = (int) (x + u * width);
                 int sw = hash(i, salt + 4) > 0.6 ? 3 : 2;
                 int c = i % 6 == 0 ? MenuStyle.alpha(darkRgb, 0x50) : MenuStyle.alpha(rgb, 0x40 + (int) (hash(i, salt + 5) * 0x70));
-                r.gradient(sx, y0, sx + sw, y1, MenuStyle.alpha(c, 0), c);
+                // at its sub-pixel place (2026-10-16, 120 fps): the gradient slides with the water instead of hopping rows
+                Matrix3x2fStack pose = r.graphics().pose();
+                pose.pushMatrix();
+                pose.translate(0f, (float) y0);
+                pose.scale(1f, (float) ((y1 - y0) / 64.0));
+                r.gradient(sx, 0, sx + sw, 64, MenuStyle.alpha(c, 0), c);
+                pose.popMatrix();
             }
         }
     }
@@ -333,8 +366,24 @@ final class PictureScene {
                 int ly = y + (int) (d * yRange);
                 double l = (len + hash(i, salt + 1) * lenRange) * (0.5 + d);
                 double lx = x + ((hash(i, salt + 2) * span + t * (speed + hash(i, salt + 3) * speedRange)) % span);
-                int a = (int) (0x18 + 0x30 * (0.5 + 0.5 * Math.sin(t * 1.4 + i * 2.3)));
-                r.fill((int) lx, ly, (int) (lx + l), ly + (d > 0.5 ? 2 : 1), MenuStyle.alpha(rgb, a));
+                double a = 0x18 + 0x30 * (0.5 + 0.5 * Math.sin(t * 1.4 + i * 2.3));
+                int lh = d > 0.5 ? 2 : 1;
+                // antialiased ends (2026-10-16, 120 fps): a line drifting 8-22 px/s hopped a whole pixel every few frames;
+                // its end pixels now carry their partial coverage, so it glides
+                double x1 = lx + l;
+                int in0 = (int) Math.ceil(lx);
+                int in1 = (int) Math.floor(x1);
+                if (in1 > in0) {
+                    r.fill(in0, ly, in1, ly + lh, MenuStyle.alpha(rgb, (int) Math.round(a)));
+                    int ea = (int) Math.round(a * (in0 - lx));
+                    if (ea > 0) {
+                        r.fill(in0 - 1, ly, in0, ly + lh, MenuStyle.alpha(rgb, ea));
+                    }
+                    int eb = (int) Math.round(a * (x1 - in1));
+                    if (eb > 0) {
+                        r.fill(in1, ly, in1 + 1, ly + lh, MenuStyle.alpha(rgb, eb));
+                    }
+                }
             }
         }
     }
@@ -350,7 +399,7 @@ final class PictureScene {
                 int fy = y + k * yStep;
                 if (soft) {
                     Px.softGlow(p, fx, fy, rx, ry, rgb, alpha / 255.0);
-                } else {
+                } else if (!coneGlow(r, fx, fy, rx, ry, rgb, alpha, layers)) {
                     MainMenuScenes.glow(r, (int) fx, fy, rx, ry, rgb, alpha, layers);
                 }
             }
