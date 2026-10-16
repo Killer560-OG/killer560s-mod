@@ -750,9 +750,14 @@ public final class ClearExecutor {
         goalComplete = complete;
         pressNanos = System.nanoTime();
         lastPathFailed = false;
-        LOGGER.info("[Path] running {} warp(s) {} from {} to {}{} - no search", list.size(), source, fmt(at), to,
-                reaimed ? String.format(java.util.Locale.ROOT, " (first warp aimed again: he stands %.2f from its planned"
-                        + " start)", at.distanceTo(from)) : "");
+        String again = reaimed ? String.format(java.util.Locale.ROOT, " (first warp aimed again: he stands %.2f from its"
+                + " planned start)", at.distanceTo(from)) : "";
+        if (source.startsWith("planned ahead")) {
+            LOGGER.info("[Path] running {} warp(s) {} from {} to {}{} - no search", list.size(), source, fmt(at), to, again);
+        } else {
+            // The same shape as a searched plan's line (the testkit reads "running N warp(s) from (...) to ..."), and why.
+            LOGGER.info("[Path] running {} warp(s) from {} to {}{} - no search, {}", list.size(), fmt(at), to, again, source);
+        }
         ModChat.send(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
                 ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
