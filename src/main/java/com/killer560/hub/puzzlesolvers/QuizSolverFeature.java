@@ -55,7 +55,7 @@ public final class QuizSolverFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(QuizSolverFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizSolverFeature", com.killer560.hub.util.FeatureBits.register("Quiz Solver tick", () -> QuizSolverConfig.getInstance().isEnabledRaw()), client -> {
             onTick();
         }));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight

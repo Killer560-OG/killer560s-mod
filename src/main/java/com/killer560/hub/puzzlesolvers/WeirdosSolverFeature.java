@@ -87,7 +87,7 @@ public final class WeirdosSolverFeature {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(WeirdosSolverFeature::onMessage);
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WeirdosSolverFeature", client -> {
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WeirdosSolverFeature", com.killer560.hub.util.FeatureBits.register("Weirdos Solver tick", () -> WeirdosSolverConfig.getInstance().isEnabledRaw()), client -> {
             // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
             boolean inBoss = LiveMapFeature.isInBoss();
             // The ROOM INSTANCE, like every other solver in this package.

@@ -80,7 +80,7 @@ public final class BeamsSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeamsSolverFeature.tick", BeamsSolverFeature::tick));
+        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeamsSolverFeature.tick", com.killer560.hub.util.FeatureBits.register("Beams Solver tick", () -> BeamsSolverConfig.getInstance().isEnabledRaw()), BeamsSolverFeature::tick));
         // After translucent TERRAIN, not features: water is drawn after the features pass, so a highlight
         // drawn there ended up painted over by any water behind/around it (killer560, 2026-09-21).
         LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(com.killer560.hub.util.FeatureGuard.afterTerrain(
