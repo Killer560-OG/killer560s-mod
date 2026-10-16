@@ -48,6 +48,24 @@ public final class ChestWindows {
         }
     }
 
+    private static volatile int ackedUpTo = -1;
+
+    /**
+     * From {@code autoclosechest.mixin.ChestClickAckMixin}: the server has handled every block click up to this
+     * prediction sequence. A server handles a click and sends the window it opens BEFORE the tick's ack
+     * ({@code ServerGamePacketListenerImpl}: the window in {@code handleUseItemOn}, the ack in {@code tick}), and both
+     * are counted here as they arrive, in order - so a click whose ack is in with no window since is one the server
+     * took and did not open. Sequences restart with a new connection, so a lower one is taken as is.
+     */
+    public static void noteAck(int sequence) {
+        ackedUpTo = sequence;
+    }
+
+    /** Whether the server has acked the block click with this sequence. */
+    public static boolean acked(int sequence) {
+        return sequence >= 0 && ackedUpTo >= sequence;
+    }
+
     /** Chest windows the server has opened for us so far this session. */
     public static int count() {
         return count;

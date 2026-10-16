@@ -84,6 +84,12 @@ public final class RightClick {
     private static boolean unpaired;
     private static long clickTick = Long.MIN_VALUE / 2;
     private static BlockPos clickPos;
+    private static volatile int lastUseOnSequence = -1;
+
+    /** The prediction sequence of the last block click that left this client (the server acks it, util/ChestWindows). */
+    public static int lastUseOnSequence() {
+        return lastUseOnSequence;
+    }
     private static String clickItem;
     private static Level level;
 
@@ -163,6 +169,7 @@ public final class RightClick {
         clickTick = ActionGate.currentTick();
         clickPos = p.getHitResult().getBlockPos().immutable();
         clickItem = itemId(player, p.getHand());
+        lastUseOnSequence = p.getSequence();
         LOGGER.info("[RightClick] block click seq {} at {} face {} with {} (slot {}) | server look {} | shift {} | screen {}",
                 p.getSequence(), clickPos.toShortString(), p.getHitResult().getDirection(), clickItem,
                 player.getInventory().getSelectedSlot() + 1, sentLook(), player.getLastSentInput().shift(), screen());

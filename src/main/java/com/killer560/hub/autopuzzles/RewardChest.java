@@ -51,6 +51,8 @@ final class RewardChest {
     /** Ticks past the measured round trip before a click with no window counts as unanswered: the tick the click
      *  goes out and the tick the answer is read. */
     private static final int ANSWER_SLACK_TICKS = 2;
+    /** Round trips a click is given when the server never acks it (every vanilla server does). */
+    private static final int NO_ACK_ROUND_TRIPS = 4;
     private static final int MAX_CLICKS = 3;
 
     private final String tag;
@@ -71,6 +73,8 @@ final class RewardChest {
     private boolean clickedAwaitingScreen = false;
     /** {@link com.killer560.hub.util.ChestWindows#count} as the last click went out. */
     private int windowMark = 0;
+    /** The last click's prediction sequence, which the server acks once it has handled it. */
+    private int clickSeq = -1;
     /** A chest was found this run - so "no chest" from now on means none left, not "not there yet". */
     private boolean everFound = false;
     private int hops = 0;
@@ -240,7 +244,7 @@ final class RewardChest {
             note("the reward chest is out of reach and no spot in reach of it can be got to");
             return;
         }
-        if (clicks > 0 && sinceClick <= answerTicks()) {
+        if (clicks > 0 && !unanswered()) {
             return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
         }
         // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
@@ -283,8 +287,24 @@ final class RewardChest {
         sinceClick = 0;
         clickedAwaitingScreen = true;
         windowMark = mark;
+        clickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
         LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {})", tag,
                 AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks);
+    }
+
+    /**
+     * The last click went unanswered: its round trip is over ({@link #answerTicks}) AND the server has acked it with no
+     * window since. The ack is what keeps a busy server from being clicked twice: a server handles a click and sends its
+     * window before it acks it, so while the ack is not in the server simply has not got to the click yet (the sim's
+     * Ice Fill, whose server was rebuilding the finish when the click came, answered 5 ticks late). A server that sends
+     * no ack at all is given {@link #NO_ACK_ROUND_TRIPS} round trips.
+     */
+    private boolean unanswered() {
+        int due = answerTicks();
+        if (sinceClick <= due) {
+            return false;
+        }
+        return com.killer560.hub.util.ChestWindows.acked(clickSeq) || sinceClick > due * NO_ACK_ROUND_TRIPS;
     }
 
     /** Ticks a click's window takes to come back: his measured round trip, any server stall in progress, and the slack. */
