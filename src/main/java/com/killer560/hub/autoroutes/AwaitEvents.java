@@ -113,7 +113,17 @@ public final class AwaitEvents {
         Minecraft mc = client;
         lastTabCrypts = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(mc);
         window(client);
+        Vec3 at = client.player == null ? null : client.player.position();
         for (Recent r : recent) {
+            // Only one taken by the start node: Secret Aura's click on the LAST room's secret as the map warp left it
+            // was within the lookback too, and met Museum #1's await for the chest beside the node, so the route moved
+            // on before the aura had it (fullclear-1016 run 010, the skull 50 blocks away "counted for the first node").
+            if (r.pos() != null && at != null && r.pos().distanceTo(at) > RouteRunMemory.NEAR_NODE) {
+                LOGGER.info("[AutoRoutes] await: {} {} tick(s) before the route started is {} blocks from the start "
+                        + "node - not its", r.what(), ticks - r.tick(), String.format(Locale.US, "%.1f",
+                        r.pos().distanceTo(at)));
+                continue;
+            }
             if (ticks - r.tick() <= START_LOOKBACK) {
                 LOGGER.info("[AutoRoutes] await: {} {} tick(s) before the route started - counted for the first node",
                         r.what(), ticks - r.tick());
@@ -169,13 +179,13 @@ public final class AwaitEvents {
     }
 
     /** A secret of his seen while no route ran, for {@link #begin}: the last few only. */
-    private record Recent(int tick, String key, String what) {
+    private record Recent(int tick, String key, String what, Vec3 pos) {
     }
 
     private static final java.util.ArrayDeque<Recent> recent = new java.util.ArrayDeque<>();
 
-    private static void noteBeforeStart(String key, String what) {
-        recent.addLast(new Recent(ticks, key, what));
+    private static void noteBeforeStart(String key, String what, Vec3 pos) {
+        recent.addLast(new Recent(ticks, key, what, pos));
         while (recent.size() > 8 || !recent.isEmpty() && ticks - recent.peekFirst().tick() > START_LOOKBACK) {
             recent.pollFirst();
         }
@@ -340,7 +350,8 @@ public final class AwaitEvents {
             if (b == Blocks.CHEST) {
                 lastChestClickAt = ticks;
             }
-            noteBeforeStart("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)");
+            noteBeforeStart("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)",
+                    Vec3.atCenterOf(pos));
             return;
         }
         if (b == Blocks.CHEST) {
@@ -361,7 +372,7 @@ public final class AwaitEvents {
         String what = "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : "");
         RouteRunMemory.gotSecret("item " + itemId, item != null ? item.position() : player.position(), what);
         if (!active) {
-            noteBeforeStart("item " + itemId, what);
+            noteBeforeStart("item " + itemId, what, item != null ? item.position() : null);
             return;
         }
         addSecret("item " + itemId, what);

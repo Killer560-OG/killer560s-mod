@@ -485,3 +485,8 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   and Auto Secret's room count reused that memory, so "Museum: every secret counted (5/5: map 4/5)" with the lever as the
   fifth and the room left a secret short - three runs of three (fullclear-1016 runs 002-004; 5/5 in 005-007 with the fix).
   `RouteRunMemory.secretsSince` / `secretsWhatSince` leave levers out; awaits still count them.
+- **The start node's lookback must be near the start node.** `AwaitEvents.START_LOOKBACK` counts his secrets from the 10
+  ticks before a route starts, for the Secret Aura click that races the start node's arming (2026-10-07). Secret Aura also
+  takes the LAST room's secret as the map's warp leaves it, inside those 10 ticks, and that met Museum #1's await from 50
+  blocks away; the route left #1's chest behind (fullclear-1016 run 010). A pre-start secret now counts only within
+  `RouteRunMemory.NEAR_NODE` of where he stands when the route starts. Testkit 96-ar-1016-farstart (main fails).
