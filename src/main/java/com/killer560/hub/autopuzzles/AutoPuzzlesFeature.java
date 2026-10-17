@@ -95,6 +95,7 @@ public final class AutoPuzzlesFeature {
         // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
         ChatObserver.subscribe(AutoPuzzlesFeature::onMessage);
+        ChatObserver.subscribe(AutoPuzzleActivity::onChat);
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoPuzzlesFeature.onTick", AutoPuzzlesFeature::onTick));
         // The free camera's hand sway (see ViewFreeze.followHandSway), at the end of the tick so it lands after
         // aiStep's own update. AP3 does its own while it is the one holding the view.
@@ -125,6 +126,10 @@ public final class AutoPuzzlesFeature {
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")
                 && (msg.contains("answered Question #") || msg.contains("answered the final question"))) {
             resetQuiz();
+            if (msg.contains("answered the final question")) {
+                // The room is solved with that answer: Auto Secret and Autopilot carry on now, not 40 ticks later.
+                AutoPuzzleActivity.ended();
+            }
         }
     }
 

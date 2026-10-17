@@ -2014,8 +2014,9 @@ public final class AutoSecretFeature {
             }
             return;
         }
-        if (roomCleared(target) || phaseTicks > AutoSecretConfig.getInstance().getPuzzleWaitSeconds() * 20) {
-            LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target, roomCleared(target) ? "done" : "moving on",
+        boolean solved = roomCleared(target) || com.killer560.hub.autopuzzles.AutoPuzzleActivity.solvedByHim(target);
+        if (solved || phaseTicks > AutoSecretConfig.getInstance().getPuzzleWaitSeconds() * 20) {
+            LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target, solved ? "done" : "moving on",
                     phaseTicks);
             setPhase(Phase.SETTLE);
         }

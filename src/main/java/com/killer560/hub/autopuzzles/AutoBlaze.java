@@ -89,8 +89,17 @@ final class AutoBlaze {
     private static final AutoReposition SECRET_WARP = new AutoReposition("Blaze secret", SECRET_CAM);
     private static final java.util.Set<BlockPos> directTried = new java.util.HashSet<>();
 
-    private static long lastShotTime = 0L;
+    /** Client tick ({@code ActionGate.currentTick}) of the last shot: the Shoot cooldown is counted in whole ticks,
+     *  rounded up ({@code ActionGate.delayTicks}) - a wall-clock 500 ms read at the start of a tick came out at 10 or 11
+     *  ticks by jitter. */
+    private static long lastShotTick = Long.MIN_VALUE / 2;
     private static boolean waitingForUpdate = false;
+    /** Set once a move to the next blaze's spot has been decided (or found unneeded) while this volley flies. */
+    private static boolean movedAhead = false;
+    private static boolean movedAheadSaid = false;
+    /** The room is done (the solver's list empty for good); {@link AutoPuzzleActivity#ended} goes once the trip is too. */
+    private static boolean roomDone = false;
+    private static boolean endedSent = false;
     private static Entity currentTarget = null;
     private static int currentSpot = 0;
     private static boolean wasInRoom = false;
@@ -104,7 +113,11 @@ final class AutoBlaze {
     /** Shots at the current target from {@link #shotsFrom}; past {@link #MAX_SHOTS_HERE} that spot is given up. */
     private static int shotsHere = 0;
     private static BlockPos shotsFrom = null;
-    private static final int MAX_SHOTS_HERE = 4;
+    /** A Terminator volley has no spread: the same aim from the same block flies the same way, so a spot whose shot
+     *  missed three times will miss again (93-solve-lowerblaze-speed, 2026-10-16: four identical volleys, 20 ticks,
+     *  before the move). Was 4; not 2, which a refused final volley plus its resume shot already reach (93-solve-
+     *  blazemiss-lower). */
+    private static final int MAX_SHOTS_HERE = 3;
     /** Spots given up on for the current target - never chosen again for it. */
     private static final java.util.Set<BlockPos> badSpots = new java.util.HashSet<>();
     /** Consecutive ticks the solver's list has been empty since it last held blazes - see {@link #DONE_TICKS}. */
@@ -217,6 +230,12 @@ final class AutoBlaze {
             CAMERA.release(player);
             return;
         }
+        if (waitingForUpdate && client.level != null) {
+            // Every tick of the wait, whatever this tick goes on to do: a move ahead holds him in its warp, and after the
+            // final volley the secret trip runs instead of the shooting, but the volley's arrows must still be picked up
+            // as they leave his eye - they are how "the last blaze died to our volley" is known (done, below).
+            VOLLEY.pickUp(client);
+        }
         if (earlyPending) {
             earlyPending = false;
             if (cfg.isAutoBlazeSecretEnabled() && secretStage == SecretStage.NONE) {
@@ -235,12 +254,23 @@ final class AutoBlaze {
                 if (++emptyTicks == 1) {
                     emptyLag = com.killer560.hub.util.ServerLag.mark();
                 }
-                if (emptyTicks < DONE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag)) {
+                // The last blaze went to OUR volley at it: the list went from one to none with that blaze's stand gone
+                // and an arrow of the volley struck. That is the finish itself - the 30-tick wait is for a failed
+                // chain's stands all dropping at once (several listed, none shot), which this cannot be.
+                boolean ourKill = lastBlazeCount == 1 && currentTarget != null && currentTarget.isRemoved()
+                        && VOLLEY.struck();
+                if (!ourKill
+                        && emptyTicks < DONE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag)) {
                     // The list also goes empty for a moment when a failed chain's stands are replaced, so the room
                     // is only called done once it has stayed empty; a secret trip already under way carries on.
                     say("the solver's list is empty - waiting " + DONE_TICKS + " ticks before calling the room done");
                 } else {
-                    LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
+                    if (ourKill) {
+                        LOGGER.info("[AutoPuzzles] Blaze: done - the volley at the last blaze killed it ({} tick(s) "
+                                + "after the shot)", com.killer560.hub.util.ActionGate.currentTick() - lastShotTick);
+                    } else {
+                        LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
+                    }
                     REPOSITION.cancel(client);
                     AutoReposition.releaseSneak(client);
                     CAMERA.release(player); // the last shot has landed: body back under his view, camera handed back
@@ -248,15 +278,25 @@ final class AutoBlaze {
                         secretStage = SecretStage.FIND;
                     }
                     lastBlazeCount = 0;
+                    roomDone = true;
                 }
             }
             if (secretTripActive()) {
                 tickSecret(client, player, blazes);
             }
+            if (roomDone && !endedSent && !secretTripActive() && !SECRET_WARP.isActive()) {
+                // Every blaze dead and the secret trip over: the last step is done, so Auto Secret, Autopilot and Auto
+                // Routes carry on this tick, not AutoPuzzleActivity's 40-tick grace later (his 2026-10-16 log: "Blaze:
+                // done" 30 ticks after the last kill, "carrying on" 40 after that).
+                endedSent = true;
+                AutoPuzzleActivity.ended();
+            }
             return;
         }
         emptyTicks = 0;
         lastBlazeCount = blazes.size();
+        roomDone = false;
+        endedSent = false;
         if (secretTripActive()) {
             // killer560, 2026-10-06: "If while it goes to get the secret it realizes it missed a blaze then it can get
             // it again after getting the secret." So a miss never cuts the trip short: the walk and the aura run to
@@ -317,6 +357,9 @@ final class AutoBlaze {
             if (VOLLEY.resolved(client, target)) {
                 waitingForUpdate = false;
             } else {
+                if (reposition && !movedAhead) {
+                    moveAhead(client, player, blazes, cr, higher);
+                }
                 return;
             }
         }
@@ -396,7 +439,8 @@ final class AutoBlaze {
             return; // shoot on a later tick, once the swap has gone through
         }
         loggedNotShortbow = false;
-        if (now - lastShotTime < cfg.getShootCooldownMs()) {
+        if (com.killer560.hub.util.ActionGate.currentTick() - lastShotTick
+                < com.killer560.hub.util.ActionGate.delayTicks(cfg.getShootCooldownMs())) {
             return;
         }
         lastSaid = null;
@@ -405,10 +449,12 @@ final class AutoBlaze {
         float[] dir = AutoPuzzleUtil.direction(eye, finalTarget);
         engageCamera(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
-            return; // gate held this tick back - no shot, so lastShotTime / waitingForUpdate must not move
+            return; // gate held this tick back - no shot, so lastShotTick / waitingForUpdate must not move
         }
-        lastShotTime = now;
+        lastShotTick = com.killer560.hub.util.ActionGate.currentTick();
         waitingForUpdate = true;
+        movedAhead = false;
+        movedAheadSaid = false;
         currentTarget = blaze;
         shotFlightMs = flightTicks(AutoPuzzleUtil.arrowOrigin(eye, hitDir[0], terminator), hitDir[0], hitDir[1],
                 hitboxes.get(0).aabb().getCenter()) * 50L;
@@ -501,6 +547,8 @@ final class AutoBlaze {
         private String targetLabel;
         private long struckTick = -1;
         private boolean logged;
+        /** An arrow of this volley has been removed by the server (it struck something). */
+        private boolean struckSeen;
 
         void shot(Vec3 eye, Entity target, AABB targetBox, int flightTicks) {
             arrows.clear();
@@ -511,23 +559,51 @@ final class AutoBlaze {
             this.eye = eye;
             this.targetCentre = targetBox.getCenter();
             this.logged = false;
+            this.struckSeen = false;
         }
 
-        boolean resolved(Minecraft client, Entity target) {
+        /** The volley's arrows, picked up as they appear by his eye in the first ticks after the shot - every tick of
+         *  the wait, including ticks a move ahead holds him in its warp. */
+        void pickUp(Minecraft client) {
             long since = com.killer560.hub.util.ActionGate.currentTick() - shotTick;
-            if (target == null || target.isRemoved()) {
-                return done("the target is gone", since);
-            }
-            if (client.level == null) {
-                return true;
-            }
-            if (since <= 3) {
-                // The volley leaves his eye: pick its arrows up as they appear.
+            if (since <= 3 && client.level != null) {
                 for (var a : client.level.getEntitiesOfClass(net.minecraft.world.entity.projectile.arrow.AbstractArrow.class,
                         new AABB(eye, eye).inflate(4.0), a -> a.tickCount <= 4)) {
                     arrows.putIfAbsent(a, Boolean.TRUE);
                 }
             }
+            for (var a : arrows.keySet()) {
+                struckSeen |= a.isRemoved();
+            }
+        }
+
+        /** Whether an arrow of the last volley has been removed by the server - it hit something. */
+        boolean struck() {
+            for (var a : arrows.keySet()) {
+                struckSeen |= a.isRemoved();
+            }
+            return struckSeen;
+        }
+
+        boolean resolved(Minecraft client, Entity target) {
+            return resolved(client, target, true);
+        }
+
+        /**
+         * @param killGrace wait the server's next update after an arrow struck with the target's label unchanged (its
+         *                  kill may be a tick behind) - for the next SHOT, which would otherwise aim at a blaze already
+         *                  dead. The secret chest does not need it: on Hypixel it only stands once the room is done.
+         */
+        boolean resolved(Minecraft client, Entity target, boolean killGrace) {
+            long since = com.killer560.hub.util.ActionGate.currentTick() - shotTick;
+            if (target == null || target.isRemoved()) {
+                struck();
+                return done("the target is gone", since);
+            }
+            if (client.level == null) {
+                return true;
+            }
+            pickUp(client); // the volley leaves his eye: its arrows are picked up as they appear
             if (arrows.isEmpty()) {
                 return since > 3 && since >= flightTicks
                         && done("no arrow of the volley was seen - its simulated flight is over", since);
@@ -546,7 +622,7 @@ final class AutoBlaze {
                             && done("an arrow of the volley is still short of the target 40 ticks past its flight", since);
                 }
             }
-            if (struck && targetLabel != null && targetLabel.equals(nameOf(target))) {
+            if (killGrace && struck && targetLabel != null && targetLabel.equals(nameOf(target))) {
                 // An arrow the server removed struck something. If it was the target, what it did (the kill, the health
                 // left) comes in the server's same update or the next; shooting on a solver list that has not had it
                 // yet aims at a blaze already dead and through it at the next one up. So: the target's label changing
@@ -661,7 +737,106 @@ final class AutoBlaze {
             }
             return dir;
         }
+        if (!terminator) {
+            return null;
+        }
+        // The Terminator's side arrows (+-5 degrees of yaw, same pitch and origin - the sim logs which of the three
+        // killed, "yaw-5 side arrow"): a volley whose SIDE arrow reaches the target first, with all three clear of every
+        // other blaze, is as good a shot as one whose centre arrow does. It finds a shot from spots where the centre
+        // arrow's line is blocked or crosses another blaze, so fewer of them need a warp (killer560, 2026-10-16).
+        for (Vec3 point : testPoints) {
+            float[] dir = AutoPuzzleUtil.arrowDirection(eyePos, point, true);
+            Vec3 origin = AutoPuzzleUtil.arrowOrigin(eyePos, dir[0], true);
+            // With a little to spare in pitch: a side-arrow shot is taken only where the centre arrow had no line, often
+            // past a ledge's edge, and one that only just reached missed in 93-solve-higherblaze-speed (2026-10-16).
+            if (!reachesTarget(client, player, origin, dir[0], dir[1], hitboxes)
+                    || !reachesTarget(client, player, origin, dir[0], dir[1] + 0.4f, hitboxes)
+                    || !reachesTarget(client, player, origin, dir[0], dir[1] - 0.4f, hitboxes)
+                    || !reachesTarget(client, player, origin, dir[0] + 0.4f, dir[1], hitboxes)
+                    || !reachesTarget(client, player, origin, dir[0] - 0.4f, dir[1], hitboxes)) {
+                continue;
+            }
+            for (float side : new float[]{5f, -5f}) {
+                float fire = dir[0] - side; // the side arrow flies at fire + side = dir[0]
+                if (!clearOfOthers(client, player, origin, fire, dir[1], hitboxes)
+                        || !clearOfOthers(client, player, origin, fire + 5f, dir[1], hitboxes)
+                        || !clearOfOthers(client, player, origin, fire - 5f, dir[1], hitboxes)) {
+                    continue;
+                }
+                return new float[]{fire, dir[1]};
+            }
+        }
         return null;
+    }
+
+    /**
+     * How many blazes in a row, from the first, a volley from {@code eye} can kill in order - each judged with the ones
+     * before it already dead - up to {@code cap}. A spot that covers more of them is a spot he stays on longer.
+     */
+    private static int coverage(Minecraft client, LocalPlayer player, Vec3 eye, List<Entity> blazes, boolean terminator,
+                                int cap) {
+        int n = 0;
+        for (int k = 0; k < Math.min(cap, blazes.size()); k++) {
+            List<Entity> left = blazes.subList(k, blazes.size());
+            List<BlazeHitbox> boxes = hitboxes(left, left.get(0));
+            if (canHit(client, player, eye, boxes, terminator) == null) {
+                break;
+            }
+            // A blaze after the first counts only with a shot that also holds from an eye 0.15 higher and lower: a
+            // spot chosen for shots that only just pass the arrow model kept missing them (93-solve-lowerblaze-speed,
+            // 2026-10-16: long steep shots from one Lower spot, two misses per blaze, then a move).
+            if (k > 0 && (canHit(client, player, eye.add(0, 0.15, 0), boxes, terminator) == null
+                    || canHit(client, player, eye.add(0, -0.15, 0), boxes, terminator) == null)) {
+                break;
+            }
+            n++;
+        }
+        return n;
+    }
+
+    /** Blazes looked ahead when ranking standing spots (each is up to 35 simulated volleys per spot). */
+    private static final int COVER_CAP = 4;
+
+    /**
+     * While the volley at the current blaze flies: if the NEXT blaze in order has no clean shot from here, warp now to
+     * a spot that has one (killer560, 2026-10-16: "blaze finished needs to be faster"). The arrows already in the air
+     * fly on whatever he does, and the wait for their result and the Shoot cooldown are spent landing on the next spot,
+     * so the shot at the next blaze goes the tick the kill is known instead of a warp later. Never on the shot's own
+     * tick (its look goes out in that tick's movement packet first), and only once per volley. Nothing about the order
+     * changes: the next volley still waits for this one's result.
+     */
+    private static void moveAhead(Minecraft client, LocalPlayer player, List<Entity> blazes, int[] cr, boolean higher) {
+        if (com.killer560.hub.util.ActionGate.currentTick() - lastShotTick < 1) {
+            return;
+        }
+        if (cr == null || currentTarget == null || blazes.size() < 2) {
+            movedAhead = true;
+            return;
+        }
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            return;
+        }
+        List<Entity> rest = new ArrayList<>(blazes);
+        rest.remove(currentTarget);
+        if (rest.isEmpty() || rest.size() == blazes.size()) {
+            movedAhead = true; // the target is not listed any more: the usual flow decides
+            return;
+        }
+        boolean terminator = AutoPuzzleUtil.hasTerminator(player);
+        if (canHit(client, player, player.getEyePosition(), hitboxes(rest, rest.get(0)), terminator) != null) {
+            movedAhead = true; // the next one is shot from here
+            return;
+        }
+        engageCamera(player);
+        cyclePosition(client, player, rest, cr, higher, false);
+        // Not marked done: a route of two warps (the first onto a link spot) takes its second hop on the tick after the
+        // first landing, still under the volley, not after its result (93-solve-lowerblaze-timing, 2026-10-16: 4 ticks).
+        if ((REPOSITION.isActive() || com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) && !movedAheadSaid) {
+            movedAheadSaid = true;
+            LOGGER.info("[AutoPuzzles] Blaze: no clean shot at the next blaze '{}' from here - moving while the volley "
+                    + "at '{}' flies ({} tick(s) after the shot)", nameOf(rest.get(0)), nameOf(currentTarget),
+                    com.killer560.hub.util.ActionGate.currentTick() - lastShotTick);
+        }
     }
 
     /**
@@ -778,6 +953,33 @@ final class AutoBlaze {
         BlockPos[] spots = higher ? HIGHER_SPOTS : LOWER_SPOTS;
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blazes.get(0));
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
+        // First choice: the listed spot one warp away that kills the most blazes in a row from the next one on - fewer
+        // warps over the whole room than the first spot in QUOI's cyclic order with a shot at the next one alone.
+        int bestCover = 0;
+        int bestI = -1;
+        for (int j = 0; j < spots.length; j++) {
+            int i = (currentSpot + j + 1) % spots.length;
+            BlockPos realSpot = PuzzleCoords.real(spots[i], cr);
+            if (AutoPuzzleUtil.at(player, realSpot) || badSpots.contains(realSpot)
+                    || AutoPuzzleUtil.etherwarpAim(client.level, player, realSpot) == null) {
+                continue;
+            }
+            Vec3 spotEye = new Vec3(realSpot.getX() + 0.5, realSpot.getY() + 1 + AutoPuzzleUtil.EYE_SNEAKING,
+                    realSpot.getZ() + 0.5);
+            int cover = coverage(client, player, spotEye, blazes, terminator, COVER_CAP);
+            if (cover > bestCover) {
+                bestCover = cover;
+                bestI = i;
+            }
+        }
+        if (bestI >= 0) {
+            BlockPos realSpot = PuzzleCoords.real(spots[bestI], cr);
+            currentSpot = bestI;
+            say("moving to standing spot " + bestI + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
+                    + nameOf(blazes.get(0)) + "' and " + (bestCover - 1) + " more in order after it");
+            REPOSITION.start(client, realSpot, true, false, false);
+            return;
+        }
         for (int j = 0; j < spots.length; j++) {
             int i = (currentSpot + j + 1) % spots.length;
             BlockPos realSpot = PuzzleCoords.real(spots[i], cr);
@@ -1308,7 +1510,7 @@ final class AutoBlaze {
             auraWaitLag = com.killer560.hub.util.ServerLag.mark();
         }
         boolean alive = !blazes.isEmpty();
-        if (alive && waitingForUpdate && !VOLLEY.resolved(client, currentTarget)) {
+        if (alive && waitingForUpdate && !VOLLEY.resolved(client, currentTarget, false)) {
             return; // the final volley's result is not in yet: a chest may only open once the room is done
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
@@ -1366,8 +1568,11 @@ final class AutoBlaze {
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         CAMERA.release(client.player);
-        lastShotTime = 0L;
+        lastShotTick = Long.MIN_VALUE / 2;
         waitingForUpdate = false;
+        movedAhead = false;
+        roomDone = false;
+        endedSent = false;
         currentTarget = null;
         currentSpot = 0;
         lastBlazeCount = 0;

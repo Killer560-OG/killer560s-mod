@@ -93,6 +93,8 @@ final class AutoTicTacToe {
     private static int totalPlaced = 0;
     /** One attempt per room visit, so a board that reads as finished for many ticks queues a single walk. */
     private static boolean walkOutAttempted = false;
+    /** {@link AutoPuzzleActivity#ended} has gone for this visit's finished game. */
+    private static boolean endedSent = false;
 
     private enum ChestStage { NONE, WALK_TO_CHEST, AURA, WALK_BACK, DONE }
 
@@ -214,6 +216,15 @@ final class AutoTicTacToe {
                 walkOutAttempted = true;
                 LOGGER.info("[AutoPuzzles] TicTacToe: board done but the map has no door to walk out to");
             }
+        }
+        if (gameOver && totalPlaced > 0 && !endedSent && !WARP.isActive() && !approaching
+                && (walkOutAttempted || !cfg.isTicTacToeWalkOutEnabled())) {
+            // The game is over and nothing of ours is left (the secret trip is over - its stages return above - and the
+            // walk out, when on, is the map's trip): Auto Secret and Autopilot carry on now, not 40 ticks later.
+            endedSent = true;
+            CAMERA.release(client.player);
+            AutoPuzzleActivity.ended();
+            LOGGER.info("[AutoPuzzles] TicTacToe: game over ({}) - done", tab == '✔' || tab == '✖' ? "tab list" : "board");
         }
         if (approaching && best == null) {
             stopApproach(client, "no move left");
@@ -689,6 +700,7 @@ final class AutoTicTacToe {
     }
 
     private static void reset() {
+        endedSent = false;
         stopApproach(Minecraft.getInstance(), "left the room");
         approachFor = null;
         approachTries = 0;

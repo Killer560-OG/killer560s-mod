@@ -34,7 +34,41 @@ public final class AutoPuzzleActivity {
         if (client.level != level) {
             level = client.level;
             lastMark = Integer.MIN_VALUE / 2;
+            solvedRooms.clear();
         }
+    }
+
+    /**
+     * Hypixel's own "solved" line, the tick it arrives: {@code PUZZLE SOLVED! <player> tied Tic Tac Toe! Good job!} (his
+     * Mod Only Test log, 22:28:37). The rest of the line names the puzzle in its own words, so only the shape is matched:
+     * anchored, the player a real name group (a rank tag allowed before it, as on the PUZZLE FAIL! line), every part
+     * bounded - another player's chat line cannot be read as it (chat lines start with their sender).
+     */
+    private static final java.util.regex.Pattern SOLVED = java.util.regex.Pattern.compile(
+            "^PUZZLE SOLVED! (?:\\[[^\\]]{1,20}\\] )?([A-Za-z0-9_]{1,16}) [^!]{1,80}! Good job!$");
+    /** Rooms whose puzzle Hypixel said HE solved, this world, with the client tick it said so. */
+    private static final java.util.Map<String, Integer> solvedRooms = new java.util.HashMap<>();
+
+    /** ChatObserver listener (registered by AutoPuzzlesFeature): files the line under the room he stands in. */
+    static void onChat(net.minecraft.network.chat.Component message) {
+        String text = com.killer560.hub.util.ChatObserver.strip(message);
+        if (text == null || !text.startsWith("PUZZLE SOLVED! ")) {
+            return;
+        }
+        java.util.regex.Matcher m = SOLVED.matcher(text.trim());
+        Minecraft client = Minecraft.getInstance();
+        if (!m.matches() || client.player == null || !m.group(1).equals(client.player.getGameProfile().name())) {
+            return;
+        }
+        com.killer560.hub.roomdatabase.RoomEntry room = com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
+        if (room != null && room.name != null) {
+            solvedRooms.put(room.name, ticks);
+        }
+    }
+
+    /** Whether Hypixel's "PUZZLE SOLVED!" line for him came while he stood in {@code room}, this world. */
+    public static boolean solvedByHim(String room) {
+        return room != null && solvedRooms.containsKey(room);
     }
 
     /** The tag every click, use and map walk sent through {@link AutoPuzzleUtil} marks with. */

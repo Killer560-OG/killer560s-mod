@@ -942,6 +942,12 @@ public final class SimQuizPuzzle {
                 server.execute(() -> server.overworld().setBlockAndUpdate(pos, Blocks.EMERALD_BLOCK.defaultBlockState()));
             }
             ModChat.send("Sim", ModChat.good("Correct!"));
+            if (!weirdosRoom && client.player != null) {
+                // Oruo's own line for the last answer, as Hypixel sends it the moment the answer counts (the sim asks one
+                // question, so it is the final one); Auto Quiz ends its run on it (2026-10-16: done the tick it is done).
+                raw(client, "[STATUE] Oruo the Omniscient: " + client.player.getGameProfile().name()
+                        + " answered the final question correctly!");
+            }
         } else {
             // Wrong chest: fail like the real puzzle, not a silent pass - reset so the next attempt is a new
             // question rather than the same one with the wrong option already given away.

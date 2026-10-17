@@ -142,6 +142,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Only so the Terminator's own arrows can be recognised when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.
         com.killer560.hub.roomsim.SimTerminator.register();
+        com.killer560.hub.roomsim.SimPuzzleSolvedLine.register();
         com.killer560.hub.roomsim.SimWorld.register();
         com.killer560.hub.roomsim.SimBuildQueue.register();
         com.killer560.hub.roomsim.SimRun.registerStartCommand();
