@@ -457,7 +457,7 @@ public final class AwaitEvents {
         String what = "redstone key put on its redstone block at " + pos.toShortString() + " (" + how + ")";
         RouteRunMemory.gotSecret(key, Vec3.atCenterOf(pos), what);
         if (!active) {
-            noteBeforeStart(key, what);
+            noteBeforeStart(key, what, Vec3.atCenterOf(pos));
             return;
         }
         addSecret(key, what);
