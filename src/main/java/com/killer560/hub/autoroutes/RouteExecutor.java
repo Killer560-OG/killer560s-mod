@@ -9,7 +9,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -3638,20 +3637,15 @@ public final class RouteExecutor {
      * {@code tick()} does not send the same slot again. (The old code sent the packet by hand and left
      * {@code carriedIndex} stale, so every route swap went out twice - a same-slot repeat a vanilla client never
      * sends.) The server handles the held-item packet before anything sent after it, so the use / click that follows
-     * in the same tick is made with the new item: a swap costs no tick.
+     * in the same tick is made with the new item: a swap costs no tick. Called outside a tick (a stop from an END
+     * handler restoring his slot) it only sets the slot and vanilla sends it next tick: util/HotbarSelect.
      */
     static void select(Minecraft client, LocalPlayer player, int slot) {
         if (player.getInventory().getSelectedSlot() == slot) {
             return;
         }
-        player.getInventory().setSelectedSlot(slot);
         nodeSwapped = true;
-        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-        } else {
-            // The invoker config did not load: vanilla's next ensureHasSentCarriedItem will send it again.
-            player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-        }
+        com.killer560.hub.util.HotbarSelect.select(client, player, slot);
     }
 
     // ------------------------------------------------------------------------------------------- breaker linger

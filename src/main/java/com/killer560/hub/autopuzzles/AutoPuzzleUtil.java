@@ -325,7 +325,7 @@ public final class AutoPuzzleUtil {
                 return false;
             }
             lastSwapTick = tick;
-            inv.setSelectedSlot(i);
+            com.killer560.hub.util.HotbarSelect.select(client, player, i);
             return true;
         }
         return false;

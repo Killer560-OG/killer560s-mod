@@ -198,7 +198,8 @@ public final class EnderPearlHopper {
                 finish();
                 return;
             }
-            player.getInventory().setSelectedSlot(slot);
+            // START_CLIENT_TICK (PathfindingFeature.tick): the slot goes out now, ahead of the use below.
+            com.killer560.hub.util.HotbarSelect.select(client, player, slot);
             // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
             com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoFairySouls] Pearl");
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);

@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -534,8 +533,8 @@ public final class AutoI4Feature {
         if (found < 0) {
             return false;
         }
-        player.getInventory().setSelectedSlot(found);
-        player.connection.send(new ServerboundSetCarriedItemPacket(found));
+        // START_CLIENT_TICK (tick), so it goes out now, ahead of fire()'s use later in the same START.
+        com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, found);
         weSwappedSlot = true;
         lastSeenSlot = found;
         lastWeaponSwapMs = now;

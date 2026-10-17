@@ -12,7 +12,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.block.AbstractSkullBlock;
 import net.minecraft.world.level.block.Block;
@@ -290,8 +289,8 @@ public final class SecretTriggerbotFeature {
     }
 
     private static void swapTo(LocalPlayer player, int slot) {
-        player.getInventory().setSelectedSlot(slot);
-        player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+        // START_CLIENT_TICK: sent now; the click waits for the next tick (tick's "click next tick" return).
+        com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, slot);
     }
 
     private static void reset(String why) {

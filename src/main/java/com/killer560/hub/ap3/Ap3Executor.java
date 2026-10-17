@@ -20,7 +20,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
@@ -1309,13 +1308,8 @@ public final class Ap3Executor {
             fireTermAura(client, player);
             return;
         }
-        if (actSlot >= 0 && player.getInventory().getSelectedSlot() != actSlot) {
-            player.getInventory().setSelectedSlot(actSlot);
-            if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
-                invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-            } else {
-                player.connection.send(new ServerboundSetCarriedItemPacket(actSlot));
-            }
+        if (actSlot >= 0) {
+            com.killer560.hub.util.HotbarSelect.select(client, player, actSlot);
         }
         // The ray is the rotation the packet will carry: the aim set at END (the node's angle, or one that hits the
         // same block - chooseAim), from the eye where it is now.
@@ -1404,10 +1398,11 @@ public final class Ap3Executor {
             return; // the node itself waits for the terminal to open, or retries (tickTermAura)
         }
         if (actPrevSlot >= 0) {
-            // BLOCK: back to what he held. Selected now, sent by the game mode's own tick at the next START - before
-            // that tick's movement packet, once, the way a hotbar key's change goes out.
-            if (player != null && player.getInventory().getSelectedSlot() != actPrevSlot) {
-                player.getInventory().setSelectedSlot(actPrevSlot);
+            // BLOCK: back to what he held. finishAct runs at END, so HotbarSelect only selects it and the game mode's
+            // own tick sends it at the next START - before that tick's movement packet, once, the way a hotbar key's
+            // change goes out.
+            if (player != null) {
+                com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, actPrevSlot);
             }
             actPrevSlot = -1;
         }
@@ -3054,11 +3049,11 @@ public final class Ap3Executor {
     // entry tick and goes out at the next START (armAct / tickStart), which is the same packet position without
     // either flag and without guessing where he will be.
 
-    /** stop() with a Block's swap still to undo: the slot he held goes back (vanilla's next game-mode tick sends it,
-     *  once - no hand-made packet). */
+    /** stop() with a Block's swap still to undo: the slot he held goes back through HotbarSelect (sent at once inside a
+     *  tick, else by vanilla's next game-mode tick - once either way, no hand-made packet). */
     private static void restoreSlotOnStop(LocalPlayer player) {
-        if (player != null && actPrevSlot >= 0 && player.getInventory().getSelectedSlot() != actPrevSlot) {
-            player.getInventory().setSelectedSlot(actPrevSlot);
+        if (player != null && actPrevSlot >= 0) {
+            com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, actPrevSlot);
         }
         actPrevSlot = -1;
     }
