@@ -334,6 +334,12 @@ public final class AwaitEvents {
             LOGGER.debug("[AutoRoutes] await ignored: click on {} at {} is not a secret block", b, pos.toShortString());
             return;
         }
+        // A dummy lever (Red Blue's cage nook, killer560 2026-10-17) is no secret: not for an await, not for the run
+        // memory Auto Secret counts a room from.
+        if (b == Blocks.LEVER && com.killer560.hub.secrets.DummyLevers.isDummy(pos)) {
+            LOGGER.info("[AutoRoutes] await ignored: the lever at {} is a dummy lever", pos.toShortString());
+            return;
+        }
         RouteRunMemory.gotSecret("block " + pos.asLong(), Vec3.atCenterOf(pos), kind + " at " + pos.toShortString());
         if (!active) {
             // Its window can arrive after a route that counts it has started: waited under like any other (below).

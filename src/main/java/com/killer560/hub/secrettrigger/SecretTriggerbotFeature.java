@@ -222,6 +222,10 @@ public final class SecretTriggerbotFeature {
             if (DungeonState.isF7OrM7() && com.killer560.hub.lightsdevice.LightsDeviceFeature.isLightsLever(pos)) {
                 return false;
             }
+            // Dummy levers (Red Blue's cage nook) are no secret: the one list, secrets/DummyLevers.
+            if (com.killer560.hub.secrets.DummyLevers.isDummy(pos)) {
+                return false;
+            }
             return roomName == null || !NO_LEVER_ROOMS.contains(roomName);
         }
         if (block instanceof AbstractSkullBlock) {

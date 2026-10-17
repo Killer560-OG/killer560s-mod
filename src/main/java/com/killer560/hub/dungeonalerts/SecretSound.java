@@ -125,6 +125,9 @@ public final class SecretSound {
         if (block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST) {
             type = SecretType.CHEST;
         } else if (block == Blocks.LEVER) {
+            if (com.killer560.hub.secrets.DummyLevers.isDummy(pos)) {
+                return; // a dummy lever is no secret (secrets/DummyLevers)
+            }
             type = SecretType.LEVER;
         } else if (block instanceof SkullBlock && level.getBlockEntity(pos) instanceof SkullBlockEntity skull
                 && skull.getOwnerProfile() != null && skull.getOwnerProfile().partialProfile().id() != null) {
