@@ -149,7 +149,8 @@ public final class AutoSecretConfig {
     public boolean isIceFillFirst() { return iceFillFirst; }
     public void setIceFillFirst(boolean v) { iceFillFirst = v; }
 
-    public boolean isAutoClearRooms() { return autoClearRooms; }
+    /** Always on (killer560, 2026-10-17: "just have it do it by default every time"); the saved key is ignored. */
+    public boolean isAutoClearRooms() { return true; }
     public void setAutoClearRooms(boolean v) { autoClearRooms = v; }
 
     public int getPuzzleWaitSeconds() { return puzzleWaitSeconds; }

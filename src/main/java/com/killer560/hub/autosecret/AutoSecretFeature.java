@@ -397,7 +397,12 @@ public final class AutoSecretFeature {
         }
         status = "Stopped: " + reason;
         LOGGER.info("[AutoSecret] stopped: {}", reason);
-        ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        if (reason.startsWith("nothing left to do")) {
+            // The run finished on its own: log only (killer560, 2026-10-17: "remove the stopped: nothing left to do line").
+            ModChat.log(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        } else {
+            ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        }
     }
 
     // ------------------------------------------------------------------------------------------- ticking

@@ -166,8 +166,8 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
         toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
         y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Auto Clear Rooms", cfg::isAutoClearRooms, cfg::setAutoClearRooms);
-        toggle(w, contentX + half + GAP, y[0], right, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
+        // "Auto Clear Rooms" row removed (killer560, 2026-10-17): Auto Secret always hands uncleared rooms to Auto Clear.
+        toggle(w, contentX, y[0], half, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
         y[0] += ROW;
         int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
         slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + "s",
