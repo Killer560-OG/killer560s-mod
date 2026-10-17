@@ -3113,6 +3113,38 @@ c435281c trim rule (top layer of the opening, y 72, over air) touches anything a
   generated floor) and 1783 (every room whose palette holds obsidian built alone; its obsidian princes must be exactly
   the five rooms above).
 
+## Room levers, room by room (2026-10-16, sim-grassruin-lever-1016)
+
+killer560: "this lever in grass ruins should drop this gate", then the same for every room he walked through. The table
+in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javadoc.
+
+- **Pair a lever with its gate through the secret ROUTE, not by distance.** Skyblocker's test resources carry Quantizr's
+  DungeonRooms waypoints (`secretlocations.json`, killer560s-mod-logs/skyblocker-ref; GPL, read only), which number
+  each secret's steps: "5 - Lever" goes with "5 - Chest", and a "5 - Stonk"/"Superboom"/"Entrance" point usually sits IN
+  the gate. `tools/lever_gates.py` fits the route to each capture by its chests (four quarter turns and a shift), then
+  ranks the capture's gate bodies (wood, bars, barriers; cobblestone as its own class) by that secret, hint first.
+  Nearest-to-the-lever is wrong often (Bridges 22 blocks, Long Hall 18 from its target). It is a proposal: three of its
+  picks lost to his shots (Overgrown's log wall, not the stonk bars beside it; Mines' second lever, the oak wall, not
+  the route's window; Long Hall's panel, not the bars nearest the chest). Room names differ: Mithril Cave is Mines,
+  Draw Bridge Pirate, Sewer Pipes, Rail Track Rails, Redstone Skull Redstone Crypt.
+- **A capture can be the table's room turned round.** Rules are capture-local, and RoomLibrary prefers a local
+  capture over the bundled one; Mod Only Test's Overgrown is the bundled one turned 180 degrees, so the rule armed on
+  air there (the testkit sweep caught it). `SimRoomLevers.fit` tries every turn the room's shape allows and keeps the one
+  that lands the lever on a lever and the most gate blocks in the box, turn 0 on a tie. A rule written against one
+  capture is not known to be right in another until something checks it like this.
+- **Two captures caught a lever missing, one caught it thrown.** Layers and Purple Flags have no lever where route and
+  RSM agree; the sim places one (Layers on the smooth stone the data's y stands one above, Purple Flags hanging from
+  the cobblestone over a column of air). Layers' other lever was captured powered: armed levers are set off first, or the
+  first click would turn it off and read as nothing. Rails' and Spider's gates (cobblestone facades) were not found in
+  their captures and are not bound.
+- **Secret Waypoints' lever band was 68..108**, which missed 21 captured levers in 11 rooms (y 53 to 142), on Hypixel too.
+  It now scans the whole height; the section palette check makes that free.
+- Testkit 1961-1979 (`SimLeverGateTests`): the library-wide sweep (every rule on a lever or a placed one, every rule
+  taking something, the unbound levers listed), each room on his list solo with each lever used as the player, Grass
+  Ruin with Layers on one drawn floor, and `/reset` putting Grass Ruin's window back (1978 is a screenshot survey, run
+  only when named). Reach in those is to the lever's block box: Purple Flags' lever hangs at the top of a shaft, 4.4 to
+  its box from the floor and 4.9 to its centre.
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the

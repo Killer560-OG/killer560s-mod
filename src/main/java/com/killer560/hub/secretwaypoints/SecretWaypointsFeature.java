@@ -569,9 +569,17 @@ public final class SecretWaypointsFeature {
      *  {@link #rebuild} already narrowed everything else down to, on the same once-a-second/8-block cache. Same
      *  fixed floor-relative Y band as that removed check: dungeon room floors sit at y=68 (see
      *  {@code LiveMapFeature.classifyDoor}, which reads the door-colour block one above it) and 41 levels
-     *  covers every normal and tall room without deriving a per-room ceiling. */
-    private static final int LEVER_SCAN_MIN_Y = 68;
-    private static final int LEVER_SCAN_MAX_Y = 108;
+     *  covers every normal and tall room without deriving a per-room ceiling.
+     *  <p>
+     *  It did not (2026-10-16): the room library's levers run from y 53 (Grass Ruin's basement) to y 142
+     *  (Supertall's top), and 68..108 missed twenty-one of them in eleven rooms - Grass Ruin, Doors' four, Bridges,
+     *  Redstone Warrior, Withermancer, Lots Of Floors, Atlas, New Trap, Ritual, Supertall's top two, and Water
+     *  Board's seven - on
+     *  Hypixel as in the sim. The
+     *  scan skips every section whose palette holds no lever, so the whole build height costs a palette check per
+     *  section and nothing else. */
+    private static final int LEVER_SCAN_MIN_Y = 0;
+    private static final int LEVER_SCAN_MAX_Y = 255;
 
     private static void scanLevers(SecretWaypointsConfig cfg, int currentIdx, java.util.Set<BlockPos> seen) {
         Minecraft client = Minecraft.getInstance();
