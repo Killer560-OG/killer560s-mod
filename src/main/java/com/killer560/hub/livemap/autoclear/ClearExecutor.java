@@ -190,7 +190,10 @@ public final class ClearExecutor {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.addPhaseOrdering(TICK_COUNT_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
-        ClientTickEvents.START_CLIENT_TICK.register(TICK_COUNT_PHASE, client -> clientTicks++);
+        ClientTickEvents.START_CLIENT_TICK.register(TICK_COUNT_PHASE, client -> {
+            clientTicks++;
+            itemUsesAtTickStart = com.killer560.hub.util.RightClick.itemUsesSent();
+        });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickStart", ClearExecutor::onTickStart));
         // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
         // the end of the tick; the name is left alone so every reference to it keeps working.
@@ -1908,6 +1911,15 @@ public final class ClearExecutor {
             pendingInteract = null;
             return;
         }
+        // One use per tick: a use already went out this tick (a held hop sent first in onTickStart, then the next one
+        // queued and sent from the same tick's sendNow slot), so this one waits for the next tick. Two uses before one
+        // movement packet carry two looks the server hears only one of: GrimAC BadPacketsJ (grim-autopilot-flag-1016,
+        // testkit 62-argrim-autopilot: a hop held behind an unpaired click went with its block half, the click paired, and
+        // the next hop followed in the same tick - two teleports answered together).
+        if (com.killer560.hub.util.RightClick.itemUsesSent() != itemUsesAtTickStart) {
+            waitReason = "one use per tick (a use already went this tick)";
+            return;
+        }
         LocalPlayer player = client.player;
         // A hop that waited a tick is aimed again from where he stands when it goes: it is planned from a landing 1.05 up
         // and he rests 0.05 lower a few ticks later (Auto Routes' reaimIfMoved does the same).
@@ -2018,6 +2030,8 @@ public final class ClearExecutor {
      *  the pace with it, beside the packets themselves. */
     private static final List<Long> hopSendTicks = new java.util.ArrayList<>();
     private static long clientTicks;
+    /** {@code RightClick.itemUsesSent()} when this tick began (before every START handler): one hop use per tick. */
+    private static int itemUsesAtTickStart;
 
     public static List<Long> hopSendTicks() {
         return List.copyOf(hopSendTicks);

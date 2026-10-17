@@ -156,6 +156,15 @@ public final class RightClick {
 
     private static int usesSent;
 
+    /** Bare item-use packets ({@code use_item}) that have left this client, ever (only goes up) - not block clicks. A
+     *  sender compares it with its own count from the start of the tick: GrimAC's BadPacketsJ flags a second use in one
+     *  tick whose look differs from the first's, since only one look reaches the server per tick. */
+    public static int itemUsesSent() {
+        return itemUsesSent;
+    }
+
+    private static int itemUsesSent;
+
     /** A right click on a block is leaving. */
     public static void onUseOn(LocalPlayer player, ServerboundUseItemOnPacket p) {
         checkLevel(player);
@@ -180,6 +189,7 @@ public final class RightClick {
     public static void onUse(LocalPlayer player, ServerboundUseItemPacket p) {
         checkLevel(player);
         usesSent++;
+        itemUsesSent++;
         BlockHitResult ray = serverRay(player, sentYaw, sentPitch);
         String rayText = ray == null ? "meets nothing in " + SERVER_TRACE + " (a right click in the air)"
                 : "meets " + blockName(player, ray.getBlockPos()) + " at " + ray.getBlockPos().toShortString()

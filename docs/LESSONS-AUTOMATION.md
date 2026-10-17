@@ -493,6 +493,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   3; 300 ms before the first pong) with no landing, and ClearExecutor queues nothing behind it meanwhile. If the
   judgement was wrong the landing arrives inside that and nothing is resent. Testkit 96-ar-1016-eaten (main: timed out;
   fixed: resent 4 ticks after, landed).
+- **One item use per tick.** `ClearExecutor.onTickStart` has two hop slots, the held hop's (`doInteract` first thing) and a
+  precomputed/planned-ahead queue's `sendNow` slot after `handleQueue`. A first hop held behind an unpaired block click went
+  from the first slot with its block half, which paired the click, so the `!unpaired()` guard on the second slot let the
+  next hop out in the same tick: two `use_item` with two looks before one movement packet, GrimAC BadPacketsJ, and two
+  teleports answered together (62-argrim-autopilot, about one run in seven: an earlier case's aura click left the click,
+  and only some explore trips start beside a wall). Not the eaten-warp resend: 04dfc9c5 (the unpaired guard, 2026-10-16
+  01:35) brought it in, bisected with the case below (its parent passes 2 of 2, it and every later jar fail). `doInteract` now holds a hop while `RightClick.itemUsesSent()` moved since the tick
+  began. Testkit 62-argrim-1016-oneuse reproduces it every run (main 098b6c92: fails; fixed: the second hop a tick later).
+  The "Simulation 5.99" in that session's console is the positive control's own flag, not the case's.
 - **A secret got under a node with no await belongs to the next await, however many await-less nodes come between**
   (fullclear-1016 run 004, his Double Diamond #4 PATH / #5 breaker / #6 etherwarp stack, #7 awaiting the item the breaker
   opened): the Magnetic Talisman range picked it up while #4/#5 acted, #6 opened its own window and closed it unused,
