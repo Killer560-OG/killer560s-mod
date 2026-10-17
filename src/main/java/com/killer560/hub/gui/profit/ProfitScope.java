@@ -485,6 +485,12 @@ public final class ProfitScope {
             com.killer560.hub.experiments.ExperimentsProfitTracker.renameModProfile(oldName, newName);
         } catch (RuntimeException ignored) {
         }
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            try {
+                com.killer560.hub.bazaarflip.BazaarFlipProfitLog.renameModProfile(oldName, newName);
+            } catch (RuntimeException ignored) {
+            }
+        }
     }
 
     // ------------------------------------------------------------------------------------------- helpers

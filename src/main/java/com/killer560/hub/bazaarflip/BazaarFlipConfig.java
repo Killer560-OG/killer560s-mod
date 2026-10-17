@@ -51,17 +51,10 @@ public final class BazaarFlipConfig {
     private boolean enabled = false;
     private int startKeyCode = KeyUtil.NONE;
     private RankingMode rankingMode = RankingMode.TOTAL_PROFIT_PER_RUN;
-    /**
-     * Coins of profit a single buy-and-sell cycle must clear before the bot will touch it.
-     * <p>
-     * This is not optional polish, it is what makes percentage ranking usable at all: the top of the
-     * percentage list on 2026-09-29 was {@code CORRUPTED_FRAGMENT} at 900% (0.1 coins to buy, 1 coin from the
-     * NPC), which nets about 2,074 coins for a whole 2,304-unit inventory cycle. Applies to BOTH ranking
-     * modes. Default 250,000 sits below the smallest of the genuinely worthwhile picks measured that day
-     * ({@code ENCHANTED_REDSTONE_BLOCK}, ~873k a run) and far above the noise.
-     */
-    private long minProfitPerRun = 250_000L;
-    /** Stop once the purse reaches this. 0 means no target. */
+    // minProfitPerRun was removed on 2026-10-16 (killer560: "just remove the min profit slider. I want it to always
+    // choose the best"): the best candidate by Rank By is taken whenever its net profit is above 0. An old file's
+    // "minProfitPerRun" is ignored on load and dropped on the next save.
+    /** Stop once the purse reaches this. 0 means no target. Typed into a box since 2026-10-16 ({@link #parseCoins}). */
     private long targetPurse = 0L;
     private int speed = 5;
 
@@ -89,8 +82,7 @@ public final class BazaarFlipConfig {
             // code (see KeyUtil.MOUSE_CODE_BASE); plain sanitize would throw it away on every load.
             cfg.startKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "startKeyCode", cfg.startKeyCode));
             cfg.rankingMode = ConfigJson.getEnum(obj, "rankingMode", RankingMode.class, cfg.rankingMode);
-            cfg.minProfitPerRun = Math.max(0L, ConfigJson.getLong(obj, "minProfitPerRun", cfg.minProfitPerRun));
-            cfg.targetPurse = Math.max(0L, ConfigJson.getLong(obj, "targetPurse", cfg.targetPurse));
+            cfg.targetPurse = clampPurse(ConfigJson.getLong(obj, "targetPurse", cfg.targetPurse));
             cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
             instance = cfg;
         } catch (Exception e) {
@@ -105,7 +97,6 @@ public final class BazaarFlipConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("startKeyCode", startKeyCode);
             obj.addProperty("rankingMode", rankingMode.name());
-            obj.addProperty("minProfitPerRun", minProfitPerRun);
             obj.addProperty("targetPurse", targetPurse);
             obj.addProperty("speed", speed);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -166,20 +157,55 @@ public final class BazaarFlipConfig {
 
     // ---- floors and targets ----
 
-    public long getMinProfitPerRun() {
-        return minProfitPerRun;
-    }
-
-    public void setMinProfitPerRun(long coins) {
-        this.minProfitPerRun = Math.max(0L, coins);
-    }
-
     public long getTargetPurse() {
         return targetPurse;
     }
 
     public void setTargetPurse(long coins) {
-        this.targetPurse = Math.max(0L, coins);
+        this.targetPurse = clampPurse(coins);
+    }
+
+    /** Highest target the box accepts: a trillion coins, far past any purse. Anything bigger is clamped to it. */
+    public static final long MAX_TARGET_PURSE = 1_000_000_000_000L;
+
+    private static long clampPurse(long v) {
+        return Math.max(0L, Math.min(MAX_TARGET_PURSE, v));
+    }
+
+    private static final java.util.regex.Pattern COINS_TEXT =
+            java.util.regex.Pattern.compile("^(\\d{1,15}(?:\\.\\d{1,6})?)([kmb]?)$");
+
+    /**
+     * The Target Purse box's text as coins: plain digits with or without commas ("5,000,000"), or a number with a
+     * k / m / b suffix ("750k", "5m", "2.5m", "1b"), any case, spaces ignored. Empty or 0 is 0, "no target". A value
+     * above {@link #MAX_TARGET_PURSE} is clamped to it; a fraction of a coin is dropped.
+     *
+     * @return the coins, or null when the text is not a number of that shape (the box then leaves the setting alone)
+     */
+    public static Long parseCoins(String text) {
+        if (text == null) {
+            return null;
+        }
+        String t = text.replace(",", "").replace(" ", "").replace("_", "").toLowerCase(java.util.Locale.ROOT);
+        if (t.isEmpty()) {
+            return 0L;
+        }
+        java.util.regex.Matcher m = COINS_TEXT.matcher(t);
+        if (!m.matches()) {
+            return null;
+        }
+        java.math.BigDecimal v = new java.math.BigDecimal(m.group(1));
+        switch (m.group(2)) {
+            case "k" -> v = v.movePointRight(3);
+            case "m" -> v = v.movePointRight(6);
+            case "b" -> v = v.movePointRight(9);
+            default -> {
+            }
+        }
+        if (v.compareTo(java.math.BigDecimal.valueOf(MAX_TARGET_PURSE)) > 0) {
+            return MAX_TARGET_PURSE;
+        }
+        return v.longValue();
     }
 
     // ---- speed ----

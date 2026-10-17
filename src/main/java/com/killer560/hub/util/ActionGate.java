@@ -229,8 +229,9 @@ public final class ActionGate {
         /** The Bazaar-to-NPC Flipper's {@code /bz <item>} and {@code /trades} sends (killer560, 2026-09-29:
          *  "a bazaar flipper"). A command, so {@link Kind#COMMAND}. Same "no one dies if this is a tick late"
          *  bucket as Auto Sell - it is shop automation in the Hub, never in a run. Wired in the same change
-         *  that declared it, per the warning above this enum: {@code BazaarFlipFeature#sendCommand} is the
-         *  only caller. */
+         *  that declared it, per the warning above this enum: {@code BazaarFlipFeature#sendCommand} is one
+         *  caller; the other is {@code BazaarFlipFeature#fillSign}, the Done press on Hypixel's Custom Amount sign
+         *  (a sign update packet, no container, 2026-10-16). */
         BAZAAR_FLIP_CMD(Kind.COMMAND),
         /** The Bazaar-to-NPC Flipper clicking inside Hypixel's Bazaar product menu or the {@code /trades} NPC
          *  menu. {@code BazaarFlipFeature#click} is its only caller. */

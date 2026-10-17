@@ -50,6 +50,15 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - `/bz <name>` opens a SEARCH page (`Bazaar ➜ "Lump of Magma"`, product at slot 11), not the product page: the
   flipper's old buy step looked for "instant buy" there and stopped every session (his dry run, 2026-10-08). It now
   reads every page through `BazaarPages` and walks search -> product -> Instant Buy by name (testkit 761-764).
+- **Hypixel cuts long container titles.** His flipper stopped on `"Enchanted Pufferfish ➜ Instant"` (2026-10-16),
+  not "... ➜ Instant Buy"; his Dungeons logs have `"Enchanted Gunpowder ➜ Instant B"`, `" Fine Jasper Gemstone ➜
+  Instan"`, `"EXP Bottles ➜ Titanic Experienc"` - none longer than 31 visible characters. A title pattern with a
+  fixed tail misses every long product: match any start of the tail, decide by the page's items, and check the
+  product by its full name elsewhere (`BazaarPages.isInstantBuyTitleFor`, testkit 2761, 2775).
+- Custom Amount opens a SIGN, not a container: Hypixel closes the menu, sends a fake sign and an open-editor packet
+  ("" / "^^^^^^^^^^^^^^^" / "Enter amount" / "to order"). Fill it through the screen itself - `charTyped(new
+  CharacterEvent(c))` per digit, then its Done button, whose `removed()` sends `ServerboundSignUpdatePacket` - in one
+  tick, so a stray Escape never sends a half-typed number (`AbstractSignEditScreen`, same on 26.1.2 and 26.2; testkit 2761).
 - A Croesus chest's Spirit Stone was worth 0: `DungeonChestValuer.priceLine` asked `RngItemNames.BY_NAME` (every RNG meter's
   names) before its own replacement table, and the Wolf slayer's entry said "Spirit Stone" -> `SPIRIT_STONE`, an id that
   does not exist (Hypixel's items API and the Bazaar both say `SPIRIT_DECOY`). killer560's M4 chest read ~35k instead

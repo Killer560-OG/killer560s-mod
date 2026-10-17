@@ -50,12 +50,24 @@ public final class BazaarFlipScanner {
      *  hotbar. Deliberately not "36 minus whatever he is holding" - see {@link #size}. */
     public static final int INVENTORY_SLOTS = 36;
 
+    /**
+     * Fees on one cycle, checked 2026-10-16 on hypixelskyblock.minecraft.wiki. The Bazaar's tax (1.25%, 1.125% / 1%
+     * with the Community Shop's Bazaar Flipper upgrade) is taken on SALES to the Bazaar - instant sells and claimed
+     * sell offers - and not on purchases: the Bazaar page describes no tax on instant buys or buy orders, and the
+     * "[Bazaar] Bought 16x Ender Pearl for 112.0 coins!" line he got charges exactly the listed price. Shops (and the
+     * /trades menu, which needs an active Booster Cookie to sell) "accept all sellable items at the same price" with no
+     * fee. A Booster Cookie changes no rate. So both are 0 - written out so the estimate states what it assumes, and
+     * so a future fee is one constant. What IS limited is the NPC side: {@link BazaarFlipNpcLimit}.
+     */
+    public static final double INSTANT_BUY_TAX = 0.0;
+    public static final double NPC_SELL_FEE = 0.0;
+
     /** Outcome of one scan. {@code error} is null on success. */
     public record ScanResult(
             long atMs,
             int productsWithNpcPrice,
             int profitableCount,
-            /** Everything that cleared the profit floor, best first by the requested ranking mode. */
+            /** Every candidate with a net profit above 0, best first by the requested ranking mode. */
             List<BazaarFlipCandidate> ranked,
             String error
     ) {
@@ -116,13 +128,23 @@ public final class BazaarFlipScanner {
      * @param purse           coins available to spend - this is what makes the result the best flip he can
      *                        actually AFFORD rather than the best flip in the game
      * @param mode            how to order the survivors
-     * @param minProfitPerRun the floor every candidate must clear, in both modes
+     * @param npcCoinsLeft    coins the NPCs will still pay today ({@link BazaarFlipNpcLimit#remaining()}): no candidate
+     *                        is sized past what can be sold
      */
     public static CompletableFuture<ScanResult> scanAsync(double purse, BazaarFlipConfig.RankingMode mode,
-                                                          long minProfitPerRun) {
+                                                          double npcCoinsLeft) {
         BazaarFlipCandidate fixed = testCandidate;
         if (fixed != null) {
-            ScanResult r = new ScanResult(System.currentTimeMillis(), 1, 1, List.of(fixed), null);
+            int units = (int) Math.min(fixed.units(), Math.floor(npcCoinsLeft / fixed.npcSellPrice()));
+            List<BazaarFlipCandidate> list = new ArrayList<>();
+            if (units > 0) {
+                double unit = fixed.averageUnitCost();
+                double spend = units * unit * (1 + INSTANT_BUY_TAX);
+                double revenue = units * fixed.npcSellPrice() * (1 - NPC_SELL_FEE);
+                list.add(new BazaarFlipCandidate(fixed.productId(), fixed.displayName(), fixed.stackSize(), units, spend,
+                        fixed.npcSellPrice(), revenue, revenue - spend, (revenue - spend) / spend * 100.0, false));
+            }
+            ScanResult r = new ScanResult(System.currentTimeMillis(), 1, list.size(), List.copyOf(list), null);
             last = r;
             return CompletableFuture.completedFuture(r);
         }
@@ -141,7 +163,7 @@ public final class BazaarFlipScanner {
                         last = failed;
                         return failed;
                     }
-                    ScanResult result = cost(books, purse, mode, minProfitPerRun);
+                    ScanResult result = cost(books, purse, mode, npcCoinsLeft);
                     last = result;
                     return result;
                 });
@@ -152,7 +174,7 @@ public final class BazaarFlipScanner {
      * with a known book instead of a live one.
      */
     public static ScanResult cost(Map<String, List<BazaarOrderLevel>> books, double purse,
-                                  BazaarFlipConfig.RankingMode mode, long minProfitPerRun) {
+                                  BazaarFlipConfig.RankingMode mode, double npcCoinsLeft) {
         if (books == null || books.isEmpty()) {
             return new ScanResult(System.currentTimeMillis(), 0, 0, List.of(),
                     "the Bazaar returned no order books");
@@ -181,14 +203,13 @@ public final class BazaarFlipScanner {
                 continue;
             }
             int stackSize = SkyblockItemStackFactory.materialMaxStackSize(entry.material());
-            BazaarFlipCandidate candidate = size(entry.id(), entry.name(), book, npc, purse, stackSize);
+            BazaarFlipCandidate candidate = size(entry.id(), entry.name(), book, npc, purse, stackSize, npcCoinsLeft);
             if (candidate == null) {
                 continue;
             }
+            // size() only returns a candidate whose net profit is above 0: every one of them is in the ranking.
             profitable++;
-            if (candidate.profit() >= minProfitPerRun) {
-                survivors.add(candidate);
-            }
+            survivors.add(candidate);
         }
         survivors.sort(comparator(mode));
         return new ScanResult(System.currentTimeMillis(), withNpcPrice, profitable, List.copyOf(survivors), null);
@@ -225,7 +246,18 @@ public final class BazaarFlipScanner {
      */
     public static BazaarFlipCandidate size(String productId, String displayName, List<BazaarOrderLevel> book,
                                            double npcSellPrice, double purse, int stackSize) {
-        int cap = INVENTORY_SLOTS * Math.max(1, stackSize);
+        return size(productId, displayName, book, npcSellPrice, purse, stackSize, Double.MAX_VALUE);
+    }
+
+    /** {@link #size(String, String, List, double, double, int)}, never past what the NPCs will still pay today
+     *  ({@code npcCoinsLeft / npcSellPrice} units - the daily NPC sell limit, {@link BazaarFlipNpcLimit}). */
+    public static BazaarFlipCandidate size(String productId, String displayName, List<BazaarOrderLevel> book,
+                                           double npcSellPrice, double purse, int stackSize, double npcCoinsLeft) {
+        long sellable = npcSellPrice > 0 ? (long) Math.floor(npcCoinsLeft / npcSellPrice) : 0;
+        int cap = (int) Math.min(INVENTORY_SLOTS * (long) Math.max(1, stackSize), sellable);
+        if (cap <= 0) {
+            return null;
+        }
         long units = 0;
         double spend = 0;
         boolean capacityLimited = false;
@@ -241,13 +273,13 @@ public final class BazaarFlipScanner {
             long take = Math.min(level.amount(), room);
             // Integer division on purpose: a partial unit cannot be bought, and rounding up would size a
             // purchase the purse cannot actually pay for.
-            long affordable = (long) ((purse - spend) / level.pricePerUnit());
+            long affordable = (long) ((purse - spend) / (level.pricePerUnit() * (1 + INSTANT_BUY_TAX)));
             take = Math.min(take, affordable);
             if (take <= 0) {
                 break;
             }
             units += take;
-            spend += take * level.pricePerUnit();
+            spend += take * level.pricePerUnit() * (1 + INSTANT_BUY_TAX);
             if (units >= cap) {
                 capacityLimited = true;
                 break;
@@ -256,7 +288,7 @@ public final class BazaarFlipScanner {
         if (units <= 0 || spend <= 0) {
             return null;
         }
-        double revenue = units * npcSellPrice;
+        double revenue = units * npcSellPrice * (1 - NPC_SELL_FEE);
         double profit = revenue - spend;
         if (profit <= 0) {
             return null;

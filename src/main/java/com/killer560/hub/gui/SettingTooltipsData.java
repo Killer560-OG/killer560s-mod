@@ -2405,10 +2405,9 @@ final class SettingTooltipsData {
 
     private static void bazaarFlip(Map<String, String> d) {
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
-        d.put("bazaar flipper/start key", "Starts a flipping session; any key stops it.");
-        d.put("bazaar flipper/rank by", "Ranks items by percentage margin or by total profit per run.");
-        d.put("bazaar flipper/min profit per run", "Minimum coins a buy-and-sell cycle must earn before the bot will do it.");
-        d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this; 0 means off.");
+        d.put("bazaar flipper/start key", "Starts a flipping session. Any key or mouse button you press while it runs stops it, in a menu or not.");
+        d.put("bazaar flipper/rank by", "Picks the best flip by percentage margin or by total profit per run; anything with a profit after fees qualifies.");
+        d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this. Type a number: 5,000,000, 750k, 2.5m or 1b. Empty or 0 means off.");
         d.put("bazaar flipper/speed", "Delay between automated actions, in milliseconds.");
     }
 

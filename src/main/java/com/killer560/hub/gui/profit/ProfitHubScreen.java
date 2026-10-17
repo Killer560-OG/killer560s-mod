@@ -37,7 +37,7 @@ public class ProfitHubScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
-        ProfitTracker[] all = ProfitTracker.values();
+        ProfitTracker[] all = ProfitTracker.available().toArray(new ProfitTracker[0]);
         int rows = (all.length + 1) / 2;
         panelW = Math.min(this.width - 20, Math.max(360, Math.min((int) (this.width * 0.7), 560)));
         panelH = Math.min(this.height - 20, 30 + 26 + rows * (CARD_H + GAP) + 28);
