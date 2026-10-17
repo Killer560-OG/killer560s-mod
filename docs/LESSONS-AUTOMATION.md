@@ -496,3 +496,41 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   takes the LAST room's secret as the map's warp leaves it, inside those 10 ticks, and that met Museum #1's await from 50
   blocks away; the route left #1's chest behind (fullclear-1016 run 010). A pre-start secret now counts only within
   `RouteRunMemory.NEAR_NODE` of where he stands when the route starts. Testkit 96-ar-1016-farstart (main fails).
+- **A path follower tuned at a vanilla sprint swings off the line at his sim speed** (killer560, 2026-10-16: "the boulder
+  pathfinder broke going out"). At speed 600 a sprint covers ~1.7 blocks a tick; Auto Boulder's 1.2-block pursuit carrot was
+  under a tick ahead and each tick's turn an eased fraction of what was left, so the yaw swung -175, -192, -142, -246 on a
+  straight 29-block roof run until "more than 1.6 off the segment" called it "pushed off the path" (testkit
+  93-solve-boulder-speed-aura on main: 4 of 4 runs, 2 gave up; nothing pushed him). Where open floor at his height reaches
+  the way out, the exit is now one straight run aimed at a point past the doorway (`AutoBoulder.runOut`), as the run in
+  always was. The button mode's walks at that speed slid past corners, fell off the side of the one-wide stairs and pressed
+  into their wall; letting go of W cannot brake them (one tick of W alone carries ~1.7 blocks), so a fast path walk is a
+  sneaking walk (~0.4 a tick), corners are turned mostly standing, a stair point is only passed by standing on it, and the
+  cell path is pulled tight first. A sprint-the-straights variant failed 2 of 4 (a 2.5-block fall, a re-plan).
+- **The sim's Terminator spawned its arrows from where the server player was when the spawn TASK ran, not when the use was
+  answered**: an etherwarp sent the next tick was often handled first, and the volley flew from the landing with the old
+  aim (Auto Blaze's warp while the volley flies, 93-solve-lowerblaze-speed, 2026-10-16: shots lost, a 170-warp ping-pong).
+  Arrows now start at the answered eye - 0.1, as vanilla's owner constructor does.
+- **"The list stayed empty 30 ticks" is not the only way to know a blaze room is done.** When the list goes from one to none
+  with the last target's stand gone and an arrow of the volley at it struck, that is the finish; Auto Blaze calls it done
+  that tick (main: 30-31 ticks after the last kill, then AutoPuzzleActivity's grace). The volley's arrows must be picked up
+  every tick of the wait, including under the secret trip and a warp, or the kill cannot be told from a chain rebuild.
+- An auto puzzle's last step must call `AutoPuzzleActivity.ended()`, or Auto Secret, Autopilot and Auto Routes wait out the
+  40-tick grace: Boulder's finish (his 2026-10-16 log, "carrying on" 2 s after "finished") and Blaze's done now do.
+- **What Auto Secret waits on after a puzzle is the activity spell, not the puzzle** (killer560, 2026-10-16: "it registers
+  them a lot later than it is actually done"). The sim's map checks a puzzle room from his entry, so PUZZLE_WAIT ended the
+  tick `AutoPuzzleActivity.isWorking` went false - 40 ticks after the auto's last mark unless it called `ended()`. Testkit
+  93-solve-*-resume, solve to resume on main: Creeper Beams 44, Three Weirdos 41, Quiz 23, Tic Tac Toe 12 ticks. Each now
+  ends its spell on its own last step (the fourth pair, the right chest, Oruo's final-answer line, the game over): 3, 0, 0, 3.
+  On Hypixel PUZZLE_WAIT (and Autopilot's `puzzleFinished`) also read the map or the tab list, a refresh behind; Hypixel's
+  `PUZZLE SOLVED! <name> ... ! Good job!` line, anchored with a real name group, now counts the tick it arrives
+  (`AutoPuzzleActivity.solvedByHim`), and the sim sends it (`roomsim/SimPuzzleSolvedLine`; only Tic Tac Toe's wording,
+  "tied Tic Tac Toe", is from a real log) and Oruo's final-answer line, which it never did.
+- **Secret Aura clicks nothing while a route runs unless the node waits for secrets** (killer560, 2026-10-16). On main a
+  WALK route sprinting past a lever, a chest and an essence skull had the aura flip the lever mid-walk, and the walk then
+  missed the chest by 5.1 blocks instead of 2.3 and never reached its end node (testkit 96-ar-1016-auranoawait, fcba4045
+  jar). The one gate is `RouteExecutor.secretAuraMayClick()`, asked in `SecretAuraFeature.tick` before the body turn, the
+  ActionGate and the attempt booking, and in `scanTaking`, so a held-back secret is just picked again later. It is true
+  with no route running, and in a run only while the active node waits on a SECRET await it has not met. A warp in
+  flight, the settle between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret
+  passed mid-route is now taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's
+  pickup and placing too); item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).

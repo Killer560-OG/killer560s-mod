@@ -90,7 +90,6 @@ public final class AutoBoulder {
     /** Press / open from a standing eye within this of the box when there is such a spot; else {@link #REACH_LOOSE}. */
     private static final double REACH_SNUG = 3.3;
     private static final double REACH_LOOSE = 4.0;
-    private static final long PRESS_GAP_MS = 350L;
     private static final long BUTTON_WAIT_MS = 3000L;
     private static final long SOLVER_WAIT_MS = 4000L;
     /** Secret Aura's wait, plus the "Boulder Chest Wait" slider, before he opens the chest himself. */
@@ -100,7 +99,6 @@ public final class AutoBoulder {
     /** Eye-to-box distance to the chest from against the bars, measured 4.29-4.42 (93-solve-boulder-aura, 2026-10-06):
      *  an aura range under this cannot take it from there. */
     private static final double AURA_CHEST_REACH = 4.4;
-    private static final long SETTLE_AFTER_PRESS_MS = 400L;
     private static final long PLAN_RETRY_MS = 250L;
     private static final long PLAN_GIVE_UP_MS = 2500L;
     private static long lastPlanFailMs = 0L;
@@ -179,6 +177,24 @@ public final class AutoBoulder {
     /** RUN_TO_BARS: ticks in a row with forward held and no headway. */
     private static int stalledTicks = 0;
 
+    // the run out: one straight run once nothing but open floor lies between him and the way out (see runOut)
+    private static boolean running = false;
+    private static boolean runStarted = false;
+    /** A run out that stalled: the rest of this exit is walked on the path instead. */
+    private static boolean runFailed = false;
+    private static double runBest = Double.MAX_VALUE;
+    private static long runBestMs = 0L;
+    /** Forward goes down once his body is within this of the run's heading: far enough round that W carries him off
+     *  the bars, not into them (pressed into a wall a sprint ends on the collision). */
+    private static final float RUN_START_ERR = 60f;
+    /** Where the run out aims: two blocks past the doorway gap, on the doorway's line (relative 15.5, -3). */
+    private static final int OUT_Z_REL = -3;
+    // the box layer as it stood at the last press: the next walk is planned once a box has moved (see push)
+    private static int boxHashAtPress = 0;
+    private static long pressLag = 0L;
+    /** Liveness only: a press that moved no box (the server ignored it) is given this long, server lag added. */
+    private static final long BOX_MOVE_TIMEOUT_MS = 1000L;
+
     private AutoBoulder() {
     }
 
@@ -188,6 +204,18 @@ public final class AutoBoulder {
         consumedArrival = ClearExecutor.arrivalSeq();
         seenPackets = ClearExecutor.positionPackets();
         doorCheckUntilMs = 0L;
+    }
+
+    private static volatile Vec3 testTarget = null;
+    private static boolean testRunning = false;
+
+    /**
+     * For the testkit's GrimAC case (1016-grim-puzzle-speed): run out towards {@code target} every tick, exactly as the
+     * room's run out does (turn at the human pace with the camera held, forward and sprint once facing it), with no room
+     * around it - a dedicated test server has no Boulder. Null ends it: keys up, the body turned back under the view.
+     */
+    public static void testRunTo(Vec3 target) {
+        testTarget = target;
     }
 
     /** From the position-packet hook: a server correction while he is being walked (reported and re-planned on the
@@ -207,6 +235,29 @@ public final class AutoBoulder {
         }
         lastTickStartNanos = t0;
         finishStep(player);
+        Vec3 test = testTarget;
+        if (test != null && player != null) {
+            // The testkit's GrimAC case: the run out's own steering, keys and body turn, towards its point, no room.
+            if (!testRunning) {
+                testRunning = true;
+                running = true;
+                runStarted = false;
+                runFailed = false;
+                realCamera = false;
+                runBest = hdist(player.position(), test);
+                runBestMs = System.currentTimeMillis();
+            }
+            runTo(client, player, test);
+            BODY.tick(player, true);
+            sentYaw = player.getYRot();
+            sentPitch = player.getXRot();
+            return;
+        }
+        if (testRunning) {
+            testRunning = false;
+            running = false;
+            releaseKeys(client);
+        }
         boolean acting = false;
         try {
             acting = run(client, player, roomName);
@@ -662,13 +713,22 @@ public final class AutoBoulder {
             return;
         }
         buttonMissingSinceMs = 0L;
-        if (System.currentTimeMillis() - lastPressMs < SETTLE_AFTER_PRESS_MS) {
+        if (boxHashAtPress != 0) {
             // The box the last press moved reaches the client a few ticks later; a walk planned before that plans
-            // round where it used to be (2026-10-06 run: "no walk", 223 nodes, the very tick of the press).
-            releaseKeys(client);
-            return;
+            // round where it used to be (2026-10-06 run: "no walk", 223 nodes, the very tick of the press). Waited for
+            // by what it is - a box layer that has changed - not a fixed 400 ms (killer560's rule: no fixed waits).
+            if (boxHash(client) == boxHashAtPress
+                    && com.killer560.hub.util.ServerLag.serverMsSince(lastPressMs, pressLag) < BOX_MOVE_TIMEOUT_MS) {
+                releaseKeys(client);
+                waitFor("the box the last press pushes has not moved yet");
+                return;
+            }
+            boxHashAtPress = 0;
         }
         if (approachAndClick(client, player, next, "button " + AutoPuzzleUtil.fmt(next))) {
+            // Read in the click's own tick: the server's answer (the box moving) comes ticks later.
+            boxHashAtPress = boxHash(client);
+            pressLag = com.killer560.hub.util.ServerLag.mark();
             presses++;
             LOGGER.info("[AutoPuzzles] Boulder: pressed {} ({} left)", AutoPuzzleUtil.fmt(next),
                     BoulderSolverFeature.getRemainingClicks());
@@ -756,7 +816,7 @@ public final class AutoBoulder {
                 waitFor("sneaking - a sneak-click would place the held item");
                 return false;
             }
-            if (now - lastPressMs < PRESS_GAP_MS || !AutoPuzzleUtil.gateWorldClick()) {
+            if (!AutoPuzzleUtil.gateWorldClick()) {
                 return false;
             }
             long sincePrev = lastPressMs == 0L ? now - engagedMs : now - lastPressMs;
@@ -776,6 +836,11 @@ public final class AutoBoulder {
         if (++aimTicks > AIM_MAX_TICKS) {
             giveUp(client, "could not get the crosshair onto " + label + " in " + AIM_MAX_TICKS + " ticks");
             return false;
+        }
+        if (aimTicks % 10 == 0) {
+            // Ten ticks on and the crosshair is still not on it: the point picked was hidden (a box still settling
+            // in front of a button that has just been laid) - pick again from where he stands now.
+            aimPt = humanAimPoint(client, target);
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), aimPt);
         turnToward(client, player, dir[0], dir[1]);
@@ -836,6 +901,24 @@ public final class AutoBoulder {
         return aimPoint(client, target);
     }
 
+    /** The box layer's blocks (relative y 64..66 over the whole grid), as one number: changes when a box moves. Block
+     *  identity only - a pressed button changes its state, not its block. */
+    private static int boxHash(Minecraft client) {
+        if (cr == null || client.level == null) {
+            return 0;
+        }
+        int h = 1;
+        for (int x = 0; x <= 30; x++) {
+            for (int z = 0; z <= 30; z++) {
+                for (int y = FLOOR_FEET_REL; y <= FLOOR_FEET_REL + 2; y++) {
+                    h = h * 31 + System.identityHashCode(
+                            client.level.getBlockState(PuzzleCoords.real(x, y, z, cr)).getBlock());
+                }
+            }
+        }
+        return h == 0 ? 1 : h;
+    }
+
     private static BoulderPath.GoalTest spotGoal(Minecraft client, BlockPos target, double reach) {
         return BoulderPath.eye(e -> BlockHits.boxDistanceSq(e, target) <= reach * reach && sees(client, e, target));
     }
@@ -861,7 +944,18 @@ public final class AutoBoulder {
     // ------------------------------------------------------------------ out
 
     private static void exit(Minecraft client, LocalPlayer player) {
+        if (running) {
+            runOut(client, player);
+            return;
+        }
         if (walking) {
+            if (!runFailed && straightOut(client, player)) {
+                // Up the stairs and onto the doorway's level: the rest is one straight line, run it.
+                walking = false;
+                LOGGER.info("[AutoPuzzles] Boulder: the rest of the way out is straight - running out from there");
+                beginRun(client, player);
+                return;
+            }
             tickWalk(client, player);
             if (walking) {
                 return;
@@ -883,6 +977,10 @@ public final class AutoBoulder {
             giveUp(client, "could not walk out of the room");
             return;
         }
+        if (!runFailed && straightOut(client, player)) {
+            beginRun(client, player);
+            return;
+        }
         // As far out as there is floor: the next tile first (where the live map stops calling it Boulder), then the
         // doorway gap, then the doorway itself.
         boolean avoid = mode == Mode.BUTTONS;
@@ -899,6 +997,125 @@ public final class AutoBoulder {
         giveUp(client, "no walkable way back to the doorway");
     }
 
+    /**
+     * The point the run out aims at: past the doorway gap, on the doorway's centre line, at his feet height.
+     *
+     * <p>Why a run and not the path (killer560, 2026-10-16: "the boulder pathfinder broke going out, it didn't just run
+     * in and out"). The way out from the bars is a straight line along the roof, and the walk followed it as 30 path
+     * points with a 1.2-block pursuit carrot and a "more than 1.6 off the segment means pushed" test. At his sim speed
+     * (600, about 1.7 blocks a tick sprinting) the carrot is less than a tick ahead and each tick's turn is an eased
+     * fraction of what is left, so the steering lagged a tick behind and swung across the line wider every tick until the
+     * test called it "pushed off the path" - a re-plan from a standstill, three times, then up to giving up
+     * (93-solve-boulder-speed on main: 4 of 4 runs, the trace in that case's log). Nothing pushed him. Aimed at one point
+     * far ahead there is nothing to swing across: the run in already worked that way, and the run out now does too.
+     */
+    private static Vec3 outPoint() {
+        // Relative x 15 is the middle of the doorway's three columns, so its block centre is the doorway's centre line,
+        // whichever way the room is turned.
+        BlockPos o = PuzzleCoords.real(15, ROOF_FEET_REL, OUT_Z_REL, cr);
+        return new Vec3(o.getX() + 0.5, o.getY(), o.getZ() + 0.5);
+    }
+
+    /**
+     * Whether nothing but standable floor at his own feet height lies between him and {@link #outPoint}, wide enough for
+     * his body (the centre line and 0.35 either side), up to two blocks past the doorway gap - so a straight sprint
+     * cannot step off a ledge, climb, or brush a wall. With the barrier roof excluded in the button mode, as every walk.
+     */
+    private static boolean straightOut(Minecraft client, LocalPlayer player) {
+        if (cr == null || !player.onGround()) {
+            return false;
+        }
+        double feet = player.getY();
+        double roof = PuzzleCoords.real(15, ROOF_FEET_REL, 0, cr).getY();
+        if (Math.abs(feet - roof) > 0.01) {
+            return false;
+        }
+        Vec3 from = player.position();
+        Vec3 to = outPoint();
+        double dx = to.x - from.x;
+        double dz = to.z - from.z;
+        double len = Math.hypot(dx, dz);
+        if (len < 0.5) {
+            return true;
+        }
+        double ux = dx / len;
+        double uz = dz / len;
+        BlockPos a = PuzzleCoords.real(-3, FLOOR_FEET_REL - 4, -5, cr);
+        BlockPos b = PuzzleCoords.real(33, ROOF_FEET_REL + 5, 33, cr);
+        BoulderPath grid = new BoulderPath(client.level, a, b, mode == Mode.BUTTONS);
+        int fy = (int) Math.floor(feet + 0.01);
+        for (double s = 0; s <= len; s += 0.25) {
+            double cx = from.x + ux * s;
+            double cz = from.z + uz * s;
+            if (PuzzleCoords.relative(BlockPos.containing(cx, feet, cz), cr).getZ() < -2) {
+                break; // past the doorway: the next tile, where the finish lets go of the keys
+            }
+            for (double side : new double[]{-0.35, 0.0, 0.35}) {
+                int x = Mth.floor(cx - uz * side);
+                int z = Mth.floor(cz + ux * side);
+                double h = grid.standHeight(x, fy, z);
+                if (Double.isNaN(h) || Math.abs(h - feet) > 0.01) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static void beginRun(Minecraft client, LocalPlayer player) {
+        running = true;
+        runStarted = false;
+        runBest = hdist(player.position(), outPoint());
+        runBestMs = System.currentTimeMillis();
+        sprintStarted = false;
+        LOGGER.info("[AutoPuzzles] Boulder: running out - straight to {} ({} blocks of open floor, forward and sprint "
+                + "held from the moment he faces it)", AutoPuzzleUtil.fmt(BlockPos.containing(outPoint())), fmt(runBest));
+        runOut(client, player);
+    }
+
+    /**
+     * One tick of the run out: turn towards {@link #outPoint} at the human pace, and once roughly facing it hold forward
+     * and sprint every tick until the finish (the live map no longer files him under Boulder) lets go. Discrete keys
+     * only; the heading is re-aimed every tick from where he is, so a slide along a wall corrects itself.
+     */
+    private static void runOut(Minecraft client, LocalPlayer player) {
+        runTo(client, player, outPoint());
+    }
+
+    private static void runTo(Minecraft client, LocalPlayer player, Vec3 out) {
+        long now = System.currentTimeMillis();
+        Vec3 eye = player.getEyePosition();
+        double d = hdist(player.position(), out);
+        float yaw = AutoPuzzleUtil.direction(eye, new Vec3(out.x, eye.y, out.z))[0];
+        LOOK.begin("run out");
+        turnToward(client, player, yaw, realCamera ? 8f : 10f);
+        float err = Math.abs(Mth.wrapDegrees(yaw - player.getYRot()));
+        if (!runStarted && err > RUN_START_ERR) {
+            releaseKeys(client);
+            runBestMs = now;
+            return;
+        }
+        runStarted = true;
+        if (d < 0.6) {
+            // On the aim point and the live map still says Boulder: stand, the finish comes with the map.
+            releaseKeys(client);
+            return;
+        }
+        client.options.keyUp.setDown(true);
+        client.options.keySprint.setDown(true);
+        if (d < runBest - 0.25) {
+            runBest = d;
+            runBestMs = now;
+        } else if (now - runBestMs > 1500L) {
+            running = false;
+            runFailed = true;
+            releaseKeys(client);
+            replans++;
+            LOGGER.info("[AutoPuzzles] Boulder: the run out made no headway for 1.5 s ({} from the way out) - walking "
+                    + "it instead", fmt(d));
+        }
+    }
+
     // ------------------------------------------------------------------ walking
 
     /** Plans with a fresh grid (the boxes move) and starts following it. @return false if no path */
@@ -913,7 +1130,7 @@ public final class AutoBoulder {
             return false;
         }
         path = p;
-        pts = p.points();
+        pts = simplify(p, p.points());
         ptIdx = 0;
         walking = true;
         walkLabel = label;
@@ -935,8 +1152,14 @@ public final class AutoBoulder {
             }
             lowest = Math.min(lowest, pts.get(i).y);
         }
-        LOGGER.info("[AutoPuzzles] Boulder: walking to {} at {} - {} step(s), {} blocks, {} step(s) down, lowest feet y {}",
-                label, AutoPuzzleUtil.fmt(p.goal()), pts.size(), fmt(len), drops, pts.isEmpty() ? "-" : fmt(lowest));
+        StringBuilder corners = new StringBuilder();
+        for (int i = 0; i < Math.min(pts.size(), 12); i++) {
+            Vec3 v = pts.get(i);
+            corners.append(i == 0 ? "" : " ").append(String.format(Locale.US, "%.1f/%.1f/%.1f", v.x, v.y, v.z));
+        }
+        LOGGER.info("[AutoPuzzles] Boulder: walking to {} at {} - {} step(s), {} blocks, {} step(s) down, lowest feet y {}"
+                        + " ({} point(s) once pulled tight: {})", label, AutoPuzzleUtil.fmt(p.goal()), p.points().size(),
+                fmt(len), drops, pts.isEmpty() ? "-" : fmt(lowest), pts.size(), corners);
         return true;
     }
 
@@ -952,12 +1175,21 @@ public final class AutoBoulder {
             return;
         }
         Vec3 p = player.position();
+        // Blocks a tick: at his sim speed (600) a sprint covers ~1.7 a tick, and every distance below that was tuned for
+        // a walk (0.2) scales with it.
+        double speed = Math.hypot(player.getDeltaMovement().x, player.getDeltaMovement().z);
         // Advance past points he has reached; skip ahead to a nearer later one (a corner he cut).
-        while (ptIdx < pts.size() - 1 && hdist(p, pts.get(ptIdx)) < 0.75) {
+        // A stair point is only passed by standing on it: taken early from the floor beside it, the next step is aimed at
+        // across the stair's side and he walks off it (2026-10-16, a fall off the side of the stairs and 30 ticks into
+        // their wall).
+        while (ptIdx < pts.size() - 1 && (stairPoint(ptIdx)
+                ? hdist(p, pts.get(ptIdx)) < 0.45 && Math.abs(p.y - pts.get(ptIdx).y) < 0.6
+                : hdist(p, pts.get(ptIdx)) < Math.max(0.75, speed) || passed(p, ptIdx))) {
             ptIdx++;
         }
         for (int j = ptIdx + 1; j < Math.min(pts.size(), ptIdx + 4); j++) {
-            if (hdist(p, pts.get(j)) < hdist(p, pts.get(ptIdx)) && Math.abs(pts.get(j).y - p.y) < 0.7) {
+            if (hdist(p, pts.get(j)) < hdist(p, pts.get(ptIdx)) && Math.abs(pts.get(j).y - p.y) < 0.7
+                    && (path == null || clearLine(path, new Vec3(p.x, pts.get(j).y, p.z), pts.get(j)))) {
                 ptIdx = j;
             }
         }
@@ -966,11 +1198,17 @@ public final class AutoBoulder {
         for (int i = ptIdx + 1; i < pts.size(); i++) {
             remaining += hdist(pts.get(i - 1), pts.get(i));
         }
-        if (ptIdx == pts.size() - 1 && hdist(p, last) < 0.35 && Math.abs(p.y - last.y) < 0.7) {
+        if (ptIdx == pts.size() - 1 && (hdist(p, last) < 0.35 || passed(p, ptIdx)) && Math.abs(p.y - last.y) < 0.7) {
             stopWalk(client, "arrived");
             return;
         }
-        if (player.onGround() && ptIdx > 0 && offSegment(p, pts.get(ptIdx - 1), pts.get(ptIdx)) > 1.6) {
+        // Off the path = off every segment near where he is, not only the one he is heading along: a fast walk cuts a
+        // corner onto the next segment a tick before the point index catches up.
+        double off = Double.MAX_VALUE;
+        for (int i = Math.max(1, ptIdx); i < Math.min(pts.size(), ptIdx + 4); i++) {
+            off = Math.min(off, offSegment(p, pts.get(i - 1), pts.get(i)));
+        }
+        if (player.onGround() && ptIdx > 0 && off > 1.6) {
             stopWalk(client, "pushed off the path");
             replanOrFail(client, player);
             return;
@@ -983,14 +1221,20 @@ public final class AutoBoulder {
             replanOrFail(client, player);
             return;
         }
-        // Pure pursuit: a carrot 1.2 blocks along the path from the point he is heading for.
+        // Pure pursuit: a carrot 1.2 blocks along the path from the point he is heading for - and at least three ticks
+        // of travel ahead, or at his sim speed it sits under a tick away and the eased turn swings across the line. The
+        // path is already pulled tight (simplify), so a point left in it is a real corner, and the carrot never goes
+        // round one: aimed past a corner he would cut it into the box.
         Vec3 carrot = pts.get(ptIdx);
-        double budget = 1.2 - hdist(p, carrot);
+        double budget = Math.max(1.2, Math.min(4.0, speed * 3.0)) - hdist(p, carrot);
         for (int i = ptIdx + 1; i < pts.size() && budget > 0; i++) {
             Vec3 a = pts.get(i - 1);
             Vec3 b = pts.get(i);
             if (Math.abs(b.y - a.y) > 0.6) {
                 break; // never aim past a change of height - take the step square on
+            }
+            if (turnAt(i - 1) > CORNER_DEG) {
+                break; // never aim round a corner
             }
             double seg = hdist(a, b);
             if (seg >= budget) {
@@ -1028,7 +1272,35 @@ public final class AutoBoulder {
             client.options.keySprint.setDown(true);
             return;
         }
-        boolean forward = err < (remaining < 0.8 ? 20f : 55f);
+        // Forward only while he is slower than his heading error allows: square on, any speed; a turn under way, a
+        // walk's pace; further off, he turns where he stands. At a vanilla sprint (0.28) only the last rule ever bites,
+        // which is the old "forward within 55 degrees"; at his sim speed (1.7) the others stop him overshooting a point
+        // and circling it while the eased turn catches up (93-solve-boulder-speed-buttons, 2026-10-16: 25 ticks circling
+        // the stair top, yaw -27 to -709).
+        double allowed = err < 15f ? Double.MAX_VALUE : err < 35f ? 0.6 : err < 55f ? 0.3 : 0.0;
+        if (stairPoint(ptIdx) && err >= 12f) {
+            allowed = 0.0; // a stair is one block wide: square on to it before the step
+        }
+        if (remaining < 0.8 && err >= 20f) {
+            allowed = 0.0;
+        }
+        boolean coast = mustCoast(p, speed);
+        boolean forward = speed < allowed && !coast;
+        // Fast (more than twice a vanilla walk's attribute; his sim's 600 is 0.6): one tick of W alone carries him ~1.7
+        // blocks, so in the box maze a corner, a one-wide stair or the end cannot be met by letting go of W - he slid
+        // past corners, fell off the side of the stairs and pressed into their wall (93-solve-boulder-speed-buttons,
+        // 2026-10-16: 0 of 4 runs with sprint-and-coast, every one re-planned). So a fast walk on the path is a SNEAKING
+        // walk, ~0.4 a tick (8 blocks a second, still faster than a vanilla sprint), which the follower holds like a
+        // vanilla sprint and which keeps him on a stair's edge as it does a player. The sprint key stays held. The run
+        // out at the end (runOut) is a real sprint. Discrete keys; at a vanilla speed nothing here changes.
+        boolean fast = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED) > 0.2;
+        boolean creeping = fast && allowed > 0.0;
+        if (creeping) {
+            // A turn of more than 25 degrees is mostly made standing: at ~0.4 a tick the eased turn would otherwise carry
+            // him a block and a half past a corner (2026-10-16, the first corner off the doorway, 1.7 off the line).
+            forward = err < 25f || err < 55f && speed < 0.15;
+        }
+        creep(client, creeping || fast && sneakByUs && !player.onGround());
         client.options.keyUp.setDown(forward);
         // Sprinting whenever he walks (killer560, 2026-10-15: "make sure that it is sprinting not walking"); it was
         // only on a long straight, so the stair walk and every short leg in button mode went at walking pace.
@@ -1061,6 +1333,140 @@ public final class AutoBoulder {
 
     private static double hdist(Vec3 a, Vec3 b) {
         return Math.hypot(a.x - b.x, a.z - b.z);
+    }
+
+    /** A turn in the path sharper than this at a point makes it a corner: the carrot stops there and he slows for it. */
+    private static final double CORNER_DEG = 20.0;
+    /** Ground speed (blocks a tick) he may carry into a corner of up to 50 degrees, a sharper one, a change of height
+     *  (a stair) and the end of the walk. A sprint at his sim speed is ~1.7; a vanilla sprint 0.28. */
+    private static final double V_BEND = 0.8;
+    private static final double V_CORNER = 0.45;
+    private static final double V_STEP = 0.5;
+    private static final double V_END = 0.3;
+
+    /**
+     * The planner's cell-by-cell path pulled tight: from each kept point, the furthest later one reachable in a straight
+     * line on the same level with room for his body (the line and 0.35 either side standable at that height), so what
+     * is left is the real corners and every change of height. On a cell path at his sim speed every grid step read as a
+     * turn - the steering zig-zagged and pressed into box corners (93-solve-boulder-speed-buttons, 2026-10-16).
+     */
+    private static List<Vec3> simplify(BoulderPath grid, List<Vec3> raw) {
+        if (raw.size() < 3) {
+            return raw;
+        }
+        List<Vec3> out = new java.util.ArrayList<>();
+        out.add(raw.get(0));
+        int i = 0;
+        while (i < raw.size() - 1) {
+            int j = i + 1;
+            for (int k = raw.size() - 1; k > i + 1; k--) {
+                if (level(raw, i, k) && clearLine(grid, raw.get(i), raw.get(k))) {
+                    j = k;
+                    break;
+                }
+            }
+            out.add(raw.get(j));
+            i = j;
+        }
+        return out;
+    }
+
+    private static boolean level(List<Vec3> raw, int from, int to) {
+        for (int k = from + 1; k <= to; k++) {
+            if (Math.abs(raw.get(k).y - raw.get(from).y) > 0.01) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Standable at {@code a}'s height all the way to {@code b}, on the line and 0.35 either side of it. */
+    private static boolean clearLine(BoulderPath grid, Vec3 a, Vec3 b) {
+        double dx = b.x - a.x;
+        double dz = b.z - a.z;
+        double len = Math.hypot(dx, dz);
+        if (len < 1e-6) {
+            return true;
+        }
+        double ux = dx / len;
+        double uz = dz / len;
+        int fy = (int) Math.floor(a.y + 0.01);
+        for (double s = 0; s <= len; s += 0.25) {
+            double cx = a.x + ux * s;
+            double cz = a.z + uz * s;
+            for (double side : new double[]{-0.35, 0.0, 0.35}) {
+                double h = grid.standHeight(Mth.floor(cx - uz * side), fy, Mth.floor(cz + ux * side));
+                if (Double.isNaN(h) || Math.abs(h - a.y) > 0.01) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** A point where the path changes height, coming in or going on: a stair step. */
+    private static boolean stairPoint(int k) {
+        return k + 1 < pts.size() && Math.abs(pts.get(k + 1).y - pts.get(k).y) > 0.01
+                || k > 0 && Math.abs(pts.get(k).y - pts.get(k - 1).y) > 0.01;
+    }
+
+    /** Degrees the path turns at point {@code k} (0 at either end). */
+    private static double turnAt(int k) {
+        if (k <= 0 || k >= pts.size() - 1) {
+            return 0.0;
+        }
+        Vec3 a = pts.get(k - 1);
+        Vec3 b = pts.get(k);
+        Vec3 c = pts.get(k + 1);
+        double h1 = Math.atan2(b.z - a.z, b.x - a.x);
+        double h2 = Math.atan2(c.z - b.z, c.x - b.x);
+        return Math.abs(Mth.wrapDegrees(Math.toDegrees(h2 - h1)));
+    }
+
+    /** The speed he may carry into point {@code k}, or MAX_VALUE where it does not matter. */
+    private static double speedAt(int k) {
+        if (k >= pts.size() - 1) {
+            return V_END;
+        }
+        if (Math.abs(pts.get(k + 1).y - pts.get(k).y) > 0.01 || k > 0 && Math.abs(pts.get(k).y - pts.get(k - 1).y) > 0.01) {
+            return V_STEP;
+        }
+        double t = turnAt(k);
+        return t <= CORNER_DEG ? Double.MAX_VALUE : t <= 50.0 ? V_BEND : V_CORNER;
+    }
+
+    /**
+     * Whether to let go of forward this tick: a corner, a stair or the end lies closer than he can slow down for it by
+     * coasting (on the ground he keeps 0.546 of his speed a tick, so dropping from {@code v} to {@code v0} takes about
+     * {@code 1.2 * (v - v0)} blocks), so he coasts into it as a player taps W - discrete keys only.
+     */
+    private static boolean mustCoast(Vec3 p, double speed) {
+        double along = hdist(p, pts.get(ptIdx));
+        for (int k = ptIdx; k < pts.size() && along < 8.0; k++) {
+            double v = speedAt(k);
+            if (v < speed && along < 1.2 * (speed - v) + speed) {
+                return true;
+            }
+            if (k + 1 < pts.size()) {
+                along += hdist(pts.get(k), pts.get(k + 1));
+            }
+        }
+        return false;
+    }
+
+    /** Whether he is past point {@code i} along the path's direction there (the segment into it, or out of it at the
+     *  start): a sprint overshoots a 0.35 arrival circle between two ticks. */
+    private static boolean passed(Vec3 p, int i) {
+        Vec3 at = pts.get(i);
+        Vec3 from = i > 0 ? pts.get(i - 1) : null;
+        if (from == null || hdist(from, at) < 1e-6 || Math.abs(at.y - from.y) > 0.6) {
+            return false;
+        }
+        double dx = at.x - from.x;
+        double dz = at.z - from.z;
+        double len = Math.hypot(dx, dz);
+        double lateral = Math.abs((p.x - from.x) * dz - (p.z - from.z) * dx) / len;
+        return ((p.x - at.x) * dx + (p.z - at.z) * dz) > 0.0 && lateral < 1.2 && Math.abs(p.y - at.y) < 0.7;
     }
 
     private static double offSegment(Vec3 p, Vec3 a, Vec3 b) {
@@ -1215,6 +1621,20 @@ public final class AutoBoulder {
     private static void releaseKeys(Minecraft client) {
         client.options.keyUp.setDown(false);
         client.options.keySprint.setDown(false);
+        creep(client, false);
+    }
+
+    /** Sneak held by this auto for a slow stretch (see tickWalk); a sneak he holds himself is never touched. */
+    private static boolean sneakByUs = false;
+
+    private static void creep(Minecraft client, boolean on) {
+        if (on && !sneakByUs && !client.options.keyShift.isDown()) {
+            sneakByUs = true;
+            client.options.keyShift.setDown(true);
+        } else if (!on && sneakByUs) {
+            sneakByUs = false;
+            client.options.keyShift.setDown(false);
+        }
     }
 
     private static KeyMapping[] ownKeys(Minecraft client) {
@@ -1244,6 +1664,9 @@ public final class AutoBoulder {
         releaseKeys(client);
         LOGGER.info("[AutoPuzzles] Boulder: finished - {}", why);
         stage = Stage.DONE;
+        // Its last step is over: Auto Secret, Autopilot and Auto Routes carry on now, not AutoPuzzleActivity's 40-tick
+        // grace later (his 2026-10-16 log: "Auto Boulder is done - carrying on" 2 s after "finished").
+        AutoPuzzleActivity.ended();
     }
 
     private static void advance(Stage next, String why) {
@@ -1255,12 +1678,15 @@ public final class AutoBoulder {
         loggedWait = null;
         replans = 0;
         stalledTicks = 0;
+        running = false;
+        runFailed = false;
     }
 
     private static void giveUp(Minecraft client, String why) {
         stopWalk(client, null);
         releaseKeys(client);
         LOGGER.info("[AutoPuzzles] Boulder: stopped for this room - {}", why);
+        AutoPuzzleActivity.ended();
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Boulder: "), ModChat.bad(why), ModChat.text("."));
         stage = Stage.DONE;
     }
@@ -1279,6 +1705,7 @@ public final class AutoBoulder {
         }
         if (walking || engaged) {
             walking = false;
+            running = false;
             if (client != null && client.options != null) {
                 releaseKeys(client);
             }
@@ -1311,6 +1738,9 @@ public final class AutoBoulder {
         stalledTicks = 0;
         lastPlanFailMs = 0L;
         planFailSinceMs = 0L;
+        runFailed = false;
+        runStarted = false;
+        boxHashAtPress = 0;
         realCamera = false;
         aimStartMs = 0L;
         aimPointFor = null;

@@ -56,6 +56,8 @@ import com.killer560.hub.compat.McCompat;
  * by other auras"), so Secret Aura neither clicks them nor competes for them, whatever either switch says.
  * <li>Never while a screen is open (QUOI "In container" default off), while sneaking (optional), or while
  * holding a configured item.
+ * <li>While an Auto Routes route runs, only on a node waiting for secrets ({@code RouteExecutor.secretAuraMayClick},
+ * killer560 2026-10-16); with no route running it works as above.
  * </ul>
  * Click is the {@code SimonSaysFeature#sendNoRotateInteract} precedent: {@code gameMode.useItemOn} with a
  * synthetic {@link BlockHitResult}.
@@ -313,6 +315,14 @@ public final class SecretAuraFeature {
         // its hand-back) moved that aim - in legit mode the Hyperion then went off at pitch 50.9 and teleported him at
         // the mimic (2026-10-11, testkit 96-ar-644/651).
         if (com.killer560.hub.autoroutes.MimicKiller.isBusy()) {
+            return;
+        }
+        // Nor while Auto Routes runs, except on a node waiting for secrets (killer560, 2026-10-16: "If it is not on an
+        // await node it should never be able to grab a chest or skull or flick a lever"). Every click of this aura goes
+        // through here - chests (the mimic's trapped chest too), levers, essence and key skulls, the key's placing - and
+        // nothing is turned or booked as attempted before it, so a held-back secret is simply picked again on the await
+        // node. Item pickups are walking, not this aura.
+        if (!com.killer560.hub.autoroutes.RouteExecutor.secretAuraMayClick()) {
             return;
         }
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
@@ -591,8 +601,9 @@ public final class SecretAuraFeature {
         if (!cfg.isSecretAuraEnabled() || client.level == null || client.player == null
                 || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || !CheatUtils.isOnDungeonServer(client) && !inSim(client)
-                || heldItemPaused(cfg, client.player.getMainHandItem())) {
-            return null;
+                || heldItemPaused(cfg, client.player.getMainHandItem())
+                || !com.killer560.hub.autoroutes.RouteExecutor.secretAuraMayClick()) {
+            return null;   // the last: a route's non-await node, where the aura takes nothing (tick's same gate)
         }
         RoomEntry room = LiveMapFeature.currentRoomEntry();
         String roomName = room == null ? null : room.name;

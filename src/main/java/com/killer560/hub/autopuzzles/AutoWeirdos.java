@@ -674,6 +674,7 @@ final class AutoWeirdos {
         }
         LOGGER.info("[AutoPuzzles] Weirdos: opened the correct chest {}", AutoPuzzleUtil.fmt(chest));
         CAMERA.release(player);
+        AutoPuzzleActivity.ended(); // the right chest is the solve: nothing follows
     }
 
     // ------------------------------------------------------------------ bookkeeping

@@ -2685,6 +2685,27 @@ public final class RouteExecutor {
         }
     }
 
+    /**
+     * Whether Secret Aura may click a secret block now (killer560, 2026-10-16: "never have secret aura grab secrets while
+     * it is auto routing unless it is on an await node"). True with no route running - between routes, an Interactive
+     * Map trip, Auto Secret's last-node wait after the route completed - and, while one runs, only when the node being
+     * performed is waiting on a SECRET await it has not met yet (a legacy AWAIT node included). False everywhere else
+     * in a run: a node acting (a warp in flight included), the settle or stack between two nodes, a walk to the next
+     * node, a DELAY await, a crypt or bat node (their await counts kills), and an await already met (its action goes
+     * this tick, and a click beside the warp's use would be left unpaired - util/RightClick).
+     * Read at the START of the tick, before the route's own tick: the state the route left last tick.
+     */
+    public static boolean secretAuraMayClick() {
+        if (!running) {
+            return true;
+        }
+        RouteNode node = activeNode;
+        if (node == null || awaitPhaseDone || node.awaitCondition == RouteNode.AwaitCondition.DELAY) {
+            return false;
+        }
+        return AwaitEvents.secrets() + awaitRemembered.size() < Math.max(1, node.awaitAmount);
+    }
+
     /** Kill Mimic may take the hands now: between nodes, or while a node only waits on its await. */
     static boolean mayYieldToMimic() {
         return !running || activeNode == null || !awaitPhaseDone;
