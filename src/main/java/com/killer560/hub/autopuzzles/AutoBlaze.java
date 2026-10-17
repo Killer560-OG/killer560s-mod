@@ -120,6 +120,10 @@ final class AutoBlaze {
     private static final int MAX_SHOTS_HERE = 3;
     /** Spots given up on for the current target - never chosen again for it. */
     private static final java.util.Set<BlockPos> badSpots = new java.util.HashSet<>();
+    /** The spot the last reposition went to because it had a shot at the current target, or null. */
+    private static BlockPos movedForShot = null;
+    /** The blaze {@link #movedForShot} was chosen for. */
+    private static Entity movedForBlaze = null;
     /** Consecutive ticks the solver's list has been empty since it last held blazes - see {@link #DONE_TICKS}. */
     private static int emptyTicks = 0;
     /** util/ServerLag readings for the empty-list wait and the chest wait: a server stall extends each by its length. */
@@ -414,6 +418,16 @@ final class AutoBlaze {
         }
         if (hitDir != null) {
             returnTo = null;
+        }
+        if (hitDir == null && movedForShot != null && movedForBlaze == blaze && !REPOSITION.isActive()
+                && AutoPuzzleUtil.at(player, movedForShot)) {
+            // Chosen for its shot at this blaze, and from the spot itself there is none. Left a candidate, it was
+            // chosen again from the next spot over, and he warped between the two for seven minutes (fullclear-1016
+            // run 041, Lower Blaze spot 5 and a link on the way to spot 3).
+            LOGGER.info("[AutoPuzzles] Blaze: {} was chosen for its shot at '{}' and has none from the spot - not "
+                    + "choosing it again for this blaze", AutoPuzzleUtil.fmt(movedForShot), nameOf(blaze));
+            badSpots.add(movedForShot);
+            movedForShot = null;
         }
         if (hitDir == null) {
             if (blaze != loggedNoShot) {
@@ -975,6 +989,8 @@ final class AutoBlaze {
         if (bestI >= 0) {
             BlockPos realSpot = PuzzleCoords.real(spots[bestI], cr);
             currentSpot = bestI;
+            movedForShot = realSpot;
+            movedForBlaze = blazes.get(0);
             say("moving to standing spot " + bestI + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
                     + nameOf(blazes.get(0)) + "' and " + (bestCover - 1) + " more in order after it");
             REPOSITION.start(client, realSpot, true, false, false);
@@ -993,6 +1009,8 @@ final class AutoBlaze {
             }
             if (AutoPuzzleUtil.etherwarpAim(client.level, player, realSpot) != null) {
                 currentSpot = i;
+                movedForShot = realSpot;
+                movedForBlaze = blazes.get(0);
                 say("moving to standing spot " + i + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
                         + nameOf(blazes.get(0)) + "'");
                 REPOSITION.start(client, realSpot, true, false, false);
@@ -1579,6 +1597,8 @@ final class AutoBlaze {
         shotsHere = 0;
         shotsFrom = null;
         badSpots.clear();
+        movedForShot = null;
+        movedForBlaze = null;
         searchSpots = null;
         farSpots.clear();
         farIdx = 0;
