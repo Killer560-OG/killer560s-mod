@@ -37,8 +37,9 @@ import java.util.Set;
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
- * ({@link #lidPrince}, Big Red Flag, 2026-10-09) - the three shapes {@code roomsim.SimPrince} was given by him. A slab run
- * that touches a prince's gold is the prince, not an ordinary crypt as well.
+ * ({@link #lidPrince}, Big Red Flag, 2026-10-09) - the three shapes {@code roomsim.SimPrince} was given by him - or an
+ * obsidian top with a bottom smooth stone slab rim ({@link #obsidianPrince}, Supertall, 2026-10-16). A slab run that
+ * touches a prince's blocks is the prince, not an ordinary crypt as well.
  *
  * <p>One answer for the sim and for Hypixel: {@code SimPrince} asks {@link #isPrinceCrown} too, and this reads the
  * world the client sees, wherever that world came from.
@@ -107,7 +108,7 @@ public final class CryptScanner {
             return state.is(Blocks.SMOOTH_STONE_SLAB);
         }
         return state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN) || state.is(Blocks.POLISHED_ANDESITE)
-                || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.SMOOTH_STONE_SLAB);
+                || state.is(Blocks.SMOOTH_STONE) || state.is(Blocks.SMOOTH_STONE_SLAB) || state.is(Blocks.OBSIDIAN);
     }
 
     /**
@@ -172,6 +173,66 @@ public final class CryptScanner {
         return crowns;
     }
 
+    /**
+     * The prince OBSIDIAN rule (see {@code roomsim.SimPrince}: Supertall's two tombs) from one obsidian block: its
+     * horizontal run of obsidian (members go into {@code checked}, so each run is judged once, capped at
+     * {@value #LID_MAX} + 1), which is a prince when any member has air above it and a bottom smooth stone slab beside
+     * it. Returns the run, every smooth stone slab touching it (Supertall's upper tomb has a 2x2 of double slabs inside
+     * its obsidian ring) and the whole bottom-slab ring on that layer, or nothing.
+     */
+    public static List<BlockPos> obsidianPrince(Level level, BlockPos start, Set<BlockPos> checked) {
+        List<BlockPos> crowns = new ArrayList<>();
+        List<BlockPos> run = new ArrayList<>();
+        Set<BlockPos> touching = new HashSet<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        Set<BlockPos> seen = new HashSet<>();
+        queue.add(start);
+        seen.add(start);
+        boolean rimmed = false;
+        while (!queue.isEmpty()) {
+            BlockPos here = queue.poll();
+            run.add(here);
+            checked.add(here);
+            if (run.size() > LID_MAX) {
+                return crowns;
+            }
+            boolean open = level.getBlockState(here.above()).isAir();
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                BlockState state = level.getBlockState(next);
+                if (state.is(Blocks.OBSIDIAN)) {
+                    if (seen.add(next)) {
+                        queue.add(next);
+                    }
+                } else if (state.is(Blocks.SMOOTH_STONE_SLAB)) {
+                    touching.add(next);
+                    if (open && isLidSlab(state)) {
+                        rimmed = true;
+                    }
+                }
+            }
+        }
+        if (!rimmed) {
+            return crowns;
+        }
+        crowns.addAll(run);
+        // The slabs touching the run, and the rest of the ring on the same layer (its corners touch only slabs).
+        ArrayDeque<BlockPos> walk = new ArrayDeque<>(touching);
+        Set<BlockPos> all = new HashSet<>(touching);
+        while (!walk.isEmpty() && all.size() < 4 * LID_MAX) {
+            BlockPos here = walk.poll();
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                if (!all.contains(next) && isLidSlab(level.getBlockState(next))) {
+                    all.add(next);
+                    walk.add(next);
+                }
+            }
+        }
+        crowns.addAll(all);
+        return crowns;
+    }
+
 
     /**
      * Every crypt and prince inside {@code [minX, minZ, maxX, maxZ]}, at any height.
@@ -205,7 +266,7 @@ public final class CryptScanner {
                     var section = sections[i];
                     if (section == null || section.hasOnlyAir() || !section.maybeHas(st ->
                             st.is(Blocks.SMOOTH_STONE_SLAB) || st.is(Blocks.GOLD_BLOCK) || st.is(Blocks.SEA_LANTERN)
-                                    || st.is(Blocks.SMOOTH_STONE))) {
+                                    || st.is(Blocks.SMOOTH_STONE) || st.is(Blocks.OBSIDIAN))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -223,6 +284,11 @@ public final class CryptScanner {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
                                     if (lidChecked.add(at)) {
                                         lidPrinces.addAll(lidPrince(level, at, lidChecked));
+                                    }
+                                } else if (state.is(Blocks.OBSIDIAN)) {
+                                    BlockPos at = new BlockPos(x, baseY + ly, z);
+                                    if (lidChecked.add(at)) {
+                                        lidPrinces.addAll(obsidianPrince(level, at, lidChecked));
                                     }
                                 } else if (state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);

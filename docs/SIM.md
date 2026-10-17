@@ -3045,6 +3045,28 @@ tick the chest opens, tab ✔ 1-4 ticks later; main never.
   `canAct` changes. A failed `requires` makes the parse an unknown command, which Fabric ignores, so the line goes to the
   server unchanged (1775: the testmod's own `/reset` answers it and is the only one suggested).
 
+## Supertall's prince, and the obsidian tomb (2026-10-16, sim-prince-supertall-1016)
+
+- killer560 in Supertall: "this is a prince" - the raised tomb under two hopper braziers, capture x 48..53 y 142 z 44..48:
+  a 4x4 obsidian ring round a 2x2 of double smooth stone slabs, rimmed by bottom smooth stone slabs, on stair legs, the
+  wall on its fourth side. None of the three rules could see it. The fourth, `CryptScanner.obsidianPrince` (asked by
+  `SimPrince`, so the waypoints and the sim agree): **obsidian with air above and a bottom smooth stone slab beside it**.
+  Twelve rooms hold obsidian at all, so obsidian alone would be the gold-alone trap again.
+- **The wiki's rooms table was the check, and it said two.** Its Supertall row (and the room's page): "6 Crypts (4 Crypt
+  Undeads, 2 Princes)", one on Level 2 behind a Cracked Stone Bricks wall. That second one is the room's other obsidian
+  tomb (x 4..6 y 99 z 11..14, a 1x2 in a ten-slab ring), which the ordinary crypt rule had been counting as a crypt.
+  The rule matches six tombs in the library: Supertall 2, Withermancer, Grass Ruin, Pirate and Waterfall 1 each. The
+  table's Princes column is filled in only for Doors, Skull, Supertall and Withermancer, and the last two match
+  exactly; the other three are inferred. Counting each as a prince, crypt lids plus obsidian princes equal the room
+  database's crypt count in Withermancer, Grass Ruin (3 lids became its 4), Pirate and Waterfall.
+- **Skull is the one the wiki lists that no rule finds**: its single crypt is a plain 3x4 slab lid, nothing to tell it
+  from an ordinary one. Pirate's three gold-on-slab spots, found by the gold rule, were already suspect (CryptScanner's
+  javadoc); with its obsidian tomb a prince they are surely decoration. Supertall's three chest platforms at y 141 also
+  pass the crypt rule (7 lids still found, for a room with 4 crypts besides its princes). Neither was changed here.
+- Testkit 1781 (both tombs princes, one Superboom on each opens it, /reset brings both back unblown), 1782 (on a
+  generated floor) and 1783 (every room whose palette holds obsidian built alone; its obsidian princes must be exactly
+  the five rooms above).
+
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
 - The sim scored a crypt when the wall broke and the mimic when its chest opened, so nothing client-side could ever see the
