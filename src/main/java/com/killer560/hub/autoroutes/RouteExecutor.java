@@ -432,26 +432,6 @@ public final class RouteExecutor {
         return running;
     }
 
-    /** The running route's first BAT node (it always waits for a kill) that has not fired yet this run, or null - that node owns the
-     *  secret bat, so the bat appearing is no other node's secret ({@link AwaitEvents}). */
-    static RouteNode batNodeAhead() {
-        if (!running) {
-            return null;
-        }
-        for (RouteNode n : ordered) {
-            if (n.type == RouteNode.Type.BAT && !firedInRun.contains(n)) {
-                return n;
-            }
-        }
-        return null;
-    }
-
-    /** The 1-based position of {@code node} in the route's order, for log lines. */
-    static int orderOf(RouteNode node) {
-        Route r = route;
-        return r == null ? 0 : r.indexOf(node) + 1;
-    }
-
     /** The room of the route being played, or null when none is (Auto Trap stops a trap route the moment he leaves). */
     public static String runningRoom() {
         Route r = route;
