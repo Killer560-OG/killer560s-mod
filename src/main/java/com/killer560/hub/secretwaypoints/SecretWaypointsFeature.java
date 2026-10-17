@@ -677,6 +677,10 @@ public final class SecretWaypointsFeature {
                     if (COLLECTED.contains(real) || !seen.add(real)) {
                         continue;
                     }
+                    // A dummy lever is no secret and opens nothing (Red Blue's cage nook, killer560 2026-10-17).
+                    if (com.killer560.hub.secrets.DummyLevers.isDummy(real)) {
+                        continue;
+                    }
                     AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
                     CACHED.add(new Waypoint(box,
                             (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5,

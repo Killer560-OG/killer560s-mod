@@ -437,7 +437,8 @@ public final class SecretAuraFeature {
             return chestsAllowed ? "chest" : null;
         }
         if (block == Blocks.LEVER) {
-            return leversAllowed ? "lever" : null;
+            // A dummy lever (Red Blue's two in the cage nook, killer560 2026-10-17) is never a secret.
+            return leversAllowed && !com.killer560.hub.secrets.DummyLevers.isDummy(pos) ? "lever" : null;
         }
         if (block instanceof AbstractSkullBlock) {
             // Hypixel's essence skull profile, in the sim too: the sim places the same skull (SimSecrets), so
