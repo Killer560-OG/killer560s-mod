@@ -1,13 +1,13 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.bazaarflip.BazaarFlipCandidate;
 import com.killer560.hub.bazaarflip.BazaarFlipConfig;
 import com.killer560.hub.bazaarflip.BazaarFlipFeature;
-import com.killer560.hub.bazaarflip.BazaarFlipScanner;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.KeyUtil;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -91,27 +91,17 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             return widgets;
         }
 
-        // The start key is offered whatever the state - he binds it before he uses it.
+        // The start key is offered whatever the state - he binds it before he uses it. The running/not-running row and
+        // the "Any key stops it" line beside and under it were removed on 2026-10-16 (killer560: "remove the not
+        // running thing", "remove the any key stops it"); the start key's tooltip says how it stops.
         widgets.add(SettingsButtonWidget.builder(
                 capturing == 1 ? Component.literal("Press any key...")
                         : Component.literal("Start Key: " + KeyUtil.bindDisplayName(cfg.getStartKeyCode())),
                 btn -> {
                     capturing = 1;
                     btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(contentX, y, col2W, 18).build());
-        boolean running = BazaarFlipFeature.isRunning();
-        widgets.add(SettingsButtonWidget.builder(
-                Component.literal(running ? "§cRunning - click to stop" : "§7Not running - press the start key"),
-                btn -> {
-                    if (BazaarFlipFeature.isRunning()) {
-                        BazaarFlipFeature.requestStop();
-                    }
-                    requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-
-        widgets.add(inertLabel(contentX, y, contentWidth, "Any key stops it while it runs."));
-        y += 20;
 
         widgets.add(SettingsButtonWidget.cycling(
                 Component.literal("Rank By: §6" + cfg.getRankingMode().display), (btn, dir) -> {
@@ -121,41 +111,35 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        // 0 .. 5,000,000 coins. The floor is what makes percentage ranking usable: NETHERRACK-class items sit
-        // at the top of the percentage list and net about two thousand coins for a whole inventory cycle.
-        final double profitMax = 5_000_000.0;
-        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, minProfitText(cfg),
-                Math.min(1.0, cfg.getMinProfitPerRun() / profitMax)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(minProfitText(cfg));
-            }
+        // Min Profit Per Run was removed on 2026-10-16 (killer560: "I want it to always choose the best"): the best
+        // flip by Rank By is taken whenever its profit after fees is above 0.
 
-            @Override
-            protected void applyValue() {
-                // Rounded to 10,000 so dragging lands on readable numbers.
-                cfg.setMinProfitPerRun(Math.round(this.value * profitMax / 10_000.0) * 10_000L);
+        // Target Purse is typed (killer560, 2026-10-16: "have Target Purse be a box they type in"): digits with or
+        // without commas, or 750k / 5m / 2.5m / 1b (BazaarFlipConfig.parseCoins). It applies as he types, like the
+        // Titanic price box in Auto Experiments; text that is not a number is ignored and the label says so. Empty or 0
+        // is no target. The box opens showing the saved value with commas.
+        SettingsButtonWidget purseLabel = SettingsButtonWidget.builder(targetPurseText(cfg.getTargetPurse()), btn -> {
+        }).bounds(contentX, y, col2W, 18).build();
+        purseLabel.active = false;
+        widgets.add(purseLabel);
+        EditBox purseBox = new EditBox(Minecraft.getInstance().font, col2bX, y, col2W, 18,
+                Component.literal("Target Purse"));
+        purseBox.setMaxLength(24);
+        purseBox.setValue(cfg.getTargetPurse() > 0 ? String.format(Locale.US, "%,d", cfg.getTargetPurse()) : "");
+        purseBox.setResponder(text -> {
+            Long coins = BazaarFlipConfig.parseCoins(text);
+            if (coins == null) {
+                purseLabel.setMessage(Component.literal("Target Purse: §cnot a number"));
+                return;
+            }
+            if (cfg.getTargetPurse() != coins) {
+                cfg.setTargetPurse(coins);
                 cfg.save();
             }
+            purseLabel.setMessage(targetPurseText(cfg.getTargetPurse()));
         });
-        y += 20;
-
-        // 0 .. 1,000,000,000 coins, 0 meaning "no target".
-        final double purseMax = 1_000_000_000.0;
-        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, targetPurseText(cfg),
-                Math.min(1.0, cfg.getTargetPurse() / purseMax)) {
-            @Override
-            protected void updateMessage() {
-                setMessage(targetPurseText(cfg));
-            }
-
-            @Override
-            protected void applyValue() {
-                cfg.setTargetPurse(Math.round(this.value * purseMax / 1_000_000.0) * 1_000_000L);
-                cfg.save();
-            }
-        });
-        y += 20;
+        widgets.add(purseBox);
+        y += 22;
 
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, speedText(cfg),
                 (cfg.getSpeed() - BazaarFlipConfig.MIN_SPEED)
@@ -175,37 +159,17 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         widgets.add(inertLabel(contentX, y, contentWidth, "/bazaarflip scan - price the market now, no clicks"));
-        y += 20;
-
-        BazaarFlipCandidate target = BazaarFlipFeature.getTarget();
-        BazaarFlipScanner.ScanResult scan = BazaarFlipScanner.getLast();
-        if (target != null) {
-            widgets.add(inertLabel(contentX, y, contentWidth, "Target: " + target.summary()));
-            y += 18;
-        } else if (scan != null && scan.ok()) {
-            widgets.add(inertLabel(contentX, y, contentWidth,
-                    "Last scan: " + scan.profitableCount() + " profitable of " + scan.productsWithNpcPrice()
-                            + " with an NPC price, " + scan.ranked().size() + " over the floor"));
-            y += 18;
-            BazaarFlipCandidate best = scan.best();
-            if (best != null) {
-                widgets.add(inertLabel(contentX, y, contentWidth, "Best: " + best.summary()));
-            }
-        } else if (scan != null) {
-            widgets.add(inertLabel(contentX, y, contentWidth, "Last scan failed: " + scan.error()));
-        }
+        // The "Last scan" / "Best" lines under this were removed on 2026-10-16 (killer560: "remove those lines at the
+        // bottom about last s... and best"); /bazaarflip scan still prints its result in chat, and /profit bazaarflip
+        // has every finished cycle.
 
         return widgets;
     }
 
-    private static Component minProfitText(BazaarFlipConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Min Profit Per Run: §6%,d coins", cfg.getMinProfitPerRun()));
-    }
-
-    private static Component targetPurseText(BazaarFlipConfig cfg) {
-        return Component.literal(cfg.getTargetPurse() <= 0
+    private static Component targetPurseText(long coins) {
+        return Component.literal(coins <= 0
                 ? "Target Purse: §6Off"
-                : String.format(Locale.US, "Target Purse: §6%,d coins", cfg.getTargetPurse()));
+                : String.format(Locale.US, "Target Purse: §6%,d", coins));
     }
 
     private static Component speedText(BazaarFlipConfig cfg) {

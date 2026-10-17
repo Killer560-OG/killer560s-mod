@@ -71,6 +71,10 @@ public final class ProfileManager {
             "killer560smod-croesus-runs.json",
             // Experimentation Table profit tracker's session log + totals - also real run data.
             "killer560smod-experiments-profit.json",
+            // The Bazaar Flipper's profit log (cycles) and today's NPC-sale count for the daily NPC sell limit -
+            // run data and a running counter, not settings (2026-10-16).
+            "killer560smod-bazaarflip-profit.json",
+            "killer560smod-bazaarflip-npcsold.json",
             // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).
             "killer560smod-itembrowser-items-cache.json",
             // Storage Search's per-page "last seen" times - tied to the storage-overlay cache above.

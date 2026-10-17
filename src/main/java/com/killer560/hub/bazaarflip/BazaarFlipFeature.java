@@ -10,19 +10,29 @@ import com.killer560.hub.util.ServerCommands;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import com.killer560.hub.bazaar.BazaarPages;
+import com.killer560.hub.bazaarflip.mixin.SignEditScreenAccessor;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.compat.McCompat;
 
@@ -37,7 +47,8 @@ import com.killer560.hub.compat.McCompat;
  * this." Plus, later: "only have the rescan go while the bot is running, so before it starts it would scan in
  * the bazaar then every minute during it"; "let me set stuff like target purse so if it hits that purse then
  * it stops flipping"; "make failsafes for stuff like if i dont have the money for the best thing then it buys
- * the best thing i can afford if nothing is profitable have it not work".
+ * the best thing i can afford if nothing is profitable have it not work"; and 2026-10-16 "just remove the min profit
+ * slider. I want it to always choose the best" - the best candidate by Rank By whose net profit is above 0.
  *
  * <h2>Scanning only while running</h2>
  * One scan on start, then one every {@link #RESCAN_INTERVAL_MS} <b>while running only</b>. Nothing scans while
@@ -45,31 +56,30 @@ import com.killer560.hub.compat.McCompat;
  * the always-on behaviour that made the Auction House scan a performance complaint in the first place.
  *
  * <h2>Starting and stopping</h2>
- * The configured bind starts it. Any key stops it, and the stop message names the key - "key pressed" cannot
- * tell a walk from the feature killing itself.
+ * The configured bind starts it. Any key or mouse button he presses while it runs stops it, and the stop message names
+ * it. Until 2026-10-16 the watcher was a per-screen key hook plus a poll that only looked with no screen open, and he
+ * reported "right now only escape stopped it": it is now a raw hook at the head of Minecraft's key and mouse handlers
+ * ({@code mixin/BazaarFlipStopKeyMixin}, {@code BazaarFlipStopMouseMixin}, {@link #onRawKeyPress}), ahead of the Bazaar
+ * menus, the reskin and the sign editor alike. The bind's own press that started a session happened while it was idle
+ * (and {@link #START_GRACE_MS} plus {@link #startBindStillHeld} cover the bind still being held), and the amount the
+ * flipper types into the sign goes straight to the screen, never through the key handler - so neither can stop it.
  *
- * <p>The awkward part, and the reason CLAUDE.md has a lesson about it: an "any key stops it" guard that fires
- * with a screen open stops the feature instantly, because the Return that submits a command and the Escape
- * that closes the settings tab are both key presses. So the world-side watcher in {@link #tick} only looks at
- * keys while {@code McCompat.screen(client) == null}, and the screen-side watcher is registered on CONTAINER screens
- * only ({@link #onScreenInit}) - never on chat, never on this mod's own menu, never on the pause screen. A
- * container screen is a Hypixel menu the bot is driving, so a key press there really is him intervening.
- * On top of that {@link #START_GRACE_MS} swallows everything for a moment after a start, so the bind itself
- * (still physically held) cannot stop the session it just began.
+ * <h2>The cycle (2026-10-11: "make the bazaar flipper work"; Custom Amount 2026-10-16)</h2>
+ * Scan, {@code /bz <name>}, then every Bazaar page is read through {@link BazaarPages} (the reskin's classifier) and
+ * driven by name - the product in the search results, Buy Instantly on the product page, then on the Instant Buy page
+ * the exact amount the scan sized: a preset (Buy only one! / Buy a stack! / Fill my inventory!) when its amount is
+ * exactly that, otherwise Custom Amount, whose sign gets the number typed on line 1 and Done pressed ({@link #buyStep},
+ * {@link #fillSign}). Hypixel then either delivers or shows a Confirm Instant Buy page, which is clicked only when its
+ * one item states exactly that amount at a price under the NPC's ({@link #confirmStep}). Each buy is confirmed by the
+ * items arriving (or "[Bazaar] You cannot afford this!"); then the Bazaar is closed, {@code /trades} opened, and every
+ * unit shift-clicked to the NPC, each confirmed by the stack leaving. Then it scans again. The Bazaar reskin keeps
+ * drawing while this runs and shows each page it reaches; the reads and clicks here go to the real menu underneath.
+ * Start refuses without a Booster Cookie: both the remote {@code /bz} and selling from {@code /trades} need one.
  *
- * <h2>The cycle (2026-10-11: "make the bazaar flipper work")</h2>
- * Until then every session stopped at the first menu and clicked nothing: the dry run killer560 ran on
- * 2026-10-08 showed {@code /bz Lump of Magma} opens a SEARCH page ({@code Bazaar ➜ "Lump of Magma"}), not the
- * product page the old step assumed. Now: scan, {@code /bz <name>}, then every Bazaar page is read through
- * {@link BazaarPages} (the reskin's classifier) and driven by name - the product in the search results, Buy
- * Instantly on the product page, then on the Instant Buy page the largest of Fill my inventory! / Buy a stack! /
- * Buy only one! that fits the scan's profitable size, the inventory, the NPC price and the purse. Each buy is
- * confirmed by the items arriving (or "[Bazaar] You cannot afford this!"); then the Bazaar is closed, {@code
- * /trades} opened, and every unit shift-clicked to the NPC, each confirmed by the stack leaving. Then it scans
- * again. The Bazaar reskin keeps drawing while this runs (killer560, 2026-10-11) and shows each page it reaches;
- * the reads and clicks here go to the real menu underneath, never through the reskin, so they are the same either
- * way. A key or press on the reskin stops this ({@code BazaarReskin}). Start refuses without a Booster Cookie: both the remote {@code /bz} and
- * selling from {@code /trades} need one.
+ * <h2>Money</h2>
+ * The purse caps every buy, as does the daily NPC sell limit ({@link BazaarFlipNpcLimit}: nothing is bought that the
+ * NPCs will not take today). Each finished cycle goes to the profit tracker ({@link BazaarFlipProfitLog}) from the coins
+ * Hypixel's own chat reported.
  *
  * <h2>Safety rules this obeys</h2>
  * Ticks on {@code START_CLIENT_TICK}, never END: END runs after the player's own movement packet and GrimAC
@@ -90,14 +100,26 @@ public final class BazaarFlipFeature {
     /** "Buy only one!" is only for a tail smaller than a stack, and only this many times a cycle. */
     private static final int MAX_SINGLE_BUYS = 8;
     /** The Trades menu; the exact title is not documented, so anything naming Trades. */
-    private static final java.util.regex.Pattern TRADES_TITLE = java.util.regex.Pattern.compile("(?i)^.{0,24}\\btrades?\\b.{0,24}$");
-    private static final java.util.regex.Pattern CANNOT_AFFORD = java.util.regex.Pattern.compile("^\\[Bazaar\\] You cannot afford this!$");
+    private static final Pattern TRADES_TITLE = Pattern.compile("(?i)^.{0,24}\\btrades?\\b.{0,24}$");
+    private static final Pattern CANNOT_AFFORD = Pattern.compile("^\\[Bazaar\\] You cannot afford this!$");
+    /** "[Bazaar] Bought 16x Ender Pearl for 112.0 coins!" (his 2026-10-08 dump and 62 lines in his logs). */
+    static final Pattern BOUGHT_LINE =
+            Pattern.compile("^\\[Bazaar\\] Bought ([\\d,]{1,9})x (.{1,64}) for ([\\d,]{1,15}(?:\\.\\d{1,2})?) coins?!$");
+    /** Hypixel's title for the step some instant buys get after the amount (SkyHanni's repo patterns list it). */
+    static final String CONFIRM_INSTANT_BUY = "Confirm Instant Buy";
+    /** Custom Amount's lore: "Buy up to 71,680x." (his screenshot, 2026-10-16). */
+    static final Pattern BUY_UP_TO = Pattern.compile("^Buy up to ([\\d,]{1,12})x\\.?$");
+    /** The sign Custom Amount opens: line 2 is a row of carets under the input line, line 3 "Enter amount". */
+    private static final Pattern SIGN_CARETS = Pattern.compile("^\\^{3,40}$");
 
     /** killer560: "then every minute during it". */
     private static final long RESCAN_INTERVAL_MS = 60_000L;
     /** How long a menu is waited for before the session gives up. A safety limit, NOT paced by the speed
      *  slider - a timeout that shrinks with speed turns a laggy moment into a spurious stop. */
     private static final long MENU_TIMEOUT_MS = 6_000L;
+    /** After the last unit leaves for the NPC, how long its "You sold" line may take before the cycle is logged
+     *  with what arrived. A bound, not a wait: the cycle is logged the moment every line is in. */
+    private static final long SOLD_LINES_TIMEOUT_MS = 2_000L;
     /** Keys are ignored for this long after a start so the bind that started it cannot stop it. */
     private static final long START_GRACE_MS = 600L;
     /** Hard ceiling on automated container clicks in one session, same idea as Auto Croesus's. */
@@ -116,7 +138,18 @@ public final class BazaarFlipFeature {
         /** {@code /trades} sent, waiting for the NPC menu. */
         WAIT_TRADES_MENU,
         /** The NPC menu is open: selling. */
-        SELL
+        SELL,
+        /** Everything is sold; waiting (bounded) for the last "You sold" lines before the cycle is logged. */
+        LOG_CYCLE
+    }
+
+    /** Where a Custom Amount purchase is. */
+    private enum Custom {
+        NONE,
+        /** Custom Amount clicked: waiting for Hypixel's sign. */
+        AWAIT_SIGN,
+        /** The amount was typed and Done pressed: waiting for a Confirm page or the items. */
+        AFTER_SIGN
     }
 
     private static State state = State.IDLE;
@@ -155,7 +188,27 @@ public final class BazaarFlipFeature {
     private static long pendingBuyAtMs = 0L;
     private static volatile boolean cannotAfford = false;
     private static int sellPendingSlot = -1;
+    private static int sellPendingCount = 0;
     private static long sellPendingAtMs = 0L;
+    // Custom Amount.
+    private static Custom custom = Custom.NONE;
+    private static int customAmount = 0;
+    private static int customClickedContainerId = Integer.MIN_VALUE;
+    private static long customSinceMs = 0L;
+    private static long signSeenAtMs = 0L;
+    private static boolean confirmClicked = false;
+    // What Hypixel reported this cycle (BazaarFlipProfitLog).
+    private static double cycleSpent = 0;
+    private static int cycleBoughtLines = 0;
+    private static double cycleReceived = 0;
+    private static int cycleSoldLines = 0;
+    private static int cycleBought = 0;
+    private static int cycleSold = 0;
+    private static Double cyclePurseStart = null;
+    /** Set by the NPC sell limit's chat line; read on the next tick. */
+    private static volatile boolean npcLimitHit = false;
+    /** What stopped the last session, for the testkit and the tab. */
+    private static volatile String lastStopReason = "";
 
     private BazaarFlipFeature() {
     }
@@ -168,13 +221,52 @@ public final class BazaarFlipFeature {
             }
         });
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            ScreenEvents.AFTER_INIT.register(BazaarFlipFeature::onScreenInit);
-            com.killer560.hub.util.ChatObserver.subscribe(message -> {
-                if (state == State.BAZAAR && CANNOT_AFFORD.matcher(
-                        com.killer560.hub.util.ChatObserver.strip(message).trim()).matches()) {
-                    cannotAfford = true;
-                }
-            });
+            com.killer560.hub.util.ChatObserver.subscribe(message ->
+                    onChatLine(com.killer560.hub.util.ChatObserver.strip(message).trim()));
+        }
+    }
+
+    /** One chat line, colour-stripped. Every pattern here is anchored on the whole line. */
+    static void onChatLine(String line) {
+        if (line.startsWith("[Bazaar Flip]")) {
+            return; // this feature's own lines
+        }
+        if (state == State.BAZAAR && CANNOT_AFFORD.matcher(line).matches()) {
+            cannotAfford = true;
+            return;
+        }
+        Matcher m = BOUGHT_LINE.matcher(line);
+        if (m.matches()) {
+            if (state != State.IDLE && target != null && m.group(2).equalsIgnoreCase(target.displayName())) {
+                cycleSpent += parseCoins(m.group(3));
+                cycleBoughtLines += (int) parseCoins(m.group(1));
+            }
+            return;
+        }
+        m = BazaarFlipNpcLimit.SOLD_LINE.matcher(line);
+        if (m.matches()) {
+            double coins = parseCoins(m.group(3));
+            BazaarFlipNpcLimit.onSold(coins);
+            if (state != State.IDLE && target != null && m.group(1).equalsIgnoreCase(target.displayName())) {
+                cycleReceived += coins;
+                cycleSoldLines += (int) parseCoins(m.group(2));
+            }
+            return;
+        }
+        if (BazaarFlipNpcLimit.LIMIT_LINE.matcher(line).matches()) {
+            LOGGER.info("[BazaarFlip] NPC sell limit line: {}", line);
+            BazaarFlipNpcLimit.markReached();
+            if (state != State.IDLE) {
+                npcLimitHit = true;
+            }
+        }
+    }
+
+    private static double parseCoins(String digits) {
+        try {
+            return Double.parseDouble(digits.replace(",", ""));
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 
@@ -189,6 +281,11 @@ public final class BazaarFlipFeature {
 
     public static int getCycles() {
         return cycles;
+    }
+
+    /** Why the last session stopped ("" before any); the testkit reads it. */
+    public static String lastStopReason() {
+        return lastStopReason;
     }
 
     // ---- starting -------------------------------------------------------------------------------------
@@ -222,10 +319,14 @@ public final class BazaarFlipFeature {
             return String.format(Locale.US, "your purse is already at the target (%,.0f of %,d).",
                     purse, cfg.getTargetPurse());
         }
+        if (BazaarFlipNpcLimit.remaining() <= 0) {
+            return npcLimitText();
+        }
         BazaarFlipScanner.clear();
         target = null;
         clicks = 0;
         cycles = 0;
+        npcLimitHit = false;
         startPurse = purse;
         startedAtMs = System.currentTimeMillis();
         startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
@@ -241,6 +342,11 @@ public final class BazaarFlipFeature {
         if (state != State.IDLE) {
             stop("stopped by user");
         }
+    }
+
+    private static String npcLimitText() {
+        return String.format(Locale.US, "the daily NPC sell limit (%,.0f coins a day) is reached - it resets at"
+                + " 00:00 UTC, in %s", BazaarFlipNpcLimit.DAILY_LIMIT, BazaarFlipNpcLimit.resetsIn());
     }
 
     // ---- the any-key stop ----------------------------------------------------------------------------
@@ -267,27 +373,26 @@ public final class BazaarFlipFeature {
     }
 
     /**
-     * Registered on CONTAINER screens only. A container screen is a Hypixel menu, i.e. one this bot is
-     * driving, so a key press there is really him intervening - unlike chat, this mod's settings screen or the
-     * pause menu, where the Return/Escape that got the feature started would otherwise kill it instantly.
+     * Every key and mouse press he makes, raw, before any screen sees it ({@code BazaarFlipStopKeyMixin},
+     * {@code BazaarFlipStopMouseMixin}). A press while running stops the session. With no screen open the press then
+     * does what he pressed it for; with a Bazaar or /trades menu open it is swallowed - a stray number key there is a
+     * real hotbar-swap packet - except Escape, which still closes the menu; in the amount sign it is always swallowed,
+     * because Escape there would send whatever the sign holds.
+     *
+     * @return true to swallow the press
      */
-    private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
-        if (!(screen instanceof AbstractContainerScreen<?>)) {
-            return;
+    public static boolean onRawKeyPress(int code) {
+        if (state == State.IDLE || !stopOnKeyPress(code)) {
+            return false;
         }
-        ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
-            try {
-                if (!stopOnKeyPress(event.key())) {
-                    return true;
-                }
-                // Escape still closes the menu the way it normally would; everything else is swallowed,
-                // because a stray number key inside a Hypixel menu is a real hotbar-swap packet.
-                return event.key() == InputConstants.KEY_ESCAPE;
-            } catch (Exception e) {
-                LOGGER.error("[BazaarFlip] Key hook failed", e);
-                return true;
-            }
-        });
+        Screen screen = McCompat.screen(Minecraft.getInstance());
+        if (screen == null) {
+            return false;
+        }
+        if (screen instanceof AbstractSignEditScreen) {
+            return true;
+        }
+        return code != InputConstants.KEY_ESCAPE;
     }
 
     // ---- the tick -------------------------------------------------------------------------------------
@@ -317,8 +422,8 @@ public final class BazaarFlipFeature {
             stop("left the world");
             return;
         }
-        // Any key, while no screen is open. With a screen open the container watcher above handles it, and
-        // nothing else is watched at all - see this class's doc for why.
+        // A key held down from before the start (a walk) stops it once the grace is over. Fresh presses anywhere are
+        // the raw hook's (onRawKeyPress).
         if (McCompat.screen(client) == null && anyKeyDownInWorld(client)) {
             return;
         }
@@ -326,25 +431,29 @@ public final class BazaarFlipFeature {
             stop("safety limit of " + MAX_CLICKS_PER_SESSION + " clicks reached");
             return;
         }
+        if (npcLimitHit && state != State.LOG_CYCLE) {
+            npcLimitHit = false;
+            onNpcLimit(client);
+            return;
+        }
         Double purse = readPurse();
-        if (purse != null && cfg.getTargetPurse() > 0 && purse >= cfg.getTargetPurse()) {
+        if (purse != null && cfg.getTargetPurse() > 0 && purse >= cfg.getTargetPurse() && state == State.SCANNING) {
             finish(String.format(Locale.US, "target purse reached (%,.0f of %,d)", purse, cfg.getTargetPurse()));
             return;
         }
         // killer560: "then every minute during it" - while running only, in any state, so the book the NEXT
-        // decision is made from is never a minute stale. Deliberately not tied to a particular state: the
-        // states that decide things are short-lived, and gating the rescan on one of those meant the
-        // once-a-minute rescan almost never actually fired.
+        // decision is made from is never a minute stale.
         if (!scanPending && purse != null && System.currentTimeMillis() - lastScanAtMs >= RESCAN_INTERVAL_MS) {
             beginScan(purse, "rescan");
         }
         switch (state) {
-            case SCANNING -> tickScanning(cfg);
+            case SCANNING -> tickScanning();
             case WAIT_BAZAAR_MENU -> tickWaitMenu(client, "the Bazaar menu", State.BAZAAR);
             case BAZAAR -> tickBazaar(client, cfg);
             case OPEN_TRADES -> tickOpenTrades();
             case WAIT_TRADES_MENU -> tickWaitMenu(client, "the /trades NPC menu", State.SELL);
             case SELL -> tickSell(client, cfg);
+            case LOG_CYCLE -> tickLogCycle(client);
             case IDLE -> {
             }
         }
@@ -375,7 +484,7 @@ public final class BazaarFlipFeature {
         keyWasDown = down;
     }
 
-    /** Any key or mouse button at all, polled only when no screen is open. */
+    /** Any key or mouse button held, polled only when no screen is open. */
     private static boolean anyKeyDownInWorld(Minecraft client) {
         if (client.getWindow() == null) {
             return false;
@@ -416,7 +525,7 @@ public final class BazaarFlipFeature {
             setState(State.SCANNING);
         }
         BazaarFlipConfig cfg = BazaarFlipConfig.getInstance();
-        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), cfg.getMinProfitPerRun())
+        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), BazaarFlipNpcLimit.remaining())
                 .whenComplete((result, error) -> {
                     if (generation == scanGeneration) {
                         scanPending = false;
@@ -427,8 +536,12 @@ public final class BazaarFlipFeature {
                 });
     }
 
-    private static void tickScanning(BazaarFlipConfig cfg) {
+    private static void tickScanning() {
         if (scanPending) {
+            return;
+        }
+        if (BazaarFlipNpcLimit.remaining() <= 0) {
+            stop(npcLimitText());
             return;
         }
         BazaarFlipScanner.ScanResult result = BazaarFlipScanner.getLast();
@@ -450,12 +563,9 @@ public final class BazaarFlipFeature {
         BazaarFlipCandidate best = result.best();
         if (best == null) {
             // killer560: "if nothing is profitable have it not work". The purse was already passed into the
-            // sizing, so "nothing cleared the floor" already accounts for what he can afford - there is no
-            // cheaper fallback left to try.
-            stop(String.format(Locale.US,
-                    "nothing clears your %,d coin minimum profit - %d of %d products with an NPC price are"
-                            + " profitable at all right now",
-                    cfg.getMinProfitPerRun(), result.profitableCount(), result.productsWithNpcPrice()));
+            // sizing, so "nothing profitable" already accounts for what he can afford.
+            stop(String.format(Locale.US, "nothing is profitable after fees right now (%d products with an NPC price"
+                    + " checked against your purse and today's NPC sell limit)", result.productsWithNpcPrice()));
             return;
         }
         target = best;
@@ -466,6 +576,14 @@ public final class BazaarFlipFeature {
         sellPendingSlot = -1;
         clickedContainerId = Integer.MIN_VALUE;
         seenContainerId = Integer.MIN_VALUE;
+        custom = Custom.NONE;
+        cycleSpent = 0;
+        cycleBoughtLines = 0;
+        cycleReceived = 0;
+        cycleSoldLines = 0;
+        cycleBought = 0;
+        cycleSold = 0;
+        cyclePurseStart = readPurse();
         ModChat.send("Bazaar Flip", ModChat.text("Best flip: "), ModChat.value(best.summary()));
         LOGGER.info("[BazaarFlip] Target {} - {} units, spend {}, profit {} ({}%)", best.productId(),
                 best.units(), Math.round(best.spend()), Math.round(best.profit()),
@@ -522,29 +640,60 @@ public final class BazaarFlipFeature {
         }
     }
 
+    /** Units of the product he carries, from his own 36 slots, whatever screen is (or is not) open. */
+    private static int carried(Minecraft client) {
+        if (client.player == null || target == null) {
+            return 0;
+        }
+        int total = 0;
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = client.player.getInventory().getItem(i);
+            if (BazaarFlipMenus.isProduct(stack, target.productId(), target.displayName())) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
     private static void tickBazaar(Minecraft client, BazaarFlipConfig cfg) {
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            stop("the Bazaar menu closed");
+        long now = System.currentTimeMillis();
+        Screen open = McCompat.screen(client);
+        if (custom == Custom.AWAIT_SIGN) {
+            tickAwaitSign(client, open, cfg, now);
             return;
         }
-        long now = System.currentTimeMillis();
         if (pendingBuy) {
-            int have = BazaarFlipMenus.countProduct(screen.getMenu(), target.productId(), target.displayName());
+            int have = carried(client);
             if (have > pendingBuyCount) {
                 pendingBuy = false;
                 LOGGER.info("[BazaarFlip] Bought {} {} (now carrying {})", have - pendingBuyCount,
                         target.productId(), have);
+                boolean wasCustom = custom == Custom.AFTER_SIGN;
+                custom = Custom.NONE;
+                if (wasCustom && !(open instanceof AbstractContainerScreen<?>)) {
+                    // Hypixel closed the Bazaar after the purchase: sell what came, the next cycle buys again.
+                    doneBuying("bought the custom amount");
+                    return;
+                }
             } else if (cannotAfford) {
                 pendingBuy = false;
+                custom = Custom.NONE;
                 LOGGER.info("[BazaarFlip] Hypixel said \"You cannot afford this!\" - selling what was bought");
                 doneBuying("Hypixel said you can't afford more");
                 return;
             } else if (now - pendingBuyAtMs > BUY_CONFIRM_TIMEOUT_MS) {
                 stop("Hypixel never delivered the instant buy (nothing arrived in your inventory)");
                 return;
+            } else if (custom == Custom.AFTER_SIGN) {
+                tickAfterSign(client, open, cfg, now);
+                return;
             } else {
                 return;
             }
+        }
+        if (!(open instanceof AbstractContainerScreen<?> screen)) {
+            stop("the Bazaar menu closed");
+            return;
         }
         if (now < nextActionAtMs) {
             return;
@@ -584,7 +733,15 @@ public final class BazaarFlipFeature {
                 }
                 click(client, screen, buy.slot(), ContainerInput.PICKUP, cfg, true);
             }
-            case INSTANT_BUY -> buyStep(client, screen, page, cfg);
+            case INSTANT_BUY -> {
+                // Hypixel cuts long titles ("Enchanted Pufferfish ➜ Instant"): the page must be THIS product's, cut
+                // or not, or nothing is bought.
+                if (!BazaarPages.isInstantBuyTitleFor(BazaarFlipMenus.titleOf(screen), name)) {
+                    stop("the Instant Buy page is not " + name + "'s: " + BazaarFlipMenus.describe(screen));
+                    return;
+                }
+                buyStep(client, screen, page, cfg);
+            }
             default -> {
                 LOGGER.info("[BazaarFlip] Unexpected Bazaar page: {}", BazaarFlipMenus.describe(screen));
                 stop("unexpected menu " + BazaarFlipMenus.describe(screen));
@@ -592,11 +749,27 @@ public final class BazaarFlipFeature {
         }
     }
 
+    /** One option on the Instant Buy page, as its lore states it. */
+    private record Option(String name, int slot, long amount, double price) {
+    }
+
     /**
-     * One purchase on the "&lt;item&gt; ➜ Instant Buy" page. Hypixel's options are Buy only one!, Buy a stack!, Fill my
-     * inventory! and Custom Amount; Custom Amount opens a sign, which is not a container, so it is never used. The
-     * biggest option that still fits what the scan sized (never more than the profitable part of the book), fits his
-     * inventory, and - when its lore states a price - costs less per unit than the NPC pays and no more than his purse.
+     * One purchase on the "&lt;item&gt; ➜ Instant Buy" page (killer560, 2026-10-16: "it needs to click custom amount then
+     * paste in the amount").
+     *
+     * <p>The amount is what is still wanted this cycle: the scan's profitable size, less what already arrived, capped
+     * by free inventory space, by what the NPCs will still pay for today ({@link BazaarFlipNpcLimit}), and by Custom
+     * Amount's own "Buy up to N x." line. Then:
+     * <ul>
+     *   <li>a preset (Buy only one! / Buy a stack! / Fill my inventory!) whose stated amount is EXACTLY that is
+     *       clicked - one screen fewer and the same purchase;</li>
+     *   <li>otherwise Custom Amount, and {@link #fillSign} types the number. Before that, the price is bounded from
+     *       the presets: the book is eaten cheapest-first, so the average unit price of N units is at most that of any
+     *       preset of N or more units. If that bound is not under the NPC price, Custom Amount is not used; if the
+     *       purse cannot cover N at the bound, N shrinks to what it can;</li>
+     *   <li>when Custom Amount cannot be used safely, the old rule is the fallback: the largest preset that fits
+     *       everything above and whose own price is under the NPC's and within the purse.</li>
+     * </ul>
      */
     private static void buyStep(Minecraft client, AbstractContainerScreen<?> screen, BazaarPages.Page page,
                                 BazaarFlipConfig cfg) {
@@ -606,72 +779,318 @@ public final class BazaarFlipFeature {
             carriedAtStart = have;
         }
         int bought = have - carriedAtStart;
-        int remaining = target.units() - bought;
         int stack = Math.max(1, target.stackSize());
         int room = BazaarFlipMenus.roomFor(menu, target.productId(), target.displayName(), stack);
-        if (remaining <= 0 || room <= 0) {
-            doneBuying(remaining <= 0 ? "bought the planned " + target.units() : "inventory full");
+        long sellable = (long) Math.floor(BazaarFlipNpcLimit.remaining() / target.npcSellPrice()) - bought;
+        int remaining = target.units() - bought;
+        if (remaining <= 0 || room <= 0 || sellable <= 0) {
+            doneBuying(remaining <= 0 ? "bought the planned " + target.units()
+                    : room <= 0 ? "inventory full" : "the daily NPC sell limit has room for no more");
             return;
+        }
+        long want = Math.min(remaining, Math.min(room, sellable));
+        BazaarPages.Item customItem = BazaarFlipMenus.item(page, "Custom Amount");
+        long upTo = customItem == null ? -1 : loreBuyUpTo(customItem.lore());
+        if (upTo > 0) {
+            want = Math.min(want, upTo);
         }
         Double purse = readPurse();
         String[] names = {"Fill my inventory!", "Buy a stack!", "Buy only one!"};
         long[] fallbackAmount = {room, stack, 1};
-        String refused = null;
+        List<Option> options = new ArrayList<>();
         for (int i = 0; i < names.length; i++) {
             BazaarPages.Item option = BazaarFlipMenus.item(page, names[i]);
             if (option == null) {
                 continue;
             }
             long amount = BazaarFlipMenus.loreAmount(option.lore());
-            if (amount <= 0) {
-                amount = fallbackAmount[i];
+            options.add(new Option(names[i], option.slot(), amount > 0 ? amount : fallbackAmount[i],
+                    BazaarFlipMenus.lorePrice(option.lore())));
+        }
+        // 1. A preset that is exactly the amount.
+        for (Option o : options) {
+            if (o.amount() == want && priceOk(o.price(), o.amount(), purse) == null) {
+                if (o.name().equals("Buy only one!") && singleBuys >= MAX_SINGLE_BUYS) {
+                    break;
+                }
+                clickBuy(client, screen, cfg, o.name(), o.slot(), o.amount(), o.price(), have, bought);
+                return;
             }
-            if (amount > remaining || amount > room) {
+        }
+        // 2. Custom Amount, bounded by the presets' prices.
+        String refused = null;
+        if (customItem != null && want >= 1) {
+            Option bound = null;
+            for (Option o : options) {
+                if (o.price() > 0 && o.amount() >= want && (bound == null || o.amount() < bound.amount())) {
+                    bound = o;
+                }
+            }
+            long n = want;
+            if (bound != null) {
+                double each = bound.price() / bound.amount();
+                if (each >= target.npcSellPrice()) {
+                    refused = String.format(Locale.US, "the instant-buy price (up to %,.1f each) is no longer below the"
+                            + " NPC's %,.1f", each, target.npcSellPrice());
+                    n = 0;
+                } else if (purse != null && n * each > purse) {
+                    n = (long) Math.floor(purse / each);
+                    if (n < 1) {
+                        refused = "you can't afford even one";
+                    }
+                }
+            }
+            if (n >= 1) {
+                if (!click(client, screen, customItem.slot(), ContainerInput.PICKUP, cfg, false)) {
+                    return; // gate denied - retried next tick
+                }
+                custom = Custom.AWAIT_SIGN;
+                customAmount = (int) n;
+                customClickedContainerId = menu.containerId;
+                customSinceMs = System.currentTimeMillis();
+                signSeenAtMs = 0L;
+                confirmClicked = false;
+                pendingBuyCount = have;
+                LOGGER.info("[BazaarFlip] Custom Amount for {} units (wanted {}, bought {} of {} so far, Buy up to {})",
+                        n, want, bought, target.units(), upTo > 0 ? upTo : "not shown");
+                return;
+            }
+        }
+        // 3. Fallback: the largest preset that fits.
+        for (Option o : options) {
+            if (o.amount() > want) {
                 continue;
             }
-            if (i == 2 && singleBuys >= MAX_SINGLE_BUYS) {
+            if (o.name().equals("Buy only one!") && singleBuys >= MAX_SINGLE_BUYS) {
                 continue;
             }
-            double price = BazaarFlipMenus.lorePrice(option.lore());
-            if (price > 0) {
-                if (price / amount >= target.npcSellPrice()) {
-                    refused = String.format(Locale.US, "the instant-buy price (%,.1f each) is no longer below the NPC's %,.1f",
-                            price / amount, target.npcSellPrice());
-                    continue;
-                }
-                if (purse != null && price > purse) {
-                    refused = "you can't afford " + names[i];
-                    continue;
-                }
+            String why = priceOk(o.price(), o.amount(), purse);
+            if (why != null) {
+                refused = why;
+                continue;
             }
-            if (!click(client, screen, option.slot(), ContainerInput.PICKUP, cfg, false)) {
-                return; // gate denied - retried next tick
-            }
-            if (i == 2) {
-                singleBuys++;
-            }
-            pendingBuy = true;
-            pendingBuyCount = have;
-            pendingBuyAtMs = System.currentTimeMillis();
-            cannotAfford = false;
-            LOGGER.info("[BazaarFlip] {} ({} units, lore price {}) - bought {} of {} so far", names[i], amount,
-                    price > 0 ? String.format(Locale.US, "%.1f", price) : "not shown", bought, target.units());
+            clickBuy(client, screen, cfg, o.name(), o.slot(), o.amount(), o.price(), have, bought);
             return;
         }
         doneBuying(refused != null ? refused : "nothing smaller left to buy");
+    }
+
+    /** Null when a preset's stated price (if any) is under the NPC's per unit and within the purse, else why not. */
+    private static String priceOk(double price, long amount, Double purse) {
+        if (price <= 0) {
+            return null;
+        }
+        if (price / amount >= target.npcSellPrice()) {
+            return String.format(Locale.US, "the instant-buy price (%,.1f each) is no longer below the NPC's %,.1f",
+                    price / amount, target.npcSellPrice());
+        }
+        if (purse != null && price > purse) {
+            return "you can't afford " + amount;
+        }
+        return null;
+    }
+
+    private static void clickBuy(Minecraft client, AbstractContainerScreen<?> screen, BazaarFlipConfig cfg, String name,
+                                 int slot, long amount, double price, int have, int bought) {
+        if (!click(client, screen, slot, ContainerInput.PICKUP, cfg, false)) {
+            return; // gate denied - retried next tick
+        }
+        if (name.equals("Buy only one!")) {
+            singleBuys++;
+        }
+        pendingBuy = true;
+        pendingBuyCount = have;
+        pendingBuyAtMs = System.currentTimeMillis();
+        cannotAfford = false;
+        LOGGER.info("[BazaarFlip] {} ({} units, lore price {}) - bought {} of {} so far", name, amount,
+                price > 0 ? String.format(Locale.US, "%.1f", price) : "not shown", bought, target.units());
+    }
+
+    /** "Buy up to 71,680x." off Custom Amount, or -1. */
+    static long loreBuyUpTo(List<String> lore) {
+        for (String line : lore) {
+            Matcher m = BUY_UP_TO.matcher(line);
+            if (m.matches()) {
+                return Long.parseLong(m.group(1).replace(",", ""));
+            }
+        }
+        return -1;
+    }
+
+    /** Custom Amount was clicked: the next thing up must be Hypixel's amount sign. */
+    private static void tickAwaitSign(Minecraft client, Screen open, BazaarFlipConfig cfg, long now) {
+        if (open instanceof AbstractSignEditScreen sign) {
+            fillSign(sign, cfg, now);
+            return;
+        }
+        if (open instanceof AbstractContainerScreen<?> screen && screen.getMenu().containerId != customClickedContainerId) {
+            stop("Custom Amount opened " + BazaarFlipMenus.describe(screen) + " instead of the amount sign");
+            return;
+        }
+        if (open != null && !(open instanceof AbstractContainerScreen<?>)) {
+            stop("Custom Amount opened " + open.getClass().getSimpleName() + " instead of the amount sign");
+            return;
+        }
+        if (now - customSinceMs > MENU_TIMEOUT_MS) {
+            stop("the Custom Amount sign never opened");
+        }
+    }
+
+    /** Whether the sign is Hypixel's amount prompt: carets under the input line, then "Enter amount". */
+    static boolean isAmountSign(String[] lines) {
+        return lines != null && lines.length == 4 && SIGN_CARETS.matcher(lines[1].trim()).matches()
+                && lines[2].trim().equalsIgnoreCase("Enter amount");
+    }
+
+    /**
+     * Types {@link #customAmount} on line 1 of the sign and presses Done, in one tick - so there is never a moment
+     * with a number sitting in the sign that a stray Escape could send. The digits go to the screen's own
+     * {@code charTyped}, as the keyboard would deliver them (identical on 26.1.2 and 26.2: {@code CharacterEvent(int)});
+     * Done is the screen's own button, whose press closes the editor and makes its {@code removed()} send the
+     * {@code ServerboundSignUpdatePacket} with the four lines. Waits the speed slider's pacing after the sign appears,
+     * like any other step.
+     */
+    private static void fillSign(AbstractSignEditScreen sign, BazaarFlipConfig cfg, long now) {
+        if (signSeenAtMs == 0L) {
+            signSeenAtMs = now;
+            nextActionAtMs = Math.max(nextActionAtMs, now + randomDelay(cfg));
+            return;
+        }
+        if (now < nextActionAtMs) {
+            return;
+        }
+        String[] lines = ((SignEditScreenAccessor) sign).killer560smod$getMessages();
+        if (!isAmountSign(lines)) {
+            stop("the sign that opened is not Hypixel's amount prompt: " + Arrays.toString(lines));
+            return;
+        }
+        if (!lines[0].isEmpty()) {
+            stop("the amount sign's first line already holds \"" + lines[0] + "\"");
+            return;
+        }
+        Button done = null;
+        for (GuiEventListener child : sign.children()) {
+            if (child instanceof Button b && b.getMessage().getString().equals(CommonComponents.GUI_DONE.getString())) {
+                done = b;
+            }
+        }
+        if (done == null) {
+            stop("the amount sign has no Done button");
+            return;
+        }
+        if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
+            return; // retried next tick
+        }
+        String text = Integer.toString(customAmount);
+        for (int i = 0; i < text.length(); i++) {
+            sign.charTyped(new CharacterEvent(text.charAt(i)));
+        }
+        String typed = ((SignEditScreenAccessor) sign).killer560smod$getMessages()[0];
+        if (!text.equals(typed)) {
+            for (int i = 0; i < typed.length(); i++) {
+                sign.keyPressed(new KeyEvent(InputConstants.KEY_BACKSPACE, 0, 0));
+            }
+            stop("typing " + text + " into the amount sign left \"" + typed + "\" - nothing was sent");
+            return;
+        }
+        done.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
+        LOGGER.info("[BazaarFlip] Typed {} into the amount sign and pressed Done", text);
+        custom = Custom.AFTER_SIGN;
+        pendingBuy = true;
+        pendingBuyAtMs = now;
+        cannotAfford = false;
+        stateSinceMs = now;
+        clicks++;
+        nextActionAtMs = now + randomDelay(cfg);
+    }
+
+    /** After Done: a Confirm Instant Buy page is confirmed (once, if it states the amount); anything else waits. */
+    private static void tickAfterSign(Minecraft client, Screen open, BazaarFlipConfig cfg, long now) {
+        if (open instanceof AbstractSignEditScreen) {
+            stop("Hypixel asked for the amount again (it did not take " + customAmount + ")");
+            return;
+        }
+        if (!(open instanceof AbstractContainerScreen<?> screen) || confirmClicked) {
+            return; // the items, the closed menu, or the page after a confirm: the pendingBuy checks above decide
+        }
+        if (now < nextActionAtMs || !settled(screen)) {
+            return;
+        }
+        String title = BazaarFlipMenus.titleOf(screen);
+        if (title.equals(CONFIRM_INSTANT_BUY)) {
+            confirmStep(client, screen, cfg);
+            return;
+        }
+        BazaarPages.Page page = BazaarFlipMenus.page(screen);
+        if (page.kind() != BazaarPages.Kind.INSTANT_BUY) {
+            stop("after the amount sign Hypixel showed " + BazaarFlipMenus.describe(screen));
+        }
+        // Back on the Instant Buy page: the purchase lands (or times out) via the pendingBuy checks.
+    }
+
+    /**
+     * The Confirm Instant Buy page. No source shows its layout, so nothing is clicked by position or by a guessed name:
+     * the one item whose lore states "Amount: N" for exactly the typed amount, with a price under the NPC's per unit
+     * and within the purse, is clicked; anything else stops with the page described.
+     */
+    private static void confirmStep(Minecraft client, AbstractContainerScreen<?> screen, BazaarFlipConfig cfg) {
+        BazaarPages.Item match = null;
+        int matches = 0;
+        double price = -1;
+        for (BazaarPages.Item it : confirmItems(screen)) {
+            if (BazaarFlipMenus.loreAmount(it.lore()) == customAmount) {
+                double p = BazaarFlipMenus.lorePrice(it.lore());
+                if (p > 0) {
+                    match = it;
+                    price = p;
+                    matches++;
+                }
+            }
+        }
+        if (matches != 1) {
+            stop("couldn't find one confirm button for " + customAmount + " on " + BazaarFlipMenus.describe(screen));
+            return;
+        }
+        String why = priceOk(price, customAmount, readPurse());
+        if (why != null) {
+            stop(why + " - not confirming");
+            return;
+        }
+        // changesPage: nothing more is judged on this page; the purchase, a closed menu or the next page decides.
+        if (click(client, screen, match.slot(), ContainerInput.PICKUP, cfg, true)) {
+            confirmClicked = true;
+            pendingBuyAtMs = System.currentTimeMillis();
+            LOGGER.info("[BazaarFlip] Confirmed {} units for {} coins", customAmount, Math.round(price));
+        }
+    }
+
+    private static List<BazaarPages.Item> confirmItems(AbstractContainerScreen<?> screen) {
+        List<BazaarPages.Item> out = new ArrayList<>();
+        for (Slot slot : BazaarFlipMenus.menuSlots(screen.getMenu())) {
+            ItemStack stack = slot.getItem();
+            String name = BazaarFlipMenus.nameOf(stack);
+            if (stack.isEmpty() || name.isBlank()) {
+                continue;
+            }
+            out.add(new BazaarPages.Item(slot.index, name,
+                    com.killer560.hub.croesus.DungeonChestValuer.cleanLore(stack), false));
+        }
+        return out;
     }
 
     /** Buying is over for this cycle: sell what was bought, or stop if that was nothing. */
     private static void doneBuying(String why) {
         Minecraft client = Minecraft.getInstance();
         int bought = 0;
-        if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen && target != null && carriedAtStart >= 0) {
-            bought = BazaarFlipMenus.countProduct(screen.getMenu(), target.productId(), target.displayName()) - carriedAtStart;
+        if (target != null && carriedAtStart >= 0) {
+            bought = carried(client) - carriedAtStart;
         }
+        custom = Custom.NONE;
         if (bought <= 0) {
             stop("bought nothing - " + why);
             return;
         }
+        cycleBought = bought;
         ModChat.send("Bazaar Flip", ModChat.text("Bought "), ModChat.value(String.format(Locale.US, "%,d", bought)),
                 ModChat.text(" " + target.displayName()), ModChat.dim(" (" + why + ") - selling to the NPC"));
         if (client.player != null && McCompat.screen(client) != null) {
@@ -708,10 +1127,17 @@ public final class BazaarFlipFeature {
         if (sellPendingSlot >= 0) {
             ItemStack still = sellPendingSlot < menu.slots.size() ? menu.slots.get(sellPendingSlot).getItem() : ItemStack.EMPTY;
             if (!BazaarFlipMenus.isProduct(still, target.productId(), target.displayName())) {
+                cycleSold += sellPendingCount;
                 sellPendingSlot = -1;
             } else if (now - sellPendingAtMs > SELL_CONFIRM_TIMEOUT_MS) {
-                stop("the NPC didn't take the " + target.displayName()
-                        + " (selling from /trades needs an active Booster Cookie)");
+                if (BazaarFlipNpcLimit.remaining() < sellPendingCount * target.npcSellPrice()) {
+                    BazaarFlipNpcLimit.markReached();
+                    endCycleEarly(client, "the NPC didn't take the " + target.displayName() + " - " + npcLimitText());
+                } else {
+                    endCycleEarly(client, "the NPC didn't take the " + target.displayName()
+                            + " (selling from /trades needs an active Booster Cookie, and the NPCs pay at most "
+                            + String.format(Locale.US, "%,.0f", BazaarFlipNpcLimit.DAILY_LIMIT) + " coins a day)");
+                }
                 return;
             } else {
                 return;
@@ -724,21 +1150,79 @@ public final class BazaarFlipFeature {
             if (!BazaarFlipMenus.isProduct(slot.getItem(), target.productId(), target.displayName())) {
                 continue;
             }
+            int count = slot.getItem().getCount();
             // A shift-click on his own stack sells it, the way any Hypixel shop takes items.
             if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
                 sellPendingSlot = slot.index;
+                sellPendingCount = count;
                 sellPendingAtMs = now;
             }
             return;
         }
-        cycles++;
-        LOGGER.info("[BazaarFlip] Cycle {} done: sold every {}", cycles, target.productId());
-        ModChat.send("Bazaar Flip", ModChat.good("Sold. "), ModChat.dim("Cycle " + cycles + " done."));
+        LOGGER.info("[BazaarFlip] Sold every {}", target.productId());
         if (client.player != null) {
             client.player.closeContainer();
         }
+        setState(State.LOG_CYCLE);
+    }
+
+    /** Every unit left for the NPC: log the cycle as soon as each "You sold" line is in (bounded). */
+    private static void tickLogCycle(Minecraft client) {
+        if (cycleSoldLines < cycleSold && System.currentTimeMillis() - stateSinceMs < SOLD_LINES_TIMEOUT_MS) {
+            return;
+        }
+        cycles++;
+        logCycle();
+        ModChat.send("Bazaar Flip", ModChat.good("Sold. "), ModChat.dim("Cycle " + cycles + " done."));
         target = null;
         setState(State.SCANNING);
+    }
+
+    /**
+     * The cycle's numbers to the profit tracker, from Hypixel's lines: spent = its "[Bazaar] Bought" coins, received =
+     * its "You sold" coins. Units that were bought and not sold add their cost and no revenue. When a line was missed
+     * (bought units with no Bought line), the log says so; the record still holds what Hypixel did report.
+     */
+    private static void logCycle() {
+        if (target == null || (cycleBought <= 0 && cycleSpent <= 0)) {
+            return;
+        }
+        Double purseNow = readPurse();
+        double purseDelta = cyclePurseStart != null && purseNow != null ? purseNow - cyclePurseStart : Double.NaN;
+        if (cycleBoughtLines != cycleBought || cycleSoldLines != cycleSold) {
+            LOGGER.warn("[BazaarFlip] Cycle lines vs inventory: bought {} (lines {}), sold {} (lines {})", cycleBought,
+                    cycleBoughtLines, cycleSold, cycleSoldLines);
+        }
+        double tax = cycleSpent * BazaarFlipScanner.INSTANT_BUY_TAX + cycleReceived * BazaarFlipScanner.NPC_SELL_FEE;
+        BazaarFlipProfitLog.Cycle c = BazaarFlipProfitLog.record(target.productId(), target.displayName(),
+                Math.max(cycleBought, cycleBoughtLines), cycleSoldLines > 0 ? cycleSoldLines : cycleSold, cycleSpent,
+                cycleReceived, tax, purseDelta);
+        LOGGER.info("[BazaarFlip] Logged cycle: spent {}, received {}, net {} (purse moved {})", Math.round(c.spent()),
+                Math.round(c.received()), Math.round(c.net()), Double.isNaN(purseDelta) ? "?" : Math.round(purseDelta));
+    }
+
+    /** Selling stopped part-way (the NPC sell limit, a refused sale): log what was sold, then stop. */
+    private static void endCycleEarly(Minecraft client, String why) {
+        logCycle();
+        if (client.player != null && McCompat.screen(client) instanceof AbstractContainerScreen<?>) {
+            client.player.closeContainer();
+        }
+        stop(why);
+    }
+
+    /** Hypixel said the daily NPC sell limit is reached: no more buying; whatever was bought stays unsold. */
+    private static void onNpcLimit(Minecraft client) {
+        if (state == State.SELL && sellPendingSlot >= 0) {
+            sellPendingSlot = -1;
+        }
+        if (state == State.BAZAAR || state == State.OPEN_TRADES || state == State.WAIT_TRADES_MENU || state == State.SELL) {
+            if (cycleBought <= 0 && target != null && carriedAtStart >= 0) {
+                cycleBought = Math.max(0, carried(client) - carriedAtStart);
+            }
+            endCycleEarly(client, npcLimitText());
+            return;
+        }
+        stop(npcLimitText());
     }
 
     /** The Trades menu's own items may be anything; it is judged settled once something has been in it briefly. */
@@ -837,15 +1321,23 @@ public final class BazaarFlipFeature {
                         ? String.format(Locale.US, " (%d cycle(s), purse %,.0f from %,.0f)", cycles, purse, startPurse)
                         : " (" + cycles + " cycle(s))"));
         LOGGER.info("[BazaarFlip] Finished: {} after {} cycle(s)", why, cycles);
-        state = State.IDLE;
-        target = null;
+        lastStopReason = why;
+        reset();
     }
 
     private static void stop(String reason) {
         LOGGER.info("[BazaarFlip] Stopped: {}", reason);
         ModChat.send("Bazaar Flip", ModChat.bad("Stopped: "), ModChat.text(reason),
                 ModChat.dim(" (" + cycles + " cycle(s))"));
+        lastStopReason = reason;
+        reset();
+    }
+
+    private static void reset() {
         state = State.IDLE;
         target = null;
+        custom = Custom.NONE;
+        pendingBuy = false;
+        npcLimitHit = false;
     }
 }

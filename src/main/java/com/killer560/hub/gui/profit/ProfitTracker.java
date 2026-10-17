@@ -25,7 +25,18 @@ public enum ProfitTracker {
             parent -> new CroesusTrackerScreen(parent, CroesusTrackerScreen.View.OVERVIEW),
             ProfitTracker::croesusSummary),
     EXPERIMENTS("Experimentation Table", "Superpairs, Chronomatron, Ultrasequencer", List.of("etable", "experiments"),
-            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary);
+            ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary),
+    /**
+     * Cheat build only (killer560, 2026-10-16: "only have it show on cheat version"). Every string and the screen and log
+     * references sit behind {@code CHEAT_FEATURES_ENABLED ? ... : ...}, which javac folds, so a legit jar's copy of this
+     * constant has an empty name, no words, and no reference to the Bazaar Flipper at all; {@link #available()} skips it.
+     */
+    BAZAAR_FLIP(com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Bazaar Flipper" : "",
+            com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Bazaar instant buys sold to the NPC" : "",
+            com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? List.of("bazaarflip", "bzflip") : List.of(""),
+            com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? BazaarFlipProfitScreen::new : parent -> parent,
+            com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? ProfitTracker::bazaarFlipSummary
+                    : () -> new Summary("", ProfitPanels.DIM));
     // MINING ("Mining Profit") and NUCLEUS ("Nucleus Runs") are shelved until after 2.0 with the rest of the mining
     // features - shelved/mining/README.md has both constants and their summary methods to put back.
 
@@ -66,13 +77,24 @@ public enum ProfitTracker {
         }
     }
 
+    /** The trackers this build shows: every one, minus the Bazaar Flipper's in a legit jar. */
+    public static List<ProfitTracker> available() {
+        List<ProfitTracker> out = new ArrayList<>();
+        for (ProfitTracker t : values()) {
+            if (t != BAZAAR_FLIP || com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
     /** The tracker a typed word names, or null. */
     public static ProfitTracker byWord(String word) {
         if (word == null) {
             return null;
         }
         String w = word.toLowerCase(Locale.ROOT);
-        for (ProfitTracker t : values()) {
+        for (ProfitTracker t : available()) {
             if (t.words.contains(w)) {
                 return t;
             }
@@ -83,10 +105,24 @@ public enum ProfitTracker {
     /** Every accepted word, in display order: what tab completion offers and what an unknown name is told. */
     public static List<String> allWords() {
         List<String> out = new ArrayList<>();
-        for (ProfitTracker t : values()) {
+        for (ProfitTracker t : available()) {
             out.addAll(t.words);
         }
         return out;
+    }
+
+    private static Summary bazaarFlipSummary() {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return new Summary("", ProfitPanels.DIM);
+        }
+        com.killer560.hub.bazaarflip.BazaarFlipProfitLog.Totals t = com.killer560.hub.bazaarflip.BazaarFlipProfitLog
+                .totals(com.killer560.hub.bazaarflip.BazaarFlipProfitLog.scope());
+        if (t.cycles() == 0) {
+            return new Summary("No flips finished yet", ProfitPanels.DIM);
+        }
+        long net = Math.round(t.net());
+        return new Summary(ProfitPanels.signedCoins(net) + " net, " + t.cycles() + " cycles",
+                net >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD);
     }
 
     private static Summary croesusSummary() {

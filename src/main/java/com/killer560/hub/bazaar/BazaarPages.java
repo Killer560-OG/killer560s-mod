@@ -94,7 +94,18 @@ public final class BazaarPages {
     static final Pattern BAZAAR_TITLE = Pattern.compile("^Bazaar ➜ (.{1,40})$");
     /** "A ➜ B": group and product pages. Both halves bounded; "(1/3) " page prefixes are inside the first. */
     static final Pattern ARROW_TITLE = Pattern.compile("^(.{1,48}) ➜ (.{1,48})$");
-    static final Pattern INSTANT_BUY_TITLE = Pattern.compile("^(.{1,48}) ➜ Instant Buy$");
+    /**
+     * "Wheat ➜ Instant Buy", and every cut of it. Hypixel cuts a container title at about 32 characters: titles in
+     * killer560's logs stop at 30-31 visible characters ("Enchanted Pufferfish ➜ Instant", "Enchanted Gunpowder ➜
+     * Instant B", "EXP Bottles ➜ Titanic Experienc"), so for any product name of 17 or more characters the suffix is
+     * cut. Group 1 is the product name; the suffix may be any non-empty start of "Instant Buy". A title cut before the
+     * arrow is {@link #instantBuyCut}'s job.
+     */
+    static final Pattern INSTANT_BUY_TITLE = Pattern.compile("^(.{1,48}) ➜ I(?:n(?:s(?:t(?:a(?:n(?:t(?: (?:B(?:uy?)?)?)?)?)?)?)?)?)?$");
+    /** The full suffix every Instant Buy title starts out with, before Hypixel cuts it. */
+    public static final String INSTANT_BUY_SUFFIX = " ➜ Instant Buy";
+    /** Shortest title that can be a cut one: Hypixel only cuts at its limit (30-31 visible characters seen). */
+    public static final int CUT_TITLE_MIN = 26;
     static final Pattern ORDERS_TITLE = Pattern.compile("^(?:Your|Co-op) Bazaar Orders$");
     static final Pattern PRICE_LINE = Pattern.compile("^(?:Buy|Sell) price: [\\d,.]{1,20} coins?$");
     static final Pattern PAGE_PREFIX = Pattern.compile("^\\(\\d{1,3}/\\d{1,3}\\) ");
@@ -108,7 +119,8 @@ public final class BazaarPages {
             return false;
         }
         String t = title.trim();
-        return strongTitle(t) || t.equals("Are you sure?") || (ARROW_TITLE.matcher(t).matches() && !t.contains("Museum"));
+        return strongTitle(t) || t.equals("Are you sure?") || (ARROW_TITLE.matcher(t).matches() && !t.contains("Museum"))
+                || instantBuyCut(t);
     }
 
     /** Titles only the Bazaar uses: the reskin may hide Hypixel's GUI for these while the items load. Generic ones
@@ -283,6 +295,15 @@ public final class BazaarPages {
             return has(items, "Custom Amount") && hasAny(items, "Buy only one!", "Buy a stack!", "Fill my inventory!")
                     ? Kind.INSTANT_BUY : Kind.UNKNOWN;
         }
+        if (instantBuyCut(title)) {
+            // Cut before the arrow (a product name of 29+ characters): only the items can say what it is, so the
+            // bar is higher - Custom Amount and at least two of the three Instant Buy options, which no other page has.
+            int options = (has(items, "Buy only one!") ? 1 : 0) + (has(items, "Buy a stack!") ? 1 : 0)
+                    + (has(items, "Fill my inventory!") ? 1 : 0);
+            if (has(items, "Custom Amount") && options >= 2) {
+                return Kind.INSTANT_BUY;
+            }
+        }
         if (ARROW_TITLE.matcher(title).matches() && !title.contains("Museum")) {
             if (has(items, "Buy Instantly") && hasAny(items, "Create Buy Order", "Create Sell Offer")) {
                 return Kind.PRODUCT;
@@ -294,6 +315,37 @@ public final class BazaarPages {
         return Kind.UNKNOWN;
     }
 
+    /** A title Hypixel cut before (or right at) the " ➜ " of "&lt;item&gt; ➜ Instant Buy": long, and no arrow with text
+     *  after it. Whether it IS an Instant Buy page is the items' call ({@link #kindOf}). */
+    static boolean instantBuyCut(String title) {
+        if (title == null || title.length() < CUT_TITLE_MIN || title.length() > 48) {
+            return false;
+        }
+        int arrow = title.indexOf('➜');
+        return arrow < 0 || arrow == title.length() - 1;
+    }
+
+    /**
+     * Whether {@code title} (colour-stripped, trimmed) is the Instant Buy page of {@code productName}, allowing for
+     * Hypixel's cut: either the whole "&lt;name&gt; ➜ Instant Buy", or a start of it at least {@link #CUT_TITLE_MIN} long.
+     * A cut product name is only ever accepted as the start of THIS product's title, so a page for another product
+     * whose name shares the first characters still needs those characters to be followed by exactly what this one's
+     * are. (Two products whose names agree on their first ~30 characters cannot be told apart by title at all; the
+     * flipper only reaches this page from the product page it verified by the product item's full name.)
+     */
+    public static boolean isInstantBuyTitleFor(String title, String productName) {
+        if (title == null || productName == null || productName.isBlank()) {
+            return false;
+        }
+        String t = title.trim();
+        String full = productName.trim() + INSTANT_BUY_SUFFIX;
+        if (t.equalsIgnoreCase(full)) {
+            return true;
+        }
+        return t.length() >= CUT_TITLE_MIN && t.length() < full.length()
+                && full.regionMatches(true, 0, t, 0, t.length());
+    }
+
     /** Header text: "Farming", "Wheat & Seeds", "Wheat", or the step's name. */
     static String heading(Kind kind, String title) {
         Matcher m;
@@ -302,7 +354,8 @@ public final class BazaarPages {
             case SEARCH -> (m = BAZAAR_TITLE.matcher(title)).matches() ? m.group(1) : title;
             case GROUP, PRODUCT -> (m = ARROW_TITLE.matcher(title)).matches()
                     ? PAGE_PREFIX.matcher(m.group(1)).replaceFirst("") + " › " + m.group(2) : title;
-            case INSTANT_BUY -> (m = INSTANT_BUY_TITLE.matcher(title)).matches() ? m.group(1) + " › Instant Buy" : title;
+            case INSTANT_BUY -> (m = INSTANT_BUY_TITLE.matcher(title)).matches() ? m.group(1) + " › Instant Buy"
+                    : title.replaceFirst("\\s*➜$", "") + "... › Instant Buy";
             case ORDER_AMOUNT -> "Buy Order › How many?";
             case ORDER_PRICE -> "Buy Order › Price";
             case CONFIRM_BUY -> "Buy Order › Confirm";

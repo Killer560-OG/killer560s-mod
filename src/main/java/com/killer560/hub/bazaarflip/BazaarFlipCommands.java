@@ -76,9 +76,9 @@ public final class BazaarFlipCommands {
         BazaarFlipConfig cfg = BazaarFlipConfig.getInstance();
         ModChat.send(FEATURE, ModChat.text("Scanning with purse "),
                 ModChat.value(String.format(Locale.US, "%,.0f", purse)),
-                ModChat.dim(", ranking by " + cfg.getRankingMode().display
-                        + ", floor " + String.format(Locale.US, "%,d", cfg.getMinProfitPerRun()) + "..."));
-        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), cfg.getMinProfitPerRun())
+                ModChat.dim(", ranking by " + cfg.getRankingMode().display + ", NPCs pay "
+                        + String.format(Locale.US, "%,.0f", BazaarFlipNpcLimit.remaining()) + " more today..."));
+        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), BazaarFlipNpcLimit.remaining())
                 .thenAccept(result -> net.minecraft.client.Minecraft.getInstance().execute(() -> print(result, top)));
     }
 
@@ -92,8 +92,7 @@ public final class BazaarFlipCommands {
             return;
         }
         ModChat.send(FEATURE, ModChat.dim(result.productsWithNpcPrice() + " Bazaar products have an NPC price; "),
-                ModChat.value(result.profitableCount() + " profitable"), ModChat.dim("; "),
-                ModChat.value(result.ranked().size() + " clear the floor"));
+                ModChat.value(result.profitableCount() + " profitable"), ModChat.dim(" after fees"));
         List<BazaarFlipCandidate> ranked = result.ranked();
         for (int i = 0; i < Math.min(top, ranked.size()); i++) {
             BazaarFlipCandidate c = ranked.get(i);
