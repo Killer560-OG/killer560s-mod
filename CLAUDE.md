@@ -83,6 +83,10 @@ a thousand call sites being guarded. `roomsim/` and `bazaarflip/` were the last 
 `LoggerFactory` directly, and so the last two still logging in a release; both went through `ModLog` on
 2026-09-30, so a release jar is now quiet everywhere.
 
+Automation chat (killer560, 2026-10-16): a running auto says only that it started or stopped, a server correction and
+a real failure; every progress line goes through `ModChat.log` (same words, logger `killer560smod-chat`, testkit LogTap
+tag "(chat)"). The sim says only what Hypixel says, at Hypixel's pace.
+
 Every config path goes through `util/ModPaths.config("killer560smod-<name>")`, never `FabricLoader.getConfigDir()`
 directly: files live in `config/killer560/<category>/<feature>/` under their unchanged names, and the folder is
 picked from the prefix table in `ModPaths` (add a row for a new feature, or it lands in `other/`). Code that lists
