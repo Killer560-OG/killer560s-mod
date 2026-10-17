@@ -534,3 +534,13 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   flight, the settle between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret
   passed mid-route is now taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's
   pickup and placing too); item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).
+- **A warp the server refused is sent once more, not waited out** (fullclear-1016 run 019, his Doors #13 hop 3): the
+  server's ray stopped at a jungle log, no landing came, and the route sat out the 61-tick timeout and then Route Stall.
+  With no landing a round trip on (`RightClick.eatenRetryTicks`) and him not moved, `RouteExecutor.retryAim` aims at the
+  same block with a look that holds within `EtherSearch.AIM_MARGIN` and the warp goes once more; a saved hop fired from
+  its own spot is re-aimed first when its look only lands for its exact floats (`TeleportUtils.holdsOn`). Testkit
+  96-ar-1016-refused. Risk on Hypixel: a landing slower than 1.5 round trips + 2 ticks (plus measured server lag) would be
+  followed by a second warp; ServerLag covers stalls, not a single late packet.
+- **62-argrim-chain's 20/s pace is the server's answer time.** The same jar read 1.00 and 1.18-1.55 ticks per warp an hour
+  apart on a busy machine, base fcba4045 included, and every slow warp still went on its landing's tick; there was no
+  regressing commit. The case judges 20/s against the round trip it measures (testkit fullclear-1016).
