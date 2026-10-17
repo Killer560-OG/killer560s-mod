@@ -221,22 +221,30 @@ public final class AutoPuzzlesFeature {
         if (now - quizPendingSinceMs < cfg.getQuizDelayMs() || McCompat.screen(client) != null) {
             return;
         }
+        // THE BUTTON - see below. Asked before the gate so a click the reported look misses turns the body first.
+        BlockPos quizClick = QuizSolverFeature.getCorrectAnswerButton(client.level);
         String blocker = null;
-        if (client.player.isShiftKeyDown()) {
+        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            blocker = "an Interactive Map trip is moving him";
+        } else if (client.player.isShiftKeyDown()) {
             blocker = "sneaking";
         } else if (!answerHologramsUp(client)) {
             blocker = "answer holograms (ⓒ stand) not up yet";
-        } else if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), answer) > QUIZ_REACH_SQ) {
-            // To the BOX - see the note in AutoWater. Pairing a box-measured limit with a centre-measured
-            // distance refuses blocks the server would accept.
+        } else if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), quizClick) > QUIZ_REACH_SQ) {
+            // To the BOX of the block the click goes to (the button) - see the note in AutoWater. Pairing a
+            // box-measured limit with a centre-measured distance refuses blocks the server would accept.
             blocker = String.format(java.util.Locale.US, "out of reach (%.2f blocks)",
-                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), answer)));
+                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), quizClick)));
+            moveIntoQuizReach(client, quizClick);
         }
         if (blocker != null) {
+            if (!blocker.equals(quizBlockerLogged)) {
+                quizBlockerLogged = blocker;
+                LOGGER.info("[AutoPuzzles] Quiz: answer {} known, waiting - {}", quizClick.toShortString(), blocker);
+            }
             return;
         }
-        // THE BUTTON - see below. Asked before the gate so a click the reported look misses turns the body first.
-        BlockPos quizClick = QuizSolverFeature.getCorrectAnswerButton(client.level);
+        quizBlockerLogged = null;
         if (!AutoPuzzleUtil.gateWorldClick(client, quizClick)) {
             return; // gate held this tick back (or the body was turned to it) - not marked acted, clicked later
         }
@@ -256,6 +264,35 @@ public final class AutoPuzzlesFeature {
         ModChat.send(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));
     }
 
+    /** The last "waiting - why" Auto Quiz logged, so each reason is said once. */
+    private static String quizBlockerLogged = null;
+    /** The button the last move into reach was for: one trip per answer, not one a tick. */
+    private static BlockPos quizMovedFor = null;
+
+    /**
+     * The answer's button is out of reach from where he stands: an Interactive Map trip onto the nearest block from which
+     * both eyes reach it (fullclear-1016 run 002: Auto Secret's trip into Quiz ends at the room's spot, relative 15, 68, 5,
+     * which reaches only the middle pillar's buttons; the answer was ⓒ and Auto Quiz waited out the 30 s Puzzle Wait,
+     * saying nothing). Once per answer; the click goes when he stands in reach.
+     */
+    private static void moveIntoQuizReach(Minecraft client, BlockPos button) {
+        if (button.equals(quizMovedFor) || !AutoPuzzleUtil.gateWorldClick()) {
+            return;
+        }
+        java.util.List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client, java.util.List.of(button),
+                Math.sqrt(QUIZ_REACH_SQ) - 0.1, false, client.player.position());
+        if (spots.isEmpty()) {
+            quizMovedFor = button;
+            LOGGER.info("[AutoPuzzles] Quiz: no standable block reaches the answer's button {}", button.toShortString());
+            return;
+        }
+        if (AutoPuzzleUtil.pathIfMapOn(spots.get(0), null, true)) {
+            quizMovedFor = button;
+            LOGGER.info("[AutoPuzzles] Quiz: the answer's button {} is out of reach - moving onto {}",
+                    button.toShortString(), spots.get(0).toShortString());
+        }
+    }
+
     private static boolean answerHologramsUp(Minecraft client) {
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof ArmorStand && entity.distanceToSqr(client.player) <= QUIZ_HOLOGRAM_RADIUS_SQ
@@ -271,6 +308,8 @@ public final class AutoPuzzlesFeature {
         quizPendingPos = null;
         quizPendingSinceMs = 0L;
         quizWaitLogged = false;
+        quizMovedFor = null;
+        quizBlockerLogged = null;
     }
 
     // ------------------------------------------------------------------
