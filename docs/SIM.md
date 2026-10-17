@@ -3144,6 +3144,17 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
   Ruin with Layers on one drawn floor, and `/reset` putting Grass Ruin's window back (1978 is a screenshot survey, run
   only when named). Reach in those is to the lever's block box: Purple Flags' lever hangs at the top of a shaft, 4.4 to
   its box from the floor and 4.9 to its centre.
+- **Gates can be lattices of WALL blocks** (2026-10-17, sim-rails-spider-1017): Rails' and Spider's are cobblestone walls
+  set in a cobblestone facade ("the cobblestone fences"). Grown together with the facade they were one shapeless body that
+  filled no box, so the first sweep never saw them; `tools/lever_gates.py` now grows walls and fences as their own class,
+  and the rules take only the `cobblestone_wall` blocks. Floor hatches (Supertall's 3 by 3, Museum's panel seen from above)
+  are walls too: a gate may be thin in any axis.
+- **/simwhere said "not inside any placed room" for a room's walls.** It picked the nearest cell of the live map's
+  11 x 11 grid, whose odd cells are the connectors between tiles; a block in a room's outer rows is as near a connector
+  as its tile, and a connector belongs to no 1x1 room (Spider's facade, Atlas' log wall). `SimWhere.roomAt` now asks each
+  placed room's pasted footprint, the same origin and size the paste uses. Testkit 1980 checks every column of each
+  room's two outer rings, and reads his Rails point back as capture (56, 51, 42) - proof the solo build lands where his
+  did - and his Spider and Atlas points as (21, 84, 33) and (8, 81, 25).
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
