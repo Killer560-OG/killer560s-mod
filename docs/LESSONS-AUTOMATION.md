@@ -25,7 +25,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   62-argrim-1016-autosecret-key, Post on main, its trace `[client_tick_end, set_carried_item, pong]`. Every automation swap
   now goes through `util/HotbarSelect.select`, which outside a tick only sets the slot (vanilla's `gameMode.tick` sends it
   at the start of the next tick, before the movement packet, as for the scroll wheel). The testkit's
-  `PacketTrace.sentOutsideTick()` catches the order without waiting for Grim's luck.
+  `PacketTrace.sentOutsideTick()` catches the order without waiting for Grim's luck. Since hotbar-select-rest-1016 there
+  is no other slot write in the mod: Breaker Aura, Auto i4, MaskSwapper's rod, Secret Triggerbot, Auto Debuff, the auto
+  puzzles' `AutoPuzzleUtil.swapTo`, the pearl hopper and AP3's slot restores went over too (all START_CLIENT_TICK but
+  AP3's, which is END and was already slot-only); a new swap goes through `HotbarSelect.select`, never `setSelectedSlot`.
 - An await met by the chest CLICK (2026-10-05 rules) lets the route warp before the chest's window arrives, which is
   right - Hypixel credits the chest on the click - but the late window then stopped the route ("a screen opened"). A
   container screen within 2 s of our own chest click is now waited under (98b457be; 96-ar-play emulates the late window).

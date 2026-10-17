@@ -3,6 +3,7 @@ package com.killer560.hub.dungeonextras;
 import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
+import com.killer560.hub.util.HotbarSelect;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.minecraft.client.Minecraft;
@@ -14,7 +15,6 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
@@ -417,9 +417,12 @@ public final class BreakerAuraFeature {
         if (swappedFromSlot < 0) {
             swappedFromSlot = selected;
         }
-        player.getInventory().setSelectedSlot(breakerSlot);
-        player.connection.send(new ServerboundSetCarriedItemPacket(breakerSlot));
-        swapArmedTicks = Math.max(0, cfg.getBreakerAuraSwapDelayTicks() - 1);
+        // START_CLIENT_TICK, so HotbarSelect sends it now, ahead of this tick's movement packet. Were it ever called
+        // outside a tick the slot would go out at the start of the next one, so that tick waits too: no dig shares a
+        // tick with a deferred swap.
+        boolean deferred = !HotbarSelect.inTick();
+        HotbarSelect.select(Minecraft.getInstance(), player, breakerSlot);
+        swapArmedTicks = Math.max(0, cfg.getBreakerAuraSwapDelayTicks() - 1) + (deferred ? 1 : 0);
         LOGGER.info("[DungeonExtras] Breaker Aura swapped {} -> {} for the breaker, first break in {} tick(s).",
                 selected, breakerSlot, swapArmedTicks);
     }
@@ -748,8 +751,7 @@ public final class BreakerAuraFeature {
         if (player.getInventory().getSelectedSlot() == back) {
             return;
         }
-        player.getInventory().setSelectedSlot(back);
-        player.connection.send(new ServerboundSetCarriedItemPacket(back));
+        HotbarSelect.select(client, player, back);
         LOGGER.info("[DungeonExtras] Breaker Aura swapped back to slot {} ({}).", back, why);
     }
 
