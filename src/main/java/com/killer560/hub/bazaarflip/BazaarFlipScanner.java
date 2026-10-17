@@ -62,6 +62,20 @@ public final class BazaarFlipScanner {
     public static final double INSTANT_BUY_TAX = 0.0;
     public static final double NPC_SELL_FEE = 0.0;
 
+    /**
+     * Hypixel's instant-buy QUOTE margin. hypixelskyblock.minecraft.wiki, Bazaar (read 2026-10-17): "The Bazaar will quote a
+     * price 4% higher than the cheapest sell offer ... If the order goes through at a price below the additional 4%, the
+     * extra Coins are refunded." Measured the same day: the API's ENCHANTED_PUFFERFISH book started at 2,339.5 (snapshot 7 s
+     * old) while his Instant Buy page said 2,433.1 each - 2,339.6 x 1.04. So the Instant Buy page's prices are the book
+     * plus 4% (not a cost: the 4% comes back), and the purse must cover the quote before Hypixel will run the buy. Until
+     * this was known the flipper compared the quote with the NPC price and refused every thin flip ("Enchanted Pufferfish
+     * ... 2,433.1 each is no longer below the NPC's 2,400", killer560, 2026-10-17).
+     */
+    public static final double INSTANT_BUY_QUOTE_MARGIN = 0.04;
+
+    /** A snapshot older than this (by the API's own {@code lastUpdated}) is refetched once, then refused. */
+    public static final long MAX_BOOK_AGE_MS = 60_000L;
+
     /** Outcome of one scan. {@code error} is null on success. */
     public record ScanResult(
             long atMs,
@@ -86,21 +100,49 @@ public final class BazaarFlipScanner {
     private BazaarFlipScanner() {
     }
 
-    /** The most recent scan, or null if none has completed this session. */
-    /** Testkit hook: when set, every scan answers with this one candidate instead of fetching (the harness runs offline). */
-    private static volatile BazaarFlipCandidate testCandidate;
+    /**
+     * Testkit hook: when set, every scan answers with these candidates (best first) instead of fetching (the harness
+     * runs offline). Memory only - never saved - and refused unless the JVM is a harness's (the testkit always passes
+     * {@code -Dkiller560.net.offline=true} and {@code -Dkiller560.test.noExternalOpen=true}; see docs/TESTING-HOOKS.md),
+     * so a real session can never be answered by a test's prices (killer560, 2026-10-17: "it is pulling data from tests
+     * earlier").
+     */
+    private static volatile List<BazaarFlipCandidate> testCandidates;
+
+    /** True only in a harness JVM (the testkit's properties). */
+    public static boolean testHooksAllowed() {
+        return Boolean.getBoolean("killer560.net.offline") || Boolean.getBoolean("killer560.test.noExternalOpen");
+    }
 
     /** Testkit only: make scans return one fixed flip, {@code units} at {@code unitCost} each, sold at {@code npc}. */
     public static void setTestCandidateForTest(String productId, String displayName, int stackSize, int units,
                                                double unitCost, double npc) {
+        testCandidates = null;
+        addTestCandidateForTest(productId, displayName, stackSize, units, unitCost, npc);
+    }
+
+    /** Testkit only: one more candidate, ranked after those already set. */
+    public static void addTestCandidateForTest(String productId, String displayName, int stackSize, int units,
+                                               double unitCost, double npc) {
+        if (!testHooksAllowed()) {
+            LOGGER.warn("[BazaarFlip] Ignored a test candidate outside a test harness");
+            return;
+        }
         double spend = units * unitCost;
         double revenue = units * npc;
-        testCandidate = new BazaarFlipCandidate(productId, displayName, stackSize, units, spend, npc, revenue,
-                revenue - spend, (revenue - spend) / spend * 100.0, false);
+        List<BazaarFlipCandidate> list = new ArrayList<>(testCandidates == null ? List.of() : testCandidates);
+        list.add(new BazaarFlipCandidate(productId, displayName, stackSize, units, spend, npc, revenue,
+                revenue - spend, (revenue - spend) / spend * 100.0, false));
+        testCandidates = List.copyOf(list);
     }
 
     public static void clearTestCandidateForTest() {
-        testCandidate = null;
+        testCandidates = null;
+    }
+
+    /** Whether a test candidate is set (the testkit checks a real-looking JVM refuses one). */
+    public static boolean hasTestCandidateForTest() {
+        return testCandidates != null;
     }
 
     public static ScanResult getLast() {
@@ -133,40 +175,77 @@ public final class BazaarFlipScanner {
      */
     public static CompletableFuture<ScanResult> scanAsync(double purse, BazaarFlipConfig.RankingMode mode,
                                                           double npcCoinsLeft) {
-        BazaarFlipCandidate fixed = testCandidate;
+        List<BazaarFlipCandidate> fixed = testHooksAllowed() ? testCandidates : null;
         if (fixed != null) {
-            int units = (int) Math.min(fixed.units(), Math.floor(npcCoinsLeft / fixed.npcSellPrice()));
             List<BazaarFlipCandidate> list = new ArrayList<>();
-            if (units > 0) {
-                double unit = fixed.averageUnitCost();
+            for (BazaarFlipCandidate c : fixed) {
+                int units = (int) Math.min(c.units(), Math.floor(npcCoinsLeft / c.npcSellPrice()));
+                if (units <= 0) {
+                    continue;
+                }
+                double unit = c.averageUnitCost();
                 double spend = units * unit * (1 + INSTANT_BUY_TAX);
-                double revenue = units * fixed.npcSellPrice() * (1 - NPC_SELL_FEE);
-                list.add(new BazaarFlipCandidate(fixed.productId(), fixed.displayName(), fixed.stackSize(), units, spend,
-                        fixed.npcSellPrice(), revenue, revenue - spend, (revenue - spend) / spend * 100.0, false));
+                double revenue = units * c.npcSellPrice() * (1 - NPC_SELL_FEE);
+                list.add(new BazaarFlipCandidate(c.productId(), c.displayName(), c.stackSize(), units, spend,
+                        c.npcSellPrice(), revenue, revenue - spend, (revenue - spend) / spend * 100.0, false));
             }
             ScanResult r = new ScanResult(System.currentTimeMillis(), 1, list.size(), List.copyOf(list), null);
             last = r;
             return CompletableFuture.completedFuture(r);
         }
         if (!scanning.compareAndSet(false, true)) {
-            ScanResult inFlight = last;
-            return CompletableFuture.completedFuture(inFlight != null ? inFlight
-                    : new ScanResult(System.currentTimeMillis(), 0, 0, List.of(), "a scan is already running"));
+            // Never hand back an older scan as this one's answer: the caller waits for a fresh scan.
+            return CompletableFuture.completedFuture(
+                    new ScanResult(System.currentTimeMillis(), 0, 0, List.of(), "a scan is already running"));
         }
-        return BazaarApi.fetchInstantBuyBooksAsync()
-                .handle((books, error) -> {
+        return CompletableFuture.supplyAsync(() -> fetchFresh(BazaarApi::fetchInstantBuyBooks, System::currentTimeMillis))
+                .handle((fresh, error) -> {
                     scanning.set(false);
+                    ScanResult result;
                     if (error != null) {
                         LOGGER.warn("[BazaarFlip] Order-book fetch failed", error);
-                        ScanResult failed = new ScanResult(System.currentTimeMillis(), 0, 0, List.of(),
+                        result = new ScanResult(System.currentTimeMillis(), 0, 0, List.of(),
                                 "the Bazaar order-book fetch failed");
-                        last = failed;
-                        return failed;
+                    } else if (fresh.error() != null) {
+                        result = new ScanResult(System.currentTimeMillis(), 0, 0, List.of(), fresh.error());
+                    } else {
+                        result = cost(fresh.books().books(), purse, mode, npcCoinsLeft);
                     }
-                    ScanResult result = cost(books, purse, mode, npcCoinsLeft);
                     last = result;
                     return result;
                 });
+    }
+
+    /** A fetch judged fresh, or why not. */
+    public record Fresh(BazaarApi.InstantBuyBooks books, int attempts, String error) {
+    }
+
+    /**
+     * Fetches until the snapshot's own {@code lastUpdated} is within {@link #MAX_BOOK_AGE_MS} of now: one refetch for a
+     * stale or empty answer, then a refusal naming the age. Pure apart from {@code fetch}, so the testkit drives it with
+     * canned snapshots.
+     */
+    public static Fresh fetchFresh(java.util.function.Supplier<BazaarApi.InstantBuyBooks> fetch,
+                                   java.util.function.LongSupplier now) {
+        BazaarApi.InstantBuyBooks got = null;
+        for (int attempt = 1; attempt <= 2; attempt++) {
+            got = fetch.get();
+            if (got == null || got.books().isEmpty()) {
+                continue;
+            }
+            long age = now.getAsLong() - got.lastUpdatedMs();
+            if (got.lastUpdatedMs() > 0 && age <= MAX_BOOK_AGE_MS) {
+                return new Fresh(got, attempt, null);
+            }
+            LOGGER.warn("[BazaarFlip] Bazaar snapshot is {} s old (lastUpdated {}) - refetching", age / 1000,
+                    got.lastUpdatedMs());
+        }
+        if (got == null || got.books().isEmpty()) {
+            return new Fresh(got, 2, "the Bazaar order-book fetch failed");
+        }
+        return new Fresh(got, 2, String.format(java.util.Locale.US,
+                "the Bazaar data Hypixel sent is %d s old (it must be under %d s) - try again in a moment",
+                (now.getAsLong() - got.lastUpdatedMs()) / 1000, MAX_BOOK_AGE_MS / 1000));
     }
 
     /**
@@ -273,7 +352,9 @@ public final class BazaarFlipScanner {
             long take = Math.min(level.amount(), room);
             // Integer division on purpose: a partial unit cannot be bought, and rounding up would size a
             // purchase the purse cannot actually pay for.
-            long affordable = (long) ((purse - spend) / (level.pricePerUnit() * (1 + INSTANT_BUY_TAX)));
+            // The purse has to cover Hypixel's QUOTE (book + 4%, refunded after), not just the book.
+            long affordable = (long) ((purse - spend * (1 + INSTANT_BUY_QUOTE_MARGIN))
+                    / (level.pricePerUnit() * (1 + INSTANT_BUY_TAX) * (1 + INSTANT_BUY_QUOTE_MARGIN)));
             take = Math.min(take, affordable);
             if (take <= 0) {
                 break;

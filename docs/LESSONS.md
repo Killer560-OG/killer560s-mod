@@ -50,6 +50,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - `/bz <name>` opens a SEARCH page (`Bazaar ➜ "Lump of Magma"`, product at slot 11), not the product page: the
   flipper's old buy step looked for "instant buy" there and stopped every session (his dry run, 2026-10-08). It now
   reads every page through `BazaarPages` and walks search -> product -> Instant Buy by name (testkit 761-764).
+- **The Instant Buy page quotes the book plus 4%.** Wiki (Bazaar): "The Bazaar will quote a price 4% higher than the
+  cheapest sell offer", the unused part refunded. His flipper refused Enchanted Pufferfish every time (2026-10-17) because
+  the page said 2,433.1 each against NPC 2,400 while the API book, 7 s old, started at 2,339.5 (2,339.6 x 1.04 =
+  2,433.1). Not stale data and not the wrong book side: compare quote / 1.04 with the NPC, and the full quote with the purse.
 - **Hypixel cuts long container titles.** His flipper stopped on `"Enchanted Pufferfish ➜ Instant"` (2026-10-16),
   not "... ➜ Instant Buy"; his Dungeons logs have `"Enchanted Gunpowder ➜ Instant B"`, `" Fine Jasper Gemstone ➜
   Instan"`, `"EXP Bottles ➜ Titanic Experienc"` - none longer than 31 visible characters. A title pattern with a
