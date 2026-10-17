@@ -37,13 +37,17 @@ def nm(b):
 
 
 def gate_class(n):
-    """1 for wood, bars and barriers; 2 for cobblestone (Rails' and Spider's facades); 0 for anything else. A
-    body is grown inside one class, so a bars gate between cobblestone pillars stays a bars gate."""
+    """1 for wood, bars and barriers; 2 for solid cobblestone; 3 for walls and fences - Rails' and Spider's gates are
+    lattices of cobblestone WALL blocks set in a cobblestone facade, and grown together with the facade they were one
+    shapeless body that filled no box; 0 for anything else. A body is grown inside one class, so a bars gate between
+    cobblestone pillars stays a bars gate."""
     if n is None:
         return 0
     if n in ('iron_bars', 'barrier'):
         return 1
-    if n in ('cobblestone', 'cobblestone_wall', 'mossy_cobblestone'):
+    if n.endswith('_wall') or n.endswith('_fence'):
+        return 3
+    if n in ('cobblestone', 'mossy_cobblestone'):
         return 2
     for w in WOODS:
         if n.startswith(w + '_') and n[len(w) + 1:] in ('log', 'wood', 'planks', 'stairs', 'slab', 'trapdoor'):
@@ -104,7 +108,9 @@ class Capture:
             vol = dims[0] * dims[1] * dims[2]
             # a wall or a hatch: thin across one axis (a hatch is thin in y), at least two along the other two, and
             # filling its box (a frame round an opening counts only if the opening is filled too)
-            if min(dims) > 2 or sorted(dims)[1] < 2 or len(comp) < 0.85 * vol:
+            # A lattice of walls fills only about two thirds of its box (Rails 21 of 30, Spider 16 of 25).
+            fill = 0.5 if cls[comp[0]] == 3 else 0.85
+            if min(dims) > 2 or sorted(dims)[1] < 2 or len(comp) < fill * vol:
                 continue
             kinds = {}
             for p in comp:
@@ -181,7 +187,8 @@ def main():
         if not isinstance(entries, list) or not any(e['category'] == 'lever' for e in entries):
             continue
         base = norm(re.sub(r'-\d+$', '', key))
-        cands = [caps[base]] if base in caps else list(caps.values())
+        # Every capture, best fit wins: a route's name can belong to a different room (Rail Track's route is Rails').
+        cands = list(caps.values())
         best = (0, None, None)
         for c in cands:
             s, tr = fit(c, entries)

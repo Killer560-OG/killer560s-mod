@@ -181,6 +181,29 @@ import java.util.concurrent.ConcurrentHashMap;
  *       gate each lever faces.</li>
  * </ul>
  *
+ * <h2>2026-10-17: Rails, Spider and Buttons' second lever</h2>
+ *
+ * <p>"for rails it is this style of door with the cobblestone fences. It is the same in spider." Both gates are
+ * lattices of cobblestone WALL blocks in a cobblestone facade - not solid cobblestone, which is why the first pass
+ * missed them. Rails: his /simwhere on one, capture {@code (56, 51, 42)}, is in the 21 walls of {@code x=54..58,
+ * y=49..54, z=42}, the way through to the chest at {@code (61, 49, 55)} (the route's "7 - Lever" {@code (46, 71, 24)}).
+ * Spider: the 16 walls of {@code x=21, y=83..87, z=31..35}, in front of the corridor to the chest at {@code (28, 84,
+ * 33)} under the lever {@code (28, 93, 33)}. Only the walls go; the facade round them stays. Buttons' "lever behind
+ * this lava", {@code (59, 70, 37)}, drops the 3 by 4 bars at {@code x=30, y=73..76, z=18..20}; its other lever was
+ * already bound.
+ *
+ * <p>Then the rooms the sweep flagged, each gate confirmed by his shot and each lever the route's: End {@code (8, 84,
+ * 6)} the 40 bars {@code x=14..18, y=69..76, z=11}; Gravel {@code (5, 69, 64)} the 15 bars {@code x=19..21, y=69..73,
+ * z=34}; Dip {@code (5, 79, 20)} the oak logs {@code x=17..18, y=78..82, z=17..18}; Criss Cross {@code (16, 75, 2)} the
+ * oak logs of {@code x=15..17, y=66..70, z=14}; Lava Ravine {@code (43, 84, 55)} the 5 by 5 log and stair door {@code
+ * x=7..11, y=88..92, z=38}; Lots Of Floors {@code (19, 62, 17)} the dark oak logs {@code x=20..21, y=76..81,
+ * z=25..27}; Museum {@code (54, 84, 27)} the wood panel {@code x=48, y=69..77, z=30..34} between the magenta braziers;
+ * Rare Pillars {@code (7, 88, 28)} the acacia wood {@code x=11, y=69..75, z=11..13} over the chest's nook; Red Blue
+ * {@code (55, 69, 6)} the 24 bars {@code x=57..60, y=69..74, z=12}; Red Green's lever, missing from the capture, is
+ * PLACED "right between the skulls" on the stone brick at {@code (2, 60, 16)} and drops the bars {@code x=8,
+ * y=74..77, z=15..17}. Atlas: the log wall he pointed at (his /simwhere: capture {@code (8, 81, 25)}) is the 2026-10-12
+ * door; the route's other lever {@code (61, 90, 34)} drops it too.
+ *
  * <p>A rule may name the blocks it takes ({@link Rule#only}); then only those inside its box go, read once when the
  * floor is armed. That is for gates that share their box with their frame (Grass Ruin's andesite corners) or with
  * something that must stay.
@@ -308,7 +331,42 @@ public final class SimRoomLevers {
             new Rule("Water",
                     new int[]{16, 70, 8}, new int[]{7, 69, 5}, new int[]{8, 72, 6}),
             new Rule("Withermancer",
-                    new int[]{25, 61, 4}, new int[]{27, 111, 15}, new int[]{27, 117, 17}).only("iron_bars"));
+                    new int[]{25, 61, 4}, new int[]{27, 111, 15}, new int[]{27, 117, 17}).only("iron_bars"),
+            // 2026-10-17: the cobblestone WALL lattices ("this style of door with the cobblestone fences"), and
+            // Buttons' second lever (see the class comment).
+            new Rule("Rails",
+                    new int[]{46, 71, 24}, new int[]{54, 49, 42}, new int[]{58, 54, 42}).only("cobblestone_wall"),
+            new Rule("Spider",
+                    new int[]{28, 93, 33}, new int[]{21, 83, 31}, new int[]{21, 87, 35}).only("cobblestone_wall"),
+            new Rule("Buttons",
+                    new int[]{59, 70, 37}, new int[]{30, 73, 18}, new int[]{30, 76, 20}),
+            // 2026-10-17, the sweep's flagged rooms as he confirmed each gate (see the class comment).
+            new Rule("End",
+                    new int[]{8, 84, 6}, new int[]{14, 69, 11}, new int[]{18, 76, 11}),
+            new Rule("Gravel",
+                    new int[]{5, 69, 64}, new int[]{19, 69, 34}, new int[]{21, 73, 34}),
+            new Rule("Dip",
+                    new int[]{5, 79, 20}, new int[]{17, 78, 17}, new int[]{18, 82, 18}),
+            new Rule("Criss Cross",
+                    new int[]{16, 75, 2}, new int[]{15, 66, 14}, new int[]{17, 70, 14}).only("oak_log"),
+            new Rule("Lava Ravine",
+                    new int[]{43, 84, 55}, new int[]{7, 88, 38}, new int[]{11, 92, 38}),
+            new Rule("Lots Of Floors",
+                    new int[]{19, 62, 17}, new int[]{20, 76, 25}, new int[]{21, 81, 27}),
+            new Rule("Museum",
+                    new int[]{54, 84, 27}, new int[]{48, 69, 30}, new int[]{48, 77, 34}),
+            new Rule("Rare Pillars",
+                    new int[]{7, 88, 28}, new int[]{11, 69, 11}, new int[]{11, 75, 13}),
+            // Placed: "missing its lever ... right between the skulls", on the stone brick at (2, 60, 16).
+            new Rule("Red Green",
+                    new int[]{2, 61, 16}, new int[]{8, 74, 15}, new int[]{8, 77, 17}, true),
+            // His Atlas log wall (his /simwhere point reads capture 8, 81, 25) is the door the 2026-10-12 rule already
+            // gives the lever at (54, 67, 32); he flagged it again for the route's other lever, so that one drops it
+            // too. The route itself pairs (61, 90, 34) with the bars at x=14, which stay until he says otherwise.
+            new Rule("Atlas",
+                    new int[]{61, 90, 34}, new int[]{7, 80, 25}, new int[]{9, 83, 26}),
+            new Rule("Red Blue",
+                    new int[]{55, 69, 6}, new int[]{57, 69, 12}, new int[]{60, 74, 12}));
 
     /** Lever world position to the blocks it clears, for the floor currently standing. */
     private static final Map<BlockPos, List<BlockPos>> ARMED = new ConcurrentHashMap<>();

@@ -114,29 +114,55 @@ public final class SimWhere {
                 ? block.getBlockPos().immutable() : null;
     }
 
-    /** The placed room covering this position, by nearest grid cell. */
-    private static SimRoomIndex.Placed roomAt(BlockPos pos) {
-        int best = -1;
+    /**
+     * The placed room whose pasted capture covers this column, or null.
+     *
+     * <p>By the room's own footprint - the same origin and size the paste and {@link #captureLocal} use - not by
+     * nearest grid cell. The grid this used to ask is the live map's 11 x 11, whose odd cells are the CONNECTORS
+     * between tiles; a block in a room's outer rows is as near the connector's centre as the tile's, often nearer,
+     * and a connector belongs to no 1x1 room. So a gate in a room's wall read "not inside any placed room" (Spider's
+     * facade and Atlas' log wall, 2026-10-16). Where two captures' margins overlap, the room whose footprint centre
+     * is nearer wins.
+     */
+    public static SimRoomIndex.Placed roomAt(BlockPos pos) {
+        SimRoomIndex.Placed best = null;
         long bestDist = Long.MAX_VALUE;
-        int cells = DungeonLayout.GRID * DungeonLayout.GRID;
-        for (int i = 0; i < cells; i++) {
-            BlockPos centre = DungeonLayout.cellCenter(i);
-            long dx = centre.getX() - pos.getX();
-            long dz = centre.getZ() - pos.getZ();
+        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
+            RoomLibrary.Room lib = RoomLibrary.get(placed.name());
+            if (lib == null) {
+                continue;
+            }
+            BlockPos origin = DungeonLayout.cellCenter(placed.gridZ() * DungeonLayout.GRID + placed.gridX());
+            int x0 = origin.getX() - RoomLibrary.TILE / 2 - lib.margin;
+            int z0 = origin.getZ() - RoomLibrary.TILE / 2 - lib.margin;
+            boolean turned = placed.pasteRotation() == 90 || placed.pasteRotation() == 270;
+            int ex = turned ? lib.sizeZ : lib.sizeX;
+            int ez = turned ? lib.sizeX : lib.sizeZ;
+            if (pos.getX() < x0 || pos.getX() >= x0 + ex || pos.getZ() < z0 || pos.getZ() >= z0 + ez) {
+                continue;
+            }
+            long dx = 2L * (pos.getX() - x0) - (ex - 1);
+            long dz = 2L * (pos.getZ() - z0) - (ez - 1);
             long dist = dx * dx + dz * dz;
             if (dist < bestDist) {
                 bestDist = dist;
-                best = i;
+                best = placed;
             }
         }
-        for (SimRoomIndex.Placed placed : SimRoomIndex.placed()) {
-            for (int cell : placed.cells()) {
-                if (cell == best) {
-                    return placed;
-                }
-            }
-        }
-        return null;
+        return best;
+    }
+
+    /** The capture-local coordinates /simwhere prints for this block, or null outside every room - for tests. */
+    public static int[] captureLocalAt(BlockPos pos) {
+        SimRoomIndex.Placed p = roomAt(pos);
+        RoomLibrary.Room lib = p == null ? null : RoomLibrary.get(p.name());
+        return lib == null ? null : captureLocal(p, lib, pos);
+    }
+
+    /** {@link #roomAt}'s room name, or null - for tests. */
+    public static String roomNameAt(BlockPos pos) {
+        SimRoomIndex.Placed p = roomAt(pos);
+        return p == null ? null : p.name();
     }
 
     /**
