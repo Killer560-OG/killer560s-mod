@@ -20,7 +20,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
@@ -1309,13 +1308,8 @@ public final class Ap3Executor {
             fireTermAura(client, player);
             return;
         }
-        if (actSlot >= 0 && player.getInventory().getSelectedSlot() != actSlot) {
-            player.getInventory().setSelectedSlot(actSlot);
-            if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
-                invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-            } else {
-                player.connection.send(new ServerboundSetCarriedItemPacket(actSlot));
-            }
+        if (actSlot >= 0) {
+            com.killer560.hub.util.HotbarSelect.select(client, player, actSlot);
         }
         // The ray is the rotation the packet will carry: the aim set at END (the node's angle, or one that hits the
         // same block - chooseAim), from the eye where it is now.

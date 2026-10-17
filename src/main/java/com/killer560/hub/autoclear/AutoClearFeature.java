@@ -2,7 +2,6 @@ package com.killer560.hub.autoclear;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
@@ -24,7 +23,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
@@ -963,15 +961,8 @@ public final class AutoClearFeature {
 
     /** {@code RouteExecutor.select}'s swap: through vanilla's own carried-item send, so it never goes out twice. */
     private static void select(Minecraft client, LocalPlayer player, int slot) {
-        if (player.getInventory().getSelectedSlot() == slot) {
-            return;
-        }
-        player.getInventory().setSelectedSlot(slot);
-        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-        } else {
-            player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-        }
+        // stopQuietly restores his slot from whatever stopped it, END handlers included: util/HotbarSelect.
+        com.killer560.hub.util.HotbarSelect.select(client, player, slot);
     }
 
     /**
