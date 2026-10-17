@@ -968,6 +968,9 @@ public final class AutoSecretFeature {
                 beginIceFill();
                 return true;
             }
+            // Named before the trip: a failed Ice Fill trip was "trip to null", and its give-up never took Ice Fill
+            // out, so Auto Secret went "Ice Fill first" for the whole test (fullclear-1016 run 036, 480 s).
+            target = r.name();
             return pathToRoom(layout, r, Trip.ICE_FILL);
         }
         return false;
@@ -1905,12 +1908,11 @@ public final class AutoSecretFeature {
         if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
             say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)), ModChat.dim(" (" + why + ") - skipped"));
         }
-        if (giveUp && target != null) {
+        if (giveUp && trip == Trip.ICE_FILL) {
+            iceFillTried = true;   // Ice Fill is a puzzle: left to the rest of the run, not to the secret list
+        } else if (giveUp && target != null) {
             secreted.add(target);
             instaTried.add(target);
-            if (trip == Trip.ICE_FILL) {
-                iceFillTried = true;
-            }
         } else if (trip == Trip.ICE_FILL) {
             iceFillTried = false;
         } else if (trip == Trip.PUZZLE && target != null) {
