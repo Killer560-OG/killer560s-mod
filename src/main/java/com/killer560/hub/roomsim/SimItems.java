@@ -897,7 +897,16 @@ public final class SimItems {
             return false;
         }
         if (!SimBreakerState.trySpend()) {
-            failOnServer("no Dungeonbreaker charges left");
+            // Hypixel's own line, word for word, and at Hypixel's pace: his 2026-10-07 log has it once a second
+            // (23:50:28 to :37, one each second) while the pickaxe was held on a block with no charges - never one
+            // per click (killer560, 2026-10-16: twenty "[Sim] no Dungeonbreaker charges left" lines stacked).
+            long now = System.currentTimeMillis();
+            if (now - lastNoChargesMs >= 1000L) {
+                lastNoChargesMs = now;
+                failOnServer("no Dungeonbreaker charges left");
+                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                        "You don't have enough charges to break this block right now!").withStyle(net.minecraft.ChatFormatting.RED));
+            }
             return false;
         }
         breakIfBreakable(level, target, sp);
@@ -933,9 +942,15 @@ public final class SimItems {
         ModChat.send("Sim", ModChat.dim(why));
     }
 
-    /** A refusal said from the server thread: chat belongs on the client's. */
+    /**
+     * An ability refusal on the server thread: logged, never said. Hypixel sends no chat line of its own for these
+     * (killer560, 2026-10-16: the sim must not say what Hypixel does not); where Hypixel does, the caller sends its line.
+     */
+    /** When the sim last said Hypixel's "not enough charges" line (server thread only). */
+    private static long lastNoChargesMs = 0L;
+
     private static void failOnServer(String why) {
-        SimAbilities.onClient(() -> ModChat.send("Sim", ModChat.dim(why)));
+        LOGGER.info("[Sim] {}", why);
     }
     /**
      * Every fragile block joined to {@code start}, so one charge opens a whole crypt wall.

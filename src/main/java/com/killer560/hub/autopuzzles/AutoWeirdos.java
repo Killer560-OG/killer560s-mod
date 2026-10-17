@@ -673,8 +673,6 @@ final class AutoWeirdos {
             return;
         }
         LOGGER.info("[AutoPuzzles] Weirdos: opened the correct chest {}", AutoPuzzleUtil.fmt(chest));
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Three Weirdos: opened the "), ModChat.good("correct chest"),
-                ModChat.text("."));
         CAMERA.release(player);
     }
 

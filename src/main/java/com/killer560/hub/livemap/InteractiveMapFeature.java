@@ -301,7 +301,7 @@ public final class InteractiveMapFeature {
         // Auto Routes is the only place this mod stores "where a secret route for this room begins", so a room
         // with no recorded route has no start node to aim at. Falling back to the room's own standing spot is
         // the closest thing the mod actually knows, rather than inventing a second notion of where a room starts.
-        ModChat.send(CHAT, ModChat.dim("No route start node for "), ModChat.value(layout.name(room)),
+        ModChat.log(CHAT, ModChat.dim("No route start node for "), ModChat.value(layout.name(room)),
                 ModChat.dim(" - pathing to the room"));
         activateRoom(layout, room, tile);
     }

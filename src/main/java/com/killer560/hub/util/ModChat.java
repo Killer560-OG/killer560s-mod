@@ -79,4 +79,15 @@ public final class ModChat {
             client.player.sendSystemMessage(line(feature, parts));
         }
     }
+
+    private static final org.slf4j.Logger QUIET = ModLog.get("killer560smod-chat");
+
+    /**
+     * Logs "[feature] " + parts as plain text instead of showing it (any thread). For the automation's progress lines:
+     * killer560 (2026-10-16), "only have a message for started auto clear or stopped auto clear type things". The
+     * text stays word for word what the chat line said, so logs and testkit scenarios still find it.
+     */
+    public static void log(String feature, Component... parts) {
+        QUIET.info(line(feature, parts).getString());
+    }
 }

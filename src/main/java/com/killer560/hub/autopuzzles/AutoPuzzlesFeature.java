@@ -261,7 +261,7 @@ public final class AutoPuzzlesFeature {
                     click, client.level.getBlockState(click));
             return;
         }
-        ModChat.send(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));
+        ModChat.log(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));
     }
 
     /** The last "waiting - why" Auto Quiz logged, so each reason is said once. */

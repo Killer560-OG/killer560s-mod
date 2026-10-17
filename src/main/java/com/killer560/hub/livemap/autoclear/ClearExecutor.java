@@ -485,7 +485,7 @@ public final class ClearExecutor {
                     offPath("the plan was impossible (" + impossible + ")", complete);
                     return;
                 }
-                ModChat.send(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
+                ModChat.log(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
                         + result.size() + " warps)"));
                 LOGGER.info("[Path] running {} warp(s) from {} to {}{} - {} ms from the press to the first warp's turn",
                         list.size(), fmt(from), to, replans > 0 ? " (planned again, " + replans + "/" + MAX_REPLANS + ")"
@@ -758,7 +758,7 @@ public final class ClearExecutor {
             // The same shape as a searched plan's line (the testkit reads "running N warp(s) from (...) to ..."), and why.
             LOGGER.info("[Path] running {} warp(s) from {} to {}{} - no search, {}", list.size(), fmt(at), to, again, source);
         }
-        ModChat.send(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
+        ModChat.log(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
                 ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
         sendNow = true;
@@ -941,7 +941,7 @@ public final class ClearExecutor {
         }
         lastAlreadyThereGoal = to;
         lastAlreadyThereMs = now;
-        ModChat.send(CHAT, ModChat.text("Already there"));
+        ModChat.log(CHAT, ModChat.text("Already there"));
     }
 
     /** Runs a hop list another feature built itself (Etherwarp Hopper, Auto Fairy Souls). There is no goal to plan
@@ -1683,10 +1683,7 @@ public final class ClearExecutor {
             goalComplete = complete;
             replanPending = true;
             replanWaitTicks = 0;
-            if (!correction) {
-                ModChat.send(CHAT, ModChat.bad(capitalise(why)), ModChat.dim(" - planning again from here ("
-                        + replans + "/" + MAX_REPLANS + ")"));
-            }
+            // A re-plan that is not a correction is logged above and never said (killer560, 2026-10-16).
             return;
         }
         if (correction) {
@@ -1781,10 +1778,6 @@ public final class ClearExecutor {
         double dx = a.x - b.x;
         double dz = a.z - b.z;
         return Math.sqrt(dx * dx + dz * dz);
-    }
-
-    private static String capitalise(String s) {
-        return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     private static String fmt(Vec3 v) {

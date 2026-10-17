@@ -182,7 +182,7 @@ public final class EnderPearlHopper {
             return;
         }
         if (++waitTicks > HOP_TIMEOUT_TICKS) {
-            ModChat.send("Auto Fairy Souls", ModChat.bad("Pearl throw timed out"), ModChat.dim(" - no landing detected."));
+            ModChat.log("Auto Fairy Souls", ModChat.bad("Pearl throw timed out"), ModChat.dim(" - no landing detected."));
             finish();
             return;
         }

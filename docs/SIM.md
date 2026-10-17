@@ -2849,8 +2849,15 @@ on a floor logs "Sim water: holding water still outside the Water Board". Testki
   and Redstone Key's captures hold theirs. The sim places a redstone block there, only into air. What placing the key opens
   is known only for Golden Oasis (his words: the three redstone blocks by the lever, capture 27..29,70,26); the other two
   rooms count the secret and open nothing until someone says what they open.
-- Auto Routes' await (`AwaitEvents.onLocalBlockClick`) counts a click on the key's skull but not a click on the node, which
-  is the one Hypixel calls the secret. That is client logic and the same on Hypixel, so it was left alone.
+- Auto Routes' await (`AwaitEvents.onLocalBlockClick`) counted a click on the key's skull and not a click on the node, the
+  one Hypixel calls the secret. Since aura-skull-place-1016 it is the other way round, on Hypixel and in the sim alike: the
+  pickup counts nothing, the node click counts at once when a key is known found (his own pickup seen to go, or Secret
+  Aura's `keyFoundNotPlaced`) on a face open to air, else when the server shows the key in within 40 ticks (block changed,
+  a key head on top, or a stand wearing the key). Auto Secret's last-node wait holds for a node the aura has due.
+  `SimRedstoneKey.armForTest`/`foundForTest` put a key room's answers in any arena (testkit 96-ar-1016-key*).
+- **Open: what the node looks like after placing on Hypixel.** The sim (from RSA) turns the node to air with a stand
+  wearing the key; killer560 said on 2026-10-12 the key sits ON TOP of the block (the testkit server's model, and
+  Skyblocker files the secret at the block's `above()`). Every reader above accepts both; a real capture would settle it.
 - Testkit 1412 (Cobble Wall Pillar), 1414 (Golden Oasis lever) and 1415 (the key, with a no-key click on the node first as
   the control).
 
@@ -3059,6 +3066,52 @@ tick the chest opens, tab ✔ 1-4 ticks later; main never.
   last count, as on Hypixel. Testkit 1790-sim-map-leave-secrets (every type, door and etherwarp, same tick and one tick
   later): 20/20 on 26.1.2 and 26.2; main fcba4045 18/20 fail (all ten same-tick cases; two one-tick cases pass when the
   ten-tick action bar happens to land on that tick).
+## Deuces' doorway, again: Hypixel's door piece follows the world, not the room (2026-10-16, sim-deuces-door-1016)
+killer560 (a solo Deuces, Load a Room): "this door isn't supposed to have almost any blocks above it in Deuces". The
+blocks above the chest doorway are the capture's, in the solo room AND on a full floor (testkit 1433: x 1..8 of Deuces
+equal `Dueces.json`, 0 of 1,976 differ). Neither the solo seal (diamond only in the ring's air, the seam column) nor the
+c435281c trim rule (top layer of the opening, y 72, over air) touches anything above the trim. Two things were found:
+- **The reference picture was the sim's.** `killer560s-mod-logs/deuces-doorway.png` was 1433's own screenshot (full floor,
+  FOV 110, pitch -36), named like a reference and handed on as his Hypixel shot. Same blocks as his solo shot, steeper
+  angle. 1433 now writes to `killer560s-mod-logs/sim-deuces-door-1016/`.
+- **The box over the trim is Hypixel's door connector, and its two halves are laid by WORLD side.** Over the 3x4 opening
+  and its trim row, the 5 wide x 3 high box (y 74..76) in the wall plane and one in holds one of exactly two fillings in
+  207 doorways of the shipped captures (`pieces.py` in `killer560s-mod-logs/sim-deuces-door-1016/`): every EAST/SOUTH one
+  (62 + 44) cyan terracotta then air, a recess; every WEST/NORTH one (55 + 46) stone then the same fifteen blocks (stone
+  bricks, one stone, one mossy, four upside-down stairs facing the wall - the north copy is the west one turned), flush.
+  Zero exceptions either way, in rooms captured at every quarter turn. Deuces W0 (the chest doorway) is a west one, so the
+  fill; E0 the recess. The paste carried the capture's half round with the room, so a room at 180 had fill on its east
+  doorways and recess on its west ones, and at 90/270 half were wrong (1433 on main fcba4045: 24, 19 and 10 wrong doorways
+  on three generated F7s). `RoomDoorPieces` now swaps the box over each doorway that holds a standard filling to the one
+  for the side it faces once turned, inside `PasteJob` (capture-frame states, turned by the paste like everything else).
+  Rotation 0 is unchanged.
+- **So a solo Deuces from Load a Room (rotation 0) still has the fill over its chest doorway**, because on Hypixel a
+  west-facing doorway has it in every capture. His run of 2026-10-16 17:34Z had Deuces at database rotation 0, which is the
+  capture's turn (capture rotation 0), so its chest doorway faced west there too. If his Hypixel picture shows that doorway
+  facing west with no fill, the world-side rule is wrong and F3's facing in that picture is the evidence to read; if it
+  faced east or south, the sim now matches it at that turn (1433's solo-r180 and floor-r180 shots).
+- Of the library's 278 measured doorways (RoomDoors' rule, `framed.py`), 70 hold neither filling (Altar, Spider, Mossy,
+  Supertall, Withermancer...): the rooms' own, pasted as captured.
+## Supertall's prince, and the obsidian tomb (2026-10-16, sim-prince-supertall-1016)
+- killer560 in Supertall: "this is a prince" - the raised tomb under two hopper braziers, capture x 48..53 y 142 z 44..48:
+  a 4x4 obsidian ring round a 2x2 of double smooth stone slabs, rimmed by bottom smooth stone slabs, on stair legs, the
+  wall on its fourth side. None of the three rules could see it. The fourth, `CryptScanner.obsidianPrince` (asked by
+  `SimPrince`, so the waypoints and the sim agree): **obsidian with air above and a bottom smooth stone slab beside it**.
+  Twelve rooms hold obsidian at all, so obsidian alone would be the gold-alone trap again.
+- **The wiki's rooms table was the check, and it said two.** Its Supertall row (and the room's page): "6 Crypts (4 Crypt
+  Undeads, 2 Princes)", one on Level 2 behind a Cracked Stone Bricks wall. That second one is the room's other obsidian
+  tomb (x 4..6 y 99 z 11..14, a 1x2 in a ten-slab ring), which the ordinary crypt rule had been counting as a crypt.
+  The rule matches six tombs in the library: Supertall 2, Withermancer, Grass Ruin, Pirate and Waterfall 1 each. The
+  table's Princes column is filled in only for Doors, Skull, Supertall and Withermancer, and the last two match
+  exactly; the other three are inferred. Counting each as a prince, crypt lids plus obsidian princes equal the room
+  database's crypt count in Withermancer, Grass Ruin (3 lids became its 4), Pirate and Waterfall.
+- **Skull is the one the wiki lists that no rule finds**: its single crypt is a plain 3x4 slab lid, nothing to tell it
+  from an ordinary one. Pirate's three gold-on-slab spots, found by the gold rule, were already suspect (CryptScanner's
+  javadoc); with its obsidian tomb a prince they are surely decoration. Supertall's three chest platforms at y 141 also
+  pass the crypt rule (7 lids still found, for a room with 4 crypts besides its princes). Neither was changed here.
+- Testkit 1781 (both tombs princes, one Superboom on each opens it, /reset brings both back unblown), 1782 (on a
+  generated floor) and 1783 (every room whose palette holds obsidian built alone; its obsidian princes must be exactly
+  the five rooms above).
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 

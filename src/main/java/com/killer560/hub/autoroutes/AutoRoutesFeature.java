@@ -723,7 +723,7 @@ public final class AutoRoutesFeature {
             latchedNode = null; // landing ON the start node must arm it
             arrivalHoldTicks = warpFirst ? 0 : AutoRoutesConfig.getInstance().getInteractDelayTicks();
         });
-        chat(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
+        note(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
         return true;
     }
 
@@ -1443,6 +1443,11 @@ public final class AutoRoutesFeature {
 
     static void chat(Component... parts) {
         ModChat.send(CHAT, parts);
+    }
+
+    /** A progress line: logged word for word, never shown (killer560, 2026-10-16: start/stop lines only in chat). */
+    static void note(Component... parts) {
+        ModChat.log(CHAT, parts);
     }
 
     static void chatInfo(String text) {

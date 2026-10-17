@@ -24,8 +24,6 @@ public final class MimicKiller {
 
     /** Longest it waits for a running node to finish before giving up on the mimic. */
     private static final int PENDING_TIMEOUT = 100;
-    /** Spirit Sceptre: longest it keeps using for one mimic. */
-    private static final int USE_TIMEOUT = 100;
     private static final int AIM_TIMEOUT = 20;
     /**
      * Every Kill Mimic use goes out at exactly this pitch, with either item, in either mode (killer560, 2026-10-11:
@@ -174,8 +172,11 @@ public final class MimicKiller {
                     finish(client, player, "you moved");
                     return;
                 }
-                if (stateTicks > USE_TIMEOUT) {
-                    AutoRoutesFeature.chatBad("Kill Mimic: the mimic did not die in " + USE_TIMEOUT / 20 + " s.");
+                // Spirit Sceptre: the longest it keeps using for one mimic, the Mimic Timeout setting.
+                int useTimeout = AutoRoutesConfig.getInstance().getMimicTimeoutTicks();
+                if (stateTicks > useTimeout) {
+                    AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
+                            "Kill Mimic: the mimic did not die in %.1f s.", useTimeout / 20.0));
                     finish(client, player, "timed out");
                     return;
                 }

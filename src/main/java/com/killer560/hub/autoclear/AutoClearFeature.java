@@ -482,7 +482,6 @@ public final class AutoClearFeature {
         int room = AutoClearTargets.roomByName(layout, roomName);
         if (room >= 0 && AutoClearTargets.isCleared(layout, room)) {
             roomsCleared++;
-            say(ModChat.good("Cleared "), ModChat.value(roomName));
             LOGGER.info("[AutoClear] room cleared: {}", roomName);
             if (singleRoom != null) {
                 finish(roomName + " cleared");
@@ -500,7 +499,7 @@ public final class AutoClearFeature {
             killsInRoom = 0;
             pathFailures = 0;
             targetId = -1;
-            say(ModChat.text("Room: "), ModChat.value(roomName));
+            ModChat.log(CHAT, ModChat.text("Room: "), ModChat.value(roomName));
         }
 
         // ---- the mob ----
@@ -551,8 +550,6 @@ public final class AutoClearFeature {
         }
         if (mobTicks > cfg.getMobTimeoutTicks() + com.killer560.hub.util.ServerLag.ticksSince(mobLag)) {
             skippedMobs.add(targetId);
-            say(ModChat.bad("Skipping "), ModChat.value(targetName),
-                    ModChat.dim(String.format(Locale.US, " - not dead after %.1f s", mobTicks / 20.0)));
             LOGGER.info("[AutoClear] skipped {} at {} after {} ticks", targetName, target.blockPosition().toShortString(),
                     mobTicks);
             targetId = -1;
@@ -658,7 +655,6 @@ public final class AutoClearFeature {
             doorTripDone = -1;
             saidNoKey = false;
             doorCooldown = 0;
-            say(ModChat.text("Wither door in the way of "), ModChat.value(behind), ModChat.dim(" - going to open it"));
             LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
         }
         int cur = layout.currentRoom();
@@ -755,8 +751,6 @@ public final class AutoClearFeature {
 
     private static void roomDoneWithoutMap() {
         roomsCleared++;
-        say(ModChat.good("Cleared "), ModChat.value(roomName), ModChat.dim(" (no starred mob left in sight; no dungeon map"
-                + " to confirm)"));
         LOGGER.info("[AutoClear] room done without a map: {} ({} starred kill(s), none left in sight)", roomName,
                 killsInRoom);
         if (singleRoom != null) {
@@ -846,7 +840,7 @@ public final class AutoClearFeature {
         BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
         if (spot == null) {
             skippedMobs.add(targetId);
-            say(ModChat.bad("Skipping "), ModChat.value(targetName),
+            ModChat.log(CHAT, ModChat.bad("Skipping "), ModChat.value(targetName),
                     ModChat.dim(" - no block to stand on within " + cfg.getWeapon().label() + " reach of it"));
             targetId = -1;
             return;

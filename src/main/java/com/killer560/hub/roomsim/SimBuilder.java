@@ -191,6 +191,7 @@ public final class SimBuilder {
             int shift = SimAltitude.plan(level, decoded.nameTable());
             LOGGER.info("Sim altitude: floor shifted {} block(s), occupying y {}..{}",
                     shift, SimAltitude.minWorldY(), SimAltitude.maxWorldY());
+            RoomDoorPieces.takeSwapped();   // counted by the pastes below, reported with the doors
             boolean[] handled = new boolean[decoded.cellRoom().length];
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 if (handled[cell]) {
@@ -497,6 +498,8 @@ public final class SimBuilder {
                                 + "{} block(s) of floor laid where a doorway had none, {} block(s) of doorway trim kept",
                         doorCells.size(), sealCells.size(), SimDoors.CHESTS_CARVED_AWAY, SimDoors.FLOORED,
                         SimDoors.KEPT_TRIM);
+                LOGGER.info("Sim doors: {} doorway(s) given the door piece for the side they face in the world "
+                        + "(RoomDoorPieces)", RoomDoorPieces.takeSwapped());
             });
             final int firstCell = entranceCell[0] >= 0 ? entranceCell[0] : firstPlacedCell[0];
             SimBuildQueue.whenDone(() -> {
@@ -1967,6 +1970,9 @@ public final class SimBuilder {
                     SimWorld.buildFinished(client, null);
                     if (reset) {
                         ModChat.send("Sim", ModChat.text("Room reset"));
+                    } else if (SimRoomCycle.isActive()) {
+                        // All Rooms already said "Room N/M: <name>" for this load - one line per room (2026-10-16).
+                        ModChat.log("Sim", ModChat.text("Built "), ModChat.value(roomName));
                     } else {
                         ModChat.send("Sim", ModChat.text("Built "), ModChat.value(roomName));
                     }

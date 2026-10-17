@@ -325,7 +325,7 @@ public final class SimTerminator {
         if (MOBS_HIT.size() >= HITS_TO_ARM) {
             salvationArmed = true;
             Minecraft.getInstance().execute(() ->
-                    ModChat.send("Sim", ModChat.value("Salvation ready")));
+                    ModChat.log("Sim", ModChat.value("Salvation ready")));
         }
     }
 
@@ -375,7 +375,7 @@ public final class SimTerminator {
                 }
             });
         }
-        ModChat.send("Sim", ModChat.text("Salvation - "), ModChat.value(String.valueOf(pierced.size())),
+        ModChat.log("Sim", ModChat.text("Salvation - "), ModChat.value(String.valueOf(pierced.size())),
                 ModChat.text(" hit"));
     }
 

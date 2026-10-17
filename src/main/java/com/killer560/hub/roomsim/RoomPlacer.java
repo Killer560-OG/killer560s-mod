@@ -317,7 +317,13 @@ public final class RoomPlacer {
             // lands a block off its neighbours and the seams stop lining up.
             this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
             this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
+            // Hypixel's door piece for the side each doorway faces at THIS turn (RoomDoorPieces).
+            java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
+            this.doorPieces = pieces.isEmpty() ? null : pieces;
         }
+
+        /** Capture-frame blocks pasted instead of the capture's over doorways, or null when there are none. */
+        private final java.util.Map<Long, BlockState> doorPieces;
 
         /**
          * Each palette entry's state, already rotated, parsed the first time a block uses it (fps-sim-1015). Parsing
@@ -407,6 +413,12 @@ public final class RoomPlacer {
                 }
                 if (paletteIdx >= 0) {
                     BlockState rotated = rotatedState(paletteIdx);
+                    if (doorPieces != null && y >= RoomDoorPieces.Y_LOW && y <= RoomDoorPieces.Y_HIGH) {
+                        BlockState piece = doorPieces.get(RoomDoorPieces.key(x, y, z));
+                        if (piece != null) {
+                            rotated = piece.rotate(vanillaRotation);
+                        }
+                    }
                     if (rotated != null) {
                         int lx = rotatedX(x, z, room.sizeX, room.sizeZ, rotation);
                         int lz = rotatedZ(x, z, room.sizeX, room.sizeZ, rotation);
@@ -441,6 +453,7 @@ public final class RoomPlacer {
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;
         int placed = 0;
+        java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
         for (int y = room.minY; y <= room.maxY; y++) {
             for (int x = 0; x < sizeX; x++) {
                 for (int z = 0; z < sizeZ; z++) {
@@ -448,7 +461,8 @@ public final class RoomPlacer {
                     if (paletteIdx < 0) {
                         continue; // never read at capture time - leave whatever is already there
                     }
-                    BlockState state = resolve(room.palette.get(paletteIdx));
+                    BlockState state = pieces.getOrDefault(RoomDoorPieces.key(x, y, z),
+                            resolve(room.palette.get(paletteIdx)));
                     if (state == null) {
                         continue; // unresolved palette entry - already warned once in resolve()
                     }
@@ -474,7 +488,7 @@ public final class RoomPlacer {
      * <p>A bare id still works: entries captured before the palette held states parse straight to the default,
      * which is exactly what they meant.
      */
-    private static BlockState resolve(String paletteEntry) {
+    static BlockState resolve(String paletteEntry) {
         try {
             return net.minecraft.commands.arguments.blocks.BlockStateParser
                     .parseForBlock(BuiltInRegistries.BLOCK, paletteEntry, false)

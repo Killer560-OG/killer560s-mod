@@ -2790,6 +2790,16 @@ public class ModScreen extends Screen {
 
     private static String homeVersion;
 
+    /** Home's Main Menu scene chip: its bounds {x, y, w, h} on screen, or null when Home is not showing. For the testkit. */
+    public int[] homeSceneChipBounds() {
+        for (Item it : items) {
+            if (it.kind == ItemKind.BLOCK && it.block instanceof ThemeBlock) {
+                return ((ThemeBlock) it.block).chip(MenuTheme.values().length + 1, it.x, it.y - gridScroll, it.w);
+            }
+        }
+        return null;
+    }
+
     /** Labels of Home's quick buttons, in order. For the testkit. */
     public List<String> homeButtonLabels() {
         List<String> out = new ArrayList<>();
@@ -2810,7 +2820,8 @@ public class ModScreen extends Screen {
             List<HomeButton> b = new ArrayList<>();
             // killer560 (2026-10-14): his channel at the top, and Sweat Mode right next to Check Updates. 2026-10-15: Reboot
             // came off (the /reboot command stays), leaving eight - a 4x2 grid.
-            b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
+            // 2026-10-16: tools on the top row (Edit HUD, Edit Bars, Check Updates, Sweat Mode), links below (YouTube,
+            // Discord, GitHub, Features Doc).
             b.add(new HomeButton("Edit HUD", () -> {
                 Minecraft client = Minecraft.getInstance();
                 if (!refuseWithoutWorld("Edit HUD")) {
@@ -2825,6 +2836,7 @@ public class ModScreen extends Screen {
             }));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
             b.add(new HomeButton(HOME_SWEAT, com.killer560.hub.util.SweatMode::enter));
+            b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
             b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
@@ -2889,8 +2901,9 @@ public class ModScreen extends Screen {
         }
     }
 
-    /** Home's Menu Theme row: the four presets as chips (the active one lit) and Customise, which opens the Menu Theme
-     *  drawer with Custom's colours. */
+    /** Home's Menu Theme row: the presets as chips (the active one lit), Customise, which opens the Menu Theme drawer with
+     *  Custom's colours, and the main menu's Fancy / Simple scene (killer560, 2026-10-16: "right by menu theme somewhere you
+     *  should have a button to toggle between the fancy or simple mode for main menu"; left click forward, right click back). */
     private final class ThemeBlock implements Block {
 
         private static final String CUSTOMISE = "Customize...";
@@ -2901,7 +2914,7 @@ public class ModScreen extends Screen {
         }
 
         private int[] chip(int i, int x, int y, int w) {
-            int n = MenuTheme.values().length + 1;
+            int n = MenuTheme.values().length + 2;
             int cw = Math.min(90, (w - 20 - (n - 1) * 6) / n);
             return new int[]{x + 10 + i * (cw + 6), y + 20, cw, 14};
         }
@@ -2915,7 +2928,7 @@ public class ModScreen extends Screen {
             r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
             MenuTheme active = MenuConfig.getInstance().getTheme();
             MenuTheme[] all = MenuTheme.values();
-            for (int i = 0; i <= all.length; i++) {
+            for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
                 boolean hov = mouseX >= 0 && inside(mouseX, mouseY, b[0], b[1], b[2], b[3]);
                 if (i < all.length) {
@@ -2926,25 +2939,44 @@ public class ModScreen extends Screen {
             }
             r.submit();
             MenuStyle.text(g, "MENU THEME", x + 8, y + 4, MenuStyle.OR2);
-            for (int i = 0; i <= all.length; i++) {
+            for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
                 boolean lit = i < all.length && all[i] == active;
-                String l = MenuStyle.ellipsize(i < all.length ? all[i].label : CUSTOMISE, b[2] - 6);
+                String l = MenuStyle.ellipsize(i < all.length ? all[i].label : i == all.length ? CUSTOMISE : sceneLabel(),
+                        b[2] - 6);
                 int colour = lit ? (MenuStyle.luminance(MenuStyle.OR) > 0.55f ? 0xFF160C02 : 0xFFFFFFFF) : MenuStyle.OR;
                 g.text(font, l, b[0] + (b[2] - font.width(l)) / 2, b[1] + 3, colour, MenuStyle.TEXT_SHADOW && !lit);
             }
         }
 
+        private String sceneLabel() {
+            return "Main Menu: " + com.killer560.hub.mainmenu.MainMenuThemeConfig.getInstance().getSceneMode().label;
+        }
+
+        /** The scene chip, stepped (dir 1 = left click, -1 = right click); for the testkit too. */
+        void stepScene(int dir) {
+            var c = com.killer560.hub.mainmenu.MainMenuThemeConfig.getInstance();
+            c.setSceneMode(SettingsButtonWidget.step(c.getSceneMode(), dir));
+            c.save();
+        }
+
         @Override
         public boolean click(int x, int y, int w, double mx, double my) {
+            return click(x, y, w, mx, my, 0);
+        }
+
+        boolean click(int x, int y, int w, double mx, double my, int button) {
             MenuTheme[] all = MenuTheme.values();
-            for (int i = 0; i <= all.length; i++) {
+            for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
                 if (!inside(mx, my, b[0], b[1], b[2], b[3])) {
                     continue;
                 }
                 clickSound();
-                if (i < all.length) {
+                if (i == all.length + 1) {
+                    stepScene(button == 1 ? -1 : 1);
+                    rebuild();
+                } else if (i < all.length) {
                     MenuConfig cfg = MenuConfig.getInstance();
                     cfg.setTheme(all[i]);
                     cfg.save();
