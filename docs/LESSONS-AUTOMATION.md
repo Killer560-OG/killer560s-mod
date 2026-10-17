@@ -554,3 +554,20 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   flight, the settle between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret
   passed mid-route is now taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's
   pickup and placing too); item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).
+- **An unpaired click outlives the warp after it and eats a later one** (killer560's Bridges, Mod Only Test 2026-10-17
+  22:34-22:36: "after the second dungeon breaker I cannot get it to make that etherwarp ... if it stalls out then it
+  works"). Secret Aura flipped #1's lever with the AOTV in hand; #1's warp was a right click in the air, so the lever's
+  verdict stayed stored through #2's breaker. The warp down the hole the breaker opened (155.3 / 56.7 from the node) passes
+  under the rim from the 1.27 eye while the 1.54 ray meets Stone Bricks at -83, -51, -118 2.8 out, and no other look onto
+  the landing had rays that agree: the use paired with the 10-tick-old lever click and was dropped, every run. The stall
+  "worked" because the dropped use had paired the click. The 2026-10-16 resend made it a round trip (5 ticks in the sim);
+  now `RouteExecutor.spendStaleClickFirst` pairs the click with a bare Dungeon Breaker use at the heard look the tick before
+  (`RightClick.spendStoredClick`: only when `unpairable` holds, i.e. the client's look reaches no block, so one bare use
+  is what a vanilla right click sends) and the warp goes the next tick. Testkit 96-ar-1017-bridges (his route, exact: main
+  drops 1 warp and resends; branch 0 dropped, route complete with every routed secret), 62-argrim-1017-breakerwarp.
+- **A Spirit Sceptre fired straight down never reaches a mimic six blocks up** (his Chains, same log 22:32:46: the trapped
+  chest at y -43 over his feet at -49, 51 uses at pitch 90.0, then "did not die in 5 s"). The blast is 6 from where the
+  bat hits the floor. Kill Mimic now sends two uses down and aims the rest at the mimic (a new baby zombie by the chest,
+  `AwaitEvents.liveMimic`) while `RouteExecutor.sceptreReaches` says its bat gets there, in every room (killer560,
+  2026-10-17); obvious mode uses only once the server has heard the look. Testkit 96-ar-1017-mimicaim (main: 51 down, no
+  kill; branch: 2 down, 3 aimed, killed), 62-argrim-1017-mimicaim.

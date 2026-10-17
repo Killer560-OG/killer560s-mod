@@ -288,6 +288,31 @@ public final class AwaitEvents {
         }
     }
 
+    /**
+     * The watched trapped chest's mimic while it is alive - the same test {@link #tickMimic} uses for its death (a baby
+     * zombie within {@link #MIMIC_RANGE} of the chest that was not there when it was clicked), nearest the chest first -
+     * or null. What Kill Mimic aims its Spirit Sceptre at after the first two uses went straight down.
+     */
+    static Zombie liveMimic(Minecraft client) {
+        if (mimicChest == null || client.level == null) {
+            return null;
+        }
+        Vec3 c = Vec3.atCenterOf(mimicChest);
+        Zombie best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Entity e : client.level.entitiesForRendering()) {
+            if (e instanceof Zombie z && z.isBaby() && !z.isRemoved() && !z.isDeadOrDying()
+                    && !zombiesBefore.contains(z.getId())) {
+                double d = z.position().distanceTo(c);
+                if (d <= MIMIC_RANGE && d < bestD) {
+                    bestD = d;
+                    best = z;
+                }
+            }
+        }
+        return best;
+    }
+
     private static void tickMimic(Minecraft client) {
         if (mimicChest == null) {
             return;
