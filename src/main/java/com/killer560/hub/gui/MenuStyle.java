@@ -641,6 +641,10 @@ public final class MenuStyle {
             g.text(f, s, 1, 1, 0xFF000000, false);
         }
         int w = f.width(s);
+        // The whole text in the middle colour first: under a non-integer scale the band scissors round to whole pixels and
+        // could leave a one-pixel row between two bands, showing the shadow through as a line across the name (killer560,
+        // 2026-10-17, "there is a line through Full Toggle"). The bands are drawn over it, so a rounded seam shows text.
+        g.text(f, s, 0, 0, mix(top, bottom, 0.5f), false);
         int[] cuts = {0, 3, 6, 9};
         for (int i = 0; i < 3; i++) {
             int c = mix(top, bottom, i / 2f);
