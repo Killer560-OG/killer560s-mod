@@ -510,12 +510,31 @@ public final class ClearExecutor {
             return String.format(java.util.Locale.US, "its first warp starts %.1f blocks from him",
                     path.get(0).pos.distanceTo(from));
         }
+        EtherSearch planned = null;
         for (int i = 0; i < path.size(); i++) {
             ClearNode n = path.get(i);
             Vec3 eye = new Vec3(n.pos.x, n.pos.y + TeleportUtils.eyeHeight(true), n.pos.z);
             TeleportUtils.RaycastResult hit = TeleportUtils.getEtherPos(eye, n.yaw, n.pitch, 61.0);
+            if (hit.pos() == null && Minecraft.getInstance().level != null) {
+                // No answer from the client's world: nothing within 61 blocks, or a chunk the client does not have.
+                // The planner read the same world through LevelEtherGrid (in the sim with the server's mirror for the
+                // columns the client lacks), so ask it the same way: a hop far ahead of him is checked when he gets
+                // near it (ClearNode casts it again). Refusing it here kept his M7 Ice Fill trip - 9 warps, the 8th
+                // past the client's chunks - from ever starting (fullclear-1016 run 036).
+                if (planned == null) {
+                    planned = new EtherSearch(new LevelEtherGrid(Minecraft.getInstance().level));
+                }
+                double[] look = new double[3];
+                EtherSearch.look(n.yaw, n.pitch, look);
+                if (planned.cast(eye.x, eye.y, eye.z, eye.x + look[0] * 61.0, eye.y + look[1] * 61.0,
+                        eye.z + look[2] * 61.0) == EtherSearch.LANDS) {
+                    hit = new TeleportUtils.RaycastResult(true, new BlockPos(planned.hitX, planned.hitY, planned.hitZ), null);
+                }
+            }
             if (!hit.succeeded() || hit.pos() == null) {
-                return "warp " + (i + 1) + " lands nowhere";
+                return "warp " + (i + 1) + " lands nowhere" + (hit.pos() == null ? "" : " (stops at " + hit.pos().toShortString()
+                        + (hit.state() == null ? "" : " " + hit.state().getBlock()) + ")") + String.format(java.util.Locale.US,
+                        " - from %.2f, %.2f, %.2f look %.2f/%.2f", n.pos.x, n.pos.y, n.pos.z, n.yaw, n.pitch);
             }
             double reach = eye.distanceTo(Vec3.atCenterOf(hit.pos()));
             if (reach > range + 1.0) {
