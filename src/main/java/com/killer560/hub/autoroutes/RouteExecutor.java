@@ -432,6 +432,26 @@ public final class RouteExecutor {
         return running;
     }
 
+    /** The running route's first BAT node (it always waits for a kill) that has not fired yet this run, or null - that node owns the
+     *  secret bat, so the bat appearing is no other node's secret ({@link AwaitEvents}). */
+    static RouteNode batNodeAhead() {
+        if (!running) {
+            return null;
+        }
+        for (RouteNode n : ordered) {
+            if (n.type == RouteNode.Type.BAT && !firedInRun.contains(n)) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    /** The 1-based position of {@code node} in the route's order, for log lines. */
+    static int orderOf(RouteNode node) {
+        Route r = route;
+        return r == null ? 0 : r.indexOf(node) + 1;
+    }
+
     /** The room of the route being played, or null when none is (Auto Trap stops a trap route the moment he leaves). */
     public static String runningRoom() {
         Route r = route;
@@ -2203,20 +2223,8 @@ public final class RouteExecutor {
         // The saved look belongs to the spot's EYE too: on a landing tick he stands 0.05 over it, and the saved look fired
         // from there went over a slab lip at the sim's -26, 259, -128 and was refused (1015-sim-pathland, Quartz Knight). He
         // drops onto the spot the next tick by himself (gravity, not a wait), so "on it" includes the height.
-        // A path hop's spot is the last landing, 0.05 over the block (its saved y); the look was planned from the eye he
-        // has once he rests ON the block, so "on it" is the block's standing height - the tick after the landing.
-        // Compared with the landing height, his Doors #13 hop 3 went from 0.05 high and was refused at a jungle log
-        // twice in a row (fullclear-1016 runs 019, 026).
-        double restY = warpSpot.y;
-        if (player.level() != null) {
-            BlockPos under = BlockPos.containing(warpSpot.x, warpSpot.y - 0.06, warpSpot.z);
-            double stand = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(player.level(), under);
-            if (Math.abs(stand - warpSpot.y) <= 0.06) {
-                restY = stand;
-            }
-        }
         boolean settled = h <= CENTRE_TOLERANCE && player.onGround() && v.x * v.x + v.z * v.z < 0.0004
-                && Math.abs(pos.y - restY) < REAIM_EPSILON;
+                && Math.abs(pos.y - warpSpot.y) < REAIM_EPSILON;
         if (settled || warpCentreTicks > CENTRE_TIMEOUT) {
             clearMovement();
             LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled

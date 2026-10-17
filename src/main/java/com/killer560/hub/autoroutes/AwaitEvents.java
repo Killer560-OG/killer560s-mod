@@ -274,6 +274,17 @@ public final class AwaitEvents {
                 continue;
             }
             RouteRunMemory.gotSecret("bat " + bat.getId(), bat.position(), "bat spawned at " + p.toShortString());
+            // A BAT node still ahead owns this bat (its kill is that node's await). Counting its appearance here as well
+            // gave one bat to two nodes: his Doors #7 waits for its two levers, the bat appeared 8.6 blocks off while it
+            // waited, #7 moved on with one lever, and #13's path hop 3 was refused at the closed way the second lever
+            // opens (fullclear-1016 runs 019, 026).
+            RouteNode owner = RouteExecutor.batNodeAhead();
+            if (owner != null) {
+                LOGGER.info("[AutoRoutes] await: bat spawned at {} ({} blocks from you) - node #{} BAT awaits its kill, so it "
+                        + "is not this node's secret", p.toShortString(), String.format(Locale.US, "%.1f", d),
+                        RouteExecutor.orderOf(owner));
+                continue;
+            }
             addSecret("bat " + bat.getId(), "bat spawned at " + p.toShortString()
                     + String.format(Locale.US, " (%.1f blocks from you)", d));
         }

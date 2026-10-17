@@ -545,8 +545,14 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   flight, the settle between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret
   passed mid-route is now taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's
   pickup and placing too); item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).
+- **A secret bat belongs to the BAT node still ahead, not to the node waiting when it appears** (fullclear-1016 runs
+  019/026, his Doors): #7 awaits its two levers, the bat appeared 8.6 blocks off while #7 waited and counted as one of the
+  two, #7 left with one lever, and the way the second lever opens stayed shut, so #13's hop 3 hit a jungle log there and
+  was refused. One bat was counted twice (spawn for #7, kill for #9 BAT). `AwaitEvents` now skips a bat's appearance while
+  `RouteExecutor.batNodeAhead()` has an unfired BAT node. Testkit 96-ar-1016-batowner; run 026's floor replayed: Doors 5/5.
 - **A warp the server refused is sent once more, not waited out** (fullclear-1016 run 019, his Doors #13 hop 3): the
   server's ray stopped at a jungle log, no landing came, and the route sat out the 61-tick timeout and then Route Stall.
+  (That log was the shut way of the entry above, which the client saw too; the retry is a guard, not the fix for Doors.)
   With no landing a round trip on (`RightClick.eatenRetryTicks`) and him not moved, `RouteExecutor.retryAim` aims at the
   same block with a look that holds within `EtherSearch.AIM_MARGIN` and the warp goes once more; a saved hop fired from
   its own spot is re-aimed first when its look only lands for its exact floats (`TeleportUtils.holdsOn`). Testkit
