@@ -501,3 +501,12 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `PUZZLE SOLVED! <name> ... ! Good job!` line, anchored with a real name group, now counts the tick it arrives
   (`AutoPuzzleActivity.solvedByHim`), and the sim sends it (`roomsim/SimPuzzleSolvedLine`; only Tic Tac Toe's wording,
   "tied Tic Tac Toe", is from a real log) and Oruo's final-answer line, which it never did.
+- **Secret Aura clicks nothing while a route runs unless the node waits for secrets** (killer560, 2026-10-16). On main a
+  WALK route sprinting past a lever, a chest and an essence skull had the aura flip the lever mid-walk, and the walk then
+  missed the chest by 5.1 blocks instead of 2.3 and never reached its end node (testkit 96-ar-1016-auranoawait, fcba4045
+  jar). The one gate is `RouteExecutor.secretAuraMayClick()`, asked in `SecretAuraFeature.tick` before the body turn, the
+  ActionGate and the attempt booking, and in `scanTaking`, so a held-back secret is just picked again later. It is true
+  with no route running, and in a run only while the active node waits on a SECRET await it has not met. A warp in
+  flight, the settle between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret
+  passed mid-route is now taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's
+  pickup and placing too); item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).
