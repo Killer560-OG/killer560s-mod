@@ -17,7 +17,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
@@ -280,10 +279,8 @@ public final class AutoDebuffFeature {
     }
 
     private static boolean select(LocalPlayer player, int slot) {
-        if (player.getInventory().getSelectedSlot() != slot) {
-            player.getInventory().setSelectedSlot(slot);
-            player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-        }
+        // START_CLIENT_TICK: sent now, ahead of the use aimAndUse sends after it in the same START.
+        com.killer560.hub.util.HotbarSelect.select(Minecraft.getInstance(), player, slot);
         return true;
     }
 
