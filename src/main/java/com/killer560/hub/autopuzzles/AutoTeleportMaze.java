@@ -491,6 +491,7 @@ final class AutoTeleportMaze {
                 if (done && finishStage == FinishStage.DONE) {
                     ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: "), ModChat.good("done"),
                             ModChat.text("."));
+                    AutoPuzzleActivity.ended(); // walked out: the last step is over
                 }
             }
             default -> {

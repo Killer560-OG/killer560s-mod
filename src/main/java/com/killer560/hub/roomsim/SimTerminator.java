@@ -299,6 +299,11 @@ public final class SimTerminator {
                 double offset = (i - (ARROWS_PER_SHOT - 1) / 2.0) * SPREAD_DEGREES;
                 Vec3 dir = fromAngles(yaw + (float) offset, pitch);
                 TerminatorArrow arrow = new TerminatorArrow(level, sp);
+                // From where he stood when the server answered the use (vanilla's owner eye - 0.1), not where he stands
+                // when this task runs: an etherwarp sent the next tick is often handled first, and the volley flew from
+                // the landing with the old aim and missed (93-solve-lowerblaze-speed, 2026-10-16: Auto Blaze's warp
+                // while the volley flies). Hypixel fires the shot from the position the use packet found him at.
+                arrow.setPos(eyeAt.x, eyeAt.y - 0.1, eyeAt.z);
                 arrow.shotYaw = yaw + (float) offset;
                 arrow.shot = shot;
                 arrow.lane = i - (ARROWS_PER_SHOT - 1) / 2;

@@ -814,7 +814,10 @@ final class Autopilot {
     /** Done or failed: the map's check or cross, or the tab list's ✔ / ✖. */
     static boolean puzzleFinished(RoomStatus.Room r) {
         char tab = ScoreCalculatorFeature.puzzleState(r.name());
-        return r.cleared() || r.failed() || tab == '✔' || tab == '✖';
+        // Hypixel's "PUZZLE SOLVED!" line for him comes the tick the server solves it; the map's checkmark and the tab
+        // list's tick come a refresh later.
+        return r.cleared() || r.failed() || tab == '✔' || tab == '✖'
+                || com.killer560.hub.autopuzzles.AutoPuzzleActivity.solvedByHim(r.name());
     }
 
     /** The run's score inputs: the score calculator's, with the map filling anything it has not read yet. */

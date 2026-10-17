@@ -132,6 +132,7 @@ public final class AutoBeams {
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
             CAMERA.release(client.player);
+            AutoPuzzleActivity.ended(); // the last pair is joined: nothing follows, so nothing waits on it
         }
         lastPairCount = pairs.size();
 

@@ -676,6 +676,7 @@ final class AutoWeirdos {
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Three Weirdos: opened the "), ModChat.good("correct chest"),
                 ModChat.text("."));
         CAMERA.release(player);
+        AutoPuzzleActivity.ended(); // the right chest is the solve: nothing follows
     }
 
     // ------------------------------------------------------------------ bookkeeping
