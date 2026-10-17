@@ -571,3 +571,25 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `AwaitEvents.liveMimic`) while `RouteExecutor.sceptreReaches` says its bat gets there, in every room (killer560,
   2026-10-17); obvious mode uses only once the server has heard the look. Testkit 96-ar-1017-mimicaim (main: 51 down, no
   kill; branch: 2 down, 3 aimed, killed), 62-argrim-1017-mimicaim.
+- **His routes count a secret bat's APPEARANCE toward the node waiting when it appears, BAT node or not** (QUOI's
+  rule). Deathmite #11 breaker awaits 2, a chest and the bat that #12 BAT then kills, on one tile; taking the appearance
+  away from #11 while a BAT node was ahead stalled it 20 s (fullclear-1016 run 034), so that change was reverted. The
+  same rule is why his Doors fails under aura-await-only: #7 awaits 2, the bat appears 8.6 blocks off and meets one, the
+  second lever was left to Secret Aura mid-route (runs 013/015 before the rule), and the way it opens stays shut, so
+  #13's hop 3 is refused at that jungle log (runs 019, 026). Route data ("needs await node"), not code.
+- **A check that reads the client's chunks disagrees with a planner that reads LevelEtherGrid** wherever the client has
+  no chunk (the sim's server mirror fills those columns for the planner). Far trips at a floor's start hit it: the plan
+  validator refused every Ice Fill plan and the recorded-spot check sent the trip to the wrong block (fullclear-1016
+  runs 036/038). Both now ask the planner's grid when the client has no answer (52d1e614). Also, a trip that never
+  names its `target` cannot give up: Ice Fill first looped for 480 s on "trip to null" (9a151f5b).
+- **A warp the server refused is sent once more, not waited out** (fullclear-1016 run 019, his Doors #13 hop 3): the
+  server's ray stopped at a jungle log, no landing came, and the route sat out the 61-tick timeout and then Route Stall.
+  (That log is the shut way of the entry above, which the client sees too; the retry is a guard, not Doors' fix.)
+  With no landing a round trip on (`RightClick.eatenRetryTicks`) and him not moved, `RouteExecutor.retryAim` aims at the
+  same block with a look that holds within `EtherSearch.AIM_MARGIN` and the warp goes once more; a saved hop fired from
+  its own spot is re-aimed first when its look only lands for its exact floats (`TeleportUtils.holdsOn`). Testkit
+  96-ar-1016-refused. Risk on Hypixel: a landing slower than 1.5 round trips + 2 ticks (plus measured server lag) would be
+  followed by a second warp; ServerLag covers stalls, not a single late packet.
+- **62-argrim-chain's 20/s pace is the server's answer time.** The same jar read 1.00 and 1.18-1.55 ticks per warp an hour
+  apart on a busy machine, base fcba4045 included, and every slow warp still went on its landing's tick; there was no
+  regressing commit. The case judges 20/s against the round trip it measures (testkit fullclear-1016).

@@ -335,6 +335,21 @@ public final class AutoClearUtils {
         // in that room whatever is fastest." An override that is not standable - the room's own geometry
         // differs by a block, or the sim pasted something into that cell - used to fail the whole press
         // ("Couldn't find goal position"), because findDungeonPath refuses a goal it cannot warp onto.
+        if (client.level != null && !com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, goal.getX(), goal.getZ())) {
+            // The client does not have the spot's chunk, so it reads as air and the spot as "not standable": the trip
+            // went to the tile's nearest block instead, which for Ice Fill (5 rooms off at the start of his M7) is
+            // 10 blocks from its start, and Auto Ice Fill would not begin there (fullclear-1016 run 038). The planner
+            // reads the floor through LevelEtherGrid (the sim's server mirror covers the columns the client lacks), so
+            // judge the spot the way it will. On Hypixel an unsent chunk is air to both, and this changes nothing.
+            BlockPos near = TeleportUtils.nearestEtherwarpable(goal, new EtherSearch(new LevelEtherGrid(client.level)));
+            if (near != null && near.distSqr(goal) <= NEAR_OVERRIDE_SQ) {
+                if (!quiet) {
+                    LOGGER.info("[Path] {}'s recorded spot {} is in a chunk the client does not have - using {} (the "
+                            + "planner's view)", name, goal.toShortString(), near.toShortString());
+                }
+                return near;
+            }
+        }
         if (!TeleportUtils.landable(goal) || !TeleportUtils.underCover(goal)) {
             // A full landing a step or two away keeps the trip where the spot means it to go. Water Board's
             // (15, 58, 9) is a bottom stone-brick stair (no full top, so not a landing): falling back to the
