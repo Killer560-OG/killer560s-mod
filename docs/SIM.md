@@ -3066,6 +3066,32 @@ tick the chest opens, tab ✔ 1-4 ticks later; main never.
   last count, as on Hypixel. Testkit 1790-sim-map-leave-secrets (every type, door and etherwarp, same tick and one tick
   later): 20/20 on 26.1.2 and 26.2; main fcba4045 18/20 fail (all ten same-tick cases; two one-tick cases pass when the
   ten-tick action bar happens to land on that tick).
+## Deuces' doorway, again: Hypixel's door piece follows the world, not the room (2026-10-16, sim-deuces-door-1016)
+killer560 (a solo Deuces, Load a Room): "this door isn't supposed to have almost any blocks above it in Deuces". The
+blocks above the chest doorway are the capture's, in the solo room AND on a full floor (testkit 1433: x 1..8 of Deuces
+equal `Dueces.json`, 0 of 1,976 differ). Neither the solo seal (diamond only in the ring's air, the seam column) nor the
+c435281c trim rule (top layer of the opening, y 72, over air) touches anything above the trim. Two things were found:
+- **The reference picture was the sim's.** `killer560s-mod-logs/deuces-doorway.png` was 1433's own screenshot (full floor,
+  FOV 110, pitch -36), named like a reference and handed on as his Hypixel shot. Same blocks as his solo shot, steeper
+  angle. 1433 now writes to `killer560s-mod-logs/sim-deuces-door-1016/`.
+- **The box over the trim is Hypixel's door connector, and its two halves are laid by WORLD side.** Over the 3x4 opening
+  and its trim row, the 5 wide x 3 high box (y 74..76) in the wall plane and one in holds one of exactly two fillings in
+  207 doorways of the shipped captures (`pieces.py` in `killer560s-mod-logs/sim-deuces-door-1016/`): every EAST/SOUTH one
+  (62 + 44) cyan terracotta then air, a recess; every WEST/NORTH one (55 + 46) stone then the same fifteen blocks (stone
+  bricks, one stone, one mossy, four upside-down stairs facing the wall - the north copy is the west one turned), flush.
+  Zero exceptions either way, in rooms captured at every quarter turn. Deuces W0 (the chest doorway) is a west one, so the
+  fill; E0 the recess. The paste carried the capture's half round with the room, so a room at 180 had fill on its east
+  doorways and recess on its west ones, and at 90/270 half were wrong (1433 on main fcba4045: 24, 19 and 10 wrong doorways
+  on three generated F7s). `RoomDoorPieces` now swaps the box over each doorway that holds a standard filling to the one
+  for the side it faces once turned, inside `PasteJob` (capture-frame states, turned by the paste like everything else).
+  Rotation 0 is unchanged.
+- **So a solo Deuces from Load a Room (rotation 0) still has the fill over its chest doorway**, because on Hypixel a
+  west-facing doorway has it in every capture. His run of 2026-10-16 17:34Z had Deuces at database rotation 0, which is the
+  capture's turn (capture rotation 0), so its chest doorway faced west there too. If his Hypixel picture shows that doorway
+  facing west with no fill, the world-side rule is wrong and F3's facing in that picture is the evidence to read; if it
+  faced east or south, the sim now matches it at that turn (1433's solo-r180 and floor-r180 shots).
+- Of the library's 278 measured doorways (RoomDoors' rule, `framed.py`), 70 hold neither filling (Altar, Spider, Mossy,
+  Supertall, Withermancer...): the rooms' own, pasted as captured.
 
 ## Moved from CLAUDE.md (2026-10-15, to keep it under 300 lines)
 
