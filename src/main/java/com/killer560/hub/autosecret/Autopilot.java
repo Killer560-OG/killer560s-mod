@@ -242,6 +242,17 @@ final class Autopilot {
     }
 
     /**
+     * Auto Secret's Blood First (Door Camp and Full Blood Rush, killer560 2026-10-17) takes its doors and keys from this
+     * same rule: the next door on the way to blood (or a key for it lying in reach), or null when there is none or the
+     * team has no key for it. {@code dist}: the decision's room distances (a key counts only in a room it can reach).
+     */
+    static Order bloodFirstStep(DungeonLayout layout, Map<Integer, Integer> dist) {
+        lastDist = dist;
+        int blood = layout.bloodDoor();
+        return bloodFirstDoor(layout, blood, blood >= 0 && layout.isLocked(blood));
+    }
+
+    /**
      * Blood First's next door: the first locked door on the way from here to the room in front of the blood door
      * (Auto Blood Rush's rule), then the blood door itself. Null when the team lacks the key for it (the rest of the
      * floor is planned meanwhile) or there is no door on the way.
