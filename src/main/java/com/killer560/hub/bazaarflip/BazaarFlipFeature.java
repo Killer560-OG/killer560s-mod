@@ -197,6 +197,11 @@ public final class BazaarFlipFeature {
     private static long customSinceMs = 0L;
     private static long signSeenAtMs = 0L;
     private static boolean confirmClicked = false;
+    /** A Custom Amount purchase landed with no menu open: when that started (0 = not waiting for the page). */
+    private static long awaitingReopenSinceMs = 0L;
+    /** How long the Bazaar page may take to come back after a Custom Amount purchase. A bound, not a wait: buying
+     *  resumes the tick the page is up. */
+    private static final long REOPEN_TIMEOUT_MS = 2_000L;
     // What Hypixel reported this cycle (BazaarFlipProfitLog).
     private static double cycleSpent = 0;
     private static int cycleBoughtLines = 0;
@@ -327,6 +332,7 @@ public final class BazaarFlipFeature {
         clicks = 0;
         cycles = 0;
         npcLimitHit = false;
+        lastStopReason = "";
         startPurse = purse;
         startedAtMs = System.currentTimeMillis();
         startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
@@ -577,6 +583,7 @@ public final class BazaarFlipFeature {
         clickedContainerId = Integer.MIN_VALUE;
         seenContainerId = Integer.MIN_VALUE;
         custom = Custom.NONE;
+        awaitingReopenSinceMs = 0L;
         cycleSpent = 0;
         cycleBoughtLines = 0;
         cycleReceived = 0;
@@ -671,8 +678,10 @@ public final class BazaarFlipFeature {
                 boolean wasCustom = custom == Custom.AFTER_SIGN;
                 custom = Custom.NONE;
                 if (wasCustom && !(open instanceof AbstractContainerScreen<?>)) {
-                    // Hypixel closed the Bazaar after the purchase: sell what came, the next cycle buys again.
-                    doneBuying("bought the custom amount");
+                    // The items can land before the page the sign came from is shown again (testkit 2764 on the
+                    // merged jar: 40 of 100 arrived with no menu up, and buying ended there). Wait for the page,
+                    // bounded; only if no menu comes back is this cycle's buying over.
+                    awaitingReopenSinceMs = now;
                     return;
                 }
             } else if (cannotAfford) {
@@ -686,6 +695,17 @@ public final class BazaarFlipFeature {
                 return;
             } else if (custom == Custom.AFTER_SIGN) {
                 tickAfterSign(client, open, cfg, now);
+                return;
+            } else {
+                return;
+            }
+        }
+        if (awaitingReopenSinceMs > 0L) {
+            if (open instanceof AbstractContainerScreen<?>) {
+                awaitingReopenSinceMs = 0L; // the page is back: carry on buying from it
+            } else if (open != null || now - awaitingReopenSinceMs > REOPEN_TIMEOUT_MS) {
+                awaitingReopenSinceMs = 0L;
+                doneBuying("bought the custom amount; the Bazaar did not reopen");
                 return;
             } else {
                 return;
@@ -1339,5 +1359,6 @@ public final class BazaarFlipFeature {
         custom = Custom.NONE;
         pendingBuy = false;
         npcLimitHit = false;
+        awaitingReopenSinceMs = 0L;
     }
 }
