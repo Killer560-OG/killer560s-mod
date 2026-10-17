@@ -605,6 +605,12 @@ public final class AutoSecretFeature {
         if (id < 0 || layout.roomAtWorld(client.player.getX(), client.player.getZ()) != id) {
             return null;
         }
+        // The mimic of a trapped chest just opened here (Kill Mimic fighting it): the chest counts on the click, but its
+        // +2 needs the kill, and warping away left the sceptre firing at the floor of the next room for its whole 5 s
+        // (fullclear-1016 run 008, Arrow Trap). Waited like a secret still being taken.
+        if (com.killer560.hub.autoroutes.MimicKiller.isBusy()) {
+            return "the mimic (Kill Mimic is fighting it)";
+        }
         boolean all = counted == null || counted[0] >= counted[1];
         String aura = com.killer560.hub.cheatutils.SecretAuraFeature.takingInReach(client, all);
         if (aura != null || all) {
@@ -651,7 +657,7 @@ public final class AutoSecretFeature {
         int found = r.secrets() - r.unfound();
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.gotSince(leaveStartClock,
+        int got = id < 0 ? 0 : com.killer560.hub.autoroutes.RouteRunMemory.secretsSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return new int[]{Math.min(r.secrets(), Math.max(found, leaveFoundAtStart + got)), r.secrets()};
     }
@@ -664,7 +670,7 @@ public final class AutoSecretFeature {
         }
         DungeonLayout layout = DungeonLayout.capture();
         int id = roomIdOf(layout, name);
-        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.whatSince(leaveStartClock,
+        List<String> got = id < 0 ? List.of() : com.killer560.hub.autoroutes.RouteRunMemory.secretsWhatSince(leaveStartClock,
                 p -> layout.roomAtWorld(p.x, p.z) == id);
         return "map " + (r.secrets() - r.unfound()) + "/" + r.secrets() + ", run " + fmtPercent(
                 DungeonInfoFeature.secretsFoundPercent()) + "%, at the trip's start " + leaveFoundAtStart + " + yours since "

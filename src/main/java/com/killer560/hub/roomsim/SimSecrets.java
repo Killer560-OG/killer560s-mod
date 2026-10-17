@@ -272,6 +272,12 @@ public final class SimSecrets {
         return new BlockPos(at.getX(), SimAltitude.toWorld(at.getY()), at.getZ());
     }
 
+    /** One line per secret placed, so a run's missed secrets can be named by position (testkit 1016-sim-fullclear
+     *  pairs these with SimScore's "Sim secret counted" lines). */
+    private static void logPlaced(String kind, BlockPos at) {
+        LOGGER.info("Sim secret placed: {} at {}", kind, at.toShortString());
+    }
+
     public static int[] clayCorner(RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
         return clayCorner(room, gridX, gridZ, rotation, Math.floorMod(rotation + RoomCaptureRotation.of(room), 360));
     }
@@ -444,6 +450,7 @@ public final class SimSecrets {
             // Offered to the mimic picker the same way a pasted room's chests are, so a sim floor can have a
             // mimic in a secret chest exactly as a real one does.
             SimMimic.addCandidate(at);
+            logPlaced("chest", at);
             n++;
         }
         return n;
@@ -462,6 +469,7 @@ public final class SimSecrets {
             // REGISTERED, not spawned: the bat appears when he comes near it, as Hypixel's does - see
             // SimSecretItems.registerBat and SimMobs.spawnSecretBat.
             SimSecretItems.registerBat(at);
+            logPlaced("bat", at);
             n++;
         }
         return n;
@@ -493,6 +501,7 @@ public final class SimSecrets {
                 continue;
             }
             SimSecretItems.register(at);
+            logPlaced("item", at);
             n++;
         }
         return n;
@@ -551,6 +560,7 @@ public final class SimSecrets {
             if (record != null) {
                 record.add(spot);
             }
+            logPlaced(record == PLACED_WITHER ? "essence" : "key", spot);
             n++;
         }
         if (blocked > 0) {

@@ -472,6 +472,30 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   full graph's fresh plan took 11 (testkit 147 on the FPS build, 2 of 2 runs; the pre-FPS logs show the same timing, it
   passed only because those floors' quick and full plans happened to be equal). Not an FPS cache: `Entry.outgrown()` now
   makes the press search (a few ms on the warm graph) and the cache replan those trips first, outside the quiet gate.
+- **A warp the server will take as an unpaired click's second half is sent again, not waited out** (fullclear-1016; his
+  sim run 2026-10-16 Cathedral #15 and Crypt #5, every time a chest opened with the AOTV by the hop's spot). The 1.8
+  server's ray (1.54 eye) met oak leaves the client's 1.27 look never reaches, `RightClick.reaimIfUnpairable` found no
+  look with agreeing rays, and the use was dropped: Auto Routes then sat out its 61-tick landing timeout off every node's
+  ring until Route Stall stopped the route; the Interactive Map chained four more hops from the landing that never came,
+  all refused. The dropped use clears the server's stored click whatever happens, so when `barePairedUses()` rose on a
+  warp both executors send it again after `RightClick.eatenRetryTicks()` (1.5x the measured round trip + 2 ticks, at least
+  3; 300 ms before the first pong) with no landing, and ClearExecutor queues nothing behind it meanwhile. If the
+  judgement was wrong the landing arrives inside that and nothing is resent. Testkit 96-ar-1016-eaten (main: timed out;
+  fixed: resent 4 ticks after, landed).
+- **A secret got under a node with no await belongs to the next await, however many await-less nodes come between**
+  (fullclear-1016 run 004, his Double Diamond #4 PATH / #5 breaker / #6 etherwarp stack, #7 awaiting the item the breaker
+  opened): the Magnetic Talisman range picked it up while #4/#5 acted, #6 opened its own window and closed it unused,
+  and #7 waited 20 s for a secret already taken until Route Stall stopped the route. `finishAction` now keeps the carry a
+  node began with when it has no await (`nodeCarry`). Testkit 96-ar-1016-carry (main: #3 never warps).
+- **A lever is not one of a room's secrets.** Auto Routes' awaits count his lever flips (a route records one to wait on),
+  and Auto Secret's room count reused that memory, so "Museum: every secret counted (5/5: map 4/5)" with the lever as the
+  fifth and the room left a secret short - three runs of three (fullclear-1016 runs 002-004; 5/5 in 005-007 with the fix).
+  `RouteRunMemory.secretsSince` / `secretsWhatSince` leave levers out; awaits still count them.
+- **The start node's lookback must be near the start node.** `AwaitEvents.START_LOOKBACK` counts his secrets from the 10
+  ticks before a route starts, for the Secret Aura click that races the start node's arming (2026-10-07). Secret Aura also
+  takes the LAST room's secret as the map's warp leaves it, inside those 10 ticks, and that met Museum #1's await from 50
+  blocks away; the route left #1's chest behind (fullclear-1016 run 010). A pre-start secret now counts only within
+  `RouteRunMemory.NEAR_NODE` of where he stands when the route starts. Testkit 96-ar-1016-farstart (main fails).
 - **A path follower tuned at a vanilla sprint swings off the line at his sim speed** (killer560, 2026-10-16: "the boulder
   pathfinder broke going out"). At speed 600 a sprint covers ~1.7 blocks a tick; Auto Boulder's 1.2-block pursuit carrot was
   under a tick ahead and each tick's turn an eased fraction of what was left, so the yaw swung -175, -192, -142, -246 on a

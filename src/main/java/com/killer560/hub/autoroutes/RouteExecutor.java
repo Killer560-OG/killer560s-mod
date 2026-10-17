@@ -219,6 +219,15 @@ public final class RouteExecutor {
     private static int warpPacedTicks;
     /** Ticks this warp's use waited for the server to hear its look first, a block click being unpaired (util/RightClick). */
     private static int warpTurnFirstTicks;
+    /** The warp's use went out as one util/RightClick judged the server would take as an unpaired click's second half:
+     *  with no landing inside {@code RightClick.eatenRetryTicks} it goes again (the click is paired by then). */
+    private static boolean warpEaten;
+    /** Warps sent again after an eaten use - read by the testkit. */
+    private static int eatenResends;
+
+    public static int eatenResends() {
+        return eatenResends;
+    }
 
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
@@ -313,6 +322,9 @@ public final class RouteExecutor {
     /** Set by {@link #finishAction}: the next node's await also counts remembered secrets got at or after this tick.
      *  {@code Integer.MAX_VALUE} when there is no node before it (the route's start has its own lookback). */
     private static int carryFrom = Integer.MAX_VALUE;
+    /** The carry the active node began with, kept when it has no await of its own: a secret got under a node with no
+     *  await is the next await's, however many await-less nodes come between (fullclear-1016, his Double Diamond). */
+    private static int nodeCarry = Integer.MAX_VALUE;
     /** {@link #execTicks} of a left click of his taken while the route was teleporting him between awaits (a warp
      *  or path node in flight, or the settle before the next node of a stack) - see {@link #takeEarlySkip}. */
     private static long earlySkipClickAt = Long.MIN_VALUE / 2;
@@ -537,6 +549,7 @@ public final class RouteExecutor {
         unsneakOverride = false;
         awaitPhaseDone = true;
         carryFrom = Integer.MAX_VALUE;
+        nodeCarry = Integer.MAX_VALUE;
         earlySkipClickAt = Long.MIN_VALUE / 2;
         AwaitEvents.begin(client);
         landedFrom = null;
@@ -1405,6 +1418,7 @@ public final class RouteExecutor {
         actionFromTick = AwaitEvents.now();
         int carry = carryFrom;
         carryFrom = Integer.MAX_VALUE;
+        nodeCarry = node.awaitEnabled ? Integer.MAX_VALUE : carry;
         if (!awaitPhaseDone && node.awaitCondition != RouteNode.AwaitCondition.DELAY) {
             // killer560, 2026-10-14: "if it remembers I already got that secret or that bat then it will not wait for
             // the await before doing that action". Met earlier this run: met now. First visit: a secret he already got
@@ -1494,6 +1508,14 @@ public final class RouteExecutor {
         // picked up on its way in during its last few ticks (AwaitEvents.CARRY_TICKS: Hypixel's pickup packet comes
         // in the same batch as the warp's landing, ahead of the tick that sees it).
         carryFrom = Math.max(actionFromTick, AwaitEvents.now() - AwaitEvents.CARRY_TICKS);
+        // A node with no await of its own claims nothing, so whatever the node before it carried still belongs to the
+        // next await: his Double Diamond #4 PATH / #5 breaker / #6 etherwarp stack picked up #7's item (the breaker
+        // opened it, Magnetic Talisman range) while #5 acted, #6 opened its own window, and #7's await waited 20 s for
+        // a secret already taken until Route Stall stopped the route (fullclear-1016 run 004).
+        if (finished != null && !finished.awaitEnabled) {
+            carryFrom = Math.min(carryFrom, nodeCarry);
+        }
+        nodeCarry = Integer.MAX_VALUE;
         AwaitEvents.window(Minecraft.getInstance());
         boolean landed = landingConfirmed;
         landingConfirmed = false;
@@ -2300,7 +2322,9 @@ public final class RouteExecutor {
             notePacedWarp();
             actionOrigin = player.position();
             teleportPacketSeen = false;
+            int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
             useHeldItem(client, player, warpYaw, warpPitch, false);
+            warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
@@ -2337,6 +2361,20 @@ public final class RouteExecutor {
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
                 return true;
+            } else if (warpEaten && !teleportPacketSeen
+                    && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()) {
+                // The use went out as the second half of an unpaired block click (util/RightClick: the server's ray met a
+                // block this client could not click, and no other look landed with rays that agree). That use cleared the
+                // server's stored click whatever became of it, so the same warp sent again is an ordinary right click and
+                // fires - one round trip lost, where the 61-tick timeout below left him off every node's ring until Route
+                // Stall stopped the route (fullclear-1016: Crypt #5, Cathedral #15).
+                LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after a use the server took as the block "
+                        + "click's second half - the click is paired now, sending the warp again", stepTicks);
+                warpEaten = false;
+                eatenResends++;
+                step = Step.AIM;
+                stepTicks = 0;
+                return false;
             } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing after {} ticks - player {} (moved {} from {}), "
                         + "recorded landing {}", stepTicks, fmt(player.position()),

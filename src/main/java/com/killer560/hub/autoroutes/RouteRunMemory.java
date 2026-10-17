@@ -120,6 +120,39 @@ public final class RouteRunMemory {
         return n;
     }
 
+    /**
+     * {@link #gotSince} without the levers: an await counts his lever flips (a route records one to wait on), but a lever
+     * is not one of a room's secrets - not in the room database's count, not on Hypixel's "x/y Secrets" - so a room
+     * count that took them in called a room done one secret early and Auto Secret left it (fullclear-1016: Museum
+     * "5/5: map 4/5" three runs of three, its lever among the five).
+     */
+    public static int secretsSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
+        check();
+        int n = 0;
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && g.pos() != null && !isLever(g) && where.test(g.pos())) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** What {@link #secretsSince} counts, for log lines. */
+    public static List<String> secretsWhatSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
+        check();
+        List<String> out = new ArrayList<>();
+        for (Got g : got.values()) {
+            if (g.tick() >= sinceTick && g.pos() != null && !isLever(g) && where.test(g.pos())) {
+                out.add(g.what());
+            }
+        }
+        return out;
+    }
+
+    private static boolean isLever(Got g) {
+        return g.what() != null && g.what().startsWith("lever");
+    }
+
     /** What {@link #gotSince} counts, one entry per secret ("chest at x, y, z"), for log lines. */
     public static List<String> whatSince(int sinceTick, java.util.function.Predicate<Vec3> where) {
         check();

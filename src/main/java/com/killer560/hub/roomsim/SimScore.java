@@ -121,6 +121,9 @@ public final class SimScore {
         if (room != null) {
             FOUND_BY_ROOM.merge(room, 1, Integer::sum);
         }
+        // Paired with SimSecrets' "Sim secret placed" lines, so a run's missing secrets can be named by position.
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim secret counted: {} in {} ({} in the room)",
+                at == null ? "?" : at.toShortString(), room, room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0));
     }
 
     /** Secrets found so far in the named room this run. */
