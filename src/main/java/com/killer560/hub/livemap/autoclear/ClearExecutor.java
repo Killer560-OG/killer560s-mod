@@ -904,7 +904,11 @@ public final class ClearExecutor {
         ticksSinceProgress = 0;
         waitReason = "held for the room's last secrets";
         boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
-        active = current.get(0) instanceof ClearNode.EtherNode && !screen && holdSneak;   // never under a container
+        // Never under a container, and hands off while Kill Mimic fights the mimic of a chest just opened: the hold swapped
+        // the AOTV back and turned the body to the first warp, so every sceptre use went out as an AOTV use at the warp's
+        // pitch and the mimic never died (fullclear-1016 run 010, Cage).
+        active = current.get(0) instanceof ClearNode.EtherNode && !screen && holdSneak
+                && !com.killer560.hub.autoroutes.MimicKiller.isBusy();
         if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
             swappedOnTick = clientTicks;
         }
