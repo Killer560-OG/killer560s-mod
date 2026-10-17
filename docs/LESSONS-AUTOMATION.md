@@ -18,6 +18,14 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - A hotbar swap sent by hand (`ServerboundSetCarriedItemPacket` after `setSelectedSlot`) leaves the game mode's
   `carriedIndex` stale, and its `tick()` then sends the same slot again: GrimAC BadPacketsA. Swap through
   `MultiPlayerGameModeInvoker.invokeEnsureHasSentCarriedItem` (RouteExecutor.select, ClearExecutor.swapById since 09e2c304).
+  **And only inside a tick** (grim-post-autopilot-1016): GrimAC Post flags a held-item change sent after the tick's
+  `client_tick_end` (END_CLIENT_TICK, a task or packet handler between ticks, a render frame) whenever a transaction answer
+  follows it before the next tick packet - so it flags in some runs only. Auto Secret's `decide` runs at END (his toggle
+  key too), and a first trip taken precomputed (`ClearExecutor.runPlanned`) swapped to the AOTV right there: testkit
+  62-argrim-1016-autosecret-key, Post on main, its trace `[client_tick_end, set_carried_item, pong]`. Every automation swap
+  now goes through `util/HotbarSelect.select`, which outside a tick only sets the slot (vanilla's `gameMode.tick` sends it
+  at the start of the next tick, before the movement packet, as for the scroll wheel). The testkit's
+  `PacketTrace.sentOutsideTick()` catches the order without waiting for Grim's luck.
 - An await met by the chest CLICK (2026-10-05 rules) lets the route warp before the chest's window arrives, which is
   right - Hypixel credits the chest on the click - but the late window then stopped the route ("a screen opened"). A
   container screen within 2 s of our own chest click is now waited under (98b457be; 96-ar-play emulates the late window).

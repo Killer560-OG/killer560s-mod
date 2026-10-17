@@ -439,15 +439,7 @@ public final class LeapManager {
 
     /** A hotbar swap the game mode knows about, so its own tick does not send the slot a second time (LESSONS.md). */
     private static void select(Minecraft client, LocalPlayer player, int slot) {
-        if (player.getInventory().getSelectedSlot() == slot) {
-            return;
-        }
-        player.getInventory().setSelectedSlot(slot);
-        if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
-            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-        } else {
-            player.connection.send(new net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket(slot));
-        }
+        com.killer560.hub.util.HotbarSelect.select(client, player, slot);
     }
 
     static void onEndTick(Minecraft client) {

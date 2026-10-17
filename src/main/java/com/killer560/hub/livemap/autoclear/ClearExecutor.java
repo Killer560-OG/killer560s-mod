@@ -14,7 +14,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -764,8 +763,16 @@ public final class ClearExecutor {
         sendNow = true;
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
-        if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV) && swapById(AOTV)) {
-            swappedOnTick = clientTicks;   // asked for from a START handler: no use goes out this same tick
+        if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV)) {
+            // Asked for from a START handler (a route that just ended), the swap goes now and no use goes out this same
+            // tick. Asked for from an END handler (Auto Secret's decide, his toggle key) or a task between ticks (a
+            // search planned ahead coming in), the swap goes with the NEXT tick (util/HotbarSelect: after this tick's
+            // client_tick_end it was GrimAC Post, testkit 62-argrim-1016-autosecret-key), and that is the tick no use
+            // goes on.
+            boolean now = com.killer560.hub.util.HotbarSelect.inTick();
+            if (swapById(AOTV)) {
+                swappedOnTick = now ? clientTicks : clientTicks + 1;
+            }
         }
         improveInBackground(list, to, tileIdx, DungeonLayout.capture());
         return true;
@@ -2107,15 +2114,11 @@ public final class ClearExecutor {
                     if (hasSwappedThisTick) {
                         return false;
                     }
-                    player.getInventory().setSelectedSlot(i);
                     // Through vanilla's own ensureHasSentCarriedItem, as Auto Routes' RouteExecutor.select does, so
-                    // the game mode's carriedIndex agrees and its tick() does not send the same slot a second time.
-                    // Sent by hand, every swap went out twice - a same-slot repeat no vanilla client sends.
-                    if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-                        invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-                    } else {
-                        player.connection.send(new ServerboundSetCarriedItemPacket(i));
-                    }
+                    // the game mode's carriedIndex agrees and its tick() does not send the same slot a second time
+                    // (sent by hand, every swap went out twice). Asked for outside a tick - a trip started from an END
+                    // handler or a task - it goes with the next tick instead: util/HotbarSelect (GrimAC Post).
+                    com.killer560.hub.util.HotbarSelect.select(client, player, i);
                     hasSwappedThisTick = true;
                     return true;
                 }

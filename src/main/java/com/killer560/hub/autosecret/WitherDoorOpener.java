@@ -1,7 +1,6 @@
 package com.killer560.hub.autosecret;
 
 import com.killer560.hub.autoroutes.ItemIdentity;
-import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.BlockHits;
@@ -12,7 +11,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
@@ -170,13 +168,8 @@ final class WitherDoorOpener {
             if (slot < 0) {
                 slot = quietSlot(player);
             }
-            if (slot >= 0 && player.getInventory().getSelectedSlot() != slot) {
-                player.getInventory().setSelectedSlot(slot);
-                if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-                    invoker.killer560smod$invokeEnsureHasSentCarriedItem();
-                } else {
-                    player.connection.send(new ServerboundSetCarriedItemPacket(slot));
-                }
+            if (slot >= 0) {
+                com.killer560.hub.util.HotbarSelect.select(client, player, slot);
             }
             Vec3 d = hit.getLocation().subtract(eye);
             float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));

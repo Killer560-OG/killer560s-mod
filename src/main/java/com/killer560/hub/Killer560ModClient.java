@@ -138,6 +138,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Per-tick pings from the sim's server, as Hypixel sends them: what util/ServerLag measures stalls by.
         com.killer560.hub.roomsim.SimServerTicks.register();
         com.killer560.hub.util.ServerLag.register();
+        // Whether a hotbar swap may go out now or must wait for the next tick (GrimAC Post, grim-post-autopilot-1016).
+        com.killer560.hub.util.HotbarSelect.register();
         com.killer560.hub.roomsim.SimSpiritSceptre.register();
         // Only so the Terminator's own arrows can be recognised when they land - that is what arms Salvation
         // now that the shot is real entities instead of a ray cast. Nothing else in this file needs it.
