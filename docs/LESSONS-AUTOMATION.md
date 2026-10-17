@@ -551,6 +551,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   same rule is why his Doors fails under aura-await-only: #7 awaits 2, the bat appears 8.6 blocks off and meets one, the
   second lever was left to Secret Aura mid-route (runs 013/015 before the rule), and the way it opens stays shut, so
   #13's hop 3 is refused at that jungle log (runs 019, 026). Route data ("needs await node"), not code.
+- **A check that reads the client's chunks disagrees with a planner that reads LevelEtherGrid** wherever the client has
+  no chunk (the sim's server mirror fills those columns for the planner). Far trips at a floor's start hit it: the plan
+  validator refused every Ice Fill plan and the recorded-spot check sent the trip to the wrong block (fullclear-1016
+  runs 036/038). Both now ask the planner's grid when the client has no answer (52d1e614). Also, a trip that never
+  names its `target` cannot give up: Ice Fill first looped for 480 s on "trip to null" (9a151f5b).
 - **A warp the server refused is sent once more, not waited out** (fullclear-1016 run 019, his Doors #13 hop 3): the
   server's ray stopped at a jungle log, no landing came, and the route sat out the 61-tick timeout and then Route Stall.
   (That log is the shut way of the entry above, which the client sees too; the retry is a guard, not Doors' fix.)
