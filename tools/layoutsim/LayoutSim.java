@@ -251,7 +251,7 @@ public final class LayoutSim {
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
             "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
             "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)", "one-door room with != 1 door",
-            "door with no walkable cut (BLIND)"};
+            "door with no walkable cut (BLIND)", "Quiz and Three Weirdos together"};
 
     /** Dead-end rooms (SimFloorLayout.isDeadEnd) by name:doors, when they do not have exactly one door. */
     private static final Map<String, Integer> DEAD_END_DOORS = new TreeMap<>();
@@ -451,6 +451,14 @@ public final class LayoutSim {
     private static boolean[] judge(SimFloorLayout.Floor f, int slider, int puzzles, int minRooms, int wantCells,
                                    Map<Integer, Integer> lengthHist) {
         boolean[] bad = new boolean[FAILS.length];
+        // The sim's one quiz arena (SimQuizPuzzle) can arm only one of them (fullclear-1016 run 020).
+        boolean quiz = false;
+        boolean weirdos = false;
+        for (SimFloorLayout.Placement q : f.rooms()) {
+            quiz |= q.name().equalsIgnoreCase("Quiz");
+            weirdos |= q.name().equalsIgnoreCase("Three Weirdos");
+        }
+        bad[17] = quiz && weirdos;
         int g = SimFloorLayout.GRID;
         int[] owner = new int[g * g];
         java.util.Arrays.fill(owner, -1);

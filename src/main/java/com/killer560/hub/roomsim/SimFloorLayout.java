@@ -242,7 +242,11 @@ public final class SimFloorLayout {
      * point of it, and this class is only used by the random generator.
      */
     private static final java.util.List<java.util.Set<String>> EXCLUSIVE_GROUPS = java.util.List.of(
-            java.util.Set.of("higher blaze", "lower blaze"));
+            java.util.Set.of("higher blaze", "lower blaze"),
+            // NOT a Hypixel rule - a sim limit: both rooms run on SimQuizPuzzle, which holds one arena, so the second was
+            // never armed and never asked its question; Auto Secret waited Puzzle Wait's 30 s in it and moved on with
+            // the puzzle undone (fullclear-1016 run 020, Quiz beside Three Weirdos). Lift this when the puzzle holds two.
+            java.util.Set.of("quiz", "three weirdos"));
 
     private SimFloorLayout() {
     }
