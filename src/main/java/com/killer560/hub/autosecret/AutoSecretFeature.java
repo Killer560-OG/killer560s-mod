@@ -491,7 +491,7 @@ public final class AutoSecretFeature {
         secreted.add(room);
         long tick = ClearExecutor.clientTick();
         LOGGER.info("[AutoSecret] route {} finished (tick {})", room, tick);
-        say(ModChat.good("Route done"), ModChat.dim(" - " + room));
+        note(ModChat.good("Route done"), ModChat.dim(" - " + room));
         // This room's own trip start, kept for the wait: decide() below starts the NEXT trip and overwrites the
         // fields, and the wait then counted the leaving room from the next room's found count (147 on main: "every
         // secret counted after 1 tick" with the room still 4/5).
@@ -711,7 +711,7 @@ public final class AutoSecretFeature {
             puzzleHoldSaid = puzzle;
             if (puzzleHoldsSaid.add(puzzle)) {
                 LOGGER.info("[AutoSecret] waiting: {} is working (phase {})", puzzle, phase);
-                say(ModChat.dim("Waiting for " + puzzle + " to finish"));
+                note(ModChat.dim("Waiting for " + puzzle + " to finish"));
             }
         }
         return true;
@@ -957,7 +957,7 @@ public final class AutoSecretFeature {
             }
             iceFillTried = true;
             LOGGER.info("[AutoSecret] Ice Fill first: {} room(s) away", dist.get(r.room()));
-            say(ModChat.text("Going to "), ModChat.value("Ice Fill"), ModChat.dim(" first - Auto Ice Fill does it"));
+            note(ModChat.text("Going to "), ModChat.value("Ice Fill"), ModChat.dim(" first - Auto Ice Fill does it"));
             if (layout.currentRoom() == r.room()) {
                 beginIceFill();
                 return true;
@@ -1012,7 +1012,7 @@ public final class AutoSecretFeature {
                         continue;
                     }
                     LOGGER.info("[AutoSecret] insta clear {}: entry {} (land {} from {})", r.name(), key, landing, f.name());
-                    say(ModChat.text("Insta clearing "), ModChat.value(r.name()), ModChat.dim(" from " + f.name()));
+                    note(ModChat.text("Insta clearing "), ModChat.value(r.name()), ModChat.dim(" from " + f.name()));
                     instaLanding = landing;
                     instaFrom = f.name();
                     target = r.name();
@@ -1172,7 +1172,7 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] target {}: {} unfound, {} room(s) away; open {}; behind a closed door {}", r.name(),
                 r.unfound(), dist.get(r.room()), openText, blockedText);
         status = "Secreting " + r.name() + " (" + r.unfound() + " unfound)";
-        say(ModChat.text("Going to "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound() + " unfound)"));
+        note(ModChat.text("Going to "), ModChat.value(r.name()), ModChat.dim(" (" + r.unfound() + " unfound)"));
         // Exactly what a Go + Secret press does before its goal runs (InteractiveMapFeature.queue): it clears the
         // "route just finished here" latch the last room's route left, which otherwise holds the next start node
         // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
@@ -1275,7 +1275,7 @@ public final class AutoSecretFeature {
                 targetRoomId = r.room();
                 status = "Exploring an unidentified room";
                 LOGGER.info("[AutoSecret] autopilot: exploring the unidentified room at tile {}", r.mainTile());
-                say(ModChat.text("Exploring an unidentified room"));
+                note(ModChat.text("Exploring an unidentified room"));
                 if (here == r.room()) {
                     setPhase(Phase.SETTLE);
                 } else {
@@ -1298,7 +1298,7 @@ public final class AutoSecretFeature {
         int blood = layout.bloodDoor();
         if (o.openBlood() && blood >= 0 && layout.isLocked(blood) && !secreted.contains(doorName(blood))) {
             LOGGER.info("[AutoSecret] autopilot: {} - the blood door is the last thing (it starts the Watcher)", o.why());
-            say(ModChat.text(o.why() + " - "), ModChat.value("opening the blood door"),
+            note(ModChat.text(o.why() + " - "), ModChat.value("opening the blood door"),
                     ModChat.dim(" (the last step: it starts the Watcher)"));
             goToDoor(layout, blood, true, o.why() + ": the blood door last");
             return;
@@ -1326,7 +1326,7 @@ public final class AutoSecretFeature {
         target = (k.blood() ? "the Blood Key" : "the Wither Key") + " #" + k.id();
         targetRoomId = -1;
         status = "Picking up " + target;
-        say(ModChat.text("Picking up the "), ModChat.value(k.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" - " + why));
+        note(ModChat.text("Picking up the "), ModChat.value(k.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" - " + why));
         BlockPos at = BlockPos.containing(k.x(), k.y(), k.z());
         net.minecraft.world.phys.Vec3 keyPos = new net.minecraft.world.phys.Vec3(k.x(), k.y(), k.z());
         double d = client.player == null ? 99 : client.player.position().distanceTo(keyPos);
@@ -1437,7 +1437,7 @@ public final class AutoSecretFeature {
                 counted ? "the team's count went up" : "the key left the world", now, keyLastDist,
                 AutoSecretConfig.getInstance().keyPickupRange(), com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
                 com.killer560.hub.doorkeys.DungeonKeys.bloodKey(), line));
-        say(ModChat.good(keyTarget.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" picked up"));
+        note(ModChat.good(keyTarget.blood() ? "Blood Key" : "Wither Key"), ModChat.dim(" picked up"));
         if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
             ClearExecutor.cancel();
         }
@@ -1453,7 +1453,7 @@ public final class AutoSecretFeature {
         targetRoomId = r.room();
         status = "Going to clear " + r.name();
         LOGGER.info("[AutoSecret] autopilot: clear {} ({} room(s) away) - Auto Clear", r.name(), dist.get(r.room()));
-        say(ModChat.text("Clearing "), ModChat.value(r.name()));
+        note(ModChat.text("Clearing "), ModChat.value(r.name()));
         if (layout.currentRoom() == r.room()) {
             arrived(Trip.CLEAR);
             return;
@@ -1468,7 +1468,7 @@ public final class AutoSecretFeature {
         status = "Going to the puzzle " + r.name();
         LOGGER.info("[AutoSecret] autopilot: puzzle {} ({} room(s) away) - its Auto Puzzles auto", r.name(),
                 dist.get(r.room()));
-        say(ModChat.text("Puzzle: "), ModChat.value(r.name()));
+        note(ModChat.text("Puzzle: "), ModChat.value(r.name()));
         if (layout.currentRoom() == r.room()) {
             setPhase(Phase.PUZZLE_WAIT);
             return;
@@ -1502,14 +1502,14 @@ public final class AutoSecretFeature {
             puzzlesDone.add(r.name());
             if (RoomStatus.teammateInside(r.cells())) {
                 LOGGER.info("[AutoSecret] puzzle {}: a teammate is in it - left to them", r.name());
-                say(ModChat.value(r.name()), ModChat.dim(": a teammate is on it"));
+                note(ModChat.value(r.name()), ModChat.dim(": a teammate is on it"));
                 continue;
             }
             target = r.name();
             targetRoomId = r.room();
             LOGGER.info("[AutoSecret] endgame: puzzle {} ({} room(s) away)", r.name(), dist.get(r.room()));
             status = "Going to the puzzle " + r.name();
-            say(ModChat.text("Secrets done - going to the puzzle "), ModChat.value(r.name()));
+            note(ModChat.text("Secrets done - going to the puzzle "), ModChat.value(r.name()));
             if (layout.currentRoom() == r.room()) {
                 setPhase(Phase.PUZZLE_WAIT);
                 return;
@@ -1548,7 +1548,7 @@ public final class AutoSecretFeature {
             LOGGER.info("[AutoSecret] endgame: uncleared room {} ({} room(s) away) - {}", r.name(), dist.get(r.room()),
                     handOff ? "Auto Clear" : "then hand back");
             status = "Going to the uncleared room " + r.name();
-            say(ModChat.text("Going to the uncleared room "), ModChat.value(r.name()),
+            note(ModChat.text("Going to the uncleared room "), ModChat.value(r.name()),
                     ModChat.dim(handOff ? " - Auto Clear clears it" : ""));
             Trip t = handOff ? Trip.CLEAR : Trip.FINAL;
             if (layout.currentRoom() == r.room()) {
@@ -1631,7 +1631,7 @@ public final class AutoSecretFeature {
             lastDoorSaid = said;
             LOGGER.info("[AutoSecret] wither door at cell {}: {} beyond it, {} room(s) away - the only way on", best,
                     bestWhat, bestDist);
-            say(ModChat.text("Nothing left on this side - going to the wither door"), ModChat.dim(" (" + bestWhat
+            note(ModChat.text("Nothing left on this side - going to the wither door"), ModChat.dim(" (" + bestWhat
                     + " beyond it)"));
         }
         goToDoor(layout, best, false, null);
@@ -1709,7 +1709,7 @@ public final class AutoSecretFeature {
         if (doorCell < 0 || !layout.isLocked(doorCell)) {
             LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours) - carrying on",
                     doorBlood ? "blood" : "wither", doorCell, doorClicks);
-            say(ModChat.good(doorBlood ? "Blood door open" : "Wither door open"), ModChat.dim(" - carrying on"));
+            note(ModChat.good(doorBlood ? "Blood door open" : "Wither door open"), ModChat.dim(" - carrying on"));
             if (doorBlood) {
                 Autopilot.onBloodDoorOpened();
             }
@@ -1732,7 +1732,7 @@ public final class AutoSecretFeature {
             LOGGER.info("[AutoSecret] opening the {} door at cell {} (click {} of {})", kind, doorCell, doorClicks,
                     DOOR_CLICKS);
             if (doorClicks == 1) {
-                say(ModChat.text("Opening the " + kind + " door"));
+                note(ModChat.text("Opening the " + kind + " door"));
             }
             WitherDoorOpener.click(doorLock, doorBlood);
             return;
@@ -1896,8 +1896,9 @@ public final class AutoSecretFeature {
         int n = tripFailures.merge(String.valueOf(target), 1, Integer::sum);
         boolean giveUp = n > MAX_TRIP_FAILURES;
         LOGGER.info("[AutoSecret] trip to {} failed ({}){}", target, why, giveUp ? " - leaving it out" : " - trying again");
-        say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)),
-                ModChat.dim(" (" + why + ")" + (giveUp ? " - skipped" : " - trying again")));
+        if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
+            say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)), ModChat.dim(" (" + why + ") - skipped"));
+        }
         if (giveUp && target != null) {
             secreted.add(target);
             instaTried.add(target);
@@ -1967,7 +1968,7 @@ public final class AutoSecretFeature {
         String reason = RouteExecutor.stopReason();
         if (reason == null) {
             LOGGER.info("[AutoSecret] route {} finished", target);
-            say(ModChat.good("Route done"), ModChat.dim(" - " + target));
+            note(ModChat.good("Route done"), ModChat.dim(" - " + target));
         } else if (reason.startsWith("etherwarp didn't land")) {
             LOGGER.info("[AutoSecret] route {} ended: {}", target, reason);
             correction(Minecraft.getInstance(), "a route etherwarp landed somewhere else (" + reason + ")");
@@ -1990,7 +1991,7 @@ public final class AutoSecretFeature {
         boolean done = AutoPuzzlesFeature.isIceFillDone() || roomCleared("Ice Fill");
         if (done) {
             LOGGER.info("[AutoSecret] Ice Fill done after {} tick(s)", phaseTicks);
-            say(ModChat.good("Ice Fill done"));
+            note(ModChat.good("Ice Fill done"));
             setPhase(Phase.SETTLE);
             return;
         }
@@ -2049,7 +2050,7 @@ public final class AutoSecretFeature {
         AutoClearFeature.clearRoom(room, () -> Minecraft.getInstance().execute(() -> {
             if (id == runId && phase == Phase.AUTO_CLEAR) {
                 LOGGER.info("[AutoSecret] Auto Clear cleared {} - back to secrets", room);
-                say(ModChat.good("Cleared "), ModChat.value(room), ModChat.dim(" - back to secrets"));
+                note(ModChat.good("Cleared "), ModChat.value(room), ModChat.dim(" - back to secrets"));
                 setPhase(Phase.SETTLE);
             }
         }), why -> Minecraft.getInstance().execute(() -> {
@@ -2088,6 +2089,14 @@ public final class AutoSecretFeature {
         if (AutoSecretConfig.getInstance().isChatFeedback()) {
             ModChat.send(chatName(), parts);
         }
+    }
+
+    /**
+     * A progress line: logged word for word, never shown. killer560 (2026-10-16): "only have a message for started auto
+     * clear or stopped auto clear type things" - chat keeps the start, the stop, corrections and real failures.
+     */
+    private static void note(Component... parts) {
+        ModChat.log(chatName(), parts);
     }
 
     private static String fmtPercent(double p) {

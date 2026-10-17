@@ -215,9 +215,6 @@ public final class AutoWalker {
 
     // ---- death and knockback: re-path, never stop (killer560, 2026-10-11) ----------------------------------
 
-    /** At most one "took damage" chat line this often. */
-    private static final long DAMAGE_CHAT_GAP_MS = 30_000L;
-    private static long lastDamageChatMs;
     private static int damageHits;
     /** How long after a death a server teleport is the respawn, not a correction or a staff check. */
     private static final long RESPAWN_GRACE_MS = 15_000L;
@@ -286,7 +283,6 @@ public final class AutoWalker {
         releaseFallbackKey();
         WalkCamera.rebase();
         LOGGER.info("[AutoWalker] died ({}) - waiting for the respawn, then re-pathing", how);
-        ModChat.send("Auto Fairy Souls", ModChat.text("You died "), ModChat.dim("- carrying on from the respawn."));
     }
 
     /** Dead and waiting, or inside the grace after the respawn (the world-change hook and the testkit ask). */
@@ -382,19 +378,13 @@ public final class AutoWalker {
             repathOnGround = true;
             NavigationManager.recalculate(true);
             LOGGER.info(String.format(Locale.US, "[AutoWalker] knocked back (speed %.2f) - re-pathing", motion.length()));
-            ModChat.send("Auto Fairy Souls", ModChat.text("Knocked back "), ModChat.dim("- re-pathing from here."));
         } else if (player.hurtTime > lastHurtTime) {
             // Plain damage (no knockback) is not a stop either (killer560, 2026-10-11: "if you take damage with no
             // knockback it should just continue. This can happen very often because of shellwise shard"). Counted and
-            // logged; the chat line is at most one per DAMAGE_CHAT_GAP_MS so a Shellwise run does not flood chat.
+            // logged, never said (killer560, 2026-10-16: start/stop lines only).
             lastHurtTime = player.hurtTime;
             damageHits++;
             LOGGER.info("[AutoWalker] took damage with no knockback - carrying on");
-            long now = System.currentTimeMillis();
-            if (now - lastDamageChatMs >= DAMAGE_CHAT_GAP_MS) {
-                lastDamageChatMs = now;
-                ModChat.send("Auto Fairy Souls", ModChat.text("Took damage "), ModChat.dim("- carrying on."));
-            }
         } else {
             lastHurtTime = player.hurtTime;
         }

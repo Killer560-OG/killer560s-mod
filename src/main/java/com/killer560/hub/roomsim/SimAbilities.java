@@ -1,7 +1,6 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.cheatutils.CheatUtils;
-import com.killer560.hub.util.ModChat;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -378,7 +377,7 @@ public final class SimAbilities {
         }
         String room = SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ());
         if (trapLocked(id, room)) {
-            sayTrapLocked(room);
+            sayTrapLocked(sp, room);
             // FAIL, not PASS: PASS would let the item's VANILLA behaviour through, and an ender pearl is vanilla
             // all the way down - it would still throw and still teleport him out of the trap.
             return InteractionResult.FAIL;
@@ -388,7 +387,7 @@ public final class SimAbilities {
         }
         boolean sneaking = sp.isShiftKeyDown();
         if (ETHERWARP_ITEMS.contains(id) && sneaking && etherwarpLocked(room)) {
-            sayEtherwarpLocked();
+            sayEtherwarpLocked(sp);
             return InteractionResult.FAIL;
         }
         markAbilityUsed();
@@ -442,7 +441,8 @@ public final class SimAbilities {
             com.killer560.hub.util.ModLog.get("killer560smod-sim").info(String.format(java.util.Locale.ROOT,
                     "[Sim] etherwarp refused: feet (%.4f, %.4f, %.4f) yaw %.5f pitch %.5f range %.1f, stopped at %s %s",
                     sp.getX(), sp.getY(), sp.getZ(), sp.getYRot(), sp.getXRot(), range, hit.pos(), hit.state()));
-            fail("no etherwarp target there");
+            // No chat line: Hypixel says nothing for an etherwarp with no target (killer560, 2026-10-16: "remove this
+            // line"); the refusal is the log line above.
             return false;
         }
         BlockPos target = hit.pos();
@@ -766,15 +766,23 @@ public final class SimAbilities {
         return room != null && room.equalsIgnoreCase("Boulder");
     }
 
-    private static void sayEtherwarpLocked() {
+    /**
+     * Hypixel's own refusal, from the server: "You cannot do that in this room!" is what his 2026-09-24 and 2026-10-14
+     * logs show for a use in Boulder (killer560, 2026-10-16: the sim says what Hypixel says, nothing of its own). The
+     * sim's old wording stays in the log.
+     */
+    private static void sayEtherwarpLocked(ServerPlayer sp) {
         long now = System.currentTimeMillis();
         if (now - lastTrapMessageMs < 1000L) {
             return;
         }
         lastTrapMessageMs = now;
-        onClient(() -> ModChat.send("Sim", ModChat.bad("No etherwarp in Boulder"),
-                ModChat.dim(" - solve it and walk.")));
+        SIM_LOG.info("[Sim] No etherwarp in Boulder - solve it and walk.");
+        sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("You cannot do that in this room!")
+                .withStyle(net.minecraft.ChatFormatting.RED));
     }
+
+    private static final org.slf4j.Logger SIM_LOG = com.killer560.hub.util.ModLog.get("killer560smod-sim");
 
     static boolean isTeleportMaze(String room) {
         return room != null && room.equalsIgnoreCase("Teleport Maze");
@@ -783,16 +791,17 @@ public final class SimAbilities {
     /** Said at most once a second, or holding right-click fills chat with it. */
     private static volatile long lastTrapMessageMs = 0L;
 
-    private static void sayTrapLocked(String room) {
+    /** Hypixel's line for a trap room ("You cannot use abilities in this room!", his 2026-10-15 log in New Trap). */
+    private static void sayTrapLocked(ServerPlayer sp, String room) {
         long now = System.currentTimeMillis();
         if (now - lastTrapMessageMs < 1000L) {
             return;
         }
         lastTrapMessageMs = now;
         boolean maze = isTeleportMaze(room);
-        onClient(() -> ModChat.send("Sim",
-                ModChat.bad(maze ? "No abilities in the Teleport Maze" : "No abilities in a trap room"),
-                ModChat.dim(" - walk it.")));
+        SIM_LOG.info("[Sim] {} - walk it.", maze ? "No abilities in the Teleport Maze" : "No abilities in a trap room");
+        sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("You cannot use abilities in this room!")
+                .withStyle(net.minecraft.ChatFormatting.RED));
     }
 
     public static boolean usedAbilityRecently() {
@@ -867,10 +876,6 @@ public final class SimAbilities {
     /** Chat belongs on the client thread; the abilities run on the server's. */
     static void onClient(Runnable r) {
         Minecraft.getInstance().execute(r);
-    }
-
-    private static void fail(String why) {
-        onClient(() -> ModChat.send("Sim", ModChat.dim(why)));
     }
 
     /** Dropped when a sim session ends, so a marker cannot survive into the next map. */

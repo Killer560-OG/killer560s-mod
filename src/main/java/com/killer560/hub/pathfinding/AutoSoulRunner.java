@@ -255,7 +255,7 @@ public final class AutoSoulRunner {
             if (!rescued) {
                 attempts++;
                 if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
-                    ModChat.send(CHAT, ModChat.bad("Could not reach a soul"), ModChat.dim(" - skipping it."));
+                    ModChat.log(CHAT, ModChat.bad("Could not reach a soul"), ModChat.dim(" - skipping it."));
                     skippedThisRun++;
                     FairySoulsFeature.skipCurrent();
                 }
@@ -282,7 +282,7 @@ public final class AutoSoulRunner {
         AutoWalker.clearStuck();
         attempts++;
         if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
-            ModChat.send(CHAT, ModChat.bad("Stuck on the way to a soul"), ModChat.dim(" - skipping it."));
+            ModChat.log(CHAT, ModChat.bad("Stuck on the way to a soul"), ModChat.dim(" - skipping it."));
             skippedThisRun++;
             FairySoulsFeature.skipCurrent();
         }
@@ -341,7 +341,7 @@ public final class AutoSoulRunner {
         if (stand == null) {
             if (++waitTicks > COLLECT_TIMEOUT_TICKS) {
                 waitTicks = 0;
-                ModChat.send(CHAT, ModChat.bad("No Fairy Soul entity here"), ModChat.dim(" - skipping it."));
+                ModChat.log(CHAT, ModChat.bad("No Fairy Soul entity here"), ModChat.dim(" - skipping it."));
                 skippedThisRun++;
                 FairySoulsFeature.skipCurrent();
             }
@@ -382,7 +382,7 @@ public final class AutoSoulRunner {
             waitTicks = 0;
             attempts++;
             if (attempts >= MAX_ATTEMPTS_PER_SOUL) {
-                ModChat.send(CHAT, ModChat.bad("Clicking a soul did nothing"), ModChat.dim(" - skipping it."));
+                ModChat.log(CHAT, ModChat.bad("Clicking a soul did nothing"), ModChat.dim(" - skipping it."));
                 skippedThisRun++;
                 FairySoulsFeature.skipCurrent();
             }

@@ -560,13 +560,16 @@ public final class SimSecrets {
         return n;
     }
 
-    /** Says what happened, including when the answer is "that room is not in the database". */
+    /**
+     * Logs what happened, including when the answer is "that room is not in the database". Not said: a solo room load
+     * says one line, its name (killer560, 2026-10-16: room-load lines Hypixel never sends are noise).
+     */
     public static void report(String roomName, int placed) {
         if (placed < 0) {
-            ModChat.send("Sim", ModChat.dim(roomName + " is not in the room database, so it has no secrets - "
+            ModChat.log("Sim", ModChat.dim(roomName + " is not in the room database, so it has no secrets - "
                     + "the geometry is still real."));
         } else if (placed > 0) {
-            ModChat.send("Sim", ModChat.text("Placed "), ModChat.value(String.valueOf(placed)),
+            ModChat.log("Sim", ModChat.text("Placed "), ModChat.value(String.valueOf(placed)),
                     ModChat.text(" secret(s)"));
         }
     }

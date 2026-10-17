@@ -489,7 +489,7 @@ final class AutoTeleportMaze {
                         : PuzzleCoords.real(outsideRel[0], outsideRel[1], outsideRel[2], cr);
                 boolean done = walkFinishLeg(client, player, outside, FinishStage.DONE, "the door");
                 if (done && finishStage == FinishStage.DONE) {
-                    ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: "), ModChat.good("done"),
+                    ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: "), ModChat.good("done"),
                             ModChat.text("."));
                 }
             }
@@ -527,7 +527,7 @@ final class AutoTeleportMaze {
             LOGGER.warn("[AutoPuzzles] TeleportMaze: no clickable shape at {} (attempt {}/{})", target, auraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: aura'd the "), ModChat.good("secret chest"),
+        ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: aura'd the "), ModChat.good("secret chest"),
                 ModChat.text("."));
         finishStage = afterChest();
         finishStageStartMs = System.currentTimeMillis();

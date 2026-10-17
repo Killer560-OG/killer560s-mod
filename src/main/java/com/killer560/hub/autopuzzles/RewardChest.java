@@ -318,8 +318,6 @@ final class RewardChest {
         opened.add(chest);
         clickedAwaitingScreen = false;
         LOGGER.info("[AutoPuzzles] {}: reward chest at {} opened ({})", tag, AutoPuzzleUtil.fmt(chest), why);
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text(tag + ": "), ModChat.good("reward chest"),
-                ModChat.text(" opened."));
         target = null;
         if (opened.size() >= maxChests) {
             finish("done");

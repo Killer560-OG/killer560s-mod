@@ -310,7 +310,7 @@ public final class SimRoomLevers {
                 level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
             }
         });
-        ModChat.send("Sim", ModChat.good(room == null ? "Opened" : room),
+        ModChat.log("Sim", ModChat.good(room == null ? "Opened" : room), // Hypixel says nothing here (2026-10-16)
                 ModChat.text(" - the lever takes the way through down."));
     }
 

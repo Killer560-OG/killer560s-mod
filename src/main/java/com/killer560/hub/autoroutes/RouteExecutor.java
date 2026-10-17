@@ -551,10 +551,7 @@ public final class RouteExecutor {
         RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
-        if (AutoRoutesConfig.getInstance().isChatFeedback()) {
-            AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.good("Started"),
-                    com.killer560.hub.util.ModChat.dim(" - " + r.roomName()));
-        }
+        // No chat line: one route per room is progress, not a start he made (killer560, 2026-10-16).
         // The node he stepped onto goes off NOW (killer560, 2026-10-04: "If I do /ar add ew start, that means that
         // the second I hit that node it should go off"). This used to wait for the next tick's walk step to find
         // him inside the ring again, and on a path-less route a player still walking could be out of it by then.
@@ -622,11 +619,7 @@ public final class RouteExecutor {
         lastCompletedTick = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick();
         RouteRunMemory.routeCompleted(route.roomName());
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
-        boolean feedback = AutoRoutesConfig.getInstance().isChatFeedback();
-        stop(null);
-        if (feedback) {
-            AutoRoutesFeature.chat(com.killer560.hub.util.ModChat.good("Route complete"));
-        }
+        stop(null); // logged above, never said (killer560, 2026-10-16: "remove the auto routes ... complete lines")
     }
 
     // ------------------------------------------------------------------------------------------- input hooks
@@ -1999,7 +1992,7 @@ public final class RouteExecutor {
                 // the background holds the pair here - any key of his still stops the route as usual.
                 if (!provingSaid) {
                     provingSaid = true;
-                    AutoRoutesFeature.chat(ModChat.text("Path #" + (route.indexOf(node) + 1)),
+                    AutoRoutesFeature.note(ModChat.text("Path #" + (route.indexOf(node) + 1)),
                             ModChat.dim(" waits for its proof (fewest warps) to finish..."));
                     LOGGER.info("[AutoRoutes] Node #{} PATH: holding until its background proof is in",
                             route.indexOf(node) + 1);
@@ -2468,7 +2461,7 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Etherwarp node #{}: {} ({}) stands in the line to {} and was not there when the node "
                     + "was placed - waiting for it to move", route.indexOf(node) + 1, in.toShortString(),
                     client.level.getBlockState(in), warpTarget.toShortString());
-            AutoRoutesFeature.chat(ModChat.text("Waiting for the block at "), ModChat.value(in.toShortString()),
+            AutoRoutesFeature.note(ModChat.text("Waiting for the block at "), ModChat.value(in.toShortString()),
                     ModChat.text(" to move - it is in etherwarp #" + (route.indexOf(node) + 1) + "'s way."));
         }
         return true;
@@ -2535,7 +2528,7 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Path hop {}: waiting for the breaker block at {} ({}) - the warp to {} goes"
                     + " through it", hopIndex + 1, waitOn.toShortString(), client.level.getBlockState(waitOn),
                     target.toShortString());
-            AutoRoutesFeature.chat(ModChat.text("Waiting for the breaker block at "), ModChat.value(
+            AutoRoutesFeature.note(ModChat.text("Waiting for the breaker block at "), ModChat.value(
                     waitOn.toShortString()), ModChat.text(" to go - path warp " + (hopIndex + 1) + " goes through it."));
         }
         return true;
@@ -2569,7 +2562,7 @@ public final class RouteExecutor {
             blockWaitSaid = true;
             LOGGER.info("[AutoRoutes] Etherwarp: landing block {} is not there ({}) - waiting for it",
                     target.toShortString(), client.level.getBlockState(target));
-            AutoRoutesFeature.chat(ModChat.text("Waiting for the block at "), ModChat.value(target.toShortString()),
+            AutoRoutesFeature.note(ModChat.text("Waiting for the block at "), ModChat.value(target.toShortString()),
                     ModChat.text(" - the etherwarp lands there."));
         }
         if (blockWaitTicks > BLOCK_WAIT_TIMEOUT) {
@@ -3348,7 +3341,7 @@ public final class RouteExecutor {
                     breakerWaitSaid = true;
                     LOGGER.info("[AutoRoutes] Breaker: {} block(s) standing in reach, {} charge(s) - waiting for {}",
                             needed, charges[0], required);
-                    AutoRoutesFeature.chat(ModChat.text("Waiting for "), ModChat.value(String.valueOf(required)),
+                    AutoRoutesFeature.note(ModChat.text("Waiting for "), ModChat.value(String.valueOf(required)),
                             ModChat.text(" breaker charges (have "), ModChat.value(String.valueOf(charges[0])),
                             ModChat.text(")."));
                 }

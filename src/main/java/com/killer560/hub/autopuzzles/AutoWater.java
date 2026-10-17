@@ -163,7 +163,7 @@ final class AutoWater {
                 AutoReposition.releaseSneak(client);
                 CAMERA.release(player);
                 atChest = true;
-                ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Water Board: "), ModChat.good("done"), ModChat.text("."));
+                ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Water Board: "), ModChat.good("done"), ModChat.text("."));
             }
             return;
         }

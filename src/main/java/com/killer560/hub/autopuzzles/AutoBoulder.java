@@ -590,8 +590,6 @@ public final class AutoBoulder {
 
     private static void chestDone(String why) {
         doneChest = chestReal;
-        ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Boulder: "), ModChat.good("reward chest"),
-                ModChat.text(" taken - walking out."));
         chestAtMs = System.currentTimeMillis();
         LOGGER.info("[AutoPuzzles] Boulder: chest {} taken ({}) after {} press(es) - solve time {} s from the start",
                 AutoPuzzleUtil.fmt(chestReal), why, presses, fmt((chestAtMs - engagedMs) / 1000.0));
