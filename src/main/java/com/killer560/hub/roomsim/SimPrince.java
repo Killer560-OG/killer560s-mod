@@ -37,6 +37,10 @@ import java.util.Set;
  * <p>An earlier version CREATED one by turning an ordinary crypt gold. That was wrong and he said so. It is
  * recorded here because the reasoning behind it - "there is no signature in the data" - was a failure to look
  * hard enough rather than a fact about the data.
+ *
+ * <p>There are four signatures now - gold on a slab, a lantern walled in andesite, a smooth stone lid and an obsidian
+ * top (each below, with the rooms it picks out). Rooms the wiki says have a prince that none of them finds: Skull
+ * (its one crypt is a plain 3x4 slab lid with nothing to tell it from an ordinary crypt).
  */
 public final class SimPrince {
 
@@ -81,6 +85,31 @@ public final class SimPrince {
     private static final net.minecraft.world.level.block.Block LID = Blocks.SMOOTH_STONE;
     private static final int LID_MAX = 16;
 
+    /**
+     * The FOURTH signature: an obsidian top on a bottom smooth stone slab rim.
+     *
+     * <p>killer560, 2026-10-16, standing in Supertall: "this is a prince" - a raised tomb against a stone brick wall
+     * under two braziers with obsidian lying flat on top. In the capture that is the tomb at x 48..53, y 142, z 44..48:
+     * a 4x4 ring of obsidian round a 2x2 of double smooth stone slabs, three sides rimmed by bottom smooth stone slabs
+     * (the fourth is the wall at z 43), on stone brick stair legs at y 141, the two hoppers (the braziers) at
+     * (50..51, 145, 44) and an oak log at (54, 141, 52). Supertall has a second one, at x 4..6, y 99, z 11..14: a 1x2 of
+     * obsidian in a ring of ten bottom slabs on a stepped stone brick stair base - the one the wiki puts "on Level 2,
+     * behind a Cracked Stone Bricks wall". Until now the ordinary crypt rule took that one for a plain crypt.
+     *
+     * <p>"Obsidian with air above and a bottom smooth stone slab beside it" ({@code CryptScanner.obsidianPrince}) is
+     * matched by six structures in all 135 captures (census 2026-10-16), and each is a raised tomb of this shape:
+     * Supertall's two, Withermancer (2x2 at 29..30, 73, 34..35), Grass Ruin (3x2 at 3..5, 95, 16..17), Pirate (1x2 at
+     * 58..59, 61, 6, a player head beside it like Leaves') and Waterfall (1x2 at 106..107, 40, 4). The wiki's rooms
+     * table gives Supertall 2 princes ("6 Crypts (4 Crypt Undeads, 2 Princes)") and Withermancer 1, exactly the
+     * obsidian tombs in each; it leaves the princes column blank for Grass Ruin, Pirate and Waterfall, as it does for
+     * Big Red Flag, Leaves and every other room he has named, so those three are an inference. With them as princes, crypt
+     * lids plus princes meet the room database's crypt count in Withermancer, Pirate, Waterfall and Grass Ruin (whose
+     * ring is too sparse for the crypt rule, so 3 becomes its 4); Supertall's real 4 crypts plus 2 princes are the
+     * wiki's 6, though the crypt rule also takes its three chest platforms at y 141. 12 rooms hold obsidian at all, so obsidian alone would be the
+     * gold-alone trap again; the slab beside it is what makes it a tomb.
+     */
+    private static final net.minecraft.world.level.block.Block OBSIDIAN = Blocks.OBSIDIAN;
+
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
 
@@ -113,6 +142,11 @@ public final class SimPrince {
     /** Where the first prince on this floor is, or null when the floor has none. */
     public static BlockPos position() {
         return PRINCES.isEmpty() ? null : PRINCES.get(0);
+    }
+
+    /** Where every prince on this floor is (one block of each), for the build log and for tests. */
+    public static List<BlockPos> positions() {
+        return new ArrayList<>(PRINCES);
     }
 
     /** How many princes this floor has. Usually none, occasionally one. */
@@ -383,7 +417,7 @@ public final class SimPrince {
                 for (int i = 0; i < sections.length; i++) {
                     var section = sections[i];
                     if (section == null || section.hasOnlyAir()
-                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN) || st.is(LID))) {
+                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN) || st.is(LID) || st.is(OBSIDIAN))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -402,6 +436,10 @@ public final class SimPrince {
                                 } else if (state.is(LID)) {
                                     if (lidChecked.add(at)) {
                                         ringedLid(level, at, lidChecked, crowns);
+                                    }
+                                } else if (state.is(OBSIDIAN)) {
+                                    if (lidChecked.add(at)) {
+                                        obsidianTop(level, at, lidChecked, crowns);
                                     }
                                 } else if (state.is(LANTERN) && walledIn(level, at)) {
                                     // The lantern AND its ring, so a superboom aimed at any face of the
@@ -462,7 +500,7 @@ public final class SimPrince {
     static final int NEAR_SCAN = 8;
 
     /**
-     * The same three signatures as {@link #scan}, asked of the {@value #NEAR_SCAN}-block cube round {@code center} - every
+     * The same four signatures as {@link #scan}, asked of the {@value #NEAR_SCAN}-block cube round {@code center} - every
      * Superboom asks before it decides what it opens. killer560 (2026-10-13), in Leaves through route practice: "this
      * structure in leaves is a prince", and his log showed Superbooms on its polished andesite with prince=false while
      * the same room built by itself in the testkit (646) found it - the floor scan reads only chunks already loaded,
@@ -492,6 +530,10 @@ public final class SimPrince {
                         if (lidChecked.add(p)) {
                             ringedLid(level, p, lidChecked, crowns);
                         }
+                    } else if (state.is(OBSIDIAN)) {
+                        if (lidChecked.add(p)) {
+                            obsidianTop(level, p, lidChecked, crowns);
+                        }
                     } else if (state.is(LANTERN) && walledIn(level, p)) {
                         crowns.add(p);
                         for (int rx = -1; rx <= 1; rx++) {
@@ -520,6 +562,11 @@ public final class SimPrince {
      *  disagree (one room, one answer). */
     private static void ringedLid(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
         crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.lidPrince(level, start, checked));
+    }
+
+    /** The {@link #OBSIDIAN} rule, asked of {@code CryptScanner} for the same reason as {@link #ringedLid}. */
+    private static void obsidianTop(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
+        crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.obsidianPrince(level, start, checked));
     }
 
     /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.
