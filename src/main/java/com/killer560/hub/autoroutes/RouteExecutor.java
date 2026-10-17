@@ -229,6 +229,38 @@ public final class RouteExecutor {
         return eatenResends;
     }
 
+    /** The warp under way was already aimed again once after no landing came (see {@link #retryAim}). */
+    private static boolean warpRetried;
+    private static int refusedRetries;
+
+    /** Warps aimed again and sent once more after a refused one - read by the testkit. */
+    public static int refusedRetries() {
+        return refusedRetries;
+    }
+
+    /** A look onto {@link #warpTarget} from his eye that holds within the planner's margin (it may be the look already
+     *  sent, if what stopped the first went away); false (nothing changed) when there is none. */
+    private static boolean retryAim(LocalPlayer player) {
+        Vec3 at = player.position();
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
+        if (rot == null || !TeleportUtils.holdsOn(eye, rot.yaw(), rot.pitch(), range, warpTarget)) {
+            return false;
+        }
+        float yaw = player.getYRot() + Mth.wrapDegrees(rot.yaw() - player.getYRot());
+        LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after the use and he has not moved - the server "
+                        + "refused it; aimed again from {} at {} ({} / {} -> {} / {}), sending it once more", stepTicks,
+                fmt(at), warpTarget.toShortString(), String.format(Locale.US, "%.2f", Mth.wrapDegrees(warpYaw)),
+                String.format(Locale.US, "%.2f", warpPitch), String.format(Locale.US, "%.2f", rot.yaw()),
+                String.format(Locale.US, "%.2f", rot.pitch()));
+        warpYaw = yaw;
+        warpPitch = rot.pitch();
+        warpAimFrom = at;
+        refusedRetries++;
+        return true;
+    }
+
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
         double spacing = 20.0 / AutoRoutesConfig.getInstance().getEtherwarpsPerSecond();
@@ -2125,11 +2157,17 @@ public final class RouteExecutor {
             return AIM_OK;
         }
         Vec3 at = player.position();
-        if (at.distanceTo(warpAimFrom) <= REAIM_EPSILON) {
-            return AIM_OK;
-        }
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
         double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        if (at.distanceTo(warpAimFrom) <= REAIM_EPSILON) {
+            // On its spot: the saved look goes - unless it lands only for its exact float values. A path saved before
+            // the planner proved its hops within EtherSearch.AIM_MARGIN can graze a block edge, and the server's reading
+            // of the running yaw is a few bits off: his Doors #13 hop 3 (yaw -895.91) was refused at the jungle log at
+            // -26, 244, -85 and the route stood 20 s until Route Stall (fullclear-1016 run 019). Such a look is aimed again.
+            if (TeleportUtils.holdsOn(eye, warpYaw, Mth.clamp(warpPitch, -90f, 90f), range, warpTarget)) {
+                return AIM_OK;
+            }
+        }
         TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
         if (rot == null) {
             // None of the sample points: every point of every face the planner would try (path-wrongblock-1015). A hop
@@ -2226,6 +2264,7 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
+            warpRetried = false;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -2372,6 +2411,18 @@ public final class RouteExecutor {
                         + "click's second half - the click is paired now, sending the warp again", stepTicks);
                 warpEaten = false;
                 eatenResends++;
+                step = Step.AIM;
+                stepTicks = 0;
+                return false;
+            } else if (!warpRetried && !teleportPacketSeen && warpTarget != null && actionOrigin != null
+                    && player.position().distanceTo(actionOrigin) < 0.3
+                    && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()
+                    && retryAim(player)) {
+                // No landing a round trip on, and he has not moved: the server refused the warp (its ray stopped short -
+                // his Doors #13 hop 3 on a jungle log, fullclear-1016 run 019). Aimed again from where he stands with a
+                // look that holds, it goes once more; the 61-tick wait below then let the node go off every ring and the
+                // route stood until Route Stall.
+                warpRetried = true;
                 step = Step.AIM;
                 stepTicks = 0;
                 return false;
