@@ -3203,3 +3203,6 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
   resort did ("NOT a walkable cut - nothing else fitted") and left Cell behind a wall, unreachable. `carveOnce(false)` now
   refuses (`SimFloorLayout.blindCarvesRefused()` counts it) and the whole-floor retries find a layout without one;
   `tools/layoutsim -Dsweep=true` fails any floor with a BLIND door (4,480 floors: 9 before, 0 after, nothing else missed).
+- **A room is judged by its database TYPE, not its name** (fullclear-1016 run 047): mimic eligibility matched names
+  against "puzzle"/"trap", which Tic Tac Toe's does not contain, so its reward chest bit. `SimMimic.roomEligible` reads
+  `RoomDatabase` type too, and `SimSecrets` offers a placed chest to the picker only for an eligible room (86b6b2ce).
