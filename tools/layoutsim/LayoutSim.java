@@ -250,7 +250,8 @@ public final class LayoutSim {
     private static final String[] FAILS = {"path length != slider", "fairy not on path", "wither doors != path",
             "cells short of target", "rooms < minimum", "blood != 1", "trap != 1", "fairy != 1",
             "puzzles != slider", "room unreachable by doors", "structure check", "puzzle with != 1 door",
-            "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)", "one-door room with != 1 door"};
+            "trap with != 2 doors (info)", "room outside floor rectangle", "door off a measured doorway (info)", "one-door room with != 1 door",
+            "door with no walkable cut (BLIND)"};
 
     /** Dead-end rooms (SimFloorLayout.isDeadEnd) by name:doors, when they do not have exactly one door. */
     private static final Map<String, Integer> DEAD_END_DOORS = new TreeMap<>();
@@ -260,6 +261,8 @@ public final class LayoutSim {
     private static final Map<String, Integer> OFF_KIND = new TreeMap<>();
     /** Solid blocks behind the wall plane, summed over every walkable off-doorway door: what the carves tunnel. */
     private static final long[] OFF_BEHIND = new long[1];
+    /** Set by {@link #offDoorway} when the door it judged is BLIND; read and cleared per door. */
+    private static final boolean[] LAST_BLIND = new boolean[1];
 
     private static void sweep(Map<String, RoomLibrary.Room> rooms, int perCombo, boolean noRecency)
             throws Exception {
@@ -524,6 +527,10 @@ public final class LayoutSim {
             adj.get(b).add(new int[]{a, between});
             bad[14] |= offDoorway(f.rooms().get(a), l.aX(), l.aZ(), l.bX() - l.aX(), l.bZ() - l.aZ());
             bad[14] |= offDoorway(f.rooms().get(b), l.bX(), l.bZ(), l.aX() - l.bX(), l.aZ() - l.bZ());
+            // A carved door through a wall with nothing walkable behind it: the room beyond is reachable on the door
+            // graph and by nobody in the game (fullclear-1016 run 017, Cell through Scaffolding). Never allowed.
+            bad[16] |= LAST_BLIND[0];
+            LAST_BLIND[0] = false;
         }
         int[] from = new int[f.rooms().size()];
         int[] via = new int[f.rooms().size()];
@@ -614,6 +621,7 @@ public final class LayoutSim {
         Map<Integer, Integer> costs = com.killer560.hub.roomsim.RoomDoors.carveCost(p.name());
         Integer cost = costs == null ? null : costs.get(e);
         String kind = cost == null ? "BLIND" : cost <= 2 ? "thin" : "THICK";
+        LAST_BLIND[0] |= cost == null;
         OFF_KIND.merge(kind, 1, Integer::sum);
         if (cost != null) {
             OFF_BEHIND[0] += cost;

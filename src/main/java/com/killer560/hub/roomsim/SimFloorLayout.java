@@ -352,6 +352,14 @@ public final class SimFloorLayout {
      */
     private static final long RETRY_BUDGET_NANOS = 400_000_000L;
 
+    /** Blind carves (a door through a wall with no walkable floor behind it) the fill pass wanted and was refused - only
+     *  goes up; read by the testkit, which also counts the "NOT a walkable cut" note that must never appear again. */
+    private static final java.util.concurrent.atomic.AtomicInteger BLIND_REFUSED = new java.util.concurrent.atomic.AtomicInteger();
+
+    public static int blindCarvesRefused() {
+        return BLIND_REFUSED.get();
+    }
+
     /** The one attempt loop both {@link #generate} overloads use. {@code pinned} may be null or empty. */
     private static PinnedFloor run(Map<String, RoomLibrary.Room> usable, int minRooms, int wantCells,
                                    int puzzles, int roomsToBlood, Map<Integer, String> pinned, Random rng) {
@@ -982,6 +990,14 @@ public final class SimFloorLayout {
         int carvedBlind;
 
         boolean carveOnce(boolean checked) {
+            if (!checked) {
+                // Never a door he cannot walk through. The blind carve put Cell at 5,5 "through Scaffolding (NOT a
+                // walkable cut - nothing else fitted)": Cell's only door led into a wall, no warp or walk reached it,
+                // and Auto Secret skipped the room (fullclear-1016 run 017). A floor that needed one is laid out again
+                // (run's FLOOR_RETRIES), and if none can do without, the floor is kept a room short instead.
+                BLIND_REFUSED.incrementAndGet();
+                return false;
+            }
             int bestCost = Integer.MAX_VALUE;
             int bestCell = -1;
             int bestTry = -1;

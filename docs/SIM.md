@@ -3187,3 +3187,8 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
 - **A secret bat appears within 10 blocks of his feet** (fullclear-1016): 8 was a guess, and his Doors route's BAT node,
   recorded on Hypixel where the bat appeared for it, stands 8.6 from the bat - the sim never spawned it. 10 is Auto Routes'
   own bat-spawn window (`AwaitEvents.BAT_SPAWN_RANGE`), the widest a recorded node can rely on; still not measured.
+
+- **No door is ever carved through a wall with nothing walkable behind it** (fullclear-1016 run 017): the fill pass's last
+  resort did ("NOT a walkable cut - nothing else fitted") and left Cell behind a wall, unreachable. `carveOnce(false)` now
+  refuses (`SimFloorLayout.blindCarvesRefused()` counts it) and the whole-floor retries find a layout without one;
+  `tools/layoutsim -Dsweep=true` fails any floor with a BLIND door (4,480 floors: 9 before, 0 after, nothing else missed).
