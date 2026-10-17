@@ -112,9 +112,12 @@ public final class SimSecretItems {
      *
      * <p>Hypixel's secret bat appears as a player comes near, and Auto Routes' await counts that appearance only within
      * {@code AwaitEvents.BAT_SPAWN_RANGE} (10, QUOI's number) of him. Hypixel's own trigger distance is not published;
-     * 8 keeps a bat that appears for him inside that window even after a tick's walk. NOT measured on Hypixel.
+     * NOT measured on Hypixel. It was 8, and his Doors route's #8 BAT node - recorded on Hypixel, where the bat appeared for
+     * it - stands 8.6 from Doors' bat (7.5 under it): the sim never spawned that bat, so the node waited out its attack
+     * time and the room was a secret short in his sim run of 2026-10-16 and in fullclear-1016 run 013. 10 is the await's
+     * own window, the widest a recorded BAT node can rely on.
      */
-    public static final double BAT_TRIGGER_RANGE = 8.0;
+    public static final double BAT_TRIGGER_RANGE = 10.0;
 
     /** Secret bats waiting for him to come near. */
     private static final java.util.Set<BlockPos> PENDING_BATS = ConcurrentHashMap.newKeySet();

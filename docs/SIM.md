@@ -3151,3 +3151,7 @@ c435281c trim rule (top layer of the opening, y 72, over air) touches anything a
   and 5.9 KB -> ~100 B). The floor build parsed the palette's block-state STRING for every block placed (~280 MB of
   garbage per F7 build); `PasteJob` now resolves each palette entry once. A room's blocks are one byte each while its
   palette fits 255 entries (`Room.blockAt`/`setBlockAt`; `room.blocks` is gone), 25.7 -> ~17 MB for the session.
+
+- **A secret bat appears within 10 blocks of his feet** (fullclear-1016): 8 was a guess, and his Doors route's BAT node,
+  recorded on Hypixel where the bat appeared for it, stands 8.6 from the bat - the sim never spawned it. 10 is Auto Routes'
+  own bat-spawn window (`AwaitEvents.BAT_SPAWN_RANGE`), the widest a recorded node can rely on; still not measured.
