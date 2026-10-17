@@ -197,6 +197,10 @@ public final class BazaarFlipFeature {
     private static long customSinceMs = 0L;
     private static long signSeenAtMs = 0L;
     private static boolean confirmClicked = false;
+    /** buyStep turned an option down on its live price (not on space or purse). */
+    private static boolean priceRefused = false;
+    /** This session's products the live page refused, with the scan's unit cost at the time ({@link #fallThrough}). */
+    private static final java.util.Map<String, Double> rejected = new java.util.HashMap<>();
     /** A Custom Amount purchase landed with no menu open: when that started (0 = not waiting for the page). */
     private static long awaitingReopenSinceMs = 0L;
     /** How long the Bazaar page may take to come back after a Custom Amount purchase. A bound, not a wait: buying
@@ -333,6 +337,8 @@ public final class BazaarFlipFeature {
         cycles = 0;
         npcLimitHit = false;
         lastStopReason = "";
+        rejected.clear();
+        lastScanAtMs = 0L;
         startPurse = purse;
         startedAtMs = System.currentTimeMillis();
         startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
@@ -542,6 +548,17 @@ public final class BazaarFlipFeature {
                 });
     }
 
+    /** The best candidate the live page has not already refused at this price or lower ({@link #fallThrough}). */
+    static BazaarFlipCandidate pick(List<BazaarFlipCandidate> ranked) {
+        for (BazaarFlipCandidate c : ranked) {
+            Double refusedAt = rejected.get(c.productId());
+            if (refusedAt == null || c.averageUnitCost() < refusedAt - 1e-6) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     private static void tickScanning() {
         if (scanPending) {
             return;
@@ -566,12 +583,15 @@ public final class BazaarFlipFeature {
             stop(result.error());
             return;
         }
-        BazaarFlipCandidate best = result.best();
+        BazaarFlipCandidate best = pick(result.ranked());
         if (best == null) {
             // killer560: "if nothing is profitable have it not work". The purse was already passed into the
             // sizing, so "nothing profitable" already accounts for what he can afford.
-            stop(String.format(Locale.US, "nothing is profitable after fees right now (%d products with an NPC price"
-                    + " checked against your purse and today's NPC sell limit)", result.productsWithNpcPrice()));
+            stop(rejected.isEmpty()
+                    ? String.format(Locale.US, "nothing is profitable after fees right now (%d products with an NPC"
+                    + " price checked against your purse and today's NPC sell limit)", result.productsWithNpcPrice())
+                    : "nothing is profitable after fees right now - the live Bazaar priced " + rejected.size()
+                    + " pick(s) out this session");
             return;
         }
         target = best;
@@ -793,6 +813,7 @@ public final class BazaarFlipFeature {
      */
     private static void buyStep(Minecraft client, AbstractContainerScreen<?> screen, BazaarPages.Page page,
                                 BazaarFlipConfig cfg) {
+        priceRefused = false;
         var menu = screen.getMenu();
         int have = BazaarFlipMenus.countProduct(menu, target.productId(), target.displayName());
         if (carriedAtStart < 0) {
@@ -848,13 +869,16 @@ public final class BazaarFlipFeature {
             }
             long n = want;
             if (bound != null) {
-                double each = bound.price() / bound.amount();
+                double quoteEach = bound.price() / bound.amount();
+                double each = bookPrice(quoteEach);
                 if (each >= target.npcSellPrice()) {
-                    refused = String.format(Locale.US, "the instant-buy price (up to %,.1f each) is no longer below the"
-                            + " NPC's %,.1f", each, target.npcSellPrice());
+                    refused = String.format(Locale.US, "the instant-buy price (up to %,.1f each, quoted %,.1f) is no"
+                            + " longer below the NPC's %,.1f", each, quoteEach, target.npcSellPrice());
+                    priceRefused = true;
                     n = 0;
-                } else if (purse != null && n * each > purse) {
-                    n = (long) Math.floor(purse / each);
+                } else if (purse != null && n * quoteEach > purse) {
+                    // Hypixel wants the whole quote in the purse before it runs the buy.
+                    n = (long) Math.floor(purse / quoteEach);
                     if (n < 1) {
                         refused = "you can't afford even one";
                     }
@@ -892,17 +916,53 @@ public final class BazaarFlipFeature {
             clickBuy(client, screen, cfg, o.name(), o.slot(), o.amount(), o.price(), have, bought);
             return;
         }
+        if (bought <= 0 && priceRefused) {
+            // The live page says this flip no longer pays: try the next best instead of stopping (and never come back
+            // to this product until a fresh scan prices it cheaper than now).
+            fallThrough(refused);
+            return;
+        }
         doneBuying(refused != null ? refused : "nothing smaller left to buy");
     }
 
-    /** Null when a preset's stated price (if any) is under the NPC's per unit and within the purse, else why not. */
+    /** The book price behind an Instant Buy page price: the page quotes the book plus {@code INSTANT_BUY_QUOTE_MARGIN}. */
+    static double bookPrice(double quoted) {
+        return quoted / (1 + BazaarFlipScanner.INSTANT_BUY_QUOTE_MARGIN);
+    }
+
+    /**
+     * The live Instant Buy page refused the scan's pick before anything was bought: remember the product at the price
+     * the scan had (a later scan only brings it back if it prices it LOWER), leave the Bazaar, rescan, and take the next
+     * best (killer560, 2026-10-17: "It keeps going back to Enchanted Pufferfish").
+     */
+    private static void fallThrough(String why) {
+        Minecraft client = Minecraft.getInstance();
+        rejected.put(target.productId(), target.averageUnitCost());
+        ModChat.log("Bazaar Flip", ModChat.text("Skipping " + target.displayName() + ": " + why + " - trying the next best"));
+        LOGGER.info("[BazaarFlip] Skipping {} at {}/ea: {}", target.productId(),
+                String.format(Locale.US, "%.1f", target.averageUnitCost()), why);
+        custom = Custom.NONE;
+        if (client.player != null && McCompat.screen(client) != null) {
+            client.player.closeContainer();
+        }
+        target = null;
+        Double purse = readPurse();
+        setState(State.SCANNING);
+        if (purse != null && !scanPending) {
+            beginScan(purse, "after a refused price");
+        }
+    }
+
+    /** Null when a preset's stated price (if any) is under the NPC's per unit and within the purse, else why not.
+     *  {@code price} is the page's QUOTE (book + 4%): its book price is compared with the NPC, the quote with the purse. */
     private static String priceOk(double price, long amount, Double purse) {
         if (price <= 0) {
             return null;
         }
-        if (price / amount >= target.npcSellPrice()) {
-            return String.format(Locale.US, "the instant-buy price (%,.1f each) is no longer below the NPC's %,.1f",
-                    price / amount, target.npcSellPrice());
+        if (bookPrice(price / amount) >= target.npcSellPrice()) {
+            priceRefused = true;
+            return String.format(Locale.US, "the instant-buy price (%,.1f each, quoted %,.1f) is no longer below the"
+                    + " NPC's %,.1f", bookPrice(price / amount), price / amount, target.npcSellPrice());
         }
         if (purse != null && price > purse) {
             return "you can't afford " + amount;

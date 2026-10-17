@@ -136,25 +136,51 @@ public final class BazaarApi {
      * order a real instant-buy consumes them in). Empty map on any failure - never null, never partial.
      */
     public static CompletableFuture<Map<String, List<BazaarOrderLevel>>> fetchInstantBuyBooksAsync() {
-        return CompletableFuture.supplyAsync(BazaarApi::fetchInstantBuyBooks);
+        return CompletableFuture.supplyAsync(() -> fetchInstantBuyBooks().books());
     }
 
-    private static Map<String, List<BazaarOrderLevel>> fetchInstantBuyBooks() {
+    /**
+     * Every product's instant-buy book together with the response's own {@code lastUpdated} (epoch ms, when Hypixel
+     * built that snapshot; 0 when absent or on failure). The request asks every cache on the way not to answer from a
+     * stored copy ({@code Cache-Control: no-cache} and a never-repeated query parameter): the API sits behind Cloudflare
+     * with {@code s-maxage=300} (response headers, 2026-10-17), so a cached snapshot could be minutes old. A cache that
+     * ignores both still cannot fool the caller, which judges {@code lastUpdated} itself (Bazaar Flip refuses one older
+     * than 60 s).
+     */
+    public record InstantBuyBooks(Map<String, List<BazaarOrderLevel>> books, long lastUpdatedMs) {
+    }
+
+    /** Blocking; call off the render thread. Never null; an empty map on any failure. */
+    public static InstantBuyBooks fetchInstantBuyBooks() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(BAZAAR_URL))
+            String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(30))
                     .header("User-Agent", "Killer560sMod-Bazaar/1.0")
+                    .header("Cache-Control", "no-cache")
+                    .header("Pragma", "no-cache")
                     .GET()
                     .build();
             HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 LOGGER.warn("[Bazaar] Order-book fetch returned HTTP {}", response.statusCode());
-                return Map.of();
+                return new InstantBuyBooks(Map.of(), 0L);
             }
-            JsonObject root = JsonParser.parseString(response.body()).getAsJsonObject();
+            return parseInstantBuyBooks(response.body());
+        } catch (Exception e) {
+            LOGGER.warn("[Bazaar] Order-book fetch failed", e);
+            return new InstantBuyBooks(Map.of(), 0L);
+        }
+    }
+
+    /** The API's JSON to {@link InstantBuyBooks} (pure; the testkit feeds it snapshots). */
+    public static InstantBuyBooks parseInstantBuyBooks(String body) {
+        try {
+            JsonObject root = JsonParser.parseString(body).getAsJsonObject();
             if (!root.has("success") || !root.get("success").getAsBoolean() || !root.has("products")) {
-                return Map.of();
+                return new InstantBuyBooks(Map.of(), 0L);
             }
+            long lastUpdated = root.has("lastUpdated") ? root.get("lastUpdated").getAsLong() : 0L;
             JsonObject productsJson = root.getAsJsonObject("products");
             Map<String, List<BazaarOrderLevel>> out = new java.util.HashMap<>(productsJson.size() * 2);
             for (Map.Entry<String, JsonElement> entry : productsJson.entrySet()) {
@@ -185,10 +211,10 @@ public final class BazaarApi {
                 levels.sort(java.util.Comparator.comparingDouble(BazaarOrderLevel::pricePerUnit));
                 out.put(entry.getKey(), List.copyOf(levels));
             }
-            return Map.copyOf(out);
+            return new InstantBuyBooks(Map.copyOf(out), lastUpdated);
         } catch (Exception e) {
-            LOGGER.warn("[Bazaar] Order-book fetch failed", e);
-            return Map.of();
+            LOGGER.warn("[Bazaar] Order-book parse failed", e);
+            return new InstantBuyBooks(Map.of(), 0L);
         }
     }
 
