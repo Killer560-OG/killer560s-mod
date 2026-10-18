@@ -80,7 +80,7 @@ public final class GoldorTriggerbotFeature {
         }
         GoldorTriggerbotConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("GoldorTriggerbotFeature.tick", GoldorTriggerbotFeature::tick));
-        LOGGER.info("[GoldorTriggerbot] Registered (default OFF)");
+        LOGGER.debug("[GoldorTriggerbot] Registered (default OFF)");
     }
 
     private static void tick(Minecraft client) {

@@ -211,7 +211,8 @@ public final class PathfindingFeature {
                             FairySoulsFeature.markIslandFound();
                             return 1;
                         })))
-                .then(ClientCommands.argument("destination", StringArgumentType.greedyString())
+                .then(ClientCommands.argument("destination", com.killer560.hub.util.ExceptWords.of(
+                        StringArgumentType.greedyString(), "stop", "reload", "info", "souls"))
                         .suggests(destinations)
                         .executes(ctx -> navigateCommand(StringArgumentType.getString(ctx, "destination"))));
     }

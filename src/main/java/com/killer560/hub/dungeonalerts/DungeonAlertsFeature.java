@@ -65,7 +65,7 @@ public final class DungeonAlertsFeature {
                     Identifier.fromNamespaceAndPath("killer560smod", "dungeonalerts_" + element.id()),
                     (graphics, deltaTracker) -> drawInGame(graphics, element));
         }
-        LOGGER.info("[DungeonAlerts] Registered (all features default OFF)");
+        LOGGER.debug("[DungeonAlerts] Registered (all features default OFF)");
     }
 
     /** The lead registers these into {@link HudElementRegistry} (one call each). Same instances are looked

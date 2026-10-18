@@ -110,7 +110,7 @@ public final class WitherDoorsFeature {
             }
         });
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDoorsFeature::onWorldRender);
-        LOGGER.info("[WitherDoors] Registered (cheatBuild={})", BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[WitherDoors] Registered (cheatBuild={})", BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     /** Whether the party has a Wither Key (Hypixel's pickup lines, until a wither door is opened). Read by Auto Clear. */

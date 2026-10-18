@@ -67,7 +67,7 @@ public final class ThornFeature {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "thorn_" + HUD.id()),
                 (graphics, deltaTracker) -> drawHudInGame(graphics));
-        LOGGER.info("[Thorn] Registered (all features default OFF)");
+        LOGGER.debug("[Thorn] Registered (all features default OFF)");
     }
 
     /** "F4" / "M4" from the sidebar, else null. */

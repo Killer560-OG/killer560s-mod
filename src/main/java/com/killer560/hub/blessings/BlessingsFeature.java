@@ -39,7 +39,7 @@ public final class BlessingsFeature {
     public static void register() {
         BlessingsConfig.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BlessingsFeature.tick", BlessingsFeature::tick));
-        LOGGER.info("[Blessings] Registered (HUD default OFF)");
+        LOGGER.debug("[Blessings] Registered (HUD default OFF)");
     }
 
     private static void tick(Minecraft client) {
