@@ -226,6 +226,7 @@ final class SettingTooltipsData {
         d.put("superpairs pairs", "Every Pair matches all revealed pairs; Skip Plain XP saves clicks for other rewards (cheat build, Autonomous mode).");
         d.put("adaptive timeout", "While the server lags, the bot waits that much longer for a Superpairs click to land (cheat build, Autonomous mode).");
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");
+        d.put("skip metaphysical serums", "Superpairs leaves Metaphysical Serums for the very end, only if clicks remain (cheat build, Autonomous mode).");
         d.put("auto-swap to guardian pet", "Before a run, equips your best Guardian pet via /pets (cheat build, Autonomous mode).");
         d.put("stop at", "When to leave Chronomatron and Ultrasequencer: Max Clicks or Max XP (cheat build, Autonomous mode).");
         d.put("auto experimentation table/click delay", "Least time between two of the bot's clicks, 150-1000 ms in 50 ms steps, 400 by default (cheat build only).");

@@ -93,6 +93,13 @@ public class AutoExperimentsTab extends BaseTab {
                     btn.setMessage(skipGuardianText());
                 }).bounds(contentX + half + GAP, y, half, 20).build());
         y += 24;
+        widgets.add(SettingsButtonWidget.builder(skipSerumText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSkipMetaphysicalSerums(!c.isSkipMetaphysicalSerums());
+                    c.save();
+                    btn.setMessage(skipSerumText());
+                }).bounds(contentX, y, half, 20).build());
+        y += 24;
 
         // Adaptive Timeout extends Superpairs' confirm wait by however long the server stalls (see
         // ExperimentSolver#superpairsConfirmTimeoutMs). Its Timeout Margin slider went on 2026-10-04 -
@@ -308,6 +315,11 @@ public class AutoExperimentsTab extends BaseTab {
     private static Component skipGrandText() {
         return Component.literal("Skip Grand XP Bottles: "
                 + (ExperimentsConfig.getInstance().isSkipGrandExpBottles() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component skipSerumText() {
+        return Component.literal("Skip Metaphysical Serums: "
+                + (ExperimentsConfig.getInstance().isSkipMetaphysicalSerums() ? "§aON" : "§cOFF"));
     }
 
     private static Component skipGuardianText() {

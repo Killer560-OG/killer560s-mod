@@ -36,6 +36,7 @@ public final class ExperimentsConfig {
     public static final boolean DEFAULT_SUPERPAIRS_VALUABLE_ONLY = false;
     public static final boolean DEFAULT_SKIP_GRAND_EXP_BOTTLES = false;
     public static final boolean DEFAULT_SKIP_GUARDIAN_PETS = false;
+    public static final boolean DEFAULT_SKIP_METAPHYSICAL_SERUMS = false;
     public static final int DEFAULT_DELAY_MS = 400;
     public static final int DEFAULT_FIRST_CLICK_DELAY_MS = 600;
     public static final int DEFAULT_RANDOM_DELAY_MAX_MS = 50;
@@ -74,6 +75,8 @@ public final class ExperimentsConfig {
     private boolean skipGrandExpBottles = DEFAULT_SKIP_GRAND_EXP_BOTTLES;
     /** Never pair a Guardian pet, any rarity - killer560, 2026-10-05. */
     private boolean skipGuardianPets = DEFAULT_SKIP_GUARDIAN_PETS;
+    /** Never pair a Metaphysical Serum - killer560, 2026-10-18 ("dodge just like it does for the other dodge settings"). */
+    private boolean skipMetaphysicalSerums = DEFAULT_SKIP_METAPHYSICAL_SERUMS;
     private int delayMs = DEFAULT_DELAY_MS;
     /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier
      *  itself, clicks the puzzles, claims rewards and buys renews, so the whole thing can be left running
@@ -175,6 +178,7 @@ public final class ExperimentsConfig {
             cfg.superpairsValuableOnly = ConfigJson.getBool(obj, "superpairsValuableOnly", DEFAULT_SUPERPAIRS_VALUABLE_ONLY);
             cfg.skipGrandExpBottles = ConfigJson.getBool(obj, "skipGrandExpBottles", DEFAULT_SKIP_GRAND_EXP_BOTTLES);
             cfg.skipGuardianPets = ConfigJson.getBool(obj, "skipGuardianPets", DEFAULT_SKIP_GUARDIAN_PETS);
+            cfg.skipMetaphysicalSerums = ConfigJson.getBool(obj, "skipMetaphysicalSerums", DEFAULT_SKIP_METAPHYSICAL_SERUMS);
             cfg.delayMs = clampInt(obj, "delayMs", DEFAULT_DELAY_MS, MIN_CLICK_DELAY_MS, MAX_DELAY_MS);
             cfg.autonomousMode = ConfigJson.getBool(obj, "autonomousMode", false);
             cfg.firstClickDelayMs = clampInt(obj, "firstClickDelayMs", DEFAULT_FIRST_CLICK_DELAY_MS,
@@ -242,6 +246,7 @@ public final class ExperimentsConfig {
             obj.addProperty("superpairsValuableOnly", superpairsValuableOnly);
             obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
             obj.addProperty("skipGuardianPets", skipGuardianPets);
+            obj.addProperty("skipMetaphysicalSerums", skipMetaphysicalSerums);
             obj.addProperty("delayMs", delayMs);
             obj.addProperty("autonomousMode", autonomousMode);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
@@ -292,6 +297,14 @@ public final class ExperimentsConfig {
 
     public void setSkipGuardianPets(boolean v) {
         this.skipGuardianPets = v;
+    }
+
+    public boolean isSkipMetaphysicalSerums() {
+        return skipMetaphysicalSerums;
+    }
+
+    public void setSkipMetaphysicalSerums(boolean v) {
+        this.skipMetaphysicalSerums = v;
     }
 
     public boolean isSuperpairsValuableOnly() {
