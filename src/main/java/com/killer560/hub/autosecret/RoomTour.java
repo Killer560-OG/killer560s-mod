@@ -63,9 +63,6 @@ final class RoomTour {
         }
     }
 
-    /** For the testkit (145-sim-autosecret-order): take the rooms most unfound first, as before 2026-10-15. */
-    static volatile boolean legacyOrder;
-
     /** The trips searched this run: leave point key -> arrive key -> ticks. */
     private static final Map<String, Map<String, Double>> COST = new ConcurrentHashMap<>();
     /** The leave points searched from, by key. */
@@ -372,7 +369,7 @@ final class RoomTour {
             }
             Matrix m = matrix(from, sites, travelOnly, layout);
             TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
-            int[] order = legacyOrder ? byWeight(m) : travelOnly ? secretOrder(m) : res.order();
+            int[] order = travelOnly ? secretOrder(m, 30_000_000L) : res.order();
             Site next = sites.get(order[0]);
             ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
             // The trip precomputed (TripCache) when there is one - read on this thread, it is a concurrent map.
@@ -415,14 +412,33 @@ final class RoomTour {
     }
 
     /**
-     * Auto Secret's own order for these sites, by its Room Order setting: Largest First is {@link #byWeight} (each site's
-     * weight is its room's unfound secrets), Fewest Warps is {@link TourPlanner#shortest} over the trips.
+     * Auto Secret's own order for these sites, by its Room Order setting: Largest To Smallest is {@link #byWeight} (each
+     * site's weight is its room's unfound secrets), Least Etherwarps is {@link TourPlanner#shortest} over the trips. When
+     * every room left has {@link AutoSecretConfig#SMALL_ROOM_SECRETS} unfound or fewer it is Least Etherwarps whatever the
+     * setting says (killer560, 2026-10-18). Both the choice now and the pick planned ahead come through here.
      */
-    static int[] secretOrder(Matrix m) {
-        if (AutoSecretConfig.getInstance().getSecretOrder() == AutoSecretConfig.SecretOrder.LARGEST_FIRST) {
+    static int[] secretOrder(Matrix m, long budget) {
+        return secretOrder(m, AutoSecretConfig.getInstance().getSecretOrder(), budget);
+    }
+
+    static int[] secretOrder(Matrix m, AutoSecretConfig.SecretOrder setting, long budget) {
+        if (effectiveOrder(m.weight(), setting) == AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST) {
             return byWeight(m);
         }
-        return TourPlanner.shortest(m.fromHere(), m.between(), 30_000_000L).order();
+        return TourPlanner.shortest(m.fromHere(), m.between(), budget).order();
+    }
+
+    /** The order actually used for rooms worth {@code weights} (unfound secrets) under {@code setting}. */
+    static AutoSecretConfig.SecretOrder effectiveOrder(double[] weights, AutoSecretConfig.SecretOrder setting) {
+        if (setting != AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST) {
+            return AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS;
+        }
+        for (double w : weights) {
+            if (w > AutoSecretConfig.SMALL_ROOM_SECRETS) {
+                return AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST;
+            }
+        }
+        return AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS;
     }
 
     /** Indices in descending weight (ties: nearer first) - the old "most unfound first" order, for comparison. */
