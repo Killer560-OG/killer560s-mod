@@ -442,8 +442,45 @@ public final class MapPainter {
             case 62 -> "TRAP";
             case 30 -> "ENTRANCE";
             case 63, 85 -> "NORMAL";
-            default -> group.entry == null && !LiveMapFeature.isWorldScanned(group.mainIdx) ? "UNKNOWN" : "NORMAL";
+            // killer560, 2026-10-18 (to-do 20): "just show it as normal no grey" - a room that is not in the database is
+            // drawn as an ordinary room, never in the unopened grey.
+            default -> "NORMAL";
         };
+    }
+
+    /**
+     * A room still shown unopened that sits behind a blood door (the Blood Room's door, red on the map): killer560,
+     * 2026-10-18: greyed out in both styles. Funny Map: like every other unopened room. Regular map: the light
+     * (undarkened) unopened grey with no "?" over it, so he can see it is there. Such a room is told apart by the blood door beside it (the map
+     * item gives no type for an unopened room), or by its database type where the identity is already shown.
+     */
+    static boolean unopenedBloodRoom(LiveMapFeature.RoomGroup group) {
+        // Unopened by the map item's own word: Funny Map promotes a scanned room to "discovered" in visibleState, but the
+        // room behind the red door is still one he has not opened.
+        if (!unexplored(group)) {
+            return false;
+        }
+        if (identityRevealed(group) && group.entry != null && group.entry.type != null
+                && group.entry.type.equalsIgnoreCase("BLOOD")) {
+            return true;
+        }
+        int g = LiveMapFeature.GRID;
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int tile : group.tiles) {
+            int gx = tile % g;
+            int gz = tile / g;
+            for (int[] d : dirs) {
+                int dx = gx + d[0];
+                int dz = gz + d[1];
+                if (dx < 0 || dz < 0 || dx >= g || dz >= g) {
+                    continue;
+                }
+                if (LiveMapFeature.effectiveTile(dz * g + dx) == LiveMapFeature.Tile.DOOR_BLOOD) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     static int typeColor(String type, LiveMapConfig cfg) {
@@ -488,6 +525,10 @@ public final class MapPainter {
      *  grey whatever its real type is, because that is all the map itself knows about it. */
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
+        if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
+            // Funny Map: greyed like every other unopened room. Regular map: the light grey, so he sees it is there.
+            return cfg.isFunnyMap() ? multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened()) : cfg.getColorUnopened();
+        }
         if (state == DungeonMapScanner.STATE_UNOPENED || state == DungeonMapScanner.STATE_UNDISCOVERED) {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
@@ -1320,7 +1361,7 @@ public final class MapPainter {
             if (style != 1 && identityRevealed(group) && group.entry != null) {
                 continue;
             }
-            if (!isRevealed(group)) {
+            if (!isRevealed(group) || (!cfg.isFunnyMap() && unopenedBloodRoom(group))) {
                 continue;
             }
             drawMark(graphics, group, visibleState(group), cfg, ox, oy,
