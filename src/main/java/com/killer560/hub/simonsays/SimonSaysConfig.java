@@ -89,6 +89,19 @@ public final class SimonSaysConfig {
     // default so existing configs keep the Target/Variance behavior they already had.
     private boolean autoSolveFixedDelayMode = false;
     private int autoSolveFixedDelayMs = 150;
+    // Rotate mode only (killer560's to-do, 2026-10-18: "add a stim option where it will trace the path it just saw
+    // after doing lets say the first two set it would 'practice' those two buttons again"). Stim: between rounds the
+    // aim retraces the newest buttons of the round it just finished, look only - it never clicks - and ends back on
+    // the round's first button. Stim Buttons is how many of the newest it retraces.
+    public static final int MIN_STIM_BUTTONS = 1;
+    public static final int MAX_STIM_BUTTONS = 5;
+    private boolean autoSolveStim = false;
+    private int autoSolveStimButtons = 2;
+    // Same request: "can you have it carry more momentum through clicks". 0 = off (the aim behaves exactly as before),
+    // up to 100. On, a click goes out once the crosshair is on the button face rather than fully settled, the camera
+    // carries part of its speed into the next turn, and it starts toward the next button as soon as a click is sent.
+    public static final int MAX_MOMENTUM = 100;
+    private int autoSolveMomentum = 0;
 
     private boolean autoStartEnabled = false;
     // Defaults ported from NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay"
@@ -185,6 +198,9 @@ public final class SimonSaysConfig {
             cfg.setClickTimerVarianceMs(getInt(obj, "clickTimerVarianceMs", 100));
             cfg.autoSolveFixedDelayMode = getBool(obj, "autoSolveFixedDelayMode", false);
             cfg.autoSolveFixedDelayMs = getInt(obj, "autoSolveFixedDelayMs", 150);
+            cfg.autoSolveStim = getBool(obj, "autoSolveStim", false);
+            cfg.setAutoSolveStimButtons(getInt(obj, "autoSolveStimButtons", 2));
+            cfg.setAutoSolveMomentum(getInt(obj, "autoSolveMomentum", 0));
             cfg.autoStartEnabled = getBool(obj, "autoStartEnabled", false);
             cfg.autoStartClicks = getInt(obj, "autoStartClicks", 3);
             // Routed through the setter's own clamp (not a direct field assignment like the rest of this
@@ -227,6 +243,9 @@ public final class SimonSaysConfig {
             obj.addProperty("clickTimerVarianceMs", clickTimerVarianceMs);
             obj.addProperty("autoSolveFixedDelayMode", autoSolveFixedDelayMode);
             obj.addProperty("autoSolveFixedDelayMs", autoSolveFixedDelayMs);
+            obj.addProperty("autoSolveStim", autoSolveStim);
+            obj.addProperty("autoSolveStimButtons", autoSolveStimButtons);
+            obj.addProperty("autoSolveMomentum", autoSolveMomentum);
             obj.addProperty("autoStartEnabled", autoStartEnabled);
             obj.addProperty("autoStartClicks", autoStartClicks);
             obj.addProperty("autoStartClickDelayTicks", autoStartClickDelayTicks);
@@ -424,6 +443,32 @@ public final class SimonSaysConfig {
 
     public void setAutoSolveFixedDelayMs(int autoSolveFixedDelayMs) {
         this.autoSolveFixedDelayMs = Math.max(0, Math.min(3000, autoSolveFixedDelayMs));
+    }
+
+    /** Stim (Rotate mode): the stored switch. Cheat-gated, since it only ever moves an automated aim. */
+    public boolean isAutoSolveStim() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSolveStim;
+    }
+
+    public void setAutoSolveStim(boolean autoSolveStim) {
+        this.autoSolveStim = autoSolveStim;
+    }
+
+    public int getAutoSolveStimButtons() {
+        return autoSolveStimButtons;
+    }
+
+    public void setAutoSolveStimButtons(int n) {
+        this.autoSolveStimButtons = Math.max(MIN_STIM_BUTTONS, Math.min(MAX_STIM_BUTTONS, n));
+    }
+
+    /** Momentum (Rotate mode), 0-100; 0 is off. Always 0 on the legit build. */
+    public int getAutoSolveMomentum() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? autoSolveMomentum : 0;
+    }
+
+    public void setAutoSolveMomentum(int momentum) {
+        this.autoSolveMomentum = Math.max(0, Math.min(MAX_MOMENTUM, momentum));
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - auto-clicking the start
