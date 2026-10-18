@@ -225,6 +225,13 @@ public final class Ap3Executor {
     private static final Set<Ap3Node> inside = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Nodes you entered with a movement key held: they fire the moment you let go while still inside. */
     private static final Set<Ap3Node> unfired = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** Nodes with the {@code ss} modifier entered before Simon Says was done: they fire the tick it is, if he is still
+     *  inside (killer560, 2026-10-18: "only trigger that node after ss finishes"). */
+    private static final Set<Ap3Node> ssWaiting = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** WALK / RUN boxes he is inside but less centred in than another WALK / RUN he is inside: each fires the tick he
+     *  becomes more centred in it than in any other (killer560, 2026-10-18: "lets say I am in two run nodes at the same
+     *  time ... WHichever one i am more in the center of is the one that should toggle on that tick"). */
+    private static final Set<Ap3Node> moverDeferred = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
     private static final List<Ap3Node> queue = new ArrayList<>();
     /** Scratch: the nodes {@link #scanBoxes} triggered this tick, for the "queued behind" report. */
@@ -436,6 +443,8 @@ public final class Ap3Executor {
         queue.clear();
         inside.clear();
         unfired.clear();
+        ssWaiting.clear();
+        moverDeferred.clear();
         if (nodes != null && seedFromPosition && player != null) {
             Vec3 pos = player.position();
             for (Ap3Node n : nodes.nodes()) {
@@ -460,6 +469,8 @@ public final class Ap3Executor {
         chain = null;
         inside.clear();
         unfired.clear();
+        ssWaiting.clear();
+        moverDeferred.clear();
         triggeredThisTick.clear();
         lastSelfPos = null;
     }
@@ -830,6 +841,14 @@ public final class Ap3Executor {
         }
         Vec3 pos = player.position();
         boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
+        // The WALK / RUN he is most centred in this tick, of all he stands in (killer560, 2026-10-18: two run nodes
+        // slightly offset, "WHichever one i am more in the center of is the one that should toggle on that tick").
+        double bestMover = Double.MAX_VALUE;
+        for (Ap3Node node : chain.nodes()) {
+            if (node.type.isMover() && !Ap3RouteRunner.owns(node) && node.contains(pos)) {
+                bestMover = Math.min(bestMover, node.edgeFraction(pos));
+            }
+        }
         for (Ap3Node node : chain.nodes()) {
             if (node.type == Ap3Node.Type.NO_GO || Ap3RouteRunner.owns(node)) {
                 continue; // No Go is planner data; a Path node the route is already driving must not re-queue
@@ -847,15 +866,66 @@ public final class Ap3Executor {
                 if (handsOn && !node.type.isAlign()) {
                     unfired.add(node);
                 } else {
-                    trigger(node);
+                    fire(node, pos, bestMover);
                 }
             } else if (!in && was) {
                 inside.remove(node);
                 unfired.remove(node);
+                ssWaiting.remove(node);
+                moverDeferred.remove(node);
             } else if (in && !handsOn && unfired.remove(node)) {
-                trigger(node);
+                fire(node, pos, bestMover);
+            } else if (in && !handsOn && moverDeferred.contains(node)
+                    && node.edgeFraction(pos) <= bestMover + MOVER_CENTRE_EPS) {
+                // He is now more centred in this one than in the walk / run that fired before it: it takes over.
+                moverDeferred.remove(node);
+                triggerUnlessSs(node);
+            } else if (in && ssWaiting.contains(node) && !ssPending(node)) {
+                ssWaiting.remove(node);
+                if (handsOn && !node.type.isAlign()) {
+                    unfired.add(node); // Simon Says is done but his hands are on the keys: it fires when he lets go
+                } else {
+                    trigger(node);
+                }
             }
         }
+    }
+
+    /** Two overlapping WALK / RUN boxes this close in {@link Ap3Node#edgeFraction} count as equally centred. */
+    private static final double MOVER_CENTRE_EPS = 1e-6;
+
+    /**
+     * A box was entered (or his hands came off inside it): a WALK / RUN he is less centred in than another one he is
+     * also inside waits in {@link #moverDeferred} until he is more centred in it; everything else goes on to
+     * {@link #triggerUnlessSs}.
+     */
+    private static void fire(Ap3Node node, Vec3 pos, double bestMover) {
+        if (node.type.isMover() && node.edgeFraction(pos) > bestMover + MOVER_CENTRE_EPS) {
+            moverDeferred.add(node);
+            return;
+        }
+        triggerUnlessSs(node);
+    }
+
+    /** {@link #trigger}, unless the node has the {@code ss} modifier and Simon Says is not done: then it waits in
+     *  {@link #ssWaiting} and fires the tick it is, if he is still inside. */
+    private static void triggerUnlessSs(Ap3Node node) {
+        if (ssPending(node)) {
+            if (ssWaiting.add(node) && Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.dim(" waits for Simon Says"));
+            }
+            return;
+        }
+        trigger(node);
+    }
+
+    /** Test hook: nodes waiting for Simon Says, and WALK / RUN boxes waiting until he is more centred in them. */
+    public static int ssWaitingCount() {
+        return ssWaiting.size();
+    }
+
+    public static int moverDeferredCount() {
+        return moverDeferred.size();
     }
 
     /**
@@ -875,7 +945,7 @@ public final class Ap3Executor {
         }
         inside.add(node);      // he is standing on it; do not let the edge detector fire it a second time
         unfired.remove(node);
-        trigger(node);
+        triggerUnlessSs(node);
         LOGGER.info("[AP3] Route ended on {} - carrying on with it instead of stopping.", node.describe());
     }
 
@@ -1008,6 +1078,14 @@ public final class Ap3Executor {
             edgeArmedTicks = 0;
         }
         step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
+    }
+
+    /**
+     * The {@code ss} modifier and Simon Says not done yet this run (the S1 device's "completed a device!" line,
+     * {@code leveraura.P3SectionTracker}). Never in test mode, which waits on nothing the arena provides.
+     */
+    private static boolean ssPending(Ap3Node node) {
+        return node.ssGate && !testMode && !com.killer560.hub.leveraura.P3SectionTracker.ssCompleted();
     }
 
     /** A node failed: it ends, and so does everything else (the hold, the queue) - the nodes behind it were placed

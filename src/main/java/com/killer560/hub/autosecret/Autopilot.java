@@ -453,8 +453,11 @@ final class Autopilot {
                 case KEY -> "Key";
             });
         }
+        double eta = AutopilotPlanner.estimateSeconds(c, tourTravel());
         com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT, rooms, tags,
-                actionsDone);
+                actionsDone, eta);
+        LOGGER.info(String.format(Locale.US, "[Autopilot] estimated time to finish: %.1f s (%d action(s) left)", eta,
+                rooms.size()));
     }
 
     private static String displayName(RoomStatus.Room r, String key) {

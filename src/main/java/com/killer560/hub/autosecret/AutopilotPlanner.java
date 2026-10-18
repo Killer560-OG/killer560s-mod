@@ -156,6 +156,36 @@ public final class AutopilotPlanner {
         return new Choice(tour.get(0), why, byRate.ranked(), tour);
     }
 
+    /**
+     * Seconds everything this choice still wants takes (killer560, 2026-10-18: an estimated time till completion "based
+     * off the auto routes it has left and the pathfinding and puzzles"): the tour in its order - the trip from here to
+     * the first, each candidate's own work, the trips between them - and then every other ranked candidate worth score
+     * at its own estimate (its trip from here plus its work; a dropped key is not counted, it is not work left). Each
+     * candidate's seconds already price its route by nodes, a clear and a puzzle by their learned or guessed time.
+     */
+    public static double estimateSeconds(Choice c, Travel travel) {
+        if (c == null) {
+            return Double.NaN;
+        }
+        double total = 0.0;
+        java.util.Set<Candidate> counted = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        String prev = null;
+        for (Candidate k : c.tour()) {
+            double from = travel == null ? 0.0 : Math.max(0.0, travel.fromHere(k.room()));
+            double work = Math.max(0.0, k.seconds() - from);
+            double trip = prev == null || travel == null ? from : Math.max(0.0, travel.between(prev, k.room()));
+            total += trip + work;
+            prev = k.room();
+            counted.add(k);
+        }
+        for (Candidate k : c.ranked()) {
+            if (!counted.contains(k) && k.kind() != Kind.KEY && k.gain() > 0) {
+                total += Math.max(0.0, k.seconds());
+            }
+        }
+        return total;
+    }
+
     /** Blood First: the uncleared room furthest back on the rush path (a teammate's room left to them), or null. */
     public static Choice chooseBloodFirst(List<Candidate> all) {
         List<Candidate> rush = new ArrayList<>();

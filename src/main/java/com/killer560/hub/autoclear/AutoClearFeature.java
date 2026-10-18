@@ -125,6 +125,8 @@ public final class AutoClearFeature {
     private static final Set<String> skippedRooms = new HashSet<>();
     private static final Set<Integer> skippedMobs = new HashSet<>();
     private static int roomsCleared = 0;
+    /** When this run began, for the time-left estimate's seconds per room (see {@link #publishPlan}). */
+    private static long runStartMs = 0L;
     private static int mobsKilled = 0;
     /** Starred kills in the current room - with no dungeon map to read the clear from, these are the evidence. */
     private static int killsInRoom = 0;
@@ -280,6 +282,7 @@ public final class AutoClearFeature {
         skippedMobs.clear();
         doorTarget = -1;
         roomsCleared = 0;
+        runStartMs = System.currentTimeMillis();
         mobsKilled = 0;
         corrections = 0;
         coverKey = null;
@@ -615,14 +618,55 @@ public final class AutoClearFeature {
      */
     private static void publishPlan(DungeonLayout layout, int picked, List<Integer> order) {
         List<String> names = new java.util.ArrayList<>();
+        List<Integer> rooms = new java.util.ArrayList<>();
         names.add(layout.name(picked));
+        rooms.add(picked);
         for (int r : order) {
             if (r != picked) {
                 names.add(layout.name(r));
+                rooms.add(r);
             }
         }
-        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR, names,
-                roomsCleared);
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR, names, null,
+                roomsCleared, estimateSeconds(layout, rooms));
+    }
+
+    /** Seconds a room's clear takes, travel excluded, before this run has cleared one (Dungeon Autopilot's start value). */
+    static final double CLEAR_SECONDS_GUESS = 12.0;
+
+    /**
+     * The time the rooms left take (killer560, 2026-10-18: "an estimated time till completion that counts down"). Once
+     * this run has cleared a room, its own pace: the seconds it has run over the rooms it cleared, per room left. Before
+     * that: the etherwarp trip to each room in order (as {@link com.killer560.hub.autoroutes.RunPlan#tripSeconds} prices
+     * one) plus {@link #CLEAR_SECONDS_GUESS} a room. NaN with no player.
+     */
+    private static double estimateSeconds(DungeonLayout layout, List<Integer> rooms) {
+        if (roomsCleared > 0) {
+            double perRoom = (System.currentTimeMillis() - runStartMs) / 1000.0 / roomsCleared;
+            return perRoom * rooms.size();
+        }
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return Double.NaN;
+        }
+        double hop = ClearExecutor.hopRange();
+        double x = client.player.getX();
+        double z = client.player.getZ();
+        double total = 0.0;
+        for (int r : rooms) {
+            int[] tiles = layout.tiles(r);
+            if (tiles == null || tiles.length == 0) {
+                continue;
+            }
+            BlockPos c = DungeonLayout.cellCenter(tiles[0]);
+            double dx = c.getX() + 0.5 - x;
+            double dz = c.getZ() + 0.5 - z;
+            total += com.killer560.hub.autoroutes.RunPlan.tripSeconds(Math.sqrt(dx * dx + dz * dz), hop, 1)
+                    + CLEAR_SECONDS_GUESS;
+            x = c.getX() + 0.5;
+            z = c.getZ() + 0.5;
+        }
+        return total;
     }
 
     /** The rooms Auto Clear plans to do, the one under way first (empty when it is not running). For the testkit. */

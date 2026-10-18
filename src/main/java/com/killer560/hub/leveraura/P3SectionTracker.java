@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
  * <li>p3sim.net (and a mid-run join) can skip Goldor's line: with no start line seen this world, the first objective line
  * takes the section from where the player stands (Floor7Tracker's S1..S4 boxes).
  * <li>S2 has exactly one device, the Lights device: a "... completed a device! (x/y)" line in section 2 marks it done.
+ * Likewise S1's one device, Simon Says, in section 1 (AP3's {@code ss} modifier).
  * </ul>
  * Every run gets a new {@link #generation()}, so a feature keeping per-run click sets clears them when it changes. Not
  * gated on any feature's switch: the progress is tracked whatever is on, so turning a feature on mid-run knows where P3 is.
@@ -45,6 +46,7 @@ public final class P3SectionTracker {
     private static int sectionTotal = 0;
     private static boolean sectionGate = false;
     private static boolean lightsCompleted = false;
+    private static boolean ssCompleted = false;
     /** Whether Goldor's opening line was seen this run - p3sim.net can skip it (see {@link #onChat}). */
     private static boolean sawGoldorStart = false;
     private static int generation = 0;
@@ -79,6 +81,11 @@ public final class P3SectionTracker {
     /** True once the S2 Lights device was completed this run (by anyone). */
     public static boolean lightsCompleted() {
         return lightsCompleted;
+    }
+
+    /** True once the S1 device, Simon Says, was completed this run (by anyone). AP3's {@code ss} modifier. */
+    public static boolean ssCompleted() {
+        return ssCompleted;
     }
 
     /** Bumped on every run reset (Goldor's line, a world change). */
@@ -131,6 +138,10 @@ public final class P3SectionTracker {
             // S2 has exactly one device - the Lights device.
             lightsCompleted = true;
         }
+        if (section == 1 && "device".equals(m.group(3)) && !ssCompleted) {
+            // S1 has exactly one device - Simon Says. AP3's "ss" modifier waits on this (killer560, 2026-10-18).
+            ssCompleted = true;
+        }
         checkSectionAdvance();
     }
 
@@ -157,6 +168,7 @@ public final class P3SectionTracker {
         sectionGate = false;
         sawGoldorStart = false;
         lightsCompleted = false;
+        ssCompleted = false;
         generation++;
     }
 

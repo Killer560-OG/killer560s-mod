@@ -182,6 +182,9 @@ public final class Ap3Renderer {
         if (node.waitAfterMs > 0) {
             append(sb, "wait:" + node.waitAfterMs);
         }
+        if (node.ssGate) {
+            append(sb, "after ss");
+        }
         return sb.toString();
     }
 

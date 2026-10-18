@@ -1140,19 +1140,38 @@ public final class BloodCampFeature {
     }
 
     /**
-     * Whether he is inside the Blood Room. The map is asked first: when it knows the type of the room he stands in, that
-     * decides. Otherwise the Watcher does - he never leaves the Blood Room, which is always a 1x1 room, so it is the
-     * dungeon room tile (32 x 32 on the grid {@code LiveMapFeature} uses, centres at -185 + 32n) the Watcher is in.
-     * Without a Watcher there are no blood mobs, so nothing is lost by answering "no".
+     * Whether he is inside the Blood Room: the room tile the Watcher is in, or a room the map calls BLOOD. The Watcher
+     * never leaves the Blood Room, which is always a 1x1 room, so his tile (32 x 32 on the grid {@code LiveMapFeature}
+     * uses, centres at -185 + 32n) IS the Blood Room. Without a Watcher there are no blood mobs, so nothing is lost by
+     * answering "no".
+     * <p>
+     * killer560, 2026-10-18: "I just tired blood camp triggerbot and it wasnt working in f1." Until then the map's room
+     * type, whenever it had one, decided ALONE - so a Blood Room the map had matched to an ordinary room (the same F1 run
+     * that showed his Blood Room "as a random room on the map") read as "not in the Blood Room" while he stood beside
+     * the Watcher, and the Trigger Bot and the Aura never acted. The Watcher's tile now settles it whatever the map says.
      */
     static boolean inBloodRoom(Minecraft client) {
         if (client.player == null || client.level == null || watcherEntityId == null) {
             return false;
         }
-        String type = com.killer560.hub.livemap.LiveMapFeature.currentRoomType();
-        if (type != null) {
-            return "BLOOD".equals(type);
-        }
+        String type = testMapRoomType != null ? testMapRoomType : com.killer560.hub.livemap.LiveMapFeature.currentRoomType();
+        return bloodRoomVerdict(type, inWatcherTile(client));
+    }
+
+    /** Testkit hook: the room type the map reports for where he stands, in place of the live map's; null = the map's. */
+    static String testMapRoomType;
+
+    public static void setTestMapRoomType(String type) {
+        testMapRoomType = type;
+    }
+
+    /** The Blood Room rule as a pure decision (the testkit's logic case drives it): his tile is the Watcher's, or the map
+     *  calls the room BLOOD. A map type that is anything else never overrules the Watcher. */
+    public static boolean bloodRoomVerdict(String mapRoomType, boolean inWatcherTile) {
+        return inWatcherTile || "BLOOD".equals(mapRoomType);
+    }
+
+    private static boolean inWatcherTile(Minecraft client) {
         Entity watcher = client.level.getEntity(watcherEntityId);
         if (watcher == null) {
             return false;
