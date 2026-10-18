@@ -335,7 +335,39 @@ public final class SimPrince {
             out.addAll(layer);
         }
         out.addAll(extrasOf(level, pos));
+        out.addAll(andesiteRing(level, out));
         return new ArrayList<>(out);
+    }
+
+    /**
+     * The polished andesite the prince leaves behind: every polished andesite block touching the tomb (all 26 ways), one
+     * ring deep, so a blown prince takes it too.
+     *
+     * <p>killer560, 2026-10-18 (Dungeons item 9): "those smooth andesite blocks shouldnt be there", and of the census in
+     * the sim-secrets report, "yes fix all of them". Census over the 135 captures of {@link #tombOf} with this ring (and
+     * without it): it adds blocks to five princes and no others - Stairs 11 (the polished andesite round its 3x3 lantern
+     * prince on the same layer, capture y 89), Withermancer 12 (the 4x4 course two under its obsidian top, y 71, over the
+     * ladder shaft), Sloth 27 (the alcove's lining round its gold plinth, x 11 and x 15 and z 31, y 71..73), Red Blue 4
+     * (x 61, y 83, z 6..9, under the alcove's back) and Grass Ruin 2 (the alcove's posts at (3, 96, 14) and (3, 96, 19)).
+     * Sarcophagus' andesite body is already its prince's, and every other prince touches no polished andesite (plain
+     * andesite floors, which several stand on, are not polished and stay). One ring only, never a flood: Stairs' prince is
+     * set into a wider polished andesite ledge and Sloth's lining runs on into the arch above it.
+     */
+    private static List<BlockPos> andesiteRing(ServerLevel level, Set<BlockPos> tomb) {
+        Set<BlockPos> ring = new java.util.LinkedHashSet<>();
+        for (BlockPos b : tomb) {
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        BlockPos n = b.offset(dx, dy, dz);
+                        if (!tomb.contains(n) && level.getBlockState(n).is(LANTERN_WALL)) {
+                            ring.add(n.immutable());
+                        }
+                    }
+                }
+            }
+        }
+        return new ArrayList<>(ring);
     }
 
     /**

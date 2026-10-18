@@ -3317,7 +3317,7 @@ side by side `final-side-by-side.png`). In capture terms (wall plane x 1, one in
 - **What a blown prince leaves, by room** (offline census of `tombOf` + `extrasOf` over the captures, for his "those smooth
   andesite blocks shouldnt be there" without the screenshot): polished andesite touching what goes is left in Sloth (27, the
   alcove's walls round its plinth), Withermancer (12, the layer two under its obsidian top), Stairs (11, a ring round its
-  3x3 andesite prince on the same layer), Red Blue (4) and Grass Ruin (2). Not changed: which one he meant is his to say.
+  3x3 andesite prince on the same layer), Red Blue (4) and Grass Ruin (2). He said "yes fix all of them": see the next section.
 - **One Redstone Key per room.** Redstone Key's database lists two key spots (19,66,7 and 10,70,26) and Hypixel spawns the
   key in one; the sim put one on each. `SimSecrets.place` now keeps one at random (`setKeySpotForTest` forces it). Auto
   Routes' side of the same request is `autoroutes/KeySpots` (docs/LESSONS-AUTOMATION.md).
@@ -3332,3 +3332,23 @@ side by side `final-side-by-side.png`). In capture terms (wall plane x 1, one in
   `SimMenuNav.open` (the designer after a generated map), Load a Room when the menu was not opened yet this session.
 - Testkit: 1018-sim-prince-sarcophagus, 1018-sim-keyspot-one, 1018-sim-chest-appear, 1018-sim-changeroom-lastpage
   (SimWorldTests), 1018-ar-keyspot-empty (96-ar session).
+## The key takes the room's redstone batch; a prince takes its polished andesite (2026-10-18, sim-skull-prince-1018)
+- **Placing the Redstone Key removes the room's batch of redstone blocks** ("in any room with a skull and a batch of those
+  redstone blocks placing the skull should remove them"). `SimRedstoneKey.batchOf` reads it off the capture: every
+  redstone block in a group of two or more (26-way), not the node's group, not a group reaching the highest layer that
+  holds redstone (every capture's roof carries redstone markers there). Census: the three rooms with a key spot in the
+  database each have exactly one - Golden Oasis 3 at (27..29, 70, 26) (the strip that used to be hard-coded), Redstone
+  Crypt 7 at (16..19, 69..70, 16), Redstone Key 4 at (19..22, 68, 24). Only blocks still redstone when the key goes in
+  are taken.
+- **A blown prince takes the polished andesite touching its tomb** ("yes fix all of them", of the census above).
+  `SimPrince.andesiteRing`, the last step of `tombOf`: every polished andesite block touching the tomb (26-way), one ring.
+  Census of `tombOf` with and without it over the 135 captures: it adds Stairs 11 (round the 3x3 lantern prince, y 89),
+  Withermancer 12 (the course two under the obsidian top, y 71, over the ladder shaft), Sloth 27 (the alcove lining,
+  x 11 / x 15 / z 31, y 71..73), Red Blue 4 (x 61, y 83, z 6..9) and Grass Ruin 2 (the alcove posts' lower blocks at
+  (3, 96, 14) and (3, 96, 19)), and nothing to any other prince (Sarcophagus' body is already its own; plain andesite
+  floors are not polished). One ring, never a flood, so what lies one further out stays: the rest of Stairs' ledge (6
+  touching after the blast), Sloth's arch (11), Grass Ruin's upper post blocks (2), Red Blue 1. Side effects worth
+  knowing: Sloth's z 31 lining is the room's outer wall, so the blast opens a 3x3 window into the gap behind it;
+  Withermancer's course was the cover of its ladder shaft, and its three chiseled corners and one nether brick stay.
+- Testkit: 1018-sim-skull-golden-oasis / -redstone-crypt / -redstone-key, 1018-sim-prince-stairs / -withermancer /
+  -sloth / -red-blue / -grass-ruin (SimWorldTests).

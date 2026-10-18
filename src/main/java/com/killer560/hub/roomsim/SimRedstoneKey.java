@@ -59,8 +59,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *       the redstone block on that ledge - so the sim puts one there, only into air.</li>
  *   <li><b>What the key opens</b> in Golden Oasis is killer560's own description: "that third redstone is where i place
  *       the skull and it drops those redstone blocks by the lever" - the three redstone blocks at capture
- *       (27..29, 70, 26), between smooth stone slabs, that lead to the lever's acacia wood. What the node opens in the
- *       other two rooms is not known yet, so there it counts the secret and opens nothing.</li>
+ *       (27..29, 70, 26), between smooth stone slabs, that lead to the lever's acacia wood. In the other two rooms it is
+ *       his rule of 2026-10-18, "in any room with a skull and a batch of those redstone blocks placing the skull should
+ *       remove them": Redstone Crypt's 7 and Redstone Key's 4 ({@link #batchOf} finds each room's batch).</li>
  * </ul>
  *
  * <p>Picking the key up is NOT a secret (the wiki gives the secret to the placing; the database lists the key's
@@ -85,21 +86,89 @@ public final class SimRedstoneKey {
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
     /**
-     * One room's node, in capture-local coordinates.
+     * One room's node, in capture-local coordinates. What placing the key takes away is the room's batch of redstone
+     * blocks, read off the capture ({@link #batchOf}).
      *
      * @param node  the redstone block the key goes on
      * @param place put a redstone block there when the capture has air (Golden Oasis)
-     * @param from  one corner of what placing the key takes away, inclusive; null for nothing
-     * @param to    the other corner
      */
-    private record Node(String room, int[] node, boolean place, int[] from, int[] to) {
+    private record Node(String room, int[] node, boolean place) {
     }
 
     private static final List<Node> NODES = List.of(
-            new Node("Golden Oasis", new int[]{11, 71, 4}, true,
-                    new int[]{27, 70, 26}, new int[]{29, 70, 26}),
-            new Node("Redstone Crypt", new int[]{5, 72, 25}, false, null, null),
-            new Node("Redstone Key", new int[]{28, 68, 8}, false, null, null));
+            new Node("Golden Oasis", new int[]{11, 71, 4}, true),
+            new Node("Redstone Crypt", new int[]{5, 72, 25}, false),
+            new Node("Redstone Key", new int[]{28, 68, 8}, false));
+
+    /**
+     * The batch of redstone blocks placing the key takes away, in capture coordinates: every redstone block of the
+     * capture that stands in a group of two or more (touching, all 26 ways), other than the node's own group and the
+     * roof's markers (any group reaching the highest layer that holds redstone).
+     *
+     * <p>killer560, 2026-10-18 (his to-do list, Dungeons item 5): "in any room with a skull and a batch of those redstone
+     * blocks placing the skull should remove them." Census over the 135 captures: the three key rooms (the only rooms with
+     * a Redstone Key spot in the room database) each hold exactly one such batch below the roof - Golden Oasis' 3 at
+     * (27..29, 70, 26) by the lever (the strip he described on 2026-10-15), Redstone Crypt's 7 at (16..19, 69..70, 16)
+     * and Redstone Key's 4 at (19..22, 68, 24). Every capture's roof carries its own redstone markers at its top layer
+     * (a plus of four round the middle, single corners), which are not a batch.
+     */
+    static List<int[]> batchOf(RoomLibrary.Room room, int[] node) {
+        Set<Short> redstone = new java.util.HashSet<>();
+        for (int i = 0; i < room.palette.size(); i++) {
+            if (room.palette.get(i).startsWith("minecraft:redstone_block")) {
+                redstone.add((short) i);
+            }
+        }
+        List<int[]> out = new ArrayList<>();
+        if (redstone.isEmpty()) {
+            return out;
+        }
+        Set<BlockPos> all = new java.util.HashSet<>();
+        int roof = Integer.MIN_VALUE;
+        for (int y = room.minY; y <= room.maxY; y++) {
+            for (int z = 0; z < room.sizeZ; z++) {
+                for (int x = 0; x < room.sizeX; x++) {
+                    if (redstone.contains(room.at(x, y, z))) {
+                        all.add(new BlockPos(x, y, z));
+                        roof = Math.max(roof, y);
+                    }
+                }
+            }
+        }
+        BlockPos nodePos = new BlockPos(node[0], node[1], node[2]);
+        while (!all.isEmpty()) {
+            BlockPos seed = all.iterator().next();
+            all.remove(seed);
+            List<BlockPos> group = new ArrayList<>();
+            java.util.ArrayDeque<BlockPos> queue = new java.util.ArrayDeque<>();
+            queue.add(seed);
+            while (!queue.isEmpty()) {
+                BlockPos here = queue.poll();
+                group.add(here);
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            BlockPos n = here.offset(dx, dy, dz);
+                            if (all.remove(n)) {
+                                queue.add(n);
+                            }
+                        }
+                    }
+                }
+            }
+            boolean atRoof = false;
+            for (BlockPos p : group) {
+                atRoof |= p.getY() == roof;
+            }
+            if (group.size() < 2 || atRoof || group.contains(nodePos)) {
+                continue;
+            }
+            for (BlockPos p : group) {
+                out.add(new int[]{p.getX(), p.getY(), p.getZ()});
+            }
+        }
+        return out;
+    }
 
     /** Key heads still lying where they were placed: world position to room name. */
     private static final Map<BlockPos, String> KEYS = new ConcurrentHashMap<>();
@@ -205,14 +274,8 @@ public final class SimRedstoneKey {
                     continue;
                 }
                 List<BlockPos> opens = new ArrayList<>();
-                if (rule.from() != null) {
-                    for (int x = Math.min(rule.from()[0], rule.to()[0]); x <= Math.max(rule.from()[0], rule.to()[0]); x++) {
-                        for (int y = Math.min(rule.from()[1], rule.to()[1]); y <= Math.max(rule.from()[1], rule.to()[1]); y++) {
-                            for (int z = Math.min(rule.from()[2], rule.to()[2]); z <= Math.max(rule.from()[2], rule.to()[2]); z++) {
-                                opens.add(SimRoomPuzzles.capturedPos(p, x, y, z));
-                            }
-                        }
-                    }
+                for (int[] c : batchOf(room, rule.node())) {
+                    opens.add(SimRoomPuzzles.capturedPos(p, c[0], c[1], c[2]));
                 }
                 NODE_ROOM.put(node, placed.name());
                 NODE_OPENS.put(node, opens);
@@ -262,7 +325,9 @@ public final class SimRedstoneKey {
             server.addFreshEntity(stand);
             if (opens != null) {
                 for (BlockPos pos : opens) {
-                    server.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    if (server.getBlockState(pos).is(Blocks.REDSTONE_BLOCK)) {
+                        server.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+                    }
                 }
             }
             server.playSound(null, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5,
