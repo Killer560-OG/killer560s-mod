@@ -625,3 +625,9 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   particle kind in v (`kind * 16 + local`), and the vertex shader splits them with `floor((uv + 8) / 16)`. That only holds
   while the local coordinate stays inside +-8, so a quad's reach is capped at 7.5 core radii (a firefly's wide glow is cut
   there, under 1% alpha). The backdrop's flat varyings stay at 52 components, under GL 3.3's guaranteed 60.
+- **Colour bands cut with `enableScissor` leave a gap under any non-integer scale** (killer560, 2026-10-17, "a line through
+  Full Toggle"): `MenuStyle.gradientText` draws the text three times through scissor bands at 0/3/6/9, and the scissor
+  rounds each band to whole pixels on its own, so at 1.5x (Profiles), or 1x/4/3x inside the menu's HUD Scale pose, rows
+  between bands drew nothing and the shadow showed - one row at GUI 1, up to five at GUI 4. Testkit 1436 found it in 20 of
+  40 draws on the old code and 0 with the fix (the whole text in the middle colour first, 136effd5). It is the only banded
+  text in the mod (sweep 2026-10-18); never split text by scissor without a full-text pass under it.

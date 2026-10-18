@@ -3203,3 +3203,22 @@ in `SimRoomLevers` went from 20 rules to 39; the per-room facts are in its javad
   resort did ("NOT a walkable cut - nothing else fitted") and left Cell behind a wall, unreachable. `carveOnce(false)` now
   refuses (`SimFloorLayout.blindCarvesRefused()` counts it) and the whole-floor retries find a layout without one;
   `tools/layoutsim -Dsweep=true` fails any floor with a BLIND door (4,480 floors: 9 before, 0 after, nothing else missed).
+## Deuces' doorway, third look: his Hypixel shot faces NORTH and has no fill (2026-10-18, deuces-door-2)
+killer560: "Deuces is still not right though". His Hypixel shot (`killer560s-mod-logs/deuces-door-2/hypixel-2026-10-16_22.21.06.png`)
+was taken entering Deuces from Lava Ravine, chest doorway leading into Fairy: his Dungeons log at 22:21:01 says "Dueces -
+WEST", the map's player head is upright (facing north) and the room through the doorway is Fairy's tree. So the chest
+doorway (capture W0) faced NORTH, i.e. Deuces pasted at 90 - where `RoomDoorPieces`' world-side rule puts the FILL.
+Rendered from his camera (testkit 1434, FOV 110, feet capture (8.5, 69, 16.5), pitch -30; shots in `deuces-door-2/renders/`)
+the sim differs from Hypixel in the layer one in from the wall (capture x 2), y 69..76:
+- box y 74..76: Hypixel has AIR in front of a flat stone wall plane (stone texture, no cyan tint); the sim has the fill
+  (bricks, four upside-down stairs, one mossy, one stone). The capture's own W0 has the fill too, and so does every captured
+  west or north doorway (101) - so either the piece is not decided by world side alone, or Hypixel changed it.
+- jambs y 69..72 at u = +-2: Hypixel shows cobblestone columns; the capture has stair / polished andesite / andesite / stair.
+  No captured doorway of the 298 has cobblestone there (`k1query.py`).
+- lintel y 73: Hypixel a stone-brick row as wide as the cobble columns; the capture polished andesite u -2..2.
+- at the box's top corners (capture x 2..5, y 76, z 13 / 19) the capture holds magenta wool, which shows once the fill is
+  cleared (variant `box2air`); Hypixel shows cobblestone there. Magenta wool is in three captures only (Museum, Deuces,
+  Purple Flags).
+Not fixed: the evidence is one real doorway against 207 captured ones, and the jamb/lintel shape exists in no capture, so
+no rule can be derived. What would settle it: an F3 screenshot of Deuces' chest doorway on Hypixel at another turn
+(facing west or east), and one of any other room's north or west doorway from inside, to see whether the fill exists live.
