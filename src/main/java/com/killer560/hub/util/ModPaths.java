@@ -211,6 +211,7 @@ public final class ModPaths {
         t.put("ribbontrail", "interface/ribbontrail");
         t.put("crosshair", "interface/crosshair");
         t.put("smoothteleport", "interface/smoothteleport");
+        t.put("freelook", "interface/freelook");
         t.put("dvd", "interface/dvd");
         t.put("gif", "interface/gifplayer");
         t.put("screenshotcopy", "interface/screenshotcopy");

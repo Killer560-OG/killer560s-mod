@@ -10,6 +10,7 @@ public class DisplayTab extends FolderTab {
     public DisplayTab() {
         super("Display", List.of(
                 new DisplayOptionsTab(),
+                new FreelookTab(),
                 new WindowLayoutTab(),
                 // Moved out of New 2026-09-16 once killer560 confirmed each one in a real run.
                 new ItemRarityTab(),

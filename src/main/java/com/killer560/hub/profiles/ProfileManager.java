@@ -500,6 +500,7 @@ public final class ProfileManager {
                 com.killer560.hub.etherwarp.EtherwarpWaypointsStore::load,
                 com.killer560.hub.etherwarpoverlay.EtherwarpOverlayConfig::load,
                 com.killer560.hub.smoothtp.SmoothTeleportConfig::load,
+                com.killer560.hub.freelook.FreelookConfig::load,
                 com.killer560.hub.experiments.ExperimentsConfig::load,
                 com.killer560.hub.fastleap.FastLeapConfig::load,
                 com.killer560.hub.fastleap.I4LeapConfig::load,

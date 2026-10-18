@@ -737,6 +737,9 @@ final class SettingTooltipsData {
         d.put("rank name colors", "Colors member names by Hypixel rank instead of dungeon class.");
         d.put("custom style", "Type the member line format for Custom style, using placeholders and & color codes.");
         d.put("motion blur", "Blends each frame with the previous ones for a motion blur effect.");
+        d.put("freelook", "Freelook (the name other mods use for this): F5 goes straight to the backwards view, the camera in front of you looking back at you, and back to your normal view, instead of cycling all three. Hold the Pan Key to swing the camera around you with the mouse; you keep facing and walking the same way, and the camera returns when you let go. Camera only: your look direction, movement and everything sent to the server stay exactly as they are.");
+        d.put("freelook/mode", "Hold: the backwards view lasts while F5 is held. Toggle: each F5 press switches it on or off. F5 is whatever key is bound to Toggle Perspective in Controls.");
+        d.put("freelook/pan key", "Key or mouse button to hold to pan the camera around you with the mouse. Works in any view; from first person it shows the normal third-person view while held. Esc while binding clears it.");
         d.put("strength", "How much of the previous frame is kept (0-100%); higher means longer trails.");
         d.put("blur gui", "Also blurs the HUD and open menus.");
         d.put("open layout picker", "Opens a monitor preview; click a cell to move and resize this window into it.");
