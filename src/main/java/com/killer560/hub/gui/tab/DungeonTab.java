@@ -22,7 +22,6 @@ public class DungeonTab extends FolderTab {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 // ---- map, doors, party ----
                 new LiveMapTab(),
-                new PredictiveRoomsTab(),
                 new ChunkCacheTab(),
                 new DungeonInfoTab(),
                 new DoorKeysTab(),
