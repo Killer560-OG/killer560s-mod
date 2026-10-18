@@ -51,6 +51,8 @@ public final class QuizState {
     private static long answerAt = -1;
     /** {@link ServerTickClock#now()} when the last line moved it, for the testkit. */
     private static long lastLineAt = -1;
+    /** {@link ServerTickClock#now()} of the last "answered" line. */
+    private static long answeredAt = -1;
     private static Object level;
 
     private QuizState() {
@@ -87,6 +89,7 @@ public final class QuizState {
             }
             int n = m.group(2) == null ? 3 : Integer.parseInt(m.group(2));
             lastLineAt = now;
+            answeredAt = now;
             if (n >= 3) {
                 question = 4;
                 answered = true;
@@ -118,6 +121,7 @@ public final class QuizState {
         answered = false;
         answerAt = -1;
         lastLineAt = -1;
+        answeredAt = -1;
     }
 
     /** Oruo has begun (his first line was seen), this world. */
@@ -140,6 +144,11 @@ public final class QuizState {
         return question;
     }
 
+    /** The question the next answer is for: the one asked, or after an answer the one coming (1-3; 0/4 outside). */
+    public static int nextQuestion() {
+        return inProgress() && answered ? question + 1 : question;
+    }
+
     /** Questions answered so far (0-3). */
     public static int answeredCount() {
         if (question >= 4) {
@@ -159,16 +168,18 @@ public final class QuizState {
     }
 
     /**
-     * Server ticks until the current question can be answered: 0 when it can now; for a question just answered, the
-     * shortest time the next can open in ({@link #LATER_LOCK_TICKS} plus Oruo's two-second line) - a lower bound the
-     * planner can work with; -1 when no Quiz is in progress.
+     * Server ticks until the current question can be answered: 0 when it can now; for a question just answered, until
+     * the next is expected to open (the answer plus Oruo's two-second line plus {@link #LATER_LOCK_TICKS}); -1 when no
+     * Quiz is in progress.
      */
     public static long ticksUntilAnswerable() {
         if (!inProgress()) {
             return -1;
         }
         if (answered) {
-            return LATER_LOCK_TICKS + NEXT_LINE_TICKS;
+            // Oruo's next lock line is not here yet: the soonest the next question can open is his usual line gap plus the
+            // lock, counted from the answer - so a planner deciding again a few seconds later sees the time go down.
+            return Math.max(0L, answeredAt + NEXT_LINE_TICKS + LATER_LOCK_TICKS - ServerTickClock.now());
         }
         return Math.max(0L, answerAt - ServerTickClock.now());
     }

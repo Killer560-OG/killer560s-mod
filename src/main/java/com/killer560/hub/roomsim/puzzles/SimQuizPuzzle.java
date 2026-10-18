@@ -971,7 +971,8 @@ public final class SimQuizPuzzle {
 
     private static void onChestClick(Minecraft client, int index) {
         MinecraftServer server = client.getSingleplayerServer();
-        // NO ANSWER DELAY. killer560 asked for one ("have a 5s delay from the question coming out to being
+        // NO ANSWER DELAY - the standalone /simpuzzle arena and Three Weirdos only; the bound Quiz room is answered through
+        // Oruo's cooldowns on the server (onOruoPress, 2026-10-17). killer560 asked for one ("have a 5s delay from the question coming out to being
         // able to answer it") and then asked for it back out ("remove the quiz delay I dont like it"), so an
         // answer counts the moment the question is up. The reading-time rule is Hypixel's; this is a drill.
         if (index == correctIndex) {

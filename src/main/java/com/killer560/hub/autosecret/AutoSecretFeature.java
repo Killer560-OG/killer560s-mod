@@ -1158,7 +1158,7 @@ public final class AutoSecretFeature {
             return true;
         }
         LOGGER.info("[AutoSecret] Quiz: question {} opens in {} tick(s) - back to the Quiz",
-                com.killer560.hub.puzzlesolvers.QuizState.question(), left);
+                com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), left);
         return goToQuiz(layout, quiz);
     }
 
@@ -1218,7 +1218,7 @@ public final class AutoSecretFeature {
         }
         if (sites.isEmpty()) {
             LOGGER.info("[AutoSecret] Quiz: {} tick(s) to question {} and no secret room left to fill them", left,
-                    com.killer560.hub.puzzlesolvers.QuizState.question());
+                    com.killer560.hub.puzzlesolvers.QuizState.nextQuestion());
             return null;
         }
         sites.add(quizSite);
@@ -1245,7 +1245,7 @@ public final class AutoSecretFeature {
             }
         }
         LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; round trips (there + route + back): {}-> {}",
-                left, com.killer560.hub.puzzlesolvers.QuizState.question(), why,
+                left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), why,
                 best == null ? "none fits, waiting at the Quiz" : best.name());
         return best;
     }

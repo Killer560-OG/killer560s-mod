@@ -1243,6 +1243,37 @@ Two smaller hardenings, both read off the solver rather than guessed: the sim on
 entry's hands the solver the wrong answer list), and a distractor that merely **ends with** any of the question's
 correct answers is rejected, because the option test is `anyMatch(trimmed::endsWith)` over the whole list.
 
+## Quiz: Oruo's cooldowns (2026-10-17)
+
+"on main if you do quiz the first time you open it there is a long cooldown till you can answer then a shorter one
+after that for a total of 3 answers. Reference noamm, they keep track of it, but build that into our sim."
+
+The bound Quiz room no longer announces anything on walk-in (the announce-gate section above now covers Three Weirdos
+and the standalone `/simpuzzle quiz` drill only, which keeps no delay - his earlier "remove the quiz delay"). It plays
+Hypixel's sequence on the SERVER (`SimQuizPuzzle`'s Oruo section):
+
+- Oruo is two stands: "Oruo the Omniscient" on the statue's front step (relative 15, 71, 16) and a "CLICK" stand over
+  the moat's near edge (15, 70, 14). Where Hypixel's clickable Oruo really stands is in no capture or reference mod;
+  those two spots are estimates.
+- Talking to him (interact or hit) sends "I am Oruo the Omniscient..." at once, then "Though I sit...", "Prove your
+  knowledge..." and "Answer incorrectly..." 40 ticks apart, Question #1 at +160 and opens it at +220. After a correct
+  answer: "NAME answered Question #N correctly!", the lock line ("2 questions left..." / "One more question!") 40 ticks
+  later, its question 40 after that, open 100 after the lock line. The last: "NAME answered the final question
+  correctly!", "I bestow upon you all the power of a hundred years!" 20 ticks later.
+- Sources: the two locks are NoammAddons `QuizSolver.kt` (`answerTime = currentTime + 220` / `+ 100`, server ticks) and
+  Odin/QUOI `QuizSolver.kt` (`START_DURATION = 220`, `QUESTION_DURATION = 100`). The line gaps are his
+  `26.1.2 (Dungeons)` logs, 276 runs at second resolution, most common gap: 2 s between Oruo's lines (256 of 278),
+  Question #1 8 s after the intro (210 of 274), each later question 2 s after its lock line, answers 11 s after the intro
+  (74 of 269, never under 10) and 5 s after each lock line (never under 4).
+- A press before the lock ends is refused and says nothing (no such line in any log). Talking after the last answer
+  gets "You have already shown your vast knowledge..."; a press, "You've already proven enough to me!...". A wrong
+  answer fails the room and puts Oruo back to not-started (Hypixel's wrong-answer line is not in his logs).
+- Lines go out at START_SERVER_TICK (or inside the interact packet) and the server counts ticks at END, so a lock of
+  N ticks opens exactly when a client counting N pings after the line (QuizState) is allowed to press: 1017-sim-quiz-timing
+  measures every Auto Quiz answer on the opening tick + 1.
+- The question block is Hypixel's: blank, centred "Question #N", the centred question, blank, `    §6 ⓐ §a<answer>` x3,
+  blank; the answer holograms are replaced with each question.
+
 ## Boulder: a boulder is three blocks tall
 
 *Superseded 2026-10-02: a box is 3x3x3, not a one-wide column - see "The 2026-10-02 puzzle round".*
