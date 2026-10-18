@@ -42,6 +42,7 @@ final class FeatureDescriptions {
         BY_TAB.put("ThornTab", "F4/M4 Thorn: Spirit Bear HUD and ESP, stun spots and overkill messages.");
         // Tabs whose card switch stands for several independent features (killer560, 2026-10-14; see MasterSwitch).
         BY_TAB.put("DungeonQueueTab", "Re-queues the dungeon after a run, and the Party Finder overlay: joinable highlight, counts, stats.");
+        BY_TAB.put("CustomPartyFinderTab", "Our own party finder for Dungeons, Diana and Fishing: list a party, ask to join one, and the leader's invite is accepted for you.");
         BY_TAB.put("WitherDragonsTab", "F7/M7 dragon phase: spawn timers, priority, boxes and health, and the King Relics helper.");
         BY_TAB.put("MobEspTab", "Boxes or glow on starred mobs, bats and the wither bosses.");
         BY_TAB.put("LeapMenuTab", "A custom leap menu with player heads and class colors, and a message sent when you leap.");
