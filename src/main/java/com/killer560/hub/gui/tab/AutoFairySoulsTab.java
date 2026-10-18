@@ -76,16 +76,11 @@ public class AutoFairySoulsTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(autoModeText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Allow Ender Pearls", cfg.isAllowPearls()), btn -> {
-                    cfg.setAllowPearls(!cfg.isAllowPearls());
-                    cfg.save();
-                    btn.setMessage(onOff("Allow Ender Pearls", cfg.isAllowPearls()));
-                }).bounds(contentX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(onOff("Sprint", cfg.isAutoSprint()), btn -> {
                     cfg.setAutoSprint(!cfg.isAutoSprint());
                     cfg.save();
                     btn.setMessage(onOff("Sprint", cfg.isAutoSprint()));
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         widgets.add(SettingsButtonWidget.builder(capturingResumeKey
                         ? Component.literal("Press any key...") : resumeKeyText(cfg), btn -> {

@@ -21,13 +21,17 @@ import java.nio.file.Path;
  * "Pathfinding" one is gone (the tab switch is the feature; an old file with it OFF keeps its soul waypoints off),
  * "Dim Whole Route" is {@code dimPath}, Turn Speed is gone, Auto Walk is a part of Auto Fairy Souls that defaults ON,
  * and the Pearls Only mode is Walk Only plus Allow Ender Pearls.
+ * 2026-10-18: Auto Mode has four values (Walk Only, Walk With Pearls, Etherwarp, Fast Etherwarp); the Allow Ender Pearls
+ * switch is gone and an old file with it ON and Walk Only loads as Walk With Pearls.
  */
 public final class PathfindingConfig {
 
     /** How auto fairy souls gets from soul to soul (cheat build only). */
     public enum AutoMode {
-        /** Walking only: it never etherwarps (an Ender Pearl escape still needs Allow Ender Pearls). */
+        /** Walking only: it never etherwarps and never throws a pearl. */
         WALK("Walk Only"),
+        /** Walks, and may throw an Ender Pearl to get out of somewhere it cannot walk out of. Never etherwarps. */
+        PEARLS("Walk With Pearls"),
         ETHERWARP("Etherwarp"),
         FAST_ETHERWARP("Fast Etherwarp");
 
@@ -39,7 +43,7 @@ public final class PathfindingConfig {
 
         /** Etherwarps (shortcuts, chains and escapes) are allowed in this mode. */
         public boolean etherwarps() {
-            return this != WALK;
+            return this == ETHERWARP || this == FAST_ETHERWARP;
         }
     }
 
@@ -88,7 +92,6 @@ public final class PathfindingConfig {
     private boolean autoWalk = true;
     private boolean autoCollect = true;
     private AutoMode autoMode = AutoMode.WALK;
-    private boolean allowPearls = false;
     private boolean autoSprint = true;
     private int resumeKeyCode = KeyUtil.NONE;
 
@@ -145,12 +148,10 @@ public final class PathfindingConfig {
         autoSouls = ConfigJson.getBool(obj, "autoSouls", false);
         autoWalk = ConfigJson.getBool(obj, "autoWalk", true);
         autoCollect = ConfigJson.getBool(obj, "autoCollect", true);
-        allowPearls = ConfigJson.getBool(obj, "allowPearls", false);
-        if ("PEARLS".equals(ConfigJson.getString(obj, "autoMode", "WALK"))) {
-            autoMode = AutoMode.WALK;
-            allowPearls = true;
-        } else {
-            autoMode = ConfigJson.getEnum(obj, "autoMode", AutoMode.class, AutoMode.WALK);
+        // Before 2026-10-18 Walk Only plus the "allowPearls" flag was the pearl mode; it is its own mode now.
+        autoMode = ConfigJson.getEnum(obj, "autoMode", AutoMode.class, AutoMode.WALK);
+        if (autoMode == AutoMode.WALK && ConfigJson.getBool(obj, "allowPearls", false)) {
+            autoMode = AutoMode.PEARLS;
         }
         autoSprint = ConfigJson.getBool(obj, "autoSprint", true);
         resumeKeyCode = KeyUtil.sanitize(ConfigJson.getInt(obj, "resumeKeyCode", KeyUtil.NONE));
@@ -188,7 +189,6 @@ public final class PathfindingConfig {
         obj.addProperty("autoWalk", autoWalk);
         obj.addProperty("autoCollect", autoCollect);
         obj.addProperty("autoMode", autoMode.name());
-        obj.addProperty("allowPearls", allowPearls);
         obj.addProperty("autoSprint", autoSprint);
         obj.addProperty("resumeKeyCode", resumeKeyCode);
         return obj;
@@ -395,13 +395,9 @@ public final class PathfindingConfig {
         this.autoMode = v;
     }
 
-    /** Ender Pearls may be thrown to escape somewhere it cannot walk out of. */
+    /** Ender Pearls may be thrown to escape somewhere it cannot walk out of (the Walk With Pearls mode). */
     public boolean isAllowPearls() {
-        return allowPearls;
-    }
-
-    public void setAllowPearls(boolean v) {
-        this.allowPearls = v;
+        return autoMode == AutoMode.PEARLS;
     }
 
     public boolean isAutoSprint() {
