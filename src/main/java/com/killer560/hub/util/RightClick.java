@@ -201,16 +201,18 @@ public final class RightClick {
         // they should. An older click: the use is eaten.
         boolean sameTick = unpaired && clickTick == ActionGate.currentTick();
         boolean pairs = unpaired && ray != null && !sameTick;
-        if (pairs) {
+        boolean spent = pairs && spending;
+        if (pairs && !spent) {
             barePairedUses++;
         }
         String line = String.format(Locale.US, "[RightClick] use seq %d with %s (slot %d) rot %.2f/%.2f | server look %s"
                         + " | shift %s | screen %s | %s | server ray %s%s", p.getSequence(), itemId(player, p.getHand()),
                 player.getInventory().getSelectedSlot() + 1, p.getYRot(), p.getXRot(), sentLook(),
                 player.getLastSentInput().shift(), screen(), clickText, rayText,
-                pairs ? " -> Hypixel takes this use as that click's second half: no ability, it replays the click's verdict"
+                spent ? " -> pairs with that click on purpose (a use with no ability): the click is paired now"
+                        : pairs ? " -> Hypixel takes this use as that click's second half: no ability, it replays the click's verdict"
                         : sameTick && ray != null ? " -> pairs with its own block half (one right click)" : "");
-        if (pairs) {
+        if (pairs && !spent) {
             LOGGER.warn(line);
         } else if (unpaired || ActionGate.currentTick() - clickTick <= LOG_AFTER_CLICK_TICKS) {
             LOGGER.info(line);
@@ -496,6 +498,66 @@ public final class RightClick {
     /** Whether the server's last-heard look is {@code yaw}/{@code pitch} (any wrapping, within 0.05 degrees). */
     public static boolean heard(LocalPlayer player, float yaw, float pitch) {
         return sameLook(player, yaw, pitch);
+    }
+
+    /**
+     * Pairs the stored block click with a harmless use BEFORE the real one goes, for the case {@link #reaimIfUnpairable}
+     * cannot cure: the server's ray along the look it has heard meets a block (from the 1.8 eye) while this client's own
+     * look reaches none, so the next use would be taken as the stored click's second half and dropped. Sent with the
+     * item the caller has just selected - one with no right-click ability (the Dungeon Breaker) - as a bare use at the
+     * heard look: a vanilla right click along a look that meets no block in reach is exactly that one packet. The server
+     * pairs it with the stored click (verdict replayed: nothing happens) and clears it, so the warp that follows a tick
+     * later is an ordinary right click and fires. Should the server not pair it after all, it is a right click in the air
+     * with a pickaxe: nothing either - unlike sending the warp itself to be eaten, which costs a round trip to find out
+     * and, were the judgement wrong, a second warp from the landing (killer560's Bridges, 2026-10-17).
+     *
+     * @return true when the use was sent
+     */
+    public static boolean spendStoredClick(Minecraft client, LocalPlayer player, String who) {
+        if (!unpaired || !sentKnown || player == null || client.level == null
+                || !(client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
+            return false;
+        }
+        checkLevel(player);
+        if (!unpaired || player.getMainHandItem().isEmpty()) {
+            return false;
+        }
+        BlockHitResult srv = serverRay(player, sentYaw, sentPitch);
+        if (srv == null || clientPick(client, player, sentYaw, sentPitch) != null) {
+            return false; // nothing to pair it with, or a vanilla right click here would click a block first
+        }
+        float yaw = sentYaw;
+        float pitch = sentPitch;
+        String clickWas = clickPos == null ? "?" : clickPos.toShortString();
+        String with = clickItem;
+        invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+        spending = true;
+        try {
+            invoker.killer560smod$invokeStartPrediction(client.level,
+                    sequence -> new ServerboundUseItemPacket(InteractionHand.MAIN_HAND, sequence, yaw, pitch));
+        } finally {
+            spending = false;
+        }
+        storedClicksSpent++;
+        LOGGER.info("{}: paired the block click at {} with {} by a use of {} first - the server's ray meets {} at {}, "
+                        + "this client's look reaches no block, so the warp would have been that click's second half. "
+                        + "The warp goes next tick.", who, clickWas, with, itemId(player, InteractionHand.MAIN_HAND),
+                blockName(player, srv.getBlockPos()), srv.getBlockPos().toShortString());
+        return true;
+    }
+
+    /** {@link #spendStoredClick} is sending: its use pairs on purpose, so it is not counted as an eaten one. */
+    private static boolean spending;
+    private static int storedClicksSpent;
+
+    /** Stored block clicks {@link #spendStoredClick} paired with a harmless use - read by the testkit. */
+    public static int storedClicksSpent() {
+        return storedClicksSpent;
+    }
+
+    /** The look the server last heard in a movement packet (the running yaw as sent, never wrapped), or null. */
+    public static float[] heardLook() {
+        return sentKnown ? new float[]{sentYaw, sentPitch} : null;
     }
 
     /** Whether a block click may still be waiting for its second half on the server. */

@@ -98,7 +98,7 @@ public final class AutoSecretFeature {
     private static BlockPos instaLanding;
     /** The closed wither door it is opening (a map cell), where it stands for it, and its lock block. */
     private static int doorCell = -1;
-    /** The door it is at is the blood door (Dungeon Autopilot only - Auto Secret alone never opens it). */
+    /** The door it is at is the blood door (Dungeon Autopilot, or Auto Secret's Blood First). */
     private static boolean doorBlood;
     /** The dropped key it is going to pick up, where it stands for it, and its distance from him last tick. */
     private static com.killer560.hub.doorkeys.DungeonKeys.Dropped keyTarget;
@@ -136,6 +136,11 @@ public final class AutoSecretFeature {
     private static final Map<String, Integer> tripFailures = new HashMap<>();
     private static boolean iceFillTried;
     private static String lastWaiting;
+    /** This run's Blood First (Auto Secret alone; OFF under the Autopilot, which has its own), and whether it is over. */
+    private static AutoSecretConfig.SecretBloodFirst bloodFirstMode = AutoSecretConfig.SecretBloodFirst.OFF;
+    private static boolean bloodFirstDone;
+    /** The last "nothing toward blood right now" reason logged, so it is logged once per reason. */
+    private static String bloodFirstNote;
 
     private static int seenPositionPackets;
     private static int seenCorrections;
@@ -347,16 +352,26 @@ public final class AutoSecretFeature {
         seenCorrections = ClearExecutor.serverCorrections();
         quietTicks = 0;
         latchHeldKeys(client);
-        if (withPilot) {
-            Autopilot.reset();
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        bloodFirstMode = withPilot ? AutoSecretConfig.SecretBloodFirst.OFF : cfg.getSecretBloodFirst();
+        bloodFirstDone = false;
+        bloodFirstNote = null;
+        if (bloodFirstMode == AutoSecretConfig.SecretBloodFirst.FULL_BLOOD_RUSH && !AutoClearFeature.isAvailable()) {
+            bloodFirstMode = AutoSecretConfig.SecretBloodFirst.DOOR_CAMP;
+            say(ModChat.bad("Auto Clear is off"), ModChat.dim(" - Full Blood Rush clears its rooms with it, so this run"
+                    + " is Door Camp"));
+        }
+        if (withPilot || bloodFirstMode != AutoSecretConfig.SecretBloodFirst.OFF) {
+            Autopilot.reset();   // its key memory (keys given up on) is Blood First's too
         }
         setPhase(Phase.DECIDE);
         status = "Starting";
-        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
         LOGGER.info("[AutoSecret] started (floor {}){}", DungeonState.getFloor(), withPilot ? " as Dungeon Autopilot: "
-                + cfg.getRunMode() + (cfg.isBloodFirst() ? ", Blood First" : "") + (cfg.isDoPuzzles() ? ", puzzles" : "") : "");
+                + cfg.getRunMode() + (cfg.isBloodFirst() ? ", Blood First" : "") + (cfg.isDoPuzzles() ? ", puzzles" : "")
+                : bloodFirstMode == AutoSecretConfig.SecretBloodFirst.OFF ? "" : ", Blood First: " + bloodFirstMode.label());
         say(ModChat.good("Started"), ModChat.dim((withPilot ? " (" + cfg.getRunMode().label()
-                + (cfg.isBloodFirst() ? ", Blood First" : "") + ")" : "") + " - press a movement key to take over"));
+                + (cfg.isBloodFirst() ? ", Blood First" : "") + ")" : bloodFirstMode == AutoSecretConfig.SecretBloodFirst.OFF
+                ? "" : " (Blood First: " + bloodFirstMode.label() + ")") + " - press a movement key to take over"));
         return true;
     }
 
@@ -397,7 +412,12 @@ public final class AutoSecretFeature {
         }
         status = "Stopped: " + reason;
         LOGGER.info("[AutoSecret] stopped: {}", reason);
-        ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        if (reason.startsWith("nothing left to do")) {
+            // The run finished on its own: log only (killer560, 2026-10-17: "remove the stopped: nothing left to do line").
+            ModChat.log(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        } else {
+            ModChat.send(chatName(), ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
+        }
     }
 
     // ------------------------------------------------------------------------------------------- ticking
@@ -933,6 +953,9 @@ public final class AutoSecretFeature {
             decidePilot(layout, rooms, dist, here);
             return;
         }
+        if (decideBloodFirst(layout, rooms, dist)) {
+            return;
+        }
         if (decideIceFill(layout, rooms, dist)) {
             return;
         }
@@ -943,6 +966,86 @@ public final class AutoSecretFeature {
             return;
         }
         decideEndgame(layout, rooms, dist);
+    }
+
+    /**
+     * Blood First (killer560, 2026-10-17: "add a blood first where you can select door camp or full blood rush first then
+     * it does only secrets"), until the blood door reads open; after that it is never looked at again this run, and the
+     * run is secrets only (Auto Secret never goes into the blood room). Both modes take their doors and keys from the
+     * Autopilot's Blood First rule ({@link Autopilot#bloodFirstStep}: the first locked door on the room path to the room
+     * in front of the blood door, then the blood door; a key for it lying in a room it can reach first), opened by this
+     * class's own door step. <b>Full Blood Rush</b> first hands each uncleared mob room of the Blood Rush Split path it can
+     * reach to Auto Clear, in path order (Auto Clear's Blood Rush Split rule, {@link AutoClearFeature#bloodRushRooms}).
+     * When neither has a step (the next door wants a key nobody has, or no door is on the map yet) it secrets meanwhile
+     * and looks again at every decision, as the Autopilot does.
+     * @return true when it started a Blood First step
+     */
+    private static boolean decideBloodFirst(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (bloodFirstMode == AutoSecretConfig.SecretBloodFirst.OFF || bloodFirstDone) {
+            return false;
+        }
+        int blood = layout.bloodDoor();
+        if (blood >= 0 && !layout.isLocked(blood)) {
+            bloodFirstDone = true;
+            LOGGER.info("[AutoSecret] Blood First ({}): the blood door is open - secrets only from here",
+                    bloodFirstMode.label());
+            return false;
+        }
+        if (bloodFirstMode == AutoSecretConfig.SecretBloodFirst.FULL_BLOOD_RUSH) {
+            List<Integer> rush = AutoClearFeature.bloodRushRooms(layout);
+            if (rush != null) {
+                for (int id : rush) {
+                    if (!dist.containsKey(id) || !AutoClearFeature.isMobRoom(layout, id)) {
+                        continue;
+                    }
+                    for (RoomStatus.Room r : rooms) {
+                        if (r.room() == id && !r.cleared() && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())) {
+                            LOGGER.info("[AutoSecret] Blood First (Full Blood Rush): clearing {} - room {} of the blood rush"
+                                    + " path", r.name(), rush.indexOf(id) + 1);
+                            goClear(layout, r, dist);
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        Autopilot.Order o = Autopilot.bloodFirstStep(layout, dist);
+        if (o != null && o.type() == Autopilot.Type.KEY && o.key() != null) {
+            bloodFirstNote = null;
+            goKey(o.key(), o.why());
+            return true;
+        }
+        if (o != null && o.type() == Autopilot.Type.DOOR) {
+            boolean unreachable = secreted.contains(doorName(o.door()));
+            if (unreachable || o.door() == doorCell && doorClicks >= DOOR_CLICKS) {
+                // Its trip there failed three times (tripFailed left it out), or the door stayed shut under every click
+                // the door step makes: the rest of the run is secrets rather than standing at it.
+                bloodFirstDone = true;
+                String kind = o.blood() ? "blood" : "wither";
+                LOGGER.info("[AutoSecret] Blood First ({}): {} door at cell {} {} - secrets only from here",
+                        bloodFirstMode.label(), kind, o.door(), unreachable ? "out of reach" : "stayed shut");
+                say(ModChat.bad("Blood First: " + (unreachable ? "couldn't get to the " + kind + " door"
+                        : "the " + kind + " door stayed shut")), ModChat.dim(" - secrets only from here"));
+                resetDoor();
+                return false;
+            }
+            bloodFirstNote = null;
+            LOGGER.info("[AutoSecret] Blood First ({}): {} (cell {})", bloodFirstMode.label(), o.why(), o.door());
+            goToDoor(layout, o.door(), o.blood(), o.why());
+            return true;
+        }
+        String why = blood < 0 ? "the blood door is not on the map yet" : "the next door on the way wants a key nobody has";
+        if (!why.equals(bloodFirstNote)) {
+            bloodFirstNote = why;
+            LOGGER.info("[AutoSecret] Blood First ({}): {} - secrets meanwhile, looking again each decision",
+                    bloodFirstMode.label(), why);
+        }
+        return false;
+    }
+
+    /** The run's Blood First mode and whether it is over, for the testkit: "OFF", or e.g. "DOOR_CAMP done". */
+    public static String bloodFirstState() {
+        return bloodFirstMode.name() + (bloodFirstDone ? " done" : "");
     }
 
     private static boolean eligibleForSecrets(RoomStatus.Room r) {
@@ -968,6 +1071,9 @@ public final class AutoSecretFeature {
                 beginIceFill();
                 return true;
             }
+            // Named before the trip: a failed Ice Fill trip was "trip to null", and its give-up never took Ice Fill
+            // out, so Auto Secret went "Ice Fill first" for the whole test (fullclear-1016 run 036, 480 s).
+            target = r.name();
             return pathToRoom(layout, r, Trip.ICE_FILL);
         }
         return false;
@@ -1458,7 +1564,8 @@ public final class AutoSecretFeature {
         target = r.name();
         targetRoomId = r.room();
         status = "Going to clear " + r.name();
-        LOGGER.info("[AutoSecret] autopilot: clear {} ({} room(s) away) - Auto Clear", r.name(), dist.get(r.room()));
+        LOGGER.info("[AutoSecret] {}clear {} ({} room(s) away) - Auto Clear", pilot ? "autopilot: " : "Blood First: ",
+                r.name(), dist.get(r.room()));
         note(ModChat.text("Clearing "), ModChat.value(r.name()));
         if (layout.currentRoom() == r.room()) {
             arrived(Trip.CLEAR);
@@ -1905,12 +2012,11 @@ public final class AutoSecretFeature {
         if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
             say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)), ModChat.dim(" (" + why + ") - skipped"));
         }
-        if (giveUp && target != null) {
+        if (giveUp && trip == Trip.ICE_FILL) {
+            iceFillTried = true;   // Ice Fill is a puzzle: left to the rest of the run, not to the secret list
+        } else if (giveUp && target != null) {
             secreted.add(target);
             instaTried.add(target);
-            if (trip == Trip.ICE_FILL) {
-                iceFillTried = true;
-            }
         } else if (trip == Trip.ICE_FILL) {
             iceFillTried = false;
         } else if (trip == Trip.PUZZLE && target != null) {

@@ -40,6 +40,11 @@ public final class RoomLibrary {
             return (y - minY) * sizeX * sizeZ + z * sizeX + x;
         }
 
+        /** As the real Room (fps-sim-1015): the palette index at a raw {@link #index}. */
+        public short blockAt(int i) {
+            return blocks[i];
+        }
+
         public boolean usable() {
             return usable;
         }

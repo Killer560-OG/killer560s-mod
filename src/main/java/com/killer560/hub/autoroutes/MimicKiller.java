@@ -14,8 +14,10 @@ import org.slf4j.Logger;
  * Auto Routes on and in a dungeon. It waits for the route to be between nodes (or only waiting on an await), then
  * swaps to the item, aims straight down (pitch 90: a camera turn in legit mode, in obvious mode the body
  * with the camera held - {@link RouteExecutor#useHeldItem}), and uses it: a wither blade once, a Spirit Sceptre again every interact
- * delay until the mimic is seen dying ({@link AwaitEvents#mimicKilledSince}), five seconds at most, or until he presses
- * a movement key. Then the slot he held goes back. While it runs a route starts no node and moves nothing
+ * delay until the mimic is seen dying ({@link AwaitEvents#mimicKilledSince}), the Mimic Timeout at most, or until he
+ * presses a movement key. A Spirit Sceptre's first {@link RouteExecutor#BAT_DOWN_USES} uses go straight down; the rest
+ * go AT the mimic while its bat can reach it (killer560, 2026-10-17, for every room), and straight down again when it
+ * cannot. Then the slot he held goes back. While it runs a route starts no node and moves nothing
  * ({@link RouteExecutor} holds on {@link #isBusy}).
  */
 public final class MimicKiller {
@@ -26,8 +28,9 @@ public final class MimicKiller {
     private static final int PENDING_TIMEOUT = 100;
     private static final int AIM_TIMEOUT = 20;
     /**
-     * Every Kill Mimic use goes out at exactly this pitch, with either item, in either mode (killer560, 2026-10-11:
-     * "for mimic it should also always be straight down"). Legit mode turns the camera there smoothly and waits for it to
+     * Every straight-down Kill Mimic use goes out at exactly this pitch, with either item, in either mode (killer560,
+     * 2026-10-11: "for mimic it should also always be straight down"; since 2026-10-17 a Spirit Sceptre's uses after its
+     * first two aim at the mimic instead). Legit mode turns the camera there smoothly and waits for it to
      * read exactly 90.0 (RouteRotation lands its last hundredth of a degree exactly); obvious mode sends it in the packet.
      * Before that it fired a Hyperion at whatever the camera read once its aim timed out - 46.7 to 62.3 with Secret Aura
      * on (testkit 96-ar-651) - which is a Wither Impact along the look, at the mimic.
@@ -87,6 +90,7 @@ public final class MimicKiller {
         slotBefore = player.getInventory().getSelectedSlot();
         armedAt = AwaitEvents.now();
         uses = 0;
+        aimedAt = null;
         state = State.PENDING;
         stateTicks = 0;
         LOGGER.info("[AutoRoutes] Kill Mimic: trapped chest at {} - {} from slot {}", chest.toShortString(), m.label(),
@@ -181,6 +185,21 @@ public final class MimicKiller {
                     return;
                 }
                 int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+                // Past the first two uses straight down, the rest go AT the mimic while its bat can reach it (killer560,
+                // 2026-10-17: "if it did the two bats down then the rest aimed at it then Chains would work" - Chains'
+                // trapped chest is six blocks over him, out of a floor blast's six, and 51 uses down never touched it).
+                if (uses >= RouteExecutor.BAT_DOWN_USES) {
+                    net.minecraft.world.entity.monster.zombie.Zombie mimic = AwaitEvents.liveMimic(client);
+                    if (mimic != null && RouteExecutor.sceptreReaches(client, player, mimic)) {
+                        tickAimedUse(client, player, mimic, legit, delay);
+                        return;
+                    }
+                    if (aimedAt != null) {
+                        aimedAt = null;
+                        LOGGER.info("[AutoRoutes] Kill Mimic: {} - back to straight down", mimic == null
+                                ? "no live mimic seen by the chest" : "the mimic is out of the sceptre's reach");
+                    }
+                }
                 // Each further Spirit Sceptre use too: only while the camera reads exactly 90.0 in legit mode.
                 if (legit && player.getXRot() != STRAIGHT_DOWN) {
                     if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
@@ -196,6 +215,72 @@ public final class MimicKiller {
             default -> {
             }
         }
+    }
+
+    /** The mimic the aimed uses are going at, or null while they go straight down (for the once-per-change log lines). */
+    private static Integer aimedAt;
+    /** How near the look the server last heard must be to the mimic's for an obvious-mode use to go at it. */
+    private static final float TOLD_DEGREES = 2f;
+    /** Legit mode: how near the camera must be to the mimic's look before a use goes (the bat node's tolerance). */
+    private static final float LEGIT_AIM_TOLERANCE = 6f;
+
+    /**
+     * One tick of a Spirit Sceptre use AT the mimic's centre. The look is from his eye, yaw as a delta on his running
+     * value (never wrapped), pitch within +-90. Obvious mode turns the body (camera held) and uses only once the server
+     * has heard that look in a movement packet - a use whose rotation no movement packet reported is GrimAC BadPacketsJ,
+     * and Hypixel's 1.8 server aims the bats along the look it last heard; the first aimed use costs that one tick,
+     * later ones none while the mimic stands. Legit mode eases the camera and uses at the camera's rotation once it is
+     * within {@link #LEGIT_AIM_TOLERANCE}. Uses stay an interact delay apart, as the straight-down ones.
+     */
+    private static void tickAimedUse(Minecraft client, LocalPlayer player,
+                                     net.minecraft.world.entity.monster.zombie.Zombie mimic, boolean legit, int delay) {
+        net.minecraft.world.phys.Vec3 at = mimic.getBoundingBox().getCenter();
+        var r = com.killer560.hub.livemap.autoclear.TeleportUtils.getDirection(player.getEyePosition(), at);
+        float yaw = player.getYRot() + net.minecraft.util.Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = net.minecraft.util.Mth.clamp(r.pitch(), -90f, 90f);
+        if (aimedAt == null || aimedAt != mimic.getId()) {
+            aimedAt = mimic.getId();
+            LOGGER.info("[AutoRoutes] Kill Mimic: {} uses went down - now aiming the Spirit Sceptre at the mimic at {} "
+                            + "({} blocks)", uses, String.format(java.util.Locale.ROOT, "%.1f, %.1f, %.1f", at.x, at.y, at.z),
+                    String.format(java.util.Locale.ROOT, "%.1f", player.getEyePosition().distanceTo(at)));
+        }
+        boolean due = AwaitEvents.now() - lastUseTick >= delay;
+        if (legit) {
+            if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
+                RouteRotation.beginApproach(yaw, pitch, false, 0f, 0f);
+            }
+            float error = (float) Math.hypot(net.minecraft.util.Mth.wrapDegrees(yaw - player.getYRot()),
+                    pitch - player.getXRot());
+            if (!due || error > LEGIT_AIM_TOLERANCE
+                    || RouteExecutor.turnFirst(player, player.getYRot(), player.getXRot(), "[AutoRoutes] Kill Mimic")) {
+                return;
+            }
+            aimedUse(client, player, player.getYRot(), player.getXRot(), at);
+            return;
+        }
+        float[] heard = com.killer560.hub.util.RightClick.heardLook();
+        boolean told = heard != null && Math.abs(net.minecraft.util.Mth.wrapDegrees(heard[0] - yaw)) <= TOLD_DEGREES
+                && Math.abs(heard[1] - pitch) <= TOLD_DEGREES;
+        if (!told) {
+            RouteExecutor.aimBody(player, yaw, pitch); // this tick's movement packet tells the server
+            return;
+        }
+        // The look exactly as the server heard it, expressed on his running yaw.
+        float useYaw = player.getYRot() + net.minecraft.util.Mth.wrapDegrees(heard[0] - player.getYRot());
+        if (!due || RouteExecutor.turnFirst(player, useYaw, heard[1], "[AutoRoutes] Kill Mimic")) {
+            return;
+        }
+        aimedUse(client, player, useYaw, heard[1], at);
+    }
+
+    private static void aimedUse(Minecraft client, LocalPlayer player, float yaw, float pitch,
+                                 net.minecraft.world.phys.Vec3 at) {
+        RouteExecutor.useHeldItem(client, player, yaw, pitch, false);
+        uses++;
+        lastUseTick = AwaitEvents.now();
+        LOGGER.info("[AutoRoutes] Kill Mimic: {} used at the mimic (use {}, yaw {} pitch {}, {} blocks)", mode.label(),
+                uses, Float.toString(yaw), Float.toString(pitch),
+                String.format(java.util.Locale.ROOT, "%.1f", player.getEyePosition().distanceTo(at)));
     }
 
     private static void use(Minecraft client, LocalPlayer player) {

@@ -228,6 +228,38 @@ public final class RouteExecutor {
         return eatenResends;
     }
 
+    /** The warp under way was already aimed again once after no landing came (see {@link #retryAim}). */
+    private static boolean warpRetried;
+    private static int refusedRetries;
+
+    /** Warps aimed again and sent once more after a refused one - read by the testkit. */
+    public static int refusedRetries() {
+        return refusedRetries;
+    }
+
+    /** A look onto {@link #warpTarget} from his eye that holds within the planner's margin (it may be the look already
+     *  sent, if what stopped the first went away); false (nothing changed) when there is none. */
+    private static boolean retryAim(LocalPlayer player) {
+        Vec3 at = player.position();
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
+        if (rot == null || !TeleportUtils.holdsOn(eye, rot.yaw(), rot.pitch(), range, warpTarget)) {
+            return false;
+        }
+        float yaw = player.getYRot() + Mth.wrapDegrees(rot.yaw() - player.getYRot());
+        LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after the use and he has not moved - the server "
+                        + "refused it; aimed again from {} at {} ({} / {} -> {} / {}), sending it once more", stepTicks,
+                fmt(at), warpTarget.toShortString(), String.format(Locale.US, "%.2f", Mth.wrapDegrees(warpYaw)),
+                String.format(Locale.US, "%.2f", warpPitch), String.format(Locale.US, "%.2f", rot.yaw()),
+                String.format(Locale.US, "%.2f", rot.pitch()));
+        warpYaw = yaw;
+        warpPitch = rot.pitch();
+        warpAimFrom = at;
+        refusedRetries++;
+        return true;
+    }
+
     /** A warp is being sent on this tick: where the pace puts the next one. */
     private static void notePacedWarp() {
         double spacing = 20.0 / AutoRoutesConfig.getInstance().getEtherwarpsPerSecond();
@@ -2124,11 +2156,17 @@ public final class RouteExecutor {
             return AIM_OK;
         }
         Vec3 at = player.position();
-        if (at.distanceTo(warpAimFrom) <= REAIM_EPSILON) {
-            return AIM_OK;
-        }
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
         double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        if (at.distanceTo(warpAimFrom) <= REAIM_EPSILON) {
+            // On its spot: the saved look goes - unless it lands only for its exact float values. A path saved before
+            // the planner proved its hops within EtherSearch.AIM_MARGIN can graze a block edge, and the server's reading
+            // of the running yaw is a few bits off: his Doors #13 hop 3 (yaw -895.91) was refused at the jungle log at
+            // -26, 244, -85 and the route stood 20 s until Route Stall (fullclear-1016 run 019). Such a look is aimed again.
+            if (TeleportUtils.holdsOn(eye, warpYaw, Mth.clamp(warpPitch, -90f, 90f), range, warpTarget)) {
+                return AIM_OK;
+            }
+        }
         TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
         if (rot == null) {
             // None of the sample points: every point of every face the planner would try (path-wrongblock-1015). A hop
@@ -2225,6 +2263,7 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
+            warpRetried = false;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -2232,6 +2271,7 @@ public final class RouteExecutor {
                 return false;
             }
             select(client, player, slot);
+            warpSpentFromSlot = -1;
             forceSneak = true;
             unsneakOverride = false;
             wantSneak = true;
@@ -2241,6 +2281,12 @@ public final class RouteExecutor {
         }
         if (step == Step.AIM) {
             wantSneak = true;
+            if (warpSpentFromSlot >= 0) {
+                // Last tick a Dungeon Breaker use paired the stored block click (spendStaleClickFirst): the etherwarp item
+                // goes back in hand now, and the use below goes with it in this same tick.
+                select(client, player, warpSpentFromSlot);
+                warpSpentFromSlot = -1;
+            }
             // A right click on a block may be waiting on the server for its second half (util/RightClick): the server
             // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.
             // Turned here, while the sneak is still on its way to the server, it costs no tick.
@@ -2318,6 +2364,10 @@ public final class RouteExecutor {
             if (hopIndex < 0 && newBlockInLine(client, player, node)) {
                 return false;
             }
+            if (spendStaleClickFirst(client, player)) {
+                warpTurnFirstTicks++;
+                return false;
+            }
             notePacedWarp();
             actionOrigin = player.position();
             teleportPacketSeen = false;
@@ -2371,6 +2421,18 @@ public final class RouteExecutor {
                         + "click's second half - the click is paired now, sending the warp again", stepTicks);
                 warpEaten = false;
                 eatenResends++;
+                step = Step.AIM;
+                stepTicks = 0;
+                return false;
+            } else if (!warpRetried && !teleportPacketSeen && warpTarget != null && actionOrigin != null
+                    && player.position().distanceTo(actionOrigin) < 0.3
+                    && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()
+                    && retryAim(player)) {
+                // No landing a round trip on, and he has not moved: the server refused the warp (its ray stopped short -
+                // his Doors #13 hop 3 on a jungle log, fullclear-1016 run 019). Aimed again from where he stands with a
+                // look that holds, it goes once more; the 61-tick wait below then let the node go off every ring and the
+                // route stood until Route Stall.
+                warpRetried = true;
                 step = Step.AIM;
                 stepTicks = 0;
                 return false;
@@ -2705,6 +2767,45 @@ public final class RouteExecutor {
         return AwaitEvents.secrets() + awaitRemembered.size() < Math.max(1, node.awaitAmount);
     }
 
+    /** The etherwarp item's slot while a Dungeon Breaker use pairs the stored block click for one tick, else -1. */
+    private static int warpSpentFromSlot = -1;
+
+    /**
+     * killer560's Bridges (2026-10-17, "after the second dungeon breaker I cannot get it to make that etherwarp ... if it
+     * stalls out then it works"): Secret Aura flipped node #1's lever with the Aspect of the Void in hand, and #1's warp
+     * went as a right click in the air, so that click stayed unpaired on the server. #2's breaker then opened the hole
+     * the next warp drops through, and that warp's look passes 0.27 under the hole's rim (Stone Bricks one block over
+     * the broken ones) from this client's 1.27 eye while the 1.8 server's 1.54 ray meets it: no block half could be sent,
+     * no other look onto the landing had rays that agree ({@code RightClick.reaimIfUnpairable}), so the warp went out
+     * to be taken as the lever click's second half and dropped - "no landing after 61 ticks", then the retry landed
+     * (the drop had paired the click). The 2026-10-16 resend made that a round trip; this pairs the click first with a
+     * use of the Dungeon Breaker (no right-click ability; a bare use is what a vanilla right click sends along a look
+     * that reaches no block), and the warp goes the next tick with nothing stored. Only when the warp's look is the
+     * one the server has heard and {@code RightClick.unpairable} holds; with no breaker in the hotbar the old send (and
+     * its resend) stays. True when the use went (the caller waits one tick).
+     */
+    private static boolean spendStaleClickFirst(Minecraft client, LocalPlayer player) {
+        boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
+        float yaw = legit ? player.getYRot() : player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot());
+        float pitch = legit ? player.getXRot() : Mth.clamp(warpPitch, -90f, 90f);
+        if (!com.killer560.hub.util.RightClick.unpaired() || !com.killer560.hub.util.RightClick.heard(player, yaw, pitch)
+                || !com.killer560.hub.util.RightClick.unpairable(client, player, null, yaw, pitch)) {
+            return false;
+        }
+        int breaker = ItemIdentity.findHotbarSlotById(player, ItemIdentity.BREAKER_ID);
+        if (breaker < 0) {
+            return false;
+        }
+        int ether = player.getInventory().getSelectedSlot();
+        select(client, player, breaker);
+        if (!com.killer560.hub.util.RightClick.spendStoredClick(client, player, "[AutoRoutes] Etherwarp")) {
+            select(client, player, ether);
+            return false;
+        }
+        warpSpentFromSlot = ether;
+        return true;
+    }
+
     /** Kill Mimic may take the hands now: between nodes, or while a node only waits on its await. */
     static boolean mayYieldToMimic() {
         return !running || activeNode == null || !awaitPhaseDone;
@@ -2923,6 +3024,15 @@ public final class RouteExecutor {
         // Blocks only: WeaponReach.batImpact also stops at any living entity on the line, and the node's own sceptre bat
         // in flight is one - it made the mob read "out of reach" for a tick and the node turned to the next mob between
         // a mob's two uses (crypt-aim-2-1016, 96-ar-1015-cryptaim "2 mobs": 14, 13, 14).
+        return sceptreReaches(client, player, mob) ? mob : null;
+    }
+
+    /**
+     * Whether a Spirit Sceptre bat flown from his eye at {@code mob}'s centre takes it in: the bat explodes on the first
+     * block it meets (blocks only - see {@link #cryptMobOwed}) and its blast must reach the mob's box
+     * ({@link com.killer560.hub.autoclear.WeaponReach}). Shared by the crypt node and Kill Mimic's aimed uses.
+     */
+    static boolean sceptreReaches(Minecraft client, LocalPlayer player, net.minecraft.world.entity.LivingEntity mob) {
         Vec3 eye = player.getEyePosition();
         AABB box = mob.getBoundingBox();
         Vec3 end = eye.add(box.getCenter().subtract(eye).normalize().scale(com.killer560.hub.autoclear.WeaponReach.SCEPTRE_PLAN_RANGE));
@@ -2930,7 +3040,7 @@ public final class RouteExecutor {
                 ClipContext.Fluid.NONE, player));
         Vec3 impact = wall.getType() == HitResult.Type.MISS ? end : wall.getLocation();
         java.util.Optional<Vec3> onMob = box.clip(eye, impact);
-        return onMob.isPresent() || com.killer560.hub.autoclear.WeaponReach.sceptreHits(impact, box) ? mob : null;
+        return onMob.isPresent() || com.killer560.hub.autoclear.WeaponReach.sceptreHits(impact, box);
     }
 
     /**
@@ -3818,6 +3928,11 @@ public final class RouteExecutor {
      */
     private static void turnBody(LocalPlayer player, float yaw, float pitch) {
         BODY.turn(player, yaw, pitch);
+    }
+
+    /** {@link #turnBody} for Kill Mimic's aimed uses: the body turned, camera held, no packet sent. */
+    static void aimBody(LocalPlayer player, float yaw, float pitch) {
+        turnBody(player, yaw, pitch);
     }
 
     /** {@link #turnBody} toward a point (the centre of a block a breaker or boom node acts on). */

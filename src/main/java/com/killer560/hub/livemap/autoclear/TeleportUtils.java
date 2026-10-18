@@ -601,6 +601,27 @@ public final class TeleportUtils {
         return null;
     }
 
+    /**
+     * {@link #nearestEtherwarpable(BlockPos)} read through the planner's own view of the world ({@code search}'s grid)
+     * instead of the client's chunks - for a spot in a chunk the client does not have, which the client reads as air.
+     */
+    public static BlockPos nearestEtherwarpable(BlockPos center, EtherSearch search) {
+        long[] table = sphere;
+        if (table == null) {
+            table = buildSphere();
+            sphere = table;
+        }
+        for (long packed : table) {
+            int x = center.getX() + BlockPos.getX(packed);
+            int y = center.getY() + BlockPos.getY(packed);
+            int z = center.getZ() + BlockPos.getZ(packed);
+            if (search.etherwarpable(x, y, z)) {
+                return new BlockPos(x, y, z);
+            }
+        }
+        return null;
+    }
+
     /** How far above a landing to look for the dungeon's own rock. See {@link #underCover}. */
     private static final int COVER_SCAN = 64;
 
