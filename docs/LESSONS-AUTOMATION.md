@@ -622,3 +622,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `WalkTerrain.walkable` for 8 ticks fired at the end of testkit 746's wall (the shoulder check) and planned eight ways back
   in a second, then "no way out". Only fluids, a fall below the route, being pressed against a wall with nothing walkable
   ahead, or no progress (stuck) start one.
+- **The Quiz starts when a player walks into the room, not on a click on Oruo** (killer560, 2026-10-18). The 2026-10-17
+  work had Auto Quiz walk to a guessed "CLICK" stand and talk; his logs put the intro 0-1 s after his own room entry in
+  all 47 runs where he walked in. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two
+  BEFORE the live map names the room, so anything pairing the two must allow either order ([QuizLog] does).

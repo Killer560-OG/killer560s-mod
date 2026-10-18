@@ -1090,7 +1090,8 @@ public final class AutoSecretFeature {
     /**
      * killer560, 2026-10-17: "have it open quiz as its first goal if the setting is on. Then after that go do ice fill then
      * come back and answer it, then go secret a room then come back and answer it till it finishes". With Quiz First and
-     * Auto Quiz on: first a trip to the Quiz, where Auto Quiz talks to Oruo; then, while a question's cooldown runs
+     * Auto Quiz on: first a step into the Quiz, which starts Oruo's countdown (killer560, 2026-10-18: "quiz starts once you
+     * walk in"), and straight out again; then, while a question's cooldown runs
      * ({@link QuizState}), Ice Fill during the first, else the room with the most unfound secrets whose whole round trip -
      * the trip there, its route, the trip back to the answer spot, each by {@link RoomTour}'s estimates - fits in the time
      * left; with nothing that fits, back to the Quiz to wait. Re-decided after every step, so he is back by the time the
@@ -1119,8 +1120,8 @@ public final class AutoSecretFeature {
                 return false;
             }
             if (!QuizPlan.tryStart()) {
-                QuizPlan.giveUp("Oruo never began");
-                LOGGER.info("[AutoSecret] Quiz: Oruo never began after {} tries - left to the rest of the run",
+                QuizPlan.giveUp("the Quiz never began");
+                LOGGER.info("[AutoSecret] Quiz: Oruo never began after {} walk-ins - left to the rest of the run",
                         QuizPlan.MAX_START_TRIES);
                 say(ModChat.bad("Couldn't start the Quiz"), ModChat.dim(" - Oruo never began"));
                 return false;
@@ -1128,8 +1129,8 @@ public final class AutoSecretFeature {
             target = quiz.name();
             targetRoomId = quiz.room();
             status = "Starting the Quiz";
-            LOGGER.info("[AutoSecret] Quiz first: {} room(s) away - Auto Quiz talks to Oruo", dist.get(quiz.room()));
-            note(ModChat.text("Going to the "), ModChat.value("Quiz"), ModChat.dim(" first - Auto Quiz talks to Oruo"));
+            LOGGER.info("[AutoSecret] Quiz first: {} room(s) away - walking in starts it", dist.get(quiz.room()));
+            note(ModChat.text("Going to the "), ModChat.value("Quiz"), ModChat.dim(" first - walking in starts it"));
             if (here) {
                 beginQuizWait();
                 return true;
@@ -1270,8 +1271,8 @@ public final class AutoSecretFeature {
     private static long quizWaitLag;
     /** Ticks at the Quiz waiting for its cooldown with nothing to do, this run (for the testkit's idle bound). */
     private static int quizIdleTicks;
-    /** Without Oruo's first line this long after reaching him, the start is tried again. */
-    private static final int QUIZ_START_WAIT_TICKS = 15 * 20;
+    /** Without Oruo's first line this long after walking in (his logs: 0-1 s), the start is tried again. */
+    private static final int QUIZ_START_WAIT_TICKS = 5 * 20;
 
     private static void beginQuizWait() {
         target = "Quiz";
@@ -1284,8 +1285,8 @@ public final class AutoSecretFeature {
     }
 
     /**
-     * At the Quiz: Auto Quiz talks to Oruo and answers. The next decision comes on the line that changes things - Oruo
-     * beginning (go and do Ice Fill), an answer counting (go and do a room) or the last answer.
+     * At the Quiz: Auto Quiz answers. The next decision comes on the line that changes things - Oruo beginning as he walks
+     * in (go and do Ice Fill), an answer counting (go and do a room) or the last answer.
      */
     private static void tickQuiz() {
         status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
@@ -2159,12 +2160,29 @@ public final class AutoSecretFeature {
         // The insta-clear recorder labels the room entry this trip makes as ours, not his.
         InstaClearTracker.noteAutomatedEntry("Auto Secret");
         trip = t;
+        tripQuizStarted = com.killer560.hub.puzzlesolvers.QuizState.started();
         busySeen = false;
         arrivalSeqAtStart = ClearExecutor.arrivalSeq();
         setPhase(Phase.TRAVEL);
     }
 
+    /** Whether Oruo had begun when this trip began (a Quiz trip that starts him ends there). */
+    private static boolean tripQuizStarted;
+
     private static void tickTravel(Minecraft client) {
+        if (trip == Trip.QUIZ && !tripQuizStarted && com.killer560.hub.puzzlesolvers.QuizState.started()) {
+            // Walking in started the countdown (killer560, 2026-10-18): out again at once - the rest of the trip, onto the
+            // answer spot, is for when a question opens.
+            if (ClearExecutor.isBusy()) {
+                ClearExecutor.cancel();
+            }
+            ClearExecutor.setExternalOwner(false);
+            tripFailures.remove(target);
+            LOGGER.info("[AutoSecret] Quiz: Oruo began {} tick(s) into the trip, as he walked in - leaving at once ({})",
+                    phaseTicks, com.killer560.hub.puzzlesolvers.QuizState.describe());
+            setPhase(Phase.DECIDE);
+            return;
+        }
         if (trip == Trip.START_NODE && RouteExecutor.isRunning()) {
             // Already standing on it (the warp had nothing to do) and the route armed at once.
             beginRoute();

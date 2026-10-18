@@ -130,10 +130,6 @@ public final class AutoPuzzlesFeature {
             // off to other work (2026-10-17), and after the last one the room is solved.
             AutoPuzzleActivity.ended();
             releaseQuizCamera();
-        } else if (msg.equals(com.killer560.hub.puzzlesolvers.QuizState.INTRO)) {
-            // Oruo began: talking to him was the whole step, and the first question is 11 s off.
-            AutoPuzzleActivity.ended();
-            oruoTalkedTick = -1;
         }
     }
 
@@ -213,9 +209,7 @@ public final class AutoPuzzlesFeature {
             if (quizActed || quizPendingPos != null) {
                 resetQuiz();
             }
-            if (!com.killer560.hub.puzzlesolvers.QuizState.started()) {
-                talkToOruo(client);   // the Quiz only begins when someone talks to Oruo
-            }
+            // Nothing to do to start it: walking into the room starts Oruo's countdown (killer560, 2026-10-18).
             return;
         }
         if (quizActed) {
@@ -279,6 +273,7 @@ public final class AutoPuzzlesFeature {
             return; // gate held this tick back (or the body was turned to it) - not marked acted, clicked later
         }
         quizActed = true; // once per question, even if the click itself can't be built
+        com.killer560.hub.puzzlesolvers.QuizLog.notePress(quizClick, "Auto Quiz");
         // THE BUTTON, not the pillar. killer560 (2026-10-01): "auto quiz isnt workign on sim."
         //
         // The solver's three answer coordinates are the little smooth_stone pillars Oruo's buttons hang off -
@@ -309,115 +304,6 @@ public final class AutoPuzzlesFeature {
         }
     }
 
-    // ---- talking to Oruo (killer560, 2026-10-17: the Quiz begins when he is talked to) ----
-
-    /** Client tick of the last talk to Oruo that has not been answered by his first line yet; -1 when none waits. */
-    private static long oruoTalkedTick = -1;
-    private static long oruoTalkLag;
-    /** The Oruo stand the last move into reach was for: one trip per stand until a talk goes. */
-    private static java.util.UUID oruoMovedFor = null;
-    private static String oruoWaitLogged = null;
-    /** Ticks to wait for Oruo's first line after a talk before talking again (his line comes in the same tick). */
-    private static final int ORUO_ANSWER_TICKS = 20;
-
-    /**
-     * Talks to Oruo when the Quiz has not begun: the "CLICK" stand by his name, as every Hypixel NPC carries one (else
-     * the named stand itself), from within entity reach; out of reach, one Interactive Map trip onto a block in reach.
-     */
-    private static void talkToOruo(Minecraft client) {
-        net.minecraft.client.player.LocalPlayer player = client.player;
-        long tick = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick();
-        if (oruoTalkedTick >= 0 && tick - oruoTalkedTick <= ORUO_ANSWER_TICKS
-                + com.killer560.hub.util.ServerLag.ticksSince(oruoTalkLag)) {
-            return;   // a talk is on its way; his line answers it
-        }
-        Entity oruo = oruo(client);
-        if (oruo == null) {
-            oruoWait("no Oruo stand in the room yet");
-            return;
-        }
-        Vec3 eye = player.getEyePosition();
-        double d = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, oruo.getBoundingBox()));
-        if (d > AutoWeirdos.NPC_REACH) {
-            if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
-                oruoWait("an Interactive Map trip is moving him");
-                return;
-            }
-            if (oruo.getUUID().equals(oruoMovedFor) || !AutoPuzzleUtil.gateWorldClick()) {
-                return;
-            }
-            java.util.List<BlockPos> spots = AutoPuzzleUtil.reachSpots(client,
-                    java.util.List.of(BlockPos.containing(oruo.getBoundingBox().getCenter())),
-                    AutoWeirdos.SPOT_NPC_REACH - 0.3, false, player.position());
-            oruoMovedFor = oruo.getUUID();
-            if (spots.isEmpty()) {
-                LOGGER.info("[AutoPuzzles] Quiz: Oruo is {} blocks off and no standable block reaches him",
-                        String.format(java.util.Locale.US, "%.2f", d));
-                return;
-            }
-            if (AutoPuzzleUtil.pathIfMapOn(spots.get(0), null, true)) {
-                LOGGER.info("[AutoPuzzles] Quiz: Oruo is {} blocks off - moving onto {} to talk to him",
-                        String.format(java.util.Locale.US, "%.2f", d), spots.get(0).toShortString());
-            }
-            return;
-        }
-        if (player.isShiftKeyDown() || McCompat.screen(client) != null) {
-            oruoWait(player.isShiftKeyDown() ? "sneaking" : "a screen is open");
-            return;
-        }
-        if (!AutoPuzzleUtil.gateWorldClick(client, oruo)) {
-            return;   // gate held this tick (or the body turned to him) - talked to on a later tick
-        }
-        net.minecraft.world.phys.AABB box = oruo.getBoundingBox();
-        Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
-        client.gameMode.interact(player, oruo, new net.minecraft.world.phys.EntityHitResult(oruo, aim),
-                InteractionHand.MAIN_HAND);
-        player.swing(InteractionHand.MAIN_HAND);
-        oruoTalkedTick = tick;
-        oruoTalkLag = com.killer560.hub.util.ServerLag.mark();
-        oruoMovedFor = null;
-        oruoWaitLogged = null;
-        LOGGER.info("[AutoPuzzles] Quiz: talked to Oruo ({} blocks eye to box)", String.format(java.util.Locale.US, "%.2f", d));
-        ModChat.log(CHAT, ModChat.text("Quiz: talked to "), ModChat.value("Oruo"), ModChat.text("."));
-    }
-
-    private static void oruoWait(String why) {
-        if (!why.equals(oruoWaitLogged)) {
-            oruoWaitLogged = why;
-            LOGGER.info("[AutoPuzzles] Quiz: not started, waiting to talk to Oruo - {}", why);
-        }
-    }
-
-    /** Oruo's stand in this room: the "CLICK" stand nearest a stand named "Oruo the Omniscient", else that stand. */
-    private static Entity oruo(Minecraft client) {
-        Entity named = null;
-        double bestNamed = 32.0 * 32.0;
-        for (Entity e : client.level.entitiesForRendering()) {
-            if (e.hasCustomName() && ChatObserver.strip(e.getName().getString()).contains("Oruo the Omniscient")) {
-                double d = e.distanceToSqr(client.player);
-                if (d < bestNamed) {
-                    bestNamed = d;
-                    named = e;
-                }
-            }
-        }
-        if (named == null) {
-            return null;
-        }
-        Entity click = null;
-        double bestClick = 4.0 * 4.0;
-        for (Entity e : client.level.entitiesForRendering()) {
-            if (e instanceof ArmorStand && e != named && "CLICK".equals(ChatObserver.strip(e.getName().getString()))) {
-                double d = e.distanceToSqr(named);
-                if (d < bestClick) {
-                    bestClick = d;
-                    click = e;
-                }
-            }
-        }
-        return click != null ? click : named;
-    }
-
     // ---- where to stand for the answer ----
 
     /** The block, this world, from which one button of each of the three pillars is in reach (null: not found yet). */
@@ -428,7 +314,7 @@ public final class AutoPuzzlesFeature {
     /**
      * Where Auto Secret should bring him for an answer: a standable block from which BOTH eyes reach a button of every
      * pillar, so whichever answer is right is clicked from there with no move. Worked out once a world, the first time he
-     * stands in the Quiz room (his trip there to talk to Oruo). Null until then, or when the room has no such block.
+     * stands in the Quiz room (the walk-in that starts it). Null until then, or when the room has no such block.
      */
     public static BlockPos quizAnswerSpot() {
         Minecraft client = Minecraft.getInstance();
@@ -509,9 +395,6 @@ public final class AutoPuzzlesFeature {
     }
 
     private static void resetQuiz() {
-        oruoTalkedTick = -1;
-        oruoMovedFor = null;
-        oruoWaitLogged = null;
         quizActed = false;
         quizPendingPos = null;
         quizPendingSinceMs = 0L;
