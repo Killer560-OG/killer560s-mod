@@ -171,6 +171,7 @@ final class CardBlurbsData {
         d.put("PathfindingTab", "Waypoints and a route to missing souls.");
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
+        d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("SmoothTeleportTab", "Glides the camera.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
         d.put("ShortsTab", "Shorts in a window.");
