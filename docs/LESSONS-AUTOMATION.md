@@ -596,3 +596,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **A Quiz question can be asked while he is in another room** (Oruo's lines reach the whole dungeon), and Quiz Solver
   reset its answers on every room change, so a question asked while Auto Secret was doing a room between answers was gone
   when he walked back in. While `QuizState.inProgress()` a room change now only drops the pillar positions (2026-10-17).
+- **The Quiz starts when a player walks into the room, not on a click on Oruo** (killer560, 2026-10-18). The 2026-10-17
+  work had Auto Quiz walk to a guessed "CLICK" stand and talk; his logs put the intro 0-1 s after his own room entry in
+  all 47 runs where he walked in. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two
+  BEFORE the live map names the room, so anything pairing the two must allow either order ([QuizLog] does).

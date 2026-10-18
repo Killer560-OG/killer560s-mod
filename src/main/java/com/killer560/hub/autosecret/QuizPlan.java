@@ -11,7 +11,7 @@ import com.killer560.hub.puzzlesolvers.QuizState;
  */
 final class QuizPlan {
 
-    /** Tries at starting it (a trip to Oruo, a wait for his first line) before it is left to the rest of the run. */
+    /** Tries at starting it (a walk into the room, a wait for his first line) before it is left to the rest of the run. */
     static final int MAX_START_TRIES = 2;
 
     private static int startTries;

@@ -1254,7 +1254,7 @@ Hypixel's sequence on the SERVER (`SimQuizPuzzle`'s Oruo section):
 
 - Oruo is two stands: "Oruo the Omniscient" on the statue's front step (relative 15, 71, 16) and a "CLICK" stand over
   the moat's near edge (15, 70, 14). Where Hypixel's clickable Oruo really stands is in no capture or reference mod;
-  those two spots are estimates.
+  those two spots are estimates. *Superseded 2026-10-18 (below): walking in starts it; the CLICK stand is gone.*
 - Talking to him (interact or hit) sends "I am Oruo the Omniscient..." at once, then "Though I sit...", "Prove your
   knowledge..." and "Answer incorrectly..." 40 ticks apart, Question #1 at +160 and opens it at +220. After a correct
   answer: "NAME answered Question #N correctly!", the lock line ("2 questions left..." / "One more question!") 40 ticks
@@ -1267,12 +1267,34 @@ Hypixel's sequence on the SERVER (`SimQuizPuzzle`'s Oruo section):
   (74 of 269, never under 10) and 5 s after each lock line (never under 4).
 - A press before the lock ends is refused and says nothing (no such line in any log). Talking after the last answer
   gets "You have already shown your vast knowledge..."; a press, "You've already proven enough to me!...". A wrong
-  answer fails the room and puts Oruo back to not-started (Hypixel's wrong-answer line is not in his logs).
+  answer sends "NAME chose the wrong answer! I shall never forget this moment of misrememberance." (his report, in
+  `ArchitectDraftFeature`; not in his recent logs), fails the room and puts Oruo back to not-started; walking out and
+  in again restarts him.
 - Lines go out at START_SERVER_TICK (or inside the interact packet) and the server counts ticks at END, so a lock of
   N ticks opens exactly when a client counting N pings after the line (QuizState) is allowed to press: 1017-sim-quiz-timing
   measures every Auto Quiz answer on the opening tick + 1.
 - The question block is Hypixel's: blank, centred "Question #N", the centred question, blank, `    §6 ⓐ §a<answer>` x3,
   blank; the answer holograms are replaced with each question.
+
+## Quiz: walking in starts it (2026-10-18)
+
+"quiz starts once you walk in and it starts its countdown timer. If you want, put a quiz logger in my dungeon instance
+and I will go test it."
+
+- **The trigger.** His `26.1.2 (Dungeons)` logs: of 293 intros, the 47 where he was the one to walk in came 0 s (29) or
+  1 s (18) after SecretRoutes' "Entered Dungeon Room: Trivia-Room" (which goes by the room's cell); the other 246 had no
+  entry of his in the 30 s before (a teammate walked in). NoammAddons and Odin only read Oruo's chat lines, so neither
+  says more. The sim's trigger is a player's feet inside the room's one-tile footprint (relative 0..30 both ways through
+  the bind's anchor), checked at START_SERVER_TICK while Oruo is idle; only a step in from outside counts, so after a
+  wrong answer it takes leaving and coming back. Talking to Oruo does nothing until the last answer.
+- **Auto Quiz** no longer talks to anyone; it only answers. **Quiz First**: the trip into the room ends the moment
+  QuizState sees the intro ("Oruo began N tick(s) into the trip, as he walked in - leaving at once"), and the next
+  decision is Ice Fill.
+- **[QuizLog]** (`puzzlesolvers/QuizLog`, always on, INFO through ModLog, so dev/cheat builds only): entry and exit of
+  the Quiz room with position, every Oruo line, each question with QuizState's open tick, each button press in the room
+  (his click through an early `UseBlockCallback` phase, Auto Quiz's through `notePress`) with EARLY/on time, and what
+  Oruo said back within 40 server ticks. Ticks are `ServerTickClock`'s, the one QuizState counts on. 1017-sim-quiz-timing
+  checks the lines.
 
 ## Boulder: a boulder is three blocks tall
 

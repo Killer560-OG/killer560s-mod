@@ -43,6 +43,10 @@ public final class QuizState {
     private static final Pattern ANSWERED = Pattern.compile(
             "^\\[STATUE] Oruo the Omniscient: ([A-Za-z0-9_]{1,16}) answered (?:Question #([12])|the final question) correctly!$");
 
+    /** Oruo's wrong-answer line, as he reported it on Hypixel (ArchitectDraftFeature, 2026-09-27); the puzzle fails. */
+    public static final Pattern WRONG = Pattern.compile(
+            "^\\[STATUE] Oruo the Omniscient: (?:\\[[^\\]]{1,20}\\] )?([A-Za-z0-9_]{1,16}) chose the wrong answer!.*$");
+
     /** 0 not started, 1-3 the question being asked (or waited for), 4 every question answered. */
     private static int question;
     /** Whether the current question has been answered (Oruo's "answered Question #N" line), waiting for the next. */
@@ -82,6 +86,8 @@ public final class QuizState {
             set(2, now + LATER_LOCK_TICKS, now, "question 2");
         } else if (msg.equals(THIRD)) {
             set(3, now + LATER_LOCK_TICKS, now, "question 3");
+        } else if (WRONG.matcher(msg).matches()) {
+            reset("a wrong answer");
         } else {
             Matcher m = ANSWERED.matcher(msg);
             if (!m.matches()) {

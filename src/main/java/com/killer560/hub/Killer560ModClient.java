@@ -320,6 +320,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.puzzlesolvers.BoulderSolverFeature.register();
         // Before the Quiz Solver and Auto Quiz: Oruo's line moves the shared state first, so they read it on that line.
         com.killer560.hub.puzzlesolvers.QuizState.register();
+        com.killer560.hub.puzzlesolvers.QuizLog.register();   // always on, log only ([QuizLog], 2026-10-18)
         com.killer560.hub.puzzlesolvers.QuizSolverFeature.register();
         com.killer560.hub.puzzlesolvers.IceFillSolverFeature.register();
         com.killer560.hub.puzzlesolvers.WeirdosSolverFeature.register();
