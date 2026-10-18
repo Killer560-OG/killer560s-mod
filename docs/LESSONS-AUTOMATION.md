@@ -626,3 +626,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   work had Auto Quiz walk to a guessed "CLICK" stand and talk; his logs put the intro 0-1 s after his own room entry in
   all 47 runs where he walked in. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two
   BEFORE the live map names the room, so anything pairing the two must allow either order ([QuizLog] does).
+- **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
+  that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
+  before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at
+  START_CLIENT_TICK and a slow tick opened the gap (63-ap3-block-*, 2026-10-18); its USE / BLOCK / BOOM now go out at the
+  head of `sendPosition` (`Ap3Executor.beforeSendPosition`). Any snap-aimed place should go out there; testkit
+  1018-ap3-block-slow-tick proves it (START-sent: flagged 2 of 2; sendPosition-sent: clean).
