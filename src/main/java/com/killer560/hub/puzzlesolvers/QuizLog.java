@@ -57,6 +57,10 @@ public final class QuizLog {
     private static long pressAt = -1;
     private static long pressClientTick = -1;
     private static BlockPos pressPos;
+    /** Server tick of the last press, kept after its result is logged (pressAt is cleared then). */
+    private static long lastPressTick = -1;
+    /** How long after a press every chat line is logged, in server ticks (about 5 seconds). */
+    private static final int CHAT_WINDOW_TICKS = 100;
 
     private QuizLog() {
     }
@@ -134,6 +138,13 @@ public final class QuizLog {
             return;
         }
         String msg = raw.trim();
+        // Every other line, unfiltered, while he is in the Quiz room or within a few seconds of a press. The Oruo lines
+        // are logged below; this catches whatever Hypixel says under another name (killer560, 2026-10-18: a wrong answer
+        // gave no "chose the wrong answer" line, so the log could not say what it did send).
+        boolean recentPress = lastPressTick >= 0 && ServerTickClock.now() - lastPressTick <= CHAT_WINDOW_TICKS;
+        if (!msg.startsWith(QuizState.PREFIX) && (inQuiz || recentPress) && !msg.isEmpty()) {
+            LOGGER.info("[QuizLog] chat at {}: {}", now(), msg);
+        }
         if (msg.startsWith(QuizState.PREFIX)) {
             LOGGER.info("[QuizLog] Oruo at {}: {}", now(), msg.substring(QuizState.PREFIX.length()));
             if (msg.equals(QuizState.INTRO)) {
@@ -206,6 +217,7 @@ public final class QuizLog {
         LOGGER.info("[QuizLog] press ({}) on {} (answer {}) at {} (client tick {}), question {}: {}", who, pos.toShortString(),
                 pillarOf(pos), now(), clientTick, QuizState.nextQuestion(), timing);
         pressAt = t;
+        lastPressTick = t;
         pressClientTick = clientTick;
         pressPos = pos.immutable();
     }
