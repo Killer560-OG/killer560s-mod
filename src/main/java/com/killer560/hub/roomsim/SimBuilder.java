@@ -192,6 +192,7 @@ public final class SimBuilder {
             LOGGER.info("Sim altitude: floor shifted {} block(s), occupying y {}..{}",
                     shift, SimAltitude.minWorldY(), SimAltitude.maxWorldY());
             RoomDoorPieces.takeSwapped();   // counted by the pastes below, reported with the doors
+            DeucesChestDoorway.clearWorld();
             boolean[] handled = new boolean[decoded.cellRoom().length];
             for (int cell = 0; cell < decoded.cellRoom().length; cell++) {
                 if (handled[cell]) {

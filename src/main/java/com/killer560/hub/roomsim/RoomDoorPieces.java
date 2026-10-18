@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *       trim. Deuces E0 is one.</li>
  *   <li><b>West and north doorways</b>, 101: stone in the wall plane and, one in, the same fifteen blocks every time -
  *       stone bricks, one stone, one mossy brick and four upside-down stairs - flush with the wall above the trim. Deuces
- *       W0, the doorway under its chest, is one.</li>
+ *       W0, the doorway under its chest, is one in the capture, but on Hypixel it is Deuces' own doorway at every turn
+ *       and is skipped here ({@link DeucesChestDoorway}, 2026-10-18).</li>
  * </ul>
  * Not one east or south doorway has the fill and not one west or north the recess, in rooms captured at different turns
  * (88 of 122 captures are turned), with the same fifteen blocks to the stair (the north copy is the west one turned a
@@ -93,6 +94,9 @@ public final class RoomDoorPieces {
         for (int packed : mask.edges()) {
             int side = RoomDoors.sideOf(packed);
             int index = RoomDoors.indexOf(packed);
+            if (DeucesChestDoorway.isDoorway(room, side, index)) {
+                continue;   // Deuces' own doorway, the same at every turn: DeucesChestDoorway pastes it
+            }
             boolean capturedFill = westOrNorth(side);
             boolean worldFill = westOrNorth((side + turns) % 4);
             if (capturedFill == worldFill) {
