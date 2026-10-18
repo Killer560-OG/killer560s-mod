@@ -1611,7 +1611,10 @@ final class ExperimentSolver {
         if (cfg.isSkipGrandExpBottles() && name.contains("Grand Experience Bottle")) {
             return true;
         }
-        return cfg.isSkipGuardianPets() && name.contains("Guardian");
+        if (cfg.isSkipGuardianPets() && name.contains("Guardian")) {
+            return true;
+        }
+        return cfg.isSkipMetaphysicalSerums() && name.contains("Metaphysical Serum");
     }
 
     /** "Powerup for next click!" - the lore of Instant Find, the one powerup that matches the next click. */
