@@ -51,6 +51,20 @@ public final class DungeonBreakerFeature {
     private DungeonBreakerFeature() {
     }
 
+    /** Called from {@code DungeonBreakerMixin} at the HEAD of {@code startDestroyBlock}: true when the click must
+     *  not start a dig at all (nothing sent, nothing predicted) because a Dungeon Breaker with charges is in hand and
+     *  {@link BreakerGuard} protects the block (a Fairy room, or a secret with "Don't break secrets" on). */
+    public static boolean shouldBlockStart(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || client.player == null || client.level == null) {
+            return false;
+        }
+        if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
+            return false;
+        }
+        return BreakerGuard.protects(client.level, pos);
+    }
+
     /** Called from {@code DungeonBreakerMixin} right after the real
      *  {@code MultiPlayerGameMode#startDestroyBlock} call for this exact position - the real mine-start
      *  packet has already been sent to the server by the time this runs. */
@@ -69,6 +83,9 @@ public final class DungeonBreakerFeature {
             return;
         }
         if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
+            return;
+        }
+        if (BreakerGuard.protects(client.level, pos)) {
             return;
         }
         // Never predict air for barrier or bedrock (or anything unbreakable): the server never breaks them, so

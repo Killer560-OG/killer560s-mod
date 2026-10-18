@@ -871,6 +871,9 @@ public final class BreakerAuraFeature {
         if (BLACKLIST.contains(state.getBlock())) {
             return false;
         }
+        if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(level, pos)) {
+            return false; // a Fairy room, or a secret with "Don't break secrets" on
+        }
         return state.getDestroySpeed(level, pos) >= 0f;
     }
 

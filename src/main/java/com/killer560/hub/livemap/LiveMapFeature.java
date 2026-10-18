@@ -1002,7 +1002,20 @@ public final class LiveMapFeature {
      * painter's {@code roomType} this never falls back to "NORMAL" as a guess. Blood Camp's room gate.
      */
     public static String currentRoomType() {
-        int idx = currentRoomIndex();
+        return roomTypeOfIndex(currentRoomIndex());
+    }
+
+    /** {@link #currentRoomType} for the room over world (x, z) instead of the player's: null in boss, outside the grid
+     *  or when the map does not know. The Dungeon Breaker's fairy guard asks it about the block, not the player. */
+    public static String roomTypeAt(double x, double z) {
+        if (Minecraft.getInstance().player == null || isInBoss() || !insideGridFootprint(x, z)) {
+            return null;
+        }
+        int[] cell = gridCellFor(new Vec3(x, 0.0, z));
+        return roomTypeOfIndex(cell[0] + cell[1] * GRID);
+    }
+
+    private static String roomTypeOfIndex(int idx) {
         if (idx < 0) {
             return null;
         }
