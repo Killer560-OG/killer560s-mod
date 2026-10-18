@@ -22,11 +22,15 @@ import java.util.UUID;
  * <p>
  * {@code trail} (relay field {@code trail}, 2026-10-13): the supporter's shared movement trail ({@link TrailSpec}), or
  * {@code null}. Independent of the name; an entry may carry only a trail, with an empty name.
+ * <p>
+ * {@code mob} (relay field {@code mob}, 2026-10-18): the mob the supporter plays as ({@code MobSkins} id), or
+ * {@code null}. Anything not on the allowlist is dropped here. Like a trail, it may come with an empty name.
  */
 record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation,
-                      TrailSpec trail) {
+                      TrailSpec trail, String mob) {
 
     SupporterEntry {
+        mob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);
         if (uuid == null) {
             throw new IllegalArgumentException("uuid");
         }
@@ -51,16 +55,26 @@ record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, Name
         }
     }
 
+    SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation,
+                   TrailSpec trail) {
+        this(uuid, rawName, scale, colors, animation, trail, null);
+    }
+
     SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation) {
-        this(uuid, rawName, scale, colors, animation, null);
+        this(uuid, rawName, scale, colors, animation, null, null);
     }
 
     SupporterEntry(UUID uuid, String rawName, float scale, int[] colors) {
-        this(uuid, rawName, scale, colors, null, null);
+        this(uuid, rawName, scale, colors, null, null, null);
     }
 
     SupporterEntry(UUID uuid, String rawName, float scale) {
-        this(uuid, rawName, scale, null, null, null);
+        this(uuid, rawName, scale, null, null, null, null);
+    }
+
+    /** {@code mob} from JSON: a string, or null when absent / not a string (the constructor then checks the allowlist). */
+    static String mobFrom(com.google.gson.JsonElement el) {
+        return el != null && el.isJsonPrimitive() && el.getAsJsonPrimitive().isString() ? el.getAsString() : null;
     }
 
     /** {@code animation} from JSON ({@code {"mode":"wave"|"pulse","speed":0.25-3}}), or null when absent, Off or not

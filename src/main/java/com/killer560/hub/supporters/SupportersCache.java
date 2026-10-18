@@ -62,7 +62,8 @@ final class SupportersCache {
                         float scale = ConfigJson.getFloat(o, "scale", 1.0f);
                         out.add(new SupporterEntry(uuid, name, scale, SupporterEntry.colorsFrom(o.get("colors")),
                                 SupporterEntry.animationFrom(o.get("animation")),
-                                com.killer560.hub.trail.TrailSpec.fromJson(o.get("trail"))));
+                                com.killer560.hub.trail.TrailSpec.fromJson(o.get("trail")),
+                                SupporterEntry.mobFrom(o.get("mob"))));
                     } catch (Exception badEntry) {
                         // one malformed row must not lose the rest of the cached list
                     }
@@ -96,6 +97,9 @@ final class SupportersCache {
                 }
                 if (e.trail() != null) {
                     o.add("trail", e.trail().toJson());
+                }
+                if (e.mob() != null) {
+                    o.addProperty("mob", e.mob());
                 }
                 arr.add(o);
             }

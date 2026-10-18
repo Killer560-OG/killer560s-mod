@@ -2280,11 +2280,14 @@ final class SettingTooltipsData {
         d.put("player cosmetics/width", "Stretches your own player model side to side (0.5x-2x), in your own F5 view only.");
         d.put("player cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
         d.put("player cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
-        d.put("share if supporter", "Automatically shares your display name and your own player size with other players who have this mod.");
+        d.put("player cosmetics/play as mob", "Opens Play as Mob: draw your player as any mob, and see the mobs other supporters picked.");
+        d.put("player cosmetics/my mob", "Draws your player as this mob in F5 and on other mod users' screens if you share it; left click forward, right click back. Your size and Width/Height/Thickness still apply. Visual only: your hitbox stays a player.");
+        d.put("player cosmetics/show others' mobs", "Draws other supporters as the mob they share. Never inside a dungeon, where they always show as players. Off shows everyone as a player.");
+        d.put("share if supporter", "Automatically shares your display name, your own player size and your Play as Mob choice with other players who have this mod.");
         d.put("share trail", "Shares your Ribbon Trail (colors, height, length, opacity) with other players who have this mod, while Share if Supporter and your Ribbon Trail are on. Only supporters can share it; the squares Trail is never shared.");
         d.put("show others' trails", "Draws the ribbon trails other supporters share behind them. Off hides every other player's ribbon; your own is unaffected.");
         d.put("copy settings for global cosmetics", "Copies your name and scale to your clipboard so staff can apply them for you.");
-        d.put("reset cosmetics", "Puts your display name, colors, fade, both player sizes and model shape back to default.");
+        d.put("reset cosmetics", "Puts your display name, colors, fade, both player sizes, model shape and Play as Mob back to default.");
         d.put("name changer/reset name to default", "Clears your display name, its color, fade and letter colors.");
         d.put("name changer/letter colors", "Opens a row with one button per letter of your display name, to color each letter.");
         d.put("name changer/clear letter colors", "Removes every per-letter color so the name's normal color or fade shows again.");

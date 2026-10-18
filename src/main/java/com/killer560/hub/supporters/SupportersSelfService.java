@@ -117,7 +117,15 @@ public final class SupportersSelfService {
     public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
                                                      com.killer560.hub.namechanger.NameAnimation.Spec animation,
                                                      com.killer560.hub.trail.TrailSpec trail) {
-        String json = body(rawName, scale, colors, animation, trail);
+        return save(rawName, scale, colors, animation, trail, null);
+    }
+
+    /** {@code mob}: the mob you play as ({@code MobSkins} id), or null for none. Like a trail, it may go up with an
+     *  empty name (the relay accepts that only beside a trail or a mob). */
+    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
+                                                     com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                                                     com.killer560.hub.trail.TrailSpec trail, String mob) {
+        String json = body(rawName, scale, colors, animation, trail, mob);
         lastAttempt = "POST " + json;
         attempts++;
         return request("POST", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
@@ -127,6 +135,13 @@ public final class SupportersSelfService {
     static String body(String rawName, double scale, int[] colors,
                        com.killer560.hub.namechanger.NameAnimation.Spec animation,
                        com.killer560.hub.trail.TrailSpec trail) {
+        return body(rawName, scale, colors, animation, trail, null);
+    }
+
+    /** The {@code POST /supporters/me} body, with {@code mob} last when set. */
+    static String body(String rawName, double scale, int[] colors,
+                       com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                       com.killer560.hub.trail.TrailSpec trail, String mob) {
         JsonObject body = new JsonObject();
         body.addProperty("name", rawName == null ? "" : rawName);
         body.addProperty("scale", scale);
@@ -138,6 +153,9 @@ public final class SupportersSelfService {
         }
         if (trail != null) {
             body.add("trail", trail.toJson());
+        }
+        if (mob != null) {
+            body.addProperty("mob", mob);
         }
         return body.toString();
     }

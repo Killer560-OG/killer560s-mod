@@ -72,6 +72,11 @@ public final class SupportersConfig {
     private boolean shareTrail = true;
     /** "Show Others' Trails": draw the trails other supporters share. ON by default. */
     private boolean showOthersTrails = true;
+    /** "My Mob" (Play as Mob, killer560 2026-10-18): the mob your player is drawn as, a {@code MobSkins} id, or "" for
+     *  your normal player. Shared while Share if Supporter is on and the account is a linked supporter. */
+    private String ownMob = "";
+    /** "Show Others' Mobs": draw other supporters as the mob they share (never inside a dungeon). ON by default. */
+    private boolean showOthersMobs = true;
 
     private SupportersConfig() {
     }
@@ -104,6 +109,8 @@ public final class SupportersConfig {
                 cfg.ownNameInF5 = ConfigJson.getBool(obj, "ownNameInF5", false);
                 cfg.shareTrail = ConfigJson.getBool(obj, "shareTrail", true);
                 cfg.showOthersTrails = ConfigJson.getBool(obj, "showOthersTrails", true);
+                cfg.ownMob = cleanMob(ConfigJson.getString(obj, "ownMob", ""));
+                cfg.showOthersMobs = ConfigJson.getBool(obj, "showOthersMobs", true);
             } catch (Exception e) {
                 cfg = new SupportersConfig();
             }
@@ -130,6 +137,8 @@ public final class SupportersConfig {
             obj.addProperty("ownNameInF5", ownNameInF5);
             obj.addProperty("shareTrail", shareTrail);
             obj.addProperty("showOthersTrails", showOthersTrails);
+            obj.addProperty("ownMob", ownMob);
+            obj.addProperty("showOthersMobs", showOthersMobs);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -244,6 +253,31 @@ public final class SupportersConfig {
     public void setShowOthersTrails(boolean value) {
         this.showOthersTrails = value;
         version++;
+    }
+
+    /** Your mob ({@code MobSkins} id), or "" for your normal player. */
+    public String getOwnMob() {
+        return ownMob;
+    }
+
+    /** Anything that is not an allowed mob id (null, "", a boss, a typo) means your normal player. */
+    public void setOwnMob(String value) {
+        this.ownMob = cleanMob(value);
+        version++;
+    }
+
+    public boolean isShowOthersMobs() {
+        return showOthersMobs;
+    }
+
+    public void setShowOthersMobs(boolean value) {
+        this.showOthersMobs = value;
+        version++;
+    }
+
+    private static String cleanMob(String id) {
+        String ok = com.killer560.hub.mobskin.MobSkins.sanitize(id);
+        return ok == null ? "" : ok;
     }
 
     private static float clampSize(float v) {

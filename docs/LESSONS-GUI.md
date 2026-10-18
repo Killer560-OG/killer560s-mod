@@ -631,3 +631,6 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   between bands drew nothing and the shadow showed - one row at GUI 1, up to five at GUI 4. Testkit 1436 found it in 20 of
   40 draws on the old code and 0 with the fix (the whole text in the middle colour first, 136effd5). It is the only banded
   text in the mod (sweep 2026-10-18); never split text by scissor without a full-text pass under it.
+- An entity made with `EntityType.create` and never added to a level must be given `setId` before any renderer sees it: on
+  26.2 `getId()` throws "Tried to access entity ID before ID assignment" (26.1.2 does not), and renderers read it. Play as
+  Mob's stand-ins drew nothing on 26.2 until they got negative ids (testkit 1018-mob-all: 78 of 78 broken, then 0).

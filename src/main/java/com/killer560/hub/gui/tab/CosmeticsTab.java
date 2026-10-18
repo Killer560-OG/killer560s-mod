@@ -47,7 +47,8 @@ public class CosmeticsTab extends BaseTab {
     private static final List<String> SEARCHABLE_LABELS = List.of(
             "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter",
             "share trail", "show others' trails", "trail", "custom names", "my name in f5", "player size",
-            "my size", "others' size", "width", "height", "thickness", "held item",
+            "my size", "others' size", "width", "height", "thickness", "held item", "play as mob", "my mob",
+            "show others' mobs", "mob",
             "copy settings for global cosmetics", "reset cosmetics");
 
     private final NameChangerTab nameChangerTab = new NameChangerTab();
@@ -64,6 +65,7 @@ public class CosmeticsTab extends BaseTab {
     private boolean customNamesOpen = false;
     private boolean playerSizeOpen = false;
     private boolean heldItemOpen = false;
+    private boolean playAsMobOpen = false;
 
     public CosmeticsTab() {
         super("Player Cosmetics");
@@ -171,6 +173,17 @@ public class CosmeticsTab extends BaseTab {
             y = buildPlayerSize(widgets, contentX, y, contentWidth, font, cfg, requestRebuild);
         }
 
+        // --- Play as Mob (killer560, 2026-10-18: "Make an option to change your character to any ingame mob. Still have
+        // scale sliders apply. If you are a supporter it can be shared.")
+        y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Play as Mob", false, playAsMobOpen,
+                () -> {
+                    playAsMobOpen = !playAsMobOpen;
+                    requestRebuild.run();
+                });
+        if (playAsMobOpen) {
+            y = buildPlayAsMob(widgets, contentX, y, contentWidth, font, cfg);
+        }
+
         // --- Held Item
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Held Item", false, heldItemOpen,
                 () -> {
@@ -195,6 +208,7 @@ public class CosmeticsTab extends BaseTab {
                     NameChangerConfig.getInstance().resetOwnNameCosmetics();
                     NameChangerConfig.getInstance().save();
                     SupportersConfig.getInstance().resetModelShape();
+                    SupportersConfig.getInstance().setOwnMob("");
                     SupportersConfig.getInstance().save();
                     shareError = null;
                     requestRebuild.run();
@@ -206,9 +220,9 @@ public class CosmeticsTab extends BaseTab {
     private String statusLine() {
         return switch (status) {
             case CHECKING -> "§7Checking supporter status...";
-            case NOT_LINKED -> "§7Not a linked supporter - your size and name show only for you.";
+            case NOT_LINKED -> "§7Not a linked supporter - your size, name and mob show only for you.";
             case RELAY_UNAVAILABLE -> "§cSupporter relay unavailable.";
-            case LINKED -> "§aLinked supporter - your name and size are shared while this is on.";
+            case LINKED -> "§aLinked supporter - your name, size and mob are shared while this is on.";
         };
     }
 
@@ -239,6 +253,39 @@ public class CosmeticsTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Visual only - never touches hitboxes. Width/Height/Thickness are never shared."), font));
         return y + 18;
+    }
+
+    /** My Mob (left click forward through the mobs this version has, right click back, Player first) and Show Others'
+     *  Mobs. Your size sliders apply to your mob too; see {@code com.killer560.hub.mobskin.MobSkinRender}. */
+    private int buildPlayAsMob(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Font font,
+                               SupportersConfig cfg) {
+        widgets.add(SettingsButtonWidget.cycling(myMobLabel(cfg.getOwnMob()), (btn, dir) -> {
+                    List<String> choices = new ArrayList<>();
+                    choices.add("");
+                    choices.addAll(com.killer560.hub.mobskin.MobSkins.available());
+                    int at = Math.max(0, choices.indexOf(cfg.getOwnMob()));
+                    cfg.setOwnMob(choices.get(SettingsButtonWidget.step(at, dir, choices.size())));
+                    cfg.save();
+                    btn.setMessage(myMobLabel(cfg.getOwnMob()));
+                    SupportersAutoShare.shareCurrent(err -> shareError = err);
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Mobs", cfg.isShowOthersMobs()), btn -> {
+                    cfg.setShowOthersMobs(!cfg.isShowOthersMobs());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Others' Mobs", cfg.isShowOthersMobs()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Visual only - your hitbox stays a player. Your size sliders apply to your mob."), font));
+        y += 12;
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Shared with Share if Supporter; never shown on others inside dungeons."), font));
+        return y + 18;
+    }
+
+    private static Component myMobLabel(String id) {
+        return Component.literal("My Mob: " + com.killer560.hub.mobskin.MobSkins.displayName(id));
     }
 
     private ThemedSliderButton sizeSlider(int x, int y, int width, String label, float current,
