@@ -3508,6 +3508,7 @@ public final class RouteExecutor {
             int needed = 0;
             for (BlockPos pos : breakerQueue) {
                 if (client.level.isLoaded(pos) && !client.level.getBlockState(pos).isAir()
+                        && !com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
                         && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
                     needed++;
                 }
@@ -3559,6 +3560,10 @@ public final class RouteExecutor {
                 BlockPos pos = breakerQueue.get(0);
                 if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
                     breakerQueue.remove(0); // air needs no charge, so it never counts as "not sent"
+                    continue;
+                }
+                if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
+                    breakerQueue.remove(0); // a Fairy room, or a secret with "Don't break secrets" on: never dug
                     continue;
                 }
                 if (breakerChargesLeft <= 0) {
@@ -3760,7 +3765,8 @@ public final class RouteExecutor {
         if (running && activeNode == lingerNode) {
             return; // the node itself is still breaking
         }
-        lingerBlocks.removeIf(p -> !client.level.isLoaded(p) || client.level.getBlockState(p).isAir());
+        lingerBlocks.removeIf(p -> !client.level.isLoaded(p) || client.level.getBlockState(p).isAir()
+                || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, p));
         if (lingerBlocks.isEmpty()) {
             if (lingerSaid) {
                 LOGGER.info("[AutoRoutes] Breaker linger: every block gone after {} tick(s)", lingerTicks);
@@ -3831,6 +3837,9 @@ public final class RouteExecutor {
      * {@code breakBlock} without its zero-ping - so the packet carries the sequence number a vanilla dig does.
      */
     private static void sendBreak(Minecraft client, LocalPlayer player, BlockPos pos) {
+        if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
+            return; // the one place a breaker node's dig goes out: never a Fairy room or a guarded secret
+        }
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
         // a block's top can carry: GrimAC PositionBreakA flagged and cancelled every breaker block above the feet
         // (2026-10-05, 62-argrim), so those blocks never broke.

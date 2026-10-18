@@ -16,6 +16,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(MultiPlayerGameMode.class)
 public abstract class DungeonBreakerMixin {
 
+    /** The guard: a Dungeon Breaker never starts a dig on a Fairy room block, or on a secret with "Don't break secrets"
+     *  on. At HEAD so nothing at all is sent for that click. */
+    @Inject(method = "startDestroyBlock", at = @At("HEAD"), cancellable = true)
+    private void killer560smod$breakerGuard(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        if (DungeonBreakerFeature.shouldBlockStart(pos)) {
+            cir.setReturnValue(false);
+        }
+    }
+
     @Inject(method = "startDestroyBlock", at = @At("TAIL"))
     private void killer560smod$zeroPingBreak(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         DungeonBreakerFeature.onStartDestroyBlock(pos);

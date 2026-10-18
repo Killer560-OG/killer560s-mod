@@ -23,6 +23,7 @@ public final class DungeonBreakerConfig {
 
     private boolean enabled = false;
     private boolean fatigueOnly = false;
+    private boolean noBreakSecrets = false;
 
     private DungeonBreakerConfig() {
     }
@@ -45,6 +46,7 @@ public final class DungeonBreakerConfig {
             DungeonBreakerConfig cfg = new DungeonBreakerConfig();
             cfg.enabled = com.killer560.hub.util.ConfigJson.getBool(obj, "enabled", cfg.enabled);
             cfg.fatigueOnly = com.killer560.hub.util.ConfigJson.getBool(obj, "fatigueOnly", cfg.fatigueOnly);
+            cfg.noBreakSecrets = com.killer560.hub.util.ConfigJson.getBool(obj, "noBreakSecrets", cfg.noBreakSecrets);
             instance = cfg;
         } catch (Exception e) {
             instance = new DungeonBreakerConfig();
@@ -57,6 +59,7 @@ public final class DungeonBreakerConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("fatigueOnly", fatigueOnly);
+            obj.addProperty("noBreakSecrets", noBreakSecrets);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -78,5 +81,15 @@ public final class DungeonBreakerConfig {
 
     public void setFatigueOnly(boolean fatigueOnly) {
         this.fatigueOnly = fatigueOnly;
+    }
+
+    /** "Don't break secrets": the Dungeon Breaker (Zero Ping, Breaker Aura, breaker nodes) leaves secret blocks alone.
+     *  See {@link BreakerGuard}. Fairy rooms are always protected and have no setting. */
+    public boolean isNoBreakSecrets() {
+        return noBreakSecrets;
+    }
+
+    public void setNoBreakSecrets(boolean noBreakSecrets) {
+        this.noBreakSecrets = noBreakSecrets;
     }
 }

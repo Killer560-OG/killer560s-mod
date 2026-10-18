@@ -36,6 +36,14 @@ public class DungeonBreakerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // Offered with Zero Ping off too: the guard also covers Breaker Aura and breaker nodes.
+        widgets.add(SettingsButtonWidget.builder(onOff("Don't break secrets", cfg.isNoBreakSecrets()), btn -> {
+                    cfg.setNoBreakSecrets(!cfg.isNoBreakSecrets());
+                    cfg.save();
+                    btn.setMessage(onOff("Don't break secrets", cfg.isNoBreakSecrets()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
+
         if (!cfg.isEnabled()) {
             return widgets;
         }

@@ -955,6 +955,7 @@ final class SettingTooltipsData {
         d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
         d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
         d.put("upgrade info line", "Shows chocolate per second, the best upgrade, its cost and how long until you can afford it, above the menu.");
+        d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Zero Ping, Breaker Aura, Auto Routes breaker nodes) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
         d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
         d.put("highlight frames", "Boxes every Arrow Align frame that still needs clicking.");
