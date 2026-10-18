@@ -174,6 +174,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                         cfg.setAutoSolveRotate(!cfg.isAutoSolveRotate());
                         cfg.save();
                         btn.setMessage(rotateText(cfg));
+                        requestRebuild.run(); // Stim and Momentum show only in Rotate mode
                     }).bounds(col2aX, y, col2W, 18).build());
 
             // Alternative pacing mode (2026-09-14, killer560's own request after seeing real log data
@@ -244,6 +245,41 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 y += 22;
             }
 
+            // Stim and Momentum (killer560's to-do, 2026-10-18) - they only move Rotate mode's aim, so only shown there.
+            if (cfg.isAutoSolveRotate()) {
+                widgets.add(SettingsButtonWidget.builder(onOff("Stim", cfg.isAutoSolveStim()), btn -> {
+                            cfg.setAutoSolveStim(!cfg.isAutoSolveStim());
+                            cfg.save();
+                            requestRebuild.run();
+                        }).bounds(col2aX, y, col2W, 18).build());
+                if (cfg.isAutoSolveStim()) {
+                    widgets.add(SettingsButtonWidget.cycling(stimButtonsText(cfg), (btn, dir) -> {
+                                int span = SimonSaysConfig.MAX_STIM_BUTTONS - SimonSaysConfig.MIN_STIM_BUTTONS + 1;
+                                int i = cfg.getAutoSolveStimButtons() - SimonSaysConfig.MIN_STIM_BUTTONS;
+                                cfg.setAutoSolveStimButtons(SimonSaysConfig.MIN_STIM_BUTTONS + SettingsButtonWidget.step(i, dir, span));
+                                cfg.save();
+                                btn.setMessage(stimButtonsText(cfg));
+                            }).bounds(col2bX, y, col2W, 18).build());
+                }
+                y += 22;
+
+                double momentumNorm = cfg.getAutoSolveMomentum() / (double) SimonSaysConfig.MAX_MOMENTUM;
+                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, momentumText(cfg), momentumNorm) {
+                    @Override
+                    protected void updateMessage() {
+                        setMessage(momentumText(cfg));
+                    }
+
+                    @Override
+                    protected void applyValue() {
+                        // Steps of 10, so Off is easy to land on.
+                        cfg.setAutoSolveMomentum((int) Math.round(this.value * 10) * 10);
+                        cfg.save();
+                    }
+                });
+                y += 22;
+            }
+
             // Auto Restart SS + Restart Key (2026-09-14, killer560's own request) - independent of Auto Start
             // being on; they use Auto Start's Clicks/Delay and the same aura vs look-only rule. Nested under
             // Auto Solve and gated on it (2026-09-21, killer560's own request: "put auto restart ss as a
@@ -272,6 +308,15 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
     private static Component rotateText(SimonSaysConfig cfg) {
         return Component.literal(cfg.isAutoSolveRotate() ? "Mode: \u00a7bRotate" : "Mode: \u00a7bNo Rotate");
+    }
+
+    private static Component stimButtonsText(SimonSaysConfig cfg) {
+        return Component.literal("Stim Buttons: §b" + cfg.getAutoSolveStimButtons());
+    }
+
+    private static Component momentumText(SimonSaysConfig cfg) {
+        int m = cfg.getAutoSolveMomentum();
+        return Component.literal("Momentum: " + (m == 0 ? "§cOff" : "§b" + m + "%"));
     }
 
     private static Component pacingModeText(SimonSaysConfig cfg) {

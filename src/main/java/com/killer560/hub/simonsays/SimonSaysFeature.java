@@ -444,6 +444,36 @@ public final class SimonSaysFeature {
     // moves) apart from "a genuinely new target". See tickRotateClick's own doc comment for why that
     // distinction matters for real click timing.
     private static BlockPos rotateLastFiredTarget = null;
+    // --- Stim and Momentum (killer560's to-do, 2026-10-18), Rotate mode only; see SimonSaysConfig. ---
+    // Stim: the buttons still to retrace between rounds (look only, never clicked), the one it is on, and how long it
+    // has rested on that one. Armed when a round's last click is confirmed (onButtonPressed), ended by the next reveal's
+    // first light, by finishing, or by STIM_MAX_MS.
+    private static final List<BlockPos> stimQueue = new ArrayList<>();
+    private static int stimIndex = 0;
+    private static float stimDwellTicks = 0f;
+    private static long stimArmedAtMs = 0L;
+    private static final long STIM_MAX_MS = 4000L;
+    private static final float STIM_ON_TARGET_DEG = 1.0f;
+    private static final float STIM_DWELL_TICKS = 2f;
+    // Counters the testkit reads (1018-ss-stim): rehearsals begun, buttons reached, rehearsals cut short by a reveal.
+    private static int stimRehearsalsStarted = 0;
+    private static int stimButtonsTraced = 0;
+    private static int stimCutShort = 0;
+    // Momentum: the camera's angular speed (degrees per tick) on the last frame that turned it, and the share of it
+    // still being carried into the turn after a click, which decays every frame (MOMENTUM_CARRY_DECAY per tick).
+    private static float momentumVelYaw = 0f;
+    private static float momentumVelPitch = 0f;
+    private static float momentumCarryYaw = 0f;
+    private static float momentumCarryPitch = 0f;
+    private static final double MOMENTUM_CARRY_DECAY = 0.55;
+    private static final float MOMENTUM_CARRY_GAIN = 1.0f;
+    // A click with Momentum on needs the crosshair inside this fraction of the button face from its centre, both axes.
+    private static final float MOMENTUM_FACE_FRACTION = 0.6f;
+    // Counters the testkit reads (1018-ss-momentum): clicks fired on the face before settling, frames spent gliding
+    // on to the next button after a click, and frames that carried speed from the previous turn.
+    private static int momentumFaceFires = 0;
+    private static int momentumGlideFrames = 0;
+    private static int momentumCarryFrames = 0;
     // Whenever there's no real click actively due (killer560's own request), the camera should be
     // looking at the first real grid button ("the 1/5 button... or the first one from 2/5" - not the
     // literal start/reset button) with a slight idle sway, not frozen. Only while actually near the
@@ -807,6 +837,9 @@ public final class SimonSaysFeature {
             }
             rotateClickFiredFor = null;
             rotateFireReadyFor = null;
+            stimQueue.clear();
+            momentumCarryYaw = 0f;
+            momentumCarryPitch = 0f;
             startClickAnchorMs = 0L;
             breakArmed = false;
             blankGridTicks = 0;
@@ -1300,6 +1333,13 @@ public final class SimonSaysFeature {
             if (wholeDeviceCompleted && client.player != null) {
                 announceWholeDeviceCompleted(System.currentTimeMillis());
             }
+            // Stim: the round just seen, captured before resetSolveState clears it. Not after the last round - there is
+            // nothing left to practise for, and idle stands down then too.
+            if (!wholeDeviceCompleted && rotateActive(cfg) && cfg.isAutoSolveStim()) {
+                armStim(cfg);
+            } else {
+                stimQueue.clear();
+            }
             resetSolveState();
             firstPhase = false;
             if (wholeDeviceCompleted) {
@@ -1326,6 +1366,29 @@ public final class SimonSaysFeature {
             // reveal happens to begin.
             rotateInProgressTarget = null;
         }
+    }
+
+    /** Queues the newest {@code Stim Buttons} buttons of the round that just ended, in the order they were clicked, then
+     *  the round's first button again (the next round starts there). Look only: nothing here ever clicks. */
+    private static void armStim(SimonSaysConfig cfg) {
+        stimQueue.clear();
+        stimIndex = 0;
+        stimDwellTicks = 0f;
+        int size = clickInOrder.size();
+        if (size == 0) {
+            return;
+        }
+        int from = Math.max(0, size - cfg.getAutoSolveStimButtons());
+        for (int i = from; i < size; i++) {
+            stimQueue.add(clickInOrder.get(i).west().immutable());
+        }
+        BlockPos first = clickInOrder.get(0).west().immutable();
+        if (!stimQueue.get(stimQueue.size() - 1).equals(first)) {
+            stimQueue.add(first);
+        }
+        stimArmedAtMs = System.currentTimeMillis();
+        stimRehearsalsStarted++;
+        verboseLog("[SimonSays][Stim] Rehearsing {} button(s) of round {}: {}", stimQueue.size(), size, stimQueue);
     }
 
     // ------------------------------------------------------------------
@@ -2250,6 +2313,16 @@ public final class SimonSaysFeature {
         double dtTicks = rotateLastFrameAtNanos == 0L ? 1.0 : (now - rotateLastFrameAtNanos) / 50_000_000.0;
         rotateLastFrameAtNanos = now;
         dtTicks = Mth.clamp(dtTicks, 0.0, 3.0); // guard against a lag spike/alt-tab producing one huge jump
+        // Momentum's carried speed fades every frame, whatever state follows (only APPROACH and PRE_DRIFT apply it).
+        if (momentumCarryYaw != 0f || momentumCarryPitch != 0f) {
+            float fade = (float) Math.pow(MOMENTUM_CARRY_DECAY, dtTicks);
+            momentumCarryYaw *= fade;
+            momentumCarryPitch *= fade;
+            if (Math.abs(momentumCarryYaw) < 0.01f && Math.abs(momentumCarryPitch) < 0.01f) {
+                momentumCarryYaw = 0f;
+                momentumCarryPitch = 0f;
+            }
+        }
 
         // Real bug found and fixed (2026-09-14, "it still doesnt move back to the first button... it
         // needs to remember it" / later refined per "whatever it senses as the second button..."):
@@ -2306,8 +2379,30 @@ public final class SimonSaysFeature {
             // immediately instead of starting a fresh turn from a dead stop. Guarded by !autoStartRunning
             // for the same reason every other grid-facing state already is - the camera must stay locked
             // on the start button for the whole real duration of an Auto Start run.
-            if (solveStepsPending && !autoStartRunning) {
+            // Stim (look-only rehearsal between rounds): over the moment the next reveal shows its first light, or when
+            // it has run too long. clickInOrder is empty for the whole gap, so nothing is pending while it runs.
+            if (!stimQueue.isEmpty() && (!clickInOrder.isEmpty()
+                    || System.currentTimeMillis() - stimArmedAtMs > STIM_MAX_MS)) {
+                if (stimIndex < stimQueue.size()) {
+                    stimCutShort++;
+                    verboseLog("[SimonSays][Stim] Cut short at {}/{} ({}).", stimIndex, stimQueue.size(),
+                            clickInOrder.isEmpty() ? "timed out" : "next reveal began");
+                }
+                stimQueue.clear();
+            }
+            if (!stimQueue.isEmpty() && !autoStartRunning && !idleSuppressedAfterCompletion) {
+                state = "STIM target=" + stimQueue.get(stimIndex);
+                applyStimFrame(client, dtTicks);
+            } else if (solveStepsPending && !autoStartRunning) {
                 BlockPos preDriftTarget = clickInOrder.get(clickNeeded).west();
+                // Momentum: a click on this button has just gone out and the server has not confirmed it yet - rather
+                // than holding on it, carry straight on toward the round's next button. Off, unchanged.
+                if (momentumFraction(SimonSaysConfig.getInstance()) > 0f && preDriftTarget.equals(rotateLastFiredTarget)
+                        && clickNeeded + 1 < clickInOrder.size()
+                        && System.currentTimeMillis() - rotateClickFiredAtMs < 400L) {
+                    preDriftTarget = clickInOrder.get(clickNeeded + 1).west();
+                    momentumGlideFrames++;
+                }
                 state = "PRE_DRIFT target=" + preDriftTarget;
                 applyPreDriftFrame(client, preDriftTarget, dtTicks);
             } else if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor
@@ -2395,8 +2490,85 @@ public final class SimonSaysFeature {
         float yawDelta = Mth.wrapDegrees(toTarget[0] - currentYaw);
         float pitchDelta = Mth.wrapDegrees(toTarget[1] - currentPitch);
         float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.5, dtTicks);
+        float stepYaw = yawDelta * frameSmoothing;
+        float stepPitch = pitchDelta * frameSmoothing;
+        if (momentumFraction(SimonSaysConfig.getInstance()) > 0f && GRID_BUTTONS.contains(target)) {
+            applyMomentumStep(player, currentYaw, currentPitch, stepYaw, stepPitch, dtTicks);
+            return;
+        }
+        player.setYRot(currentYaw + stepYaw);
+        player.setXRot(currentPitch + stepPitch);
+    }
+
+    /** 0 (off) to 1: the Momentum setting, only while Rotate mode is what is aiming. */
+    private static float momentumFraction(SimonSaysConfig cfg) {
+        return rotateActive(cfg) ? cfg.getAutoSolveMomentum() / (float) SimonSaysConfig.MAX_MOMENTUM : 0f;
+    }
+
+    /** A turn step with Momentum on: the eased step plus whatever speed is still carried from before the last click,
+     *  then that frame's speed remembered for the next click to carry. Rotation only; yaw runs free (never wrapped),
+     *  pitch stays inside -90..90. */
+    private static void applyMomentumStep(net.minecraft.client.player.LocalPlayer player, float currentYaw,
+                                          float currentPitch, float stepYaw, float stepPitch, double dtTicks) {
+        if (momentumCarryYaw != 0f || momentumCarryPitch != 0f) {
+            stepYaw += momentumCarryYaw * (float) dtTicks;
+            stepPitch += momentumCarryPitch * (float) dtTicks;
+            momentumCarryFrames++;
+        }
+        if (dtTicks > 0.0) {
+            momentumVelYaw = stepYaw / (float) dtTicks;
+            momentumVelPitch = stepPitch / (float) dtTicks;
+        }
+        player.setYRot(currentYaw + stepYaw);
+        player.setXRot(Mth.clamp(currentPitch + stepPitch, -90f, 90f));
+    }
+
+    /** With Momentum on, a click needs the crosshair ON the button face, inside {@link #MOMENTUM_FACE_FRACTION} of it
+     *  from the centre on both axes, along the rotation the player has right now, and a fresh pick along that same
+     *  rotation must hit the button. Never looser than the face itself, so it can never click early. */
+    private static boolean crosshairOnInnerFace(Minecraft client, BlockPos buttonPos) {
+        var player = client.player;
+        if (player == null || client.level == null) {
+            return false;
+        }
+        if (!(player.pick(com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH, 1f, false) instanceof BlockHitResult hit)
+                || !hit.getBlockPos().equals(buttonPos)) {
+            return false;
+        }
+        Vec3 eyePos = player.getEyePosition();
+        float[] toCenter = yawPitchTo(eyePos, realBlockCenter(client, buttonPos));
+        float[] half = realButtonAngularHalfExtents(client, buttonPos, eyePos);
+        float limit = Math.min(half[0], half[1]) * MOMENTUM_FACE_FRACTION;
+        return Math.abs(Mth.wrapDegrees(toCenter[0] - player.getYRot())) <= limit
+                && Math.abs(Mth.wrapDegrees(toCenter[1] - player.getXRot())) <= limit;
+    }
+
+    /** Stim: eases the aim onto each queued button in turn, rests a moment on it, then moves on - look only, it never
+     *  clicks. Same per-frame easing as an approach, so it moves like the rest of Rotate mode. */
+    private static void applyStimFrame(Minecraft client, double dtTicks) {
+        var player = client.player;
+        BlockPos target = stimQueue.get(stimIndex);
+        float[] to = yawPitchTo(player.getEyePosition(), realBlockCenter(client, target));
+        float currentYaw = player.getYRot();
+        float currentPitch = player.getXRot();
+        float yawDelta = Mth.wrapDegrees(to[0] - currentYaw);
+        float pitchDelta = Mth.wrapDegrees(to[1] - currentPitch);
+        float frameSmoothing = 1f - (float) Math.pow(1.0 - 0.45, dtTicks);
         player.setYRot(currentYaw + yawDelta * frameSmoothing);
-        player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+        player.setXRot(Mth.clamp(currentPitch + pitchDelta * frameSmoothing, -90f, 90f));
+        if (Math.abs(yawDelta) < STIM_ON_TARGET_DEG && Math.abs(pitchDelta) < STIM_ON_TARGET_DEG) {
+            stimDwellTicks += (float) dtTicks;
+            if (stimDwellTicks >= STIM_DWELL_TICKS) {
+                stimButtonsTraced++;
+                stimIndex++;
+                stimDwellTicks = 0f;
+                if (stimIndex >= stimQueue.size()) {
+                    verboseLog("[SimonSays][Stim] Rehearsal done ({} button(s)).", stimQueue.size());
+                    stimQueue.clear();
+                    stimIndex = 0;
+                }
+            }
+        }
     }
 
     private static void applyRotateApproachFrame(Minecraft client, BlockPos buttonPos, double dtTicks) {
@@ -2513,8 +2685,15 @@ public final class SimonSaysFeature {
         // target smoothing factor - keeps the overall turn SPEED matching what rotateSmoothingThisApproach
         // was tuned for per-tick, regardless of how many frames actually render per tick.
         float frameSmoothing = 1f - (float) Math.pow(1.0 - rotateSmoothingThisApproach, dtTicks);
-        player.setYRot(currentYaw + yawDelta * frameSmoothing);
-        player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+        // Momentum (grid buttons only - Auto Start's burst on the start button must stay locked on it): the same eased
+        // step plus the speed carried from the last click. Off, the two lines below run exactly as they always did.
+        boolean momentumOn = momentumFraction(SimonSaysConfig.getInstance()) > 0f && GRID_BUTTONS.contains(buttonPos);
+        if (momentumOn) {
+            applyMomentumStep(player, currentYaw, currentPitch, yawDelta * frameSmoothing, pitchDelta * frameSmoothing, dtTicks);
+        } else {
+            player.setYRot(currentYaw + yawDelta * frameSmoothing);
+            player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+        }
 
         // Real bug found and fixed (2026-09-14, "it can be a hair off of pressing buttons... make it go
         // a bit more central"): only fires once BOTH the real raycast confirms the right block AND the
@@ -2533,7 +2712,17 @@ public final class SimonSaysFeature {
         // rotateClickFiredFor must be consumed first so two fires can never collapse into one booked click,
         // and a held Auto Start click waits for its exact spacing time (see rotateFireNotBeforeMs).
         boolean fireAllowed = rotateClickFiredFor == null && System.currentTimeMillis() >= rotateFireNotBeforeMs;
-        if (settledNearCenter && fireAllowed
+        if (momentumOn) {
+            // Momentum: ready once the crosshair is on the button face (inner part, fresh pick along the rotation just
+            // set), without waiting for the turn to settle. fireReadyRotateClick checks the same again at the tick.
+            if (fireAllowed && crosshairOnInnerFace(client, buttonPos)) {
+                rotateFireReadyFor = buttonPos;
+                rotateFireReadyYawDelta = yawDelta;
+                rotateFireReadyPitchDelta = pitchDelta;
+            } else {
+                rotateFireReadyFor = null;
+            }
+        } else if (settledNearCenter && fireAllowed
                 && client.hitResult instanceof BlockHitResult hit && hit.getBlockPos().equals(buttonPos)) {
             // Real aim confirmed. The click itself waits for the start of the next tick (fireReadyRotateClick): sent
             // from this frame it would follow the tick's movement packet, GrimAC Post (testkit 831, 2026-10-11).
@@ -2578,6 +2767,13 @@ public final class SimonSaysFeature {
             rotateFireReadyFor = null;
             return;
         }
+        // Momentum fires before the turn settles, so the camera kept moving after the frame said ready: the crosshair
+        // must still be on the inner face along the rotation this tick's movement packet will carry, or no click.
+        boolean momentumOn = momentumFraction(SimonSaysConfig.getInstance()) > 0f && GRID_BUTTONS.contains(buttonPos);
+        if (momentumOn && !crosshairOnInnerFace(client, buttonPos)) {
+            rotateFireReadyFor = null;
+            return;
+        }
         if (!sendNoRotateInteract(client, buttonPos)) {
             // ActionGate held this tick back: stay ready, the next tick tries again.
             return;
@@ -2585,6 +2781,12 @@ public final class SimonSaysFeature {
         rotateFireReadyFor = null;
         rotateClickFiredFor = buttonPos;
         rotateClickFiredAtMs = System.currentTimeMillis();
+        if (momentumOn) {
+            momentumFaceFires++;
+            float share = momentumFraction(SimonSaysConfig.getInstance()) * MOMENTUM_CARRY_GAIN;
+            momentumCarryYaw = momentumVelYaw * share;
+            momentumCarryPitch = momentumVelPitch * share;
+        }
         // Diagnostic-only (2026-09-14) - once per real fire, covers both Auto Solve grid clicks and
         // Auto Start's look-only start-button clicks.
         verboseLog("[SimonSays][RotateFrame] Approach fired on {} {}ms after {} (elapsedTicks={}, "
