@@ -38,7 +38,8 @@ import java.util.Set;
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
  * ({@link #lidPrince}, Big Red Flag, 2026-10-09) - the three shapes {@code roomsim.SimPrince} was given by him - or an
- * obsidian top with a bottom smooth stone slab rim ({@link #obsidianPrince}, Supertall, 2026-10-16). A slab run that
+ * obsidian top with a bottom smooth stone slab rim ({@link #obsidianPrince}, Supertall, 2026-10-16), or a line of bottom
+ * slabs on a polished andesite tomb with a head beside it ({@link #sarcophagusPrince}, Sarcophagus, 2026-10-18). A slab run that
  * touches a prince's blocks is the prince, not an ordinary crypt as well.
  *
  * <p>One answer for the sim and for Hypixel: {@code SimPrince} asks {@link #isPrinceCrown} too, and this reads the
@@ -233,6 +234,89 @@ public final class CryptScanner {
         return crowns;
     }
 
+    /**
+     * The prince SARCOPHAGUS rule (see {@code roomsim.SimPrince}: Sarcophagus, 2026-10-18) from one smooth stone slab: its
+     * horizontal run of smooth stone slabs (members go into {@code checked}, capped at {@value #LID_MAX} + 1), which is a
+     * prince when it is 2 or more bottom slabs, EVERY one lying on polished andesite, with a player head touching the run on
+     * its own layer. Returns the run and the polished andesite body on the layer directly under it (joined to the run's
+     * footprint, at most two blocks out), or nothing.
+     *
+     * <p>killer560, 2026-10-18: "this is a prince in sarcophogous". Sarcophagus' one crypt (the room database says 1) is a
+     * 5x3 polished andesite tomb on stone brick stair legs with a line of five bottom smooth stone slabs along its top and
+     * two player heads beside them (capture x 14..18, y 69..71, z 15..17). Census over all 135 captures: slab runs lying
+     * wholly on polished andesite are found in Catwalk, Deathmite, Doors, Flags, Hallway, Pressure Plates and Prison Cell
+     * too (walkways and ledges), and only Sarcophagus' has a head touching it.
+     */
+    public static List<BlockPos> sarcophagusPrince(Level level, BlockPos start, Set<BlockPos> checked) {
+        List<BlockPos> crowns = new ArrayList<>();
+        List<BlockPos> run = new ArrayList<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        Set<BlockPos> seen = new HashSet<>();
+        queue.add(start);
+        seen.add(start);
+        boolean ok = true;
+        boolean head = false;
+        while (!queue.isEmpty()) {
+            BlockPos here = queue.poll();
+            run.add(here);
+            checked.add(here);
+            if (run.size() > LID_MAX) {
+                return crowns;
+            }
+            if (!isLidSlab(level.getBlockState(here)) || !level.getBlockState(here.below()).is(Blocks.POLISHED_ANDESITE)) {
+                ok = false;
+            }
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    BlockState n = level.getBlockState(here.offset(dx, 0, dz));
+                    if (n.is(Blocks.PLAYER_HEAD) || n.is(Blocks.PLAYER_WALL_HEAD)) {
+                        head = true;
+                    }
+                }
+            }
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                if (level.getBlockState(next).is(Blocks.SMOOTH_STONE_SLAB) && seen.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        if (!ok || !head || run.size() < 2) {
+            return crowns;
+        }
+        crowns.addAll(run);
+        // The tomb's body: the polished andesite on the layer under the slabs, joined to the run's footprint.
+        int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
+        for (BlockPos p : run) {
+            x0 = Math.min(x0, p.getX());
+            x1 = Math.max(x1, p.getX());
+            z0 = Math.min(z0, p.getZ());
+            z1 = Math.max(z1, p.getZ());
+        }
+        ArrayDeque<BlockPos> walk = new ArrayDeque<>();
+        Set<BlockPos> body = new HashSet<>();
+        for (BlockPos p : run) {
+            BlockPos under = p.below().immutable();
+            if (body.add(under)) {
+                walk.add(under);
+            }
+        }
+        while (!walk.isEmpty() && body.size() < 4 * LID_MAX) {
+            BlockPos here = walk.poll();
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                if (next.getX() < x0 - 2 || next.getX() > x1 + 2 || next.getZ() < z0 - 2 || next.getZ() > z1 + 2
+                        || body.contains(next) || !level.getBlockState(next).is(Blocks.POLISHED_ANDESITE)) {
+                    continue;
+                }
+                body.add(next);
+                walk.add(next);
+            }
+        }
+        crowns.addAll(body);
+        return crowns;
+    }
+
 
     /**
      * Every crypt and prince inside {@code [minX, minZ, maxX, maxZ]}, at any height.
@@ -279,6 +363,9 @@ public final class CryptScanner {
                                     slabs.add(at);
                                     if (isLidSlab(state)) {
                                         bottoms.add(at);
+                                    }
+                                    if (lidChecked.add(at)) {
+                                        lidPrinces.addAll(sarcophagusPrince(level, at, lidChecked));
                                     }
                                 } else if (state.is(Blocks.SMOOTH_STONE)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);

@@ -253,6 +253,7 @@ public final class AwaitEvents {
         }
         tickMimic(client);
         tickKey(client);
+        KeySpots.tick(client);
         if (!active) {
             return;
         }
@@ -456,6 +457,7 @@ public final class AwaitEvents {
         if (client.level.getBlockState(pos.below()).getBlock() == Blocks.REDSTONE_BLOCK) {
             return;
         }
+        KeySpots.noteKeyAt(client, pos);
         keyClicks.put(pos.asLong(), new long[]{ticks, com.killer560.hub.util.ServerLag.mark()});
         LOGGER.info("[AutoRoutes] await: redstone key at {} clicked by you - not a secret (Hypixel counts putting it on "
                 + "its redstone block)", pos.toShortString());

@@ -3304,3 +3304,31 @@ side by side `final-side-by-side.png`). In capture terms (wall plane x 1, one in
 - Tests: 1435-sim-deuces-exact (solo and floor at 0/90/180/270: all 57 table blocks equal the world, 44 of them not the
   capture's; the door-piece sweep with Deuces W0 exempt finds no wrong doorway; the floor-0 passage into Altar is open).
   1433's chest-doorway check is now the table check, and its capture comparison skips the table's blocks.
+## Sarcophagus' prince, one Redstone Key, chests that appear like bats (2026-10-18, sim-secrets-1018)
+- **Sarcophagus' tomb is a prince** ("this is a prince in sarcophogous"). The room database gives it 1 crypt and the
+  capture has one tomb: a 5x3 polished andesite body (capture x 14..18, y 70, z 15..17) on stone brick stair legs round a
+  polished andesite core (y 69), five bottom smooth stone slabs along its top (y 71, z 16) and two player heads beside them.
+  The fifth signature, `CryptScanner.sarcophagusPrince` (asked by `SimPrince` and Secret Waypoints alike): a run of bottom
+  smooth stone slabs every one of which lies on polished andesite, with a head touching the run on its layer. Census over
+  the 135 captures: slab runs wholly on polished andesite also exist in Catwalk, Deathmite, Doors, Flags, Hallway, Pressure
+  Plates and Prison Cell (walkways, ledges); only Sarcophagus' has a head beside it. Its blocks are the slabs and the
+  andesite layer under them, so `tombOf` takes the top and the heads and `extrasOf` the legs and core: the whole tomb goes,
+  the floor at y 68 stays. Before, the plain crypt rule opened the slab line and the one row of andesite under it.
+- **What a blown prince leaves, by room** (offline census of `tombOf` + `extrasOf` over the captures, for his "those smooth
+  andesite blocks shouldnt be there" without the screenshot): polished andesite touching what goes is left in Sloth (27, the
+  alcove's walls round its plinth), Withermancer (12, the layer two under its obsidian top), Stairs (11, a ring round its
+  3x3 andesite prince on the same layer), Red Blue (4) and Grass Ruin (2). Not changed: which one he meant is his to say.
+- **One Redstone Key per room.** Redstone Key's database lists two key spots (19,66,7 and 10,70,26) and Hypixel spawns the
+  key in one; the sim put one on each. `SimSecrets.place` now keeps one at random (`setKeySpotForTest` forces it). Auto
+  Routes' side of the same request is `autoroutes/KeySpots` (docs/LESSONS-AUTOMATION.md).
+- **Secret chests appear when he comes near** ("make chests on sim have the same spawn in logic as bats for not appearing"):
+  `SimSecrets.chests` registers each database chest with `SimSecretItems.registerChest` instead of setting it (a chest the
+  capture already had on the spot is taken out), and it is set when he has been within `BAT_TRIGGER_RANGE` (10) of it for
+  `BAT_TRIGGER_TICKS` (5) server ticks in a row, as a secret bat. Not in puzzle rooms (their chests are the puzzles').
+  The mimic, picked from the build's chests, turns its pending chest trapped (`trapPendingChest`); the build's
+  "secret chests in place" audit counts a pending chest as in place. Anything that looks for a far secret chest as a block
+  (an etherwarp onto a chest top from more than 10 blocks, the cheat map's trapped-chest tint) now finds air until he is near.
+- **Change Room opens the page used last.** The pause screen's button always opened Load a Room; it now opens
+  `SimMenuNav.open` (the designer after a generated map), Load a Room when the menu was not opened yet this session.
+- Testkit: 1018-sim-prince-sarcophagus, 1018-sim-keyspot-one, 1018-sim-chest-appear, 1018-sim-changeroom-lastpage
+  (SimWorldTests), 1018-ar-keyspot-empty (96-ar session).

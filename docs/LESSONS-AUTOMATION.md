@@ -626,3 +626,20 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   work had Auto Quiz walk to a guessed "CLICK" stand and talk; his logs put the intro 0-1 s after his own room entry in
   all 47 runs where he walked in. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two
   BEFORE the live map names the room, so anything pairing the two must allow either order ([QuizLog] does).
+
+## Redstone Key spots and Auto Secret's room order (sim-secrets-1018)
+
+- **An await beside a Redstone Key spot the key never spawned at starts one secret on** (killer560, 2026-10-18: a room
+  with two key spots needs an await at each, and the empty one waited until he clicked). `autoroutes/KeySpots` reads the
+  room's key spots from the room database; a node with a SECRET await whose eye (feet + 1.62) is within 4.5 of a spot's
+  block box gets one remembered secret per spot that is loaded, holds no player head, and never held a key this run (each
+  spot is looked at every tick in the room, and his click on a key marks it), only in a room with two or more spots
+  (Redstone Key). Any player head counts as not empty, so a head whose profile has not reached the client yet is never
+  read as "no key". The key's pickup still counts nothing (aura-skull-place-1016), so the await at the spot that DID get
+  the key waits for something else of the route's; his Redstone Key route awaits 2 at the key-2 spot. Testkit 1018-ar-keyspot-empty.
+- **Auto Secret's Room Order** is Fewest Warps (`TourPlanner.shortest`, exact branch and bound over the travel alone, then
+  nearest-next improved by moving single rooms) or Largest First (`RoomTour.byWeight`); the value-weighted
+  `TourPlanner.plan` is still what Dungeon Autopilot's plan-ahead uses. The room on the near side of the blood door
+  (`AutoSecretFeature.preBloodRoom`: the door cell's two neighbours, the one that is not the blood room) is held out of
+  every order while any other room with secrets is left, open or behind a door; the endgame takes it just before it would
+  wait on a teammate's door. Testkit 1018-logic-room-order, 1018-sim-autosecret-preblood.

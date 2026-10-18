@@ -202,7 +202,10 @@ public final class SimMimic {
         // On Hypixel the mimic's chest is a TRAPPED chest - that is how the map, Secret Waypoints and Auto Routes'
         // Kill Mimic tell it apart - so the chosen one becomes one, facing the way it did.
         var state = level.getBlockState(mimic);
-        if (state.is(Blocks.CHEST)) {
+        if (SimSecretItems.trapPendingChest(mimic)) {
+            // A secret chest that appears when he comes near (2026-10-18): it appears as the trapped one.
+            LOGGER.info("Sim mimic: its chest appears when he comes near it");
+        } else if (state.is(Blocks.CHEST)) {
             level.setBlockAndUpdate(mimic, Blocks.TRAPPED_CHEST.defaultBlockState()
                     .setValue(net.minecraft.world.level.block.ChestBlock.FACING,
                             state.getValue(net.minecraft.world.level.block.ChestBlock.FACING)));

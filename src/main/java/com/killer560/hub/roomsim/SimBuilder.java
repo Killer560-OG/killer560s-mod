@@ -533,10 +533,15 @@ public final class SimBuilder {
                 SimRedstoneKey.armFloor(level);
                 int still = 0;
                 StringBuilder gone = new StringBuilder();
+                int waiting = 0;
                 for (var cp : SimSecrets.PLACED_CHESTS) {
                     var st = level.getBlockState(cp);
                     if (st.is(net.minecraft.world.level.block.Blocks.CHEST)) {
                         still++;
+                    } else if (SimSecretItems.isPendingChest(cp)) {
+                        // Appears when he comes near (SimSecretItems.registerChest) - in place, just not yet shown.
+                        still++;
+                        waiting++;
                     } else if (gone.length() < 300) {
                         gone.append(cp.toShortString()).append('=')
                                 .append(net.minecraft.core.registries.BuiltInRegistries.BLOCK
@@ -561,8 +566,8 @@ public final class SimBuilder {
                     LOGGER.warn("Sim build: only {} of {} secret chest(s) survived - the rest were replaced "
                             + "by {}", still, SimSecrets.PLACED_CHESTS.size(), gone);
                 } else {
-                    LOGGER.info("Sim build: all {} secret chest(s) are in place ({} distinct block(s))",
-                            still, distinct.size());
+                    LOGGER.info("Sim build: all {} secret chest(s) are in place ({} distinct block(s), {} appear when"
+                            + " he comes near)", still, distinct.size(), waiting);
                 }
                 // Said out loud rather than silently dropped: a secret that would have sealed a doorway is
                 // skipped, and that is a real chest missing from the floor even though it is the right call.

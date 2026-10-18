@@ -169,6 +169,12 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(secretBloodFirstText(cfg));
         }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
+        w.add(SettingsButtonWidget.cycling(secretOrderText(cfg), (btn, dir) -> {
+            cfg.setSecretOrder(SettingsButtonWidget.step(cfg.getSecretOrder(), dir));
+            cfg.save();
+            btn.setMessage(secretOrderText(cfg));
+        }).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += ROW;
 
         toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
         toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
@@ -224,6 +230,10 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
     private static Component secretBloodFirstText(AutoSecretConfig cfg) {
         AutoSecretConfig.SecretBloodFirst m = cfg.getSecretBloodFirst();
         return Component.literal("Secret Blood First: " + (m == AutoSecretConfig.SecretBloodFirst.OFF ? "§cOff" : "§e" + m.label()));
+    }
+
+    private static Component secretOrderText(AutoSecretConfig cfg) {
+        return Component.literal("Room Order: §e" + cfg.getSecretOrder().label());
     }
 
     private static Component runText() {

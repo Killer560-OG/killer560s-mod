@@ -88,10 +88,17 @@ public final class SimPauseEntry {
         // Button.builder/bounds/build checked identical in the 26.1.2 and 26.2 jars with javap.
         Button button = Button.builder(
                         Component.literal("Change Room"), btn -> {
-                            // Straight to the picker. It opens the world it needs, so there is nothing to tear
-                            // down here - and leaving the sim first would drop him to the title screen, which
-                            // is the long way round this button exists to avoid.
-                            McCompat.setScreen(client, SimMenuScreen.roomPicker(screen));
+                            // Straight to the sim menu, ON THE PAGE HE USED LAST. Each page opens the world it needs,
+                            // so there is nothing to tear down here - and leaving the sim first would drop him to the
+                            // title screen, which is the long way round this button exists to avoid.
+                            //
+                            // killer560 (2026-10-18): "In the sim if i press escape then change room after I have
+                            // generated a map it always takes me back to load room. It should take me to the setting
+                            // I selected previously." This always opened Load a Room; SimMenuNav remembers the page
+                            // (designer, Previous Runs, Load a Room, Route Practice) for the game session, as the
+                            // Dungeon Sim button already did. Load a Room before the menu was ever opened.
+                            McCompat.setScreen(client, SimMenuNav.lastPage() == null
+                                    ? SimMenuScreen.roomPicker(screen) : SimMenuNav.open(screen));
                         })
                 .bounds(x, y, width, 20)
                 .build();
