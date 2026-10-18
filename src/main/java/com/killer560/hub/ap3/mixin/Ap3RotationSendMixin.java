@@ -25,6 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *     camera without sending rotation to the server." The live rotation is swapped for the last SENT one so the
  *     comparison sees no change and no rotation packet is built.</li>
  * </ul>
+ * It also sends AP3's armed USE / BLOCK / BOOM click at its head ({@link Ap3Executor#beforeSendPosition}).
  * Rotation 360 rule: every value written here is a running value - the player's own previous one, or a server-side
  * yaw that was seeded from the player's own live yaw and only ever moved by bounded wrapped deltas - never wrapped,
  * never normalised, and the live values are restored unchanged.
@@ -43,6 +44,10 @@ public abstract class Ap3RotationSendMixin {
     private void killer560smod$ap3HoldRotation(CallbackInfo ci) {
         Ap3Executor.onRotationMixinApplied();
         LocalPlayer self = (LocalPlayer) (Object) this;
+        // A USE / BLOCK / BOOM armed at this tick's START goes out here, right ahead of the movement packet that carries
+        // its aim (Ap3Executor.actPending: GrimAC reads that packet's rotation for a place only within 15 ms of it).
+        // Before the swaps below, so a use packet carries the live aim.
+        Ap3Executor.beforeSendPosition(self);
         float strafeYaw = Ap3Executor.strafeServerYaw();
         if (!Float.isNaN(strafeYaw)) {
             killer560smod$liveYaw = self.getYRot();

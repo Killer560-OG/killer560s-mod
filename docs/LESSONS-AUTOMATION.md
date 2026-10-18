@@ -644,3 +644,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   (`AutoSecretFeature.preBloodRoom`: the door cell's two neighbours, the one that is not the blood room) is held out of
   every order while any other room with secrets is left, open or behind a door; the endgame takes it just before it would
   wait on a teammate's door. Testkit 1018-logic-room-order, 1018-sim-autosecret-preblood.
+- **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
+  that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
+  before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at
+  START_CLIENT_TICK and a slow tick opened the gap (63-ap3-block-*, 2026-10-18); its USE / BLOCK / BOOM now go out at the
+  head of `sendPosition` (`Ap3Executor.beforeSendPosition`). Any snap-aimed place should go out there; testkit
+  1018-ap3-block-slow-tick proves it (START-sent: flagged 2 of 2; sendPosition-sent: clean).

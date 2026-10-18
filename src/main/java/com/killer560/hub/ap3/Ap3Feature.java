@@ -117,6 +117,10 @@ public final class Ap3Feature {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
                 com.killer560.hub.util.FeatureBits.register("AP3 render", () -> Ap3Config.getInstance().isEnabledRaw()), Ap3Feature::onRenderFrame));
         ChatObserver.subscribe(Ap3Feature::onChat);
+        // The "ss" modifier reads whether Simon Says is done from the shared P3 tracker (idempotent; Lever Aura and the
+        // Lights Device register it too, but AP3 must not depend on either being on).
+        com.killer560.hub.leveraura.P3SectionTracker.register();
+        ClientTickEvents.END_CLIENT_TICK.register(client -> com.killer560.hub.leveraura.P3SectionTracker.poll(client));
         // Same shape as DungeonAlertsFeature: our own Fabric HUD layer draws the element at the HUD editor's
         // position/scale; the lead registers STOPWATCH_HUD into HudElementRegistry so it can be dragged there.
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
@@ -245,6 +249,8 @@ public final class Ap3Feature {
         public Ap3Node.JumpMod jumpMod;
         public String name;
         public boolean precise;
+        /** {@code ss}: fire only once Simon Says is done (killer560, 2026-10-18). */
+        public boolean ssGate;
         public Ap3Node.LeapMode leapMode;
         public DungeonClass leapClass;
         public String leapIgn;
@@ -277,6 +283,7 @@ public final class Ap3Feature {
                 node.name = name;
             }
             node.precise = precise;
+            node.ssGate = ssGate;
             if (node.type == Ap3Node.Type.LEAP) {
                 node.leapMode = leapMode == null ? Ap3Node.LeapMode.DEFAULT : leapMode;
                 node.leapClass = node.leapMode == Ap3Node.LeapMode.CLASS ? leapClass : null;

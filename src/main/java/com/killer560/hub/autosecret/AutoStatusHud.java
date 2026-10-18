@@ -89,12 +89,15 @@ public final class AutoStatusHud {
         int sTotal = -1;
         String sNext;
         String stop;
+        /** Whole seconds the running planner estimates the rest takes, counting down; -1 for no estimate. */
+        int etaSec = -1;
 
         boolean same(State o) {
             return clear == o.clear && secret == o.secret && clearActive == o.clearActive && cLeft == o.cLeft
                     && sFound == o.sFound && sTotal == o.sTotal && Objects.equals(cRoom, o.cRoom)
                     && Objects.equals(cDoing, o.cDoing) && Objects.equals(sRoom, o.sRoom)
-                    && Objects.equals(sDoing, o.sDoing) && Objects.equals(sNext, o.sNext) && Objects.equals(stop, o.stop);
+                    && Objects.equals(sDoing, o.sDoing) && Objects.equals(sNext, o.sNext) && Objects.equals(stop, o.stop)
+                    && etaSec == o.etaSec;
         }
 
         void copy(State o) {
@@ -110,12 +113,14 @@ public final class AutoStatusHud {
             sTotal = o.sTotal;
             sNext = o.sNext;
             stop = o.stop;
+            etaSec = o.etaSec;
         }
 
         void reset() {
             clear = secret = clearActive = false;
             cRoom = cDoing = sRoom = sDoing = sNext = stop = null;
             cLeft = sFound = sTotal = -1;
+            etaSec = -1;
         }
     }
 
@@ -170,6 +175,7 @@ public final class AutoStatusHud {
             s.cRoom = AutoClearFeature.hudRoom();
             s.cDoing = puzzle ? "waiting: puzzle" : clearDoing(AutoClearFeature.hudAction(), AutoClearFeature.hudPathFailures());
             RunPlan.Snapshot plan = RunPlan.of(RunPlan.Source.AUTO_CLEAR);
+            s.etaSec = etaOf(plan);
             if (plan != null) {
                 s.cLeft = plan.rooms().size();
             } else if (AutoClearFeature.isStandaloneRun()) {
@@ -202,6 +208,7 @@ public final class AutoStatusHud {
         String doing = puzzle ? "waiting: puzzle" : secretDoing(phase, trip, AutoSecretFeature.statusText(),
                 AutoSecretFeature.hudTripFailures(), AutoSecretFeature.hudLeaveWait() != null);
         RunPlan.Snapshot plan = RunPlan.of(pilot ? RunPlan.Source.AUTOPILOT : RunPlan.Source.AUTO_SECRET);
+        s.etaSec = etaOf(plan);
 
         if (s.clear) {
             if (slow || slowLeft < 0) {
@@ -238,6 +245,15 @@ public final class AutoStatusHud {
             s.sRoom = nextOf(plan, pilot ? "Secret" : null, null);
             s.sDoing = "paused";
         }
+    }
+
+    /** Whole seconds left on {@code plan}'s estimate (rounded up), or -1 when there is no plan or no estimate. */
+    static int etaOf(RunPlan.Snapshot plan) {
+        if (plan == null || plan.rooms().isEmpty()) {
+            return -1;
+        }
+        double left = plan.secondsLeft(System.currentTimeMillis());
+        return Double.isNaN(left) ? -1 : (int) Math.ceil(left);
     }
 
     /** The first room of {@code plan} with {@code tag} (any, when null) that is not {@code except}; null for none. */
@@ -351,19 +367,22 @@ public final class AutoStatusHud {
         final String[] right;
         final int[] rightRgb;
         final String footer;
+        /** The footer is the time-left line (theme accent), not a stop reason (red). */
+        final boolean footerGood;
         final int leftW;
         final int rightW;
         final int width;
         final int height;
         final boolean clearActive;
 
-        Layout(String[] left, int[] leftRgb, String[] right, int[] rightRgb, String footer, int leftW, int rightW,
-               int width, int height, boolean clearActive) {
+        Layout(String[] left, int[] leftRgb, String[] right, int[] rightRgb, String footer, boolean footerGood, int leftW,
+               int rightW, int width, int height, boolean clearActive) {
             this.left = left;
             this.leftRgb = leftRgb;
             this.right = right;
             this.rightRgb = rightRgb;
             this.footer = footer;
+            this.footerGood = footerGood;
             this.leftW = leftW;
             this.rightW = rightW;
             this.width = width;
@@ -413,8 +432,14 @@ public final class AutoStatusHud {
         int rightW = colWidth(font, right);
         int textW = leftW + (right == null ? 0 : GAP + rightW);
         String footer = null;
+        boolean footerGood = false;
         if (s.stop != null) {
             footer = fit(font, s.stop, Math.max(textW, MAX_COL));
+            textW = Math.max(textW, font.width(footer));
+        } else if (s.etaSec >= 0 && (left != null || right != null)) {
+            // killer560, 2026-10-18: "an estimated time till completion that counts down".
+            footer = fit(font, "Done in ~" + RunPlan.clock(s.etaSec), Math.max(textW, MAX_COL));
+            footerGood = true;
             textW = Math.max(textW, font.width(footer));
         }
         int rows = Math.max(left == null ? 0 : left.length, right == null ? 0 : right.length) + (footer == null ? 0 : 1);
@@ -422,7 +447,7 @@ public final class AutoStatusHud {
             return null;
         }
         int height = 2 * PAD + HudText.height(rows, PITCH);
-        return new Layout(left, leftRgb, right, rightRgb, footer, leftW, rightW, textW + 2 * PAD, height,
+        return new Layout(left, leftRgb, right, rightRgb, footer, footerGood, leftW, rightW, textW + 2 * PAD, height,
                 s.clear && s.clearActive);
     }
 
@@ -610,7 +635,8 @@ public final class AutoStatusHud {
             }
             if (l.footer != null) {
                 int rows = Math.max(l.left == null ? 0 : l.left.length, l.right == null ? 0 : l.right.length);
-                graphics.text(font, l.footer, tx, ty + rows * PITCH, 0xFF000000 | 0xE05555, !p.light());
+                graphics.text(font, l.footer, tx, ty + rows * PITCH, 0xFF000000 | (l.footerGood ? p.accent() : 0xE05555),
+                        !p.light());
             }
         }
 

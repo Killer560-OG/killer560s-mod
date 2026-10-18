@@ -263,6 +263,14 @@ public final class Ap3Node {
      *  that is ever needed"): it held a node until a manual left click or a closed GUI. Always false now - neither
      *  loaded nor saved ({@code Ap3Store}) - and kept only so the executor's old check reads false. */
     public boolean closeGate;
+    /**
+     * Modifier on ANY node ({@code ss}): the node fires only once Simon Says is done this run. killer560 (2026-10-18):
+     * "For ap3 add a ss trailer that will only trigger that node after ss finishes just like close is after a term
+     * finishes but for ss." Entered before then, it waits (the queue's gate) and goes the tick the S1 device's
+     * "completed a device!" line arrives ({@code leveraura.P3SectionTracker#ssCompleted}); entered after, it fires at
+     * once. A manual left click releases it, as it does every other wait.
+     */
+    public boolean ssGate;
     /** Modifier on ANY node (killer560, 2026-09-21: "/ap3 add run edge ... should run at the right degree then jump
      *  at the edge"): once this node has done its thing, jump (JUMP) or jump at the edge (EDGE). */
     public JumpMod jumpMod = JumpMod.NONE;
@@ -549,6 +557,17 @@ public final class Ap3Node {
         return Math.abs(alongOffset(p)) <= length / 2.0 + BOX_EPS && Math.abs(lateralOffset(p)) <= width / 2.0 + BOX_EPS;
     }
 
+    /**
+     * How far from the box's centre {@code p} is, as a fraction of the box: 0 at the centre, 1 on its edge (the larger
+     * of the two axes, each over its half-extent), so boxes of different sizes compare fairly. Used to pick the RUN /
+     * WALK he is "more in the center of" when two overlap (killer560, 2026-10-18).
+     */
+    public double edgeFraction(Vec3 p) {
+        double a = Math.abs(alongOffset(p)) / Math.max(1e-6, length / 2.0);
+        double l = Math.abs(lateralOffset(p)) / Math.max(1e-6, width / 2.0);
+        return Math.max(a, l);
+    }
+
     /** Horizontal distance from {@code p} to the node centre. */
     public double horizontalDistance(Vec3 p) {
         double dx = p.x - x;
@@ -628,6 +647,9 @@ public final class Ap3Node {
         if (jumpMod != JumpMod.NONE) {
             sb.append(jumpMod == JumpMod.EDGE ? " edge" : " jump");
         }
+        if (ssGate) {
+            sb.append(" ss");
+        }
         sb.append(String.format(Locale.US, " @ %.2f, %.1f, %.2f", x, y, z));
         return sb.toString();
     }
@@ -668,6 +690,7 @@ public final class Ap3Node {
         wallDir = o.wallDir;
         waitAfterMs = o.waitAfterMs;
         closeGate = o.closeGate;
+        ssGate = o.ssGate;
         jumpMod = o.jumpMod;
         useItemId = o.useItemId;
         name = o.name;
@@ -691,7 +714,7 @@ public final class Ap3Node {
     public boolean sameData(Ap3Node o) {
         return o != null && type == o.type && x == o.x && y == o.y && z == o.z && yaw == o.yaw && pitch == o.pitch
                 && length == o.length && width == o.width && precise == o.precise && wallDir == o.wallDir
-                && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && jumpMod == o.jumpMod
+                && waitAfterMs == o.waitAfterMs && closeGate == o.closeGate && ssGate == o.ssGate && jumpMod == o.jumpMod
                 && java.util.Objects.equals(useItemId, o.useItemId) && java.util.Objects.equals(name, o.name)
                 && leapMode == o.leapMode && leapClass == o.leapClass && java.util.Objects.equals(leapIgn, o.leapIgn)
                 && leapCount == o.leapCount && pathIndex == o.pathIndex && pathStart == o.pathStart
@@ -708,6 +731,7 @@ public final class Ap3Node {
         n.wallDir = wallDir;
         n.waitAfterMs = waitAfterMs;
         n.closeGate = closeGate;
+        n.ssGate = ssGate;
         n.jumpMod = jumpMod;
         n.name = name;
         n.leapMode = leapMode;

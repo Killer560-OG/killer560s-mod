@@ -257,7 +257,7 @@ public final class Ap3Store {
         root.addProperty("version", FORMAT_VERSION);
         root.addProperty("note", "AP3 - one chain for the whole boss room, optionally per class, absolute coordinates. "
                 + "Node types: ALIGN, AXIS_ALIGN, WALK, RUN, LEAP, LEAP_COUNTER, TERMINAL, STOP, LOOK, BOOM, STOPWATCH, JUMP, EDGE, BLOCK. "
-                + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / close. Edit, then /ap3 reload.");
+                + "Every node has a trigger box (width x length), and the modifiers waitAfterMs / jump / ss. Edit, then /ap3 reload.");
         root.add("chains", new JsonObject());
         return root;
     }
@@ -571,6 +571,7 @@ public final class Ap3Store {
         // "close" (the close gate) is no longer read: the modifier was removed on 2026-10-06 and an old file's flag
         // is dropped here, so the node simply fires when it is walked into.
         n.jumpMod = ConfigJson.getEnum(o, "jump", Ap3Node.JumpMod.class, Ap3Node.JumpMod.NONE);
+        n.ssGate = ConfigJson.getBool(o, "ss", false);
         if (o.has("name") && o.get("name").isJsonPrimitive()) {
             String nm = o.get("name").getAsString().trim();
             n.name = nm.isEmpty() ? null : nm.substring(0, Math.min(16, nm.length()));
@@ -664,6 +665,9 @@ public final class Ap3Store {
         }
         if (n.jumpMod != Ap3Node.JumpMod.NONE) {
             o.addProperty("jump", n.jumpMod.name());
+        }
+        if (n.ssGate) {
+            o.addProperty("ss", true);
         }
         if (n.name != null && n.type.usesName()) {
             o.addProperty("name", n.name);

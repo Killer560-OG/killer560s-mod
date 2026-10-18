@@ -666,6 +666,9 @@ public final class Ap3Commands {
                     spec.jumpMod = Ap3Node.JumpMod.EDGE;
                 } else if (t.equals("precise") || t.equals("exact")) {
                     spec.precise = true;
+                } else if (t.equals("ss") || t.equals("aftersimon") || t.equals("simonsays")) {
+                    // killer560 (2026-10-18): the node fires only once Simon Says is done.
+                    spec.ssGate = true;
                 } else if (type == Ap3Node.Type.PATH && parsePathIndex(t) > 0) {
                     spec.pathIndex = parsePathIndex(t);
                 } else if (type == Ap3Node.Type.PATH && t.equals("start")) {
@@ -737,7 +740,7 @@ public final class Ap3Commands {
                     spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
-                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise"
+                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type == Ap3Node.Type.STOPWATCH ? ", a name (one word)" : "") + "."));
@@ -1109,6 +1112,9 @@ public final class Ap3Commands {
         }
         if (node.jumpMod != Ap3Node.JumpMod.NONE) {
             sb.append(node.jumpMod == Ap3Node.JumpMod.EDGE ? " edge" : " jump");
+        }
+        if (node.ssGate) {
+            sb.append(" ss");
         }
         return sb.append(" @ ").append(fmt(node.x())).append(", ").append(fmt(node.y())).append(", ").append(fmt(node.z())).toString();
     }

@@ -225,6 +225,13 @@ public final class Ap3Executor {
     private static final Set<Ap3Node> inside = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Nodes you entered with a movement key held: they fire the moment you let go while still inside. */
     private static final Set<Ap3Node> unfired = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** Nodes with the {@code ss} modifier entered before Simon Says was done: they fire the tick it is, if he is still
+     *  inside (killer560, 2026-10-18: "only trigger that node after ss finishes"). */
+    private static final Set<Ap3Node> ssWaiting = Collections.newSetFromMap(new IdentityHashMap<>());
+    /** WALK / RUN boxes he is inside but less centred in than another WALK / RUN he is inside: each fires the tick he
+     *  becomes more centred in it than in any other (killer560, 2026-10-18: "lets say I am in two run nodes at the same
+     *  time ... WHichever one i am more in the center of is the one that should toggle on that tick"). */
+    private static final Set<Ap3Node> moverDeferred = Collections.newSetFromMap(new IdentityHashMap<>());
     /** Triggered nodes waiting their turn, kept in priority order (ties keep trigger order). */
     private static final List<Ap3Node> queue = new ArrayList<>();
     /** Scratch: the nodes {@link #scanBoxes} triggered this tick, for the "queued behind" report. */
@@ -374,6 +381,8 @@ public final class Ap3Executor {
         endAim(Minecraft.getInstance().player);
         actNode = null;
         actFired = false;
+        actPending = false;
+        actPendingHit = null;
         termAuraStand = null;
         termAuraScreen = null;
         placedGraceTicks = 0;
@@ -436,6 +445,8 @@ public final class Ap3Executor {
         queue.clear();
         inside.clear();
         unfired.clear();
+        ssWaiting.clear();
+        moverDeferred.clear();
         if (nodes != null && seedFromPosition && player != null) {
             Vec3 pos = player.position();
             for (Ap3Node n : nodes.nodes()) {
@@ -460,6 +471,8 @@ public final class Ap3Executor {
         chain = null;
         inside.clear();
         unfired.clear();
+        ssWaiting.clear();
+        moverDeferred.clear();
         triggeredThisTick.clear();
         lastSelfPos = null;
     }
@@ -766,7 +779,7 @@ public final class Ap3Executor {
         }
         try {
             clearMovement(); // every node writes its own input; the held walk fills in below when none did
-            finishAct(player); // a USE / BLOCK / BOOM sent at this tick's START: its aim went out with the movement packet
+            finishAct(player); // a USE / BLOCK / BOOM sent this tick (just ahead of the movement packet that carried its aim)
             // With a screen the active node did not ask for open (chat, inventory, the mod menu) nothing new is
             // entered or begun - a box is "walked into" when you can act; the edge is seen once the screen closes.
             boolean canAct = !screenOpen || screenAllowed();
@@ -830,6 +843,14 @@ public final class Ap3Executor {
         }
         Vec3 pos = player.position();
         boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
+        // The WALK / RUN he is most centred in this tick, of all he stands in (killer560, 2026-10-18: two run nodes
+        // slightly offset, "WHichever one i am more in the center of is the one that should toggle on that tick").
+        double bestMover = Double.MAX_VALUE;
+        for (Ap3Node node : chain.nodes()) {
+            if (node.type.isMover() && !Ap3RouteRunner.owns(node) && node.contains(pos)) {
+                bestMover = Math.min(bestMover, node.edgeFraction(pos));
+            }
+        }
         for (Ap3Node node : chain.nodes()) {
             if (node.type == Ap3Node.Type.NO_GO || Ap3RouteRunner.owns(node)) {
                 continue; // No Go is planner data; a Path node the route is already driving must not re-queue
@@ -847,15 +868,66 @@ public final class Ap3Executor {
                 if (handsOn && !node.type.isAlign()) {
                     unfired.add(node);
                 } else {
-                    trigger(node);
+                    fire(node, pos, bestMover);
                 }
             } else if (!in && was) {
                 inside.remove(node);
                 unfired.remove(node);
+                ssWaiting.remove(node);
+                moverDeferred.remove(node);
             } else if (in && !handsOn && unfired.remove(node)) {
-                trigger(node);
+                fire(node, pos, bestMover);
+            } else if (in && !handsOn && moverDeferred.contains(node)
+                    && node.edgeFraction(pos) <= bestMover + MOVER_CENTRE_EPS) {
+                // He is now more centred in this one than in the walk / run that fired before it: it takes over.
+                moverDeferred.remove(node);
+                triggerUnlessSs(node);
+            } else if (in && ssWaiting.contains(node) && !ssPending(node)) {
+                ssWaiting.remove(node);
+                if (handsOn && !node.type.isAlign()) {
+                    unfired.add(node); // Simon Says is done but his hands are on the keys: it fires when he lets go
+                } else {
+                    trigger(node);
+                }
             }
         }
+    }
+
+    /** Two overlapping WALK / RUN boxes this close in {@link Ap3Node#edgeFraction} count as equally centred. */
+    private static final double MOVER_CENTRE_EPS = 1e-6;
+
+    /**
+     * A box was entered (or his hands came off inside it): a WALK / RUN he is less centred in than another one he is
+     * also inside waits in {@link #moverDeferred} until he is more centred in it; everything else goes on to
+     * {@link #triggerUnlessSs}.
+     */
+    private static void fire(Ap3Node node, Vec3 pos, double bestMover) {
+        if (node.type.isMover() && node.edgeFraction(pos) > bestMover + MOVER_CENTRE_EPS) {
+            moverDeferred.add(node);
+            return;
+        }
+        triggerUnlessSs(node);
+    }
+
+    /** {@link #trigger}, unless the node has the {@code ss} modifier and Simon Says is not done: then it waits in
+     *  {@link #ssWaiting} and fires the tick it is, if he is still inside. */
+    private static void triggerUnlessSs(Ap3Node node) {
+        if (ssPending(node)) {
+            if (ssWaiting.add(node) && Ap3Config.getInstance().isChatFeedback()) {
+                chat(ModChat.value("#" + number(node) + " " + node.type.label()), ModChat.dim(" waits for Simon Says"));
+            }
+            return;
+        }
+        trigger(node);
+    }
+
+    /** Test hook: nodes waiting for Simon Says, and WALK / RUN boxes waiting until he is more centred in them. */
+    public static int ssWaitingCount() {
+        return ssWaiting.size();
+    }
+
+    public static int moverDeferredCount() {
+        return moverDeferred.size();
     }
 
     /**
@@ -875,7 +947,7 @@ public final class Ap3Executor {
         }
         inside.add(node);      // he is standing on it; do not let the edge detector fire it a second time
         unfired.remove(node);
-        trigger(node);
+        triggerUnlessSs(node);
         LOGGER.info("[AP3] Route ended on {} - carrying on with it instead of stopping.", node.describe());
     }
 
@@ -1008,6 +1080,14 @@ public final class Ap3Executor {
             edgeArmedTicks = 0;
         }
         step = node.closeGate && !testMode ? Step.GATE : Step.PREP;
+    }
+
+    /**
+     * The {@code ss} modifier and Simon Says not done yet this run (the S1 device's "completed a device!" line,
+     * {@code leveraura.P3SectionTracker}). Never in test mode, which waits on nothing the arena provides.
+     */
+    private static boolean ssPending(Ap3Node node) {
+        return node.ssGate && !testMode && !com.killer560.hub.leveraura.P3SectionTracker.ssCompleted();
     }
 
     /** A node failed: it ends, and so does everything else (the hold, the queue) - the nodes behind it were placed
@@ -1280,8 +1360,10 @@ public final class Ap3Executor {
     }
 
     /**
-     * START_CLIENT_TICK (from {@link Ap3Feature}): the armed USE goes out - hotbar change first if it needs one, then
-     * the use along the rotation set at the previous END. Nothing else happens here.
+     * START_CLIENT_TICK (from {@link Ap3Feature}): the armed USE / BLOCK / BOOM takes this tick's ActionGate turn and
+     * finds what the rotation set at the previous END looks at; its packets (hotbar change first if it needs one, then
+     * the click) go out later in this same tick, right ahead of the movement packet ({@link #beforeSendPosition}). A
+     * Term Aura click goes out here.
      */
     static void tickStart(Minecraft client) {
         if (actNode == null || actFired || Ap3FreezeState.isFrozen()) {
@@ -1308,11 +1390,9 @@ public final class Ap3Executor {
             fireTermAura(client, player);
             return;
         }
-        if (actSlot >= 0) {
-            com.killer560.hub.util.HotbarSelect.select(client, player, actSlot);
-        }
         // The ray is the rotation the packet will carry: the aim set at END (the node's angle, or one that hits the
-        // same block - chooseAim), from the eye where it is now.
+        // same block - chooseAim), from the eye where it is now - the position the server, and GrimAC, hold for him
+        // until this tick's movement packet, and the one both judge the click from.
         Ap3Node node = actNode;
         Vec3 eye = player.getEyePosition();
         double reach = node.type == Ap3Node.Type.USE ? USE_REACH : BOOM_REACH;
@@ -1320,16 +1400,61 @@ public final class Ap3Executor {
         HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
                 ClipContext.Fluid.NONE, player));
         BlockHitResult b = hit instanceof BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK ? bh : null;
+        if (b == null && (node.type == Ap3Node.Type.BLOCK || node.type == Ap3Node.Type.BOOM)) {
+            actFired = true;
+            failNode((node.type == Ap3Node.Type.BLOCK ? "block #" + number(node) + " isn't looking at a block to place against"
+                    : "boom #" + number(node) + " isn't looking at a block"));
+            return;
+        }
+        if (rotationMixinApplied) {
+            // Sent from beforeSendPosition, right ahead of this tick's movement packet - see actPending.
+            actPending = true;
+            actPendingHit = b;
+            return;
+        }
+        sendAct(client, player, node, b); // the sendPosition mixin has not reported in: send here, as before
+    }
+
+    /**
+     * An armed USE / BLOCK / BOOM whose START has passed the gate and computed its hit, waiting for this tick's
+     * {@code sendPosition} ({@code mixin/Ap3RotationSendMixin} calls {@link #beforeSendPosition}) to go out right ahead
+     * of the movement packet. A use-on-block (a BLOCK's place) carries no rotation: GrimAC 2.3.74
+     * ({@code CheckManagerListener.handleQueuedPlaces}) gives it the rotation of the NEXT movement packet only when that
+     * packet arrives within 15 ms of it, and otherwise judges it by the rotation before it - the run's heading, which
+     * never looks at the block - so RotationPlace "post-flying", and then "pre-flying" on every later place (its buffer
+     * never drains). Sent at START, everything Minecraft.tick does before the player tick (game mode, key binds, GUI,
+     * the level's entity tick) sits between the two, and a slow tick put them more than 15 ms apart (63-ap3-block-*,
+     * 2026-10-18). Same tick, same order (hotbar change, click, movement packet carrying the aim), no gap.
+     */
+    private static boolean actPending;
+    private static BlockHitResult actPendingHit;
+
+    /** From {@code mixin/Ap3RotationSendMixin} at the head of {@code LocalPlayer#sendPosition}: the pending act goes out. */
+    public static void beforeSendPosition(LocalPlayer self) {
+        if (!actPending) {
+            return;
+        }
+        actPending = false;
+        BlockHitResult b = actPendingHit;
+        actPendingHit = null;
+        Minecraft client = Minecraft.getInstance();
+        if (actNode == null || actFired || client.player != self || client.level == null || client.gameMode == null) {
+            return;
+        }
+        sendAct(client, self, actNode, b);
+    }
+
+    /** The armed act's packets: hotbar change first if it needs one, then the click along the aim. */
+    private static void sendAct(Minecraft client, LocalPlayer player, Ap3Node node, BlockHitResult b) {
+        if (actSlot >= 0) {
+            com.killer560.hub.util.HotbarSelect.select(client, player, actSlot);
+        }
         // No wait for a block click before a plain use (util/RightClick): with a block under the ray the use below is
         // vanilla's own two-packet right click (useItemOn first), which pairs on Hypixel; with none, the server's ray along
         // the same look meets nothing either, and a use in the air fires.
         actFired = true;
         switch (node.type) {
             case BLOCK -> {
-                if (b == null) {
-                    failNode("block #" + number(node) + " isn't looking at a block to place against");
-                    return;
-                }
                 // gameMode.useItemOn places client-side at once - the ghost block - whatever the server decides.
                 net.minecraft.world.InteractionResult r = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, b);
                 blockWatchPos = b.getBlockPos().relative(b.getDirection()).immutable();
@@ -1342,11 +1467,7 @@ public final class Ap3Executor {
                 }
             }
             case BOOM -> {
-                if (b == null) {
-                    failNode("boom #" + number(node) + " isn't looking at a block");
-                    return;
-                }
-                boomTarget = b.getBlockPos();
+                boomTarget = b.getBlockPos(); // never null here: tickStart failed the node instead
                 boomBefore.clear();
                 // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
                 for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {
@@ -1385,6 +1506,12 @@ public final class Ap3Executor {
             return;
         }
         Ap3Node node = actNode;
+        if (actPending) {
+            // No sendPosition this tick (none ran between START and here): never send it now, after the tick's
+            // movement packet (GrimAC Post) - START asks again next tick.
+            actPending = false;
+            actPendingHit = null;
+        }
         if (!actFired) {
             if (++actWaitTicks > SWAP_TIMEOUT) {
                 failNode("use #" + number(node) + " couldn't go out");

@@ -60,7 +60,10 @@ public final class AutoRoutesProgressHud {
      */
     static List<Line> planLines(RunPlan.Snapshot plan, int upcoming, Function<String, int[]> progress) {
         List<Line> out = new ArrayList<>();
-        out.add(new Line(plan.source().label() + " " + plan.percent() + "%  (" + plan.done() + "/" + plan.total() + ")",
+        // The planner's estimate of the time the rest takes, counting down (killer560, 2026-10-18); none without one.
+        double left = plan.secondsLeft(System.currentTimeMillis());
+        out.add(new Line(plan.source().label() + " " + plan.percent() + "%  (" + plan.done() + "/" + plan.total() + ")"
+                + (Double.isNaN(left) || plan.rooms().isEmpty() ? "" : "  ~" + RunPlan.clock(left) + " left"),
                 ModChat.LIGHT_ORANGE));
         List<String> rooms = plan.rooms();
         for (int i = 0; i < rooms.size() && i <= upcoming; i++) {

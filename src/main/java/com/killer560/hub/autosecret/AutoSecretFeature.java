@@ -1484,7 +1484,7 @@ public final class AutoSecretFeature {
         if (order == null) {
             return true;   // the trips from here are being searched (a few ticks at most)
         }
-        publishPlan(order);   // the Progress HUD shows the tour order it will actually take
+        publishPlan(order, dist);   // the Progress HUD shows the tour order it will actually take
         for (RoomStatus.Room r : order) {
             if (goSecret(layout, r, dist, describe(open), blockedText)) {
                 return true;
@@ -1501,12 +1501,29 @@ public final class AutoSecretFeature {
      * ({@link com.killer560.hub.autoroutes.RunPlan}): the open rooms {@link #decideSecrets} just sorted, minus any with no
      * recorded route (it skips those). Rooms done = those it has finished that have a route.
      */
-    private static void publishPlan(List<RoomStatus.Room> open) {
+    private static void publishPlan(List<RoomStatus.Room> open, Map<Integer, Integer> dist) {
         List<String> names = new ArrayList<>();
+        // The time it all takes (killer560, 2026-10-18: "an estimated time till completion that counts down"): in tour
+        // order, the etherwarp trip from where he is (then from room to room) as Autopilot and Auto Clear price one, and
+        // each route at Autopilot's seconds per node (learned this run when Autopilot has run one, else its start value).
+        double eta = 0.0;
+        Minecraft client = Minecraft.getInstance();
+        net.minecraft.world.phys.Vec3 at = client.player == null ? null : client.player.position();
+        double hop = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange();
         for (RoomStatus.Room r : open) {
             Route route = RouteStore.getInstance().forRoom(r.name());
             if (route != null && route.startNode() != null) {
                 names.add(r.name());
+                net.minecraft.core.BlockPos c = com.killer560.hub.livemap.DungeonLayout.cellCenter(r.mainTile());
+                net.minecraft.world.phys.Vec3 centre = new net.minecraft.world.phys.Vec3(c.getX() + 0.5, c.getY(), c.getZ() + 0.5);
+                if (at != null) {
+                    double dx = at.x - centre.x;
+                    double dz = at.z - centre.z;
+                    int steps = names.size() == 1 ? dist.getOrDefault(r.room(), 1) : 1;
+                    eta += com.killer560.hub.autoroutes.RunPlan.tripSeconds(Math.sqrt(dx * dx + dz * dz), hop, steps);
+                }
+                eta += 1.0 + Autopilot.routeSecondsPerNode() * route.nodes().size();
+                at = centre;
             }
         }
         int done = 0;
@@ -1515,7 +1532,8 @@ public final class AutoSecretFeature {
                 done++;
             }
         }
-        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET, names, done);
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET, names, null,
+                done, client.player == null ? Double.NaN : eta);
     }
 
     /**

@@ -100,6 +100,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     private Ap3Node.Type type;
     private Ap3Node.JumpMod jumpMod;
     private boolean precise;
+    /** The {@code ss} modifier: fire only once Simon Says is done. */
+    private boolean ssGate;
     /** USE: the Skyblock id to swap to, or null for "use whatever is held". */
     private String itemId;
     private boolean typeOpen;
@@ -150,7 +152,8 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             type = n.type();
             jumpMod = n.jumpMod == null ? Ap3Node.JumpMod.NONE : n.jumpMod;
             precise = n.precise;
-            itemId = n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
+            ssGate = n.ssGate;
+            itemId =n.useItemId == null || n.useItemId.isBlank() ? null : n.useItemId;
             pending.put("X", fmt(n.x));
             pending.put("Y", fmt(n.y));
             pending.put("Z", fmt(n.z));
@@ -226,6 +229,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             addField(x + half + GAP, y, w - half - GAP, "Name", 30);
         } else {
             addField(x, y, half, "Wait ms", 46);
+            ssButton(x + half + GAP, y, w - half - GAP);
         }
         y += LINE;
 
@@ -274,10 +278,15 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
                 b.setMessage(onOff("Precise", precise));
             }, x + half + GAP, y, w - half - GAP, ROW);
         } else {
+            // A Stopwatch's wait row holds its name, so its After SS switch sits beside Jump / Edge instead.
+            int jw = type.usesName() ? half : w;
             cycleButton("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT), (b, dir) -> {
                 jumpMod = SettingsButtonWidget.step(jumpMod, dir);
                 b.setMessage(Component.literal("Jump / Edge: §6" + jumpMod.name().toLowerCase(Locale.ROOT)));
-            }, x, y, w, ROW);
+            }, x, y, jw, ROW);
+            if (type.usesName()) {
+                ssButton(x + half + GAP, y, w - half - GAP);
+            }
         }
         y += LINE;
 
@@ -405,6 +414,14 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
         return icon == null ? "" : "    ";
     }
 
+    /** The {@code ss} modifier's switch: "After SS: ON" holds the node until Simon Says is done. */
+    private void ssButton(int x, int y, int w) {
+        button(onOff("After SS", ssGate).getString(), b -> {
+            ssGate = !ssGate;
+            b.setMessage(onOff("After SS", ssGate));
+        }, x, y, w, ROW);
+    }
+
     /** A setting that steps through values: left click forward, right click back. */
     private SettingsButtonWidget cycleButton(String label, SettingsButtonWidget.OnStep onStep, int x, int y, int w, int h) {
         return this.addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(label), onStep)
@@ -498,6 +515,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             node.setWaitAfterMs((int) Math.round(nwait));
             node.type = newType;
             node.jumpMod = jumpMod;
+            node.ssGate = ssGate;
             if (newType.usesPrecise()) {
                 node.precise = precise;
             }
