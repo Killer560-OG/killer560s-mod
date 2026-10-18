@@ -230,6 +230,9 @@ public final class RouteExecutor {
 
     /** The warp under way was already aimed again once after no landing came (see {@link #retryAim}). */
     private static boolean warpRetried;
+    /** The prediction sequence of the warp's use, or -1: a refused warp is only called refused once the server has
+     *  acked it (handled it) with no teleport before the ack. */
+    private static int warpUseSeq = -1;
     private static int refusedRetries;
 
     /** Warps aimed again and sent once more after a refused one - read by the testkit. */
@@ -2372,8 +2375,11 @@ public final class RouteExecutor {
             actionOrigin = player.position();
             teleportPacketSeen = false;
             int eatenBefore = com.killer560.hub.util.RightClick.barePairedUses();
+            int seqBefore = com.killer560.hub.util.RightClick.lastUseSequence();
             useHeldItem(client, player, warpYaw, warpPitch, false);
             warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
+            int seqAfter = com.killer560.hub.util.RightClick.lastUseSequence();
+            warpUseSeq = seqAfter != seqBefore ? seqAfter : -1;
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
@@ -2427,6 +2433,10 @@ public final class RouteExecutor {
             } else if (!warpRetried && !teleportPacketSeen && warpTarget != null && actionOrigin != null
                     && player.position().distanceTo(actionOrigin) < 0.3
                     && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()
+                    // The server has HANDLED the use (its ack is in) and no teleport came before the ack: refused, not
+                    // slow. Without it a landing 5 ticks late was taken for a refusal and the warp went twice, 8 blocks
+                    // past the node (testkit 96-ar-1015-earlyskip, failing since f1226757).
+                    && com.killer560.hub.util.ChestWindows.acked(warpUseSeq)
                     && retryAim(player)) {
                 // No landing a round trip on, and he has not moved: the server refused the warp (its ray stopped short -
                 // his Doors #13 hop 3 on a jungle log, fullclear-1016 run 019). Aimed again from where he stands with a
