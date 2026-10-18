@@ -87,13 +87,15 @@ public final class AutoSecretConfig {
     /**
      * The order Auto Secret takes the rooms in (killer560, 2026-10-18: "For auto secret make two modes. One is largest to
      * smallest secret rooms and the other is as few etherwarps possible pathfinding the whole dungeon no room order
-     * preference"). Either way the room in front of the blood door is always the last one.
+     * preference"), and (same day) "once only rooms with 3 or less secrets remain it will use the least total etherwarp
+     * mode no matter what is selected" ({@link #SMALL_ROOM_SECRETS}). Either way the room in front of the blood door is
+     * always the last one.
      */
     public enum SecretOrder {
         /** The rooms with the most secrets left first, nearer first on a tie. */
-        LARGEST_FIRST("Largest First"),
+        LARGEST_TO_SMALLEST("Largest To Smallest"),
         /** The order through every room with the fewest warps in all ({@code TourPlanner.shortest}). */
-        FEWEST_WARPS("Fewest Warps");
+        LEAST_ETHERWARPS("Least Etherwarps");
 
         private final String label;
 
@@ -106,7 +108,10 @@ public final class AutoSecretConfig {
         }
     }
 
-    private SecretOrder secretOrder = SecretOrder.FEWEST_WARPS;
+    /** Once every room left has this many unfound secrets or fewer, the order is Least Etherwarps whatever is chosen. */
+    public static final int SMALL_ROOM_SECRETS = 3;
+
+    private SecretOrder secretOrder = SecretOrder.LEAST_ETHERWARPS;
 
     private int autopilotKey = KeyUtil.NONE;
     private RunMode runMode = RunMode.SOLO;
@@ -163,6 +168,12 @@ public final class AutoSecretConfig {
                     if (m.name().equals(so)) {
                         cfg.secretOrder = m;
                     }
+                }
+                // The names of the first version (2026-10-18, a few hours old): LARGEST_FIRST, FEWEST_WARPS.
+                if ("LARGEST_FIRST".equals(so)) {
+                    cfg.secretOrder = SecretOrder.LARGEST_TO_SMALLEST;
+                } else if ("FEWEST_WARPS".equals(so)) {
+                    cfg.secretOrder = SecretOrder.LEAST_ETHERWARPS;
                 }
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
@@ -244,7 +255,7 @@ public final class AutoSecretConfig {
     public void setSecretBloodFirst(SecretBloodFirst v) { secretBloodFirst = v == null ? SecretBloodFirst.OFF : v; }
 
     public SecretOrder getSecretOrder() { return secretOrder; }
-    public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.FEWEST_WARPS : v; }
+    public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.LEAST_ETHERWARPS : v; }
 
     public boolean isDoPuzzles() { return doPuzzles; }
     public void setDoPuzzles(boolean v) { doPuzzles = v; }

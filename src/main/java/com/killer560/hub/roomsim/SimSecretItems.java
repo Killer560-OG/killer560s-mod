@@ -156,20 +156,27 @@ public final class SimSecretItems {
             new ConcurrentHashMap<>();
     private static final java.util.Map<BlockPos, Integer> CHEST_IN_RANGE = new ConcurrentHashMap<>();
 
-    /** Secret chests wait for him (the default), or are put in at the build as before - for the testkit only. */
+    /** Test-only: {@code false} puts the chests in at the build. Only ever read or written when {@code DEV_TOOLS}. */
     private static volatile boolean chestsAppearNear = true;
 
-    /** Whether a floor's secret chests wait for him to come near ({@link #registerChest}). */
+    /**
+     * Whether a floor's secret chests wait for him to come near ({@link #registerChest}). Always, in every shipped build
+     * (killer560, 2026-10-18: "they should have the 10 block rule always"): {@code DEV_TOOLS} is a compile-time constant
+     * that is false in a release, so there javac folds this to {@code true} and the test switch below cannot matter.
+     */
     public static boolean chestsAppearNear() {
-        return chestsAppearNear;
+        return !com.killer560.hub.BuildVariant.DEV_TOOLS || chestsAppearNear;
     }
 
     /**
-     * For the testkit: {@code false} puts every secret chest in at the build, as before 2026-10-18, for a scenario about
-     * something else that reads a far chest as a block (a doorway picture, a room's secret scan). Never a setting.
+     * For the testkit only, by reflection: {@code false} puts every secret chest in at the build, for a scenario about
+     * something else that reads a far chest as a block (a doorway picture, a room's secret scan). Not a setting, and
+     * compiled to nothing in a release ({@code DEV_TOOLS} false).
      */
     public static void setChestsAppearNearForTest(boolean appearNear) {
-        chestsAppearNear = appearNear;
+        if (com.killer560.hub.BuildVariant.DEV_TOOLS) {
+            chestsAppearNear = appearNear;
+        }
     }
 
     /** Remembers a secret chest; it appears as {@code state} when he comes near. */

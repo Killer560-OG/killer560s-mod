@@ -225,14 +225,6 @@ public final class AutoSecretFeature {
         return new String[]{"[" + mode + "] " + Autopilot.hudAction(), Autopilot.hudScore() + (why.isEmpty() ? "" : " | " + why)};
     }
 
-    /**
-     * For the testkit (145-sim-autosecret-order): {@code true} takes the rooms most unfound first, as Auto Secret did
-     * before 2026-10-15, so one floor can be run both ways and the two compared.
-     */
-    public static void testLegacyOrder(boolean legacy) {
-        RoomTour.legacyOrder = legacy;
-    }
-
     /** For the testkit: rooms to treat as having a teammate in them. */
     public static void testSetTeammateRooms(java.util.Collection<String> names) {
         Autopilot.testSetTeammateRooms(names);
@@ -1488,7 +1480,7 @@ public final class AutoSecretFeature {
                 routed.add(r);
             }
         }
-        List<RoomStatus.Room> order = RoomTour.legacyOrder ? routed : tourOrder(layout, routed);
+        List<RoomStatus.Room> order = tourOrder(layout, routed);
         if (order == null) {
             return true;   // the trips from here are being searched (a few ticks at most)
         }
@@ -1565,10 +1557,11 @@ public final class AutoSecretFeature {
         }
         tourWaitTicks = 0;
         RoomTour.Matrix m = RoomTour.matrix(from, sites, true, layout);
-        // The Room Order setting (killer560, 2026-10-18): Largest First, or Fewest Warps through the whole floor.
-        AutoSecretConfig.SecretOrder mode = AutoSecretConfig.getInstance().getSecretOrder();
-        int[] idx = mode == AutoSecretConfig.SecretOrder.LARGEST_FIRST ? RoomTour.byWeight(m)
-                : TourPlanner.shortest(m.fromHere(), m.between(), 3_000_000L).order();
+        // The Room Order setting (killer560, 2026-10-18): Largest To Smallest, or Least Etherwarps through the whole floor;
+        // with only rooms of 3 unfound or fewer left it is Least Etherwarps whatever the setting says.
+        AutoSecretConfig.SecretOrder mode = RoomTour.effectiveOrder(m.weight(),
+                AutoSecretConfig.getInstance().getSecretOrder());
+        int[] idx = RoomTour.secretOrder(m, 3_000_000L);
         if (ahead != null) {
             // Planned ahead from here with every trip searched: that pick's trip is already waiting.
             for (int k = 0; k < idx.length; k++) {

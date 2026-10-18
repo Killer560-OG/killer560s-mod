@@ -82,7 +82,7 @@ public final class TourPlanner {
     }
 
     /**
-     * The order with the least travel through EVERY room, whatever they hold - Auto Secret's "Fewest Warps" (killer560,
+     * The order with the least travel through EVERY room, whatever they hold - Auto Secret's "Least Etherwarps" (killer560,
      * 2026-10-18: "as few etherwarps possible pathfinding the whole dungeon no room order preference"). The trips are in
      * ticks, which are a warp count times a constant ({@code RoomTour}), so least travel is fewest warps. Exact (branch and
      * bound) inside {@code budgetNanos}; past it, the nearest-room-next order improved by moving single rooms.
