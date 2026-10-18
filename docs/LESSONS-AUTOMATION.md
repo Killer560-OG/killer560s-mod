@@ -650,3 +650,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   START_CLIENT_TICK and a slow tick opened the gap (63-ap3-block-*, 2026-10-18); its USE / BLOCK / BOOM now go out at the
   head of `sendPosition` (`Ap3Executor.beforeSendPosition`). Any snap-aimed place should go out there; testkit
   1018-ap3-block-slow-tick proves it (START-sent: flagged 2 of 2; sendPosition-sent: clean).
+- **A look aimed at a block's centre can pass a neighbour's corner by a hair and miss in floats** (Auto Creeper Beams
+  Melee, 2026-10-18). The exact eye-to-centre ray met the lantern, the turned body's float yaw/pitch met the next block,
+  and the auto turned every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks
+  0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so centre-only sight hid most spots.

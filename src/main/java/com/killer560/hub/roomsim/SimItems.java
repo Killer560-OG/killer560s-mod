@@ -139,7 +139,7 @@ public final class SimItems {
                     // lanterns", and shooting a lantern - Mage beam, arrow, bare swing - is a left click. FAIL,
                     // not SUCCESS: FAIL consumes the click without sending START, so the server's breaker or
                     // Superboom never also fires on the lantern.
-                    if (com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.tryConnectAt(pos.immutable())) {
+                    if (com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.struckAt(pos.immutable())) {
                         return net.minecraft.world.InteractionResult.FAIL;
                     }
                     // Everything else: no client-side mining, and the START goes to the server.

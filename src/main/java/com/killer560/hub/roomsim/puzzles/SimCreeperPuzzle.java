@@ -167,6 +167,38 @@ public final class SimCreeperPuzzle {
     }
 
     /**
+     * A LEFT CLICK on a block in the sim ({@code SimItems}' {@code AttackBlockCallback}): a hit on one of this puzzle's
+     * lanterns counts only from within reach - eye to the block's box, at most the 4.5 Hypixel enforces - and a hit from
+     * further is refused (consumed, nothing happens), as the server refuses it. A player's own click always passes: vanilla
+     * only picks a block under the crosshair inside his interaction range. What it is for is a click SENT at a lantern,
+     * Auto Creeper Beams' Melee mode (2026-10-18), which must not be able to win here from a spot Hypixel would refuse.
+     * Each counted hit is logged with its distance, once per press (a held button re-enters every tick).
+     *
+     * @return whether this was one of this puzzle's lanterns (or anything else {@link #tryConnectAt} claims)
+     */
+    public static boolean struckAt(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (!SimState.canAct(client) || pos == null) {
+            return false;
+        }
+        Integer idx = lanternToPairIndex.get(pos);
+        if (idx != null && client.player != null && client.level != null) {
+            double d = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos));
+            if (d > com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH) {
+                LOGGER.info("Sim creeper beams: a hit on lantern {} from {} blocks (eye to box) is out of reach - refused",
+                        pos, String.format(java.util.Locale.ROOT, "%.2f", d));
+                return true;
+            }
+            Long last = lastPickTick.get(pos);
+            if (last == null || client.level.getGameTime() - last >= REPICK_DELAY_TICKS) {
+                LOGGER.info("Sim creeper beams: struck lantern {} (pair {}) from {} blocks (eye to box)", pos, idx,
+                        String.format(java.util.Locale.ROOT, "%.2f", d));
+            }
+        }
+        return tryConnectAt(pos);
+    }
+
+    /**
      * A SHOT at a lantern from any distance - the Terminator's arrows, Salvation, the Mage beam.
      *
      * <p>killer560 (2026-10-04): "I still cannot shoot the second lantern." Until this, the only ways in were a
