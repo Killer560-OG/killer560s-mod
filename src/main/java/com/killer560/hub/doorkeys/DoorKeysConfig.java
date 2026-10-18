@@ -43,6 +43,20 @@ public final class DoorKeysConfig {
     public static final int RANGE_SPHERE = 1;
     public static final String[] RANGE_STYLE_NAMES = {"Radius", "Sphere"};
 
+    public static final float MIN_CIRCLE_THICKNESS = 1f;
+    public static final float MAX_CIRCLE_THICKNESS = 10f;
+    /** How far the Radius circle is moved from its default height, in blocks (killer560, 2026-10-18: "The key's outline
+     *  for the circle is too low"). The default height is the middle of the key stand's box. */
+    public static final float MIN_CIRCLE_LIFT = -2f;
+    public static final float MAX_CIRCLE_LIFT = 3f;
+    /** Colour 0 means "the key's own colour" (near-black for a Wither Key, red for a Blood Key). */
+    public static final int COLOR_AUTO = 0;
+    private float circleThickness = 2f;
+    private float circleLift = 0.5f;
+    private int tracerColor = COLOR_AUTO;
+    private int circleColor = COLOR_AUTO;
+    private int fillColor = COLOR_AUTO;
+
     private DoorKeysConfig() {
     }
 
@@ -81,6 +95,11 @@ public final class DoorKeysConfig {
                     ConfigJson.getFloat(obj, "tracerThickness", cfg.tracerThickness)));
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
             cfg.setRangeStyle(ConfigJson.getInt(obj, "rangeStyle", RANGE_RADIUS));
+            cfg.setCircleThickness(ConfigJson.getFloat(obj, "circleThickness", cfg.circleThickness));
+            cfg.setCircleLift(ConfigJson.getFloat(obj, "circleLift", cfg.circleLift));
+            cfg.tracerColor = ConfigJson.getInt(obj, "tracerColor", COLOR_AUTO);
+            cfg.circleColor = ConfigJson.getInt(obj, "circleColor", COLOR_AUTO);
+            cfg.fillColor = ConfigJson.getInt(obj, "fillColor", COLOR_AUTO);
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorKeysConfig();
@@ -98,6 +117,11 @@ public final class DoorKeysConfig {
             obj.addProperty("tracerThickness", tracerThickness);
             obj.addProperty("throughWalls", throughWalls);
             obj.addProperty("rangeStyle", rangeStyle);
+            obj.addProperty("circleThickness", circleThickness);
+            obj.addProperty("circleLift", circleLift);
+            obj.addProperty("tracerColor", tracerColor);
+            obj.addProperty("circleColor", circleColor);
+            obj.addProperty("fillColor", fillColor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -162,5 +186,46 @@ public final class DoorKeysConfig {
 
     public void setRangeStyle(int v) {
         this.rangeStyle = v < 0 || v >= RANGE_STYLE_NAMES.length ? RANGE_RADIUS : v;
+    }
+
+    public float getCircleThickness() {
+        return circleThickness;
+    }
+
+    public void setCircleThickness(float v) {
+        circleThickness = Float.isNaN(v) ? 2f : Math.max(MIN_CIRCLE_THICKNESS, Math.min(MAX_CIRCLE_THICKNESS, v));
+    }
+
+    public float getCircleLift() {
+        return circleLift;
+    }
+
+    public void setCircleLift(float v) {
+        circleLift = Float.isNaN(v) ? 0.5f : Math.max(MIN_CIRCLE_LIFT, Math.min(MAX_CIRCLE_LIFT, v));
+    }
+
+    /** ARGB, or {@link #COLOR_AUTO}. */
+    public int getTracerColor() {
+        return tracerColor;
+    }
+
+    public void setTracerColor(int argb) {
+        tracerColor = argb;
+    }
+
+    public int getCircleColor() {
+        return circleColor;
+    }
+
+    public void setCircleColor(int argb) {
+        circleColor = argb;
+    }
+
+    public int getFillColor() {
+        return fillColor;
+    }
+
+    public void setFillColor(int argb) {
+        fillColor = argb;
     }
 }

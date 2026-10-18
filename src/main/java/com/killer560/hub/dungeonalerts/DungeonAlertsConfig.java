@@ -78,8 +78,14 @@ public final class DungeonAlertsConfig {
     public boolean roomAlertsEnabled = false;
     public boolean roomAlertsRoomCleared = true;
     public boolean roomAlertsSecretsDone = true;
-    public boolean roomAlertsTitle = true;
     public float roomAlertsDisplaySeconds = 2.0f;
+    /** The alerts' on-screen colours (killer560, 2026-10-18: "an option for room alerts colors ... let me change the color
+     *  of the shadow assassin one and by default make it more of a purple"), RGB. */
+    public int roomAlertsClearedColor = DEFAULT_ROOM_ALERT_COLOR;
+    public int roomAlertsSecretsColor = DEFAULT_ROOM_ALERT_COLOR;
+    public int shadowAssassinColor = DEFAULT_SHADOW_ASSASSIN_COLOR;
+    public static final int DEFAULT_ROOM_ALERT_COLOR = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
+    public static final int DEFAULT_SHADOW_ASSASSIN_COLOR = 0xAA44FF;
 
     private DungeonAlertsConfig() {
     }
@@ -112,7 +118,10 @@ public final class DungeonAlertsConfig {
                 cfg.roomAlertsEnabled = bool(o, "roomAlertsEnabled", cfg.roomAlertsEnabled);
                 cfg.roomAlertsRoomCleared = bool(o, "roomAlertsRoomCleared", cfg.roomAlertsRoomCleared);
                 cfg.roomAlertsSecretsDone = bool(o, "roomAlertsSecretsDone", cfg.roomAlertsSecretsDone);
-                cfg.roomAlertsTitle = bool(o, "roomAlertsTitle", cfg.roomAlertsTitle);
+                // "roomAlertsTitle" (On-screen Text) is gone (2026-10-18): the on-screen text is the alert. The key is ignored.
+                cfg.roomAlertsClearedColor = ConfigJson.getInt(o, "roomAlertsClearedColor", cfg.roomAlertsClearedColor) & 0xFFFFFF;
+                cfg.roomAlertsSecretsColor = ConfigJson.getInt(o, "roomAlertsSecretsColor", cfg.roomAlertsSecretsColor) & 0xFFFFFF;
+                cfg.shadowAssassinColor = ConfigJson.getInt(o, "shadowAssassinColor", cfg.shadowAssassinColor) & 0xFFFFFF;
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
                 // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
                 // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
@@ -149,7 +158,9 @@ public final class DungeonAlertsConfig {
             o.addProperty("roomAlertsEnabled", roomAlertsEnabled);
             o.addProperty("roomAlertsRoomCleared", roomAlertsRoomCleared);
             o.addProperty("roomAlertsSecretsDone", roomAlertsSecretsDone);
-            o.addProperty("roomAlertsTitle", roomAlertsTitle);
+            o.addProperty("roomAlertsClearedColor", roomAlertsClearedColor);
+            o.addProperty("roomAlertsSecretsColor", roomAlertsSecretsColor);
+            o.addProperty("shadowAssassinColor", shadowAssassinColor);
             o.addProperty("roomAlertsDisplaySeconds", roomAlertsDisplaySeconds);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception e) {

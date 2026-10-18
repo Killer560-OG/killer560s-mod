@@ -20,6 +20,13 @@ final class ShadowAssassinAlert {
         // Packet hook lives in DungeonAlertsPacketMixin (handleInitializeBorder).
     }
 
+    /** The subtitle, in the colour he chose (purple by default; killer560, 2026-10-18). */
+    static net.minecraft.network.chat.Component subtitle(DungeonAlertsConfig cfg) {
+        return net.minecraft.network.chat.Component.literal("Shadow Assassin!").withStyle(
+                net.minecraft.network.chat.Style.EMPTY.withColor(
+                        net.minecraft.network.chat.TextColor.fromRgb(cfg.shadowAssassinColor & 0xFFFFFF)));
+    }
+
     /** Called on the main thread for every ClientboundInitializeBorderPacket. */
     static void onInitializeBorder() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
@@ -30,7 +37,7 @@ final class ShadowAssassinAlert {
         if ((floor == 2 || floor == 3) && DungeonAlertsFeature.inBoss()) {
             return;
         }
-        DungeonAlertsFeature.showTitle("", "§aShadow Assassin!", 0, 35, 0);
+        DungeonAlertsFeature.showTitle(net.minecraft.network.chat.Component.empty(), subtitle(cfg), 0, 35, 0);
         DungeonAlertsFeature.playSound(SoundEvents.BLAZE_HURT, 1.0f, 1.0f);
     }
 }

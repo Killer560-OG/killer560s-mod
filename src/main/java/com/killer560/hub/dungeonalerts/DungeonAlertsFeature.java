@@ -122,10 +122,14 @@ public final class DungeonAlertsFeature {
 
     /** Vanilla title/subtitle with explicit fade/stay/fade ticks. */
     static void showTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+        showTitle(Component.literal(title), Component.literal(subtitle), fadeIn, stay, fadeOut);
+    }
+
+    static void showTitle(Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
         Minecraft client = Minecraft.getInstance();
         McCompat.setTimes(client, fadeIn, stay, fadeOut);
-        McCompat.setTitle(client, Component.literal(title));
-        McCompat.setSubtitle(client, Component.literal(subtitle));
+        McCompat.setTitle(client, title);
+        McCompat.setSubtitle(client, subtitle);
     }
 
     /** Local UI sound, same call Odin's {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */

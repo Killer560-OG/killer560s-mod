@@ -63,6 +63,8 @@ final class CroesusRunMemory {
         long expiresAt;
         long tolMs;
         int order;
+        /** When a list read last saw this run (ms), 0 if unknown (a run loaded from a file saved before this existed). */
+        long seenAtMs;
         /** Each chest not opened when its run view was last seen: type -> profit after a key. Null until seen. */
         Map<String, Long> chests;
         String claimType;
@@ -158,6 +160,25 @@ final class CroesusRunMemory {
         };
     }
 
+    /**
+     * A run only moves along the list as fast as runs are added to it. One that a list read saw a minute ago at place 5
+     * cannot be the run now at place 33: a run takes minutes, so a shift of 28 would need 28 runs in that minute. Without
+     * this, two pages read back to back, with the same party's runs all inside each other's expiry window (an hour wide
+     * when the head only gives hours), voted for a shift of one whole page and gave page 2's runs page 1's states - the
+     * highlights that "completely bug out and won't update" after Auto Croesus had been through page 1 (killer560,
+     * 2026-10-18). Allowed: 2 places, plus one for every {@link #MIN_RUN_GAP_MS} since the run was last seen.
+     */
+    static boolean reachable(Run r, Entry e, long now) {
+        if (r.seenAtMs <= 0) {
+            return true;
+        }
+        long gaps = Math.max(0L, now - r.seenAtMs) / MIN_RUN_GAP_MS;
+        return Math.abs(r.order - e.order()) <= 2 + gaps;
+    }
+
+    /** The fastest a party can start another run into the list: no dungeon run is shorter than this. */
+    private static final long MIN_RUN_GAP_MS = 180_000L;
+
     private static boolean inWindow(Run r, Entry e) {
         return r.sig.equals(e.sig()) && Math.abs(r.expiresAt - e.expiresAt()) <= r.tolMs + e.tolMs() + READ_SLACK_MS;
     }
@@ -165,13 +186,14 @@ final class CroesusRunMemory {
     /** The remembered run of each entry (same order), or null for one not remembered or truly ambiguous. */
     static synchronized Run[] match(List<Entry> entries) {
         ensureLoaded();
+        long now = System.currentTimeMillis();
         Run[] out = new Run[entries.size()];
         java.util.Set<Run> used = new java.util.HashSet<>();
         // 1. Every in-window pair votes for the list's shift; the most common shift (then the smallest) assigns them.
         Map<Integer, Integer> votes = new HashMap<>();
         for (Entry e : entries) {
             for (Run r : RUNS) {
-                if (inWindow(r, e)) {
+                if (inWindow(r, e) && reachable(r, e, now)) {
                     votes.merge(r.order - e.order(), 1, Integer::sum);
                 }
             }
@@ -186,7 +208,7 @@ final class CroesusRunMemory {
                 }
                 Entry e = entries.get(i);
                 for (Run r : RUNS) {
-                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e)) {
+                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e) && reachable(r, e, now)) {
                         out[i] = r;
                         used.add(r);
                         break;
@@ -205,7 +227,8 @@ final class CroesusRunMemory {
             Entry e = entries.get(i);
             List<Run> fit = new ArrayList<>();
             for (Run r : RUNS) {
-                if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT) {
+                if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
+                        && reachable(r, e, now)) {
                     fit.add(r);
                 }
             }
@@ -225,6 +248,7 @@ final class CroesusRunMemory {
                 continue;
             }
             Entry e = entries.get(i);
+            r.seenAtMs = now;
             if (r.order != e.order()) {
                 r.order = e.order();
                 changed = true;
@@ -245,6 +269,7 @@ final class CroesusRunMemory {
     static synchronized Run create(Entry e) {
         ensureLoaded();
         Run r = new Run(UUID.randomUUID().toString(), e.sig(), e.expiresAt(), e.tolMs(), e.order());
+        r.seenAtMs = System.currentTimeMillis();
         RUNS.add(r);
         return r;
     }
@@ -379,6 +404,7 @@ final class CroesusRunMemory {
                     if (r.sig.isEmpty() || (r.expiresAt > 0 && r.expiresAt + r.tolMs < now)) {
                         continue; // gone from Croesus
                     }
+                    r.seenAtMs = ConfigJson.getLong(o, "seenAt", 0);
                     JsonObject chests = ConfigJson.getObject(o, "chests");
                     if (chests != null) {
                         Map<String, Long> m = new LinkedHashMap<>();
@@ -428,6 +454,7 @@ final class CroesusRunMemory {
                 o.addProperty("expiresAt", r.expiresAt);
                 o.addProperty("tolMs", r.tolMs);
                 o.addProperty("order", r.order);
+                o.addProperty("seenAt", r.seenAtMs);
                 if (r.chests != null) {
                     JsonObject c = new JsonObject();
                     r.chests.forEach(c::addProperty);

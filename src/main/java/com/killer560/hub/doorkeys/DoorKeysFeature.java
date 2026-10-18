@@ -136,21 +136,41 @@ public final class DoorKeysFeature {
         return new double[]{p.x, p.y, p.z, radius};
     }
 
-    /** The circle's points, built once per {@link #ring} (it changes only when the key moves), never mutated after. */
+    /** The circle's points, built again only when the ring (the key moved) or the height it is drawn at changed. */
     private static double[] ringPointsFor = null;
+    private static double ringPointsY = Double.NaN;
     private static Vec3[] ringPoints = null;
 
-    private static Vec3[] ringPoints(double[] circle) {
-        if (circle != ringPointsFor) {
+    private static Vec3[] ringPoints(double[] circle, double y) {
+        if (circle != ringPointsFor || y != ringPointsY) {
             Vec3[] pts = new Vec3[RING_SEGMENTS + 1];
             for (int i = 0; i <= RING_SEGMENTS; i++) {
                 double a = Math.PI * 2.0 * i / RING_SEGMENTS;
-                pts[i] = new Vec3(circle[0] + Math.cos(a) * circle[3], circle[1], circle[2] + Math.sin(a) * circle[3]);
+                pts[i] = new Vec3(circle[0] + Math.cos(a) * circle[3], y, circle[2] + Math.sin(a) * circle[3]);
             }
             ringPoints = pts;
             ringPointsFor = circle;
+            ringPointsY = y;
         }
         return ringPoints;
+    }
+
+    /**
+     * The height the Radius circle is drawn at: the middle of the key stand's box plus the Circle Height setting (killer560,
+     * 2026-10-18: "The key's outline for the circle is too low" - it lay at the stand's feet). The Sphere style keeps its
+     * equator at the stand's own position, the point every pickup check measures from, so it ignores this.
+     */
+    public static double circleY(double standY, double standBoxHeight, float lift) {
+        return standY + standBoxHeight * 0.5 + lift;
+    }
+
+    /** A colour setting as r, g, b, a floats: {@code configured} (ARGB) unless it is {@link DoorKeysConfig#COLOR_AUTO},
+     *  then {@code auto} with {@code autoAlpha}. */
+    public static float[] resolveColor(int configured, float[] auto, float autoAlpha) {
+        if (configured == DoorKeysConfig.COLOR_AUTO) {
+            return new float[]{auto[0], auto[1], auto[2], autoAlpha};
+        }
+        return WorldRenderUtils.argbToFloats(configured);
     }
 
     /** For the testkit: the circle being drawn, {x, y, z, radius}, or null. With the Sphere style it is the sphere's
@@ -193,7 +213,12 @@ public final class DoorKeysFeature {
             return;
         }
         // Built on the ring's change, not every frame (65 Vec3 and a list per frame before; FPS pass).
-        Vec3[] points = ringPoints(circle);
+                float[] circleRgba = resolveColor(cfg.getCircleColor(), currentColor, 1f);
+        float[] tracerRgba = resolveColor(cfg.getTracerColor(), currentColor, 1f);
+        boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
+        Vec3[] points = ringPoints(circle, sphere ? circle[1]
+                : circleY(circle[1], currentKey.getBbHeight(), cfg.getCircleLift()));
+        float circleWidth = cfg.getCircleThickness();
         // killer560, 2026-09-27: "Door keys tracer line is still jacked up" - it was starting from
         // client.player.getEyePosition(), which only moves once per game tick and lagged behind the
         // smoothly-interpolated camera, reading as attached to the player's head instead of the crosshair.
@@ -208,46 +233,45 @@ public final class DoorKeysFeature {
         Vec3 keyPos = currentKey.position();
         Vec3 target = new Vec3(Math.floor(keyPos.x) + 0.5, Math.floor(keyPos.y) + 0.5, Math.floor(keyPos.z) + 0.5);
         float thickness = cfg.getTracerThickness();
-        boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
         if (sphere) {
             // A see-through shaded ball of the pickup radius around the stand: step inside it and the key is his.
             // The Wither Key's own near-black would vanish as a fill, so it is drawn as the light grey of its name.
             float[] c = currentColor[0] < 0.2f && currentColor[1] < 0.2f ? new float[]{0.75f, 0.75f, 0.8f} : currentColor;
-            WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, c[0], c[1], c[2], SPHERE_ALPHA);
+            float[] fill = resolveColor(cfg.getFillColor(), c, SPHERE_ALPHA);
+            WorldRenderUtils.renderFilledSphere(context, keyPos, circle[3], 12, 24, fill[0], fill[1], fill[2], fill[3]);
             lastDrawn = "sphere";   // the circle below is its equator
         } else {
             lastDrawn = "radius";
         }
 
         if (!cfg.isThroughWalls()) {
-            WorldRenderUtils.renderLineStrip(context, points, currentColor[0], currentColor[1], currentColor[2], 1f, 2f);
+            WorldRenderUtils.renderLineStrip(context, points, circleRgba[0], circleRgba[1], circleRgba[2], circleRgba[3], circleWidth);
             if (cfg.isShowTracer()) {
                 WorldRenderUtils.renderLineStrip(context, List.of(tracerStart, target),
-                        currentColor[0], currentColor[1], currentColor[2], 1f, thickness);
+                        tracerRgba[0], tracerRgba[1], tracerRgba[2], tracerRgba[3], thickness);
             }
             return;
         }
 
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
             for (int i = 0; i + 1 < points.length; i++) {
-                line(pose, buffer, points[i], points[i + 1], 2f);
+                line(pose, buffer, points[i], points[i + 1], circleWidth, circleRgba);
             }
             if (cfg.isShowTracer()) {
-                line(pose, buffer, tracerStart, target, thickness);
+                line(pose, buffer, tracerStart, target, thickness, tracerRgba);
             }
         });
     }
 
-    private static void line(PoseStack.Pose pose, VertexConsumer buffer, Vec3 from, Vec3 to, float width) {
+    private static void line(PoseStack.Pose pose, VertexConsumer buffer, Vec3 from, Vec3 to, float width, float[] rgba) {
         segment(pose, buffer, (float) from.x, (float) from.y, (float) from.z,
-                (float) to.x, (float) to.y, (float) to.z, width);
+                (float) to.x, (float) to.y, (float) to.z, width, rgba);
     }
 
     private static void segment(PoseStack.Pose pose, VertexConsumer buffer, float sx, float sy, float sz,
-                                float ex, float ey, float ez, float width) {
+                                float ex, float ey, float ez, float width, float[] rgba) {
         float dx = ex - sx, dy = ey - sy, dz = ez - sz;
-        float r = currentColor[0], g = currentColor[1], b = currentColor[2];
-        buffer.addVertex(pose, sx, sy, sz).setColor(r, g, b, 1f).setNormal(pose, dx, dy, dz).setLineWidth(width);
-        buffer.addVertex(pose, ex, ey, ez).setColor(r, g, b, 1f).setNormal(pose, dx, dy, dz).setLineWidth(width);
+        buffer.addVertex(pose, sx, sy, sz).setColor(rgba[0], rgba[1], rgba[2], rgba[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
+        buffer.addVertex(pose, ex, ey, ez).setColor(rgba[0], rgba[1], rgba[2], rgba[3]).setNormal(pose, dx, dy, dz).setLineWidth(width);
     }
 }

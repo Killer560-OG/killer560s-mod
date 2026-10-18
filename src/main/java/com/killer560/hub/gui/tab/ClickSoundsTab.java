@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  * Home's Click Sounds (killer560, 2026-10-15): the sound every button click makes - Default (Minecraft's), one of the
- * bundled presets, or an .ogg of his own from the import folder - and whether Minecraft's own screens use it too.
+ * bundled presets, or a sound of his own from the import folder - and how loud, up to 500% (2026-10-18). It plays on every screen.
  * Import: drop a short .ogg into the folder (Open Sound Folder), or copy an .ogg file's path and press Import From
  * Clipboard. See {@link ClickSounds}.
  */
@@ -52,14 +52,8 @@ public class ClickSoundsTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(vanillaText(), btn -> {
-                    ClickSoundConfig cfg = ClickSoundConfig.getInstance();
-                    cfg.setVanillaScreens(!cfg.isVanillaScreens());
-                    cfg.save();
-                    btn.setMessage(vanillaText());
-                }).bounds(contentX, y, half, 20).build());
-        widgets.add(new ThemedSliderButton(contentX + half + gap, y, rightW, 20, volumeText(),
-                ClickSoundConfig.getInstance().getVolume()) {
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, volumeText(),
+                ClickSoundConfig.getInstance().getVolume() / ClickSoundConfig.MAX_VOLUME) {
             @Override
             protected void updateMessage() {
                 setMessage(volumeText());
@@ -68,7 +62,7 @@ public class ClickSoundsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 ClickSoundConfig cfg = ClickSoundConfig.getInstance();
-                cfg.setVolume(Math.round(this.value * 100) / 100f);
+                cfg.setVolume(Math.round(this.value * ClickSoundConfig.MAX_VOLUME * 20) / 20f);
                 cfg.save();
             }
         });
@@ -104,7 +98,7 @@ public class ClickSoundsTab extends BaseTab {
             text = text.substring(1, text.length() - 1);
         }
         if (text.isEmpty()) {
-            return "§cCopy an .ogg file's path first (Shift + right click it, Copy as path).";
+            return "§cCopy a sound or video file's path first (Shift + right click it, Copy as path).";
         }
         try {
             String name = ClickSounds.importFile(Path.of(text));
@@ -119,10 +113,6 @@ public class ClickSoundsTab extends BaseTab {
 
     private static Component soundText() {
         return Component.literal("Click Sound: §6" + ClickSounds.label(ClickSoundConfig.getInstance().getChoice()));
-    }
-
-    private static Component vanillaText() {
-        return Component.literal("Vanilla Screens: " + (ClickSoundConfig.getInstance().isVanillaScreens() ? "§aON" : "§cOFF"));
     }
 
     private static Component volumeText() {

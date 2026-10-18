@@ -54,7 +54,8 @@ public final class ClickSoundBuffers {
         }
         CompletableFuture<SoundBuffer> fresh = CompletableFuture.supplyAsync(() -> {
             try (InputStream in = Files.newInputStream(file)) {
-                return decode(in);
+                return ClickSounds.extension(file.getFileName().toString()).equals("ogg")
+                        ? decode(in) : decodeAudio(in, false);
             } catch (IOException e) {
                 throw new java.util.concurrent.CompletionException(e);
             }
@@ -69,6 +70,52 @@ public final class ClickSoundBuffers {
             FiniteAudioStream finite = stream;
             ByteBuffer data = finite.readAll();
             return new SoundBuffer(data, finite.getFormat());
+        }
+    }
+
+    /** Decodes a sound the JDK or the bundled MP3 decoder reads (wav, aiff, au, mp3) to 16-bit little-endian PCM, the form
+     *  the sound engine's buffers take. {@code forImport}: refuse one longer than {@link ClickSounds#MAX_SECONDS}. */
+    static SoundBuffer decodeAudio(InputStream in, boolean forImport) throws IOException {
+        // The JDK finds the MP3 decoder through the thread's context class loader; the engine's loader threads (the common
+        // pool) carry the system one, which cannot see a Jar-in-Jar library: "Stream of unsupported format".
+        Thread thread = Thread.currentThread();
+        ClassLoader previous = thread.getContextClassLoader();
+        thread.setContextClassLoader(ClickSoundBuffers.class.getClassLoader());
+        try {
+            return decodeAudio0(in, forImport);
+        } finally {
+            thread.setContextClassLoader(previous);
+        }
+    }
+
+    private static SoundBuffer decodeAudio0(InputStream in, boolean forImport) throws IOException {
+        try (javax.sound.sampled.AudioInputStream raw = javax.sound.sampled.AudioSystem.getAudioInputStream(
+                new java.io.BufferedInputStream(in))) {
+            javax.sound.sampled.AudioFormat src = raw.getFormat();
+            if (src.getChannels() < 1 || src.getChannels() > 2) {
+                throw new IOException("only mono or stereo");
+            }
+            javax.sound.sampled.AudioFormat pcm = new javax.sound.sampled.AudioFormat(
+                    javax.sound.sampled.AudioFormat.Encoding.PCM_SIGNED, src.getSampleRate(), 16, src.getChannels(),
+                    src.getChannels() * 2, src.getSampleRate(), false);
+            try (javax.sound.sampled.AudioInputStream converted = javax.sound.sampled.AudioSystem.getAudioInputStream(pcm, raw)) {
+                long limit = (long) (pcm.getSampleRate() * pcm.getFrameSize() * ClickSounds.MAX_SECONDS);
+                byte[] bytes = converted.readNBytes((int) limit + 1);
+                if (bytes.length == 0) {
+                    throw new IOException("empty");
+                }
+                if (bytes.length > limit) {
+                    if (forImport) {
+                        throw new IOException("over " + ClickSounds.MAX_SECONDS + " seconds");
+                    }
+                    bytes = java.util.Arrays.copyOf(bytes, (int) limit);
+                }
+                ByteBuffer data = ByteBuffer.allocateDirect(bytes.length);
+                data.put(bytes).flip();
+                return new SoundBuffer(data, pcm);
+            }
+        } catch (javax.sound.sampled.UnsupportedAudioFileException e) {
+            throw new IOException(e);
         }
     }
 

@@ -24,9 +24,10 @@ import java.util.Set;
  * "Display Time" seconds (0.5-3.0, default 2.0) - Noamm's own two triggers ("Cleared" / "§aSecrets Done!")
  * are exactly the two this now alerts on:
  * <ul>
- * <li><b>Room Cleared</b> - watches EVERY identified room on the map grid (not just the one you're standing
- * in) via {@link LiveMapFeature#isRoomCleared(int)}, so a teammate clearing a room elsewhere still alerts
- * you. Latched per room (grid main-tile index) so it only ever fires once, and cleared on world change.
+ * <li><b>Room Cleared</b> - only the room he is standing in (killer560, 2026-10-18: "room alerts should only be for the room
+ * the player is currently in"), and only when he saw it uncleared and then saw it clear, via
+ * {@link LiveMapFeature#isRoomCleared(int)}. Latched per room (grid main-tile index), cleared on world change. The text
+ * is just "Room Cleared!"; the colour is a setting.
  * <li><b>Secrets Done</b> - can only really track the room the player is CURRENTLY standing in: the only
  * secrets-found signal this mod has is a single tab-list run-total ({@link DungeonInfoFeature#roomSecretsFound()}),
  * with no per-room breakdown, so which room a given secret came from is only known while you're in it (the
@@ -36,11 +37,18 @@ import java.util.Set;
  */
 final class RoomAlerts {
 
+    /** The alerts say only what happened, never which room (killer560, 2026-10-18). */
+    static final String CLEARED_TEXT = "Room Cleared!";
+    static final String SECRETS_TEXT = "Secrets Done!";
+
     private static String alertText = "";
     private static long alertUntilMs = 0L;
+    private static int alertColor = DungeonAlertsConfig.DEFAULT_ROOM_ALERT_COLOR;
 
     /** Room-cleared alerts already fired this run, keyed by identified-room main-tile index. */
     private static final Set<Integer> clearedAlerted = new HashSet<>();
+    /** Rooms seen NOT cleared while he stood in them: only those can alert when they clear. */
+    private static final Set<Integer> armedRooms = new HashSet<>();
     /** Secrets-done alerts already fired this run, keyed by {@link RoomEntry} identity (LiveMap keeps one
      *  instance per grid slot, so this is a stable per-room key without needing an index). */
     private static final Set<RoomEntry> secretsAlerted = new HashSet<>();
@@ -55,6 +63,7 @@ final class RoomAlerts {
     static void onWorldChange() {
         alertUntilMs = 0L;
         clearedAlerted.clear();
+        armedRooms.clear();
         secretsAlerted.clear();
     }
 
@@ -72,16 +81,52 @@ final class RoomAlerts {
     }
 
     private static void tickRoomCleared(DungeonAlertsConfig cfg) {
+        // killer560, 2026-10-18: "room alerts should only be for the room the player is currently in" - so no room name,
+        // only "Room Cleared!", and only for the room he is standing in when it clears.
+        int here = LiveMapFeature.currentRoomIndex();
+        if (here < 0) {
+            return;
+        }
         for (int[] room : LiveMapFeature.identifiedRoomsWithRotation()) {
             int idx = room[0];
-            if (clearedAlerted.contains(idx) || !LiveMapFeature.isRoomCleared(idx)) {
+            if (!isInRoom(here, idx, LiveMapFeature.roomCellIndices(idx))) {
                 continue;
             }
-            clearedAlerted.add(idx);
-            RoomEntry entry = LiveMapFeature.roomEntryAt(idx);
-            String name = entry != null && entry.name != null ? entry.name : "Room";
-            fireAlert(cfg, name + " Cleared!");
+            if (clearedAlertDue(idx, LiveMapFeature.isRoomCleared(idx), armedRooms, clearedAlerted)) {
+                fireAlert(cfg, CLEARED_TEXT, cfg.roomAlertsClearedColor);
+            }
+            return;
         }
+    }
+
+    /** Whether the cell he stands in belongs to the room whose main tile is {@code mainIdx} (a multi-tile room has several). */
+    static boolean isInRoom(int here, int mainIdx, int[] cells) {
+        if (here == mainIdx) {
+            return true;
+        }
+        for (int c : cells) {
+            if (c == here) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * One step of the Room Cleared decision for the room he is standing in. A room alerts once, and only if he saw it NOT
+     * cleared while inside and then saw it clear: walking into a room that is already cleared (a teammate did it) is
+     * silent. {@code armed} holds the rooms seen uncleared; {@code alerted} the rooms already settled.
+     */
+    static boolean clearedAlertDue(int roomIdx, boolean clearedNow, Set<Integer> armed, Set<Integer> alerted) {
+        if (alerted.contains(roomIdx)) {
+            return false;
+        }
+        if (!clearedNow) {
+            armed.add(roomIdx);
+            return false;
+        }
+        alerted.add(roomIdx);
+        return armed.contains(roomIdx);
     }
 
     private static void tickSecretsDone(DungeonAlertsConfig cfg) {
@@ -94,16 +139,23 @@ final class RoomAlerts {
             return;
         }
         secretsAlerted.add(entry);
-        String name = entry.name != null ? entry.name : "Room";
-        fireAlert(cfg, name + " Secrets Done!");
+        fireAlert(cfg, SECRETS_TEXT, cfg.roomAlertsSecretsColor);
     }
 
-    private static void fireAlert(DungeonAlertsConfig cfg, String text) {
-        if (cfg.roomAlertsTitle) {
-            alertText = text;
-            alertUntilMs = System.currentTimeMillis() + Math.round(cfg.roomAlertsDisplaySeconds * 1000.0);
-        }
+    private static void fireAlert(DungeonAlertsConfig cfg, String text, int rgb) {
+        alertText = text;
+        alertColor = rgb & 0xFFFFFF;
+        alertUntilMs = System.currentTimeMillis() + Math.round(cfg.roomAlertsDisplaySeconds * 1000.0);
         DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
+    }
+
+    /** For the testkit: the text and colour of the alert last raised (blank before any). */
+    public static String lastAlertText() {
+        return alertText;
+    }
+
+    public static int lastAlertColor() {
+        return alertColor;
     }
 
     static final HudElement HUD = new HudElement() {
@@ -149,9 +201,10 @@ final class RoomAlerts {
             if (!example && (!DungeonAlertsConfig.getInstance().roomAlertsOn() || System.currentTimeMillis() >= alertUntilMs)) {
                 return;
             }
-            String text = example ? "Water Board Cleared!" : alertText;
+            String text = example ? CLEARED_TEXT : alertText;
+            int rgb = example ? DungeonAlertsConfig.getInstance().roomAlertsClearedColor : alertColor;
             HudSeen.markDrawn(id());
-            graphics.centeredText(Minecraft.getInstance().font, text, x + width() / 2, y + 1, 0xFF000000 | ModChat.LIGHT_ORANGE);
+            graphics.centeredText(Minecraft.getInstance().font, text, x + width() / 2, y + 1, 0xFF000000 | rgb);
         }
     };
 }

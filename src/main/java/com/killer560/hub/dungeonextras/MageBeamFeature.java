@@ -134,45 +134,69 @@ public final class MageBeamFeature {
                 continue;
             }
             // Width used to be handed straight to the GL line width, which a core profile clamps to 1px -
-            // killer560 (2026-09-20): "make it so the width is much more impactful". The beam body is now a
-            // real world-space quad whose thickness the slider actually controls; the thin line stays as a
-            // core so a low width still reads at range, where a 5cm quad is under a pixel wide.
-            renderBeamQuad(context, beam.min(), beam.max(), rgba[0], rgba[1], rgba[2], alpha,
-                    cfg.getMageBeamWidth() * DungeonExtrasConfig.BEAM_WIDTH_BLOCKS);
+            // killer560 (2026-09-20): "make it so the width is much more impactful". The beam body is a real
+            // world-space solid whose thickness the slider actually controls; the thin line stays as a core so a
+            // low width still reads at range, where a 5cm solid is under a pixel wide.
+            // 2026-10-18: "should not rotate as I run around it" - the body used to be one quad turned to face the
+            // camera, so it swung round with every step. It is now fixed to the beam (see beamQuads).
+            renderBeamBody(context, beam.min(), beam.max(), rgba[0], rgba[1], rgba[2], alpha,
+                    cfg.getMageBeamWidth() * DungeonExtrasConfig.BEAM_WIDTH_BLOCKS, cfg.getMageBeamShape());
             WorldRenderUtils.renderLineStrip(context, List.of(beam.min(), beam.max()),
                     rgba[0], rgba[1], rgba[2], alpha, 2f);
         }
     }
 
-    /** Draws the beam as a camera-facing quad {@code widthBlocks} thick. Billboarded (widened across both the
-     *  beam axis and the line of sight) so it never thins out to nothing when viewed edge-on, and emitted with
-     *  both windings so face culling can't hide one side. */
-    private static void renderBeamQuad(LevelRenderContext context, Vec3 start, Vec3 end,
-                                       float r, float g, float b, float a, float widthBlocks) {
+    /**
+     * The beam body's faces for {@code shape}, as quads of four world-space corners. Nothing here knows where the camera
+     * is, which is the point: the cross-section is laid out from the beam's own axis and the world's up, so walking round
+     * the beam never turns it. Square is four faces round the axis (a square beam coming out), Flat one horizontal ribbon,
+     * Cylinder an eight-sided prism. A vertical beam, which has no side to call "up", uses world X as its reference.
+     */
+    public static List<Vec3[]> beamQuads(Vec3 start, Vec3 end, int shape, float widthBlocks) {
+        List<Vec3[]> quads = new ArrayList<>();
         Vec3 axis = end.subtract(start);
         if (axis.lengthSqr() < 1.0E-6) {
+            return quads;
+        }
+        Vec3 dir = axis.normalize();
+        Vec3 ref = Math.abs(dir.y) > 0.999 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        Vec3 u = dir.cross(ref).normalize();   // sideways, horizontal for any beam that is not vertical
+        Vec3 v = u.cross(dir).normalize();     // the beam's own "up"
+        double half = Math.max(0.01f, widthBlocks) * 0.5;
+        if (shape == DungeonExtrasConfig.BEAM_SHAPE_FLAT) {
+            Vec3 o = u.scale(half);
+            quads.add(new Vec3[]{start.subtract(o), end.subtract(o), end.add(o), start.add(o)});
+            return quads;
+        }
+        int sides = shape == DungeonExtrasConfig.BEAM_SHAPE_CYLINDER ? 8 : 4;
+        Vec3[] ring = new Vec3[sides];
+        for (int i = 0; i < sides; i++) {
+            // Square: corners at 45, 135, ... so its faces face along u and v. Cylinder: its radius is half the width.
+            double a = Math.PI * 2.0 * (i + 0.5) / sides;
+            double r = sides == 4 ? half * Math.sqrt(2.0) : half;
+            ring[i] = u.scale(Math.cos(a) * r).add(v.scale(Math.sin(a) * r));
+        }
+        for (int i = 0; i < sides; i++) {
+            Vec3 a = ring[i];
+            Vec3 b = ring[(i + 1) % sides];
+            quads.add(new Vec3[]{start.add(a), end.add(a), end.add(b), start.add(b)});
+        }
+        return quads;
+    }
+
+    /** Draws {@link #beamQuads} with both windings, so face culling can't hide a side. */
+    private static void renderBeamBody(LevelRenderContext context, Vec3 start, Vec3 end,
+                                       float r, float g, float b, float a, float widthBlocks, int shape) {
+        final List<Vec3[]> quads = beamQuads(start, end, shape, widthBlocks);
+        if (quads.isEmpty()) {
             return;
         }
-        Vec3 cam = McRender.cameraPos(context);
-        Vec3 toCam = start.add(end).scale(0.5).subtract(cam);
-        Vec3 side = axis.cross(toCam);
-        if (side.lengthSqr() < 1.0E-6) {
-            side = axis.cross(new Vec3(0, 1, 0));
-            if (side.lengthSqr() < 1.0E-6) {
-                side = new Vec3(1, 0, 0);
-            }
-        }
-        // Final because the lambda below captures it.
-        final Vec3 half = side.normalize().scale(Math.max(0.01f, widthBlocks) * 0.5);
-
         McRender.inCameraSpace(context, RenderTypes.debugFilledBox(), (pose, buffer) -> {
             org.joml.Matrix4f matrix = pose.pose();
-            Vec3 s0 = start.subtract(half);
-            Vec3 s1 = start.add(half);
-            Vec3 e0 = end.subtract(half);
-            Vec3 e1 = end.add(half);
-            quad(buffer, matrix, s0, e0, e1, s1, r, g, b, a);
-            quad(buffer, matrix, s1, e1, e0, s0, r, g, b, a);
+            for (Vec3[] q : quads) {
+                quad(buffer, matrix, q[0], q[1], q[2], q[3], r, g, b, a);
+                quad(buffer, matrix, q[3], q[2], q[1], q[0], r, g, b, a);
+            }
         });
     }
 

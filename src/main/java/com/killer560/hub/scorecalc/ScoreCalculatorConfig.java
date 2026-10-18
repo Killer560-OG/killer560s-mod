@@ -53,9 +53,18 @@ public final class ScoreCalculatorConfig {
     // HUD content (only matters once the master toggle is on)
     private boolean showBreakdown = false;
     private boolean showSecretsNeeded = true;
-    private boolean showCryptsDeaths = true;
+    // Crypts and Deaths were one switch ("Crypts & Deaths") until 2026-10-18 (killer560: "make crypts and deaths two
+    // separate toggles"); an old file's single value is carried into both.
+    private boolean showCrypts = true;
+    private boolean showDeaths = true;
     private boolean showMimicPrince = false;
     private boolean textShadow = true;
+    // HUD colours, RGB (killer560, 2026-10-18: "Make it so they can custom color the stuff"). Defaults are the menu's.
+    private int labelColor = com.killer560.hub.util.ModChat.ORANGE;
+    private int subLabelColor = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
+    private int valueColor = com.killer560.hub.util.ModChat.TEXT;
+    private int goodColor = com.killer560.hub.util.ModChat.GOOD;
+    private int badColor = com.killer560.hub.util.ModChat.BAD;
     // Formula options
     private PaulMode paulMode = PaulMode.AUTO;
     private boolean assumeSpiritPet = true;
@@ -102,7 +111,14 @@ public final class ScoreCalculatorConfig {
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
                 cfg.showBreakdown = ConfigJson.getBool(obj, "showBreakdown", cfg.showBreakdown);
                 cfg.showSecretsNeeded = ConfigJson.getBool(obj, "showSecretsNeeded", cfg.showSecretsNeeded);
-                cfg.showCryptsDeaths = ConfigJson.getBool(obj, "showCryptsDeaths", cfg.showCryptsDeaths);
+                boolean oldCryptsDeaths = ConfigJson.getBool(obj, "showCryptsDeaths", true);
+                cfg.showCrypts = ConfigJson.getBool(obj, "showCrypts", oldCryptsDeaths);
+                cfg.showDeaths = ConfigJson.getBool(obj, "showDeaths", oldCryptsDeaths);
+                cfg.labelColor = ConfigJson.getInt(obj, "labelColor", cfg.labelColor) & 0xFFFFFF;
+                cfg.subLabelColor = ConfigJson.getInt(obj, "subLabelColor", cfg.subLabelColor) & 0xFFFFFF;
+                cfg.valueColor = ConfigJson.getInt(obj, "valueColor", cfg.valueColor) & 0xFFFFFF;
+                cfg.goodColor = ConfigJson.getInt(obj, "goodColor", cfg.goodColor) & 0xFFFFFF;
+                cfg.badColor = ConfigJson.getInt(obj, "badColor", cfg.badColor) & 0xFFFFFF;
                 cfg.showMimicPrince = ConfigJson.getBool(obj, "showMimicPrince", cfg.showMimicPrince);
                 cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
                 cfg.paulMode = ConfigJson.getEnum(obj, "paulMode", PaulMode.class, cfg.paulMode);
@@ -194,7 +210,13 @@ public final class ScoreCalculatorConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showBreakdown", showBreakdown);
             obj.addProperty("showSecretsNeeded", showSecretsNeeded);
-            obj.addProperty("showCryptsDeaths", showCryptsDeaths);
+            obj.addProperty("showCrypts", showCrypts);
+            obj.addProperty("showDeaths", showDeaths);
+            obj.addProperty("labelColor", labelColor);
+            obj.addProperty("subLabelColor", subLabelColor);
+            obj.addProperty("valueColor", valueColor);
+            obj.addProperty("goodColor", goodColor);
+            obj.addProperty("badColor", badColor);
             obj.addProperty("showMimicPrince", showMimicPrince);
             obj.addProperty("textShadow", textShadow);
             obj.addProperty("paulMode", paulMode.name());
@@ -249,12 +271,36 @@ public final class ScoreCalculatorConfig {
         showSecretsNeeded = v;
     }
 
-    public boolean isShowCryptsDeaths() {
-        return showCryptsDeaths;
+    public boolean isShowCrypts() {
+        return showCrypts;
     }
 
-    public void setShowCryptsDeaths(boolean v) {
-        showCryptsDeaths = v;
+    public void setShowCrypts(boolean v) {
+        showCrypts = v;
+    }
+
+    public boolean isShowDeaths() {
+        return showDeaths;
+    }
+
+    public void setShowDeaths(boolean v) {
+        showDeaths = v;
+    }
+
+    public int getLabelColor() { return labelColor; }
+    public void setLabelColor(int rgb) { labelColor = rgb & 0xFFFFFF; }
+    public int getSubLabelColor() { return subLabelColor; }
+    public void setSubLabelColor(int rgb) { subLabelColor = rgb & 0xFFFFFF; }
+    public int getValueColor() { return valueColor; }
+    public void setValueColor(int rgb) { valueColor = rgb & 0xFFFFFF; }
+    public int getGoodColor() { return goodColor; }
+    public void setGoodColor(int rgb) { goodColor = rgb & 0xFFFFFF; }
+    public int getBadColor() { return badColor; }
+    public void setBadColor(int rgb) { badColor = rgb & 0xFFFFFF; }
+
+    /** One number that changes when any HUD colour does (the HUD's line cache compares it). */
+    public int colorsKey() {
+        return java.util.Objects.hash(labelColor, subLabelColor, valueColor, goodColor, badColor);
     }
 
     public boolean isShowMimicPrince() {

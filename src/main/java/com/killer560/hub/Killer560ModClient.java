@@ -367,6 +367,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // target times from a real Hypixel clear time instead of guessing. See AutoKickCommands' own doc.
         com.killer560.hub.autokick.AutoKickCommands.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();
+        com.killer560.hub.clicksound.ClickSounds.register();
         com.killer560.hub.witherdoors.WitherDoorsFeature.register();
         com.killer560.hub.goldor.GoldorTriggerbotFeature.register();
         com.killer560.hub.trajectories.TrajectoriesFeature.register();
