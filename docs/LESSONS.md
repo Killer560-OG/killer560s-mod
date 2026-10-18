@@ -14,6 +14,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker (shelved until after 2.0).
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.
+- Custom Items' `DataComponentHolder#get` override must never reach `getHoverName`: on a player head that is
+  `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armour stand)
+  overflowed the render thread (2026-10-18). `ArmourDye.identityOf` reads the name with `entryFor` switched off per thread.
 - **The live map's world scan must stay inside the floor's room grid.** Floor 1's boss arena stands in slots
   (4..5, 5) of the 6x6 footprint; scanning all 121 cells read its roof as two ROOM tiles, which widened the map's
   fit to 6x6 (his "doesn't rescale for other floors") and kept the boss latch off until he was deep in the arena.

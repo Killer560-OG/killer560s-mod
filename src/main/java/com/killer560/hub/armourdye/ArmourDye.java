@@ -289,6 +289,10 @@ public final class ArmourDye {
         if (stack == null || stack.isEmpty() || snapshot.isEmpty()) {
             return null;
         }
+        // Inside identityOf's display-name read: every component read there sees the real item (see NAMING).
+        if (NAMING.get()[0]) {
+            return null;
+        }
         Memo cached = memo;
         if (cached != null && cached.stack().get() == stack) {
             return cached.entry();
@@ -350,12 +354,30 @@ public final class ArmourDye {
                 return cached.isEmpty() ? null : cached;
             }
         }
-        String fromName = ItemIdentity.of(stack);
+        boolean[] naming = NAMING.get();
+        boolean outer = naming[0];
+        naming[0] = true;
+        String fromName;
+        try {
+            fromName = ItemIdentity.of(stack);
+        } finally {
+            naming[0] = outer;
+        }
         synchronized (NAME_IDENTITY) {
             NAME_IDENTITY.put(stack, fromName == null ? "" : fromName);
         }
         return fromName;
     }
+
+    /**
+     * Set while {@link #identityOf} reads a stack's display name, and {@link #entryFor} answers null while it is set.
+     * {@code getHoverName} on a player head is {@code PlayerHeadItem.getName}, which reads {@code minecraft:profile}
+     * through {@code DataComponentHolder#get} - one of the components our mixin overrides - so the override asked
+     * for the stack's identity, which asked for its name, which asked for the override, until the render thread
+     * overflowed (crash 2026-10-18: any id-less player head, e.g. on an armour stand, with any Custom Items entry
+     * saved). Per thread because {@code get} is also reached off the render thread.
+     */
+    private static final ThreadLocal<boolean[]> NAMING = ThreadLocal.withInitial(() -> new boolean[1]);
 
     /** Stack object -&gt; its display-name identity ("" = none). Weak; ItemStack keeps Object identity equality. */
     private static final Map<ItemStack, String> NAME_IDENTITY = new java.util.WeakHashMap<>();
