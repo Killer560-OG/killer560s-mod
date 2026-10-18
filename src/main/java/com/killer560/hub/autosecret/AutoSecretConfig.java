@@ -57,6 +57,31 @@ public final class AutoSecretConfig {
         }
     }
 
+    /**
+     * Auto Secret's Blood First (killer560, 2026-10-17: "add a blood first where you can select door camp or full blood
+     * rush first then it does only secrets"). Not the Autopilot's {@link #bloodFirst}, which is its own switch.
+     */
+    public enum SecretBloodFirst {
+        /** Secrets from the start, as always. */
+        OFF("Off"),
+        /** Straight to the blood door, opening the wither doors on the way (keys picked up where they lie), and open it. */
+        DOOR_CAMP("Door Camp"),
+        /** Auto Clear clears the Blood Rush Split rooms in path order and the doors are opened, as Autopilot's Blood First. */
+        FULL_BLOOD_RUSH("Full Blood Rush");
+
+        private final String label;
+
+        SecretBloodFirst(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private SecretBloodFirst secretBloodFirst = SecretBloodFirst.OFF;
+
     private int autopilotKey = KeyUtil.NONE;
     private RunMode runMode = RunMode.SOLO;
     /** First push the Blood Rush Split path until the blood door is open, then the rest. */
@@ -100,6 +125,12 @@ public final class AutoSecretConfig {
                     }
                 }
                 cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
+                String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
+                for (SecretBloodFirst m : SecretBloodFirst.values()) {
+                    if (m.name().equals(sbf)) {
+                        cfg.secretBloodFirst = m;
+                    }
+                }
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
                 cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
@@ -127,6 +158,7 @@ public final class AutoSecretConfig {
             o.addProperty("autopilotKey", autopilotKey);
             o.addProperty("runMode", runMode.name());
             o.addProperty("bloodFirst", bloodFirst);
+            o.addProperty("secretBloodFirst", secretBloodFirst.name());
             o.addProperty("doPuzzles", doPuzzles);
             o.addProperty("statusHud", statusHud);
             o.addProperty("keyBaseRange", keyBaseRange);
@@ -170,6 +202,9 @@ public final class AutoSecretConfig {
 
     public boolean isBloodFirst() { return bloodFirst; }
     public void setBloodFirst(boolean v) { bloodFirst = v; }
+
+    public SecretBloodFirst getSecretBloodFirst() { return secretBloodFirst; }
+    public void setSecretBloodFirst(SecretBloodFirst v) { secretBloodFirst = v == null ? SecretBloodFirst.OFF : v; }
 
     public boolean isDoPuzzles() { return doPuzzles; }
     public void setDoPuzzles(boolean v) { doPuzzles = v; }
