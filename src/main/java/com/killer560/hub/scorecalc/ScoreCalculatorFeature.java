@@ -859,9 +859,9 @@ public final class ScoreCalculatorFeature {
     private static final int SCORE_RED = 0xFF5555;
     private static final int SCORE_YELLOW = 0xFFFF55;
 
-    private static int scoreColor(int score) {
-        // Odin MapInfo.colorizeScore: red < 270, yellow < 300, green 300+.
-        return score < 270 ? SCORE_RED : score < 300 ? SCORE_YELLOW : ModChat.GOOD;
+    private static int scoreColor(int score, ScoreCalculatorConfig cfg) {
+        // Odin MapInfo.colorizeScore: red < 270, yellow < 300, green 300+ (red and green are his colours now).
+        return score < 270 ? cfg.getBadColor() : score < 300 ? SCORE_YELLOW : cfg.getGoodColor();
     }
 
     private static final ScoreCalculator.Result DEMO_RESULT =
@@ -886,7 +886,9 @@ public final class ScoreCalculatorFeature {
     private static int cBats;
     private static boolean cBreakdown;
     private static boolean cSecretsNeeded;
-    private static boolean cCryptsDeaths;
+    private static boolean cShowCrypts;
+    private static boolean cDeaths2;
+    private static int cColors;
     private static boolean cMimicPrince;
 
     /** {@link #buildLines}, reused while none of its inputs changed. Off the render thread it just builds. */
@@ -902,7 +904,7 @@ public final class ScoreCalculatorFeature {
                 && cFound == secretsFound && cCrypts == crypts && cDeaths == deaths
                 && java.util.Objects.equals(cFloor, floor) && cMimic == mimicKilled && cPrince == princeKilled
                 && cBats == bats && cBreakdown == cfg.isShowBreakdown() && cSecretsNeeded == cfg.isShowSecretsNeeded()
-                && cCryptsDeaths == cfg.isShowCryptsDeaths() && cMimicPrince == cfg.isShowMimicPrince()) {
+                && cShowCrypts == cfg.isShowCrypts() && cDeaths2 == cfg.isShowDeaths() && cColors == cfg.colorsKey() && cMimicPrince == cfg.isShowMimicPrince()) {
             return cachedLines;
         }
         cachedLines = buildLines(cfg, demo);
@@ -920,7 +922,9 @@ public final class ScoreCalculatorFeature {
         cBats = bats;
         cBreakdown = cfg.isShowBreakdown();
         cSecretsNeeded = cfg.isShowSecretsNeeded();
-        cCryptsDeaths = cfg.isShowCryptsDeaths();
+        cShowCrypts = cfg.isShowCrypts();
+        cDeaths2 = cfg.isShowDeaths();
+        cColors = cfg.colorsKey();
         cMimicPrince = cfg.isShowMimicPrince();
         return cachedLines;
     }
@@ -956,17 +960,22 @@ public final class ScoreCalculatorFeature {
         if (r == null) {
             return lines;
         }
-        int sc = scoreColor(r.total());
-        lines.add(List.of(new Segment("Score: ", ModChat.ORANGE), new Segment(String.valueOf(r.total()), sc),
+        int sc = scoreColor(r.total(), cfg);
+        final int LABEL = cfg.getLabelColor();
+        final int SUB = cfg.getSubLabelColor();
+        final int VALUE = cfg.getValueColor();
+        final int GOOD = cfg.getGoodColor();
+        final int BAD = cfg.getBadColor();
+        lines.add(List.of(new Segment("Score: ", LABEL), new Segment(String.valueOf(r.total()), sc),
                 new Segment(" (" + r.rank() + ")", sc)));
         boolean paul = demo ? false : lastInputs != null && lastInputs.paul();
         if (cfg.isShowBreakdown()) {
-            lines.add(List.of(new Segment(" Skill: ", ModChat.LIGHT_ORANGE), new Segment(String.valueOf(r.skill()), ModChat.TEXT)));
-            lines.add(List.of(new Segment(" Explore: ", ModChat.LIGHT_ORANGE), new Segment(String.valueOf(r.explore()), ModChat.TEXT),
+            lines.add(List.of(new Segment(" Skill: ", SUB), new Segment(String.valueOf(r.skill()), VALUE)));
+            lines.add(List.of(new Segment(" Explore: ", SUB), new Segment(String.valueOf(r.explore()), VALUE),
                     new Segment(" (" + r.roomScore() + " rooms + " + r.secretScore() + " secrets)", ModChat.DIM)));
-            lines.add(List.of(new Segment(" Speed: ", ModChat.LIGHT_ORANGE), new Segment(String.valueOf(r.speed()), ModChat.TEXT)));
-            List<Segment> bonus = new ArrayList<>(List.of(new Segment(" Bonus: ", ModChat.LIGHT_ORANGE),
-                    new Segment(String.valueOf(r.bonus()), ModChat.TEXT)));
+            lines.add(List.of(new Segment(" Speed: ", SUB), new Segment(String.valueOf(r.speed()), VALUE)));
+            List<Segment> bonus = new ArrayList<>(List.of(new Segment(" Bonus: ", SUB),
+                    new Segment(String.valueOf(r.bonus()), VALUE)));
             if (paul) {
                 bonus.add(new Segment(" (+10 Paul)", ModChat.DIM));
             }
@@ -974,44 +983,52 @@ public final class ScoreCalculatorFeature {
         }
         if (cfg.isShowSecretsNeeded()) {
             List<Segment> line = new ArrayList<>();
-            line.add(new Segment("S+ Secrets: ", ModChat.ORANGE));
+            line.add(new Segment("S+ Secrets: ", LABEL));
             int found = demo ? 54 : secretsFound;
             if (r.secretsNeeded() < 0) {
                 line.add(new Segment("?", ModChat.DIM));
             } else if (r.secretsNeeded() == Integer.MAX_VALUE) {
-                line.add(new Segment("not reachable", ModChat.BAD));
+                line.add(new Segment("not reachable", BAD));
             } else if (r.secretsRemaining() <= 0) {
-                line.add(new Segment("done", ModChat.GOOD));
+                line.add(new Segment("done", GOOD));
                 line.add(new Segment(" (" + found + "/" + r.secretsNeeded() + ")", ModChat.DIM));
             } else {
-                line.add(new Segment(r.secretsRemaining() + " more", ModChat.LIGHT_ORANGE));
+                line.add(new Segment(r.secretsRemaining() + " more", SUB));
                 line.add(new Segment(" (" + found + "/" + r.secretsNeeded() + ")", ModChat.DIM));
             }
             lines.add(line);
         }
-        if (cfg.isShowCryptsDeaths()) {
+        if (cfg.isShowCrypts() || cfg.isShowDeaths()) {
             int c = demo ? 5 : crypts;
             int d = demo ? 0 : deaths;
-            lines.add(List.of(new Segment("Crypts: ", ModChat.ORANGE), new Segment(String.valueOf(c), c >= 5 ? ModChat.GOOD : ModChat.TEXT),
-                    new Segment("/5", ModChat.DIM), new Segment("  Deaths: ", ModChat.ORANGE),
-                    new Segment(String.valueOf(d), d > 0 ? ModChat.BAD : ModChat.TEXT)));
+            List<Segment> line = new ArrayList<>();
+            if (cfg.isShowCrypts()) {
+                line.add(new Segment("Crypts: ", LABEL));
+                line.add(new Segment(String.valueOf(c), c >= 5 ? GOOD : VALUE));
+                line.add(new Segment("/5", ModChat.DIM));
+            }
+            if (cfg.isShowDeaths()) {
+                line.add(new Segment(cfg.isShowCrypts() ? "  Deaths: " : "Deaths: ", LABEL));
+                line.add(new Segment(String.valueOf(d), d > 0 ? BAD : VALUE));
+            }
+            lines.add(line);
         }
         if (cfg.isShowMimicPrince()) {
             boolean mimicFloor = demo || ScoreCalculator.floorNumber(DungeonState.getFloor()) >= 6;
             List<Segment> line = new ArrayList<>();
             if (mimicFloor) {
                 boolean m = demo || mimicKilled;
-                line.add(new Segment("Mimic: ", ModChat.ORANGE));
-                line.add(new Segment(m ? "✔" : "✘", m ? ModChat.GOOD : ModChat.BAD));
-                line.add(new Segment("  ", ModChat.TEXT));
+                line.add(new Segment("Mimic: ", LABEL));
+                line.add(new Segment(m ? "✔" : "✘", m ? GOOD : BAD));
+                line.add(new Segment("  ", VALUE));
             }
             boolean p = !demo && princeKilled;
-            line.add(new Segment("Prince: ", ModChat.ORANGE));
-            line.add(new Segment(p ? "✔" : "✘", p ? ModChat.GOOD : ModChat.BAD));
+            line.add(new Segment("Prince: ", LABEL));
+            line.add(new Segment(p ? "✔" : "✘", p ? GOOD : BAD));
             // The Murkbat bonus, beside the Prince's (2026-10-07), with a count when more than one player had it.
             int b = demo ? 1 : Math.min(ScoreCalculator.BAT_BONUS_CAP, batKillers.size());
-            line.add(new Segment("  Bat: ", ModChat.ORANGE));
-            line.add(new Segment(b > 0 ? "✔" : "✘", b > 0 ? ModChat.GOOD : ModChat.BAD));
+            line.add(new Segment("  Bat: ", LABEL));
+            line.add(new Segment(b > 0 ? "✔" : "✘", b > 0 ? GOOD : BAD));
             if (b > 1) {
                 line.add(new Segment(" x" + b, ModChat.DIM));
             }

@@ -50,6 +50,11 @@ public class DungeonAlertsTab extends BaseTab {
         header(w, contentX, y, contentWidth, "Shadow Assassin Alert");
         master(w, contentX, y, contentWidth, "Shadow Assassin Alert", () -> cfg.shadowAssassinEnabled,
                 v -> cfg.shadowAssassinEnabled = v, requestRebuild);
+        if (cfg.shadowAssassinEnabled) {
+            colorButton(w, contentX, y[0], contentWidth, "Alert Color", () -> cfg.shadowAssassinColor,
+                    v -> cfg.shadowAssassinColor = v, DungeonAlertsConfig.DEFAULT_SHADOW_ASSASSIN_COLOR);
+            y[0] += 24;
+        }
 
         // --- Room Alerts --- killer560 (2026-09-27): only Room Cleared + Secrets Done now - see RoomAlerts.
         header(w, contentX, y, contentWidth, "Room Alerts");
@@ -58,8 +63,12 @@ public class DungeonAlertsTab extends BaseTab {
             toggle(w, contentX, y[0], half, "Room Cleared", () -> cfg.roomAlertsRoomCleared, v -> cfg.roomAlertsRoomCleared = v);
             toggle(w, colB, y[0], half, "Secrets Done", () -> cfg.roomAlertsSecretsDone, v -> cfg.roomAlertsSecretsDone = v);
             y[0] += 22;
-            toggle(w, contentX, y[0], half, "On-screen Text", () -> cfg.roomAlertsTitle, v -> cfg.roomAlertsTitle = v);
-            w.add(new ThemedSliderButton(colB, y[0], half, 18, displayLabel(cfg), (cfg.roomAlertsDisplaySeconds - 0.5) / 2.5) {
+            colorButton(w, contentX, y[0], half, "Cleared Color", () -> cfg.roomAlertsClearedColor,
+                    v -> cfg.roomAlertsClearedColor = v, DungeonAlertsConfig.DEFAULT_ROOM_ALERT_COLOR);
+            colorButton(w, colB, y[0], half, "Secrets Color", () -> cfg.roomAlertsSecretsColor,
+                    v -> cfg.roomAlertsSecretsColor = v, DungeonAlertsConfig.DEFAULT_ROOM_ALERT_COLOR);
+            y[0] += 22;
+            w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, displayLabel(cfg), (cfg.roomAlertsDisplaySeconds - 0.5) / 2.5) {
                 @Override
                 protected void updateMessage() {
                     setMessage(displayLabel(cfg));
@@ -103,6 +112,19 @@ public class DungeonAlertsTab extends BaseTab {
                     set.accept(now);
                     DungeonAlertsConfig.getInstance().save();
                     btn.setMessage(onOff(label, now));
+                }).bounds(x, y, width, 18).build());
+    }
+
+    private static void colorButton(List<AbstractWidget> w, int x, int y, int width, String label,
+                                    java.util.function.IntSupplier get, java.util.function.IntConsumer set, int defaultRgb) {
+        w.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label(label, get.getAsInt()), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(client), label, 0xFF000000 | get.getAsInt(),
+                            0xFF000000 | defaultRgb, argb -> {
+                        set.accept(argb & 0xFFFFFF);
+                        DungeonAlertsConfig.getInstance().save();
+                    }));
                 }).bounds(x, y, width, 18).build());
     }
 

@@ -87,6 +87,49 @@ public class DoorKeysTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
+        // killer560, 2026-10-18: the circle's line thickness and height, and colours for the tracer, the circle and the
+        // sphere's fill. A colour left on Auto follows the key (near-black Wither Key, red Blood Key); right-click resets.
+        boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
+        float tSpan = DoorKeysConfig.MAX_CIRCLE_THICKNESS - DoorKeysConfig.MIN_CIRCLE_THICKNESS;
+        widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18, circleThicknessText(cfg),
+                (cfg.getCircleThickness() - DoorKeysConfig.MIN_CIRCLE_THICKNESS) / tSpan) {
+            @Override
+            protected void updateMessage() {
+                setMessage(circleThicknessText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setCircleThickness(Math.round((DoorKeysConfig.MIN_CIRCLE_THICKNESS + (float) this.value * tSpan) * 2f) / 2f);
+                cfg.save();
+            }
+        });
+        if (!sphere) {
+            float lSpan = DoorKeysConfig.MAX_CIRCLE_LIFT - DoorKeysConfig.MIN_CIRCLE_LIFT;
+            widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, circleLiftText(cfg),
+                    (cfg.getCircleLift() - DoorKeysConfig.MIN_CIRCLE_LIFT) / lSpan) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(circleLiftText(cfg));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setCircleLift(Math.round((DoorKeysConfig.MIN_CIRCLE_LIFT + (float) this.value * lSpan) * 10f) / 10f);
+                    cfg.save();
+                }
+            });
+        }
+        y += 22;
+        widgets.add(colorButton("Circle Color", cfg::getCircleColor, cfg::setCircleColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2aX, y, col2W));
+        widgets.add(colorButton("Tracer Color", cfg::getTracerColor, cfg::setTracerColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2bX, y, col2W));
+        y += 22;
+        if (sphere) {
+            widgets.add(colorButton("Sphere Fill", cfg::getFillColor, cfg::setFillColor, 0x38BFBFCC, 0x38BFBFCC, cfg, contentX, y, contentWidth));
+            y += 22;
+        }
+        y += 4;
+
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return widgets;
         }
@@ -102,6 +145,35 @@ public class DoorKeysTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;
+    }
+
+    /** A colour row: Auto until he picks one (the picker starts from {@code shownWhenAuto}); right-click puts it back to Auto. */
+    private static SettingsButtonWidget colorButton(String label, java.util.function.IntSupplier get,
+                                                    java.util.function.IntConsumer set, int shownWhenAuto, int pickerDefault,
+                                                    DoorKeysConfig cfg, int x, int y, int w) {
+        java.util.function.Supplier<Component> text = () -> get.getAsInt() == DoorKeysConfig.COLOR_AUTO
+                ? Component.literal(label + ": §7Auto") : com.killer560.hub.gui.ColorSwatch.label(label, get.getAsInt());
+        return SettingsButtonWidget.builder(text.get(), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    int current = get.getAsInt() == DoorKeysConfig.COLOR_AUTO ? shownWhenAuto : get.getAsInt();
+                    com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                            com.killer560.hub.compat.McCompat.screen(client), label, current, pickerDefault, argb -> {
+                        set.accept(argb);
+                        cfg.save();
+                    }));
+                }).secondaryPress(btn -> {
+                    set.accept(DoorKeysConfig.COLOR_AUTO);
+                    cfg.save();
+                    btn.setMessage(text.get());
+                }).bounds(x, y, w, 18).build();
+    }
+
+    private static Component circleThicknessText(DoorKeysConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Circle Thickness: %.1f", cfg.getCircleThickness()));
+    }
+
+    private static Component circleLiftText(DoorKeysConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Circle Height: %+.1f", cfg.getCircleLift()));
     }
 
     private static Component rangeText(DoorKeysConfig cfg) {

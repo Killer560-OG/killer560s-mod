@@ -1,5 +1,9 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
+import com.killer560.hub.util.ModChat;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.scorecalc.ScoreCalculator;
@@ -43,10 +47,6 @@ public class ScoreCalculatorTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Estimates the dungeon score from the tab list and sidebar. Move it with the HUD editor."), font));
-        y += 16;
-
         if (!cfg.isEnabled()) {
             return widgets;
         }
@@ -57,11 +57,20 @@ public class ScoreCalculatorTab extends BaseTab {
         widgets.add(toggle("Show Breakdown", cfg.isShowBreakdown(), v -> cfg.setShowBreakdown(v), cfg, contentX, y, colW));
         widgets.add(toggle("Secrets Needed", cfg.isShowSecretsNeeded(), v -> cfg.setShowSecretsNeeded(v), cfg, col2X, y, colW));
         y += 22;
-        widgets.add(toggle("Crypts & Deaths", cfg.isShowCryptsDeaths(), v -> cfg.setShowCryptsDeaths(v), cfg, contentX, y, colW));
-        // "Mimic & Prince" until 2026-10-07, when the Murkbat bat joined them on the same row.
-        widgets.add(toggle("Bonus Kills", cfg.isShowMimicPrince(), v -> cfg.setShowMimicPrince(v), cfg, col2X, y, colW));
+        widgets.add(toggle("Crypts", cfg.isShowCrypts(), v -> cfg.setShowCrypts(v), cfg, contentX, y, colW));
+        widgets.add(toggle("Deaths", cfg.isShowDeaths(), v -> cfg.setShowDeaths(v), cfg, col2X, y, colW));
         y += 22;
-        widgets.add(toggle("Score Text Shadow", cfg.isTextShadow(), v -> cfg.setTextShadow(v), cfg, contentX, y, colW));
+        // "Mimic & Prince" until 2026-10-07, when the Murkbat bat joined them on the same row.
+        widgets.add(toggle("Bonus Kills", cfg.isShowMimicPrince(), v -> cfg.setShowMimicPrince(v), cfg, contentX, y, colW));
+        widgets.add(toggle("Score Text Shadow", cfg.isTextShadow(), v -> cfg.setTextShadow(v), cfg, col2X, y, colW));
+        y += 22;
+        widgets.add(colorButton("Label Color", cfg::getLabelColor, cfg::setLabelColor, ModChat.ORANGE, cfg, contentX, y, colW));
+        widgets.add(colorButton("Sub-label Color", cfg::getSubLabelColor, cfg::setSubLabelColor, ModChat.LIGHT_ORANGE, cfg, col2X, y, colW));
+        y += 22;
+        widgets.add(colorButton("Value Color", cfg::getValueColor, cfg::setValueColor, ModChat.TEXT, cfg, contentX, y, colW));
+        widgets.add(colorButton("Good Color", cfg::getGoodColor, cfg::setGoodColor, ModChat.GOOD, cfg, col2X, y, colW));
+        y += 22;
+        widgets.add(colorButton("Bad Color", cfg::getBadColor, cfg::setBadColor, ModChat.BAD, cfg, contentX, y, colW));
         y += 28;
 
         // ---- Formula ----
@@ -125,12 +134,21 @@ public class ScoreCalculatorTab extends BaseTab {
 
         widgets.add(toggle("Score Chat Note", cfg.isChatNote(), v -> cfg.setChatNote(v), cfg, contentX, y, colW));
         widgets.add(toggle("Alert Sound", cfg.isAlertSound(), v -> cfg.setAlertSound(v), cfg, col2X, y, colW));
-        y += 24;
-
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Party messages send at most once per run. Titles accept & color codes."), font));
 
         return widgets;
+    }
+
+    private static SettingsButtonWidget colorButton(String label, java.util.function.IntSupplier get,
+                                                    java.util.function.IntConsumer set, int defaultRgb,
+                                                    ScoreCalculatorConfig cfg, int x, int y, int w) {
+        return SettingsButtonWidget.builder(ColorSwatch.label(label, get.getAsInt()), btn -> {
+            Minecraft client = Minecraft.getInstance();
+            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label,
+                    0xFF000000 | get.getAsInt(), 0xFF000000 | defaultRgb, argb -> {
+                set.accept(argb & 0xFFFFFF);
+                cfg.save();
+            }));
+        }).bounds(x, y, w, 18).build();
     }
 
     private static SettingsButtonWidget toggle(String label, boolean initial, Consumer<Boolean> setter,

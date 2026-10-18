@@ -82,6 +82,14 @@ public class CustomMageBeamTab extends BaseTab {
         });
         y += 20;
 
+        widgets.add(SettingsButtonWidget.cycling(shapeText(cfg), (btn, dir) -> {
+                    cfg.setMageBeamShape(SettingsButtonWidget.step(cfg.getMageBeamShape(), dir,
+                            DungeonExtrasConfig.BEAM_SHAPE_NAMES.length));
+                    cfg.save();
+                    btn.setMessage(shapeText(cfg));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, durationText(cfg),
                 (cfg.getMageBeamDurationTicks() - 5) / 95.0) {
             @Override
@@ -102,6 +110,10 @@ public class CustomMageBeamTab extends BaseTab {
 
     private static Component widthText(DungeonExtrasConfig cfg) {
         return Component.literal(String.format(Locale.US, "Width: %.1f", cfg.getMageBeamWidth()));
+    }
+
+    private static Component shapeText(DungeonExtrasConfig cfg) {
+        return Component.literal("Shape: " + DungeonExtrasConfig.BEAM_SHAPE_NAMES[cfg.getMageBeamShape()]);
     }
 
     private static Component durationText(DungeonExtrasConfig cfg) {

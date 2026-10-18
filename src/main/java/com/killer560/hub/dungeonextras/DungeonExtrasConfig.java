@@ -37,6 +37,13 @@ public final class DungeonExtrasConfig {
     private int mageBeamColor = DEFAULT_BEAM_COLOR;
     private float mageBeamWidth = 2.0f;
     private int mageBeamDurationTicks = 40;
+    /** The beam's cross-section (killer560, 2026-10-18: "should have the option to be flat, square, cylindrical, ect. Make
+     *  square the default"): an index into {@link #BEAM_SHAPE_NAMES}. */
+    private int mageBeamShape = BEAM_SHAPE_SQUARE;
+    public static final int BEAM_SHAPE_SQUARE = 0;
+    public static final int BEAM_SHAPE_FLAT = 1;
+    public static final int BEAM_SHAPE_CYLINDER = 2;
+    public static final String[] BEAM_SHAPE_NAMES = {"Square", "Flat", "Cylinder"};
 
     // Auto Dialogue (cheat)
     private boolean autoDialogueEnabled = false;
@@ -198,6 +205,7 @@ public final class DungeonExtrasConfig {
                 cfg.mageBeamFade = bool(o, "mageBeamFade", cfg.mageBeamFade);
                 cfg.mageBeamColor = o.has("mageBeamColor") ? o.get("mageBeamColor").getAsInt() : cfg.mageBeamColor;
                 cfg.mageBeamWidth = clamp(o.has("mageBeamWidth") ? o.get("mageBeamWidth").getAsFloat() : cfg.mageBeamWidth, MIN_BEAM_WIDTH, MAX_BEAM_WIDTH);
+                cfg.setMageBeamShape(o.has("mageBeamShape") ? o.get("mageBeamShape").getAsInt() : BEAM_SHAPE_SQUARE);
                 cfg.mageBeamDurationTicks = clampInt(o.has("mageBeamDurationTicks") ? o.get("mageBeamDurationTicks").getAsInt() : cfg.mageBeamDurationTicks, 5, 100);
                 cfg.autoDialogueEnabled = bool(o, "autoDialogueEnabled", cfg.autoDialogueEnabled);
                 cfg.autoDialogueDelayTicks = clampInt(o.has("autoDialogueDelayTicks") ? o.get("autoDialogueDelayTicks").getAsInt() : cfg.autoDialogueDelayTicks, 0, 40);
@@ -268,6 +276,7 @@ public final class DungeonExtrasConfig {
             o.addProperty("mageBeamColor", mageBeamColor);
             o.addProperty("mageBeamWidth", mageBeamWidth);
             o.addProperty("mageBeamDurationTicks", mageBeamDurationTicks);
+            o.addProperty("mageBeamShape", mageBeamShape);
             o.addProperty("autoDialogueEnabled", autoDialogueEnabled);
             o.addProperty("autoDialogueDelayTicks", autoDialogueDelayTicks);
             o.addProperty("autoDialogueNpcFilter", autoDialogueNpcFilter);
@@ -332,6 +341,8 @@ public final class DungeonExtrasConfig {
     public void setMageBeamColor(int v) { mageBeamColor = v; }
     public float getMageBeamWidth() { return mageBeamWidth; }
     public void setMageBeamWidth(float v) { mageBeamWidth = clamp(v, MIN_BEAM_WIDTH, MAX_BEAM_WIDTH); }
+    public int getMageBeamShape() { return mageBeamShape; }
+    public void setMageBeamShape(int v) { mageBeamShape = v < 0 || v >= BEAM_SHAPE_NAMES.length ? BEAM_SHAPE_SQUARE : v; }
     public int getMageBeamDurationTicks() { return mageBeamDurationTicks; }
     public void setMageBeamDurationTicks(int v) { mageBeamDurationTicks = clampInt(v, 5, 100); }
 

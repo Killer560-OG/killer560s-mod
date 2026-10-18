@@ -73,12 +73,11 @@ final class SettingTooltipsData {
     private static void clickSounds(Map<String, String> d) {
         // killer560, 2026-10-15: the menu click sound and the Descriptions switches (clicksound/, gui/tab/ClickSoundsTab, DescriptionsTab).
         d.put("click sounds", "The sound every button click makes. Default is Minecraft's own click; the presets are short original sounds; Import adds your own .ogg.");
-        d.put("click sounds/click sound", "Default (Minecraft's click), a preset (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep) or an .ogg you imported. Left click goes to the next and plays it, right click back.");
-        d.put("click sounds/vanilla screens", "Off: only this mod's menus use the sound. On: Minecraft's own screens (Options, the title screen, Mod Menu...) use it too.");
-        d.put("click sounds/click volume", "How loud the chosen click is, 0-100%. It is also scaled by your Minecraft master volume.");
+        d.put("click sounds/click sound", "Default (Minecraft's click), a preset (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep) or a sound you imported. Left click goes to the next and plays it, right click back.");
+        d.put("click sounds/click volume", "How loud the chosen click is, 0-500%. Above 100% the click plays in layers, so 300% is three copies together. It is also scaled by your Minecraft master volume.");
         d.put("click sounds/preview", "Plays the chosen click once.");
-        d.put("click sounds/open sound folder", "Opens the folder your imported .ogg files live in. Drop a short Ogg Vorbis file in (under 1 MB), then step Click Sound to it.");
-        d.put("click sounds/import from clipboard", "Copy an .ogg file's path (Shift + right click it in Explorer, Copy as path) then press this: the file is checked, copied into the sound folder and chosen.");
+        d.put("click sounds/open sound folder", "Opens the folder your imported .ogg files live in. Drop a short .ogg, .wav or .mp3 in (under 1 MB), then step Click Sound to it.");
+        d.put("click sounds/import from clipboard", "Copy a sound or video file's path (Shift + right click it in Explorer, Copy as path) then press this: an .ogg, .wav or .mp3 is checked and copied into the sound folder; anything else (a video such as mp4, m4a, flac) has its audio cut to 5 seconds by ffmpeg if you have it installed. The result is chosen.");
         d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
         d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");
         d.put("descriptions/show editor descriptions", "Off hides the hint line at the top of the HUD editor (drag, resize, scroll, Esc). The line saying why the editor is empty stays.");
@@ -1059,7 +1058,8 @@ final class SettingTooltipsData {
         d.put("score calculator", "Shows a live estimate of your dungeon score on a movable HUD.");
         d.put("show breakdown", "Adds Skill, Explore, Speed and Bonus lines under the score.");
         d.put("secrets needed", "Shows how many more secrets you need for S+.");
-        d.put("crypts & deaths", "Shows crypts (out of 5) and team deaths on the score HUD.");
+        d.put("crypts", "Shows crypts (out of 5) on the score HUD.");
+        d.put("deaths", "Shows team deaths on the score HUD.");
         d.put("score calculator/bonus kills", "Shows whether the Mimic, a Prince and a Murkbat bonus bat have been killed (Bat counts each player's, up to 5).");
         d.put("score text shadow", "Draws the score HUD text with a shadow.");
         d.put("paul (ezpz)", "Sets whether Paul's EZPZ +10 bonus score counts: Auto, Force On or Force Off.");
