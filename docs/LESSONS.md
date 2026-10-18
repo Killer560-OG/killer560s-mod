@@ -447,4 +447,8 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   saw it because it stares from fifteen spots for 150 ticks and calls `settle()`. Now 40 seen and 30 matches per standing
   placement (testkit 1018-predict-hypixel: a sim floor walked like a player, 12 rooms named right on the fix, 2 on main). A
   `[Predict] tile x,z closed:` line says, per tile he looked into, what it named or why not. Measure a sight feature with
-  the looks a player makes, not the best case.
+  the looks a player makes, not the best case. His in-game "about 20 s in a corridor" (Mod Only Test, 2026-10-18) was a
+  main jar (f0a61ba4): the tile's first block at 18:01:41, named at 18:01:50 at exactly 120 seen, one candidate build, so
+  gathering blocks was the wait, not rebuilding or queueing. A doorway seen from a corridor is a slot a handful of the 336
+  grid rays reach; the sweep now adds eight rays round each grid ray that met an unopened room (at most 336 more) and
+  sweeps every 2 ticks instead of 4 while it sees one (1018-predict-hypixel-corridor: named at ticks 2-3; tick 35 without them; never on main, stuck at 73 seen).
