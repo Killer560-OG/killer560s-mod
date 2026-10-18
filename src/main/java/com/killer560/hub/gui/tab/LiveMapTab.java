@@ -9,6 +9,7 @@ import com.killer560.hub.livemap.LiveMapConfig;
 import com.killer560.hub.livemap.MapMarks;
 import com.killer560.hub.livemap.MapSchemeEditorScreen;
 import com.killer560.hub.livemap.MapThemes;
+import com.killer560.hub.livemap.predict.PredictiveRoomsConfig;
 import com.killer560.hub.mapping.MappingConfig;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -68,6 +69,21 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        // Predictive Rooms lives here, not in a card of its own (killer560, 2026-10-18: "predictive rooms should be inside
+        // of the map not its own toggle"). Same config and key as before; the Special Room Guess split rides with it.
+        PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Predictive Rooms", pcfg.isEnabledRaw()), btn -> {
+                    pcfg.setEnabled(!pcfg.isEnabledRaw());
+                    pcfg.save();
+                    btn.setMessage(onOff("Predictive Rooms", pcfg.isEnabledRaw()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()), btn -> {
+                    pcfg.setSpecialGuess(!pcfg.isSpecialGuessRaw());
+                    pcfg.save();
+                    btn.setMessage(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()));
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
         if (cfg.isEnabledRaw()) {
             widgets.add(cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels, cfg::setRoomLabels,
