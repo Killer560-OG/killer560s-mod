@@ -113,7 +113,7 @@ public final class LightsDeviceFeature {
         }
         P3SectionTracker.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LightsDeviceFeature.tick", LightsDeviceFeature::tick));
-        LOGGER.info("[LightsDevice] Registered (both halves default OFF)");
+        LOGGER.debug("[LightsDevice] Registered (both halves default OFF)");
     }
 
     /** One of the device's six levers. Secret Aura and its Triggerbot leave these alone in F7/M7 ({@link #isLightsLever}). */

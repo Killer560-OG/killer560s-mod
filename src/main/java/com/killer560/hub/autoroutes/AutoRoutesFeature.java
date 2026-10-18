@@ -106,7 +106,7 @@ public final class AutoRoutesFeature {
                 AutoRoutesFeature::onRenderFrame));
         AwaitEvents.register();
         AutoRoutesProgressHud.register();
-        LOGGER.info("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[AutoRoutes] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     // ------------------------------------------------------------------------------------------- public API

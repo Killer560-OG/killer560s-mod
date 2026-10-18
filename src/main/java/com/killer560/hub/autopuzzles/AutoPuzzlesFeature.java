@@ -113,7 +113,7 @@ public final class AutoPuzzlesFeature {
                 LOGGER.error("[AutoPuzzles] Boulder frame step threw", e);
             }
         });
-        LOGGER.info("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[AutoPuzzles] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     private static void onMessage(Component message) {

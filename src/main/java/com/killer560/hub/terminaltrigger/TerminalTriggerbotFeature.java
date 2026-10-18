@@ -55,7 +55,7 @@ public final class TerminalTriggerbotFeature {
         }
         TerminalTriggerbotConfig.getInstance();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalTriggerbotFeature.tick", TerminalTriggerbotFeature::tick));
-        LOGGER.info("[TerminalTriggerbot] Registered (default OFF)");
+        LOGGER.debug("[TerminalTriggerbot] Registered (default OFF)");
     }
 
     private static void tick(Minecraft client) {

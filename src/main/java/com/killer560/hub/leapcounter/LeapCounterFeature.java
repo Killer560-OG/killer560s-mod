@@ -47,7 +47,7 @@ public final class LeapCounterFeature {
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "leapcounter_" + HUD.id()),
                 (graphics, deltaTracker) -> drawHudInGame(graphics));
-        LOGGER.info("[LeapCounter] Registered (default OFF)");
+        LOGGER.debug("[LeapCounter] Registered (default OFF)");
     }
 
     private static void onChat(Component message) {

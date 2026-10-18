@@ -158,12 +158,17 @@ public final class RoomTileAudit {
             }
         }
         if (!reasons.isEmpty()) {
-            LOGGER.warn("Room library: {} capture(s) hold blocks that are not theirs and will not be placed "
-                    + "until they are walked again - {}", reasons.size(),
-                    String.join(", ", reasons.keySet()));
+            // One line, reasons included: the capture really is wrong (the room is not placed until it is walked
+            // again), so it stays a WARN, but it need not take a second line per room on every launch.
+            StringBuilder detail = new StringBuilder();
             for (Map.Entry<String, List<String>> e : reasons.entrySet()) {
-                LOGGER.warn("   {}: {}", e.getKey(), String.join("; ", e.getValue()));
+                if (detail.length() > 0) {
+                    detail.append(" | ");
+                }
+                detail.append(e.getKey()).append(": ").append(String.join("; ", e.getValue()));
             }
+            LOGGER.warn("Room library: {} capture(s) hold blocks that are not theirs and will not be placed "
+                    + "until they are walked again - {}", reasons.size(), detail);
         }
         LOGGER.info("Room library: tile audit checked {} capture(s) in {} ms ({} could not be compared, "
                 + "their captured band does not cover y {}..{})",

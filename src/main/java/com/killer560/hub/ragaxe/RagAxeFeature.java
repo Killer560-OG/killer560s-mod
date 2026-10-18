@@ -70,7 +70,7 @@ public final class RagAxeFeature {
                     Identifier.fromNamespaceAndPath("killer560smod", "ragaxe_" + element.id()),
                     (graphics, deltaTracker) -> drawInGame(graphics, element));
         }
-        LOGGER.info("[RagAxe] Registered (master and all prompts default OFF)");
+        LOGGER.debug("[RagAxe] Registered (master and all prompts default OFF)");
     }
 
     /** The lead registers these into this mod's {@link HudElementRegistry} so the HUD editor can move them. */

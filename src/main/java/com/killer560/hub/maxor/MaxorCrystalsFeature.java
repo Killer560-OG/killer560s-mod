@@ -109,7 +109,7 @@ public final class MaxorCrystalsFeature {
             }
             MaxorCrystalsRenderer.render(context);
         }));
-        LOGGER.info("[Maxor] Registered (all features default OFF)");
+        LOGGER.debug("[Maxor] Registered (all features default OFF)");
     }
 
     private static void ensureTickSubscribed() {

@@ -151,7 +151,8 @@ public final class SimPuzzles {
                                     : ModChat.dim("Nothing to reset - only failed puzzles (and Boulder) can be reset"));
                             return 1;
                         }))
-                        .then(ClientCommands.argument("name", StringArgumentType.word())
+                        .then(ClientCommands.argument("name",
+                                        com.killer560.hub.util.ExceptWords.of(StringArgumentType.word(), "reset"))
                                 .executes(ctx -> {
                                     build(Minecraft.getInstance(),
                                             StringArgumentType.getString(ctx, "name"));

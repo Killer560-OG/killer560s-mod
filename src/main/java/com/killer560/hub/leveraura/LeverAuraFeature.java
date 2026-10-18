@@ -74,7 +74,7 @@ public final class LeverAuraFeature {
     public static void register() {
         P3SectionTracker.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LeverAuraFeature.tick", LeverAuraFeature::tick));
-        LOGGER.info("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[LeverAura] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     // ------------------------------------------------------------------------------------------------------------

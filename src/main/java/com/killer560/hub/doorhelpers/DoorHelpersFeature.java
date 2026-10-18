@@ -37,7 +37,7 @@ public final class DoorHelpersFeature {
                 AutoDoorOpenerFeature.onChat(com.killer560.hub.util.ChatObserver.strip(message));
             }
         });
-        LOGGER.info("[DoorHelpers] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[DoorHelpers] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     private static void onEndTick(Minecraft client) {

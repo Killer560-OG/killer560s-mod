@@ -39,7 +39,7 @@ public final class F7SpotsFeature {
             }
             F7SpotsRenderer.render(context);
         }));
-        LOGGER.info("[F7Spots] Registered (all features default OFF, waypoint/aim lists empty)");
+        LOGGER.debug("[F7Spots] Registered (all features default OFF, waypoint/aim lists empty)");
     }
 
     /** In the F7/M7 boss arena - {@link Floor7Tracker#inF7Boss()} (floor from DungeonState + arena bounds). */

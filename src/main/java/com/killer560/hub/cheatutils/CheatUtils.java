@@ -54,7 +54,7 @@ public final class CheatUtils {
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(CheatUtils::onChat);
-        LOGGER.info("[CheatUtils] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[CheatUtils] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     private static void onChat(Component message) {

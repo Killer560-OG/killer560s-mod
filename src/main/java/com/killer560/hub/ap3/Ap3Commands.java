@@ -441,7 +441,8 @@ public final class Ap3Commands {
                                         .then(ClientCommands.literal("color")
                                                 .then(ClientCommands.literal("reset").executes(context -> setColour(
                                                         IntegerArgumentType.getInteger(context, "n") - 1, null) ? 1 : 0))
-                                                .then(ClientCommands.argument("hex", StringArgumentType.word())
+                                                .then(ClientCommands.argument("hex",
+                                                        com.killer560.hub.util.ExceptWords.of(StringArgumentType.word(), "reset"))
                                                         .executes(context -> setColour(
                                                                 IntegerArgumentType.getInteger(context, "n") - 1,
                                                                 StringArgumentType.getString(context, "hex")) ? 1 : 0)))))));

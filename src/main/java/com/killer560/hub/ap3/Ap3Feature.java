@@ -128,7 +128,7 @@ public final class Ap3Feature {
         // Fast Align's planner, compiled by the JIT in the background so the first one in a session is not the slow one.
         // Once the title screen is up, not alongside the game's own loading (fps-sim-1015, util/AfterStartup).
         com.killer560.hub.util.AfterStartup.run(Ap3FastAlign::warmUpAsync);
-        LOGGER.info("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
+        LOGGER.debug("[AP3] Registered (cheatBuild={})", com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED);
     }
 
     // ------------------------------------------------------------------------------------------- gate
