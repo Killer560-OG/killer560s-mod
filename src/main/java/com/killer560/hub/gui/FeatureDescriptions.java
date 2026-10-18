@@ -32,7 +32,6 @@ final class FeatureDescriptions {
         BY_TAB.put("AutoExperimentsTab", "Plays the Experimentation Table: opens the games, solves them, claims the rewards.");
         BY_TAB.put("ProfilesTab", "Save, switch and share whole sets of settings.");
         // Tabs of several independent switches (no master one, so their first toggle's tooltip would describe only it).
-        BY_TAB.put("SolverHighlightsTab", "The look every puzzle solver's highlight shares: through walls, waypoint style.");
         BY_TAB.put("DungeonAlertsTab", "Titles and sounds for a Shadow Assassin, a room cleared and its secrets done.");
         BY_TAB.put("MaxorTab", "F7/M7 Maxor crystals: highlights, place and respawn timers, unplaced-crystal alert.");
         BY_TAB.put("P3NavTab", "F7/M7 Phase 3: highlights the next gate, the terminals and the devices.");

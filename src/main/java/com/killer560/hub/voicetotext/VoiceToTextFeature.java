@@ -128,7 +128,7 @@ public final class VoiceToTextFeature {
             // utterance ends and the next one starts on its own via silence detection.
             if (!openMicArmed && state != State.RECORDING && state != State.TRANSCRIBING && state != State.PREPARING_MODEL) {
                 openMicArmed = true;
-                ModOverlayMessage.show("[Voice] Open Mic: listening...", 2000);
+                overlay("[Voice] Open Mic: listening...", 2000);
                 onKeyPressed(); // reused: preps the speech model on first use, then starts recording
             }
             return;
@@ -157,7 +157,7 @@ public final class VoiceToTextFeature {
             return;
         }
         if (state == State.PREPARING_MODEL) {
-            ModOverlayMessage.show("[Voice] Still preparing the speech model...", 1500);
+            overlay("[Voice] Still preparing the speech model...", 1500);
             return;
         }
         if (loadedModel == null) {
@@ -168,13 +168,35 @@ public final class VoiceToTextFeature {
             boolean needEngine = !VoskLibrary.isCached(voiceDir);
             boolean needModel = !Files.exists(modelDirectory().resolve("conf"));
             String size = needEngine && needModel ? "~66MB" : needEngine ? "~26MB" : "~40MB";
-            ModOverlayMessage.show(needEngine || needModel
+            overlay(needEngine || needModel
                     ? "[Voice] Preparing speech recognition (first use only, may download " + size + ")..."
                     : "[Voice] Preparing speech model...", 4000);
             new Thread(VoiceToTextFeature::prepareModelAndStartRecording, "killer560smod-voice-prepare").start();
             return;
         }
         startRecording();
+    }
+
+    /** Every status line this feature puts on the screen goes through here: with Show Status On HUD off only a failure
+     *  (a red line) still shows, so a missing microphone or a failed set-up is never silent. */
+    private static void overlay(String text, long durationMs) {
+        if (!VoiceToTextConfig.getInstance().isShowStatusHud() && !text.startsWith("§c")) {
+            return;
+        }
+        ModOverlayMessage.show(text, durationMs);
+    }
+
+    /** A download's progress line, "[Voice] Downloading speech model: 37%", sent to the render thread whenever the whole
+     *  percent changes (killer560, 2026-10-18). {@code total} is the size to measure against. */
+    private static java.util.function.LongConsumer downloadProgress(String what, long total) {
+        int[] last = {-1};
+        return done -> {
+            int pct = (int) Math.min(100L, done * 100L / Math.max(1L, total));
+            if (pct != last[0]) {
+                last[0] = pct;
+                Minecraft.getInstance().execute(() -> overlay("[Voice] Downloading " + what + ": " + pct + "%", 3000));
+            }
+        };
     }
 
     private static void onKeyReleased() {
@@ -194,11 +216,13 @@ public final class VoiceToTextFeature {
             // machine Vosk cannot run on finds out before fetching the 40MB model rather than after.
             VoskLibrary lib = VoskLibrary.load(voiceDirectory(), VoskLibrary.DOWNLOAD_URL, url ->
                     Minecraft.getInstance().execute(() ->
-                            ModOverlayMessage.show("[Voice] Downloading speech engine (~26MB, first use only)...", 8000)));
+                            overlay("[Voice] Downloading speech engine (~26MB, first use only)...", 8000)),
+                    pct -> Minecraft.getInstance().execute(() ->
+                            overlay("[Voice] Downloading speech engine: " + pct + "%", 3000)));
             Path modelDir = modelDirectory();
             if (!Files.exists(modelDir.resolve("conf"))) {
                 Minecraft.getInstance().execute(() ->
-                        ModOverlayMessage.show("[Voice] Downloading speech model (~40MB, first use only)...", 8000));
+                        overlay("[Voice] Downloading speech model (~40MB, first use only)...", 8000));
                 downloadAndExtractModel(modelDir);
             }
             vosk = lib;
@@ -210,7 +234,7 @@ public final class VoiceToTextFeature {
             state = State.READY;
             Minecraft.getInstance().execute(() -> {
                 boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
-                ModOverlayMessage.show(openMic ? "§a[Voice] Speech model ready - listening now."
+                overlay(openMic ? "§a[Voice] Speech model ready - listening now."
                         : "§a[Voice] Speech model ready - hold the key again to talk.", 2500);
                 startRecording();
             });
@@ -218,7 +242,7 @@ public final class VoiceToTextFeature {
             LOGGER.warn("[VoiceToText] Failed to prepare speech model", t);
             state = State.ERROR;
             Minecraft.getInstance().execute(() ->
-                    ModOverlayMessage.show("§c[Voice] Failed to set up speech recognition: " + t.getMessage(), 4000));
+                    overlay("§c[Voice] Failed to set up speech recognition: " + t.getMessage(), 4000));
         }
     }
 
@@ -234,6 +258,8 @@ public final class VoiceToTextFeature {
     /** Caps for the Vosk model archive (2026-09-16 security pass). The real small-English model is about
      *  50 MB zipped; these only ever fire on a hostile or broken response. */
     private static final long MAX_MODEL_ZIP_BYTES = 512L * 1024 * 1024;
+    /** The small English model's zip (about 40 MB), used for the percent only when the server sends no length. */
+    private static final long MODEL_ZIP_ESTIMATE_BYTES = 40_000_000L;
     private static final long MAX_MODEL_EXTRACTED_BYTES = 1024L * 1024 * 1024;
 
     private static void downloadAndExtractModel(Path modelDir) throws IOException {
@@ -244,8 +270,10 @@ public final class VoiceToTextFeature {
         java.net.URLConnection conn = ModNet.open(MODEL_URL);
         conn.setConnectTimeout(15_000);
         conn.setReadTimeout(120_000);
+        long length = conn.getContentLengthLong();
         try (InputStream in = conn.getInputStream()) {
-            com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_MODEL_ZIP_BYTES, "speech model download");
+            com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_MODEL_ZIP_BYTES, "speech model download",
+                    downloadProgress("speech model", length > 0 ? length : MODEL_ZIP_ESTIMATE_BYTES));
         }
         LOGGER.info("[VoiceToText] Extracting speech model...");
         long extracted = 0;
@@ -306,7 +334,7 @@ public final class VoiceToTextFeature {
                     }
                 }
             }
-            ModOverlayMessage.show("§e[Voice] \"" + wanted + "\" isn't available - using the default microphone.", 3000);
+            overlay("§e[Voice] \"" + wanted + "\" isn't available - using the default microphone.", 3000);
         }
         return (TargetDataLine) AudioSystem.getLine(info);
     }
@@ -315,7 +343,7 @@ public final class VoiceToTextFeature {
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, FORMAT);
             if (!AudioSystem.isLineSupported(info)) {
-                ModOverlayMessage.show("§c[Voice] No compatible microphone found.", 3000);
+                overlay("§c[Voice] No compatible microphone found.", 3000);
                 state = State.READY;
                 return;
             }
@@ -327,7 +355,7 @@ public final class VoiceToTextFeature {
             boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
             openMicSession = openMic;
             if (!openMic) {
-                ModOverlayMessage.show("[Voice] Listening... (release key to send)", 60_000);
+                overlay("[Voice] Listening... (release key to send)", 60_000);
             }
             TargetDataLine recordingLine = line;
             OpenMicSegmenter segmenter = openMic
@@ -358,7 +386,7 @@ public final class VoiceToTextFeature {
             captureThread.start();
         } catch (Throwable t) {
             LOGGER.warn("[VoiceToText] Failed to start microphone capture", t);
-            ModOverlayMessage.show("§c[Voice] Failed to access microphone: " + t.getMessage(), 3000);
+            overlay("§c[Voice] Failed to access microphone: " + t.getMessage(), 3000);
             state = State.READY;
         }
     }
@@ -418,7 +446,7 @@ public final class VoiceToTextFeature {
             return;
         }
         String clean = text.trim();
-        ModOverlayMessage.show("[Voice] \"" + clean + "\"", 3000);
+        overlay("[Voice] \"" + clean + "\"", 3000);
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             send(client, clean);
@@ -489,7 +517,7 @@ public final class VoiceToTextFeature {
             capturedLine.close();
         }
         if (!restartIfOpenMic) {
-            ModOverlayMessage.show("[Voice] Transcribing...", 2000);
+            overlay("[Voice] Transcribing...", 2000);
         }
 
         new Thread(() -> {
@@ -506,10 +534,10 @@ public final class VoiceToTextFeature {
                 Minecraft.getInstance().execute(() -> {
                     if (text == null || text.isBlank()) {
                         if (!restartIfOpenMic) {
-                            ModOverlayMessage.show("[Voice] Didn't catch anything.", 2000);
+                            overlay("[Voice] Didn't catch anything.", 2000);
                         }
                     } else {
-                        ModOverlayMessage.show("[Voice] \"" + text + "\"", 3000);
+                        overlay("[Voice] \"" + text + "\"", 3000);
                         Minecraft client = Minecraft.getInstance();
                         if (client.player != null) {
                             send(client, text);
@@ -524,7 +552,7 @@ public final class VoiceToTextFeature {
                 LOGGER.warn("[VoiceToText] Transcription failed", t);
                 state = State.READY;
                 Minecraft.getInstance().execute(() ->
-                        ModOverlayMessage.show("§c[Voice] Transcription failed: " + t.getMessage(), 3000));
+                        overlay("§c[Voice] Transcription failed: " + t.getMessage(), 3000));
             }
         }, "killer560smod-voice-transcribe").start();
     }

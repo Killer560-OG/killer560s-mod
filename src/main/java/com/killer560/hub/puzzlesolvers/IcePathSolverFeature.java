@@ -248,10 +248,10 @@ public final class IcePathSolverFeature {
         for (Vec3 p : points) {
             line.add(p.add(0.5, 1.0, 0.5));
         }
-        SolverEspRender.renderLineStrip(context, line, 0.33f, 1.0f, 0.33f, 1f, 3f);
+        SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_PATH, context, line, 0.33f, 1.0f, 0.33f, 1f, 3f);
         if (IcePathSolverConfig.getInstance().isShowNextBox() && points.size() > 2) {
             Vec3 next = points.get(1);
-            SolverEspRender.renderWaypoint(context, new AABB(next.x, next.y, next.z, next.x + 1, next.y + 1, next.z + 1),
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_PATH, context, new AABB(next.x, next.y, next.z, next.x + 1, next.y + 1, next.z + 1),
                     1.0f, 0.33f, 0.33f, 2f);
         }
     }

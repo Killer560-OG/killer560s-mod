@@ -60,12 +60,13 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
     protected void init() {
         int width = 220;
         int x = this.width / 2 - width / 2;
-        int y = this.height / 2 - 118;
+        int y = this.height / 2 - 124;
 
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§6Random"), btn ->
                         open(PRACTICE_TYPES.get(random.nextInt(PRACTICE_TYPES.size()))))
                 .bounds(x, y, width, 20).build());
-        y += 26;
+        // More room between Random and the terminal buttons (killer560, 2026-10-18).
+        y += 34;
 
         for (TerminalType type : PRACTICE_TYPES) {
             this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(type.displayName()), btn -> open(type))
@@ -76,7 +77,7 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
         // reachable via Random or New Puzzle's reroll (both only ever draw from PRACTICE_TYPES).
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal(TerminalType.MELODY.displayName()), btn -> open(TerminalType.MELODY))
                 .bounds(x, y, width, 20).build());
-        y += 30;
+        y += 38;
 
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                 .bounds(x, y, width, 20).build());
@@ -96,7 +97,6 @@ public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.M
         ScreenChrome.frame(graphics, px, py, 260, 252);
         ScreenChrome.headerBar(graphics, px, py, 260);
         ScreenChrome.titleCentred(graphics, "Termism - Terminal Practice", this.width / 2, this.height / 2 - 142, false);
-        ScreenChrome.centered(graphics, "Generates a fake terminal to practice on - never a real one.", this.width / 2, this.height / 2 - 126, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 

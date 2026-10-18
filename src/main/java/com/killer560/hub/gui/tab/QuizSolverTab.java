@@ -33,6 +33,8 @@ public class QuizSolverTab extends BaseTab {
             return widgets;
         }
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.QUIZ, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

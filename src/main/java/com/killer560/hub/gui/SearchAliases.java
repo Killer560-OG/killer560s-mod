@@ -20,6 +20,29 @@ public final class SearchAliases {
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
 
+    /**
+     * Whether {@code name} answers the typed {@code query} (killer560, 2026-10-18: "make copy chat also pop up in the search
+     * bar when i search chat copy"): the query as it is typed, or, for a query of several words, every word somewhere in
+     * the name in any order. "chat copy" finds Copy Chat; one word behaves exactly as a plain contains.
+     */
+    public static boolean nameMatches(String name, String query) {
+        String n = name.toLowerCase(Locale.ROOT);
+        String q = query.toLowerCase(Locale.ROOT).trim();
+        if (q.isEmpty() || n.contains(q)) {
+            return true;
+        }
+        String[] words = q.split("\\s+");
+        if (words.length < 2) {
+            return false;
+        }
+        for (String w : words) {
+            if (!n.contains(w)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** The typed query first, then each alias target the query names - in full, inside a longer query, or as
      *  the start of the alias word. */
     public static List<String> variants(String query) {

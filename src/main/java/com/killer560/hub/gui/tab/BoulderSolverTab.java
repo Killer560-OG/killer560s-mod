@@ -39,6 +39,8 @@ public class BoulderSolverTab extends BaseTab {
                     btn.setMessage(onOff("Show All Remaining Clicks", cfg.isShowAllClicks()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BOULDER, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

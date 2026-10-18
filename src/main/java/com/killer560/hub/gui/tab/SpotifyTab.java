@@ -22,7 +22,7 @@ import java.util.List;
 public class SpotifyTab extends BaseTab {
 
     public SpotifyTab() {
-        super("Spotify Mod");
+        super("Spotify Lyrics");
     }
 
     @Override
@@ -38,15 +38,8 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
 
-        // Only a problem is shown. The "Reading Spotify" line that used to appear when all was well is gone
-        // (killer560, 2026-09-30); a failure reason stays, because with the feature on and Spotify closed
-        // there is otherwise no way to tell why nothing is posting.
-        String problem = SpotifyLyricsFeature.sourceProblem();
-        if (!problem.isEmpty()) {
-            widgets.add(new StringWidget(contentX, y, contentWidth, 10, Component.literal("§e" + problem),
-                    Minecraft.getInstance().font));
-            y += 16;
-        }
+        // No status line at all: the "Reading Spotify" line went on 2026-09-30 and the "Spotify is not running"
+        // one on 2026-10-18 (killer560).
 
         widgets.add(SettingsButtonWidget.builder(destText(), btn -> {
                     SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.next();

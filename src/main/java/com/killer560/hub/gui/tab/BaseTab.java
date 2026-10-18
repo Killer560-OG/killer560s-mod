@@ -142,7 +142,7 @@ public abstract class BaseTab {
      *  the full {@link #matchesSearch} (which would also scan the folder's own widgets - just its
      *  accordion headers, redundant with the explicit per-child search {@code FolderTab} already does). */
     protected boolean nameMatches(String query) {
-        return name.toLowerCase(Locale.US).contains(query.toLowerCase(Locale.US));
+        return com.killer560.hub.gui.SearchAliases.nameMatches(name, query);
     }
 
     /** @return whether any widget this tab builds (buttons, sliders, edit boxes) has a label

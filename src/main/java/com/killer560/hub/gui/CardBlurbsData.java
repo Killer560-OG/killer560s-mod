@@ -43,7 +43,6 @@ final class CardBlurbsData {
         d.put("P4PlatformHighlightTab", "Boxes the P4 platform.");
         d.put("InteropTab", "Shares run info in party.");
         d.put("PosmsgTab", "Waypoint rings that post to party.");
-        d.put("SolverHighlightsTab", "Master for solver boxes.");
         d.put("BlazeSolverTab", "Blazes outlined in kill order.");
         d.put("BoulderSolverTab", "Shows the next button.");
         d.put("BeamsSolverTab", "Outlines lantern pairs.");
@@ -123,6 +122,7 @@ final class CardBlurbsData {
         d.put("AutoMeowTab", "Meows back to meows.");
         d.put("ChatEmotesTab", "Emote codes without MVP++.");
         d.put("ChatHiderTab", "Stacks repeats and hides chat.");
+        d.put("ChatHistoryTab", "Keeps all of your chat.");
         d.put("CommandKeybindsTab", "Chat keys and shortcuts.");
         d.put("ClickTranslateTab", "Click chat to translate.");
         d.put("CopyChatTab", "Shift or Ctrl click copies chat.");

@@ -45,6 +45,18 @@ public final class LagDisplayConfig {
     private boolean showFps = true;
     private boolean showCps = false;
     private boolean colorByValue = true;
+    // Custom colours (killer560, 2026-10-18). Good/Ok/Bad/Awful colour a value when Color By Value is on; Text is
+    // every line when it is off and the CPS line always. Opaque ARGB.
+    public static final int DEFAULT_GOOD = 0xFF55FF55;
+    public static final int DEFAULT_OK = 0xFFFFFF55;
+    public static final int DEFAULT_BAD = 0xFFFFAA00;
+    public static final int DEFAULT_AWFUL = 0xFFFF5555;
+    public static final int DEFAULT_TEXT = 0xFFFFFFFF;
+    private int colorGood = DEFAULT_GOOD;
+    private int colorOk = DEFAULT_OK;
+    private int colorBad = DEFAULT_BAD;
+    private int colorAwful = DEFAULT_AWFUL;
+    private int colorText = DEFAULT_TEXT;
 
     private LagDisplayConfig() {
     }
@@ -68,6 +80,11 @@ public final class LagDisplayConfig {
                 cfg.showFps = ConfigJson.getBool(root, "showFps", cfg.showFps);
                 cfg.showCps = ConfigJson.getBool(root, "showCps", cfg.showCps);
                 cfg.colorByValue = ConfigJson.getBool(root, "colorByValue", cfg.colorByValue);
+                cfg.colorGood = ConfigJson.getInt(root, "colorGood", cfg.colorGood);
+                cfg.colorOk = ConfigJson.getInt(root, "colorOk", cfg.colorOk);
+                cfg.colorBad = ConfigJson.getInt(root, "colorBad", cfg.colorBad);
+                cfg.colorAwful = ConfigJson.getInt(root, "colorAwful", cfg.colorAwful);
+                cfg.colorText = ConfigJson.getInt(root, "colorText", cfg.colorText);
             } catch (Exception e) {
                 LOGGER.warn("[LagDisplay] Couldn't read {} - keeping the file, using defaults this session: {}",
                         CONFIG_PATH.getFileName(), e.toString());
@@ -88,6 +105,11 @@ public final class LagDisplayConfig {
             root.addProperty("showFps", showFps);
             root.addProperty("showCps", showCps);
             root.addProperty("colorByValue", colorByValue);
+            root.addProperty("colorGood", colorGood);
+            root.addProperty("colorOk", colorOk);
+            root.addProperty("colorBad", colorBad);
+            root.addProperty("colorAwful", colorAwful);
+            root.addProperty("colorText", colorText);
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception e) {
             LOGGER.warn("[LagDisplay] Couldn't save {}: {}", CONFIG_PATH.getFileName(), e.toString());
@@ -140,5 +162,45 @@ public final class LagDisplayConfig {
 
     public void setColorByValue(boolean v) {
         colorByValue = v;
+    }
+
+    public int getColorGood() {
+        return colorGood;
+    }
+
+    public void setColorGood(int argb) {
+        colorGood = argb | 0xFF000000;
+    }
+
+    public int getColorOk() {
+        return colorOk;
+    }
+
+    public void setColorOk(int argb) {
+        colorOk = argb | 0xFF000000;
+    }
+
+    public int getColorBad() {
+        return colorBad;
+    }
+
+    public void setColorBad(int argb) {
+        colorBad = argb | 0xFF000000;
+    }
+
+    public int getColorAwful() {
+        return colorAwful;
+    }
+
+    public void setColorAwful(int argb) {
+        colorAwful = argb | 0xFF000000;
+    }
+
+    public int getColorText() {
+        return colorText;
+    }
+
+    public void setColorText(int argb) {
+        colorText = argb | 0xFF000000;
     }
 }

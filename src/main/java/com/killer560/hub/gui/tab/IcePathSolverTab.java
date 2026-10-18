@@ -38,6 +38,8 @@ public class IcePathSolverTab extends BaseTab {
                     btn.setMessage(onOff("Outline Next Stop", cfg.isShowNextBox()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_PATH, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

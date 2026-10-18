@@ -191,14 +191,14 @@ public final class LividSolverFeature {
             return;
         }
         float[] c = currentLivid.color;
-        SolverEspRender.renderOutlineBox(context, lividEntity.getBoundingBox(), c[0], c[1], c[2], 1f, 2f);
+        SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.LIVID, context, lividEntity.getBoundingBox(), c[0], c[1], c[2], 1f, 2f);
         // killer560, 2026-09-20: "add an option to draw a line to the correct livid".
         if (cfg.isShowLine() && client.player != null) {
             Vec3 target = lividEntity.getBoundingBox().getCenter();
             // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - see that method's doc for
             // the head-instead-of-crosshair bug killer560 reported on doorkeys/wither ESP's tracers (this one
             // moves the same way).
-            SolverEspRender.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context), target),
+            SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.LIVID, context, List.of(WorldRenderUtils.tracerOrigin(context), target),
                     c[0], c[1], c[2], 1f, 2f);
         }
     }

@@ -39,6 +39,8 @@ public class BeamsSolverTab extends BaseTab {
                     btn.setMessage(onOff("Show Tracer", cfg.isShowTracer()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

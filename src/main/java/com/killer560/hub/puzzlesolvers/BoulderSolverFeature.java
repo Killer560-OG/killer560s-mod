@@ -203,7 +203,7 @@ public final class BoulderSolverFeature {
         BlockPos click = pos.click();
         VoxelShape shape = level.getBlockState(click).getShape(level, click);
         AABB box = shape.isEmpty() ? new AABB(click) : shape.bounds().move(click);
-        SolverEspRender.renderWaypoint(context, box, 0.4f, 0.9f, 1.0f, 2f);
+        SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BOULDER, context, box, 0.4f, 0.9f, 1.0f, 2f);
     }
 
     private static void reset() {

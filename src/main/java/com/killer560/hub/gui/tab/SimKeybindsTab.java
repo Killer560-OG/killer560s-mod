@@ -68,10 +68,6 @@ public class SimKeybindsTab extends BaseTab implements KeyCaptureTab {
             capturing = 2;
             b.setMessage(Component.literal("Previous Room Key: §ePress any key..."));
         }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        w.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
-                "§7Dungeon Sim only. Pick a set in Dungeon Sim > Route Practice."),
-                Minecraft.getInstance().font));
         return w;
     }
 

@@ -22,9 +22,14 @@ import java.util.Map;
  * off by default and living in the New tab until confirmed working. Not cheat-gated - killer560, 2026-09-21:
  * "it's just a reskin of the /pets menu, not real automation, so it ships identically in both builds."
  * <p>
+ * Pages (killer560, 2026-10-18: "custom presets of different pages and also the ability to toggle between different pages"):
+ * the wheel is a list of named PAGES, each its own ordered set of pets - a preset. One page is current (it is what the
+ * wheel shows, what Edit Pets edits and what is saved as the page to open on); {@link #stepPage} / {@link #setPageIndex}
+ * change it, from the tab and from the wheel itself (scroll, Left/Right). A file from before pages loads as one page.
+ * <p>
  * Two lists are kept, both persisted:
  * <ul>
- *   <li>{@code wheelPets} - the ordered subset actually shown on the wheel, picked/rearranged in
+ *   <li>{@code wheelPets} - the CURRENT page's ordered subset actually shown on the wheel, picked/rearranged in
  *   {@link PetWheelScreen}'s edit mode (opened by {@code gui.tab.PetWheelTab}'s "Edit Pets" button).</li>
  *   <li>{@code knownPets} - every pet {@link PetsMenuScanner} has ever read off a real {@code /pets} screen,
  *   insertion-ordered, so {@link PetsMenuScanner}'s passive scan (and {@link PetWheelEditor}'s right-click
@@ -73,8 +78,24 @@ public final class PetWheelConfig {
      *  menu is opened headless (never shown) and closed again; see {@link PetSummoner}. */
     private boolean hideMenuWhileSummoning = false;
 
-    /** Ordered subset shown on the wheel, keyed by uuid so identity survives a rename/relevel. */
-    private final List<PetEntry> wheelPets = new ArrayList<>();
+    /** One wheel page: a name and its ordered pets. */
+    private static final class WheelPage {
+        String name;
+        final List<PetEntry> pets = new ArrayList<>();
+
+        WheelPage(String name) {
+            this.name = name;
+        }
+    }
+
+    public static final int MAX_PAGES = 12;
+    public static final int MAX_PAGE_NAME = 24;
+
+    private final List<WheelPage> pages = new ArrayList<>(List.of(new WheelPage("Page 1")));
+    private int pageIndex = 0;
+    /** Ordered subset shown on the wheel, keyed by uuid so identity survives a rename/relevel. This IS the current
+     *  page's list (reassigned whenever the page changes), so every edit below lands on the current page. */
+    private List<PetEntry> wheelPets = pages.get(0).pets;
     /** Every pet ever scanned off a real /pets screen, insertion-ordered, keyed by uuid. */
     private final Map<String, PetEntry> knownPets = new LinkedHashMap<>();
 
@@ -130,7 +151,7 @@ public final class PetWheelConfig {
                 cfg.hideLevel = getBool(root, "hideLevel", false);
                 cfg.hideName = getBool(root, "hideName", false);
                 cfg.hideMenuWhileSummoning = getBool(root, "hideMenuWhileSummoning", false);
-                readPetList(root, "wheelPets", cfg.wheelPets);
+                readPages(root, cfg);
                 List<PetEntry> known = new ArrayList<>();
                 readPetList(root, "knownPets", known);
                 for (PetEntry p : known) {
@@ -157,7 +178,16 @@ public final class PetWheelConfig {
             root.addProperty("hideLevel", hideLevel);
             root.addProperty("hideName", hideName);
             root.addProperty("hideMenuWhileSummoning", hideMenuWhileSummoning);
-            root.add("wheelPets", petListToJson(wheelPets));
+            root.add("wheelPets", petListToJson(wheelPets)); // the current page, for a jar from before pages
+            JsonArray pageArr = new JsonArray();
+            for (WheelPage p : pages) {
+                JsonObject po = new JsonObject();
+                po.addProperty("name", p.name);
+                po.add("pets", petListToJson(p.pets));
+                pageArr.add(po);
+            }
+            root.add("pages", pageArr);
+            root.addProperty("pageIndex", pageIndex);
             root.add("knownPets", petListToJson(new ArrayList<>(knownPets.values())));
             Files.writeString(CONFIG_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -242,6 +272,98 @@ public final class PetWheelConfig {
 
     public void setKeyCode(int keyCode) {
         this.keyCode = KeyUtil.sanitizeBind(keyCode);
+    }
+
+    // ------------------------------------------------------------------ pages
+
+    private static void readPages(JsonObject root, PetWheelConfig cfg) {
+        cfg.pages.clear();
+        if (root.has("pages") && root.get("pages").isJsonArray()) {
+            for (var el : root.getAsJsonArray("pages")) {
+                if (cfg.pages.size() >= MAX_PAGES) {
+                    break;
+                }
+                try {
+                    JsonObject po = el.getAsJsonObject();
+                    WheelPage page = new WheelPage(cleanName(getString(po, "name", null), cfg.pages.size()));
+                    readPetList(po, "pets", page.pets);
+                    cfg.pages.add(page);
+                } catch (RuntimeException ignored) {
+                    // One bad page never blocks the rest.
+                }
+            }
+        }
+        if (cfg.pages.isEmpty()) {
+            // A file from before pages: its one list is page 1.
+            WheelPage only = new WheelPage("Page 1");
+            readPetList(root, "wheelPets", only.pets);
+            cfg.pages.add(only);
+        }
+        cfg.pageIndex = Math.max(0, Math.min(cfg.pages.size() - 1, getInt(root, "pageIndex", 0)));
+        cfg.wheelPets = cfg.pages.get(cfg.pageIndex).pets;
+    }
+
+    private static String cleanName(String raw, int index) {
+        String n = raw == null ? "" : raw.strip();
+        if (n.length() > MAX_PAGE_NAME) {
+            n = n.substring(0, MAX_PAGE_NAME).strip();
+        }
+        return n.isEmpty() ? "Page " + (index + 1) : n;
+    }
+
+    public int getPageCount() {
+        return pages.size();
+    }
+
+    /** The current page, 0-based. */
+    public int getPageIndex() {
+        return pageIndex;
+    }
+
+    public String getPageName(int index) {
+        return index >= 0 && index < pages.size() ? pages.get(index).name : "";
+    }
+
+    public String getCurrentPageName() {
+        return pages.get(pageIndex).name;
+    }
+
+    /** Renames a page; a blank name goes back to "Page N". */
+    public void setPageName(int index, String name) {
+        if (index >= 0 && index < pages.size()) {
+            pages.get(index).name = cleanName(name, index);
+        }
+    }
+
+    /** Makes {@code index} (wrapping around the page count) the current page. */
+    public void setPageIndex(int index) {
+        pageIndex = Math.floorMod(index, pages.size());
+        wheelPets = pages.get(pageIndex).pets;
+    }
+
+    /** Moves to the next ({@code dir} 1) or previous (-1) page, wrapping. */
+    public void stepPage(int dir) {
+        setPageIndex(pageIndex + dir);
+    }
+
+    /** Adds an empty page after the last one and makes it current. @return false at {@link #MAX_PAGES}. */
+    public boolean addPage() {
+        if (pages.size() >= MAX_PAGES) {
+            return false;
+        }
+        pages.add(new WheelPage("Page " + (pages.size() + 1)));
+        setPageIndex(pages.size() - 1);
+        return true;
+    }
+
+    /** Deletes the current page (never the last one); the page before it becomes current. @return whether it did. */
+    public boolean removeCurrentPage() {
+        if (pages.size() <= 1) {
+            return false;
+        }
+        pages.remove(pageIndex);
+        setPageIndex(Math.max(0, pageIndex - 1));
+        return true;
     }
 
     // ------------------------------------------------------------------ pet lists
@@ -329,10 +451,12 @@ public final class PetWheelConfig {
         boolean changed = existing == null || !existing.equals(merged);
         knownPets.put(fresh.uuid(), merged);
         if (changed) {
-            for (int i = 0; i < wheelPets.size(); i++) {
-                if (wheelPets.get(i).uuid().equals(fresh.uuid())) {
-                    wheelPets.set(i, merged);
-                    break;
+            for (WheelPage page : pages) {
+                for (int i = 0; i < page.pets.size(); i++) {
+                    if (page.pets.get(i).uuid().equals(fresh.uuid())) {
+                        page.pets.set(i, merged);
+                        break;
+                    }
                 }
             }
         }

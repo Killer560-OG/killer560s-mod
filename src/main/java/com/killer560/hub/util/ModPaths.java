@@ -180,6 +180,7 @@ public final class ModPaths {
         t.put("copychat", "social/copychat");
         t.put("peekchat", "social/peekchat");
         t.put("chattidy", "social/chattidy");
+        t.put("chathistory", "social/chathistory");
         t.put("voice", "social/voicetotext");
         t.put("posmsg", "social/posmsg");
         t.put("bridge", "social/bridge");

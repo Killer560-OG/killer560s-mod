@@ -85,23 +85,24 @@ public final class PartyCommandsConfig {
 
     /** Every command, in the order the tab lists them. {@code triggers} are the "!" words, the first canonical. */
     public enum Command {
-        HELP("Help", Kind.INFO, false, "help", "h"),
-        WARP("Warp", Kind.PARTY, false, "warp", "w"),
-        WARP_TRANSFER("Warp + Transfer", Kind.PARTY, false, "warptransfer", "wt"),
-        ALL_INVITE("All Invite", Kind.PARTY, false, "allinvite", "allinv"),
-        TRANSFER("Transfer To Sender", Kind.PARTY, false, "pt", "ptme", "transfer"),
-        INVITE("Invite", Kind.PARTY, false, "invite", "inv"),
-        KICK("Kick", Kind.PARTY, false, "kick", "k"),
-        KICK_OFFLINE("Kick Offline", Kind.PARTY, false, "kickoffline", "ko"),
-        REINVITE("Reinvite", Kind.PARTY, false, "reinv", "reinvite"),
-        DEMOTE("Demote", Kind.PARTY, false, "demote"),
-        PROMOTE("Promote", Kind.PARTY, false, "promote"),
-        QUEUE_INSTANCE("Queue Floor (!f7/!m7/!t5)", Kind.PARTY, false, "f1"),
-        DOWNTIME("Downtime", Kind.PARTY, false, "dt", "downtime"),
-        UN_DOWNTIME("Un-Downtime", Kind.PARTY, false, "undt", "undowntime"),
-        BOOP("Boop", Kind.INFO, false, "boop"),
+        HELP("Help", Kind.INFO, true, "help", "h"),
+        WARP("Warp", Kind.PARTY, true, "warp", "w"),
+        WARP_TRANSFER("Warp + Transfer", Kind.PARTY, true, "warptransfer", "wt"),
+        ALL_INVITE("All Invite", Kind.PARTY, true, "allinvite", "allinv"),
+        TRANSFER("Transfer To Sender", Kind.PARTY, true, "pt", "ptme", "transfer"),
+        INVITE("Invite", Kind.PARTY, true, "invite", "inv"),
+        KICK("Kick", Kind.PARTY, true, "kick", "k"),
+        KICK_OFFLINE("Kick Offline", Kind.PARTY, true, "kickoffline", "ko"),
+        REINVITE("Reinvite", Kind.PARTY, true, "reinv", "reinvite"),
+        DEMOTE("Demote", Kind.PARTY, true, "demote"),
+        PROMOTE("Promote", Kind.PARTY, true, "promote"),
+        QUEUE_INSTANCE("Queue Floor (!f7/!m7/!t5)", Kind.PARTY, true, "f1"),
+        DOWNTIME("Downtime", Kind.PARTY, true, "dt", "downtime"),
+        UN_DOWNTIME("Un-Downtime", Kind.PARTY, true, "undt", "undowntime"),
+        BOOP("Boop", Kind.INFO, true, "boop"),
         // The informational replies, formerly the separate "Chat Commands" (chatcommands/) list. The eight that
-        // already existed before per-command toggles default ON, as they always have; the rest OFF.
+        // already existed before per-command toggles defaulted ON; since 2026-10-18 (killer560) EVERY command does, with
+        // only the Guild and All Chat channels off.
         COORDS("Coords", Kind.INFO, true, "coords", "co"),
         PING("Ping", Kind.INFO, true, "ping"),
         FPS("FPS", Kind.INFO, true, "fps"),
@@ -110,9 +111,9 @@ public final class PartyCommandsConfig {
         COINFLIP("Coinflip", Kind.INFO, true, "cf", "coinflip"),
         EIGHT_BALL("8Ball", Kind.INFO, true, "8ball"),
         DICE("Dice", Kind.INFO, true, "dice"),
-        TPS("TPS", Kind.INFO, false, "tps"),
-        LOCATION("Location", Kind.INFO, false, "location"),
-        DISCORD("Discord", Kind.INFO, false, "odin", "od", "killer560", "k560");
+        TPS("TPS", Kind.INFO, true, "tps"),
+        LOCATION("Location", Kind.INFO, true, "location"),
+        DISCORD("Discord", Kind.INFO, true, "odin", "od", "killer560", "k560");
 
         private final String label;
         private final Kind kind;

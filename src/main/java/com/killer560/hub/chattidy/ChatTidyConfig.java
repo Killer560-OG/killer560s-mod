@@ -44,6 +44,7 @@ public final class ChatTidyConfig {
     private boolean hideEmptyChatMessages = false;
     private boolean hideActionbar = false;
     private boolean hideNonRankInvites = false;
+    private boolean hideBanAnnouncements = false;
 
     private ChatTidyConfig() {
     }
@@ -78,6 +79,7 @@ public final class ChatTidyConfig {
                 cfg.hideEmptyChatMessages = ConfigJson.getBool(obj, "hideEmptyChatMessages", false);
                 cfg.hideActionbar = ConfigJson.getBool(obj, "hideActionbar", false);
                 cfg.hideNonRankInvites = ConfigJson.getBool(obj, "hideNonRankInvites", false);
+                cfg.hideBanAnnouncements = ConfigJson.getBool(obj, "hideBanAnnouncements", false);
             }
         }
         if (migrate) {
@@ -131,6 +133,7 @@ public final class ChatTidyConfig {
             obj.addProperty("hideEmptyChatMessages", hideEmptyChatMessages);
             obj.addProperty("hideActionbar", hideActionbar);
             obj.addProperty("hideNonRankInvites", hideNonRankInvites);
+            obj.addProperty("hideBanAnnouncements", hideBanAnnouncements);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -177,6 +180,11 @@ public final class ChatTidyConfig {
 
     public boolean isHideNonRankInvites() {
         return on(hideNonRankInvites);
+    }
+
+    /** Hide Ban Announcements (killer560, 2026-10-18): Watchdog's "has banned N players" / staff's "banned an additional N". */
+    public boolean isHideBanAnnouncements() {
+        return on(hideBanAnnouncements);
     }
 
     // ---- raw (what the settings menu shows) -----------------------------------------------------------------
@@ -251,5 +259,13 @@ public final class ChatTidyConfig {
 
     public void setHideNonRankInvites(boolean v) {
         hideNonRankInvites = v;
+    }
+
+    public boolean getHideBanAnnouncementsRaw() {
+        return hideBanAnnouncements;
+    }
+
+    public void setHideBanAnnouncements(boolean v) {
+        hideBanAnnouncements = v;
     }
 }

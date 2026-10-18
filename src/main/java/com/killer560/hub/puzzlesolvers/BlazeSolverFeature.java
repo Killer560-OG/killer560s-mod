@@ -163,13 +163,13 @@ public final class BlazeSolverFeature {
             AABB box = blaze.getBoundingBox().inflate(0.5, 1.0, 0.5).move(0.0, -1.0, 0.0);
             // killer560, 2026-09-20: "add a fill-box option".
             if (cfg.isFillBox()) {
-                SolverEspRender.renderFilledBox(context, box, color[0], color[1], color[2], 0.5f);
+                SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BLAZE, context, box, color[0], color[1], color[2], 0.5f);
             } else {
-                SolverEspRender.renderOutlineBox(context, box, color[0], color[1], color[2], 1f, 2f);
+                SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BLAZE, context, box, color[0], color[1], color[2], 1f, 2f);
             }
 
             if (cfg.isShowLines() && previousCenter != null && i <= 3) {
-                SolverEspRender.renderLineStrip(context, List.of(previousCenter, box.getCenter()),
+                SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BLAZE, context, List.of(previousCenter, box.getCenter()),
                         color[0], color[1], color[2], 1f, 2f);
             }
             previousCenter = box.getCenter();

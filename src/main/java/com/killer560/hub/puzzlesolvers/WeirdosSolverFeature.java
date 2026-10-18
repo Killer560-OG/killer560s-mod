@@ -224,11 +224,11 @@ public final class WeirdosSolverFeature {
         }
         // killer560, 2026-09-20: "make it a filled box rather than an outline".
         if (correctPos != null) {
-            SolverEspRender.renderWaypoint(context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 2f);
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WEIRDOS, context, new AABB(correctPos), 0.2f, 1.0f, 0.3f, 2f);
         }
         if (cfg.isShowWrongChests()) {
             for (BlockPos pos : wrongPositions) {
-                SolverEspRender.renderWaypoint(context, new AABB(pos), 1.0f, 0.2f, 0.2f, 2f);
+                SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WEIRDOS, context, new AABB(pos), 1.0f, 0.2f, 0.2f, 2f);
             }
         }
     }

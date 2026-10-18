@@ -109,6 +109,13 @@ public final class VoskLibrary {
      * @param onDownload told once, before a download starts, so the caller can say so to the player
      */
     public static synchronized VoskLibrary load(Path dir, String url, Consumer<String> onDownload) throws IOException {
+        return load(dir, url, onDownload, null);
+    }
+
+    /** As {@link #load(Path, String, Consumer)}, also telling {@code onPercent} (0-100, on this thread, each time it
+     *  changes) how far a download is. */
+    public static synchronized VoskLibrary load(Path dir, String url, Consumer<String> onDownload,
+                                                java.util.function.IntConsumer onPercent) throws IOException {
         if (loaded != null) {
             return loaded;
         }
@@ -129,7 +136,7 @@ public final class VoskLibrary {
             if (onDownload != null) {
                 onDownload.accept(url);
             }
-            download(url, dir, jar);
+            download(url, dir, jar, onPercent);
         }
         URLClassLoader child = new URLClassLoader("killer560smod-vosk", new URL[]{jar.toUri().toURL()},
                 VoskLibrary.class.getClassLoader());
@@ -148,7 +155,7 @@ public final class VoskLibrary {
 
     /** Downloads to a temporary file beside {@code jar}, verifies it, and only then moves it into place, so a cut-off
      *  or corrupt download never leaves anything at {@code jar}. */
-    private static void download(String url, Path dir, Path jar) throws IOException {
+    private static void download(String url, Path dir, Path jar, java.util.function.IntConsumer onPercent) throws IOException {
         LOGGER.info("[VoiceToText] Downloading the speech engine from {}", url);
         Path part = Files.createTempFile(dir, PART_PREFIX, PART_SUFFIX);
         try {
@@ -160,8 +167,17 @@ public final class VoskLibrary {
                 if (conn instanceof HttpURLConnection http && http.getResponseCode() != HttpURLConnection.HTTP_OK) {
                     throw new IOException("HTTP " + http.getResponseCode() + " from " + url);
                 }
+                long length = conn.getContentLengthLong();
+                long expected = length > 0 ? length : SIZE_BYTES;
+                int[] lastPercent = {-1};
                 try (InputStream in = new DigestInputStream(conn.getInputStream(), digest)) {
-                    BoundedDownload.toFile(in, part, MAX_DOWNLOAD_BYTES, "speech engine download");
+                    BoundedDownload.toFile(in, part, MAX_DOWNLOAD_BYTES, "speech engine download", done -> {
+                        int pct = (int) Math.min(100L, done * 100L / Math.max(1L, expected));
+                        if (onPercent != null && pct != lastPercent[0]) {
+                            lastPercent[0] = pct;
+                            onPercent.accept(pct);
+                        }
+                    });
                 }
             } catch (IOException e) {
                 throw new IOException("could not download the speech engine (" + e.getMessage()

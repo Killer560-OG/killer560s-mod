@@ -61,7 +61,18 @@ public class PeekChatTab extends BaseTab implements KeyCaptureTab {
                     capturing = true;
                     btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+        // Toggle Peek (press to open, press again to close) or Hold to Peek (open while the key is held).
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+                    cfg.setHoldToPeek(!cfg.isHoldToPeek());
+                    cfg.save();
+                    btn.setMessage(modeText(cfg));
+                }).bounds(contentX, y, contentWidth, 20).build());
         return widgets;
+    }
+
+    private static Component modeText(PeekChatConfig cfg) {
+        return Component.literal("Peek Mode: §b" + (cfg.isHoldToPeek() ? "Hold To Peek" : "Toggle Peek"));
     }
 
     private Component keyText(PeekChatConfig cfg) {

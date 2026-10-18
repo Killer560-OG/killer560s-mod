@@ -284,8 +284,7 @@ public class ProfilesTab extends BaseTab {
         MenuStyle.sectionBand(r, x, y, w, h, false);
         r.submit();
         MenuStyle.text(g, "SAVED PROFILES", x + 6, y + 4, MenuStyle.OR2);
-        String n = count == 1 ? "1 profile" : count + " profiles";
-        MenuStyle.flat(g, n, x + w - 6 - MenuStyle.font().width(n), y + 4, MenuStyle.DIM2);
+        // The "3 profiles" count that sat on the right of this band was removed (killer560, 2026-10-18).
     }
 
     private static void paintEmpty(GuiGraphicsExtractor g, int x, int y, int w, int h) {

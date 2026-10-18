@@ -3,6 +3,7 @@ package com.killer560.hub.puzzlesolvers;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
@@ -10,37 +11,39 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
- * One shared setting for every puzzle/boss solver's world highlight - killer560, 2026-09-20: "make all
- * solvers ESP based for the waypoints". Rather than eleven identical "Through Walls" toggles this is a
- * single switch read by {@link SolverEspRender}, so flipping it anywhere flips it for Boulder, Quiz,
- * Ice Fill, Ice Path, Weirdos, Water Board, Creeper Beams, Blaze, Tic Tac Toe, Teleport Maze, Livid and
- * the P4 platform box at once. Its own tab is "Solver Highlights" in the New tab.
+ * The world highlight settings of every puzzle/boss solver - one set PER SOLVER since 2026-10-18 (killer560: "remove solver
+ * highlights and put each of those as an individual option in each of the solvers"). Before that a single shared switch,
+ * Through Walls and Waypoint Style (the "Solver Highlights" tab, 2026-09-20: "make all solvers ESP based for the
+ * waypoints") ruled all of them; those three values are now each solver's own, read by {@link SolverEspRender}, and each
+ * solver's tab shows its rows ({@code gui/tab/SolverEspRows}).
  * <p>
- * Deliberately NOT cheat-gated, unlike Dungeon ESP's / Thorn ESP's / P3 Nav's "Through Walls": those
- * reveal mobs and devices you cannot see. A solver highlight only ever redraws an answer the solver has
- * already worked out from data you were given, and both reference mods draw exactly these highlights
- * through blocks on their normal builds (NoammAddons' {@code BoulderSolver.renderBox(..., phase = true)};
- * QUOI's solvers ship with its "Depth check" switch off). See the staging notes for the full argument.
+ * A file written before the split holds the three shared values at its top level: every solver starts from them, so nobody's
+ * highlights change until a solver is edited. Saved in {@code killer560smod-solveresp.json} (the name is kept).
+ * <p>
+ * Deliberately NOT cheat-gated, unlike Dungeon ESP's / Thorn ESP's / P3 Nav's "Through Walls": those reveal mobs and devices
+ * you cannot see. A solver highlight only ever redraws an answer the solver has already worked out from data you were given,
+ * and both reference mods draw exactly these highlights through blocks on their normal builds (NoammAddons'
+ * {@code BoulderSolver.renderBox(..., phase = true)}; QUOI's solvers ship with its "Depth check" switch off).
  */
 public final class SolverEspConfig {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH =
-            ModPaths.config("killer560smod-solveresp.json");
+    /** Every solver that draws a world highlight through {@link SolverEspRender}. */
+    public enum Solver {
+        BOULDER("Boulder Solver"), QUIZ("Quiz Solver"), ICE_FILL("Ice Fill Solver"), ICE_PATH("Ice Path Solver"),
+        WEIRDOS("Weirdos Solver"), WATER("Water Board Solver"), BEAMS("Creeper Beams Solver"), BLAZE("Blaze Solver"),
+        TIC_TAC_TOE("Tic Tac Toe Solver"), TELEPORT_MAZE("Teleport Maze Solver"), LIVID("Livid Solver"),
+        P4_PLATFORM("P4 Platform Highlight");
 
-    private static SolverEspConfig instance;
+        public final String label;
 
-    // Default ON: this IS the behaviour killer560 asked for, and every solver that uses it is itself
-    // disabled by default, so a fresh install still draws nothing until a solver is turned on.
-    private boolean throughWalls = true;
-    /** Solver Highlights as a whole (killer560, 2026-10-13): off, no solver draws a world highlight through
-     *  {@link SolverEspRender} (the solvers still solve; their chat and HUD lines are untouched). On by default. */
-    private boolean enabled = true;
-    /** How waypoint-style solver highlights are drawn (killer560, 2026-09-21: "for anything using waypoints in
-     *  puzzle solvers add an option for full block and an option for outline"). */
-    private WaypointStyle waypointStyle = WaypointStyle.OUTLINE;
+        Solver(String label) {
+            this.label = label;
+        }
+    }
 
     public enum WaypointStyle {
         OUTLINE("Outline"), FULL("Full Block");
@@ -60,7 +63,28 @@ public final class SolverEspConfig {
         }
     }
 
+    /** One solver's highlight settings. Default ON for all three, as the shared ones were: every solver is itself off by
+     *  default, so a fresh install still draws nothing until a solver is turned on. */
+    private static final class Entry {
+        boolean enabled = true;
+        boolean throughWalls = true;
+        /** How waypoint-style highlights are drawn (killer560, 2026-09-21: "for anything using waypoints in puzzle solvers
+         *  add an option for full block and an option for outline"). */
+        WaypointStyle waypointStyle = WaypointStyle.OUTLINE;
+    }
+
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Path CONFIG_PATH =
+            ModPaths.config("killer560smod-solveresp.json");
+
+    private static SolverEspConfig instance;
+
+    private final Map<Solver, Entry> entries = new EnumMap<>(Solver.class);
+
     private SolverEspConfig() {
+        for (Solver s : Solver.values()) {
+            entries.put(s, new Entry());
+        }
     }
 
     public static SolverEspConfig getInstance() {
@@ -79,9 +103,26 @@ public final class SolverEspConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             SolverEspConfig cfg = new SolverEspConfig();
-            cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
-            cfg.waypointStyle = ConfigJson.getEnum(obj, "waypointStyle", WaypointStyle.class, WaypointStyle.OUTLINE);
+            // The shared values of a file from before the split are every solver's starting point.
+            boolean sharedThroughWalls = ConfigJson.getBool(obj, "throughWalls", true);
+            boolean sharedEnabled = ConfigJson.getBool(obj, "enabled", true);
+            WaypointStyle sharedStyle = ConfigJson.getEnum(obj, "waypointStyle", WaypointStyle.class, WaypointStyle.OUTLINE);
+            JsonObject solvers = obj.has("solvers") && obj.get("solvers").isJsonObject()
+                    ? obj.getAsJsonObject("solvers") : new JsonObject();
+            for (Solver s : Solver.values()) {
+                Entry e = cfg.entries.get(s);
+                JsonElement own = solvers.get(s.name());
+                if (own != null && own.isJsonObject()) {
+                    JsonObject o = own.getAsJsonObject();
+                    e.enabled = ConfigJson.getBool(o, "enabled", sharedEnabled);
+                    e.throughWalls = ConfigJson.getBool(o, "throughWalls", sharedThroughWalls);
+                    e.waypointStyle = ConfigJson.getEnum(o, "waypointStyle", WaypointStyle.class, sharedStyle);
+                } else {
+                    e.enabled = sharedEnabled;
+                    e.throughWalls = sharedThroughWalls;
+                    e.waypointStyle = sharedStyle;
+                }
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new SolverEspConfig();
@@ -92,35 +133,42 @@ public final class SolverEspConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
-            obj.addProperty("throughWalls", throughWalls);
-            obj.addProperty("enabled", enabled);
-            obj.addProperty("waypointStyle", waypointStyle.name());
+            JsonObject solvers = new JsonObject();
+            for (Solver s : Solver.values()) {
+                Entry e = entries.get(s);
+                JsonObject o = new JsonObject();
+                o.addProperty("enabled", e.enabled);
+                o.addProperty("throughWalls", e.throughWalls);
+                o.addProperty("waypointStyle", e.waypointStyle.name());
+                solvers.add(s.name(), o);
+            }
+            obj.add("solvers", solvers);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
     }
 
-    public WaypointStyle getWaypointStyle() {
-        return waypointStyle;
+    public boolean isEnabled(Solver solver) {
+        return entries.get(solver).enabled;
     }
 
-    public void setWaypointStyle(WaypointStyle s) {
-        waypointStyle = s == null ? WaypointStyle.OUTLINE : s;
+    public void setEnabled(Solver solver, boolean enabled) {
+        entries.get(solver).enabled = enabled;
     }
 
-    public boolean isEnabled() {
-        return enabled;
+    public boolean isThroughWalls(Solver solver) {
+        return entries.get(solver).throughWalls;
     }
 
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+    public void setThroughWalls(Solver solver, boolean throughWalls) {
+        entries.get(solver).throughWalls = throughWalls;
     }
 
-    public boolean isThroughWalls() {
-        return throughWalls;
+    public WaypointStyle getWaypointStyle(Solver solver) {
+        return entries.get(solver).waypointStyle;
     }
 
-    public void setThroughWalls(boolean throughWalls) {
-        this.throughWalls = throughWalls;
+    public void setWaypointStyle(Solver solver, WaypointStyle s) {
+        entries.get(solver).waypointStyle = s == null ? WaypointStyle.OUTLINE : s;
     }
 }

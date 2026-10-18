@@ -54,7 +54,9 @@ public final class PeekChatScreen extends ChatScreen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
-        if (key == InputConstants.KEY_ESCAPE || key == PeekChatConfig.getInstance().getKeyCode()) {
+        boolean hold = PeekChatConfig.getInstance().isHoldToPeek();
+        // Hold to Peek: the key being held is what keeps it open (its auto-repeat must not close it); Escape still does.
+        if (key == InputConstants.KEY_ESCAPE || (!hold && key == PeekChatConfig.getInstance().getKeyCode())) {
             if (key != InputConstants.KEY_ESCAPE) {
                 PeekChatFeature.closedByKey();
             }
@@ -81,12 +83,29 @@ public final class PeekChatScreen extends ChatScreen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         int bind = PeekChatConfig.getInstance().getKeyCode();
-        if (KeyUtil.isMouseCode(bind) && KeyUtil.mouseButton(bind) == event.button()) {
+        if (!PeekChatConfig.getInstance().isHoldToPeek() && KeyUtil.isMouseCode(bind) && KeyUtil.mouseButton(bind) == event.button()) {
             PeekChatFeature.closedByKey();
             onClose();
             return true;
         }
         return super.mouseClicked(event, doubleClick);
+    }
+
+    /** The wheel always scrolls the chat here (the same as vanilla's open chat: 7 lines a notch, 1 with Shift), and
+     *  is always consumed, so it can never reach the hotbar (killer560, 2026-10-18). */
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        double dy = Math.max(-1.0, Math.min(1.0, scrollY));
+        if (dy != 0.0) {
+            McCompat.chat(minecraft).scrollChat((int) (shiftHeld() ? dy : dy * 7.0));
+        }
+        return true;
+    }
+
+    private static boolean shiftHeld() {
+        var window = net.minecraft.client.Minecraft.getInstance().getWindow();
+        return KeyUtil.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT)
+                || KeyUtil.isKeyDown(window, org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT);
     }
 
     @Override

@@ -27,6 +27,8 @@ public final class LoadoutKeybindsConfig {
     private boolean enabled = false;
     private int nextPageKey = InputConstants.KEY_RIGHT;
     private int previousPageKey = InputConstants.KEY_LEFT;
+    /** A key that sends /loadouts from anywhere (killer560, 2026-10-18: "a bind to open the loadouts page"). -1 = unbound. */
+    private int openKey = -1;
     // Real default keys ported from Odin's own: 1-9, 0, minus, equals - matching a real vanilla keyboard
     // row's natural left-to-right order for slots 1-12.
     private final int[] slotKeys = {
@@ -78,6 +80,7 @@ public final class LoadoutKeybindsConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.nextPageKey = ConfigJson.getInt(obj, "nextPageKey", InputConstants.KEY_RIGHT);
             cfg.previousPageKey = ConfigJson.getInt(obj, "previousPageKey", InputConstants.KEY_LEFT);
+            cfg.openKey = ConfigJson.getInt(obj, "openKey", -1);
             JsonArray arr = ConfigJson.getArray(obj, "slotKeys");
             if (arr != null) {
                 for (int i = 0; i < cfg.slotKeys.length && i < arr.size(); i++) {
@@ -111,6 +114,7 @@ public final class LoadoutKeybindsConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("nextPageKey", nextPageKey);
             obj.addProperty("previousPageKey", previousPageKey);
+            obj.addProperty("openKey", openKey);
             JsonArray arr = new JsonArray();
             for (int key : slotKeys) {
                 arr.add(key);
@@ -148,6 +152,14 @@ public final class LoadoutKeybindsConfig {
 
     public void setPreviousPageKey(int previousPageKey) {
         this.previousPageKey = previousPageKey;
+    }
+
+    public int getOpenKey() {
+        return openKey;
+    }
+
+    public void setOpenKey(int openKey) {
+        this.openKey = openKey;
     }
 
     public int getSlotKey(int index) {

@@ -60,8 +60,8 @@ public final class PetWheelFeature {
 
     private static void openWheel(Minecraft client, PetWheelConfig cfg) {
         List<PetEntry> pets = cfg.getWheelPets();
-        if (pets.isEmpty()) {
-            return;
+        if (pets.isEmpty() && cfg.getPageCount() <= 1) {
+            return; // an empty current page still opens when there are other pages to scroll to
         }
         McCompat.setScreen(client, new PetWheelScreen(pets, cfg.getScalePercent() / 100f, cfg.getMode()));
     }

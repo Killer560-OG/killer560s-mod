@@ -117,7 +117,7 @@ public final class HotbarTheme {
      */
     private static void drawBackground(GuiGraphicsExtractor graphics, InventoryThemeConfig cfg, Player player, int cx,
                                        int bottom) {
-        if (cfg.getPreset() == InventoryThemeConfig.Preset.DEFAULT) {
+        if (cfg.isVanilla()) {
             drawVanillaBar(graphics, player, cx, bottom);
             return;
         }
@@ -136,7 +136,7 @@ public final class HotbarTheme {
             }
             // Vanilla's ring in every preset, its light band in the preset's colour (killer560, 2026-10-12: "Mimic that for
             // all presets"): Mod Theme and Custom in the accent, Dark in a muted grey so it does not glare.
-            int ringMain = cfg.getPreset() == InventoryThemeConfig.Preset.DARK && !cfg.isUseCustomAccent()
+            int ringMain = cfg.isDarkChoice()
                     ? DARK_RING : withAlpha(p.accent(), 0xFF);
             int frameDark = withAlpha(p.panel(), 0xFF);
             selectionRing(r, x0, bottom, player.getInventory().getSelectedSlot(), withAlpha(p.border(), 0xFF),

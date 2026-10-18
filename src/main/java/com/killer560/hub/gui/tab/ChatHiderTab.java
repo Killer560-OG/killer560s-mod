@@ -50,6 +50,8 @@ public class ChatHiderTab extends BaseTab {
                 "Hide Actionbar", cfg::getHideActionbarRaw, cfg::setHideActionbar);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Non-Rank Invites", cfg::getHideNonRankInvitesRaw, cfg::setHideNonRankInvites);
+        toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                "Hide Ban Announcements", cfg::getHideBanAnnouncementsRaw, cfg::setHideBanAnnouncements);
         return widgets;
     }
 

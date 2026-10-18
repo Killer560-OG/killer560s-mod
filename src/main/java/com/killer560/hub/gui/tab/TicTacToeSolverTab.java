@@ -50,6 +50,8 @@ public class TicTacToeSolverTab extends BaseTab {
                     btn.setMessage(styleText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, contentX, contentWidth, y, false);
+
         return widgets;
     }
 
