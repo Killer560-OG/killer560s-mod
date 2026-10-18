@@ -3253,3 +3253,29 @@ the sim differs from Hypixel in the layer one in from the wall (capture x 2), y 
 Not fixed: the evidence is one real doorway against 207 captured ones, and the jamb/lintel shape exists in no capture, so
 no rule can be derived. What would settle it: an F3 screenshot of Deuces' chest doorway on Hypixel at another turn
 (facing west or east), and one of any other room's north or west doorway from inside, to see whether the fill exists live.
+## Deuces' chest doorway, recreated exactly (2026-10-18, deuces-exact-1018)
+killer560: "that door under the chest always looks like that regardless of direction for Deuces but it is for it
+specifically. Just recreate it exactly". So it is Deuces' own doorway, not a door piece: `DeucesChestDoorway` holds it as a
+table of capture-frame edits (its `SPEC`, the same `x y z block` lines testkit 1434's `spec=` variants read), pasted over
+the capture at every turn, solo and on floors, through the same per-block override map as `RoomDoorPieces` (which now
+skips Deuces W0). Matched block by block to his shot from his camera (`killer560s-mod-logs/deuces-exact/`; final
+side by side `final-side-by-side.png`). In capture terms (wall plane x 1, one in x 2, opening z 15..17):
+- **Three high, not four.** Cobblestone WALL posts at x 2, z 14 and 18, y 69..71 (joined back to the frame); a stone-brick
+  slab (bottom half) across x 2, y 72, z 14..18; the wall plane's opening closed at x 1, y 72. Through the opening his shot
+  shows that row as an inner lintel at y ~72, and the jamb tops, the slab and the floor all land where a 3-high doorway
+  projects. The only doorway in the library that is not 4 high.
+- **One stone-brick step** on the slab (x 2, y 73, z 14..18); x 2, y 74..76 air in front of three rows of the wall plane's
+  stone (the capture's own) - the tall "flat stone face".
+- **Cobblestone along y 76** at z 13, 14, 18, 19 from x 2 to x 5: the box's top corners (capture: air), the stone-brick
+  stairs at x 3 and the magenta wool beside them. These are the two cobble blocks that hang either side of the flat stone.
+- The carve (`SimDoors.carveDoorway`) skips every block of the table - its 4-high cut would take the slab and the x 1
+  row, and its kept-trim rule never applies here. Positions come from the paste (`DeucesChestDoorway.pastedAt`), cleared
+  when a floor build starts. The solo diamond seal is unchanged (it fills the opening's air, x 0..1).
+- Matching his camera: the testkit's camera flies, and flying multiplies FOV by 1.1, so his FOV 110 is `-PdeucesFovs=100`
+  in 1434. Feet (9.25, 69, 16.5), pitch -25 and (8.75, 69, 16.5), pitch -28 bracket his view; neither puts the braziers
+  exactly where his are, so compare structure (band order and relative heights), not pixel positions. What settled the
+  height: in his shot the flat stone is about twice the height it has over a 4-high doorway, while slab to step to
+  flat stone together keep their size - one block of the stack had moved from the doorway to the wall above it.
+- Tests: 1435-sim-deuces-exact (solo and floor at 0/90/180/270: all 57 table blocks equal the world, 44 of them not the
+  capture's; the door-piece sweep with Deuces W0 exempt finds no wrong doorway; the floor-0 passage into Altar is open).
+  1433's chest-doorway check is now the table check, and its capture comparison skips the table's blocks.

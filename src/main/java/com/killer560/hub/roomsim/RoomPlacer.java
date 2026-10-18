@@ -318,12 +318,20 @@ public final class RoomPlacer {
             this.worldX0 = origin.getX() - RoomLibrary.TILE / 2 - marginOf(room);
             this.worldZ0 = origin.getZ() - RoomLibrary.TILE / 2 - marginOf(room);
             // Hypixel's door piece for the side each doorway faces at THIS turn (RoomDoorPieces).
-            java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
+            java.util.Map<Long, BlockState> pieces = doorOverrides(room, rotation);
             this.doorPieces = pieces.isEmpty() ? null : pieces;
+            this.pieceMinY = pieceMinY(room);
+            this.pieceMaxY = pieceMaxY(room);
+            if (DeucesChestDoorway.isRoom(room)) {
+                markDeucesDoorway(room, rotation, worldX0, worldZ0);
+            }
         }
 
         /** Capture-frame blocks pasted instead of the capture's over doorways, or null when there are none. */
         private final java.util.Map<Long, BlockState> doorPieces;
+        /** The capture y band {@link #doorPieces} can hold, so the per-block loop only looks it up there. */
+        private final int pieceMinY;
+        private final int pieceMaxY;
 
         /**
          * Each palette entry's state, already rotated, parsed the first time a block uses it (fps-sim-1015). Parsing
@@ -413,7 +421,7 @@ public final class RoomPlacer {
                 }
                 if (paletteIdx >= 0) {
                     BlockState rotated = rotatedState(paletteIdx);
-                    if (doorPieces != null && y >= RoomDoorPieces.Y_LOW && y <= RoomDoorPieces.Y_HIGH) {
+                    if (doorPieces != null && y >= pieceMinY && y <= pieceMaxY) {
                         BlockState piece = doorPieces.get(RoomDoorPieces.key(x, y, z));
                         if (piece != null) {
                             rotated = piece.rotate(vanillaRotation);
@@ -440,6 +448,43 @@ public final class RoomPlacer {
         }
     }
 
+    /**
+     * Capture-frame blocks pasted instead of the capture's: Hypixel's door piece over each standard doorway for the side
+     * it faces at this turn ({@link RoomDoorPieces}), then Deuces' own chest doorway ({@link DeucesChestDoorway}), which
+     * wins where they meet (they do not: the door pieces skip it).
+     */
+    static java.util.Map<Long, BlockState> doorOverrides(RoomLibrary.Room room, int rotation) {
+        java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
+        java.util.Map<Long, BlockState> deuces = DeucesChestDoorway.overrides(room);
+        if (deuces.isEmpty()) {
+            return pieces;
+        }
+        java.util.Map<Long, BlockState> out = new java.util.HashMap<>(pieces);
+        out.putAll(deuces);
+        return out;
+    }
+
+    private static int pieceMinY(RoomLibrary.Room room) {
+        return DeucesChestDoorway.isRoom(room)
+                ? Math.min(RoomDoorPieces.Y_LOW, DeucesChestDoorway.minY()) : RoomDoorPieces.Y_LOW;
+    }
+
+    private static int pieceMaxY(RoomLibrary.Room room) {
+        return DeucesChestDoorway.isRoom(room)
+                ? Math.max(RoomDoorPieces.Y_HIGH, DeucesChestDoorway.maxY()) : RoomDoorPieces.Y_HIGH;
+    }
+
+    /** Tells {@link DeucesChestDoorway} where this paste puts its blocks in the world, so the doorway carve skips them. */
+    private static void markDeucesDoorway(RoomLibrary.Room room, int rotation, int worldX0, int worldZ0) {
+        for (long key : DeucesChestDoorway.overrides(room).keySet()) {
+            int y = (int) (key >> 32);
+            int x = (int) ((key >> 16) & 0xFFFF);
+            int z = (int) (key & 0xFFFF);
+            DeucesChestDoorway.pastedAt(new BlockPos(worldX0 + rotatedX(x, z, room.sizeX, room.sizeZ, rotation),
+                    SimAltitude.toWorld(y), worldZ0 + rotatedZ(x, z, room.sizeX, room.sizeZ, rotation)));
+        }
+    }
+
     public static int paste(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
         if (room == null) {
             throw new IllegalArgumentException("room is null");
@@ -453,7 +498,10 @@ public final class RoomPlacer {
         int sizeX = room.sizeX;
         int sizeZ = room.sizeZ;
         int placed = 0;
-        java.util.Map<Long, BlockState> pieces = RoomDoorPieces.overrides(room, rotation);
+        java.util.Map<Long, BlockState> pieces = doorOverrides(room, rotation);
+        if (DeucesChestDoorway.isRoom(room)) {
+            markDeucesDoorway(room, rotation, worldX0, worldZ0);
+        }
         for (int y = room.minY; y <= room.maxY; y++) {
             for (int x = 0; x < sizeX; x++) {
                 for (int z = 0; z < sizeZ; z++) {

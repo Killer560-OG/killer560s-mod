@@ -186,6 +186,9 @@ public final class SimDoors {
                 BlockPos trim = alongX
                         ? new BlockPos(centre.getX() + d, top, centre.getZ() + w)
                         : new BlockPos(centre.getX() + w, top, centre.getZ() + d);
+                if (DeucesChestDoorway.covers(trim)) {
+                    continue;   // Deuces' chest doorway is pasted exactly as Hypixel builds it; the carve leaves it be
+                }
                 if (!level.getBlockState(trim).isAir() && level.getBlockState(trim.below()).isAir()
                         && !level.getBlockState(trim).is(Blocks.CHEST)
                         && !level.getBlockState(trim).is(Blocks.TRAPPED_CHEST)) {
@@ -202,6 +205,11 @@ public final class SimDoors {
                             : new BlockPos(centre.getX() + w, y, centre.getZ() + d);
                     if (keep.contains(at)) {
                         KEPT_TRIM++;
+                        continue;
+                    }
+                    if (DeucesChestDoorway.covers(at)) {
+                        // Deuces' chest doorway is three high under its slab lintel on Hypixel, and was pasted so:
+                        // the carve's 4-high box would cut its lintel and the wall plane's row behind it.
                         continue;
                     }
                     // Recorded, so the next floor's clear reaches it - a carve wrote straight into the level
