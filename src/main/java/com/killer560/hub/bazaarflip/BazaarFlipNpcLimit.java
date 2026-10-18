@@ -121,6 +121,10 @@ public final class BazaarFlipNpcLimit {
 
     /** Testkit: pretend {@code coins} were sold today on this account. */
     public static synchronized void setSoldTodayForTest(double coins) {
+        if (!BazaarFlipScanner.testHooksAllowed()) {
+            LOGGER.warn("[BazaarFlip] Ignored a test NPC-sale count outside a test harness");
+            return;
+        }
         roll();
         soldToday = Math.max(0, coins);
         save();

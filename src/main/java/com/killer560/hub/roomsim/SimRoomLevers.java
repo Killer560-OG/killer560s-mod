@@ -148,7 +148,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>Grass Ruin.</b> The basement floor lever on polished granite, {@code (32, 53, 7)}, drops the 33 iron bars
  *       of the window at {@code x=37, y=52..58, z=8..12} beside it (his shot looks through it at the chest over the
  *       lava). Only the bars: the two polished andesite corners of its arch stay. The upper lever {@code (32, 82, 3)}
- *       is route step "Lever 1" of the same secret, but nothing in the capture is its gate; unbound.</li>
+ *       is route step "Lever 1" of the same secret; its gate (2026-10-17, his shot) is the 59-block oak wood and
+ *       spruce stair door at {@code x=29..35, y=63..71, z=14} across the gallery, which the first pass misread as a
+ *       bridge.</li>
  *   <li><b>Layers.</b> The plank-floor pit lever {@code (6, 76, 3)} - captured ON, so it is turned off at arming -
  *       drops the oak-wood door frame with its bar at {@code x=5..7, y=69..73, z=10} in front of the chest at
  *       {@code (6, 69, 3)}. The second lever is missing from the capture; route and RSM both put it over the three
@@ -295,6 +297,11 @@ public final class SimRoomLevers {
             // 2026-10-16, his pass through All Rooms (see the class comment).
             new Rule("Grass Ruin",
                     new int[]{32, 53, 7}, new int[]{37, 52, 8}, new int[]{37, 58, 12}).only("iron_bars"),
+            // 2026-10-17, "this lever drops this door": the upstairs lever and the wood door across the gallery at
+            // z=14, which holds the route's "Entrance 1" (32, 64, 14). It is not a bridge, as the first pass read it.
+            new Rule("Grass Ruin",
+                    new int[]{32, 82, 3}, new int[]{29, 63, 14}, new int[]{35, 71, 14})
+                    .only("oak_wood", "spruce_stairs", "oak_log"),
             new Rule("Layers",
                     new int[]{6, 76, 3}, new int[]{5, 69, 10}, new int[]{7, 73, 10})
                     .only("oak_wood", "spruce_stairs", "iron_bars"),
