@@ -1147,7 +1147,6 @@ final class SettingTooltipsData {
         d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. Any key or click stops it. Needs nothing else on.");
         d.put("auto fairy souls/auto walk", "Walks you from soul to soul. Off: you walk, it still clicks each soul you reach.");
         d.put("auto fairy souls/auto click", "Right-clicks each soul when it is in reach.");
-        d.put("auto fairy souls/allow ender pearls", "Lets it throw an Ender Pearl from your hotbar to get out of somewhere it cannot walk out of.");
         d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
         d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
 
@@ -1953,7 +1952,7 @@ final class SettingTooltipsData {
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
         }
-        d.put("auto fairy souls/auto mode", "Walk Only never etherwarps; Etherwarp takes warps that save walking and warps out of places it cannot walk out of; Fast Etherwarp warps the whole way where it can. Needs an etherwarp item in the hotbar.");
+        d.put("auto fairy souls/auto mode", "Walk Only never etherwarps or throws a pearl; Walk With Pearls walks and throws an Ender Pearl from your hotbar to get out of somewhere it cannot walk out of; Etherwarp takes warps that save walking and warps out of places it cannot walk out of; Fast Etherwarp warps the whole way where it can. Needs an etherwarp item in the hotbar.");
         d.put("tick timers/pad cycle timer", "Repeating 1-second countdown during Storm's P2 for timing pad drops.");
         d.put("tick timers/crush timer hud", "Times Storm's crushes in F7/M7 P2 and shows the count.");
         d.put("tick timers/crush title", "Shows 'Crush N' on screen each time Storm is crushed.");

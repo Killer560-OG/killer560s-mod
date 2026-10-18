@@ -37,7 +37,7 @@ import java.util.Optional;
  * When the walker has no way back onto the route on foot ({@link AutoWalker#needsEscape}: an enclosed pit, a hole with
  * no climb out), the cheapest allowed escape is taken (killer560, 2026-10-17: "it should be able to get out with things
  * like pearls or maybe etherwarping if their setting is on"): an etherwarp in an etherwarp mode with an etherwarp item
- * in the hotbar, else an Ender Pearl with Allow Ender Pearls on and a pearl in the hotbar, aimed at the route or the
+ * in the hotbar, else an Ender Pearl in Walk With Pearls mode and a pearl in the hotbar, aimed at the route or the
  * soul. With neither it says so once and moves on to the next soul.
  * <p>
  * Stops on any key or mouse button he presses ({@link AutoWalker}), a screen, or a failsafe (a world change or
