@@ -84,6 +84,30 @@ public final class AutoSecretConfig {
 
     private SecretBloodFirst secretBloodFirst = SecretBloodFirst.OFF;
 
+    /**
+     * The order Auto Secret takes the rooms in (killer560, 2026-10-18: "For auto secret make two modes. One is largest to
+     * smallest secret rooms and the other is as few etherwarps possible pathfinding the whole dungeon no room order
+     * preference"). Either way the room in front of the blood door is always the last one.
+     */
+    public enum SecretOrder {
+        /** The rooms with the most secrets left first, nearer first on a tie. */
+        LARGEST_FIRST("Largest First"),
+        /** The order through every room with the fewest warps in all ({@code TourPlanner.shortest}). */
+        FEWEST_WARPS("Fewest Warps");
+
+        private final String label;
+
+        SecretOrder(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private SecretOrder secretOrder = SecretOrder.FEWEST_WARPS;
+
     private int autopilotKey = KeyUtil.NONE;
     private RunMode runMode = RunMode.SOLO;
     /** First push the Blood Rush Split path until the blood door is open, then the rest. */
@@ -134,6 +158,12 @@ public final class AutoSecretConfig {
                         cfg.secretBloodFirst = m;
                     }
                 }
+                String so = ConfigJson.getString(o, "secretOrder", cfg.secretOrder.name());
+                for (SecretOrder m : SecretOrder.values()) {
+                    if (m.name().equals(so)) {
+                        cfg.secretOrder = m;
+                    }
+                }
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
                 cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
@@ -163,6 +193,7 @@ public final class AutoSecretConfig {
             o.addProperty("runMode", runMode.name());
             o.addProperty("bloodFirst", bloodFirst);
             o.addProperty("secretBloodFirst", secretBloodFirst.name());
+            o.addProperty("secretOrder", secretOrder.name());
             o.addProperty("doPuzzles", doPuzzles);
             o.addProperty("statusHud", statusHud);
             o.addProperty("keyBaseRange", keyBaseRange);
@@ -211,6 +242,9 @@ public final class AutoSecretConfig {
 
     public SecretBloodFirst getSecretBloodFirst() { return secretBloodFirst; }
     public void setSecretBloodFirst(SecretBloodFirst v) { secretBloodFirst = v == null ? SecretBloodFirst.OFF : v; }
+
+    public SecretOrder getSecretOrder() { return secretOrder; }
+    public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.FEWEST_WARPS : v; }
 
     public boolean isDoPuzzles() { return doPuzzles; }
     public void setDoPuzzles(boolean v) { doPuzzles = v; }

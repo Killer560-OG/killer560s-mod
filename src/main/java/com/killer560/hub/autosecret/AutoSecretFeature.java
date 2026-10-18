@@ -141,6 +141,10 @@ public final class AutoSecretFeature {
     private static boolean bloodFirstDone;
     /** The last "nothing toward blood right now" reason logged, so it is logged once per reason. */
     private static String bloodFirstNote;
+    /** The room in front of the blood door while it is held back for last (decideSecrets), else null. */
+    private static RoomStatus.Room heldPreBlood;
+    /** The held room last logged, so the hold is said once. */
+    private static String preBloodSaid;
 
     private static int seenPositionPackets;
     private static int seenCorrections;
@@ -358,6 +362,8 @@ public final class AutoSecretFeature {
         bloodFirstMode = withPilot ? AutoSecretConfig.SecretBloodFirst.OFF : cfg.getSecretBloodFirst();
         bloodFirstDone = false;
         bloodFirstNote = null;
+        heldPreBlood = null;
+        preBloodSaid = null;
         if (bloodFirstMode == AutoSecretConfig.SecretBloodFirst.FULL_BLOOD_RUSH && !AutoClearFeature.isAvailable()) {
             bloodFirstMode = AutoSecretConfig.SecretBloodFirst.DOOR_CAMP;
             say(ModChat.bad("Auto Clear is off"), ModChat.dim(" - Full Blood Rush clears its rooms with it, so this run"
@@ -1054,6 +1060,56 @@ public final class AutoSecretFeature {
         return bloodFirstMode.name() + (bloodFirstDone ? " done" : "");
     }
 
+    /**
+     * The room on the near side of the blood door (the room "before blood"), or -1 while the blood door is not on the map
+     * or neither side of it reads as the blood room. A door cell sits between the two room cells it joins: across x when
+     * its x is odd, across z when its z is odd.
+     */
+    static int preBloodRoom(DungeonLayout layout, List<RoomStatus.Room> rooms) {
+        int door = layout.bloodDoor();
+        if (door < 0) {
+            return -1;
+        }
+        int gx = door % DungeonLayout.GRID;
+        int a;
+        int b;
+        if (gx % 2 == 1) {
+            a = layout.roomOfCell(door - 1);
+            b = layout.roomOfCell(door + 1);
+        } else {
+            a = layout.roomOfCell(door - DungeonLayout.GRID);
+            b = layout.roomOfCell(door + DungeonLayout.GRID);
+        }
+        boolean aBlood = isBloodRoom(layout, rooms, a);
+        boolean bBlood = isBloodRoom(layout, rooms, b);
+        if (aBlood == bBlood) {
+            return -1;
+        }
+        return aBlood ? b : a;
+    }
+
+    private static boolean isBloodRoom(DungeonLayout layout, List<RoomStatus.Room> rooms, int room) {
+        if (room < 0) {
+            return false;
+        }
+        if (layout.entry(room) != null && "BLOOD".equalsIgnoreCase(layout.entry(room).type)) {
+            return true;
+        }
+        for (RoomStatus.Room r : rooms) {
+            if (r.room() == room && r.isType("BLOOD")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** For the testkit: the room Auto Secret holds for last on the current floor, by name, or null. */
+    public static String preBloodRoomName() {
+        DungeonLayout layout = DungeonLayout.capture();
+        int room = preBloodRoom(layout, RoomStatus.rooms());
+        return room < 0 ? null : layout.name(room);
+    }
+
     private static boolean eligibleForSecrets(RoomStatus.Room r) {
         // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms").
         return !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("BLOOD")
@@ -1390,11 +1446,35 @@ public final class AutoSecretFeature {
     private static boolean decideSecrets(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
         List<RoomStatus.Room> open = new ArrayList<>();
         List<RoomStatus.Room> blocked = new ArrayList<>();
+        heldPreBlood = null;
+        int preBlood = preBloodRoom(layout, rooms);
+        RoomStatus.Room preBloodRoom = null;
         for (RoomStatus.Room r : rooms) {
             if (!eligibleForSecrets(r)) {
                 continue;
             }
+            if (r.room() == preBlood) {
+                preBloodRoom = r;
+                continue;
+            }
             (dist.containsKey(r.room()) ? open : blocked).add(r);
+        }
+        // The room in front of the blood door is ALWAYS the last room secreted (killer560, 2026-10-18: "never have it
+        // secret the room before blood until very last under any circumstance"). It joins the lists only when no other
+        // room with secrets is left, open or behind a door; until then it is held, and the endgame takes it only when the
+        // one thing left would be waiting on a teammate for a door (decideEndgame).
+        if (preBloodRoom != null) {
+            if (open.isEmpty() && blocked.isEmpty()) {
+                (dist.containsKey(preBloodRoom.room()) ? open : blocked).add(preBloodRoom);
+            } else {
+                heldPreBlood = preBloodRoom;
+                if (!preBloodRoom.name().equals(preBloodSaid)) {
+                    preBloodSaid = preBloodRoom.name();
+                    LOGGER.info("[AutoSecret] {} is the room in front of the blood door - held until it is the last room"
+                            + " with secrets ({} open, {} behind a door before it)", preBloodRoom.name(), open.size(),
+                            blocked.size());
+                }
+            }
         }
         open.sort(Comparator.comparingInt((RoomStatus.Room r) -> -r.unfound()).thenComparingInt(r -> dist.get(r.room())));
         String blockedText = describe(blocked);
@@ -1485,8 +1565,10 @@ public final class AutoSecretFeature {
         }
         tourWaitTicks = 0;
         RoomTour.Matrix m = RoomTour.matrix(from, sites, true, layout);
-        TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 3_000_000L);
-        int[] idx = res.order();
+        // The Room Order setting (killer560, 2026-10-18): Largest First, or Fewest Warps through the whole floor.
+        AutoSecretConfig.SecretOrder mode = AutoSecretConfig.getInstance().getSecretOrder();
+        int[] idx = mode == AutoSecretConfig.SecretOrder.LARGEST_FIRST ? RoomTour.byWeight(m)
+                : TourPlanner.shortest(m.fromHere(), m.between(), 3_000_000L).order();
         if (ahead != null) {
             // Planned ahead from here with every trip searched: that pick's trip is already waiting.
             for (int k = 0; k < idx.length; k++) {
@@ -1498,8 +1580,9 @@ public final class AutoSecretFeature {
                 }
             }
         }
-        LOGGER.info("[AutoSecret] room order (each room worth its unfound secrets, by the tick it is done): {} | {}{}",
-                RoomTour.describe(sites, idx), RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"),
+        LOGGER.info("[AutoSecret] room order ({}): {} | travel {} ticks; {}{}", mode.label(),
+                RoomTour.describe(sites, idx), Math.round(TourPlanner.travel(idx, m.fromHere(), m.between())),
+                RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"),
                 ahead != null ? " | planned ahead: " + ahead : "");
         List<RoomStatus.Room> out = new ArrayList<>();
         for (int i : idx) {
@@ -1581,6 +1664,11 @@ public final class AutoSecretFeature {
             if (eligibleForSecrets(r) && dist.containsKey(r.room()) && !r.name().equals(except)) {
                 out.add(r);
             }
+        }
+        // The room before blood is never planned ahead for while another room is left (decideSecrets holds it last).
+        int preBlood = preBloodRoom(DungeonLayout.capture(), rooms);
+        if (out.size() > 1) {
+            out.removeIf(r -> r.room() == preBlood);
         }
         return out;
     }
@@ -1895,6 +1983,17 @@ public final class AutoSecretFeature {
             // Nothing left on this side but a closed door: open it (killer560, 2026-10-06).
             if (decideWitherDoor(layout, rooms, dist)) {
                 return;
+            }
+            // The room before blood, held back for last: everything else is done or waits on a teammate's door, so it
+            // is the last thing Auto Secret itself can do - now it goes.
+            if (heldPreBlood != null && dist.containsKey(heldPreBlood.room())) {
+                RoomStatus.Room last = heldPreBlood;
+                heldPreBlood = null;
+                LOGGER.info("[AutoSecret] {} (in front of the blood door): the only rooms left wait behind a door - it is "
+                        + "the last room now", last.name());
+                if (goSecret(layout, last, dist, last.name(), blockedSecrets == null ? "none" : blockedSecrets)) {
+                    return;
+                }
             }
             if (blockedSecrets != null) {
                 waitForTeammate(blockedSecrets);

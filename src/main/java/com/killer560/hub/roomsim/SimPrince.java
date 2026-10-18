@@ -110,6 +110,20 @@ public final class SimPrince {
      */
     private static final net.minecraft.world.level.block.Block OBSIDIAN = Blocks.OBSIDIAN;
 
+    /**
+     * The FIFTH signature: a sarcophagus - a line of bottom smooth stone slabs every one of which lies on polished
+     * andesite, with a player head beside it ({@code CryptScanner.sarcophagusPrince}).
+     *
+     * <p>killer560, 2026-10-18: "this is a prince in sarcophogous". Sarcophagus has one crypt (room database) and one
+     * tomb: a 5x3 of polished andesite at capture y 70 (x 14..18, z 15..17) on stone brick stair legs and a polished
+     * andesite core at y 69, five bottom smooth stone slabs along its top at y 71 (z 16) and two player heads beside them.
+     * Until now the plain crypt rule opened the slab line and the row of andesite under it and left the rest of the tomb
+     * standing. As a prince its blocks are the slabs and the andesite top layer, so {@link #tombOf} takes the heads with
+     * the top, and {@link #extrasOf}'s layer under the footprint is the stair legs and the core: the whole sarcophagus goes,
+     * the room's floor at y 68 stays. Census: the only slab run on polished andesite with a head beside it in 135 captures.
+     */
+    private static final String SARCOPHAGUS = "sarcophagus";
+
     /** Which prince each block belongs to - a floor can hold more than one. */
     private static final Map<BlockPos, Integer> BLOCKS = new HashMap<>();
 
@@ -417,7 +431,8 @@ public final class SimPrince {
                 for (int i = 0; i < sections.length; i++) {
                     var section = sections[i];
                     if (section == null || section.hasOnlyAir()
-                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN) || st.is(LID) || st.is(OBSIDIAN))) {
+                            || !section.maybeHas(st -> st.is(CROWN) || st.is(LANTERN) || st.is(LID) || st.is(OBSIDIAN)
+                                    || st.is(PLINTH))) {
                         continue;
                     }
                     int baseY = chunk.getSectionYFromSectionIndex(i) << 4;
@@ -440,6 +455,10 @@ public final class SimPrince {
                                 } else if (state.is(OBSIDIAN)) {
                                     if (lidChecked.add(at)) {
                                         obsidianTop(level, at, lidChecked, crowns);
+                                    }
+                                } else if (state.is(PLINTH)) {
+                                    if (lidChecked.add(at)) {
+                                        sarcophagus(level, at, lidChecked, crowns);
                                     }
                                 } else if (state.is(LANTERN) && walledIn(level, at)) {
                                     // The lantern AND its ring, so a superboom aimed at any face of the
@@ -534,6 +553,10 @@ public final class SimPrince {
                         if (lidChecked.add(p)) {
                             obsidianTop(level, p, lidChecked, crowns);
                         }
+                    } else if (state.is(PLINTH)) {
+                        if (lidChecked.add(p)) {
+                            sarcophagus(level, p, lidChecked, crowns);
+                        }
                     } else if (state.is(LANTERN) && walledIn(level, p)) {
                         crowns.add(p);
                         for (int rx = -1; rx <= 1; rx++) {
@@ -567,6 +590,11 @@ public final class SimPrince {
     /** The {@link #OBSIDIAN} rule, asked of {@code CryptScanner} for the same reason as {@link #ringedLid}. */
     private static void obsidianTop(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
         crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.obsidianPrince(level, start, checked));
+    }
+
+    /** The {@link #SARCOPHAGUS} rule, asked of {@code CryptScanner} for the same reason as {@link #ringedLid}. */
+    private static void sarcophagus(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
+        crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.sarcophagusPrince(level, start, checked));
     }
 
     /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.

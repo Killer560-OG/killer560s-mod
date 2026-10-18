@@ -1483,6 +1483,18 @@ public final class RouteExecutor {
                                 g.what(), Math.max(0, AwaitEvents.now() - g.tick()));
                     }
                 }
+                // A Redstone Key spot in reach of this node that the key never spawned at: one secret prefilled for it
+                // (killer560, 2026-10-18 - a room with two key spots needs an await at each, and the empty one used to
+                // wait for a skull that was never there). KeySpots says how a spot is judged empty.
+                if (node.awaitCondition == RouteNode.AwaitCondition.SECRET) {
+                    for (BlockPos spot : KeySpots.emptyInReach(Minecraft.getInstance(), frame, nodeAt)) {
+                        String what = "redstone key spot at " + spot.toShortString() + " (the key never spawned there)";
+                        remembered.add(new RouteRunMemory.Got("keyspot " + spot.asLong(), Vec3.atCenterOf(spot),
+                                AwaitEvents.now(), what));
+                        LOGGER.info("[AutoRoutes] Node #{} {}: await prefilled 1 - {}", route.indexOf(node) + 1, node.type,
+                                what);
+                    }
+                }
                 awaitRemembered = remembered;
             }
         }

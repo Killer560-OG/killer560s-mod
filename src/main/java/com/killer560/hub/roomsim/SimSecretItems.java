@@ -145,6 +145,104 @@ public final class SimSecretItems {
     }
 
     /**
+     * Secret chests waiting for him to come near, with the block each becomes.
+     *
+     * <p>killer560 (2026-10-18): "Make chests on sim have the same spawn in logic as bats for not appearing." So a secret
+     * chest is not in the world until he has been within {@link #BAT_TRIGGER_RANGE} of it for {@link #BAT_TRIGGER_TICKS}
+     * server ticks in a row, exactly as a secret bat ({@link #tickPendingBats}); a chest the capture already had at that
+     * spot is taken out at the build and comes back then. Not puzzle rooms: their chests are the puzzles' own.
+     */
+    private static final Map<BlockPos, net.minecraft.world.level.block.state.BlockState> PENDING_CHESTS =
+            new ConcurrentHashMap<>();
+    private static final java.util.Map<BlockPos, Integer> CHEST_IN_RANGE = new ConcurrentHashMap<>();
+
+    /** Secret chests wait for him (the default), or are put in at the build as before - for the testkit only. */
+    private static volatile boolean chestsAppearNear = true;
+
+    /** Whether a floor's secret chests wait for him to come near ({@link #registerChest}). */
+    public static boolean chestsAppearNear() {
+        return chestsAppearNear;
+    }
+
+    /**
+     * For the testkit: {@code false} puts every secret chest in at the build, as before 2026-10-18, for a scenario about
+     * something else that reads a far chest as a block (a doorway picture, a room's secret scan). Never a setting.
+     */
+    public static void setChestsAppearNearForTest(boolean appearNear) {
+        chestsAppearNear = appearNear;
+    }
+
+    /** Remembers a secret chest; it appears as {@code state} when he comes near. */
+    public static void registerChest(BlockPos at, net.minecraft.world.level.block.state.BlockState state) {
+        if (at != null && state != null) {
+            PENDING_CHESTS.put(at.immutable(), state);
+        }
+    }
+
+    /** Whether a secret chest is waiting at {@code at} to appear. */
+    public static boolean isPendingChest(BlockPos at) {
+        return at != null && PENDING_CHESTS.containsKey(at);
+    }
+
+    /**
+     * The mimic picked a chest that has not appeared yet: it will appear as a TRAPPED chest, facing the way it would
+     * have. @return false when no chest is waiting there
+     */
+    public static boolean trapPendingChest(BlockPos at) {
+        net.minecraft.world.level.block.state.BlockState s = at == null ? null : PENDING_CHESTS.get(at);
+        if (s == null) {
+            return false;
+        }
+        var trapped = net.minecraft.world.level.block.Blocks.TRAPPED_CHEST.defaultBlockState();
+        if (s.hasProperty(net.minecraft.world.level.block.ChestBlock.FACING)) {
+            trapped = trapped.setValue(net.minecraft.world.level.block.ChestBlock.FACING,
+                    s.getValue(net.minecraft.world.level.block.ChestBlock.FACING));
+        }
+        PENDING_CHESTS.put(at, trapped);
+        return true;
+    }
+
+    /** Secret chests that have not appeared yet, for tests. */
+    public static List<BlockPos> pendingChests() {
+        return List.copyOf(PENDING_CHESTS.keySet());
+    }
+
+    /** Spawns each secret chest he has stayed within {@link #BAT_TRIGGER_RANGE} of for {@link #BAT_TRIGGER_TICKS} ticks. */
+    private static void tickPendingChests(ServerLevel level, double px, double py, double pz) {
+        if (PENDING_CHESTS.isEmpty()) {
+            return;
+        }
+        List<BlockPos> ready = null;
+        for (BlockPos at : PENDING_CHESTS.keySet()) {
+            double dx = at.getX() + 0.5 - px;
+            double dy = at.getY() + 0.5 - py;
+            double dz = at.getZ() + 0.5 - pz;
+            if (dx * dx + dy * dy + dz * dz <= BAT_TRIGGER_RANGE * BAT_TRIGGER_RANGE) {
+                if (CHEST_IN_RANGE.merge(at, 1, Integer::sum) >= BAT_TRIGGER_TICKS) {
+                    if (ready == null) {
+                        ready = new ArrayList<>();
+                    }
+                    ready.add(at);
+                }
+            } else {
+                CHEST_IN_RANGE.remove(at);
+            }
+        }
+        if (ready == null) {
+            return;
+        }
+        for (BlockPos at : ready) {
+            var state = PENDING_CHESTS.remove(at);
+            CHEST_IN_RANGE.remove(at);
+            if (state != null) {
+                level.setBlockAndUpdate(at, state);
+                SimBuildQueue.touched(at.getX(), at.getZ());
+                LOGGER.info("Sim secret chest appeared at {}", at.toShortString());
+            }
+        }
+    }
+
+    /**
      * Item pickup reach: Hypixel's Magnetic Talisman, which killer560 wants the sim player to always have (2026-10-09,
      * "pickup range equal to having the gravity talisman on" - the talisman with this ability is the MAGNETIC one).
      * hypixelskyblock.minecraft.wiki, Magnetic Talisman: "increases the player's item pickup range by 3x the normal
@@ -160,6 +258,8 @@ public final class SimSecretItems {
         PENDING.clear();
         PENDING_BATS.clear();
         BAT_IN_RANGE.clear();
+        PENDING_CHESTS.clear();
+        CHEST_IN_RANGE.clear();
         LIVE.clear();
         warnedOnce = false;
         purgeOwed = false;
@@ -218,12 +318,14 @@ public final class SimSecretItems {
                 if (player != null) {
                     magneticPickup(level, player);
                 }
-                if (PENDING.isEmpty() && PENDING_BATS.isEmpty() && LIVE.isEmpty() && !purgeOwed) {
+                if (PENDING.isEmpty() && PENDING_BATS.isEmpty() && PENDING_CHESTS.isEmpty() && LIVE.isEmpty()
+                        && !purgeOwed) {
                     return;
                 }
                 if (player != null) {
                     tickPending(level, player.getX(), player.getY(), player.getZ());
                     tickPendingBats(level, player.getX(), player.getY(), player.getZ());
+                    tickPendingChests(level, player.getX(), player.getY(), player.getZ());
                 }
                 tickCollected(level);
                 if (player != null && purgeOwed) {

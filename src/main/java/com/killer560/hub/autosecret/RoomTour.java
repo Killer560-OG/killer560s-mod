@@ -372,7 +372,7 @@ final class RoomTour {
             }
             Matrix m = matrix(from, sites, travelOnly, layout);
             TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
-            int[] order = legacyOrder ? byWeight(m) : res.order();
+            int[] order = legacyOrder ? byWeight(m) : travelOnly ? secretOrder(m) : res.order();
             Site next = sites.get(order[0]);
             ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
             // The trip precomputed (TripCache) when there is one - read on this thread, it is a concurrent map.
@@ -412,6 +412,17 @@ final class RoomTour {
         double[] b = TourPlanner.evaluate(old, m.fromHere(), m.between(), m.weight(), m.work());
         return String.format(Locale.US, "value-weighted wait %.0f, all done in %.0f ticks; %s: %.0f, %.0f ticks"
                 + " (%d trip(s) searched, %d estimated)", a[0], a[1], oldName, b[0], b[1], m.searched(), m.estimated());
+    }
+
+    /**
+     * Auto Secret's own order for these sites, by its Room Order setting: Largest First is {@link #byWeight} (each site's
+     * weight is its room's unfound secrets), Fewest Warps is {@link TourPlanner#shortest} over the trips.
+     */
+    static int[] secretOrder(Matrix m) {
+        if (AutoSecretConfig.getInstance().getSecretOrder() == AutoSecretConfig.SecretOrder.LARGEST_FIRST) {
+            return byWeight(m);
+        }
+        return TourPlanner.shortest(m.fromHere(), m.between(), 30_000_000L).order();
     }
 
     /** Indices in descending weight (ties: nearer first) - the old "most unfound first" order, for comparison. */

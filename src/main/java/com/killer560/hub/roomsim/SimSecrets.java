@@ -233,14 +233,31 @@ public final class SimSecrets {
         boxMaxX = boxMinX + tilesX * (RoomLibrary.TILE + 1) - 2;
         boxMaxZ = boxMinZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
         outsideBox = 0;
-        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation, SimMimic.roomEligible(entry.name));
+        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation, SimMimic.roomEligible(entry.name),
+                !"PUZZLE".equalsIgnoreCase(entry.type));
         placed += bats(level, entry.secretCoords.bat, clayX, clayZ, dbRotation);
         placed += items(level, entry.secretCoords.item, clayX, clayZ, dbRotation);
         placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER,
                 PLACED_WITHER);
         // Hypixel's Redstone Key: a head wearing the key's profile, which SimRedstoneKey answers on the server.
-        java.util.Set<BlockPos> keys = new java.util.HashSet<>();
+        // ONE key, wherever the database has more than one spot for it. killer560 (2026-10-18): "in some rooms there are
+        // two spots they could be in" - Redstone Key's database lists two (19,66,7 and 10,70,26) and Hypixel spawns the
+        // key in one of them. The sim used to put a key on both, so a route waiting at either always found one.
+        java.util.List<BlockPos> keys = new java.util.ArrayList<>();
         placed += markers(level, entry.secretCoords.redstoneKey, clayX, clayZ, dbRotation, KEY_MARKER, keys);
+        if (keys.size() > 1) {
+            int keep = forcedKeySpot >= 0 && forcedKeySpot < keys.size() ? forcedKeySpot
+                    : java.util.concurrent.ThreadLocalRandom.current().nextInt(keys.size());
+            for (int i = 0; i < keys.size(); i++) {
+                if (i != keep) {
+                    level.setBlockAndUpdate(keys.get(i), Blocks.AIR.defaultBlockState());
+                    LOGGER.info("Sim redstone key: {} has {} key spots - none at {}", room.name, keys.size(),
+                            keys.get(i).toShortString());
+                    placed--;
+                }
+            }
+            keys = java.util.List.of(keys.get(keep));
+        }
         for (BlockPos key : keys) {
             SimRedstoneKey.placeKey(level, key, room.name);
         }
@@ -324,6 +341,14 @@ public final class SimSecrets {
         return new int[]{chestsOnCapturedChest, chestsChecked, chestsUncorrected, chestsSkippedOutside};
     }
 
+    /** Which of a room's key spots gets the key (database order), or -1 for a random one. For the testkit. */
+    private static volatile int forcedKeySpot = -1;
+
+    /** For the testkit: put the key on spot {@code index} of a room with several (database order); -1 = random. */
+    public static void setKeySpotForTest(int index) {
+        forcedKeySpot = index;
+    }
+
     /** Starts a new floor's audit. */
     public static void resetAudit() {
         chestsOnCapturedChest = 0;
@@ -400,8 +425,12 @@ public final class SimSecrets {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
+    /**
+     * @param defer the chest is not put in the world yet: it appears when he comes near, as a secret bat does
+     *              ({@link SimSecretItems#registerChest}; killer560, 2026-10-18). False in puzzle rooms.
+     */
     private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
-                              boolean mimicEligible) {
+                              boolean mimicEligible, boolean defer) {
         if (list == null) {
             return 0;
         }
@@ -446,7 +475,16 @@ public final class SimSecrets {
                 continue;
             }
             SimBuildQueue.touched(at.getX(), at.getZ());
-            level.setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
+            if (defer && SimSecretItems.chestsAppearNear()) {
+                // Not there until he comes near (SimSecretItems.tickPendingChests). A chest the capture already had on
+                // this spot goes now and comes back then; anything else stays until the chest replaces it, as before.
+                if (level.getBlockState(at).is(Blocks.CHEST)) {
+                    level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+                }
+                SimSecretItems.registerChest(at, Blocks.CHEST.defaultBlockState());
+            } else {
+                level.setBlockAndUpdate(at, Blocks.CHEST.defaultBlockState());
+            }
             PLACED_CHESTS.add(at);
             // Offered to the mimic picker the same way a pasted room's chests are, so a sim floor can have a
             // mimic in a secret chest exactly as a real one does.
@@ -515,7 +553,7 @@ public final class SimSecrets {
      */
     private static int markers(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
                                net.minecraft.world.level.block.state.BlockState marker,
-                               java.util.Set<BlockPos> record) {
+                               java.util.Collection<BlockPos> record) {
         if (list == null) {
             return 0;
         }
