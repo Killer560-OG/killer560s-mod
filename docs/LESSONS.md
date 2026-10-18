@@ -442,3 +442,9 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
   echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
   `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
+- **Predictive Rooms named almost nothing on Hypixel because it waited for 120 seen blocks a tile** (to-do item 22, 2026-10-18).
+  A player glancing through doorways gives a tile 50-120, by which time every room but the right one is ruled out; 1726 never
+  saw it because it stares from fifteen spots for 150 ticks and calls `settle()`. Now 40 seen and 30 matches per standing
+  placement (testkit 1018-predict-hypixel: a sim floor walked like a player, 12 rooms named right on the fix, 2 on main). A
+  `[Predict] tile x,z closed:` line says, per tile he looked into, what it named or why not. Measure a sight feature with
+  the looks a player makes, not the best case.

@@ -51,7 +51,7 @@ import java.util.Set;
  * {@link #MISMATCH_RATE} of what it was compared with is ruled out, for good.
  *
  * <p><b>What it says.</b> For a tile with at least {@link #MIN_EVIDENCE} seen blocks: if every candidate still standing
- * is the same room, that is the room. The tiles EVERY standing candidate covers are certain and are filled in; tiles
+ * is the same room, and each has matched at least {@link #MIN_MATCHES} blocks, that is the room. The tiles EVERY standing candidate covers are certain and are filled in; tiles
  * only some of them cover are "?". So a room whose turn he cannot tell yet shows only the tiles he can be sure of, and
  * the rest follows as soon as something he sees rules the other turns out. Two different rooms still standing: nothing.
  * Doors are never predicted - the map draws only doors the held map shows.
@@ -64,8 +64,18 @@ public final class RoomPredictor {
     static final int RAYS_X = 24;
     static final int RAYS_Y = 14;
     static final double RAY_RANGE = 48.0;
-    /** Seen blocks a tile needs before anything is said about it. */
-    static final int MIN_EVIDENCE = 120;
+    /**
+     * Seen blocks a tile needs before anything is said about it. It was 120 until 2026-10-18, and that was why Predictive
+     * Rooms "doesnt work" on Hypixel (to-do item 22): a player glancing through a doorway as he passes gives a tile 50-120
+     * blocks, and by then every room but the right one is long ruled out. 1018-predict-hypixel-walk walked a whole sim floor
+     * the way a player does and found 15 tiles closing with exactly one room standing and fewer than 120 seen (54-116), so
+     * the map named none of them; 1726 never saw it because it stares through each doorway for 150 ticks. What makes a
+     * name safe is that every other room, at every turn and anchor, has been ruled out ({@link #decide}) and that the one
+     * left has matched {@link #MIN_MATCHES} blocks, not a count of blocks seen.
+     */
+    static final int MIN_EVIDENCE = 40;
+    /** Blocks every placement still standing must have matched before its room is named. */
+    static final int MIN_MATCHES = 30;
     static final int MISMATCH_FLOOR = 3;
     static final double MISMATCH_RATE = 0.04;
     /** Blocks from a tile's edge that are never compared: its wall and doorways. */
@@ -192,6 +202,7 @@ public final class RoomPredictor {
         obsCount = 0;
         OBS_INDEX.clear();
         Arrays.fill(EVIDENCE, 0);
+        Arrays.fill(REPORTED, false);
         ALL.clear();
         Arrays.fill(BY_TILE, null);
         PREDICTIONS.clear();
@@ -229,6 +240,9 @@ public final class RoomPredictor {
         for (int tz = 0; tz < TILES; tz++) {
             for (int tx = 0; tx < TILES; tx++) {
                 boolean t = tx < floor[0] && tz < floor[1] && isTarget(client, tz * 2 * DungeonLayout.GRID + tx * 2);
+                if (!t && BY_TILE[tz * TILES + tx] != null && !REPORTED[tz * TILES + tx]) {
+                    reportClosed(tz * TILES + tx);
+                }
                 SWEEP_TARGET[tz * TILES + tx] = t;
                 anyTarget |= t;
             }
@@ -273,6 +287,47 @@ public final class RoomPredictor {
                 record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
             }
         }
+    }
+
+    /** Tiles whose outcome {@link #reportClosed} has logged, once a floor. */
+    private static final boolean[] REPORTED = new boolean[TILES * TILES];
+
+    /**
+     * One line when a tile he looked into stops being looked into (he walked in, or the map opened it): what Predictive
+     * Rooms made of it and, when nothing, why - too little seen, comparisons still running, every placement ruled out,
+     * too few matches, or more than one room still fitting. The line an in-game check reads (to-do item 22, 2026-10-18).
+     */
+    private static void reportClosed(int t) {
+        REPORTED[t] = true;
+        String where = (t % TILES) + "," + (t / TILES);
+        Prediction p = PREDICTIONS.get((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2);
+        if (p != null) {
+            LOGGER.info("[Predict] tile {} closed: named {} from {} block(s) seen", where, p.name(), EVIDENCE[t]);
+            return;
+        }
+        int alive = 0;
+        int behind = 0;
+        int fewestMatches = Integer.MAX_VALUE;
+        Set<String> names = new LinkedHashSet<>();
+        for (Candidate c : BY_TILE[t]) {
+            if (c.dead) {
+                continue;
+            }
+            alive++;
+            behind += c.cursor < obsCount ? 1 : 0;
+            fewestMatches = Math.min(fewestMatches, c.matches);
+            if (names.size() < 4) {
+                names.add(c.room.name);
+            }
+        }
+        String why = EVIDENCE[t] < MIN_EVIDENCE ? "too little seen"
+                : behind > 0 ? "comparisons still running"
+                : alive == 0 ? "every placement ruled out"
+                : names.size() > 1 ? "more than one room fits"
+                : "too few matches";
+        LOGGER.info("[Predict] tile {} closed: no answer ({}) - {} block(s) seen, {} of {} placement(s) standing{}", where,
+                why, EVIDENCE[t], alive, BY_TILE[t].size(),
+                names.isEmpty() ? "" : ", rooms " + names + ", fewest matches " + fewestMatches);
     }
 
     /** {@link #isTarget} per tile (tz * TILES + tx) for the sweep in progress; false off the floor. */
@@ -519,10 +574,12 @@ public final class RoomPredictor {
                 continue;
             }
             Set<String> names = new LinkedHashSet<>();
+            int fewestMatches = Integer.MAX_VALUE;
             for (Candidate c : standing) {
                 names.add(c.room.name);
+                fewestMatches = Math.min(fewestMatches, c.matches);
             }
-            if (names.size() != 1) {
+            if (names.size() != 1 || fewestMatches < MIN_MATCHES) {
                 continue;
             }
             long all = -1L;
