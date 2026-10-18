@@ -39,7 +39,8 @@ public final class SupportersFeature {
     /** One fetched+resolved supporter, keyed by account UUID. {@code displayText} is {@code null} when the
      *  stored name is blank or trips {@link SlurFilter} - the real IGN is shown instead, but the entry (and
      *  its scale) still exists. */
-    private record Resolved(String displayText, float scale, com.killer560.hub.trail.TrailSpec trail, int[] fadeEnds) {
+    private record Resolved(String displayText, float scale, com.killer560.hub.trail.TrailSpec trail, int[] fadeEnds,
+                            String mob) {
     }
 
     /** What {@link SupportersChatRewriter} needs back for a matched sender. */
@@ -88,7 +89,7 @@ public final class SupportersFeature {
                     : styled(e);
             int[] c = e.colors();
             int[] ends = c == null || c.length == 0 ? null : new int[]{c[0], c[c.length - 1]};
-            map.put(e.uuid(), new Resolved(display, e.scale(), e.trail(), ends));
+            map.put(e.uuid(), new Resolved(display, e.scale(), e.trail(), ends, e.mob()));
             if (display != null && e.animation() != null) {
                 animated.add(new Object[]{display, e.animation()});
             }
@@ -150,6 +151,13 @@ public final class SupportersFeature {
     public static com.killer560.hub.trail.TrailSpec trailFor(UUID id) {
         Resolved r = id == null ? null : byUuid.get(id);
         return r == null ? null : r.trail();
+    }
+
+    /** The mob {@code id} shares (Play as Mob, a {@code MobSkins} id), or {@code null}. "Show Others' Mobs" and the
+     *  dungeon rule are the caller's ({@code com.killer560.hub.mobskin.MobSkinRender}). */
+    public static String mobFor(UUID id) {
+        Resolved r = id == null ? null : byUuid.get(id);
+        return r == null ? null : r.mob();
     }
 
     /** The first and last letter colours of {@code id}'s shared name (their fade's ends, 0xRRGGBB) for a shared

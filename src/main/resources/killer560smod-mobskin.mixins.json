@@ -1,0 +1,14 @@
+{
+	"required": false,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.mobskin.mixin",
+	"client": [
+		"MobSkinDispatcherMixin",
+		"MobSkinShapeMixin",
+		"MobSkinStateMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

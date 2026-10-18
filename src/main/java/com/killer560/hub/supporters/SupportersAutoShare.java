@@ -84,6 +84,16 @@ public final class SupportersAutoShare {
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
                                    double scale, TrailSpec trail, Consumer<String> onError) {
+        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, animation, scale, trail, null, onError);
+    }
+
+    /**
+     * @param mob the mob you play as ({@link #mobToShare}), or null for none. Like a trail it goes up with an empty name
+     *            when you have no display name; with no name, trail or mob the entry is cleared.
+     */
+    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
+                                   int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
+                                   double scale, TrailSpec trail, String mob, Consumer<String> onError) {
         if (!shareIfSupporter || !whitelisted) {
             return;
         }
@@ -96,7 +106,9 @@ public final class SupportersAutoShare {
         }
         final int[] sendColors = colors;
         final com.killer560.hub.namechanger.NameAnimation.Spec sendAnimation = colors == null ? null : animation;
-        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation + "|" + trail;
+        final String sendMob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);
+        String key = rawName + "|" + scale + "|" + java.util.Arrays.toString(colors) + "|" + sendAnimation + "|" + trail
+                + "|" + sendMob;
         if (key.equals(lastPushedKey)) {
             return;
         }
@@ -110,9 +122,9 @@ public final class SupportersAutoShare {
         lastPushAtMs = now;
         lastPushedKey = key;
         long seq = ++requestSeq;
-        CompletableFuture<SupportersSelfService.SaveResult> future = rawName.isEmpty() && trail == null
+        CompletableFuture<SupportersSelfService.SaveResult> future = rawName.isEmpty() && trail == null && sendMob == null
                 ? SupportersSelfService.clear()
-                : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation, trail);
+                : SupportersSelfService.save(rawName, scale, sendColors, sendAnimation, trail, sendMob);
         future.whenComplete((result, ignored) -> Minecraft.getInstance().execute(() -> {
             if (seq != requestSeq) {
                 return; // superseded by a newer change
@@ -224,14 +236,20 @@ public final class SupportersAutoShare {
         return null;
     }
 
-    /** Pushes the current name, colours, animation, size and trail from the settings (no-op unless linked and Share if
-     *  Supporter is on, or when nothing changed since the last push). */
+    /** Your Play as Mob choice as it is shared (Share if Supporter covers it, like your name and size), or null for your
+     *  normal player. */
+    public static String mobToShare() {
+        return com.killer560.hub.mobskin.MobSkins.sanitize(SupportersConfig.getInstance().getOwnMob());
+    }
+
+    /** Pushes the current name, colours, animation, size, trail and mob from the settings (no-op unless linked and Share
+     *  if Supporter is on, or when nothing changed since the last push). */
     public static void shareCurrent(Consumer<String> onError) {
         SupportersConfig cfg = SupportersConfig.getInstance();
         NameChangerConfig nc = NameChangerConfig.getInstance();
         maybeShare(cfg.isShareIfSupporter(), linked, NameColor.migrate(nc.getOwnDisplayName()).text(), nc.getOwnColor(),
                 com.killer560.hub.namechanger.NameChangerFeature.ownShareColours(),
                 com.killer560.hub.namechanger.NameChangerFeature.ownShareAnimation(), cfg.getOwnScale(),
-                trailToShare(), onError);
+                trailToShare(), mobToShare(), onError);
     }
 }
