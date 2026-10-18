@@ -57,6 +57,30 @@ public final class FairySoulsFeature {
 
     // ------------------------------------------------------------------ state
 
+    /** Auto Fairy Souls is running (cheat build): it uses this guide and the navigation whatever the Fairy Souls switch. */
+    public static boolean autoRunning() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && AutoSoulRunner.isActive();
+    }
+
+    /**
+     * The guide, the found-soul log and Hypixel's soul lines are wanted: the Fairy Souls switch is on, or Auto Fairy
+     * Souls is running (killer560, 2026-10-17: "you shouldn't have to have the fairy soul setting on for auto fairy
+     * souls to work").
+     */
+    public static boolean soulsWanted() {
+        return PathfindingConfig.getInstance().isFairySouls() || autoRunning();
+    }
+
+    /** A progress line: chat for the legit guide, the log while Auto Fairy Souls runs (automation says only
+     *  started/stopped, corrections and real failures, killer560 2026-10-16). */
+    public static void say(String feature, Component... parts) {
+        if (autoRunning()) {
+            ModChat.log(feature, parts);
+        } else {
+            ModChat.send(feature, parts);
+        }
+    }
+
     public static boolean isGuiding() {
         return guiding;
     }
@@ -171,7 +195,7 @@ public final class FairySoulsFeature {
         }
 
         routing = true;
-        ModChat.send(CHAT, ModChat.text("Calculating a route for "), ModChat.value(String.valueOf(missing.size())),
+        say(CHAT, ModChat.text("Calculating a route for "), ModChat.value(String.valueOf(missing.size())),
                 ModChat.text(" Fairy Souls..."));
         Vec3 pos = client.player.position();
         long started = System.currentTimeMillis();
@@ -196,7 +220,7 @@ public final class FairySoulsFeature {
                 if (queue.isEmpty()) {
                     queue.addAll(missing);
                 }
-                ModChat.send(CHAT, ModChat.text("Route ready: "), ModChat.value(String.valueOf(queue.size())),
+                say(CHAT, ModChat.text("Route ready: "), ModChat.value(String.valueOf(queue.size())),
                         ModChat.text(" souls "), ModChat.dim("(" + (System.currentTimeMillis() - started) + "ms)"));
                 navigateToCurrent();
             });
@@ -218,7 +242,7 @@ public final class FairySoulsFeature {
         IslandGraph.Node soul = currentSoul();
         if (soul == null) {
             guiding = false;
-            ModChat.send(CHAT, ModChat.good("All known Fairy Souls on this island are found!"));
+            say(CHAT, ModChat.good("All known Fairy Souls on this island are found!"));
             NavigationManager.stop(null, false);
             return;
         }
@@ -227,7 +251,7 @@ public final class FairySoulsFeature {
                 : String.format(Locale.US, "Fairy Soul %d/%d", counts[0] + 1, counts[1]);
         NavigationManager.navigate(label, NavigationManager.centre(soul), soul.index, true, target -> {
             if (PathfindingConfig.getInstance().isChatFeedback()) {
-                ModChat.send(CHAT, ModChat.text("Soul is right here - click it."));
+                say(CHAT, ModChat.text("Soul is right here - click it."));
             }
         });
     }
@@ -243,15 +267,10 @@ public final class FairySoulsFeature {
         if (!cfg.isAutoSouls()) {
             return GraphPathfinder.GRAPH_DISTANCE;
         }
-        final double perHopPenalty = switch (cfg.getAutoMode()) {
-            case WALK -> 400.0;
-            case ETHERWARP -> 8.0;
-            case FAST_ETHERWARP -> 0.0;
-            // A thrown pearl has real range/precision limits (see EnderPearlHopper) so route order should
-            // still mostly prefer walking, same spirit as WALK, but a well-aimed pearl beats a very long
-            // detour - priced between WALK's near-never and ETHERWARP's readily-warps.
-            case PEARLS -> 60.0;
-        };
+        if (!cfg.getAutoMode().etherwarps()) {
+            return GraphPathfinder.GRAPH_DISTANCE; // Walk Only never warps (pearls are only an escape)
+        }
+        final double perHopPenalty = cfg.getAutoMode() == PathfindingConfig.AutoMode.ETHERWARP ? 8.0 : 0.0;
         return (from, to, graphDistance) -> {
             double dx = to.x - from.x;
             double dy = to.y - from.y;
@@ -308,7 +327,7 @@ public final class FairySoulsFeature {
         if (changed && PathfindingConfig.getInstance().isChatFeedback()) {
             int[] counts = islandCounts();
             if (counts != null) {
-                ModChat.send(CHAT, ModChat.text("Logged "), ModChat.value(counts[0] + "/" + counts[1]),
+                say(CHAT, ModChat.text("Logged "), ModChat.value(counts[0] + "/" + counts[1]),
                         ModChat.text(" on "), ModChat.value(IslandDetector.islandName()));
             }
         }
@@ -358,7 +377,7 @@ public final class FairySoulsFeature {
 
     public static void tick(Minecraft client) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
-        if (!cfg.isFairySouls()) {
+        if (!soulsWanted()) {
             if (guiding) {
                 stopGuide(false);
             }
@@ -375,7 +394,7 @@ public final class FairySoulsFeature {
         if (guiding && !routing && !NavigationManager.isActive() && !queue.isEmpty()) {
             navigateToCurrent();
         }
-        if (!guiding && cfg.isAutoStartOnIsland() && System.currentTimeMillis() - lastAutoStartMs > 10_000L) {
+        if (!guiding && cfg.isFairySouls() && cfg.isAutoStartOnIsland() && System.currentTimeMillis() - lastAutoStartMs > 10_000L) {
             IslandGraph graph = GraphRepository.get(island);
             if (graph != null && !unfound(graph).isEmpty() && client.player != null) {
                 lastAutoStartMs = System.currentTimeMillis();
@@ -385,7 +404,7 @@ public final class FairySoulsFeature {
     }
 
     private static void onChat(Component message) {
-        if (!PathfindingConfig.getInstance().isFairySouls()) {
+        if (!soulsWanted()) {
             return;
         }
         String plain = ChatObserver.strip(message).trim();

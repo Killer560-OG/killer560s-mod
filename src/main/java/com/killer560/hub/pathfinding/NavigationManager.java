@@ -91,7 +91,7 @@ public final class NavigationManager {
         recalculate(true);
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (cfg.isChatFeedback()) {
-            ModChat.send(PathfindingConfig.chatName(), ModChat.text("Navigating to "), ModChat.value(label),
+            FairySoulsFeature.say(PathfindingConfig.chatName(), ModChat.text("Navigating to "), ModChat.value(label),
                     ModChat.dim(String.format(Locale.US, " (%.0fm)", remainingDistance())));
         }
     }
@@ -105,7 +105,7 @@ public final class NavigationManager {
         path = List.of();
         pathLength = 0;
         if (announce && PathfindingConfig.getInstance().isChatFeedback()) {
-            ModChat.send(PathfindingConfig.chatName(), ModChat.text("Stopped navigating to "), ModChat.value(label),
+            FairySoulsFeature.say(PathfindingConfig.chatName(), ModChat.text("Stopped navigating to "), ModChat.value(label),
                     reason == null ? ModChat.text(".") : ModChat.dim(" (" + reason + ")"));
         }
     }
@@ -157,7 +157,7 @@ public final class NavigationManager {
             return;
         }
         PathfindingConfig cfg = PathfindingConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !FairySoulsFeature.autoRunning()) {
             stop(null, false);
             return;
         }
@@ -172,7 +172,7 @@ public final class NavigationManager {
             if (!target.announcedArrival) {
                 target.announcedArrival = true;
                 if (cfg.isChatFeedback()) {
-                    ModChat.send(PathfindingConfig.chatName(), ModChat.text("Arrived at "), ModChat.value(target.label));
+                    FairySoulsFeature.say(PathfindingConfig.chatName(), ModChat.text("Arrived at "), ModChat.value(target.label));
                 }
                 Target reached = target;
                 if (!reached.stayOnArrive) {

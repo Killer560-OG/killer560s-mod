@@ -5,7 +5,9 @@
 	"package": "com.killer560.hub.pathfinding.mixin",
 	"client": [
 		"PathWalkInputMixin",
-		"PathMotionPacketMixin"
+		"PathMotionPacketMixin",
+		"PathStopKeyMixin",
+		"PathStopMouseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

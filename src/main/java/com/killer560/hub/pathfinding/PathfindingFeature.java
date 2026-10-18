@@ -38,7 +38,7 @@ public final class PathfindingFeature {
     public static final String ELEMENT_ID = "pathfinding";
     private static final String CHAT = "Pathfinding";
 
-    private static boolean resumeKeyWasDown;
+    private static volatile boolean startKeyPressed;
 
     private PathfindingFeature() {
     }
@@ -89,10 +89,11 @@ public final class PathfindingFeature {
         IslandDetector.tick(client);
         ProfileTracker.tick(client);
         PathfindingConfig cfg = PathfindingConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            if (AutoSoulRunner.isActive()) {
-                AutoSoulRunner.stop("pathfinding turned off", false);
-            }
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Ahead of the Fairy Souls gate: Auto Fairy Souls starts and runs with that switch off (killer560, 2026-10-17).
+            pollResumeKey(client, cfg);
+        }
+        if (!cfg.isEnabled() && !FairySoulsFeature.autoRunning()) {
             return;
         }
         String island = IslandDetector.graphIsland();
@@ -106,25 +107,29 @@ public final class PathfindingFeature {
             AutoSoulRunner.tick(client);
             AutoWalker.tick(client);
             EnderPearlHopper.tick(client);
-            pollResumeKey(client, cfg);
         }
     }
 
+    /** A press of the Start/Stop key with no screen open (from {@code PathStopKeyMixin}, between ticks). */
+    static void onStartKey() {
+        startKeyPressed = true;
+    }
+
+    /** The Start/Stop key's press, taken at the top of the tick: a fresh press toggles, a held key does nothing more
+     *  (the same press event the "any key stops it" rule reads, so the two can never disagree about one press). */
     private static void pollResumeKey(Minecraft client, PathfindingConfig cfg) {
-        int code = cfg.getResumeKeyCode();
-        if (code == KeyUtil.NONE) {
-            resumeKeyWasDown = false;
+        if (!startKeyPressed) {
             return;
         }
-        boolean down = KeyUtil.isKeyDown(client.getWindow(), code);
-        if (down && !resumeKeyWasDown && McCompat.screen(client) == null) {
-            if (AutoSoulRunner.isActive()) {
-                AutoSoulRunner.stop("resume key", true);
-            } else {
-                AutoSoulRunner.start();
-            }
+        startKeyPressed = false;
+        if (cfg.getResumeKeyCode() == KeyUtil.NONE || McCompat.screen(client) != null) {
+            return;
         }
-        resumeKeyWasDown = down;
+        if (AutoSoulRunner.isActive()) {
+            AutoSoulRunner.stop("the Start/Stop key", true);
+        } else {
+            AutoSoulRunner.start();
+        }
     }
 
     // ------------------------------------------------------------------ command
@@ -214,8 +219,8 @@ public final class PathfindingFeature {
     private static int navigateCommand(String input) {
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (!cfg.isEnabled()) {
-            ModChat.send(CHAT, ModChat.bad("Pathfinding is off "),
-                    ModChat.dim("(/killer560 > New > Pathfinding)"));
+            ModChat.send(CHAT, ModChat.bad("Fairy Souls is off "),
+                    ModChat.dim("(/killer560 > Misc > Fairy Souls)"));
             return 0;
         }
         Minecraft client = Minecraft.getInstance();
@@ -317,7 +322,7 @@ public final class PathfindingFeature {
     static List<String> hudLines() {
         List<String> lines = new ArrayList<>(2);
         PathfindingConfig cfg = PathfindingConfig.getInstance();
-        if (cfg.isFairySouls() && cfg.isSoulHud()) {
+        if (cfg.isFairySouls()) {
             int[] counts = FairySoulsFeature.islandCounts();
             if (counts != null) {
                 FairySoulStore.IslandRecord record = FairySoulsFeature.menuRecord();
@@ -384,7 +389,7 @@ public final class PathfindingFeature {
 
         @Override
         public boolean isEnabledInSettings() {
-            return PathfindingConfig.getInstance().isEnabled();
+            return PathfindingConfig.getInstance().isEnabled() && PathfindingConfig.getInstance().isSoulHud();
         }
 
         @Override
@@ -392,7 +397,7 @@ public final class PathfindingFeature {
             Minecraft client = Minecraft.getInstance();
             PathfindingConfig cfg = PathfindingConfig.getInstance();
             boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
-            if (!cfg.isEnabled() && !editor) {
+            if (!(cfg.isEnabled() && cfg.isSoulHud()) && !editor) {
                 return;
             }
             List<String> lines = drawnLines();

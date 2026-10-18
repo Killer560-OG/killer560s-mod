@@ -17,8 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * keys before this injection runs (javap-verified on the real 26.1.2 jar: {@code tick()} builds {@code keyPresses}
  * from the key mappings, then {@code moveVector = new Vec2(left/right impulse, forward/backward impulse).normalized()}).
  * <p>
- * The physical keys are never touched, so the {@code keyPresses} this reads at the top of the injection are the
- * player's own - that is how "the player pressed WASD/space, stop immediately" is detected. The class extends
+ * The physical keys are never touched. His own presses stop the run through {@code PathStopKeyMixin} (a fresh press,
+ * since 2026-10-17); a key he was holding when it started is simply overridden here. The class extends
  * {@code ClientInput} purely so the protected {@code moveVector} field is accessible.
  */
 @Mixin(KeyboardInput.class)
@@ -30,11 +30,9 @@ public abstract class PathWalkInputMixin extends ClientInput {
         if (!AutoWalker.isSessionActive()) {
             return;
         }
+        // His own presses stop it through PathStopKeyMixin (a fresh press only); a key held from before the start is
+        // simply overridden here, as Auto Routes does.
         Input keys = this.keyPresses;
-        if (keys.forward() || keys.backward() || keys.left() || keys.right() || keys.jump()) {
-            AutoWalker.onUserMovementInput();
-            return;
-        }
         if (!AutoWalker.isDriving()) {
             return;
         }

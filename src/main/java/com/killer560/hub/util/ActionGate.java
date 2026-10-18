@@ -193,6 +193,10 @@ public final class ActionGate {
         SECRET_TRIGGER(Kind.WORLD),
         /** Breaker Aura. */
         BREAKER_AURA(Kind.WORLD),
+        /** Auto Fairy Souls (cheat build): the click on a soul and an escape's Ender Pearl throw, one a tick. Wired in
+         *  {@code pathfinding.AutoSoulRunner#tickCollect} and {@code pathfinding.EnderPearlHopper#tick}. Islands only,
+         *  never in a run, so it sits below the dungeon auras. */
+        FAIRY_SOUL(Kind.WORLD),
         /** Auto Croesus clicking inside the Croesus menus. */
         CROESUS(Kind.SCREEN),
         /** Auto Croesus right-clicking the Croesus NPC to re-open the menu - the one world step in that flow. */

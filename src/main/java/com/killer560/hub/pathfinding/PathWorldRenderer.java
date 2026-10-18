@@ -65,7 +65,7 @@ public final class PathWorldRenderer {
                 }
                 near.add(point);
             }
-            if (cfg.isShowWholePath()) {
+            if (cfg.isDimPath()) {
                 WorldRenderUtils.renderLineStrip(context, smoothed, pc[0], pc[1], pc[2], 0.25f, Math.max(1f, thickness - 1f));
             }
             WorldRenderUtils.renderLineStrip(context, near, pc[0], pc[1], pc[2], 0.95f, thickness);
