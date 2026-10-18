@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The Custom Party Finder's four tabs (killer560's to-do item 1, 2026-10-18: "tabs for kuudra dungeons diana fishing"), in
+ * The Custom Party Finder's three tabs (killer560's to-do item 1, 2026-10-18; Kuudra is left out until he asks for it), in
  * his order. Each names the relay's category id, the largest party it allows (the relay checks the same numbers), the
  * activities a listing picks from, and the numeric requirements a listing can set.
  * <p>
@@ -12,9 +12,6 @@ import java.util.Locale;
  * level and total secrets, from the Party Finder stats cache. The rest are shown to everyone but never checked, and say so.
  */
 public enum LfgCategory {
-    KUUDRA("kuudra", "Kuudra", 4,
-            List.of("Basic", "Hot", "Burning", "Fiery", "Infernal"),
-            List.of(new Field("magicalPower", "Magical Power", 2000))),
     DUNGEONS("dungeons", "Dungeons", 5,
             List.of("Entrance", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7"),
             List.of(new Field("cata", "Cata Level", 50), new Field("secrets", "Secrets", 200000))),

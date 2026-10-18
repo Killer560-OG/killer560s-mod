@@ -2393,9 +2393,9 @@ final class SettingTooltipsData {
 
     /** Custom Party Finder (killer560's to-do item 1, 2026-10-18). Scoped to the tab's name. */
     private static void customPartyFinder(Map<String, String> d) {
-        d.put("custom party finder", "Our own party finder (/cpf) for Kuudra, Dungeons, Diana and Fishing, shared by every mod user through the mod's relay.");
+        d.put("custom party finder", "Our own party finder (/cpf) for Dungeons, Diana and Fishing, shared by every mod user through the mod's relay.");
         d.put("custom party finder/open party finder", "Opens the Custom Party Finder menu (also /cpf).");
-        d.put("custom party finder/dual-list hypixel queues", "When you queue a dungeon in Hypixel's Party Finder, the same party is listed here too. Kuudra queues are not read yet.");
+        d.put("custom party finder/dual-list hypixel queues", "When you queue a dungeon in Hypixel's Party Finder, the same party is listed here too.");
         d.put("custom party finder/auto accept invite", "After a leader accepts your join request, their Hypixel party invite is accepted for you (once, within a minute).");
         d.put("custom party finder/check requirements", "Checks a listing's Cata Level and Secrets against your stats before asking to join, and shows a joiner's against yours. Other requirements are shown, not checked.");
     }

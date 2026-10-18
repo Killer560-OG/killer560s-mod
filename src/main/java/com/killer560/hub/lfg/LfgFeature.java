@@ -587,16 +587,6 @@ public final class LfgFeature {
         ModChat.send(CHAT, ModChat.text("Also listed in the Custom Party Finder: "), ModChat.value("Dungeons " + activity));
     }
 
-    /** Called by {@link KuudraQueueDetector} once it can read a Kuudra queue (it cannot yet - a stub). */
-    public static void onHypixelKuudraQueued(String tier) {
-        LfgConfig cfg = LfgConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isDualList() || !LfgCategory.KUUDRA.activities.contains(tier)) {
-            return;
-        }
-        LfgConfig.Draft d = cfg.draft(LfgCategory.KUUDRA);
-        list(spec(LfgCategory.KUUDRA, tier, d.note, d.reqs, LfgCategory.KUUDRA.maxParty, true));
-    }
-
     /**
      * STUB - the Group Builder's requirement items (Catacombs level / class level required) are not known: the menu's item
      * names and lore lines for them need killer560's screenshot. Until then nothing is read and the saved Create-form values

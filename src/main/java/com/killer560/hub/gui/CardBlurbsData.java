@@ -32,7 +32,7 @@ final class CardBlurbsData {
         d.put("MobEspTab", "Boxes or glow on starred mobs.");
         d.put("LiveMapTab", "The dungeon map as a HUD.");
         d.put("DungeonQueueTab", "Re-queue and Party Finder.");
-        d.put("CustomPartyFinderTab", "Kuudra, dungeon, Diana, fishing parties.");
+        d.put("CustomPartyFinderTab", "Dungeon, Diana, fishing parties.");
         d.put("F7SpotsTab", "Saved F7/M7 walk and aim spots.");
         d.put("LeapCounterTab", "Counts teammates leaping.");
         d.put("LeapMenuTab", "Custom leap menu with heads.");

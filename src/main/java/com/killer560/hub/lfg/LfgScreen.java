@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Custom Party Finder menu ({@code /cpf}): Kuudra / Dungeons / Diana / Fishing tabs of everyone's listings with a Join
+ * The Custom Party Finder menu ({@code /cpf}): Dungeons / Diana / Fishing tabs of everyone's listings with a Join
  * button each, the player's own join requests waiting on his listing (Accept / Decline), and a Create page whose activity,
  * party size, requirements and note start from what he last used on that tab.
  */
