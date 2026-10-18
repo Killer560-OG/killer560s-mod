@@ -737,16 +737,21 @@ public final class SimAbilities {
      * <p>The room's own type decides, not its name: {@code RoomEntry.type} is what the map and the generator
      * already call a trap room. The name is only a fallback for a room the database does not know.
      */
-    private static final java.util.Set<String> TRAP_ALLOWED = java.util.Set.of("SUPERBOOM_TNT");
+    // Ender pearls too (killer560, 2026-10-17: "I should be able to pearl in trap room") - a pearl is not an ability.
+    private static final java.util.Set<String> TRAP_ALLOWED = java.util.Set.of("SUPERBOOM_TNT", "ENDER_PEARL");
 
     private static boolean trapLocked(String skyblockId, String room) {
-        if (skyblockId == null || TRAP_ALLOWED.contains(skyblockId) || room == null) {
+        if (skyblockId == null || room == null) {
             return false;
         }
         // Teleport Maze too. killer560 (2026-10-01): "disable all abilites and dungeon breaker in teleprot maze."
-        // The chambers are sealed by iron bars; an etherwarp or a teleport skips the whole puzzle.
+        // The chambers are sealed by iron bars; an etherwarp, a teleport or a pearl skips the whole puzzle, so the trap
+        // room's allow list does not apply here.
         if (isTeleportMaze(room)) {
-            return true;
+            return !"SUPERBOOM_TNT".equals(skyblockId);
+        }
+        if (TRAP_ALLOWED.contains(skyblockId)) {
+            return false;
         }
         var entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(room);
         String type = entry == null ? null : entry.type;

@@ -162,14 +162,20 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(Component.literal("Auto Secret Key: §ePress any key..."));
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
+        // Its own label: the Autopilot's "Blood First" switch is in this tab too, and a tooltip is keyed by label.
+        w.add(SettingsButtonWidget.cycling(secretBloodFirstText(cfg), (btn, dir) -> {
+            cfg.setSecretBloodFirst(SettingsButtonWidget.step(cfg.getSecretBloodFirst(), dir));
+            cfg.save();
+            btn.setMessage(secretBloodFirstText(cfg));
+        }).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += ROW;
 
         toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
         toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
         y[0] += ROW;
+        // "Auto Clear Rooms" row removed (killer560, 2026-10-17): Auto Secret always hands uncleared rooms to Auto Clear.
         toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst);
-        toggle(w, contentX + half + GAP, y[0], right, "Auto Clear Rooms", cfg::isAutoClearRooms, cfg::setAutoClearRooms);
-        y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
+        toggle(w, contentX + half + GAP, y[0], right, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
         y[0] += ROW;
         int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
         slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + "s",
@@ -213,6 +219,11 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     private static Component runModeText(AutoSecretConfig cfg) {
         return Component.literal("Run Mode: §e" + cfg.getRunMode().label());
+    }
+
+    private static Component secretBloodFirstText(AutoSecretConfig cfg) {
+        AutoSecretConfig.SecretBloodFirst m = cfg.getSecretBloodFirst();
+        return Component.literal("Secret Blood First: " + (m == AutoSecretConfig.SecretBloodFirst.OFF ? "§cOff" : "§e" + m.label()));
     }
 
     private static Component runText() {
