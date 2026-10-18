@@ -593,3 +593,6 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **62-argrim-chain's 20/s pace is the server's answer time.** The same jar read 1.00 and 1.18-1.55 ticks per warp an hour
   apart on a busy machine, base fcba4045 included, and every slow warp still went on its landing's tick; there was no
   regressing commit. The case judges 20/s against the round trip it measures (testkit fullclear-1016).
+- **A Quiz question can be asked while he is in another room** (Oruo's lines reach the whole dungeon), and Quiz Solver
+  reset its answers on every room change, so a question asked while Auto Secret was doing a room between answers was gone
+  when he walked back in. While `QuizState.inProgress()` a room change now only drops the pillar positions (2026-10-17).

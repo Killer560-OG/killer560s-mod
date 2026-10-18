@@ -93,7 +93,16 @@ public final class QuizSolverFeature {
         RoomEntry current = LiveMapFeature.currentRoomEntry();
         if (current != lastRoomEntry) {
             lastRoomEntry = current;
-            reset();
+            if (QuizState.inProgress()) {
+                // Oruo asks the next question wherever he is (his lines reach the whole dungeon), and Auto Secret leaves
+                // the room between questions (2026-10-17): a question asked while he was in another room must still be
+                // known when he walks back in. Only the room's positions are worked out again.
+                for (TriviaOption option : options) {
+                    option.blockPos = null;
+                }
+            } else {
+                reset();
+            }
         }
         if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) {
             return;
@@ -118,6 +127,14 @@ public final class QuizSolverFeature {
             return;
         }
         String msg = ChatObserver.strip(message);
+
+        // Oruo's three lock lines open a new question (NoammAddons QuizSolver.kt clears the options on each): nothing
+        // known about the last one applies to the next.
+        String whole = msg.trim();
+        if (whole.equals(QuizState.INTRO) || whole.equals(QuizState.SECOND) || whole.equals(QuizState.THIRD)) {
+            clearForNewQuestion();
+            return;
+        }
 
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {
@@ -229,6 +246,42 @@ public final class QuizSolverFeature {
             }
         }
         return pillar;
+    }
+
+    /** {@link #getCorrectAnswerButton(net.minecraft.world.level.Level)}, taking of the pillar's buttons the one nearest
+     *  {@code eye} (a pillar has four; the one on the side he stands is the one in reach). */
+    public static BlockPos getCorrectAnswerButton(net.minecraft.world.level.Level level, net.minecraft.world.phys.Vec3 eye) {
+        BlockPos pillar = getCorrectAnswerPos();
+        if (pillar == null || level == null || eye == null) {
+            return getCorrectAnswerButton(level);
+        }
+        BlockPos b = buttonOf(level, pillar, eye);
+        return b != null ? b : pillar;
+    }
+
+    /** The button on one of {@code pillar}'s four sides nearest {@code toward}, or null when it has none. */
+    public static BlockPos buttonOf(net.minecraft.world.level.Level level, BlockPos pillar, net.minecraft.world.phys.Vec3 toward) {
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (net.minecraft.core.Direction d : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            BlockPos side = pillar.relative(d);
+            if (level.getBlockState(side).getBlock() instanceof net.minecraft.world.level.block.ButtonBlock) {
+                double dist = net.minecraft.world.phys.Vec3.atCenterOf(side).distanceToSqr(toward);
+                if (dist < bestD) {
+                    bestD = dist;
+                    best = side;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** The three answer pillars (ⓐ, ⓑ, ⓒ) while he is in the Quiz room and they are worked out, else null. */
+    public static List<BlockPos> answerPillars() {
+        if (options[0].blockPos == null || options[1].blockPos == null || options[2].blockPos == null) {
+            return null;
+        }
+        return List.of(options[0].blockPos, options[1].blockPos, options[2].blockPos);
     }
 
     /**

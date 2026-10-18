@@ -149,7 +149,20 @@ public final class SimQuizPuzzle {
     public static void register() {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.START_CLIENT_TICK.register(
                 com.killer560.hub.util.FeatureGuard.start("SimQuizPuzzle.tick", SimQuizPuzzle::tick));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.START_SERVER_TICK.register(SimQuizPuzzle::oruoStart);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> oruoTick++);
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+            if (oruoRoom()) {
+                // THE BOUND QUIZ ROOM IS ANSWERED ON THE SERVER, from the button press's own packet, the way Hypixel
+                // judges it (2026-10-17): the answer counts only once Oruo's cooldown for that question has run. Both
+                // sides PASS, so vanilla presses the button and sends the packet.
+                Integer pressed = CELL_INDEX.get(hitResult.getBlockPos());
+                if (pressed != null && !level.isClientSide()
+                        && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    onOruoPress(sp, pressed);
+                }
+                return InteractionResult.PASS;
+            }
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check a real click would
             // resolve twice - the same double-fire guard SimDoors uses for its own UseBlockCallback. Returning
@@ -183,6 +196,12 @@ public final class SimQuizPuzzle {
         // interaction (hanging his held item on it) never runs.
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
+                    if (entity != null && ORUO_IDS.contains(entity.getUUID())) {
+                        if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                            onOruoTalk(sp, "talked to");
+                        }
+                        return InteractionResult.SUCCESS;
+                    }
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
                     if (who == null) {
                         return InteractionResult.PASS;
@@ -196,6 +215,15 @@ public final class SimQuizPuzzle {
         // copy speaks and returns FAIL, which cancels the hit on the stand.
         net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register(
                 (player, level, hand, entity, hitResult) -> {
+                    if (entity != null && ORUO_IDS.contains(entity.getUUID())) {
+                        if (level.isClientSide()) {
+                            return InteractionResult.PASS;
+                        }
+                        if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                            onOruoTalk(sp, "hit");
+                        }
+                        return InteractionResult.FAIL;
+                    }
                     Integer who = entity == null ? null : NPC_STANDS.get(entity.getUUID());
                     if (who == null) {
                         return InteractionResult.PASS;
@@ -331,6 +359,8 @@ public final class SimQuizPuzzle {
                         anchor.world(spots[i][0] + d[0], spots[i][1], spots[i][2] + d[1]), i});
                 }
             }
+            oruoName = anchor.world(ORUO_NAME_REL);
+            oruoClick = anchor.world(ORUO_CLICK_REL);
         }
         if (ANSWERS.isEmpty()) {
             com.killer560.hub.util.ModLog.get("killer560smod-roomsim")
@@ -340,6 +370,8 @@ public final class SimQuizPuzzle {
         // Same in-memory clear reset() does, without its queued block writes: those are aimed at the PREVIOUS
         // arena's positions and would land a tick from now, inside the room just pasted.
         java.util.List<Object[]> buttons = quizButtons;
+        BlockPos name = oruoName;
+        BlockPos click = oruoClick;
         forget();
         quizButtons = buttons;
         boundRoom = p.room().name;
@@ -348,6 +380,10 @@ public final class SimQuizPuzzle {
             for (Object[] b : buttons) {
                 CELL_INDEX.put((BlockPos) b[0], (Integer) b[1]);
             }
+        }
+        if (!weirdos && buttons != null) {
+            armOruo(level, positions, name, click);
+            return true;
         }
         newQuestion(level, positions, false, true);
         if (weirdos) {
@@ -867,6 +903,8 @@ public final class SimQuizPuzzle {
     private static volatile String boundRoom = null;
 
     public static void forget() {
+        forgetOruo();
+        ORUO_IDS.clear();
         pendingQuestion = null;
         pendingOptions = null;
         announced = false;
@@ -899,6 +937,9 @@ public final class SimQuizPuzzle {
         }
         NPC_STANDS.clear();
         NPC_IDS.clear();
+        labels.addAll(ORUO_IDS);
+        ORUO_IDS.clear();
+        forgetOruo();
         Minecraft client = Minecraft.getInstance();
         if ((positions != null || !labels.isEmpty()) && SimState.canAct(client)) {
             MinecraftServer server = client.getSingleplayerServer();
@@ -930,7 +971,8 @@ public final class SimQuizPuzzle {
 
     private static void onChestClick(Minecraft client, int index) {
         MinecraftServer server = client.getSingleplayerServer();
-        // NO ANSWER DELAY. killer560 asked for one ("have a 5s delay from the question coming out to being
+        // NO ANSWER DELAY - the standalone /simpuzzle arena and Three Weirdos only; the bound Quiz room is answered through
+        // Oruo's cooldowns on the server (onOruoPress, 2026-10-17). killer560 asked for one ("have a 5s delay from the question coming out to being
         // able to answer it") and then asked for it back out ("remove the quiz delay I dont like it"), so an
         // answer counts the moment the question is up. The reading-time rule is Hypixel's; this is a drill.
         if (index == correctIndex) {
@@ -998,6 +1040,359 @@ public final class SimQuizPuzzle {
         level.addFreshEntity(stand);
         return stand.getUUID();
     }
+
+    // ------------------------------------------------------------------ Oruo (the bound Quiz room, 2026-10-17)
+    //
+    // killer560: "on main if you do quiz the first time you open it there is a long cooldown till you can answer then a
+    // shorter one after that for a total of 3 answers. Reference noamm, they keep track of it, but build that into our sim."
+    //
+    // Hypixel's order, from his own logs (26.1.2 (Dungeons), 276 runs, second-resolution timestamps; the most common gap
+    // in brackets) and NoammAddons' QuizSolver.kt for the two locks (220 and 100 server ticks):
+    //   talk to Oruo -> INTRO; "Though I sit..." (+2 s); "Prove your knowledge..." (+4 s); "Answer incorrectly..." (+6 s);
+    //   Question #1 (+8 s); answerable 220 ticks after INTRO (answered at +11 s in most runs, never before +10 s).
+    //   "NAME answered Question #1 correctly!"; "2 questions left..." (+2 s); Question #2 (+2 s after it); answerable 100
+    //   ticks after "2 questions left" (answered 5 s after it in most runs, never before 4 s). The same for #2 with
+    //   "One more question!". "NAME answered the final question correctly!"; "I bestow upon you..." (+1 s).
+    // A press before the lock ends does nothing (no line in any log). After the last answer a talk gets "You have already
+    // shown your vast knowledge..." and a press "You've already proven enough to me!..." (both in his logs).
+    //
+    // WHERE ORUO STANDS is not in any capture (he is an entity) and no reference mod records it: the sim's name stand is
+    // in front of the statue (relative 15, 71, 16, on its front step) and its CLICK stand over the moat's near edge
+    // (relative 15, 70, 14), in entity reach from the ledge before the moat. An estimate, said plainly.
+
+    /** Oruo's name stand and his CLICK stand, room-relative (see above). */
+    private static final int[] ORUO_NAME_REL = {15, 71, 16};
+    private static final int[] ORUO_CLICK_REL = {15, 70, 14};
+    private static volatile BlockPos oruoName;
+    private static volatile BlockPos oruoClick;
+    private static final List<UUID> ORUO_IDS = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    static final String ORUO = "[STATUE] Oruo the Omniscient: ";
+    private static final String[] INTRO_LINES = {
+        "I am Oruo the Omniscient. I have lived many lives. I have learned all there is to know.",
+        "Though I sit stationary in this prison that is The Catacombs, my knowledge knows no bounds.",
+        "Prove your knowledge by answering 3 questions and I shall reward you in ways that transcend time!",
+        "Answer incorrectly, and your moment of ineptitude will live on for generations.",
+    };
+    /** Oruo's lines are 2 s apart (40 ticks: his logs' most common gap, 256 of 278 runs). */
+    public static final int LINE_GAP_TICKS = 40;
+    /** The question comes 2 s after the line before it (intro + 8 s; "2 questions left" + 2 s). */
+    public static final int ASK_GAP_TICKS = 40;
+    /** NoammAddons' locks: from the intro, and from each "N questions left" line. */
+    public static final int FIRST_LOCK_TICKS = 220;
+    public static final int LATER_LOCK_TICKS = 100;
+
+    /** IDLE (not talked to), RUNNING (started), DONE (all three answered). */
+    private static volatile String oruoFlow = "IDLE";
+    /** 1-3 while running. */
+    private static volatile int oruoQuestion = 0;
+    /** The question has been asked in chat and its options are up. */
+    private static volatile boolean oruoAsked = false;
+    /** The current question was answered and the next has not been announced yet. */
+    private static volatile boolean oruoBetween = false;
+    /** Server ticks counted at END_SERVER_TICK; a line sent at START or in a packet carries the current value. */
+    private static volatile long oruoTick = 0L;
+    /** {@link #oruoTick} from which the asked question takes an answer; -1 while none does. */
+    private static volatile long oruoOpenAt = -1L;
+    /** Scheduled lines: {due tick, Runnable}. Server thread only. */
+    private static final List<Object[]> ORUO_PLAN = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static volatile ServerLevel oruoLevel;
+    private static final List<String> ORUO_ASKED = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    // ---- test hooks ----
+    private static volatile int oruoRefused = 0;
+    /** {question, tick accepted, tick it opened} for every answer that counted, this room. */
+    private static final List<long[]> ORUO_ACCEPTED = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    /** True while this class runs a bound Quiz room (answered on the server through Oruo's locks). */
+    private static boolean oruoRoom() {
+        return built && boundRoom != null && !weirdosRoom && quizButtons != null;
+    }
+
+    private static void forgetOruo() {
+        oruoFlow = "IDLE";
+        oruoQuestion = 0;
+        oruoAsked = false;
+        oruoBetween = false;
+        oruoOpenAt = -1L;
+        ORUO_PLAN.clear();
+        ORUO_ASKED.clear();
+        ORUO_ACCEPTED.clear();
+        oruoRefused = 0;
+        oruoName = null;
+        oruoClick = null;
+    }
+
+    /** Server thread, from {@link #bindAt}: Oruo's two stands, the answer spots, no question yet. */
+    private static void armOruo(ServerLevel level, BlockPos[] positions, BlockPos name, BlockPos click) {
+        chestPos = positions;
+        boundPositions = positions;
+        for (int i = 0; i < positions.length; i++) {
+            CELL_INDEX.put(positions[i], i);
+        }
+        built = true;
+        complete = false;
+        correctIndex = -1;
+        oruoLevel = level;
+        oruoClickArmed = click;
+        forgetOruoFlowOnly();
+        if (name != null) {
+            ArmorStand stand = new ArmorStand(level, name.getX() + 0.5, name.getY(), name.getZ() + 0.5);
+            stand.setNoGravity(true);
+            stand.setInvulnerable(true);
+            stand.setCustomName(Component.literal("Oruo the Omniscient"));
+            stand.setCustomNameVisible(true);
+            if (level.addFreshEntity(stand)) {
+                ORUO_IDS.add(stand.getUUID());
+            }
+        }
+        if (click != null) {
+            ArmorStand stand = new ArmorStand(level, click.getX() + 0.5, click.getY(), click.getZ() + 0.5);
+            stand.setInvisible(true);
+            stand.setNoGravity(true);
+            stand.setInvulnerable(true);
+            stand.setNoBasePlate(true);
+            stand.setCustomName(Component.literal("CLICK"));
+            stand.setCustomNameVisible(true);
+            if (level.addFreshEntity(stand)) {
+                ORUO_IDS.add(stand.getUUID());
+            }
+        }
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim quiz: Oruo armed ({} stand(s): name {}, CLICK {}) - talk to him to begin", ORUO_IDS.size(),
+                name == null ? "none" : name.toShortString(), click == null ? "none" : click.toShortString());
+    }
+
+    private static void forgetOruoFlowOnly() {
+        oruoFlow = "IDLE";
+        oruoQuestion = 0;
+        oruoAsked = false;
+        oruoBetween = false;
+        oruoOpenAt = -1L;
+        ORUO_PLAN.clear();
+        ORUO_ASKED.clear();
+    }
+
+    /** START_SERVER_TICK: the lines that are due go out, before this tick's ping (sent at END). */
+    private static void oruoStart(MinecraftServer server) {
+        if (ORUO_PLAN.isEmpty()) {
+            return;
+        }
+        long now = oruoTick;
+        for (Object[] e : List.copyOf(ORUO_PLAN)) {
+            if ((Long) e[0] <= now) {
+                ORUO_PLAN.remove(e);
+                try {
+                    ((Runnable) e[1]).run();
+                } catch (RuntimeException ex) {
+                    com.killer560.hub.util.ModLog.get("killer560smod-roomsim").warn("Sim quiz: a scheduled line threw", ex);
+                }
+            }
+        }
+    }
+
+    private static void at(long tick, Runnable r) {
+        ORUO_PLAN.add(new Object[]{tick, r});
+    }
+
+    /** Oruo speaks: a server system message to every player, as Hypixel sends his lines to the whole dungeon. */
+    private static void oruoSay(String text) {
+        ServerLevel level = oruoLevel;
+        if (level == null) {
+            return;
+        }
+        for (net.minecraft.server.level.ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
+            sp.sendSystemMessage(Component.literal(ORUO + text));
+        }
+    }
+
+    private static void sendRaw(Component c) {
+        ServerLevel level = oruoLevel;
+        if (level == null) {
+            return;
+        }
+        for (net.minecraft.server.level.ServerPlayer sp : level.getServer().getPlayerList().getPlayers()) {
+            sp.sendSystemMessage(c);
+        }
+    }
+
+    /** Server thread: he talked to (or hit) Oruo. */
+    private static void onOruoTalk(net.minecraft.server.level.ServerPlayer sp, String how) {
+        var log = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+        if (!oruoRoom()) {
+            return;
+        }
+        if ("DONE".equals(oruoFlow)) {
+            oruoSay("You have already shown your vast knowledge of SkyBlock. Come back in another life to answer more"
+                    + " questions!");
+            return;
+        }
+        if (!"IDLE".equals(oruoFlow)) {
+            log.info("Sim quiz: {} Oruo during question {} - nothing (he is already asking)", how, oruoQuestion);
+            return;
+        }
+        long t0 = oruoTick;
+        oruoFlow = "RUNNING";
+        oruoQuestion = 1;
+        oruoAsked = false;
+        oruoBetween = false;
+        oruoOpenAt = t0 + FIRST_LOCK_TICKS;
+        ORUO_ASKED.clear();
+        oruoSay(INTRO_LINES[0]);
+        for (int i = 1; i < INTRO_LINES.length; i++) {
+            String line = INTRO_LINES[i];
+            at(t0 + (long) LINE_GAP_TICKS * i, () -> oruoSay(line));
+        }
+        at(t0 + (long) LINE_GAP_TICKS * (INTRO_LINES.length - 1) + ASK_GAP_TICKS, () -> oruoAsk(1));
+        log.info("Sim quiz: {} Oruo at server tick {} - question 1 is asked at {} and answerable from {}", how, t0,
+                t0 + (long) LINE_GAP_TICKS * (INTRO_LINES.length - 1) + ASK_GAP_TICKS, oruoOpenAt);
+    }
+
+    /** Server thread: asks question {@code q} - Hypixel's block of lines, and the answer holograms over the pillars. */
+    private static void oruoAsk(int q) {
+        ServerLevel level = oruoLevel;
+        BlockPos[] positions = boundPositions;
+        if (level == null || positions == null || !"RUNNING".equals(oruoFlow) || oruoQuestion != q) {
+            return;
+        }
+        List<String> pool = new ArrayList<>();
+        for (String k : ANSWERS.keySet()) {
+            if (!ORUO_ASKED.contains(k)) {
+                pool.add(k);
+            }
+        }
+        String question = pickQuestion(pool.isEmpty() ? new ArrayList<>(ANSWERS.keySet()) : pool);
+        ORUO_ASKED.add(question);
+        List<String> correctAnswers = ANSWERS.get(question);
+        String correct = correctAnswers.get(ThreadLocalRandom.current().nextInt(correctAnswers.size()));
+        int slot = ThreadLocalRandom.current().nextInt(3);
+        String[] text = new String[3];
+        text[slot] = correct;
+        List<String> wrong = distractorPool(question, correctAnswers, new ArrayList<>(ANSWERS.keySet()));
+        int w = 0;
+        for (int i = 0; i < 3; i++) {
+            if (text[i] == null) {
+                text[i] = w < wrong.size() ? wrong.get(w++) : "(no other answer available)";
+            }
+        }
+        correctIndex = slot;
+        for (UUID id : List.copyOf(LABELS)) {
+            Entity e = level.getEntity(id);
+            if (e != null) {
+                e.discard();
+            }
+        }
+        LABELS.clear();
+        char[] letters = {'ⓐ', 'ⓑ', 'ⓒ'};
+        for (int i = 0; i < 3; i++) {
+            LABELS.add(spawnLabel(level, positions[i], letters[i] + " " + text[i]));
+        }
+        // Hypixel's block, line by line as his log has it: a blank line, the centred "Question #N", the centred question,
+        // a blank line, the three options ("    §6 ⓐ §a<answer>"), a blank line.
+        sendRaw(Component.literal(""));
+        sendRaw(Component.literal("                                Question #" + q));
+        sendRaw(Component.literal("           " + question));
+        sendRaw(Component.literal(""));
+        for (int i = 0; i < 3; i++) {
+            sendRaw(Component.literal("    ").append(Component.literal(" " + letters[i] + " ")
+                    .withStyle(net.minecraft.ChatFormatting.GOLD)).append(Component.literal(text[i])
+                    .withStyle(net.minecraft.ChatFormatting.GREEN)));
+        }
+        sendRaw(Component.literal(""));
+        oruoAsked = true;
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info(
+                "Sim quiz: question {} asked at server tick {} (answerable from {}): \"{}\", correct {}", q, oruoTick,
+                oruoOpenAt, question, letters[slot]);
+    }
+
+    /** Server thread: a press on one of the pillar buttons. */
+    private static void onOruoPress(net.minecraft.server.level.ServerPlayer sp, int index) {
+        var log = com.killer560.hub.util.ModLog.get("killer560smod-roomsim");
+        if ("DONE".equals(oruoFlow)) {
+            oruoSay("You've already proven enough to me! No need to press more of my buttons!");
+            return;
+        }
+        long now = oruoTick;
+        if (!"RUNNING".equals(oruoFlow) || !oruoAsked || oruoBetween || oruoOpenAt < 0 || now < oruoOpenAt) {
+            oruoRefused++;
+            log.info("Sim quiz: press on answer {} at server tick {} refused - {}", index, now,
+                    "IDLE".equals(oruoFlow) ? "Oruo has not been talked to" : oruoBetween ? "between questions"
+                            : !oruoAsked ? "question " + oruoQuestion + " not asked yet"
+                            : "question " + oruoQuestion + " opens at server tick " + oruoOpenAt);
+            return;
+        }
+        int q = oruoQuestion;
+        String name = sp.getGameProfile().name();
+        if (index != correctIndex) {
+            log.info("Sim quiz: wrong answer {} to question {} at server tick {}", index, q, now);
+            // Hypixel's own wrong-answer line is not in any of his logs, so the sim says only that the puzzle failed.
+            SimPuzzles.reportFail(boundRoom == null ? "Quiz" : boundRoom, boundRoom);
+            ModChat.send("Sim", ModChat.bad("Wrong answer - talk to Oruo to start again."));
+            forgetOruoFlowOnly();
+            return;
+        }
+        ORUO_ACCEPTED.add(new long[]{q, now, oruoOpenAt});
+        log.info("Sim quiz: question {} answered at server tick {} (open from {}, {} tick(s) after)", q, now, oruoOpenAt,
+                now - oruoOpenAt);
+        oruoBetween = true;
+        oruoAsked = false;
+        oruoOpenAt = -1L;
+        if (q >= 3) {
+            oruoSay(name + " answered the final question correctly!");
+            oruoFlow = "DONE";
+            complete = true;
+            at(now + 20, () -> oruoSay("I bestow upon you all the power of a hundred years!"));
+            return;
+        }
+        oruoSay(name + " answered Question #" + q + " correctly!");
+        int next = q + 1;
+        String lockLine = next == 2 ? "2 questions left... Then you will have proven your worth to me!" : "One more question!";
+        at(now + LINE_GAP_TICKS, () -> {
+            if (!"RUNNING".equals(oruoFlow) || oruoQuestion != q) {
+                return;
+            }
+            oruoQuestion = next;
+            oruoBetween = false;
+            oruoOpenAt = oruoTick + LATER_LOCK_TICKS;
+            oruoSay(lockLine);
+            at(oruoTick + ASK_GAP_TICKS, () -> oruoAsk(next));
+            log.info("Sim quiz: question {} announced at server tick {} (answerable from {})", next, oruoTick, oruoOpenAt);
+        });
+    }
+
+    /** Test hooks: where Oruo is ({@code IDLE}, {@code RUNNING}, {@code DONE}), which question, and its lock. */
+    public static String oruoFlow() {
+        return oruoFlow;
+    }
+
+    public static int oruoQuestion() {
+        return oruoQuestion;
+    }
+
+    public static long oruoServerTick() {
+        return oruoTick;
+    }
+
+    public static long oruoOpenAt() {
+        return oruoOpenAt;
+    }
+
+    /** Presses refused for coming before the lock ended (or before any question), this room. */
+    public static int oruoRefused() {
+        return oruoRefused;
+    }
+
+    /** {question, tick accepted, tick it opened} per answer that counted. */
+    public static List<long[]> oruoAccepted() {
+        return List.copyOf(ORUO_ACCEPTED);
+    }
+
+    /** Oruo's CLICK stand's block (where the sim stands him), for tests; null when not armed. */
+    public static BlockPos oruoClickPos() {
+        return ORUO_IDS.isEmpty() ? null : oruoClickArmed;
+    }
+
+    private static volatile BlockPos oruoClickArmed;
 
     private static Map<String, List<String>> loadAnswers() {
         try (InputStream stream = SimQuizPuzzle.class.getClassLoader()
