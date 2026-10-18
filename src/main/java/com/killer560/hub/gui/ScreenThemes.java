@@ -46,6 +46,24 @@ public final class ScreenThemes {
     /** A saved theme's choice is this plus its {@link MenuConfig.SavedTheme#id}. */
     public static final String SAVED_PREFIX = "SAVED:";
 
+    /**
+     * One Theme per mod section (killer560, 2026-10-18: "one theme specifically per mod section ... croeseus would have its
+     * own specific theme but not every single part of it would have its own. It should be this way for every mod"). A
+     * section's screens and overlays all read and write the one choice stored under the section's id; the left side here
+     * are the ids that used to have a Theme setting of their own (Croesus' chest panel and start button, Experiments'
+     * start buttons, the Leap Menu overlay). Code keeps asking for its old id; this maps it.
+     */
+    private static final Map<String, String> SECTION = Map.of(
+            "chest_profit", "croesus",
+            "start_buttons", "croesus",
+            "experiments_start", "profit",
+            "leap_menu", "leaporder");
+
+    /** The id a Theme choice is stored under: the section's, for a part of a section; otherwise {@code id} itself. */
+    public static String section(String id) {
+        return SECTION.getOrDefault(id, id);
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PATH = ModPaths.config("killer560smod-menu-screens.json");
 
@@ -65,6 +83,13 @@ public final class ScreenThemes {
                 }
             } catch (Exception ignored) {
                 // A broken file reads as every screen on Theme Default.
+            }
+        }
+        // A choice saved under a part's old id moves to its section's id (unless the section already has one).
+        for (Map.Entry<String, String> e : SECTION.entrySet()) {
+            String old = out.remove(e.getKey());
+            if (old != null) {
+                out.putIfAbsent(e.getValue(), old);
             }
         }
         choices = out;
@@ -101,10 +126,11 @@ public final class ScreenThemes {
 
     /** The screen's choice: {@link #DEFAULT}, a {@link MenuTheme} name, or one of the screen's own extra names. */
     public static String get(String screenId) {
-        return map().getOrDefault(screenId, DEFAULT);
+        return map().getOrDefault(section(screenId), DEFAULT);
     }
 
     public static synchronized void set(String screenId, String choice) {
+        screenId = section(screenId);
         String c = choice == null ? DEFAULT : choice.trim().toUpperCase(Locale.ROOT);
         if (DEFAULT.equals(c)) {
             map().remove(screenId);

@@ -38,6 +38,8 @@ public class TeleportMazeSolverTab extends BaseTab {
                     btn.setMessage(onOff("Tracer To Best Pad", cfg.isShowTracer()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

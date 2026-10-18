@@ -1653,7 +1653,7 @@ public class ModScreen extends Screen {
         Set<BaseTab> named = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
         for (BaseTab leaf : leaves) {
             for (String q : variants) {
-                if (leaf.name.toLowerCase(Locale.ROOT).contains(q.toLowerCase(Locale.ROOT).trim())) {
+                if (SearchAliases.nameMatches(leaf.name, q)) {
                     results.add(new Result(leaf, leaf.name, true, where(leaf)));
                     named.add(leaf);
                     break;

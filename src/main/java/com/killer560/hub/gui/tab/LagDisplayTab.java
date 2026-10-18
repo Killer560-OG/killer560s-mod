@@ -54,6 +54,22 @@ public class LagDisplayTab extends BaseTab {
         y[0] += 22;
         toggle(w, contentX, y[0], contentWidth, "Color By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
+
+        // Custom colours (killer560, 2026-10-18). The four value colours only matter with Color By Value on.
+        header(w, contentX, y, contentWidth, "Colors");
+        color(w, contentX, y[0], half, "Good Color", cfg::getColorGood, cfg::setColorGood,
+                LagDisplayConfig.DEFAULT_GOOD, cfg);
+        color(w, colB, y[0], half, "Okay Color", cfg::getColorOk, cfg::setColorOk,
+                LagDisplayConfig.DEFAULT_OK, cfg);
+        y[0] += 22;
+        color(w, contentX, y[0], half, "Bad Color", cfg::getColorBad, cfg::setColorBad,
+                LagDisplayConfig.DEFAULT_BAD, cfg);
+        color(w, colB, y[0], half, "Awful Color", cfg::getColorAwful, cfg::setColorAwful,
+                LagDisplayConfig.DEFAULT_AWFUL, cfg);
+        y[0] += 22;
+        color(w, contentX, y[0], contentWidth, "Text Color", cfg::getColorText, cfg::setColorText,
+                LagDisplayConfig.DEFAULT_TEXT, cfg);
+        y[0] += 24;
         return w;
     }
 
@@ -71,6 +87,20 @@ public class LagDisplayTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
+    }
+
+    private static void color(List<AbstractWidget> w, int x, int y, int width, String label,
+                              java.util.function.IntSupplier get, java.util.function.IntConsumer set, int def,
+                              LagDisplayConfig cfg) {
+        w.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label(label, get.getAsInt()), btn -> {
+            Minecraft client = Minecraft.getInstance();
+            com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
+                    com.killer560.hub.compat.McCompat.screen(client), "Performance HUD " + label, get.getAsInt(), def,
+                    argb -> {
+                        set.accept(argb);
+                        cfg.save();
+                    }));
+        }).bounds(x, y, width, 18).build());
     }
 
     private static Component onOff(String label, boolean value) {

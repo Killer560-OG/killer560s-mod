@@ -53,6 +53,10 @@ public final class LoadoutSwapper {
     private static long clickTick = -1L;
     private static Object lastLevel = null;
     private static boolean[] wasDown = new boolean[12];
+    private static boolean openWasDown;
+    /** Test hook (docs/TESTING-HOOKS.md): stands in for the Open Loadouts key being held, since a harness key press
+     *  never reaches the GLFW poll. Null in play. */
+    public static volatile Boolean openKeyHeldForTest;
 
     private LoadoutSwapper() {
     }
@@ -109,6 +113,30 @@ public final class LoadoutSwapper {
             }
             wasDown[i] = down;
         }
+        // The Open Loadouts key (2026-10-18): just /loadouts, like the button beside it, from any no-screen moment.
+        int openKey = cfg.getOpenKey();
+        boolean openLive = live && openKey != KeyUtil.NONE;
+        Boolean forced = openKeyHeldForTest;
+        boolean openDown = openLive && (forced != null ? forced : KeyUtil.isBindDown(client.getWindow(), openKey));
+        boolean openClicked = openLive && noScreen && consumeVanillaClicks(client, openKey);
+        if (((openDown && !openWasDown) || openClicked) && noScreen && stage == Stage.IDLE) {
+            openLoadouts(client);
+        }
+        openWasDown = openDown;
+    }
+
+    /** Sends /loadouts for the Open Loadouts key. False, with nothing sent, while a menu is open or there is no player. */
+    static boolean openLoadouts(Minecraft client) {
+        LocalPlayer player = client.player;
+        if (player == null || ActionGate.containerScreenOpen(client) || player.containerMenu != player.inventoryMenu) {
+            return false;
+        }
+        if (!ServerCommands.toServer("loadouts")) {
+            return false;
+        }
+        ActionGate.noteCommand(ActionGate.Actor.LOADOUT_SWAP_CMD);
+        LOGGER.info("[LoadoutKeybinds] Open Loadouts key: /loadouts sent.");
+        return true;
     }
 
     /**

@@ -260,6 +260,7 @@ final class SettingTooltipsData {
         d.put("chat hider/hide empty chat messages", "Hides chat lines that are blank.");
         d.put("chat hider/hide actionbar", "Hides all action bar text above the hotbar.");
         d.put("chat hider/hide non-rank invites", "Hides party invites from players without a rank.");
+        d.put("chat hider/hide ban announcements", "Hides Hypixel's Watchdog announcement: how many players Watchdog and staff banned in the last 7 days.");
         d.put("copy chat", "With chat open: Shift or Ctrl + Left-Click a message copies the whole message (every wrapped line); Shift or Ctrl + Right-Click copies only the line you clicked. Copied without color codes. A plain click does what it always did.");
         d.put("auto meow enabled", "Replies with a random cat line when another player says meow, purr, nya or mew, in the same chat it came from: party, guild, officer, co-op, a private message (back to that player), all chat or Mod Chat.");
         d.put("play cat noises", "Plays a cat sound each time Auto Meow replies.");
@@ -899,7 +900,10 @@ final class SettingTooltipsData {
                     + " it runs /loadouts, clicks this loadout once the menu opens, then closes the menu.");
         }
         d.put("peek chat", "Read chat without typing: the Peek Chat key opens the chat history with no text box. Scroll with the mouse wheel, Up/Down or Page Up/Page Down (Home jumps back to the newest); links and hover text work. Escape or the key again closes it. Your unsent chat draft is left alone.");
-        d.put("peek chat key", "Key or mouse button that opens Peek Chat (press it again, or Escape, to close). Only works with no menu open. Esc while binding clears it.");
+        d.put("peek chat key", "Key or mouse button that opens Peek Chat (in Toggle Peek press it again, or Escape, to close; in Hold To Peek let go of it). Only works with no menu open. Esc while binding clears it.");
+        d.put("peek mode", "Toggle Peek: press the key to open the chat, press it again to close. Hold To Peek: the chat is open while you hold the key. The mouse wheel scrolls the chat either way.");
+        d.put("unlimited chat history", "Vanilla forgets everything but the last 100 chat messages. On, the whole session stays in chat and can be scrolled back to. Uses more memory the longer you play.");
+        d.put("open loadouts key", "A key (or mouse button) that runs /loadouts from anywhere with no menu open, like the Open Loadouts button. Needs Loadout Keybinds on. Esc while binding clears it.");
         d.put("open loadouts", "Runs /loadouts: opens Hypixel's Loadout menu. Works whether or not Loadout Keybinds is on.");
         d.put("ability keybinds", "Custom keys for your dungeon class Ability and Ultimate.");
         d.put("ability key", "Key or mouse button that uses your class Ability.");
@@ -1518,6 +1522,11 @@ final class SettingTooltipsData {
         d.put("mage reduction", "Shortens cooldowns by the Mage class reduction while you play Mage in a dungeon.");
         d.put("unique class", "Turn on if you are the only Mage in the party (50% reduction instead of 25%).");
         d.put("mage class level", "Your Mage class level, used for the extra cooldown reduction.");
+        d.put("performance hud/good color", "Color of a value that is doing well, with Color By Value on.");
+        d.put("performance hud/okay color", "Color of a value that is fine but not great, with Color By Value on.");
+        d.put("performance hud/bad color", "Color of a value that is poor, with Color By Value on.");
+        d.put("performance hud/awful color", "Color of a value that is very bad, with Color By Value on.");
+        d.put("performance hud/text color", "Color of every line when Color By Value is off, and of the CPS line.");
         d.put("performance hud", "Shows TPS, ping, FPS and a click counter in one movable HUD element.");
         d.put("tps", "Shows the server's ticks per second, capped at 20.");
         d.put("ping", "Shows your ping, colored from green to red.");
@@ -1823,6 +1832,7 @@ final class SettingTooltipsData {
         d.put("translate/search", "Type part of a language name to filter the list, then click one to select it.");
         d.put("voice to text/mode", "Open Mic listens all the time and sends what you said once you stop talking; Push To Talk only listens while the key is held.");
         d.put("voice to text/silence before send", "Open Mic: how long you must stop talking before what you said is sent. Shorter sends sooner but can cut a sentence at a pause.");
+        d.put("voice to text/show status on hud", "Shows what Voice To Text is doing above your hotbar: Listening, Transcribing, the download percent and what was sent. Off hides all of it; a failure still shows.");
         d.put("voice to text/microphone", "Which microphone Voice To Text records from.");
         d.put("voice to text/send to", "Where transcribed speech is sent: Party, All, Guild, Co-op / plain chat or Mod Chat. Right-click goes back.");
         d.put("water board solver/show tracer", "Outlines the next lever to flip in green and draws a line to the one after.");
@@ -1879,9 +1889,9 @@ final class SettingTooltipsData {
         d.put("dungeon esp/esp", "Cheat build: one switch for every ESP here - starred mobs and bats through walls, and the F7/M7 wither bosses through walls at any range.");
         d.put("dungeon esp/wither style", "How the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
         d.put("starred mob hitboxes/wither style", "Picks how the wither highlight is drawn: Glow Hitbox or Hitbox Fill.");
-        d.put("solver highlights/solver highlights", "Solver Highlights as a whole - off, no puzzle or boss solver draws its boxes, waypoints or lines in the world (the solvers still solve, and their chat and HUD lines still show).");
-        d.put("solver highlights/waypoint style", "Draws puzzle solver waypoints as an outline or a see-through full block.");
-        d.put("solver highlights/through walls", "Draws every solver highlight through blocks so you can see answers early.");
+        d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
+        d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
+        d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
         // Chat Keybinds holds Command Shortcuts too since 2026-10-08 (one tab, sub-tab "Chat Keybinds"): every entry for
         // either feature is scoped "chat keybinds/..." - the old "command shortcuts/..." keys were orphaned by the move.
@@ -2222,17 +2232,17 @@ final class SettingTooltipsData {
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
-        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (bevelled panel, sunken slots) in the colors of the Preset.");
-        d.put("inventory theme/preset", "Default is vanilla's own light gray, Dark a dark version, Mod Theme the mod's black and orange; Custom uses the Theme, Slot Color and Accent settings.");
-        d.put("inventory theme/theme", "With the Custom preset: Amber, Dark (neutral grays) or Light colors. The Storage Overlay has the same three.");
+        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (bevelled panel, sunken slots) in the colors of the Theme. Also hides the potion effects panel beside them.");
+        d.put("inventory theme/theme", "The colors: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own grays), or to Custom, which shows a Customize row.");
+        d.put("inventory theme/customize", "Opens a menu for the Custom look: its Base colors, slot color and accent color.");
+        d.put("inventory theme/base", "The colors the Custom look starts from: Amber, Dark (neutral grays) or Light. The Storage Overlay has the same three.");
         d.put("inventory theme/theme hotbar", "Also draws your hotbar in the theme. Items, counts, durability and cooldowns stay vanilla's.");
         d.put("inventory theme/hotbar scale", "Resizes the themed hotbar from its bottom center. It can cover the bars above it when raised.");
-        d.put("inventory theme/slot color source", "Slot squares in the theme's color, or one you pick.");
+        d.put("inventory theme/slot color source", "Slot squares in the Base's color, or one you pick.");
         d.put("inventory theme/slot color", "Opens a color picker for the slot squares.");
         d.put("inventory theme/applies to", "Which screens get the theme: only Hypixel and p3sim menus, or every container.");
-        d.put("inventory theme/accent source", "Use the preset's accent, or pick your own color for the hover highlight, selected hotbar slot and title text (and the bevels with the Custom preset).");
+        d.put("inventory theme/accent source", "Use the Base's accent, or pick your own color for the hover highlight, selected hotbar slot, title text and the bevels.");
         d.put("inventory theme/accent color", "Opens a color picker for the custom accent color.");
-        d.put("inventory theme/hide potion effects", "Hides the potion effects panel beside the inventory and chest screens.");
         d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
@@ -2245,6 +2255,10 @@ final class SettingTooltipsData {
         d.put("pet wheel/hide level", "Hides the level shown under each pet on the wheel.");
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");
         d.put("pet wheel/hide pets menu", "Keeps the /pets menu invisible while the wheel summons a pet; it still opens and closes behind the scenes.");
+        d.put("pet wheel/page", "The wheel is made of pages, each its own set of pets. This is the page the wheel opens on and Edit Pets edits; click to go forward, right-click back. On the wheel itself, scroll or press Left/Right to change page.");
+        d.put("pet wheel/page name", "A name for this page, shown on the wheel when you have more than one page.");
+        d.put("pet wheel/add page", "Adds an empty page after the last one and switches to it. Open Edit Pets to fill it.");
+        d.put("pet wheel/delete page", "Deletes the page shown above (never the last one).");
         d.put("pet wheel/edit pets", "Opens the wheel to edit it: right-click a slot to pick a pet, or drag slices to swap them.");
         d.put("auction house/auction house browser", "One switch for the whole Auction House: the custom browser (/killer560 ah or a keybind) and Hypixel's real Auction House menus drawn in its look, where every click is the same single click on Hypixel's menu.");
         d.put("auction house/open key", "Optional keybind that opens the Auction House browser, same as /killer560 ah.");

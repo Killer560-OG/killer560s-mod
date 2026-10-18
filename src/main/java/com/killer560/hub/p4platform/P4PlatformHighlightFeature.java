@@ -141,8 +141,8 @@ public final class P4PlatformHighlightFeature {
         // you stand on the platform - which is the only time you want to see it. QUOI, the mod this was
         // ported from, ships its highlights with the "Depth check" switch off for the same reason.
         if (cfg.isFilled()) {
-            SolverEspRender.renderFilledBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);
+            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);
         }
-        SolverEspRender.renderOutlineBox(context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 1.0f, 2f);
+        SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 1.0f, 2f);
     }
 }

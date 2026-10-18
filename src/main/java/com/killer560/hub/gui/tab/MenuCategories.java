@@ -159,8 +159,7 @@ public final class MenuCategories {
      * The one ordering rule (killer560, 2026-10-14: "sort them alphabetically or something of your choosing"): inside a
      * category every legit tab comes first, then every cheat-only one, and each of those two runs is alphabetical by the
      * tab's display name, ignoring case. The Secrets and Puzzle Solvers groups are placed by their own names like any
-     * tab and sort their own sections the same way; the one exception is Solver Highlights, the shared setting of every
-     * puzzle solver, which stays the first section of Puzzle Solvers.
+     * tab and sort their own sections the same way.
      */
     static List<BaseTab> cheatLast(List<BaseTab> in) {
         List<BaseTab> legit = new ArrayList<>();
@@ -181,16 +180,10 @@ public final class MenuCategories {
             java.util.Comparator.comparing((BaseTab t) -> t.name.toLowerCase(java.util.Locale.ROOT))
                     .thenComparing(t -> t.name);
 
-    /** A group's sections: alphabetical, Solver Highlights first. */
+    /** A group's sections: alphabetical (Solver Highlights, which used to come first, is gone since 2026-10-18). */
     private static List<BaseTab> cheatLastGroup(List<BaseTab> in) {
         List<BaseTab> out = new ArrayList<>(in);
         out.sort(BY_NAME);
-        for (int i = 0; i < out.size(); i++) {
-            if (out.get(i) instanceof SolverHighlightsTab) {
-                out.add(0, out.remove(i));
-                break;
-            }
-        }
         return out;
     }
 }

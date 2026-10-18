@@ -46,10 +46,9 @@ public final class InventoryThemeConfig {
     public static final float MAX_HOTBAR_SCALE = 2.0f;
 
     /**
-     * The colours the vanilla-shaped theme is drawn in (killer560, 2026-10-12: "change inventory up to essentially be a
-     * reskin of the original with its coloring"; presets "Default ... the normal vanilla inventory colours", "Dark",
-     * "Mod Theme"). Custom keeps the older colour settings (Theme, Slot Color) useful. Everyone starts on Default,
-     * including a file written before presets existed.
+     * The presets of 2026-10-12 ("Default ... the normal vanilla inventory colours", "Dark", "Mod Theme", "Custom"). Since
+     * 2026-10-18 (killer560) the look is ONE Theme choice stored under {@link #CHOICE_ID} in {@code ScreenThemes}; this enum
+     * is only read, once, to carry a saved preset over to it (Default was vanilla then, so it becomes Vanilla).
      */
     public enum Preset {
         DEFAULT("Default"), DARK("Dark"), MOD_THEME("Mod Theme"), CUSTOM("Custom");
@@ -61,6 +60,13 @@ public final class InventoryThemeConfig {
         }
     }
 
+    /** The Theme choice's id in {@code ScreenThemes}/{@code OverlayThemes} (the Inventory Theme's own section). */
+    public static final String CHOICE_ID = com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME;
+    /** Theme choice: vanilla's own greys. */
+    public static final String VANILLA_CHOICE = "VANILLA";
+    /** Theme choice: Custom - the Customize screen's colours. */
+    public static final String CUSTOM_CHOICE = "INVENTORY_CUSTOM";
+
     private static volatile InventoryThemeConfig instance;
 
     private boolean enabled = false;
@@ -71,10 +77,8 @@ public final class InventoryThemeConfig {
     private float backgroundOpacity = 0.85f;
     private boolean useCustomAccent = false;
     private int customAccentColor = THEME_ACCENT;
-    /** killer560: "Add a setting to hide the effects in your inventory" - independent of {@link #enabled}
-     *  (the reskin itself), so it keeps working with the reskin off. OFF by default so nothing changes
-     *  for anyone until they turn it on. */
-    private boolean hidePotionEffects = false;
+    // Hide Potion Effects stopped being a setting on 2026-10-18 (killer560: "no longer needs to exist just make it always
+    // on"): the effects panel is hidden whenever the Inventory Theme is on. A "hidePotionEffects" key in an old file is ignored.
     /** Amber (the look before themes existed), Dark or Light - the same three the Storage Overlay offers. */
     private PanelTheme theme = PanelTheme.AMBER;
     /** killer560, 2026-10-07: "Make the custom inventory also apply to my normal toolbar." ON by default, but only
@@ -88,7 +92,8 @@ public final class InventoryThemeConfig {
     /** Slot backdrop recolour (killer560, 2026-10-07: "an option to recolor it"): off follows the theme. */
     private boolean useCustomSlotColor = false;
     private int customSlotColor = PanelTheme.AMBER.invSlotBg;
-    private Preset preset = Preset.DEFAULT;
+    /** True once the old preset has been carried over to the Theme choice (written to the file as themeChoiceMigrated). */
+    private boolean choiceMigrated = false;
 
     private InventoryThemeConfig() {
     }
@@ -104,6 +109,8 @@ public final class InventoryThemeConfig {
 
     public static void load() {
         InventoryThemeConfig cfg = new InventoryThemeConfig();
+        cfg.choiceMigrated = true; // a new install has nothing to carry over
+        boolean migrate = false;
         try {
             if (Files.exists(CONFIG_PATH)) {
                 String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
@@ -113,7 +120,6 @@ public final class InventoryThemeConfig {
                 cfg.backgroundOpacity = clampOpacity(ConfigJson.getFloat(obj, "backgroundOpacity", cfg.backgroundOpacity));
                 cfg.useCustomAccent = ConfigJson.getBool(obj, "useCustomAccent", cfg.useCustomAccent);
                 cfg.customAccentColor = ConfigJson.getInt(obj, "customAccentColor", cfg.customAccentColor);
-                cfg.hidePotionEffects = ConfigJson.getBool(obj, "hidePotionEffects", cfg.hidePotionEffects);
                 cfg.theme = PanelTheme.parse(ConfigJson.getString(obj, "theme", null), cfg.theme);
                 cfg.themeHotbar = ConfigJson.getBool(obj, "themeHotbar", cfg.themeHotbar);
                 cfg.hotbarScale = clampHotbarScale(ConfigJson.getFloat(obj, "hotbarScale", cfg.hotbarScale));
@@ -126,12 +132,32 @@ public final class InventoryThemeConfig {
                 }
                 cfg.useCustomSlotColor = ConfigJson.getBool(obj, "useCustomSlotColor", cfg.useCustomSlotColor);
                 cfg.customSlotColor = ConfigJson.getInt(obj, "customSlotColor", cfg.customSlotColor);
-                cfg.preset = ConfigJson.getEnum(obj, "preset", Preset.class, Preset.DEFAULT);
+                cfg.choiceMigrated = ConfigJson.getBool(obj, "themeChoiceMigrated", false);
+                if (!cfg.choiceMigrated) {
+                    // A file from before the Theme choice: carry its preset over, unless a Menu Theme was already picked
+                    // (that one won in the old getPalette too). Default meant vanilla colours then.
+                    if (com.killer560.hub.gui.ScreenThemes.DEFAULT.equals(com.killer560.hub.gui.ScreenThemes.get(CHOICE_ID))) {
+                        Preset legacy = ConfigJson.getEnum(obj, "preset", Preset.class, Preset.DEFAULT);
+                        String mapped = switch (legacy) {
+                            case DEFAULT -> VANILLA_CHOICE;
+                            case DARK -> com.killer560.hub.gui.MenuTheme.DARK.name();
+                            case MOD_THEME -> com.killer560.hub.gui.MenuTheme.AMBER.name();
+                            case CUSTOM -> CUSTOM_CHOICE;
+                        };
+                        com.killer560.hub.gui.ScreenThemes.set(CHOICE_ID, mapped);
+                        com.killer560.hub.gui.ScreenThemes.save();
+                    }
+                    cfg.choiceMigrated = true;
+                    migrate = true;
+                }
             }
         } catch (Exception ignored) {
             // Unparseable file: keep defaults for this session (per-key reads above handle single bad keys).
         }
         instance = cfg;
+        if (migrate) {
+            cfg.save();
+        }
     }
 
     public void save() {
@@ -143,7 +169,6 @@ public final class InventoryThemeConfig {
             obj.addProperty("backgroundOpacity", backgroundOpacity);
             obj.addProperty("useCustomAccent", useCustomAccent);
             obj.addProperty("customAccentColor", customAccentColor);
-            obj.addProperty("hidePotionEffects", hidePotionEffects);
             obj.addProperty("theme", theme.name());
             obj.addProperty("themeHotbar", themeHotbar);
             obj.addProperty("hotbarScale", hotbarScale);
@@ -159,7 +184,7 @@ public final class InventoryThemeConfig {
             }
             obj.addProperty("useCustomSlotColor", useCustomSlotColor);
             obj.addProperty("customSlotColor", customSlotColor);
-            obj.addProperty("preset", preset.name());
+            obj.addProperty("themeChoiceMigrated", true);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -210,13 +235,9 @@ public final class InventoryThemeConfig {
         this.customAccentColor = customAccentColor;
     }
 
-    /** Same mod-wide "Skyblock Only" gate every other feature's gated getter respects. */
+    /** Always on while the Inventory Theme is (killer560, 2026-10-18); the same Skyblock Only gate as {@link #isEnabled()}. */
     public boolean isHidePotionEffects() {
-        return hidePotionEffects && SkyblockGate.allows();
-    }
-
-    public void setHidePotionEffects(boolean hidePotionEffects) {
-        this.hidePotionEffects = hidePotionEffects;
+        return isEnabled();
     }
 
     /** The color everything this feature draws (panel outline, slot outlines, hover highlight, selected hotbar slot,
@@ -313,46 +334,46 @@ public final class InventoryThemeConfig {
         return useCustomSlotColor ? customSlotColor : theme.invSlotBg;
     }
 
-    public Preset getPreset() {
-        return preset;
+    /** The Theme choice: Default (the mod menu's theme), one of the menu's themes, Vanilla or Custom. */
+    public String getChoice() {
+        return com.killer560.hub.gui.ScreenThemes.get(CHOICE_ID);
     }
 
-    public void setPreset(Preset preset) {
-        this.preset = preset == null ? Preset.DEFAULT : preset;
+    public void setChoice(String choice) {
+        com.killer560.hub.gui.ScreenThemes.set(CHOICE_ID, choice);
+        com.killer560.hub.gui.ScreenThemes.save();
     }
 
-    /** The shades everything is drawn in: the preset's, with Accent Source / Slot Color Source: Custom applied on top
-     *  in any preset. */
+    public boolean isVanilla() {
+        return VANILLA_CHOICE.equals(getChoice());
+    }
+
+    public boolean isCustom() {
+        return CUSTOM_CHOICE.equals(getChoice());
+    }
+
+    /** The menu's Dark theme is chosen (the hotbar's selection ring is toned down on it). */
+    public boolean isDarkChoice() {
+        return com.killer560.hub.gui.MenuTheme.DARK.name().equals(getChoice());
+    }
+
+    /** The shades everything is drawn in, from the Theme choice (killer560, 2026-10-18): Default follows the mod menu's
+     *  theme, a named theme is that theme's colours, Vanilla is vanilla's greys, Custom is what the Customize screen
+     *  sets (its Base / Slot Color / Accent Color). The Slot and Accent overrides apply to Custom only. */
     public InventoryPalette getPalette() {
-        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME);
-        if (menu != null) {
-            // Menu Theme is not Default: the menu's colours replace the preset; Accent / Slot Color Source still apply.
-            InventoryPalette m = InventoryPalette.fromMenu(menu);
-            if (useCustomAccent) {
-                m = m.withAccent(customAccentColor);
-            }
-            if (useCustomSlotColor) {
-                m = m.withSlotFill(customSlotColor);
-            }
-            return m;
+        if (isVanilla()) {
+            return InventoryPalette.DEFAULT;
         }
-        if (preset == Preset.CUSTOM) {
-            // Custom: built from the Theme's colours with the custom accent / slot colour taking their place, so the
-            // accent also colours the bevels.
+        if (isCustom()) {
+            // Built from the Base's colours with the custom accent / slot colour taking their place, so the accent also
+            // colours the bevels.
             return InventoryPalette.custom(theme.invPanelBg, getSlotColor(), getAccentColor());
         }
-        InventoryPalette p = switch (preset) {
-            case DARK -> InventoryPalette.DARK;
-            case MOD_THEME -> InventoryPalette.MOD_THEME;
-            default -> InventoryPalette.DEFAULT;
-        };
-        if (useCustomAccent) {
-            p = p.withAccent(customAccentColor);
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(CHOICE_ID);
+        if (menu == null) {
+            menu = com.killer560.hub.gui.OverlayThemes.menu(); // Default: whatever the mod menu's theme is
         }
-        if (useCustomSlotColor) {
-            p = p.withSlotFill(customSlotColor);
-        }
-        return p;
+        return InventoryPalette.fromMenu(menu);
     }
 
     /** The panel fill colour (opaque; Background Opacity supplies the alpha). */

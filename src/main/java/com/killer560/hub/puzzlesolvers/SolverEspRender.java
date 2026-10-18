@@ -21,9 +21,9 @@ import com.killer560.hub.compat.McRender;
 
 /**
  * Every puzzle/boss solver's world drawing goes through here instead of straight to
- * {@link WorldRenderUtils}, so one setting ({@link SolverEspConfig#isThroughWalls()}) decides whether a
- * solver's answer is visible through blocks - killer560, 2026-09-20: "make all solvers ESP based for the
- * waypoints".
+ * {@link WorldRenderUtils}, so the solver's own setting ({@link SolverEspConfig#isThroughWalls(SolverEspConfig.Solver)})
+ * decides whether its answer is visible through blocks - killer560, 2026-09-20: "make all solvers ESP based for the
+ * waypoints"; per solver since 2026-10-18 (each call names its solver, first argument).
  * <p>
  * Signatures mirror {@code WorldRenderUtils}' exactly so each solver's render method only changed class
  * name. With the setting off every call falls straight back through to {@code WorldRenderUtils} and draws
@@ -69,13 +69,13 @@ public final class SolverEspRender {
                         .build())).sortOnUpload().createRenderSetup());
     }
 
-    /** Solver Highlights' master switch: off, every method below draws nothing. */
-    private static boolean off() {
-        return !SolverEspConfig.getInstance().isEnabled();
+    /** The solver's own Highlight switch: off, the methods below draw nothing for it. */
+    private static boolean off(SolverEspConfig.Solver solver) {
+        return !SolverEspConfig.getInstance().isEnabled(solver);
     }
 
-    private static boolean throughWalls() {
-        return SolverEspConfig.getInstance().isThroughWalls();
+    private static boolean throughWalls(SolverEspConfig.Solver solver) {
+        return SolverEspConfig.getInstance().isThroughWalls(solver);
     }
 
     /** A solver box sits exactly on the block faces it is outlining, so with the depth test on the two
@@ -83,12 +83,12 @@ public final class SolverEspRender {
      *  makes the outline actually land in front of the block. */
     private static final double Z_FIGHT_NUDGE = 0.005;
 
-    public static void renderOutlineBox(LevelRenderContext context, AABB box, float r, float g, float b, float a,
-                                        float thickness) {
-        if (off()) {
+    public static void renderOutlineBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
+                                        float b, float a, float thickness) {
+        if (off(solver)) {
             return;
         }
-        if (!throughWalls()) {
+        if (!throughWalls(solver)) {
             WorldRenderUtils.renderOutlineBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness);
             return;
         }
@@ -96,23 +96,25 @@ public final class SolverEspRender {
                 lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
     }
 
-    /** A solver waypoint in the shared Waypoint Style - an outline, or a translucent full block. */
-    public static void renderWaypoint(LevelRenderContext context, AABB box, float r, float g, float b, float thickness) {
-        if (off()) {
+    /** A solver waypoint in the solver's Waypoint Style - an outline, or a translucent full block. */
+    public static void renderWaypoint(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
+                                      float b, float thickness) {
+        if (off(solver)) {
             return;
         }
-        if (SolverEspConfig.getInstance().getWaypointStyle() == SolverEspConfig.WaypointStyle.FULL) {
-            renderFilledBox(context, box, r, g, b, 0.45f);
+        if (SolverEspConfig.getInstance().getWaypointStyle(solver) == SolverEspConfig.WaypointStyle.FULL) {
+            renderFilledBox(solver, context, box, r, g, b, 0.45f);
         } else {
-            renderOutlineBox(context, box, r, g, b, 1f, thickness);
+            renderOutlineBox(solver, context, box, r, g, b, 1f, thickness);
         }
     }
 
-    public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
-        if (off()) {
+    public static void renderFilledBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
+                                       float b, float a) {
+        if (off(solver)) {
             return;
         }
-        if (!throughWalls()) {
+        if (!throughWalls(solver)) {
             WorldRenderUtils.renderFilledBox(context, box.inflate(Z_FIGHT_NUDGE), r, g, b, a);
             return;
         }
@@ -120,12 +122,12 @@ public final class SolverEspRender {
                 filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
     }
 
-    public static void renderLineStrip(LevelRenderContext context, List<Vec3> points,
+    public static void renderLineStrip(SolverEspConfig.Solver solver, LevelRenderContext context, List<Vec3> points,
                                        float r, float g, float b, float a, float thickness) {
-        if (off()) {
+        if (off(solver)) {
             return;
         }
-        if (!throughWalls()) {
+        if (!throughWalls(solver)) {
             WorldRenderUtils.renderLineStrip(context, points, r, g, b, a, thickness);
             return;
         }

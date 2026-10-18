@@ -23,9 +23,15 @@ public final class BoundedDownload {
 
     /** Streams {@code in} to {@code target}, failing (and deleting the partial file) past {@code maxBytes}. */
     public static void toFile(InputStream in, Path target, long maxBytes, String what) throws IOException {
+        toFile(in, target, maxBytes, what, null);
+    }
+
+    /** As {@link #toFile(InputStream, Path, long, String)}, telling {@code onBytes} the running total after each chunk. */
+    public static void toFile(InputStream in, Path target, long maxBytes, String what,
+                              java.util.function.LongConsumer onBytes) throws IOException {
         Files.createDirectories(target.getParent());
         try (OutputStream out = Files.newOutputStream(target)) {
-            copyCapped(in, out, maxBytes, what);
+            copyCapped(in, out, maxBytes, what, onBytes);
         } catch (IOException e) {
             Files.deleteIfExists(target);
             throw e;
@@ -39,6 +45,12 @@ public final class BoundedDownload {
      * @throws IOException if the source has more than {@code maxBytes} left to give
      */
     public static long copyCapped(InputStream in, OutputStream out, long maxBytes, String what) throws IOException {
+        return copyCapped(in, out, maxBytes, what, null);
+    }
+
+    /** As {@link #copyCapped(InputStream, OutputStream, long, String)}, telling {@code onBytes} the running total. */
+    public static long copyCapped(InputStream in, OutputStream out, long maxBytes, String what,
+                                  java.util.function.LongConsumer onBytes) throws IOException {
         byte[] buffer = new byte[8192];
         long total = 0;
         int read;
@@ -48,6 +60,9 @@ public final class BoundedDownload {
                 throw new IOException(what + " exceeded " + maxBytes + " bytes - refusing to keep writing");
             }
             out.write(buffer, 0, read);
+            if (onBytes != null) {
+                onBytes.accept(total);
+            }
         }
         return total;
     }

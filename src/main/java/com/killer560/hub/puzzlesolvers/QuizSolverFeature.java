@@ -205,7 +205,7 @@ public final class QuizSolverFeature {
             // wall-mounted stone buttons, which is all twelve of them. So (20,70,6) and its two siblings are
             // the little pillars Oruo's answer buttons hang off, not floor to stand on - and highlighting one
             // block lower put the box inside the pillar's own stonework.
-            SolverEspRender.renderWaypoint(context, new AABB(option.blockPos), 0.2f, 1.0f, 0.3f, 2f);
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.QUIZ, context, new AABB(option.blockPos), 0.2f, 1.0f, 0.3f, 2f);
         }
     }
 

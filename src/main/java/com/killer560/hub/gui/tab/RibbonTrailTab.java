@@ -25,11 +25,22 @@ import java.util.function.Supplier;
  *  for the ribbon ... The trail though for ribbon can be shared"): a vertical band streaming behind you like a Roblox
  *  trail, drawn by {@link com.killer560.hub.trail.RibbonTrail}. Independent of the squares {@link TrailTab}; both can be
  *  on. Its Sharing section holds the same Share Trail / Show Others' Trails switches as Player Cosmetics (where the other
- *  supporter switches are), so a supporter finds them from either tab. Purely visual, legit in both builds. */
+ *  supporter switches are), so a supporter finds them from either tab. Purely visual, legit in both builds.
+ *  <p>Since 2026-10-18 (killer560: "the ribbon trail is the only one that can be shared of the trails and it only shows
+ *  up in player cosmetics to be adjusted") it is no longer a card of its own: {@link CosmeticsTab} builds it as its
+ *  Ribbon Trail section, {@code embedded}, without a heading or the Sharing switches (Player Cosmetics has them on top). */
 public class RibbonTrailTab extends BaseTab {
 
+    private final boolean embedded;
+
     public RibbonTrailTab() {
+        this(false);
+    }
+
+    /** @param embedded true when it is a section of Player Cosmetics rather than a tab of its own. */
+    public RibbonTrailTab(boolean embedded) {
         super("Ribbon Trail");
+        this.embedded = embedded;
     }
 
     @Override
@@ -37,10 +48,12 @@ public class RibbonTrailTab extends BaseTab {
         List<AbstractWidget> w = new ArrayList<>();
         RibbonTrailConfig cfg = RibbonTrailConfig.getInstance();
         int[] y = {contentY};
-        // A supporter's shared trail follows these settings (Share Trail); a no-op otherwise.
-        SupportersAutoShare.shareCurrent(null);
-
-        header(w, contentX, y, contentWidth, "Ribbon Trail");
+        if (!embedded) {
+            // A supporter's shared trail follows these settings (Share Trail); a no-op otherwise. Player Cosmetics does
+            // this itself for the embedded copy.
+            SupportersAutoShare.shareCurrent(null);
+            header(w, contentX, y, contentWidth, "Ribbon Trail");
+        }
         w.add(SettingsButtonWidget.builder(onOff("Ribbon Trail", cfg.isEnabledRaw()), btn -> {
                     cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
@@ -51,7 +64,9 @@ public class RibbonTrailTab extends BaseTab {
         if (cfg.isEnabledRaw()) {
             appearance(w, contentX, y, contentWidth, cfg, requestRebuild);
         }
-        sharing(w, contentX, y, contentWidth, requestRebuild);
+        if (!embedded) {
+            sharing(w, contentX, y, contentWidth, requestRebuild);
+        }
         return w;
     }
 

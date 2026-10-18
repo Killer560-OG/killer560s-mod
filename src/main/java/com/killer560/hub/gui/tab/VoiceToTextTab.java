@@ -106,6 +106,14 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
             });
             y += 22;
         }
+        // Show Status On HUD (killer560, 2026-10-18): off hides Listening / Transcribing / download percent / the
+        // sent line above the hotbar. A failure still shows.
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Status On HUD", cfg.isShowStatusHud()), btn -> {
+                    cfg.setShowStatusHud(!cfg.isShowStatusHud());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Status On HUD", cfg.isShowStatusHud()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         y += 2;
 
         return widgets;

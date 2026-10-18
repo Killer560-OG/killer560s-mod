@@ -480,6 +480,7 @@ public final class ProfileManager {
                 com.killer560.hub.copychat.CopyChatConfig::load,
                 com.killer560.hub.peekchat.PeekChatConfig::load,
                 com.killer560.hub.chattidy.ChatTidyConfig::load,
+                com.killer560.hub.chathistory.ChatHistoryConfig::load,
                 com.killer560.hub.croesus.CroesusConfig::load,
                 com.killer560.hub.diorite.DioriteGlassConfig::load,
                 com.killer560.hub.doorkeys.DoorKeysConfig::load,

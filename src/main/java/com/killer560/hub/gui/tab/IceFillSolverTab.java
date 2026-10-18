@@ -47,6 +47,8 @@ public class IceFillSolverTab extends BaseTab {
                     btn.setMessage(colorLabel(cfg.getLineColor()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_FILL, contentX, contentWidth, y, false);
+
         return widgets;
     }
 

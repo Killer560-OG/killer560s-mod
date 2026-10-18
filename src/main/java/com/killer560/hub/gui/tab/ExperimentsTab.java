@@ -102,10 +102,8 @@ public class ExperimentsTab extends BaseTab {
             // Shared by every profit tracker (killer560, 2026-10-15): whose profit, and whether mod profiles share it.
             y = com.killer560.hub.gui.profit.ProfitScopeBar.settingsRows(widgets, contentX, y, contentWidth);
         }
+        // ONE Theme for all of Experiments (killer560, 2026-10-18): the profit screen and the Start button both follow it.
         widgets.add(com.killer560.hub.gui.ScreenThemes.button("profit", contentX, y, contentWidth, 18));
-        y += 22;
-        widgets.add(com.killer560.hub.gui.ScreenThemes.overlayButton(com.killer560.hub.gui.OverlayThemes.START_BUTTONS,
-                "Start Button Menu Theme", contentX, y, contentWidth, 18));
         y += 22;
         return y;
     }

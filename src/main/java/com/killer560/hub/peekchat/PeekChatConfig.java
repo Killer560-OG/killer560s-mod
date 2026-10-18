@@ -23,6 +23,9 @@ public final class PeekChatConfig {
     private boolean enabled = false;
     /** A GLFW key or a {@link KeyUtil} mouse code; {@link KeyUtil#NONE} when unbound. */
     private int keyCode = KeyUtil.NONE;
+    /** Hold to Peek (killer560, 2026-10-18): the read-only chat is open while the key is held and closes on release.
+     *  Off = Toggle Peek, the original press-to-open, press-again-to-close. */
+    private boolean holdToPeek = false;
 
     private PeekChatConfig() {
     }
@@ -41,6 +44,7 @@ public final class PeekChatConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
                 cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", cfg.keyCode));
+                cfg.holdToPeek = ConfigJson.getBool(obj, "holdToPeek", cfg.holdToPeek);
             } catch (Exception e) {
                 cfg = new PeekChatConfig();
             }
@@ -54,6 +58,7 @@ public final class PeekChatConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("keyCode", keyCode);
+            obj.addProperty("holdToPeek", holdToPeek);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -65,6 +70,14 @@ public final class PeekChatConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isHoldToPeek() {
+        return holdToPeek;
+    }
+
+    public void setHoldToPeek(boolean holdToPeek) {
+        this.holdToPeek = holdToPeek;
     }
 
     public int getKeyCode() {

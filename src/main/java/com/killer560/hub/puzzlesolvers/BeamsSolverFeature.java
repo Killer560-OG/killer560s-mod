@@ -185,13 +185,13 @@ public final class BeamsSolverFeature {
         }
         for (ActivePair pair : activePairs) {
             float[] color = pair.misaligned() ? new float[]{1.0f, 0.15f, 0.15f} : COLORS[pair.colorIndex()];
-            SolverEspRender.renderWaypoint(context, new AABB(pair.a()), color[0], color[1], color[2], 2f);
-            SolverEspRender.renderWaypoint(context, new AABB(pair.b()), color[0], color[1], color[2], 2f);
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, new AABB(pair.a()), color[0], color[1], color[2], 2f);
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, new AABB(pair.b()), color[0], color[1], color[2], 2f);
             if (cfg.isShowTracer() || pair.misaligned()) {
                 List<Vec3> line = List.of(
                         new Vec3(pair.a().getX() + 0.5, pair.a().getY() + 0.5, pair.a().getZ() + 0.5),
                         new Vec3(pair.b().getX() + 0.5, pair.b().getY() + 0.5, pair.b().getZ() + 0.5));
-                SolverEspRender.renderLineStrip(context, line, color[0], color[1], color[2], 1f, 2f);
+                SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, line, color[0], color[1], color[2], 1f, 2f);
             }
         }
     }

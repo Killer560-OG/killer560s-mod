@@ -55,6 +55,9 @@ public final class VoiceToTextConfig {
     public static final int MIN_OPEN_MIC_SILENCE_MS = 300;
     public static final int MAX_OPEN_MIC_SILENCE_MS = 3000;
     private int openMicSilenceMs = 1000;
+    /** Show Status On HUD (killer560, 2026-10-18): the "Listening...", "Transcribing...", download-percent and result
+     *  lines above the hotbar. Off hides them all except a failure. */
+    private boolean showStatusHud = true;
 
     private VoiceToTextConfig() {
     }
@@ -86,6 +89,7 @@ public final class VoiceToTextConfig {
                     ? ChatDestination.PARTY : ChatDestination.GUILD;
             cfg.chatDestination = ConfigJson.getEnum(obj, "chatDestination", ChatDestination.class, legacy);
             cfg.openMicSilenceMs = clampSilence(ConfigJson.getInt(obj, "openMicSilenceMs", 1000));
+            cfg.showStatusHud = ConfigJson.getBool(obj, "showStatusHud", true);
             cfg.microphone = obj.has("microphone") && obj.get("microphone").isJsonPrimitive() ? obj.get("microphone").getAsString() : "";
             instance = cfg;
         } catch (Exception e) {
@@ -107,6 +111,7 @@ public final class VoiceToTextConfig {
             obj.addProperty("sendToPartyChat", chatDestination == ChatDestination.PARTY);
             obj.addProperty("microphone", microphone);
             obj.addProperty("openMicSilenceMs", openMicSilenceMs);
+            obj.addProperty("showStatusHud", showStatusHud);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -142,6 +147,14 @@ public final class VoiceToTextConfig {
 
     public void setMicrophone(String microphone) {
         this.microphone = microphone == null ? "" : microphone;
+    }
+
+    public boolean isShowStatusHud() {
+        return showStatusHud;
+    }
+
+    public void setShowStatusHud(boolean showStatusHud) {
+        this.showStatusHud = showStatusHud;
     }
 
     public int getOpenMicSilenceMs() {

@@ -121,7 +121,11 @@ public final class InventorySearchFeature {
             if (!listening) {
                 return true;
             }
-            if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_RETURN) {
+            if (event.key() == InputConstants.KEY_RETURN) {
+                commitQuery();
+                return false;
+            }
+            if (event.key() == InputConstants.KEY_ESCAPE) {
                 listening = false;
                 return false;
             }
@@ -163,6 +167,18 @@ public final class InventorySearchFeature {
 
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) ->
                 render(containerScreen, graphics));
+    }
+
+    /** Enter in the bar (killer560, 2026-10-18: "if they have an equation and press enter it should remove their equation
+     *  and only have the answer left there"): typing stops, and a sum in the bar is replaced by its answer as plain
+     *  digits; anything that is not a sum is left as it is. Public for the testkit. */
+    public static void commitQuery() {
+        listening = false;
+        String answer = SearchCalculator.answerFor(QUERY.toString());
+        if (answer != null) {
+            QUERY.setLength(0);
+            QUERY.append(answer);
+        }
     }
 
     /** Standard Ctrl+Backspace: deletes back through any trailing spaces, then through the word behind

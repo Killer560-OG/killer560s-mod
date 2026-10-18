@@ -434,9 +434,9 @@ public final class TicTacToeSolverFeature {
             box = new AABB(pos);
         }
         if (TicTacToeSolverConfig.getInstance().isFill()) {
-            SolverEspRender.renderFilledBox(context, box, r, g, b, 0.5f);
+            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, context, box, r, g, b, 0.5f);
         } else {
-            SolverEspRender.renderOutlineBox(context, box, r, g, b, 0.9f, thickness);
+            SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, context, box, r, g, b, 0.9f, thickness);
         }
     }
 

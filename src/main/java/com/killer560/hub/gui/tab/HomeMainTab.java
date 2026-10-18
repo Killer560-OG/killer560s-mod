@@ -58,14 +58,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // killer560, 2026-10-14: Sweat Mode - turns on, opens the video in Chrome, turns itself back off.
-        widgets.add(SettingsButtonWidget.builder(sweatModeText(), btn -> {
-                    if (!com.killer560.hub.util.SweatMode.isOn()) {
-                        com.killer560.hub.util.SweatMode.enter(btn, HomeMainTab::sweatModeText);
-                    }
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
-
+        // Sweat Mode is the button at the top of Home only (killer560, 2026-10-18), not a row in Mod or HUD.
         y += 4;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
@@ -144,10 +137,6 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
     }
 
     /** An ON/OFF HudConfig switch. A snap target reads grey while Snapping is off: kept, but nothing snaps. */
-    private static Component sweatModeText() {
-        return Component.literal("Sweat Mode: " + (com.killer560.hub.util.SweatMode.isOn() ? "§aON" : "§cOFF"));
-    }
-
     private static SettingsButtonWidget toggle(String label, java.util.function.BooleanSupplier get,
                                                java.util.function.Consumer<Boolean> set, int x, int y, int w,
                                                boolean snapTarget, Runnable rebuildOrNull) {

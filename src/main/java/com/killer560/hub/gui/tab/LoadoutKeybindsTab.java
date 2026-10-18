@@ -14,7 +14,7 @@ import java.util.List;
 /** Loadout Keybinds settings - see {@link com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature}'s
  *  class doc for the real Odin-ported loadout-navigation this is built on. Real "(N/M) Loadout" screen
  *  only - unrelated to any other menu. {@code capturingIndex}: -1 none, 0-11 slot keys, 12 next page,
- *  13 previous page. */
+ *  13 previous page, 14 the Open Loadouts key. */
 public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     private int capturingIndex = -1;
@@ -47,7 +47,9 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
 
     private void applyCapture(int key) {
         LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
-        if (capturingIndex == 12) {
+        if (capturingIndex == 14) {
+            cfg.setOpenKey(key);
+        } else if (capturingIndex == 12) {
             cfg.setNextPageKey(key);
         } else if (capturingIndex == 13) {
             cfg.setPreviousPageKey(key);
@@ -86,6 +88,13 @@ public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {
         int col2W = (contentWidth - gap) / 2;
         int col2aX = contentX;
         int col2bX = contentX + col2W + gap;
+
+        // killer560, 2026-10-18: "a bind to open the loadouts page" - the same /loadouts as the button above.
+        widgets.add(SettingsButtonWidget.builder(keyText("Open Loadouts Key", cfg.getOpenKey(), 14), btn -> {
+                    capturingIndex = 14;
+                    btn.setMessage(Component.literal("Press any key..."));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 24;
 
         widgets.add(SettingsButtonWidget.builder(keyText("Next Page", cfg.getNextPageKey(), 12), btn -> {
                     capturingIndex = 12;

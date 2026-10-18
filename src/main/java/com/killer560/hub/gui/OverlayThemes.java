@@ -31,7 +31,10 @@ public final class OverlayThemes {
     public static final String LEAP_MENU = "leap_menu";
     public static final String ITEM_BROWSER = "item_browser";
     public static final String TERMINAL_SOLVER = "terminal_solver";
+    /** The Croesus start button (its id is the Croesus section's: {@link ScreenThemes#section}). */
     public static final String START_BUTTONS = "start_buttons";
+    /** The Experiments start button (the Experiments section's, {@link ScreenThemes#section}). */
+    public static final String EXPERIMENTS_START_BUTTONS = "experiments_start";
 
     /** id -> the feature's name, in the order the testkit and the docs list them. */
     private static final Map<String, String> NAMES = new LinkedHashMap<>();
@@ -41,7 +44,8 @@ public final class OverlayThemes {
         NAMES.put(INVENTORY_THEME, "Inventory Theme");
         NAMES.put(INVENTORY_HUD, "Inventory HUD");
         NAMES.put(CHEST_PROFIT, "Croesus chest profit panel");
-        NAMES.put(START_BUTTONS, "Croesus and Experiments start buttons");
+        NAMES.put(START_BUTTONS, "Croesus start button");
+        NAMES.put(EXPERIMENTS_START_BUTTONS, "Experiments start button");
         NAMES.put(LEAP_MENU, "Leap Menu");
         NAMES.put(ITEM_BROWSER, "Item Browser");
         NAMES.put(TERMINAL_SOLVER, "Terminal Solver panels");

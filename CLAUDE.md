@@ -111,7 +111,7 @@ they go with, and cheat-only settings go at the bottom of their tab under a red 
 are put together in `gui/tab/MenuCategories`; a new tab still goes in its old folder class (`DungeonTab`, `ItemsTab`...).
 Order (killer560, 2026-10-14: "sort them alphabetically or something of your choosing"): inside a category the legit cards
 are alphabetical by display name ignoring case, then the cheat block alphabetical too (`MenuCategories.cheatLast` does it,
-so a new tab needs no position); Secrets and Puzzle Solvers sort their own sections the same way, Solver Highlights first.
+so a new tab needs no position); Secrets and Puzzle Solvers sort their own sections the same way (Solver Highlights, once first, was removed 2026-10-18; each solver has its own highlight rows).
 Inside a tab the feature's on/off switch is the first row. A tab that is really several features side by side (Dungeon Queue)
 has no switch over the whole: each feature keeps its own, and the tab lists them in `BaseTab.masterToggles` so the card
 (`gui/MasterSwitch`) is ON while any is on and OFF only when all are; never add a "X as a whole" row that gates independent

@@ -195,11 +195,13 @@ public final class LagDisplayFeature {
 
     public static final class LagHudElement implements HudElement {
 
-        private static final int COLOR_GOOD = 0xFF55FF55;
-        private static final int COLOR_OK = 0xFFFFFF55;
-        private static final int COLOR_BAD = 0xFFFFAA00;
-        private static final int COLOR_AWFUL = 0xFFFF5555;
-        private static final int COLOR_PLAIN = 0xFFFFFFFF;
+        // The five colours are the user's (LagDisplayConfig, Performance HUD > Colors); lines() reads them once per
+        // rebuild into these, and a change of any of them rebuilds the cached lines.
+        private static int COLOR_GOOD = LagDisplayConfig.DEFAULT_GOOD;
+        private static int COLOR_OK = LagDisplayConfig.DEFAULT_OK;
+        private static int COLOR_BAD = LagDisplayConfig.DEFAULT_BAD;
+        private static int COLOR_AWFUL = LagDisplayConfig.DEFAULT_AWFUL;
+        private static int COLOR_PLAIN = LagDisplayConfig.DEFAULT_TEXT;
 
         @Override
         public String id() {
@@ -268,6 +270,7 @@ public final class LagDisplayFeature {
         private static List<Line> cachedLines = List.of();
         private static long cachedKey = Long.MIN_VALUE;
         private static int cachedFlags = -1;
+        private static long cachedColours = Long.MIN_VALUE;
 
         private static List<Line> lines() {
             LagDisplayConfig cfg = LagDisplayConfig.getInstance();
@@ -275,6 +278,8 @@ public final class LagDisplayFeature {
             int flags = (cfg.isShowTps() ? 1 : 0) | (cfg.isShowPing() ? 2 : 0) | (cfg.isShowFps() ? 4 : 0)
                     | (cfg.isShowCps() ? 8 : 0) | (colored ? 16 : 0);
             // TPS in tenths (what is shown), or -1; the other values are small whole numbers.
+            long colours = ((long) cfg.getColorGood() * 31 + cfg.getColorOk()) * 31 + cfg.getColorBad();
+            colours = ((colours * 31 + cfg.getColorAwful()) * 31) + cfg.getColorText();
             long tpsTenths = (flags & 1) != 0 ? tenths(tps()) : 0;
             long ping = (flags & 2) != 0 ? ping() : 0;
             long fps = (flags & 4) != 0 ? Minecraft.getInstance().getFps() : 0;
@@ -283,10 +288,15 @@ public final class LagDisplayFeature {
             // Packed key: tps 10 bits, ping 16, fps 16, cps 2 x 8 (each clamped; a clamp only costs a rebuild).
             long key = (Math.min(tpsTenths + 1, 1023)) | (Math.min(ping + 1, 65535) << 10)
                     | (Math.min(fps, 65535) << 26) | (Math.min(cpsL, 255) << 42) | (Math.min(cpsR, 255) << 50);
-            if (key == cachedKey && flags == cachedFlags && tpsTenths < 1022 && ping < 65534 && fps < 65535
+            if (key == cachedKey && flags == cachedFlags && colours == cachedColours && tpsTenths < 1022 && ping < 65534 && fps < 65535
                     && cpsL < 255 && cpsR < 255) {
                 return cachedLines;
             }
+            COLOR_GOOD = cfg.getColorGood();
+            COLOR_OK = cfg.getColorOk();
+            COLOR_BAD = cfg.getColorBad();
+            COLOR_AWFUL = cfg.getColorAwful();
+            COLOR_PLAIN = cfg.getColorText();
             List<Line> out = new ArrayList<>(4);
             if ((flags & 1) != 0) {
                 out.add(new Line(tpsTenths < 0 ? "TPS: -" : "TPS: " + tpsTenths / 10 + "." + tpsTenths % 10,
@@ -305,6 +315,7 @@ public final class LagDisplayFeature {
             cachedLines = out;
             cachedKey = key;
             cachedFlags = flags;
+            cachedColours = colours;
             return out;
         }
 

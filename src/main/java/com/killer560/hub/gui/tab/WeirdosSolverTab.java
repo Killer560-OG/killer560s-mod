@@ -39,6 +39,8 @@ public class WeirdosSolverTab extends BaseTab {
                     btn.setMessage(onOff("Show Ruled-Out Chests", cfg.isShowWrongChests()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WEIRDOS, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

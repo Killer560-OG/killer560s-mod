@@ -1,10 +1,12 @@
 package com.killer560.hub.gui.tab;
 
-import com.killer560.hub.gui.ColorPickerScreen;
-import com.killer560.hub.gui.ColorSwatch;
-import com.killer560.hub.gui.PanelTheme;
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.MenuConfig;
+import com.killer560.hub.gui.MenuTheme;
+import com.killer560.hub.gui.ScreenThemes;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.inventorytheme.InventoryCustomizeScreen;
 import com.killer560.hub.inventorytheme.InventoryThemeConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,22 +14,35 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.killer560.hub.compat.McCompat;
+import java.util.Locale;
 
 /** Custom Inventory Overlay settings - killer560's item 5.8, "Custom inventory overlay in the mod's
  *  theme." See {@link com.killer560.hub.inventorytheme.InventoryThemeFeature}'s class doc for exactly
  *  which vanilla screens/draws this re-skins. In-panel explanatory text is intentionally left out per
- *  the mod-wide "no in-panel paragraphs" rule - hover each control for its tooltip. */
+ *  the mod-wide "no in-panel paragraphs" rule - hover each control for its tooltip.
+ *  <p>
+ *  Rearranged 2026-10-18 (killer560): there is no Inventory Theme row in here (the card's switch is that setting); the first
+ *  row is the Theme - Default follows the mod menu's theme, then the menu's themes, Vanilla and Custom - and while it is on
+ *  Custom a Customize row opens {@link InventoryCustomizeScreen}. Hide Potion Effects is gone (always on with the theme),
+ *  and the Hotbar Scale slider sits with Theme Hotbar. */
 public class InventoryThemeTab extends BaseTab {
 
     public InventoryThemeTab() {
         super("Inventory Theme");
     }
 
-    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the theme and Hide Potion Effects are separate features. */
+    /** The card's switch, built with every drawer but not drawn in it: the setting is the card's own switch (killer560,
+     *  2026-10-18: "remove the inventory theme option because if the setting itself is on then that is on"). */
+    private SettingsButtonWidget cardSwitch;
+
     @Override
-    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Inventory Theme", "Hide Potion Effects");
+    public SettingsButtonWidget masterToggle(List<AbstractWidget> built) {
+        return cardSwitch;
+    }
+
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return cardSwitch == null ? List.of() : List.of(cardSwitch);
     }
 
     @Override
@@ -36,25 +51,27 @@ public class InventoryThemeTab extends BaseTab {
         int y = contentY;
         InventoryThemeConfig cfg = InventoryThemeConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(enabledText(cfg), btn -> {
+        cardSwitch = SettingsButtonWidget.builder(enabledText(cfg), btn -> {
                     cfg.setEnabled(!cfg.isEnabled());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
+                }).bounds(contentX, contentY, contentWidth, 20).build();
 
-        // killer560: "Add a setting to hide the effects in your inventory" - independent of the reskin
-        // above (it keeps working with Inventory Theme off), so it's placed here rather than below the
-        // enabled-gate return.
-        widgets.add(SettingsButtonWidget.builder(hideEffectsText(cfg), btn -> {
-                    cfg.setHidePotionEffects(!cfg.isHidePotionEffects());
-                    cfg.save();
-                    btn.setMessage(hideEffectsText(cfg));
+        // The Theme: Default is the mod menu's own theme; scroll to another, to Vanilla, or to Custom.
+        widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
+                    List<String> all = themeChoices();
+                    int i = Math.max(0, all.indexOf(cfg.getChoice()));
+                    cfg.setChoice(all.get(SettingsButtonWidget.step(i, dir, all.size())));
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
-            return widgets;
+        if (cfg.isCustom()) {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Customize"), btn -> {
+                        Minecraft client = Minecraft.getInstance();
+                        McCompat.setScreen(client, new InventoryCustomizeScreen(McCompat.screen(client)));
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += 26;
         }
 
         widgets.add(SettingsButtonWidget.cycling(scopeText(cfg), (btn, dir) -> {
@@ -63,30 +80,6 @@ public class InventoryThemeTab extends BaseTab {
                     btn.setMessage(scopeText(cfg));
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
-
-        // killer560, 2026-10-12: the vanilla-shaped reskin in Default (vanilla's colours), Dark or Mod Theme; Custom draws it
-        // in the Theme / Slot Color / Accent settings below.
-        widgets.add(SettingsButtonWidget.cycling(presetText(cfg), (btn, dir) -> {
-                    cfg.setPreset(SettingsButtonWidget.step(cfg.getPreset(), dir));
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
-
-        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.INVENTORY_THEME,
-                contentX, y, contentWidth, 20));
-        y += 26;
-
-        if (cfg.getPreset() == InventoryThemeConfig.Preset.CUSTOM) {
-            // Amber -> Dark -> Light, the same three as the Storage Overlay; only the Custom preset uses it.
-            widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
-                        cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));
-                        cfg.save();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 20).build());
-            y += 26;
-        }
-
 
         widgets.add(SettingsButtonWidget.builder(hotbarText(cfg), btn -> {
                     cfg.setThemeHotbar(!cfg.isThemeHotbar());
@@ -116,55 +109,42 @@ public class InventoryThemeTab extends BaseTab {
             y += 26;
         }
 
-        widgets.add(SettingsButtonWidget.cycling(slotModeText(cfg), (btn, dir) -> {
-                    cfg.setUseCustomSlotColor(!cfg.isUseCustomSlotColor());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-
-        if (cfg.isUseCustomSlotColor()) {
-            widgets.add(SettingsButtonWidget.builder(
-                    ColorSwatch.label("Slot Color", cfg.getSlotColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Slot Color",
-                                cfg.getSlotColor(), cfg.getTheme().invSlotBg, argb -> {
-                            cfg.setCustomSlotColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(contentX, y, contentWidth, 20).build());
-            y += 24;
-        }
-
-        widgets.add(SettingsButtonWidget.cycling(accentModeText(cfg), (btn, dir) -> {
-                    cfg.setUseCustomAccent(!cfg.isUseCustomAccent());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-
-        if (cfg.isUseCustomAccent()) {
-            widgets.add(SettingsButtonWidget.builder(
-                    ColorSwatch.label("Accent Color", cfg.getAccentColor()), btn -> {
-                        Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Accent Color",
-                                cfg.getAccentColor(), cfg.getTheme().invAccent, argb -> {
-                            cfg.setCustomAccentColor(argb);
-                            cfg.save();
-                        }));
-                    }).bounds(contentX, y, contentWidth, 20).build());
-            y += 24;
-        }
-
         return widgets;
+    }
+
+    /** Default, the menu's presets, every theme he saved (read live), then Vanilla and Custom. The menu's own Custom
+     *  colours are not a choice of their own: Default already is whatever the menu is on. */
+    public static List<String> themeChoices() {
+        List<String> out = new ArrayList<>();
+        for (String c : ScreenThemes.builtInChoices()) {
+            if (!MenuTheme.CUSTOM.name().equals(c)) {
+                out.add(c);
+            }
+        }
+        out.add(InventoryThemeConfig.VANILLA_CHOICE);
+        out.add(InventoryThemeConfig.CUSTOM_CHOICE);
+        return out;
+    }
+
+    /** A Theme choice as the button shows it. */
+    public static String choiceLabel(String choice) {
+        if (ScreenThemes.DEFAULT.equals(choice)) {
+            return "Default";
+        }
+        if (InventoryThemeConfig.VANILLA_CHOICE.equals(choice)) {
+            return "Vanilla";
+        }
+        if (InventoryThemeConfig.CUSTOM_CHOICE.equals(choice)) {
+            return "Custom";
+        }
+        if (ScreenThemes.isSaved(choice) && ScreenThemes.savedTheme(choice) != null) {
+            return MenuConfig.shownName(ScreenThemes.savedTheme(choice));
+        }
+        return ScreenThemes.label(choice.toUpperCase(Locale.ROOT));
     }
 
     private static Component enabledText(InventoryThemeConfig cfg) {
         return Component.literal("Inventory Theme: " + (cfg.isEnabled() ? "§aON" : "§cOFF"));
-    }
-
-    private static Component hideEffectsText(InventoryThemeConfig cfg) {
-        return Component.literal("Hide Potion Effects: " + (cfg.isHidePotionEffects() ? "§aON" : "§cOFF"));
     }
 
     private static Component scopeText(InventoryThemeConfig cfg) {
@@ -172,13 +152,7 @@ public class InventoryThemeTab extends BaseTab {
     }
 
     private static Component themeText(InventoryThemeConfig cfg) {
-        PanelTheme theme = cfg.getTheme();
-        String colour = theme == PanelTheme.AMBER ? "§6" : theme == PanelTheme.DARK ? "§8" : "§f";
-        return Component.literal("Theme: " + colour + theme.label);
-    }
-
-    private static Component presetText(InventoryThemeConfig cfg) {
-        return Component.literal("Preset: " + cfg.getPreset().label);
+        return Component.literal("Theme: " + choiceLabel(cfg.getChoice()));
     }
 
     private static Component hotbarText(InventoryThemeConfig cfg) {
@@ -187,18 +161,5 @@ public class InventoryThemeTab extends BaseTab {
 
     private static Component hotbarScaleText(InventoryThemeConfig cfg) {
         return Component.literal(String.format("Hotbar Scale: %.0f%%", cfg.getHotbarScale() * 100));
-    }
-
-    private static Component slotModeText(InventoryThemeConfig cfg) {
-        // Not "Slot Color:" - that is the picker's key below (the tooltip key is the label cut at the first ':').
-        return Component.literal("Slot Color Source: " + (cfg.isUseCustomSlotColor() ? "Custom" : "Theme"));
-    }
-
-    private static Component accentModeText(InventoryThemeConfig cfg) {
-        // Deliberately NOT prefixed "Accent Color:" - the swatch button below already uses that exact
-        // key (see ColorSwatch.label("Accent Color", ...)); the tooltip key is the label cut at the
-        // first ':', so two different widgets both starting "Accent Color:" would collide onto the
-        // same tooltip entry.
-        return Component.literal("Accent Source: " + (cfg.isUseCustomAccent() ? "Custom" : "Theme"));
     }
 }

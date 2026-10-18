@@ -46,6 +46,8 @@ public class BlazeSolverTab extends BaseTab {
                     btn.setMessage(onOff("Fill Box", cfg.isFillBox()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BLAZE, contentX, contentWidth, y, false);
+
         return widgets;
     }
 

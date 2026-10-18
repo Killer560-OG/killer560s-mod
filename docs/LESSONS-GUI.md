@@ -3,9 +3,9 @@
 Split out of [LESSONS.md](LESSONS.md) on 2026-10-07 to keep it under its size limit. Problem, then fix; verified only.
 
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global colour multiplier and items
-  cannot be tinted per-item. The inventory HUD's Opacity now dims items with a translucent quad drawn over the
-  panel after the item loop instead: 0 hides the panel outright, and the darkening is capped at 80% so no
-  setting turns it into an unreadable black box.
+  cannot be tinted per-item. A translucent black quad over the panel (the 2026-09-27 "dim the items" workaround)
+  can only darken, so every step below 100% put a black box over the Inventory HUD (killer560, 2026-10-18); it
+  was removed, Opacity fades the panel/outline/slots only, 0 still hides the panel outright, and the items are never dimmed.
 
 - **A `HudElement`'s `render()` is not always where it draws.** For `croesus_start_button`,
   `experiments_start_button`, `rng_meter_ranking`, `storage_overlay`, `inventory_hud` and `custom_scoreboard`,
@@ -631,3 +631,19 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   between bands drew nothing and the shadow showed - one row at GUI 1, up to five at GUI 4. Testkit 1436 found it in 20 of
   40 draws on the old code and 0 with the fix (the whole text in the middle colour first, 136effd5). It is the only banded
   text in the mod (sweep 2026-10-18); never split text by scissor without a full-text pass under it.
+
+## menu-hud-1018 (2026-10-18)
+
+- **One Theme per mod section.** A section's screens and overlays all read and write the one choice stored under the
+  section's id: `ScreenThemes.section` maps the ids that used to have a Theme of their own (`chest_profit`, `start_buttons` ->
+  `croesus`; `experiments_start` -> `profit`; `leap_menu` -> `leaporder`) and `load()` moves an old saved choice to its section.
+  A new part of a section gets a row in that map, not a second Theme button (testkit 1018-ui-theme-one-per-section).
+- **A drawer can leave out its card's switch row.** `InventoryThemeTab` builds the switch but never adds it to the widget list and
+  returns it from `masterToggle`/`masterToggles`, so the card and the drawer title still flip the setting (killer560: "if the
+  setting itself is on then that is on"). Anything else reading the drawer's first row must not assume it is the switch.
+- **The tooltip table is keyed by the row's label alone unless scoped, and a new label can silently take another row's text.** The
+  per-solver rows were first called "Highlight Style"/"Highlight Through Walls"; "highlight style" was already Breaker Aura's bare
+  key and Tic Tac Toe has a row of that name, so the new tooltip overwrote theirs. `grep '"<label lowercased>"'` in
+  `SettingTooltipsData` before naming a row.
+- **A removed dimming overlay cannot be replaced by a darker one.** See the Inventory HUD note at the top of this file; item
+  textures still cannot be tinted, so the Opacity slider fades the panel only.

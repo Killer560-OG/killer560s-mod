@@ -20,6 +20,8 @@ public class ChatTab extends FolderTab {
                 new CopyChatTab(),
                 // Peek Chat (2026-10-13, killer560): read the chat without a text box to type in.
                 new PeekChatTab(),
+                // Chat History (2026-10-18, killer560): an unlimited chat limit.
+                new ChatHistoryTab(),
                 new AutoMeowTab(),
                 new CringeTab(),
                 new SpotifyTab(),

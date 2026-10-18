@@ -29,11 +29,10 @@ import com.killer560.hub.compat.McCompat;
  * which this one can't do because "Hide in Screens" is optional). {@link InventoryHudElement#render} is
  * therefore the HUD-editor preview path only.
  * <p>
- * The Opacity setting fades the background/slots AND, since 2026-09-27, the items too - not by tinting
- * each item (still impossible, see {@link #drawStack}'s doc for why) but by drawing a translucent black
- * dimming quad over the whole panel, on top of the items, in {@link #drawPanel}. killer560 (2026-09-27):
- * "the opacity doesn't affect the items opacity and it should ... For the item opactiy find a workaround.
- * Dim the whole menu or something." This is that workaround.
+ * The Opacity setting fades the panel, its outline and the slots. It briefly (2026-09-27 to 2026-10-18) also dimmed
+ * the items with a black quad over the panel; that left a black box at any setting below 100 and was removed (killer560,
+ * 2026-10-18), so the items are drawn as they are (item textures cannot be tinted on 26.1.2, see {@link #drawStack}).
+ * Where it sits when never moved: centred above the hotbar, a little way up ({@link InventoryHudElement#defaultX}).
  */
 public final class InventoryHudFeature {
 
@@ -231,36 +230,11 @@ public final class InventoryHudFeature {
             }
         }
 
-        // Item-opacity workaround. killer560 (2026-09-27): "the opacity doesn't affect the items opacity
-        // and it should ... For the item opactiy find a workaround. Dim the whole menu or something."
-        //
-        // We can't tint the items that were just drawn above (no shader colour to lean on any more - see
-        // drawStack's doc), so instead this draws a second, translucent-black quad across the SAME area,
-        // on top of everything drawn so far including the items. It's the same Opacity slider, just
-        // inverted: at Opacity 100 the overlay alpha is 0 (a fully "opaque" panel looks exactly like it did
-        // before this change), and it gets darker as Opacity drops, so lowering the slider now visibly
-        // dims the icons too, not just the panel behind them.
-        //
-        // This is drawn LAST, after the background/slot fill above and after the item loop just above it -
-        // both of those are the only other things this method draws, so "last" here really does mean
-        // "on top of the items". Composing with the background fade: the background fill already faded
-        // out toward Opacity 0, and would look like it's fading into nothing rather than dimming, which is
-        // the opposite of what was asked for. Reusing the SAME (100 - opacity) alpha for this quad means
-        // the background/slot area (which already has its own fill under it) ends up darker overall than
-        // the item area at any given slider position - e.g. at Opacity 50 the slot fill is already ~50%
-        // black and this quad adds another ~50% black on top of that, while an item cell only ever gets the
-        // one ~50% black pass. That reads as "the frame darkens faster than the icons", which was the
-        // decision made here rather than trying to exempt the background pixels from the overlay (that
-        // would mean punching item-shaped holes in the quad, i.e. right back to needing per-item alpha).
-        // It does not go muddy - both layers are the same flat black, so it only ever compounds toward
-        // darker, never toward a mixed colour.
-        // Capped at 80% darkening rather than scaling all the way to opaque. At full strength the icons stop
-        // being readable at all, which is worse than useless for a HUD whose job is telling him what he is
-        // holding - and the fully-hidden case is already handled by the early return above, so nothing is
-        // lost by never reaching solid black here.
-        if (opacity < 100) {
-            graphics.fill(x, y, x + w, y + h, withAlpha(0x000000, (100 - opacity) * 4 / 5));
-        }
+        // No dimming quad any more (killer560, 2026-10-18: "lowering the opacity still leaves this black box and it
+        // shouldnt"). From 2026-09-27 a translucent black quad covered the whole panel, items included, to fade the
+        // icons (item textures cannot be tinted on 26.1.2); it could only ever darken, so every step down from 100%
+        // put a black box over the panel instead of letting the world show through. Opacity now fades the panel,
+        // its outline and its slots, and the items stay as they are - the one thing it cannot do is fade an icon.
     }
 
     /**
@@ -374,12 +348,28 @@ public final class InventoryHudFeature {
 
         @Override
         public int defaultX() {
-            return 10;
+            // Centred above the hotbar (killer560, 2026-10-18). Computed from the live window like the Storage Overlay's;
+            // resolvePosition clamps it on screen and re-asks whenever the window or the scale changes. A position he
+            // saved in the HUD editor is never replaced by this.
+            var window = Minecraft.getInstance().getWindow();
+            if (window == null) {
+                return 10;
+            }
+            float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(this);
+            return Math.max(0, Math.round((window.getGuiScaledWidth() - width() * scale) / 2f));
         }
+
+        /** The panel's bottom edge sits this far above the bottom of the screen: the hotbar (22) and a little way up. */
+        static final int DEFAULT_BOTTOM_GAP = 66;
 
         @Override
         public int defaultY() {
-            return 10;
+            var window = Minecraft.getInstance().getWindow();
+            if (window == null) {
+                return 10;
+            }
+            float scale = com.killer560.hub.hud.HudElementRegistry.resolveScale(this);
+            return Math.max(0, Math.round(window.getGuiScaledHeight() - DEFAULT_BOTTOM_GAP - height() * scale));
         }
 
         @Override

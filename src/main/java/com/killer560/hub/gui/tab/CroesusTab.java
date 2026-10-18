@@ -125,12 +125,9 @@ public class CroesusTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        // ---- Menu Theme (2026-10-15): the chest profit panel and the Start buttons ----
-        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.CHEST_PROFIT,
-                contentX, y, contentWidth, 18));
-        y += 22;
-        widgets.add(com.killer560.hub.gui.ScreenThemes.overlayButton(com.killer560.hub.gui.OverlayThemes.START_BUTTONS,
-                "Start Button Menu Theme", contentX, y, contentWidth, 18));
+        // ---- Theme: ONE for all of Croesus (killer560, 2026-10-18) - the chest profit panel, the Start button and the
+        // /croesus tracker screen all follow it (ScreenThemes.section) ----
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button("croesus", contentX, y, contentWidth, 18));
         y += 24;
 
         // ---- Profit Logger ----
@@ -151,13 +148,8 @@ public class CroesusTab extends BaseTab {
                         client.setScreenAndShow(new CroesusTrackerScreen(McCompat.screen(client), CroesusTrackerScreen.View.OVERVIEW));
                     }).bounds(contentX + half + GAP, y, half, 18).build());
             y += 20;
-            widgets.add(label(contentX, y, contentWidth, "§7" + CroesusProfitLog.entryCount()
-                    + " claims logged §8- §7/croesus"));
-            y += 18;
             // Shared by every profit tracker (killer560, 2026-10-15): whose profit, and whether mod profiles share it.
             y = com.killer560.hub.gui.profit.ProfitScopeBar.settingsRows(widgets, contentX, y, contentWidth);
-            widgets.add(com.killer560.hub.gui.ScreenThemes.button("croesus", contentX, y, contentWidth, 18));
-            y += 22;
         }
 
         return widgets;

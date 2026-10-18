@@ -14,7 +14,7 @@ Join the [Discord server](https://discord.gg/hkQMF5fE84) for releases, support, 
 
 Open the menu in game with `/killer560`: every feature is a card with its own on/off switch in its category (Dungeons, HUD, Chat, Items, Social, Cosmetics, Misc), clicking a card opens its settings, and Ctrl F searches every feature and setting. Features marked † have extra automation or through-walls options in the cheat build.
 
-**Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Mod Chat, Party Commands, Peek Chat, Spotify Mod, Translate, Voice To Text
+**Chat** - Auto Correct, Auto Meow, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Click Translate, Command Auto Correct, Copy Chat, Cringe, Mod Chat, Party Commands, Peek Chat, Spotify Lyrics, Translate, Voice To Text
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 
@@ -26,7 +26,7 @@ Open the menu in game with `/killer560`: every feature is a card with its own on
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, Fairy Souls †, GIF Player, Health and Mana Bars, No Fire, Object Hider, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
-**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Solver Highlights, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
+**Dungeon: Solvers & Secrets** - Architect's First Draft †, Arrow Align †, Blaze Solver, Boulder Solver, Creeper Beams Solver, Door Keys †, Ice Fill Solver, Ice Path Solver, Livid Solver, Mapping, Quiz Solver, Secret Waypoints, Simon Says †, Teleport Maze Solver, Terminal Solver †, Termism †, Tic Tac Toe Solver, Water Board Solver, Weirdos Solver, Wither Doors
 
 **Dungeon: Map, Leap & Party** - Chunk Cache, Class Selection Overlay, Custom Leap Menu, Dungeon Map, Dungeon Queue, Leap Message, Leap Order, Posmsg, Predictive Rooms
 

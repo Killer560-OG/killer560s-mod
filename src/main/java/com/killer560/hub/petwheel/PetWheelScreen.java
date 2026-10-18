@@ -64,7 +64,8 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
      *  centres, so a big Icon Size setting pushes the ring outward instead of overlapping slices. */
     private static final float TILE_SPACING_FACTOR = 1.15f;
 
-    private final List<PetEntry> allPets;
+    /** The current page's pets; replaced when the page is changed from the wheel. */
+    private List<PetEntry> allPets;
     private final float scale;
     private final float iconScale;
     private final boolean hideLevel;
@@ -230,18 +231,18 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             drawSlice(graphics, pet, i, layoutData, tile, hovered, pending);
         }
 
+        // The wheel's pages (presets): the current one's number and name, and how to change it. Only with more than one.
+        PetWheelConfig pageCfg = PetWheelConfig.getInstance();
+        int top = (int) (layoutData.centerY() - layoutData.radius() - tile);
         if (editMode) {
             plateText(graphics, "Right click to edit, left click to rearrange",
-                    width / 2, (int) (layoutData.centerY() - layoutData.radius() - tile - 22), MenuStyle.TXT);
-        } else if (pageCount() > 1) {
-            plateText(graphics, "Page " + (page + 1) + "/" + pageCount(),
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 22), MenuStyle.TXT);
-            plateText(graphics, "Scroll to flip pages",
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), MenuStyle.TXT);
+                    width / 2, top - 22, MenuStyle.TXT);
         }
-        if (editMode && pageCount() > 1) {
-            plateText(graphics, "Page " + (page + 1) + "/" + pageCount() + " - scroll to flip",
-                    (int) layoutData.centerX(), (int) (layoutData.centerY() - layoutData.radius() - tile - 11), MenuStyle.DIM);
+        if (pageCfg.getPageCount() > 1) {
+            plateText(graphics, pageLabel(pageCfg), (int) layoutData.centerX(), editMode ? top - 11 : top - 22, MenuStyle.TXT);
+            if (!editMode) {
+                plateText(graphics, "Scroll or Left/Right to change page", (int) layoutData.centerX(), top - 11, MenuStyle.DIM);
+            }
         }
 
         // Dragged slice follows the cursor as a small ghost icon, same idea as SlotBindsFeature's cursor-link.
@@ -561,17 +562,44 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         return super.mouseReleased(event);
     }
 
+    /** "Page 2/3: Mining". */
+    private static String pageLabel(PetWheelConfig cfg) {
+        return "Page " + (cfg.getPageIndex() + 1) + "/" + cfg.getPageCount() + ": " + cfg.getCurrentPageName();
+    }
+
+    /** Moves to another of the wheel's pages (killer560, 2026-10-18) and shows its pets. The page is remembered, so the
+     *  wheel opens on it next time. @return false when there is only one page. */
+    boolean changePage(int dir) {
+        PetWheelConfig cfg = PetWheelConfig.getInstance();
+        if (cfg.getPageCount() <= 1) {
+            return false;
+        }
+        cfg.stepPage(dir);
+        cfg.save();
+        allPets = cfg.getWheelPets();
+        pendingSwapIndex = null;
+        dragArmed = false;
+        dragging = false;
+        return true;
+    }
+
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        int pages = pageCount();
-        if (pages > 1 && scrollY != 0) {
-            page = Math.floorMod(page + (scrollY < 0 ? 1 : -1), pages);
-            pendingSwapIndex = null;
-            dragArmed = false;
-            dragging = false;
+        if (scrollY != 0 && changePage(scrollY < 0 ? 1 : -1)) {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && changePage(1)) {
+            return true;
+        }
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_LEFT && changePage(-1)) {
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     @Override

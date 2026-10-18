@@ -150,7 +150,7 @@ public final class IceFillSolverFeature {
         }
         // killer560, 2026-09-20: "ice fill's line shouldn't be blue, hard to see - make it configurable".
         IceFillSolverConfig.LineColor color = IceFillSolverConfig.getInstance().getLineColor();
-        SolverEspRender.renderLineStrip(context, currentPath, color.r, color.g, color.b, 1f, 3f);
+        SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_FILL, context, currentPath, color.r, color.g, color.b, 1f, 3f);
     }
 
     private static void reset() {

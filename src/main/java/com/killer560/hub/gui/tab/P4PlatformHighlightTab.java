@@ -40,6 +40,8 @@ public class P4PlatformHighlightTab extends BaseTab {
                     btn.setMessage(onOff("Filled Box", cfg.isFilled()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, contentX, contentWidth, y, false);
+
         return widgets;
     }
 

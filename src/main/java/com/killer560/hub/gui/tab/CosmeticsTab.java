@@ -46,12 +46,13 @@ public class CosmeticsTab extends BaseTab {
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
             "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter",
-            "share trail", "show others' trails", "trail", "custom names", "my name in f5", "player size",
+            "share trail", "show others' trails", "trail", "ribbon trail", "ribbon", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item",
             "copy settings for global cosmetics", "reset cosmetics");
 
     private final NameChangerTab nameChangerTab = new NameChangerTab();
     private final HeldItemTab heldItemTab = new HeldItemTab();
+    private final RibbonTrailTab ribbonTrailTab = new RibbonTrailTab(true);
 
     // Touched from the relay's own IO thread as well as the client thread.
     private volatile MeStatus status = MeStatus.CHECKING;
@@ -64,6 +65,7 @@ public class CosmeticsTab extends BaseTab {
     private boolean customNamesOpen = false;
     private boolean playerSizeOpen = false;
     private boolean heldItemOpen = false;
+    private boolean ribbonTrailOpen = false;
 
     public CosmeticsTab() {
         super("Player Cosmetics");
@@ -181,6 +183,21 @@ public class CosmeticsTab extends BaseTab {
             List<AbstractWidget> built = heldItemTab.buildWidgets(contentX, y, contentWidth, requestRebuild);
             for (AbstractWidget w : built) {
                 SettingTooltips.scope(w, heldItemTab.name);
+            }
+            widgets.addAll(built);
+            y = bottomOf(built, y) + 6;
+        }
+
+        // --- Ribbon Trail (killer560, 2026-10-18: the shareable trail is adjusted here and nowhere else)
+        y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Ribbon Trail", false, ribbonTrailOpen,
+                () -> {
+                    ribbonTrailOpen = !ribbonTrailOpen;
+                    requestRebuild.run();
+                });
+        if (ribbonTrailOpen) {
+            List<AbstractWidget> built = ribbonTrailTab.buildWidgets(contentX, y, contentWidth, requestRebuild);
+            for (AbstractWidget w : built) {
+                SettingTooltips.scope(w, ribbonTrailTab.name);
             }
             widgets.addAll(built);
             y = bottomOf(built, y) + 6;

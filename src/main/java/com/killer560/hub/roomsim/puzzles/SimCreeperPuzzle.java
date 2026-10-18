@@ -397,7 +397,7 @@ public final class SimCreeperPuzzle {
                     // BeamsSolverFeature call a correct first shot a misaligned pair.
                     BlockPos held = pendingPos;
                     if (held != null) {
-                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderWaypoint(context,
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context,
                                 new net.minecraft.world.phys.AABB(held), 1.0f, 1.0f, 0.4f, 2f);
                     }
                     long nowTick = Minecraft.getInstance().level == null ? 0L
@@ -405,7 +405,7 @@ public final class SimCreeperPuzzle {
                     wrongBeams.removeIf(w -> w.untilTick() < nowTick);
                     for (WrongBeam w : wrongBeams) {
                         Pair wrong = w.pair();
-                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(context, List.of(
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, context, List.of(
                                 new net.minecraft.world.phys.Vec3(wrong.a().getX() + 0.5,
                                         wrong.a().getY() + 0.5, wrong.a().getZ() + 0.5),
                                 new net.minecraft.world.phys.Vec3(wrong.b().getX() + 0.5,
@@ -422,7 +422,7 @@ public final class SimCreeperPuzzle {
                                         pair.a().getY() + 0.5, pair.a().getZ() + 0.5),
                                 new net.minecraft.world.phys.Vec3(pair.b().getX() + 0.5,
                                         pair.b().getY() + 0.5, pair.b().getZ() + 0.5));
-                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(
+                        com.killer560.hub.puzzlesolvers.SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.BEAMS, 
                                 context, line, 0.4f, 0.9f, 1.0f, 1f, 3f);
                     }
                 });

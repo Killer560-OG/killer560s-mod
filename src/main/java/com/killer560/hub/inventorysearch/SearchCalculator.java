@@ -62,6 +62,13 @@ public final class SearchCalculator {
         }
     }
 
+    /** @return the answer as plain digits ({@code "1234.5"}, no thousands commas, so it reads back as a number) when
+     *  {@code query} is a sum, otherwise null. What Enter leaves in the bar in place of the sum. Never throws. */
+    public static String answerFor(String query) {
+        String shown = resultFor(query);
+        return shown == null ? null : shown.replace(",", "");
+    }
+
     /** Evaluates a full expression. @throws IllegalArgumentException or ArithmeticException when it is not one. */
     public static BigDecimal evaluate(String expression) {
         return evaluate(tokenize(expression));

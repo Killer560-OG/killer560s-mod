@@ -51,6 +51,8 @@ public class WaterSolverTab extends BaseTab {
                     btn.setMessage(onOff("Optimized Solutions", cfg.isOptimizedPath()));
                 }).bounds(col2bX, y, col2W, 18).build());
 
+        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, contentX, contentWidth, y, true);
+
         return widgets;
     }
 

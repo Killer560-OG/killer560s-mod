@@ -147,6 +147,42 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
+        // Pages (killer560, 2026-10-18): the wheel's presets. The page cycled to here is the one Edit Pets edits and the
+        // wheel opens on; on the wheel itself, scroll or Left/Right changes it.
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Pages", false), font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.cycling(pageText(cfg), (btn, dir) -> {
+                    cfg.stepPage(dir);
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        net.minecraft.client.gui.components.EditBox pageName = new net.minecraft.client.gui.components.EditBox(font,
+                contentX, y, contentWidth, 18, Component.literal("Page Name"));
+        pageName.setMaxLength(PetWheelConfig.MAX_PAGE_NAME);
+        pageName.setValue(cfg.getCurrentPageName());
+        pageName.setHint(Component.literal("§8Page name"));
+        // Responder set AFTER setValue (see PosmsgTab): the search builds this tab speculatively and must not save.
+        pageName.setResponder(text -> {
+            cfg.setPageName(cfg.getPageIndex(), text);
+            cfg.save();
+        });
+        widgets.add(pageName);
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Add Page"), btn -> {
+                    if (cfg.addPage()) {
+                        cfg.save();
+                    }
+                    requestRebuild.run();
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Delete Page"), btn -> {
+                    if (cfg.removeCurrentPage()) {
+                        cfg.save();
+                    }
+                    requestRebuild.run();
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 26;
+
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.petwheel.PetWheelScreen.THEME_ID, contentX, y, contentWidth, 18));
         y += 24;
 
@@ -156,6 +192,10 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         y += 24;
 
         return widgets;
+    }
+
+    private static Component pageText(PetWheelConfig cfg) {
+        return Component.literal("Page: " + (cfg.getPageIndex() + 1) + "/" + cfg.getPageCount());
     }
 
     private static Component onOff(String label, boolean value) {

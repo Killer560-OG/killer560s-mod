@@ -175,6 +175,12 @@ public final class ObjectHiderFeature {
     private static final Pattern DISCORD_WARNING = Pattern.compile("(?i).*discord.*staff.*|.*staff.*discord.*");
     /** "Hide microsoft warnings" - Hypixel's standing Microsoft-account-phishing broadcast. */
     private static final Pattern MICROSOFT_WARNING = Pattern.compile("(?i).*microsoft account.*password.*");
+    /** "Hide ban announcements" (killer560, 2026-10-18): the lines of Hypixel's Watchdog broadcast, each whole. */
+    private static final Pattern BAN_ANNOUNCEMENT_LINE = Pattern.compile(
+            "^\\s*(?:\\[WATCHDOG ANNOUNCEMENT\\]"
+                    + "|Watchdog has banned [\\d,]+ players? in the last \\d+ days?\\."
+                    + "|Staff have banned an additional [\\d,]+(?: players?)? in the last \\d+ days?\\."
+                    + "|Blacklisted modifications are a bannable offense!)\\s*$");
     /** "Hide non rank invites" (1.1.1) - a party invite from a name with no rank tag in front of it. */
     private static final Pattern NON_RANK_INVITE =
             Pattern.compile("^(?!\\[)(\\w{1,16}) has invited you to join their party!$");
@@ -236,7 +242,7 @@ public final class ObjectHiderFeature {
         // Chat Hider's rules since 2026-10-08 (one master toggle over these and Chat Tidy's); the matching stays here.
         com.killer560.hub.chattidy.ChatTidyConfig cfg = com.killer560.hub.chattidy.ChatTidyConfig.getInstance();
         if (!cfg.isHideUselessMessages() && !cfg.isHideDiscordWarnings() && !cfg.isHideMicrosoftWarnings()
-                && !cfg.isHideEmptyChatMessages() && !cfg.isHideNonRankInvites()) {
+                && !cfg.isHideEmptyChatMessages() && !cfg.isHideNonRankInvites() && !cfg.isHideBanAnnouncements()) {
             return true;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
@@ -253,7 +259,28 @@ public final class ObjectHiderFeature {
         if (cfg.isHideMicrosoftWarnings() && MICROSOFT_WARNING.matcher(text).matches()) {
             return false;
         }
+        if (cfg.isHideBanAnnouncements() && isBanAnnouncement(text)) {
+            return false;
+        }
         return !cfg.isHideNonRankInvites() || !NON_RANK_INVITE.matcher(text.trim()).matches();
+    }
+
+    /** True when every non-blank line of {@code text} is a line of the Watchdog announcement and at least one is. */
+    public static boolean isBanAnnouncement(String text) {
+        if (text == null || text.length() > 400) {
+            return false;
+        }
+        boolean any = false;
+        for (String line : text.split("\\R")) {
+            if (line.isBlank()) {
+                continue;
+            }
+            if (!BAN_ANNOUNCEMENT_LINE.matcher(line).matches()) {
+                return false;
+            }
+            any = true;
+        }
+        return any;
     }
 
     // -------------------------------------------------------------------------------------------

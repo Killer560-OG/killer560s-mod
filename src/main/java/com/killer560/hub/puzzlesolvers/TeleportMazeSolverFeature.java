@@ -332,14 +332,14 @@ public final class TeleportMazeSolverFeature {
             AABB box = shape.isEmpty() ? new AABB(pad) : shape.bounds().move(pad);
             if (correctPortals.contains(pad)) {
                 if (correctPortals.size() == 1) {
-                    SolverEspRender.renderWaypoint(context, box, 0.33f, 1.0f, 0.33f, 2f);
+                    SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, box, 0.33f, 1.0f, 0.33f, 2f);
                 } else {
-                    SolverEspRender.renderWaypoint(context, box, 1.0f, 0.67f, 0.0f, 2f);
+                    SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, box, 1.0f, 0.67f, 0.0f, 2f);
                 }
             } else if (visited.contains(pad)) {
-                SolverEspRender.renderWaypoint(context, box, 1.0f, 0.33f, 0.33f, 2f);
+                SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, box, 1.0f, 0.33f, 0.33f, 2f);
             } else {
-                SolverEspRender.renderWaypoint(context, box, 1.0f, 1.0f, 1.0f, 2f);
+                SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, box, 1.0f, 1.0f, 1.0f, 2f);
             }
         }
         BlockPos target = best;
@@ -349,7 +349,7 @@ public final class TeleportMazeSolverFeature {
             // away from the viewer and collapses to a dot, so it only flickered into view at odd angles. Starting it
             // half a block along the view direction makes it a proper line from the crosshair to the pad.
             Vec3 start = WorldRenderUtils.tracerOrigin(context);
-            SolverEspRender.renderLineStrip(context, List.of(start,
+            SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TELEPORT_MAZE, context, List.of(start,
                     new Vec3(target.getX() + 0.5, target.getY() + 0.8, target.getZ() + 0.5)), 0.33f, 1.0f, 1.0f, 1f, 3f);
         }
     }
