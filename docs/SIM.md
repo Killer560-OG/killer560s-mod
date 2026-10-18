@@ -3275,3 +3275,6 @@ the sim differs from Hypixel in the layer one in from the wall (capture x 2), y 
 Not fixed: the evidence is one real doorway against 207 captured ones, and the jamb/lintel shape exists in no capture, so
 no rule can be derived. What would settle it: an F3 screenshot of Deuces' chest doorway on Hypixel at another turn
 (facing west or east), and one of any other room's north or west doorway from inside, to see whether the fill exists live.
+- **A room is judged by its database TYPE, not its name** (fullclear-1016 run 047): mimic eligibility matched names
+  against "puzzle"/"trap", which Tic Tac Toe's does not contain, so its reward chest bit. `SimMimic.roomEligible` reads
+  `RoomDatabase` type too, and `SimSecrets` offers a placed chest to the picker only for an eligible room (86b6b2ce).

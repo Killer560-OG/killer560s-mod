@@ -90,6 +90,14 @@ public final class RightClick {
     public static int lastUseOnSequence() {
         return lastUseOnSequence;
     }
+
+    private static volatile int lastUseSequence = -1;
+
+    /** The prediction sequence of the last use (right click in the air) that left this client; the server acks it after
+     *  handling it, in the tick it handled it ({@code ChestWindows#acked}). */
+    public static int lastUseSequence() {
+        return lastUseSequence;
+    }
     private static String clickItem;
     private static Level level;
 
@@ -205,6 +213,7 @@ public final class RightClick {
         if (pairs && !spent) {
             barePairedUses++;
         }
+        lastUseSequence = p.getSequence();
         String line = String.format(Locale.US, "[RightClick] use seq %d with %s (slot %d) rot %.2f/%.2f | server look %s"
                         + " | shift %s | screen %s | %s | server ray %s%s", p.getSequence(), itemId(player, p.getHand()),
                 player.getInventory().getSelectedSlot() + 1, p.getYRot(), p.getXRot(), sentLook(),

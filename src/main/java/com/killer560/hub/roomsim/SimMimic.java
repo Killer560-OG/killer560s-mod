@@ -119,6 +119,18 @@ public final class SimMimic {
                 return false;
             }
         }
+        // A puzzle's name rarely says "puzzle" (Tic Tac Toe, Quiz, Boulder...): ask the room database for its type.
+        // Tic Tac Toe's reward chest bit in fullclear-1016 run 047, and Kill Mimic then used the sceptre for 5 s while
+        // Auto Tic Tac Toe warped him back to the board, 9 blocks off.
+        com.killer560.hub.roomdatabase.RoomEntry entry = com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(roomName);
+        if (entry != null && entry.type != null) {
+            String type = entry.type.toLowerCase(Locale.ROOT);
+            for (String bad : INELIGIBLE) {
+                if (type.contains(bad)) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 

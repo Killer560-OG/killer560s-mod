@@ -560,6 +560,9 @@ public final class AutoBoulder {
 
     // ------------------------------------------------------------------ Secret Aura on: along the roof
 
+    /** RUN_TO_BARS holds forward only while his yaw is within this many degrees of the run's direction. */
+    private static final float FACING_TOLERANCE = 45f;
+
     private static void runToBars(Minecraft client, LocalPlayer player) {
         double reach = Math.min(CheatUtilsConfig.getInstance().getAuraRange(), CheatUtilsConfig.MEASURED_MAX_REACH)
                 - 0.08;
@@ -596,9 +599,12 @@ public final class AutoBoulder {
         turnToward(client, player, yaw, 10f);
         // Forward AND sprint from the very first tick to the bars (killer560, 2026-10-06: sprinting the whole time).
         // He is already roughly facing down the room on the way in; the turn finishes while he runs.
-        boolean forward = true;
-        client.options.keyUp.setDown(true);
-        client.options.keySprint.setDown(true);
+        // But only once he faces roughly down the room: the map can leave him at the doorway facing along the corridor
+        // he came in by, and forward held through the turn ran him 4 blocks the wrong way into a wall outside the room,
+        // and Auto Boulder gave up (fullclear-1016 runs 055 and 057, both at the north door of a rotation-0 Boulder).
+        boolean forward = Math.abs(net.minecraft.util.Mth.wrapDegrees(yaw - player.getYRot())) <= FACING_TOLERANCE;
+        client.options.keyUp.setDown(forward);
+        client.options.keySprint.setDown(forward);
         double speed = Math.hypot(player.getDeltaMovement().x, player.getDeltaMovement().z);
         if (forward && player.onGround() && speed < 0.02 && System.currentTimeMillis() - stageStartMs > 600L) {
             if (++stalledTicks >= 10) {

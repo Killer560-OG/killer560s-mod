@@ -89,6 +89,11 @@ public final class SimSurvival {
                 player.teleportTo(level, home.getX() + 0.5, home.getY(), home.getZ() + 0.5,
                         java.util.Set.of(), player.getYRot(), player.getXRot(), false);
             }
+            // What killed him, in the log: a death mid-puzzle sent him back to the middle of the floor and the auto lost
+            // the room with no word of why (fullclear-1016 run 061, Lower Blaze).
+            com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim: {} died at {} ({}, {} damage) - back to {}",
+                    player.getName().getString(), player.blockPosition().toShortString(), source.getMsgId(), amount,
+                    home == null ? "nowhere" : home.toShortString());
             ModChat.send("Sim", ModChat.dim("back to the middle of the room"));
             return false;
         });

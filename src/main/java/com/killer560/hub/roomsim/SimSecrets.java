@@ -233,7 +233,7 @@ public final class SimSecrets {
         boxMaxX = boxMinX + tilesX * (RoomLibrary.TILE + 1) - 2;
         boxMaxZ = boxMinZ + tilesZ * (RoomLibrary.TILE + 1) - 2;
         outsideBox = 0;
-        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation);
+        placed += chests(level, entry.secretCoords.chest, clayX, clayZ, dbRotation, SimMimic.roomEligible(entry.name));
         placed += bats(level, entry.secretCoords.bat, clayX, clayZ, dbRotation);
         placed += items(level, entry.secretCoords.item, clayX, clayZ, dbRotation);
         placed += markers(level, entry.secretCoords.wither, clayX, clayZ, dbRotation, WITHER_MARKER,
@@ -400,7 +400,8 @@ public final class SimSecrets {
         return Math.max(1, (size - 1) / (RoomLibrary.TILE + 1));
     }
 
-    private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation) {
+    private static int chests(ServerLevel level, List<RoomEntry.Pos> list, int clayX, int clayZ, int rotation,
+                              boolean mimicEligible) {
         if (list == null) {
             return 0;
         }
@@ -449,7 +450,9 @@ public final class SimSecrets {
             PLACED_CHESTS.add(at);
             // Offered to the mimic picker the same way a pasted room's chests are, so a sim floor can have a
             // mimic in a secret chest exactly as a real one does.
-            SimMimic.addCandidate(at);
+            if (mimicEligible) {
+                SimMimic.addCandidate(at);   // never in a puzzle, trap, fairy, entrance or blood room's chest
+            }
             logPlaced("chest", at);
             n++;
         }
