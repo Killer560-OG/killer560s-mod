@@ -54,7 +54,7 @@ public final class FairySoulMenu {
 
     /** Call once per client tick. */
     public static void tick(Minecraft client) {
-        if (!PathfindingConfig.getInstance().isFairySouls()) {
+        if (!FairySoulsFeature.soulsWanted()) {
             return;
         }
         Screen screen = McCompat.screen(client);

@@ -40,7 +40,12 @@ public final class EnderPearlHopper {
     private static final double LAUNCH_SPEED = 1.5;
     private static final int MAX_SIM_TICKS = 140;
     private static final double LANDING_TOLERANCE = 3.0;
-    private static final int HOP_TIMEOUT_TICKS = 100;
+    /** The most the body may take to turn onto a solved throw before it is given up. */
+    private static final int AIM_TIMEOUT_TICKS = 80;
+    private static long thrownAtTick = Long.MIN_VALUE;
+    private static int flightTicks;
+    private static long lagMark;
+    private static int throwCount;
     /** How far the player must jump from the throw spot to count as "the pearl landed", real pearl teleports move
      *  you a real distance, so a small value here would false-positive on ordinary walking during the aim wait. */
     private static final double LANDED_DIST_SQ = 9.0;
@@ -62,7 +67,13 @@ public final class EnderPearlHopper {
         return expectedLanding;
     }
 
+    /** Pearls thrown since launch (the testkit reads it). */
+    public static int throwsSent() {
+        return throwCount;
+    }
+
     public static void cancel() {
+        thrownAtTick = Long.MIN_VALUE;
         busy = false;
         pendingDone = null;
         expectedLanding = null;
@@ -95,11 +106,16 @@ public final class EnderPearlHopper {
     }
 
     /** A solved throw: the yaw/pitch to use and where it actually lands. */
-    public record Result(float yaw, float pitch, Vec3 landing) {
+    public record Result(float yaw, float pitch, Vec3 landing, int ticks) {
     }
 
-    /** Rotation that lands a thrown pearl within {@link #LANDING_TOLERANCE} of {@code target}, or null when no
-     *  sampled pitch gets close enough (out of real throwing range, or nothing to land on). */
+    /** One simulated throw: where it hits, after how many ticks, and whether that is the TOP of a block he can stand
+     *  on (a pearl on a wall's side drops him back where he was). */
+    private record Sim(Vec3 landing, int ticks, boolean onTop) {
+    }
+
+    /** Rotation that lands a thrown pearl on top of a block within {@link #LANDING_TOLERANCE} of {@code target}, or
+     *  null when no sampled pitch does (out of real throwing range, or nothing to land on). */
     public static Result solve(Vec3 eye, Vec3 target) {
         double dx = target.x - eye.x;
         double dz = target.z - eye.z;
@@ -109,24 +125,23 @@ public final class EnderPearlHopper {
         float yaw = (float) -Math.toDegrees(Math.atan2(dx, dz));
         Result best = null;
         double bestErr = LANDING_TOLERANCE;
-        // The real usable window for a Skyblock pearl clip before it either overshoots flat or barely leaves your
-        // hand steep - sampled at 1 degree since a coarser step missed short-range clips.
-        for (float pitch = -55f; pitch <= 25f; pitch += 1f) {
-            Vec3 landing = simulate(eye, yaw, pitch);
-            if (landing == null) {
+        // Steep up to flat-ish, a quarter of a degree apart: an escape from a pit is a steep, short throw.
+        for (float pitch = -85f; pitch <= 25f; pitch += 0.25f) {
+            Sim sim = simulate(eye, yaw, pitch);
+            if (sim == null || !sim.onTop() || sim.landing().y < target.y - 0.6) {
                 continue;
             }
-            double err = landing.distanceTo(target);
+            double err = sim.landing().distanceTo(target);
             if (err < bestErr) {
                 bestErr = err;
-                best = new Result(yaw, pitch, landing);
+                best = new Result(yaw, pitch, sim.landing(), sim.ticks());
             }
         }
         return best;
     }
 
     /** Same physics {@code TrajectoriesFeature} draws for a real thrown pearl - where it would actually land. */
-    private static Vec3 simulate(Vec3 eye, float yaw, float pitch) {
+    private static Sim simulate(Vec3 eye, float yaw, float pitch) {
         Minecraft client = Minecraft.getInstance();
         Level level = client.level;
         if (level == null) {
@@ -137,17 +152,21 @@ public final class EnderPearlHopper {
         double horizontal = -Math.cos(pitchRad);
         Vec3 motion = new Vec3(Math.sin(yawRad) * horizontal, Math.sin(pitchRad), Math.cos(yawRad) * horizontal)
                 .normalize().scale(LAUNCH_SPEED);
-        Vec3 pos = eye;
+        // A thrown pearl starts 0.1 below the eye (ThrowableItemProjectile's owner constructor).
+        Vec3 pos = eye.add(0, -0.1, 0);
         for (int i = 0; i < MAX_SIM_TICKS; i++) {
             Vec3 next = pos.add(motion);
             HitResult hit = level.clip(new ClipContext(pos, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, client.player));
             if (hit.getType() == HitResult.Type.BLOCK && hit instanceof BlockHitResult blockHit) {
-                return blockHit.getLocation();
+                net.minecraft.core.BlockPos block = blockHit.getBlockPos();
+                boolean top = blockHit.getDirection() == net.minecraft.core.Direction.UP
+                        && LocalPlanner.body(level, block.above());
+                return new Sim(blockHit.getLocation(), i + 1, top);
             }
             pos = next;
             motion = new Vec3(motion.x * DRAG, motion.y * DRAG - GRAVITY, motion.z * DRAG);
         }
-        return pos;
+        return null;
     }
 
     /** Solves a throw at {@code target} and starts aiming for it (via {@link AutoWalker#lookAtAngle}); the actual
@@ -164,6 +183,9 @@ public final class EnderPearlHopper {
         }
         busy = true;
         waitTicks = 0;
+        thrownAtTick = Long.MIN_VALUE;
+        flightTicks = result.ticks();
+        lagMark = com.killer560.hub.util.ServerLag.mark();
         throwOrigin = player.position();
         expectedLanding = result.landing();
         pendingDone = onDone;
@@ -181,21 +203,35 @@ public final class EnderPearlHopper {
             cancel();
             return;
         }
-        if (++waitTicks > HOP_TIMEOUT_TICKS) {
-            ModChat.log("Auto Fairy Souls", ModChat.bad("Pearl throw timed out"), ModChat.dim(" - no landing detected."));
-            finish();
-            return;
-        }
-        if (waitTicks < 4) {
-            return; // let AutoWalker's rotation smoothing (Rotation 360 rule) settle onto the solved angle first
-        }
-        if (AutoWalker.aimError() > 2.0f) {
-            return;
-        }
-        if (waitTicks == 4 || waitTicks % 20 == 0) {
+        waitTicks++;
+        if (thrownAtTick == Long.MIN_VALUE) {
+            // Aiming: the body turns onto the solved angle (camera held), then holds still for a tick so the movement
+            // packet reports the very look the throw goes with (a use whose rotation was never reported is GrimAC
+            // BadPacketsJ). One throw, through ActionGate.
+            if (waitTicks > AIM_TIMEOUT_TICKS) {
+                ModChat.log("Auto Fairy Souls", ModChat.bad("Could not aim the pearl"), ModChat.dim(" - giving up on it."));
+                finish();
+                return;
+            }
+            if (!WalkCamera.isLocked()) {
+                if (AutoWalker.aimError() <= 1.0f) {
+                    // Judge the look he really has (the hand is never exact): it must land the pearl too.
+                    Sim sim = simulate(player.getEyePosition(), player.getYRot(), player.getXRot());
+                    if (sim != null && sim.onTop() && expectedLanding != null
+                            && sim.landing().distanceTo(expectedLanding) < LANDING_TOLERANCE) {
+                        expectedLanding = sim.landing();
+                        flightTicks = sim.ticks();
+                        WalkCamera.lock(); // this tick's movement packet reports it; the throw goes next tick
+                    }
+                }
+                return;
+            }
             int slot = hotbarSlot();
             if (slot < 0) {
                 finish();
+                return;
+            }
+            if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.FAIRY_SOUL)) {
                 return;
             }
             // START_CLIENT_TICK (PathfindingFeature.tick): the slot goes out now, ahead of the use below.
@@ -203,6 +239,17 @@ public final class EnderPearlHopper {
             // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
             com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoFairySouls] Pearl");
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            thrownAtTick = waitTicks;
+            throwCount++;
+            return;
+        }
+        // The flight the simulation predicted, plus a round trip and a half, plus the server lag since the throw.
+        long allowed = flightTicks + (long) Math.ceil(com.killer560.hub.util.PingTracker.automationMs() * 1.5 / 50.0) + 6
+                + com.killer560.hub.util.ServerLag.ticksSince(lagMark);
+        if (waitTicks - thrownAtTick > allowed) {
+            ModChat.log("Auto Fairy Souls", ModChat.bad("Pearl throw timed out"), ModChat.dim(" - no landing detected."));
+            finish();
+            return;
         }
         // No client-side teleport trick here (unlike Etherwarp) - the server moves us once the real pearl entity
         // lands, so a real position jump away from the throw spot is the only reliable "it landed" signal.

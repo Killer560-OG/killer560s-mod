@@ -168,7 +168,7 @@ final class CardBlurbsData {
         d.put("DisplayOptionsTab", "Borderless, main menu, Fullbright.");
         d.put("EtherwarpOverlayTab", "Etherwarp landing box.");
         d.put("ExperimentsTab", "Solves Experiments, tracks profit.");
-        d.put("PathfindingTab", "Fastest route across the island.");
+        d.put("PathfindingTab", "Waypoints and a route to missing souls.");
         d.put("GeneralMainTab", "Runs /skyblock when you join.");
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("SmoothTeleportTab", "Glides the camera.");
@@ -178,7 +178,7 @@ final class CardBlurbsData {
         d.put("WindowLayoutTab", "Tiles Minecraft windows.");
         d.put("AutoChocolateFactoryTab", "Clicks the factory.");
         d.put("AutoExperimentsTab", "Plays Experiments.");
-        d.put("AutoFairySoulsTab", "Walking engine for souls.");
+        d.put("AutoFairySoulsTab", "Walks to and clicks every soul.");
         d.put("ProfilesTab", "Save, switch and share settings.");
     }
 }

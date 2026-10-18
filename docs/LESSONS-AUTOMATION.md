@@ -596,3 +596,29 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **A Quiz question can be asked while he is in another room** (Oruo's lines reach the whole dungeon), and Quiz Solver
   reset its answers on every room change, so a question asked while Auto Secret was doing a room between answers was gone
   when he walked back in. While `QuizState.inProgress()` a room change now only drops the pillar positions (2026-10-17).
+
+## Auto Fairy Souls (fairy-souls-1017)
+
+- **A ClearExecutor node that is not a `ClearNode.EtherNode` never gets its sneak.** Every "is this an etherwarp" test in
+  ClearExecutor (forced sneak, eye height, item swap) is an `instanceof EtherNode`, and Auto Fairy Souls'
+  `EtherwarpHopper` node was a plain `ClearNode`: no hop of it ever went out ("[Path] off the plan: the sneak never reached
+  the server", testkit 1017-fairy-escape-ether, 14 tries, 0 server warps). `EtherNode` is extensible now (`items()`,
+  `range()`) and the hopper's node is one; 2 server warps, out of the pit, GrimAC clean.
+- **`getDeltaMovement()` at START_CLIENT_TICK is the velocity AFTER last tick's friction**, so the next move is that plus
+  this tick's push: at Skyblock 600 sprinting it read 0.92 while he moved 1.68 a tick. The walker's key choice plays each
+  combination one move ahead from it (`pathfinding/WalkPhysics`); a tie between "too fast" and "too slow" must go to slow,
+  or one 0.6-block push too many slid him onto the soul (rest 0.05 from it, aiming for 1.6).
+- **Standing on a soul puts his eye inside its stand's box** (a 1.975-tall armour stand, eye 1.62): `AABB.clip` from inside
+  returns nothing, so the click never went (testkit 1017-fairy-overshoot at 600: 700 ticks, 0 clicks). Inside the box is a hit.
+- **The old walker's overshoot was the key rule, not the camera**: W was held at a carrot up to 8 blocks ahead whenever the
+  body faced within 70 degrees of it, and released only when the runner said "in reach" (3.0). Measured on the L route
+  (testkit 1017-fairy-overshoot, before -> after, two runs): past the corner at Skyblock 400 +2.28 -> -0.14/+0.08, at 600 +3.47 -> +0.10/+0.75,
+  600 with Jump Boost II +2.63 -> +0.27/+0.24; past the soul at 600 +0.70 -> -1.73 (stopping 1.7 short). Walk, sprint and Speed II
+  were never past.
+- **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
+  state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress` now, the
+  same event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
+- **A strict straight-walk check is not an off-route signal.** Planning a way back whenever no carrot passed
+  `WalkTerrain.walkable` for 8 ticks fired at the end of testkit 746's wall (the shoulder check) and planned eight ways back
+  in a second, then "no way out". Only fluids, a fall below the route, being pressed against a wall with nothing walkable
+  ahead, or no progress (stuck) start one.

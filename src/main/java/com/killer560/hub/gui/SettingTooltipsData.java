@@ -1125,30 +1125,28 @@ final class SettingTooltipsData {
         d.put("max cached chunks", "How many chunks to keep in memory, 500-20000.");
         d.put("clear cache", "Throws away every chunk cached for the current world.");
 
-        // Pathfinding / Fairy Souls
-        d.put("pathfinding", "Shows the fastest walking route to anywhere on the island.");
+        // Fairy Souls / Auto Fairy Souls
         d.put("show path", "Draws the route line in the world.");
-        d.put("dim whole route", "Also draws the rest of the route faintly.");
         d.put("target label", "Shows the destination's name and remaining distance above it.");
         d.put("path color", "Color of the route line.");
         d.put("target color", "Color of the destination box, beam and label.");
         d.put("visible path", "How many blocks of the route ahead of you are drawn brightly.");
         d.put("re-path after", "How far you can stray from the route before it is recalculated.");
-        d.put("stop navigation", "Cancels the current route.");
-        d.put("fairy souls", "Tracks which Fairy Souls you have found and guides you to the missing ones.");
-        d.put("guide", "Nearest Soul points at the closest missing soul; Route Whole Island plans one route through all of them.");
-        d.put("soul waypoints", "Boxes every missing Fairy Soul within 96 blocks.");
-        d.put("soul counter hud", "Shows how many Fairy Souls you have found on this island.");
+        d.put("fairy souls", "Tracks which Fairy Souls you have found and guides you to the missing ones. Turning it off stops the guide.");
+        d.put("fairy souls/show waypoints", "Boxes every missing Fairy Soul within 96 blocks.");
+        d.put("fairy souls/show path", "Draws the route to the next soul in the world.");
+        d.put("fairy souls/path mode", "Nearest guides you to the closest missing soul; Whole Island plans one route through all of them.");
+        d.put("fairy souls/dim path", "Also draws the rest of the route faintly.");
+        d.put("fairy souls/hud", "Shows how many Fairy Souls you have found on this island, and the distance to the next one.");
         d.put("start on island join", "Starts guiding automatically when you arrive on an island with missing souls.");
         d.put("mark island found", "Logs every soul on this island as found.");
         d.put("reset this island", "Clears the found-soul log for this island. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island. Click twice to confirm.");
-        d.put("auto walk path", "Cheat build: walks the route for you, stopping as soon as you press a key, click or take damage.");
-        d.put("auto fairy souls", "Cheat build: walks the island route and clicks each Fairy Soul for you.");
-        d.put("auto mode", "How auto walk uses etherwarps: only when needed, when it saves time, or all the way.");
-        d.put("auto click souls", "Right-clicks each soul for you when it arrives.");
-        d.put("sprint", "Sprints on long straight stretches.");
-        d.put("turn speed", "Top speed the camera turns while auto walking, in degrees per tick; it eases smoothly every frame below that.");
+        d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. Any key or click stops it. Needs nothing else on.");
+        d.put("auto fairy souls/auto walk", "Walks you from soul to soul. Off: you walk, it still clicks each soul you reach.");
+        d.put("auto fairy souls/auto click", "Right-clicks each soul when it is in reach.");
+        d.put("auto fairy souls/allow ender pearls", "Lets it throw an Ender Pearl from your hotbar to get out of somewhere it cannot walk out of.");
+        d.put("auto fairy souls/sprint", "Sprints where the path is clear; it still slows for corners and the soul at any speed.");
         d.put("start/stop key", "Starts or stops Auto Fairy Souls (it has no button; /k560path souls auto starts it too).");
 
         // Terminal overlay colours
@@ -1732,7 +1730,6 @@ final class SettingTooltipsData {
         d.put("party commands/kick offline", "!kickoffline removes every offline member from the party.");
         d.put("fairy souls/chat feedback", "Prints a chat line when a route starts, finishes or is canceled.");
         d.put("fairy souls/text scale", "Size of the destination label drawn above the target, 0.5x to 3x.");
-        d.put("nothing to stop", "Nothing is navigating right now, so there is nothing to cancel.");
         d.put("sure? reset island", "Click once more to clear this island's found-soul log for this profile.");
         d.put("sure? reset every island", "Click once more to clear the found-soul log for every island on this profile.");
         d.put("posmsg/set", "Saves the message typed in the box to the left.");
@@ -1954,8 +1951,7 @@ final class SettingTooltipsData {
             d.put("auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
             d.put("auto close chest/auto close chest", "Stops secret chest menus opening in dungeons; the loot is still collected (cheat build only).");
         }
-        d.put("auto fairy souls/auto walk path", "Turns on the walking engine Auto Fairy Souls needs to move you.");
-        d.put("auto fairy souls/auto mode", "How it crosses gaps it can't walk: Walk, Etherwarp, Fast Etherwarp or Pearls Only.");
+        d.put("auto fairy souls/auto mode", "Walk Only never etherwarps; Etherwarp takes warps that save walking and warps out of places it cannot walk out of; Fast Etherwarp warps the whole way where it can. Needs an etherwarp item in the hotbar.");
         d.put("tick timers/pad cycle timer", "Repeating 1-second countdown during Storm's P2 for timing pad drops.");
         d.put("tick timers/crush timer hud", "Times Storm's crushes in F7/M7 P2 and shows the count.");
         d.put("tick timers/crush title", "Shows 'Crush N' on screen each time Storm is crushed.");

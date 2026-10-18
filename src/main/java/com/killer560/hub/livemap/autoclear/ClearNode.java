@@ -100,16 +100,30 @@ public abstract class ClearNode {
     }
 
     /** QUOI {@code ClearEtherNode}: sneaking Aspect of the Void etherwarp. */
-    public static final class EtherNode extends ClearNode {
+    /** Not final since fairy-souls-1017: Auto Fairy Souls' {@code pathfinding.EtherwarpHopper} warps with whatever
+     *  etherwarp item is in the hotbar, and every "is this an etherwarp" test in {@code ClearExecutor} (the forced
+     *  sneak above all) is an {@code instanceof EtherNode}. Its own node was a plain {@code ClearNode}, so the sneak was
+     *  never forced and no hop of it ever went out ("the sneak never reached the server", testkit 1017-fairy-escape-ether). */
+    public static class EtherNode extends ClearNode {
         public EtherNode(Vec3 pos, float yaw, float pitch, int colour, List<Vec3> points) {
             super(pos, yaw, pitch, colour, points);
+        }
+
+        /** The items this warp may use (Skyblock ids). */
+        protected String[] items() {
+            return new String[]{"ASPECT_OF_THE_VOID"};
+        }
+
+        /** The item's etherwarp range. */
+        protected double range() {
+            return 61.0;
         }
 
         @Override
         public boolean execute(double[] playerPos) {
             // QUOI's block top + 1.05, Hypixel's landing - and the sim's (SimAbilities.ETHERWARP_LANDING_OFFSET).
-            return doTeleport(playerPos, new String[]{"ASPECT_OF_THE_VOID"}, true, 1.05,
-                    from -> TeleportUtils.getEtherPos(from, yaw, pitch, 61.0));
+            return doTeleport(playerPos, items(), true, 1.05,
+                    from -> TeleportUtils.getEtherPos(from, yaw, pitch, range()));
         }
     }
 

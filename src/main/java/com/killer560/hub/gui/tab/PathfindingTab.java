@@ -5,10 +5,7 @@ import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
-import com.killer560.hub.pathfinding.AutoSoulRunner;
-import com.killer560.hub.pathfinding.FairySoulStore;
 import com.killer560.hub.pathfinding.FairySoulsFeature;
-import com.killer560.hub.pathfinding.NavigationManager;
 import com.killer560.hub.pathfinding.PathfindingConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -20,13 +17,12 @@ import java.util.List;
 import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
-/** Pathfinding + Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. The
- *  cheat-only "Auto Fairy Souls" walking/clicking logic lives in {@link AutoFairySoulsTab} (split out
- *  2026-09-21, see its own javadoc); this tab only ever shows or tracks, never moves the player.
+/** Fairy Souls settings - see {@link com.killer560.hub.pathfinding.PathfindingFeature}. The cheat-only walking and
+ *  clicking lives in {@link AutoFairySoulsTab}; this tab only ever shows or tracks, never moves the player.
  *  <p>
- *  Renamed to "Fairy Souls" 2026-09-27 (killer560: "we are going to change pathfinding alot... change the
- *  tab to be called fairy souls") ahead of a pathfinding rework; also dropped the island/profile text line
- *  and the "Guide Me Now" button per that same request. */
+ *  Layout (killer560, 2026-10-17): the feature switch, then Show Waypoints, Show Path with its Nearest / Whole Island
+ *  mode, Dim Path and Path Color, the sliders, then HUD and Start On Island Join. The "Found 1/80" line and the Stop
+ *  Navigation button are gone: turning the switch off stops the guide. */
 public class PathfindingTab extends BaseTab {
 
     private boolean confirmResetIsland = false;
@@ -46,9 +42,12 @@ public class PathfindingTab extends BaseTab {
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Pathfinding", cfg.isEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Fairy Souls", cfg.isEnabledRaw()), btn -> {
                     cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
+                    if (!cfg.isEnabledRaw()) {
+                        FairySoulsFeature.stopGuide(false); // off is the stop: there is no Stop button
+                    }
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
@@ -56,42 +55,32 @@ public class PathfindingTab extends BaseTab {
             return widgets;
         }
 
-        // ---------------------------------------------------------------- display
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Display", false), client.font));
-        y += 16;
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Waypoints", cfg.isSoulWaypoints()), btn -> {
+                    cfg.setSoulWaypoints(!cfg.isSoulWaypoints());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Waypoints", cfg.isSoulWaypoints()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
         widgets.add(SettingsButtonWidget.builder(onOff("Show Path", cfg.isShowPath()), btn -> {
                     cfg.setShowPath(!cfg.isShowPath());
                     cfg.save();
                     btn.setMessage(onOff("Show Path", cfg.isShowPath()));
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Dim Whole Route", cfg.isShowWholePath()), btn -> {
-                    cfg.setShowWholePath(!cfg.isShowWholePath());
+        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
+                    cfg.setSoulMode(SettingsButtonWidget.step(cfg.getSoulMode(), dir));
                     cfg.save();
-                    btn.setMessage(onOff("Dim Whole Route", cfg.isShowWholePath()));
+                    btn.setMessage(modeText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Target Label", cfg.isShowTargetLabel()), btn -> {
-                    cfg.setShowTargetLabel(!cfg.isShowTargetLabel());
+        widgets.add(SettingsButtonWidget.builder(onOff("Dim Path", cfg.isDimPath()), btn -> {
+                    cfg.setDimPath(!cfg.isDimPath());
                     cfg.save();
-                    btn.setMessage(onOff("Target Label", cfg.isShowTargetLabel()));
+                    btn.setMessage(onOff("Dim Path", cfg.isDimPath()));
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Chat Feedback", cfg.isChatFeedback()), btn -> {
-                    cfg.setChatFeedback(!cfg.isChatFeedback());
-                    cfg.save();
-                    btn.setMessage(onOff("Chat Feedback", cfg.isChatFeedback()));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 20;
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Color", cfg.getPathColor()), btn ->
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Path Color", cfg.getPathColor(),
                                 PathfindingConfig.DEFAULT_PATH_COLOR, argb -> {
                                     cfg.setPathColor(argb);
-                                    cfg.save();
-                                })))
-                .bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Color", cfg.getTargetColor()), btn ->
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Color", cfg.getTargetColor(),
-                                PathfindingConfig.DEFAULT_TARGET_COLOR, argb -> {
-                                    cfg.setTargetColor(argb);
                                     cfg.save();
                                 })))
                 .bounds(col2bX, y, col2W, 18).build());
@@ -148,87 +137,66 @@ public class PathfindingTab extends BaseTab {
                 cfg.save();
             }
         });
-        y += 24;
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal(NavigationManager.isActive()
-                        ? "§cStop Navigation" : "Nothing To Stop"), btn -> {
-                    NavigationManager.stop("stopped in settings", true);
-                    FairySoulsFeature.stopGuide(false);
-                    AutoSoulRunner.stop("stopped in settings", false);
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("HUD", cfg.isSoulHud()), btn -> {
+                    cfg.setSoulHud(!cfg.isSoulHud());
+                    cfg.save();
+                    btn.setMessage(onOff("HUD", cfg.isSoulHud()));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Start On Island Join", cfg.isAutoStartOnIsland()), btn -> {
+                    cfg.setAutoStartOnIsland(!cfg.isAutoStartOnIsland());
+                    cfg.save();
+                    btn.setMessage(onOff("Start On Island Join", cfg.isAutoStartOnIsland()));
+                }).bounds(col2bX, y, col2W, 18).build());
         y += 26;
 
-        // ---------------------------------------------------------------- fairy souls
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Fairy Souls", false), client.font));
+        // ---------------------------------------------------------------- the rest: label, chat, the found-soul log
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("More", false), client.font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(onOff("Fairy Souls", cfg.isFairySoulsRaw()), btn -> {
-                    cfg.setFairySouls(!cfg.isFairySoulsRaw());
+        widgets.add(SettingsButtonWidget.builder(onOff("Target Label", cfg.isShowTargetLabel()), btn -> {
+                    cfg.setShowTargetLabel(!cfg.isShowTargetLabel());
                     cfg.save();
+                    btn.setMessage(onOff("Target Label", cfg.isShowTargetLabel()));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Color", cfg.getTargetColor()), btn ->
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Color", cfg.getTargetColor(),
+                                PathfindingConfig.DEFAULT_TARGET_COLOR, argb -> {
+                                    cfg.setTargetColor(argb);
+                                    cfg.save();
+                                })))
+                .bounds(col2bX, y, col2W, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Chat Feedback", cfg.isChatFeedback()), btn -> {
+                    cfg.setChatFeedback(!cfg.isChatFeedback());
+                    cfg.save();
+                    btn.setMessage(onOff("Chat Feedback", cfg.isChatFeedback()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Mark Island Found"), btn -> {
+                    FairySoulsFeature.markIslandFound();
                     requestRebuild.run();
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
-                    cfg.setSoulMode(SettingsButtonWidget.step(cfg.getSoulMode(), dir));
-                    cfg.save();
-                    btn.setMessage(modeText(cfg));
+        widgets.add(SettingsButtonWidget.builder(Component.literal(confirmResetIsland
+                        ? "§cSure? Reset Island" : "§cReset This Island"), btn -> {
+                    if (!confirmResetIsland) {
+                        confirmResetIsland = true;
+                    } else {
+                        FairySoulsFeature.resetIsland();
+                        confirmResetIsland = false;
+                    }
+                    requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
-        if (cfg.isFairySoulsRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Soul Waypoints", cfg.isSoulWaypoints()), btn -> {
-                        cfg.setSoulWaypoints(!cfg.isSoulWaypoints());
-                        cfg.save();
-                        btn.setMessage(onOff("Soul Waypoints", cfg.isSoulWaypoints()));
-                    }).bounds(contentX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(onOff("Soul Counter HUD", cfg.isSoulHud()), btn -> {
-                        cfg.setSoulHud(!cfg.isSoulHud());
-                        cfg.save();
-                        btn.setMessage(onOff("Soul Counter HUD", cfg.isSoulHud()));
-                    }).bounds(col2bX, y, col2W, 18).build());
-            y += 20;
-            widgets.add(SettingsButtonWidget.builder(onOff("Start On Island Join", cfg.isAutoStartOnIsland()), btn -> {
-                        cfg.setAutoStartOnIsland(!cfg.isAutoStartOnIsland());
-                        cfg.save();
-                        btn.setMessage(onOff("Start On Island Join", cfg.isAutoStartOnIsland()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 20;
-
-            int[] counts = FairySoulsFeature.islandCounts();
-            FairySoulStore.IslandRecord record = FairySoulsFeature.menuRecord();
-            String status = counts == null ? "§7No graph for this island yet."
-                    : "§7Found §6" + counts[0] + "/" + counts[1] + "§7 here"
-                    + (record == null ? " §8(open Hypixel's Fairy Souls Guide to sync)"
-                    : "§8 (menu: " + record.menuFound + "/" + record.menuTotal + ")");
-            widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(status), client.font));
-            y += 16;
-
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Mark Island Found"), btn -> {
-                        FairySoulsFeature.markIslandFound();
-                        requestRebuild.run();
-                    }).bounds(contentX, y, col2W, 18).build());
-            widgets.add(SettingsButtonWidget.builder(Component.literal(confirmResetIsland
-                            ? "§cSure? Reset Island" : "§cReset This Island"), btn -> {
-                        if (!confirmResetIsland) {
-                            confirmResetIsland = true;
-                        } else {
-                            FairySoulsFeature.resetIsland();
-                            confirmResetIsland = false;
-                        }
-                        requestRebuild.run();
-                    }).bounds(col2bX, y, col2W, 18).build());
-            y += 20;
-            widgets.add(SettingsButtonWidget.builder(Component.literal(confirmResetProfile
-                            ? "§cSure? Reset Every Island" : "§cReset Found Souls (Profile)"), btn -> {
-                        if (!confirmResetProfile) {
-                            confirmResetProfile = true;
-                        } else {
-                            FairySoulsFeature.resetProfile();
-                            confirmResetProfile = false;
-                        }
-                        requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 26;
-        }
-
+        widgets.add(SettingsButtonWidget.builder(Component.literal(confirmResetProfile
+                        ? "§cSure? Reset Every Island" : "§cReset Found Souls (Profile)"), btn -> {
+                    if (!confirmResetProfile) {
+                        confirmResetProfile = true;
+                    } else {
+                        FairySoulsFeature.resetProfile();
+                        confirmResetProfile = false;
+                    }
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
 
@@ -249,7 +217,7 @@ public class PathfindingTab extends BaseTab {
     }
 
     private static Component modeText(PathfindingConfig cfg) {
-        return Component.literal("Guide: §6" + cfg.getSoulMode().label);
+        return Component.literal("Path Mode: §6" + cfg.getSoulMode().label);
     }
 
     private static Component onOff(String label, boolean value) {

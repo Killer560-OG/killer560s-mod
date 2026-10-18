@@ -244,7 +244,7 @@ public final class EtherwarpHopper {
     }
 
     /** {@code ClearNode.EtherNode} with the player's actual etherwarp item instead of a hardcoded AOTV. */
-    private static final class PathEtherNode extends ClearNode {
+    private static final class PathEtherNode extends ClearNode.EtherNode {
         private final String[] items;
 
         private PathEtherNode(Vec3 pos, float yaw, float pitch, String item, List<Vec3> points) {
@@ -253,9 +253,13 @@ public final class EtherwarpHopper {
         }
 
         @Override
-        public boolean execute(double[] playerPos) {
-            return doTeleport(playerPos, items, true, 1.05,
-                    from -> TeleportUtils.getEtherPos(from, yaw, pitch, Math.max(1.0, range())));
+        protected String[] items() {
+            return items;
+        }
+
+        @Override
+        protected double range() {
+            return Math.max(1.0, EtherwarpHopper.range());
         }
     }
 }
