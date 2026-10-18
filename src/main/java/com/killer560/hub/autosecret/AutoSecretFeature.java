@@ -71,10 +71,10 @@ public final class AutoSecretFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
     enum Phase { IDLE, DECIDE, TRAVEL, AWAIT_ROUTE, ROUTE, ICE_FILL, PUZZLE_WAIT, SETTLE, AUTO_CLEAR, WAITING, DOOR,
-        KEY_WAIT }
+        KEY_WAIT, QUIZ }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY }
+    enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY, QUIZ }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -334,6 +334,8 @@ public final class AutoSecretFeature {
         clearsDone.clear();
         tripFailures.clear();
         iceFillTried = false;
+        QuizPlan.reset();
+        quizIdleTicks = 0;
         lastWaiting = null;
         leaveWaitRoom = null;
         tourWaitTicks = 0;
@@ -428,6 +430,7 @@ public final class AutoSecretFeature {
             case ROUTE -> tickRoute();
             case ICE_FILL -> tickIceFill();
             case PUZZLE_WAIT -> tickPuzzleWait();
+            case QUIZ -> tickQuiz();
             case SETTLE -> {
                 if (phaseTicks >= SETTLE_TICKS) {
                     setPhase(Phase.DECIDE);
@@ -933,6 +936,9 @@ public final class AutoSecretFeature {
             decidePilot(layout, rooms, dist, here);
             return;
         }
+        if (decideQuiz(layout, rooms, dist)) {
+            return;
+        }
         if (decideIceFill(layout, rooms, dist)) {
             return;
         }
@@ -974,6 +980,245 @@ public final class AutoSecretFeature {
             return pathToRoom(layout, r, Trip.ICE_FILL);
         }
         return false;
+    }
+
+    // ------------------------------------------------------------------------------------------- the Quiz
+
+    /**
+     * killer560, 2026-10-17: "have it open quiz as its first goal if the setting is on. Then after that go do ice fill then
+     * come back and answer it, then go secret a room then come back and answer it till it finishes". With Quiz First and
+     * Auto Quiz on: first a trip to the Quiz, where Auto Quiz talks to Oruo; then, while a question's cooldown runs
+     * ({@link QuizState}), Ice Fill during the first, else the room with the most unfound secrets whose whole round trip -
+     * the trip there, its route, the trip back to the answer spot, each by {@link RoomTour}'s estimates - fits in the time
+     * left; with nothing that fits, back to the Quiz to wait. Re-decided after every step, so he is back by the time the
+     * question opens, late only by what the estimates missed.
+     *
+     * @return true when this decision is the Quiz's
+     */
+    private static boolean decideQuiz(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (!QuizPlan.wanted() || QuizPlan.gaveUp() || com.killer560.hub.puzzlesolvers.QuizState.done()) {
+            return false;
+        }
+        RoomStatus.Room quiz = null;
+        for (RoomStatus.Room r : rooms) {
+            if ("Quiz".equals(r.name()) && !r.cleared() && !r.failed() && dist.containsKey(r.room())) {
+                quiz = r;
+            }
+        }
+        if (quiz == null) {
+            return false;
+        }
+        boolean here = layout.currentRoom() == quiz.room();
+        if (!com.killer560.hub.puzzlesolvers.QuizState.started()) {
+            if (RoomStatus.teammateInside(quiz.cells()) && !here) {
+                QuizPlan.giveUp("a teammate is in it");
+                LOGGER.info("[AutoSecret] Quiz: a teammate is in it - left to them");
+                return false;
+            }
+            if (!QuizPlan.tryStart()) {
+                QuizPlan.giveUp("Oruo never began");
+                LOGGER.info("[AutoSecret] Quiz: Oruo never began after {} tries - left to the rest of the run",
+                        QuizPlan.MAX_START_TRIES);
+                say(ModChat.bad("Couldn't start the Quiz"), ModChat.dim(" - Oruo never began"));
+                return false;
+            }
+            target = quiz.name();
+            targetRoomId = quiz.room();
+            status = "Starting the Quiz";
+            LOGGER.info("[AutoSecret] Quiz first: {} room(s) away - Auto Quiz talks to Oruo", dist.get(quiz.room()));
+            note(ModChat.text("Going to the "), ModChat.value("Quiz"), ModChat.dim(" first - Auto Quiz talks to Oruo"));
+            if (here) {
+                beginQuizWait();
+                return true;
+            }
+            return goToQuiz(layout, quiz);
+        }
+        long left = com.killer560.hub.puzzlesolvers.QuizState.ticksUntilAnswerable();
+        // Ice Fill while the first question's long cooldown runs (it is done whatever the estimate: his order).
+        if (com.killer560.hub.puzzlesolvers.QuizState.question() == 1
+                && com.killer560.hub.puzzlesolvers.QuizState.awaitingAnswer() && left > 0
+                && decideIceFill(layout, rooms, dist)) {
+            LOGGER.info("[AutoSecret] Quiz: question 1 opens in {} tick(s) - Ice Fill meanwhile", left);
+            return true;
+        }
+        if (left > 0) {
+            RoomStatus.Room pick = quizGapRoom(layout, rooms, dist, quiz, left);
+            if (pick != null && goSecret(layout, pick, dist, "-", "-")) {
+                return true;
+            }
+        }
+        target = quiz.name();
+        targetRoomId = quiz.room();
+        status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
+        if (here && (AutoPuzzlesFeature.quizAnswerSpot() == null || atQuizSpot())) {
+            beginQuizWait();
+            return true;
+        }
+        LOGGER.info("[AutoSecret] Quiz: question {} opens in {} tick(s) - back to the Quiz",
+                com.killer560.hub.puzzlesolvers.QuizState.question(), left);
+        return goToQuiz(layout, quiz);
+    }
+
+    /** He stands on Auto Quiz's answer spot (or a block from it). */
+    private static boolean atQuizSpot() {
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        Minecraft client = Minecraft.getInstance();
+        return spot != null && client.player != null && client.player.blockPosition().below().distSqr(spot) <= 2;
+    }
+
+    /** The trip to the Quiz: onto Auto Quiz's answer spot once it is known, else into the room. */
+    private static boolean goToQuiz(DungeonLayout layout, RoomStatus.Room quiz) {
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        target = quiz.name();
+        targetRoomId = quiz.room();
+        if (spot != null) {
+            AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+            ClearExecutor.setExternalOwner(true);
+            ClearExecutor.etherPathExact(spot, null);
+            beginTravel(Trip.QUIZ);
+            return true;
+        }
+        return pathToRoom(layout, quiz, Trip.QUIZ);
+    }
+
+    /**
+     * The secret room to do before the next Quiz question opens: of the rooms Auto Secret would secret, the one with the
+     * most unfound secrets (then the quickest) whose trip there, route and trip back to the Quiz all fit in {@code left}
+     * ticks by {@link RoomTour}'s estimates. Null when none fits. The trips are also handed to RoomTour's search, so a
+     * later decision has them searched.
+     */
+    private static RoomStatus.Room quizGapRoom(DungeonLayout layout, List<RoomStatus.Room> rooms,
+                                               Map<Integer, Integer> dist, RoomStatus.Room quiz, long left) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return null;
+        }
+        RoomTour.Site quizSite = quizSite(quiz);
+        if (quizSite == null) {
+            return null;
+        }
+        List<RoomTour.Site> sites = new ArrayList<>();
+        List<RoomStatus.Room> cands = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            if (!eligibleForSecrets(r) || !dist.containsKey(r.room())) {
+                continue;
+            }
+            Route route = RouteStore.getInstance().forRoom(r.name());
+            if (route == null || route.startNode() == null) {
+                continue;
+            }
+            RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
+            if (s != null) {
+                sites.add(s);
+                cands.add(r);
+            }
+        }
+        if (sites.isEmpty()) {
+            LOGGER.info("[AutoSecret] Quiz: {} tick(s) to question {} and no secret room left to fill them", left,
+                    com.killer560.hub.puzzlesolvers.QuizState.question());
+            return null;
+        }
+        sites.add(quizSite);
+        net.minecraft.world.phys.Vec3 from = client.player.position();
+        if (!RoomTour.isBusy() && !RoomTour.fromReady(from, sites)) {
+            RoomTour.request(from, sites, false, false, "the Quiz's cooldown");
+        }
+        RoomTour.Matrix m = RoomTour.matrix(from, sites, false, layout);
+        int q = sites.size() - 1;
+        RoomStatus.Room best = null;
+        double bestTotal = 0;
+        StringBuilder why = new StringBuilder();
+        for (int i = 0; i < q; i++) {
+            double total = m.fromHere()[i] + m.work()[i] + m.between()[i][q];
+            RoomStatus.Room r = cands.get(i);
+            why.append(String.format(Locale.US, "%s %.0f+%.0f+%.0f=%.0f%s; ", r.name(), m.fromHere()[i], m.work()[i],
+                    m.between()[i][q], total, total <= left ? "" : " (too long)"));
+            if (total > left) {
+                continue;
+            }
+            if (best == null || r.unfound() > best.unfound() || r.unfound() == best.unfound() && total < bestTotal) {
+                best = r;
+                bestTotal = total;
+            }
+        }
+        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; round trips (there + route + back): {}-> {}",
+                left, com.killer560.hub.puzzlesolvers.QuizState.question(), why,
+                best == null ? "none fits, waiting at the Quiz" : best.name());
+        return best;
+    }
+
+    /** The Quiz as a trip's end: Auto Quiz's answer spot (exact), else a landing in its tile. */
+    private static RoomTour.Site quizSite(RoomStatus.Room quiz) {
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        if (spot != null) {
+            return new RoomTour.Site("Quiz", spot, -1, true, net.minecraft.world.phys.Vec3.atBottomCenterOf(spot.above()),
+                    0, 0);
+        }
+        BlockPos centre = DungeonLayout.cellCenter(quiz.mainTile());
+        BlockPos land = com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpableInTile(centre,
+                net.minecraft.world.phys.Vec3.atCenterOf(centre));
+        return land == null ? null : new RoomTour.Site("Quiz", land, quiz.mainTile(), false,
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(land.above()), 0, 0);
+    }
+
+    /** {@link com.killer560.hub.puzzlesolvers.QuizState#answeredCount()} and whether Oruo had begun, when the wait began. */
+    private static int quizWaitAnswered;
+    private static boolean quizWaitStarted;
+    private static long quizWaitLag;
+    /** Ticks at the Quiz waiting for its cooldown with nothing to do, this run (for the testkit's idle bound). */
+    private static int quizIdleTicks;
+    /** Without Oruo's first line this long after reaching him, the start is tried again. */
+    private static final int QUIZ_START_WAIT_TICKS = 15 * 20;
+
+    private static void beginQuizWait() {
+        target = "Quiz";
+        quizWaitAnswered = com.killer560.hub.puzzlesolvers.QuizState.answeredCount();
+        quizWaitStarted = com.killer560.hub.puzzlesolvers.QuizState.started();
+        quizWaitLag = com.killer560.hub.util.ServerLag.mark();
+        status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
+        LOGGER.info("[AutoSecret] at the Quiz ({})", com.killer560.hub.puzzlesolvers.QuizState.describe());
+        setPhase(Phase.QUIZ);
+    }
+
+    /**
+     * At the Quiz: Auto Quiz talks to Oruo and answers. The next decision comes on the line that changes things - Oruo
+     * beginning (go and do Ice Fill), an answer counting (go and do a room) or the last answer.
+     */
+    private static void tickQuiz() {
+        status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
+        if (!quizWaitStarted && com.killer560.hub.puzzlesolvers.QuizState.started()) {
+            LOGGER.info("[AutoSecret] Quiz: Oruo began after {} tick(s) here - {}", phaseTicks,
+                    com.killer560.hub.puzzlesolvers.QuizState.describe());
+            setPhase(Phase.DECIDE);
+            return;
+        }
+        if (com.killer560.hub.puzzlesolvers.QuizState.done()
+                || com.killer560.hub.puzzlesolvers.QuizState.answeredCount() > quizWaitAnswered) {
+            LOGGER.info("[AutoSecret] Quiz: {} after {} tick(s) here", com.killer560.hub.puzzlesolvers.QuizState.done()
+                    ? "every question answered" : "question " + com.killer560.hub.puzzlesolvers.QuizState.answeredCount()
+                    + " answered", phaseTicks);
+            setPhase(Phase.DECIDE);
+            return;
+        }
+        RoomStatus.Room r = roomNamed("Quiz");
+        if (r != null && (r.failed() || r.cleared())) {
+            LOGGER.info("[AutoSecret] Quiz: the map shows it {} - carrying on", r.failed() ? "failed" : "done");
+            setPhase(Phase.DECIDE);
+            return;
+        }
+        if (com.killer560.hub.puzzlesolvers.QuizState.awaitingAnswer()
+                && !com.killer560.hub.puzzlesolvers.QuizState.answerable()) {
+            quizIdleTicks++;
+        }
+        if (!quizWaitStarted && phaseTicks > QUIZ_START_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(quizWaitLag)) {
+            LOGGER.info("[AutoSecret] Quiz: Oruo has not begun in {} s here - trying again", QUIZ_START_WAIT_TICKS / 20);
+            setPhase(Phase.DECIDE);
+        }
+    }
+
+    /** For the testkit: ticks this run stood at the Quiz waiting out a cooldown. */
+    public static int quizIdleTicks() {
+        return quizIdleTicks;
     }
 
     /**
@@ -1206,6 +1451,9 @@ public final class AutoSecretFeature {
      * out goes the tick the route is over.
      */
     private static void planAhead(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        if (QuizPlan.running()) {
+            return;   // between two Quiz answers the trip after this room is the one back to the Quiz
+        }
         AutoRoutesFeature.RoomRoute rr = AutoRoutesFeature.roomRoute(layout, r.room());
         net.minecraft.world.phys.Vec3 end = rr == null ? null : rr.predictedEnd();
         if (end == null) {
@@ -1884,6 +2132,7 @@ public final class AutoSecretFeature {
                 setPhase(Phase.SETTLE);
             }
             case PUZZLE -> setPhase(Phase.PUZZLE_WAIT);
+            case QUIZ -> beginQuizWait();
             case CLEAR -> handToAutoClear();
             case DOOR -> beginDoor();
             case FINAL -> stop("in " + target + ", which is left to clear - over to you", false);
@@ -1907,6 +2156,11 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] trip to {} failed ({}){}", target, why, giveUp ? " - leaving it out" : " - trying again");
         if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
             say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)), ModChat.dim(" (" + why + ") - skipped"));
+        }
+        if (trip == Trip.QUIZ) {
+            QuizPlan.tripFailed(giveUp);   // the Quiz is a puzzle: given up on, it is left to the endgame, not the secret list
+            setPhase(Phase.SETTLE);
+            return;
         }
         if (giveUp && trip == Trip.ICE_FILL) {
             iceFillTried = true;   // Ice Fill is a puzzle: left to the rest of the run, not to the secret list

@@ -919,7 +919,8 @@ final class SettingTooltipsData {
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");
         d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory. It filters by the Inventory Search bar at the bottom middle of the screen.");
         d.put("refresh item catalog", "Downloads the Skyblock item list again from Hypixel.");
-        d.put("auto quiz", "Clicks the correct answer in the Quiz room (cheat build only).");
+        d.put("auto quiz", "Talks to Oruo, then clicks the correct answer in the Quiz room the moment its cooldown ends (cheat build only).");
+        d.put("quiz first", "Auto Secret starts the Quiz first, does Ice Fill and rooms that fit between the answers, and is back for each one (needs Auto Quiz).");
         d.put("quiz click delay", "Delay before Auto Quiz clicks the answer, 0-2000 ms.");
         d.put("auto three weirdos", "Opens the correct Three Weirdos chest for you (cheat build only).");
         d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms. Default 0: the chest is clicked the tick it is known and in reach.");

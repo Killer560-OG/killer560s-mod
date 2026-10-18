@@ -33,6 +33,8 @@ public final class AutoSecretConfig {
     private boolean instaClear = true;
     /** Go to Ice Fill early and let Auto Ice Fill do it (only when Auto Ice Fill is on). */
     private boolean iceFillFirst = true;
+    /** Start the Quiz first and answer each question the moment it opens, doing other work in between (Auto Quiz on). */
+    private boolean quizFirst = true;
     /** Endgame: hand an uncleared room to Auto Clear instead of stopping there (off by default). */
     private boolean autoClearRooms = false;
     /** Endgame: how long to stand in an unfinished puzzle for it to be done before moving on. */
@@ -88,6 +90,7 @@ public final class AutoSecretConfig {
                 cfg.toggleKey = KeyUtil.sanitizeBind(ConfigJson.getInt(o, "toggleKey", cfg.toggleKey));
                 cfg.instaClear = ConfigJson.getBool(o, "instaClear", cfg.instaClear);
                 cfg.iceFillFirst = ConfigJson.getBool(o, "iceFillFirst", cfg.iceFillFirst);
+                cfg.quizFirst = ConfigJson.getBool(o, "quizFirst", cfg.quizFirst);
                 cfg.autoClearRooms = ConfigJson.getBool(o, "autoClearRooms", cfg.autoClearRooms);
                 cfg.setPuzzleWaitSeconds(ConfigJson.getInt(o, "puzzleWaitSeconds", cfg.puzzleWaitSeconds));
                 cfg.setRouteStallSeconds(ConfigJson.getInt(o, "routeStallSeconds", cfg.routeStallSeconds));
@@ -120,6 +123,7 @@ public final class AutoSecretConfig {
             o.addProperty("toggleKey", toggleKey);
             o.addProperty("instaClear", instaClear);
             o.addProperty("iceFillFirst", iceFillFirst);
+            o.addProperty("quizFirst", quizFirst);
             o.addProperty("autoClearRooms", autoClearRooms);
             o.addProperty("puzzleWaitSeconds", puzzleWaitSeconds);
             o.addProperty("routeStallSeconds", routeStallSeconds);
@@ -148,6 +152,8 @@ public final class AutoSecretConfig {
 
     public boolean isIceFillFirst() { return iceFillFirst; }
     public void setIceFillFirst(boolean v) { iceFillFirst = v; }
+    public boolean isQuizFirst() { return quizFirst; }
+    public void setQuizFirst(boolean v) { quizFirst = v; }
 
     public boolean isAutoClearRooms() { return autoClearRooms; }
     public void setAutoClearRooms(boolean v) { autoClearRooms = v; }
