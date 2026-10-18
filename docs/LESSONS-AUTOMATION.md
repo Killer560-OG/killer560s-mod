@@ -626,3 +626,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   work had Auto Quiz walk to a guessed "CLICK" stand and talk; his logs put the intro 0-1 s after his own room entry in
   all 47 runs where he walked in. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two
   BEFORE the live map names the room, so anything pairing the two must allow either order ([QuizLog] does).
+- **A look aimed at a block's centre can pass a neighbour's corner by a hair and miss in floats** (Auto Creeper Beams
+  Melee, 2026-10-18). The exact eye-to-centre ray met the lantern, the turned body's float yaw/pitch met the next block,
+  and the auto turned every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks
+  0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so centre-only sight hid most spots.

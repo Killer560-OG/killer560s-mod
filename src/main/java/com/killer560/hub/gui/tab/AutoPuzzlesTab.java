@@ -88,6 +88,15 @@ public class AutoPuzzlesTab extends BaseTab {
         }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Creeper Beams", cfg.isAutoBeamsEnabled(),
                 () -> cfg.setAutoBeamsEnabled(!cfg.isAutoBeamsEnabled()), cfg, requestRebuild);
+        if (cfg.isAutoBeamsEnabled()) {
+            // Shoot (the original) or Melee (to-do item 29, 2026-10-18): left click forward, right click back.
+            widgets.add(SettingsButtonWidget.cycling(beamsModeText(cfg), (btn, dir) -> {
+                        cfg.setAutoBeamsMode(SettingsButtonWidget.step(cfg.getAutoBeamsMode(), dir));
+                        cfg.save();
+                        btn.setMessage(beamsModeText(cfg));
+                    }).bounds(contentX, y, contentWidth, 20).build());
+            y += ROW_STEP;
+        }
         y = toggle(widgets, contentX, y, contentWidth, "Auto Ice Path", cfg.isAutoIcePathEnabled(),
                 () -> cfg.setAutoIcePathEnabled(!cfg.isAutoIcePathEnabled()), cfg, requestRebuild);
         if (cfg.isAutoBlazeEnabled() || cfg.isAutoBeamsEnabled() || cfg.isAutoIcePathEnabled()) {
@@ -227,6 +236,10 @@ public class AutoPuzzlesTab extends BaseTab {
 
     private static Component sliderText(String label, int ms) {
         return Component.literal(label + ": §6" + ms + "ms");
+    }
+
+    private static Component beamsModeText(AutoPuzzlesConfig cfg) {
+        return Component.literal("Creeper Beams Mode: §6" + cfg.getAutoBeamsMode().label());
     }
 
     private static Component onOff(String label, boolean value) {

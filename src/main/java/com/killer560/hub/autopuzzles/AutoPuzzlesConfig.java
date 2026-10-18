@@ -55,6 +55,9 @@ public final class AutoPuzzlesConfig {
     private boolean autoBlazeEnabled = false;
     private boolean autoBeamsEnabled = false;
     private boolean autoIcePathEnabled = false;
+    /** How Auto Creeper Beams hits a lantern (killer560's to-do item 29, 2026-10-18): SHOOT is the original shortbow auto
+     *  and stays the default; MELEE etherwarps to a spot in reach of each lantern and left-clicks it. */
+    private BeamsMode autoBeamsMode = BeamsMode.SHOOT;
     private int shootCooldownMs = 500;
     // QUOI Repositionable (etherwarp to a standing spot) - one opt-in toggle for every auto that uses it.
     private boolean etherwarpReposition = false;
@@ -124,6 +127,7 @@ public final class AutoPuzzlesConfig {
             cfg.autoBlazeEnabled = ConfigJson.getBool(obj, "autoBlazeEnabled", false);
             cfg.autoBeamsEnabled = ConfigJson.getBool(obj, "autoBeamsEnabled", false);
             cfg.autoIcePathEnabled = ConfigJson.getBool(obj, "autoIcePathEnabled", false);
+            cfg.autoBeamsMode = BeamsMode.parse(ConfigJson.getString(obj, "autoBeamsMode", BeamsMode.SHOOT.name()));
             cfg.shootCooldownMs = clamp(ConfigJson.getInt(obj, "shootCooldownMs", cfg.shootCooldownMs), SHOOT_CD_MIN, SHOOT_CD_MAX);
             cfg.etherwarpReposition = ConfigJson.getBool(obj, "etherwarpReposition", false);
             cfg.autoBoulderEnabled = ConfigJson.getBool(obj, "autoBoulderEnabled", false);
@@ -159,6 +163,7 @@ public final class AutoPuzzlesConfig {
             obj.addProperty("autoBlazeEnabled", autoBlazeEnabled);
             obj.addProperty("autoBeamsEnabled", autoBeamsEnabled);
             obj.addProperty("autoIcePathEnabled", autoIcePathEnabled);
+            obj.addProperty("autoBeamsMode", autoBeamsMode.name());
             obj.addProperty("shootCooldownMs", shootCooldownMs);
             obj.addProperty("etherwarpReposition", etherwarpReposition);
             obj.addProperty("autoBoulderEnabled", autoBoulderEnabled);
@@ -277,6 +282,45 @@ public final class AutoPuzzlesConfig {
 
     public void setAutoBeamsEnabled(boolean enabled) {
         this.autoBeamsEnabled = enabled;
+    }
+
+    /** Auto Creeper Beams' way of hitting a lantern. Shoot (the shortbow, from the centre platform) is the default. */
+    public enum BeamsMode {
+        SHOOT("Shoot"),
+        MELEE("Melee");
+
+        private final String label;
+
+        BeamsMode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+
+        /** A saved name back to a mode; anything unknown (an older or hand-edited file) is the default, Shoot. */
+        static BeamsMode parse(String name) {
+            for (BeamsMode m : values()) {
+                if (m.name().equalsIgnoreCase(name)) {
+                    return m;
+                }
+            }
+            return SHOOT;
+        }
+    }
+
+    public BeamsMode getAutoBeamsMode() {
+        return autoBeamsMode;
+    }
+
+    public void setAutoBeamsMode(BeamsMode mode) {
+        this.autoBeamsMode = mode == null ? BeamsMode.SHOOT : mode;
+    }
+
+    /** True when Auto Creeper Beams melees its lanterns instead of shooting them. */
+    public boolean isAutoBeamsMelee() {
+        return autoBeamsMode == BeamsMode.MELEE;
     }
 
     public boolean isAutoIcePathEnabled() {
