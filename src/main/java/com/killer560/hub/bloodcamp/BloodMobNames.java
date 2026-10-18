@@ -28,7 +28,7 @@ final class BloodMobNames {
     static final List<String> NAMES = List.of(
             // undead, every floor
             "Mr. Dead", "Revoker", "Tear", "Skull", "Walker", "Cannibal", "Frost", "Putrid", "Reaper", "Vader", "Flamer",
-            "Freak", "Leech", "Mute", "Ooze", "Parasite", "Psycho", "Wandering Soul",
+            "Freak", "Leech", "Mute", "Ooze", "Parasite", "Psycho", "Wandering Soul", "Doze", "Fels", "Watchful Eye",
             // reincarnated bosses (Floor III on)
             "Bonzo", "Scarf", "Spirit Bear", "Livid",
             // Floor VII: Sadan's giants
@@ -36,7 +36,9 @@ final class BloodMobNames {
 
     private static final Set<String> NAME_SET = Set.copyOf(NAMES);
 
-    static final Pattern TAG = Pattern.compile("^(?:\\[Lv\\d{1,4}] )?(" + String.join("|",
+    // Hypixel puts an affix word before some blood mobs' names ("Stormy Doze", "Stormy Mr. Dead", "Army Walker", killer560
+    // 2026-10-18 screenshots), so one optional capitalised word may come before the name.
+    static final Pattern TAG = Pattern.compile("^(?:\\[Lv\\d{1,4}] )?(?:[A-Z][a-z]+ )?(" + String.join("|",
             NAMES.stream().map(Pattern::quote).toList())
             + ")(?: \\d{1,4}(?:[.,]\\d{1,3})?[kMB]?(?:/\\d{1,4}(?:[.,]\\d{1,3})?[kMB]?)?)?❤$");
 
