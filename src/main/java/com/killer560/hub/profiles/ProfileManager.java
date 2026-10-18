@@ -490,6 +490,7 @@ public final class ProfileManager {
                 com.killer560.hub.dungeonextras.DungeonExtrasConfig::load,
                 com.killer560.hub.dungeoninfo.DungeonInfoConfig::load,
                 com.killer560.hub.dungeonqueue.DungeonQueueConfig::load,
+                com.killer560.hub.lfg.LfgConfig::load,
                 com.killer560.hub.dvd.DvdConfig::load,
                 com.killer560.hub.emotes.ChatEmoteConfig::load,
                 com.killer560.hub.etherwarp.EtherwarpWaypointsConfig::load,

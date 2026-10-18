@@ -18,12 +18,21 @@ default)` and goes out through `ModNet.send` / `sendAsync` / `open` / `webSocket
 
 Service keys: `hypixel`, `noamm`, `noamm-ws`, `odin-ws`, `devonian-ws`, `pv-backend`, `mojang`,
 `minecraftservices`, `microsoft`, `xboxlive`, `github-raw`, `jsdelivr`, `coflnet`, `hysky`, `github-api`, `relay`,
-`pf-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
+`pf-relay`, `lfg-relay`, `lrclib`, `google-translate`, `mymemory`, `vosk`, `maven-central`, `github-download`. `ModNet`'s javadoc says which host and
 feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder stats) and, unlike the others, is read
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
 (`<override>/Killer560-OG/killer560s-mod/releases/download/`).
+
+## Custom Party Finder (`lfg/`)
+
+No property beyond the `lfg-relay` service key (the relay's `/lfg/*` alone, read on every call). `LfgRelay.calls()` lists the
+last 50 relay calls attempted ("METHOD /path {body}", recorded before the network, so offline reads the same). Relay answers
+are fed with `LfgFeature.onMeForTest(json)`, `onListingsForTest(category, json)`, `onJoinReplyForTest(listingId, json)` and
+`onUpsertForTest(json)`; `events()` says what the feature did, `wantedForTest()` is the listing it keeps up, `resetForTest()`
+clears it all. `LfgCommandGate.sent()` / `refused()` are every party command let through or refused, `resetForTest()` clears
+the limits (testkit 1018-pf-*).
 
 ## Price Tooltip (`pricetooltip/`)
 

@@ -28,6 +28,9 @@ import java.util.regex.Pattern;
  * the server's own, and the chat line is anchored on both ends and starts with "Party Finder > ", which no player's
  * chat line can (a player line starts with a rank or a name, and a name has no spaces), so another player can forge
  * neither. Entrance has no Auto Kick times, so queuing it leaves no floor (nobody is judged).
+ * <p>
+ * The same commit also dual-lists the party in the Custom Party Finder ({@code lfg.LfgFeature#onHypixelDungeonQueued}),
+ * whether or not Auto Kick is on: this detector runs from Auto Kick's chat and tick listeners, which are never gated.
  */
 public final class QueuedFloorDetector {
 
@@ -142,6 +145,8 @@ public final class QueuedFloorDetector {
             detected = true;
             detectedFloor = builderPick.toFloor();
             LOGGER.info("[AutoKick] Queued floor {} (from Party Finder)", builderPick.describe());
+            // The Custom Party Finder lists the same party too ("dual list", killer560's to-do item 1, 2026-10-18).
+            com.killer560.hub.lfg.LfgFeature.onHypixelDungeonQueued(builderPick.describe());
         }
     }
 
