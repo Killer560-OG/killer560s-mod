@@ -1,6 +1,7 @@
 package com.killer560.hub.splittimers;
 
 import com.killer560.hub.witherdragons.ServerTickClock;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 
 /**
@@ -44,6 +45,11 @@ final class SplitLagClock {
     private static volatile long accumulatedLagMs = 0L;
     private static volatile long lastPingDrivenTickMs = 0L;
     private static volatile boolean pingClockSeen = false;
+    /** Client-side stalls (our own thread stuck: a frame spike, a heavy render). A ping that arrives late because of them is
+     *  not server lag, so the stall time is taken out of the gap before it counts (2026-10-19: Lag rose with no server lag). */
+    private static volatile long clientStallTotalMs = 0L;
+    private static volatile long lastClientTickMs = 0L;
+    private static volatile long clientStallAtLastPingMs = 0L;
     private static boolean registered = false;
 
     private SplitLagClock() {
@@ -56,12 +62,27 @@ final class SplitLagClock {
         registered = true;
         ServerTickClock.register();
         ServerTickClock.subscribe(SplitLagClock::onTick);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> onClientTick());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
     }
 
+    private static void onClientTick() {
+        long now = System.currentTimeMillis();
+        if (lastClientTickMs != 0L) {
+            long gap = now - lastClientTickMs;
+            if (gap > STALL_THRESHOLD_MS) {
+                clientStallTotalMs += gap - NOMINAL_TICK_MS;
+            }
+        }
+        lastClientTickMs = now;
+    }
+
     private static void reset() {
         accumulatedLagMs = 0L;
+        clientStallTotalMs = 0L;
+        lastClientTickMs = 0L;
+        clientStallAtLastPingMs = 0L;
         lastPingDrivenTickMs = 0L;
         pingClockSeen = false;
     }
@@ -74,10 +95,13 @@ final class SplitLagClock {
         }
         pingClockSeen = true;
         long now = System.currentTimeMillis();
+        // The client-side stall since the last ping is not the server's: take it out of the gap.
+        long clientStalled = clientStallTotalMs - clientStallAtLastPingMs;
+        clientStallAtLastPingMs = clientStallTotalMs;
         if (lastPingDrivenTickMs != 0L) {
             long gap = now - lastPingDrivenTickMs;
             if (gap > STALL_THRESHOLD_MS) {
-                accumulatedLagMs += gap - NOMINAL_TICK_MS;
+                accumulatedLagMs += Math.max(0L, gap - NOMINAL_TICK_MS - clientStalled);
             }
         }
         lastPingDrivenTickMs = now;
