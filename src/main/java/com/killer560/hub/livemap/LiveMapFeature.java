@@ -1015,6 +1015,13 @@ public final class LiveMapFeature {
         return roomTypeOfIndex(cell[0] + cell[1] * GRID);
     }
 
+    /** Fairy and Entrance rooms (the green one on the map) never get a Room Cleared alert: there is nothing to clear in
+     *  them, so the map's cleared state is not a fight he finished (killer560, 2026-10-18). */
+    public static boolean isNoClearAlertRoom(int idx) {
+        String type = roomTypeOfIndex(idx);
+        return "FAIRY".equals(type) || "ENTRANCE".equals(type);
+    }
+
     private static String roomTypeOfIndex(int idx) {
         if (idx < 0) {
             return null;
