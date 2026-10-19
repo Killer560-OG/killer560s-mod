@@ -1,6 +1,7 @@
 package com.killer560.hub.inventoryhud;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
@@ -29,9 +30,9 @@ import com.killer560.hub.compat.McCompat;
  * which this one can't do because "Hide in Screens" is optional). {@link InventoryHudElement#render} is
  * therefore the HUD-editor preview path only.
  * <p>
- * The Opacity setting fades the panel, its outline and the slots. It briefly (2026-09-27 to 2026-10-18) also dimmed
- * the items with a black quad over the panel; that left a black box at any setting below 100 and was removed (killer560,
- * 2026-10-18), so the items are drawn as they are (item textures cannot be tinted on 26.1.2, see {@link #drawStack}).
+ * The Opacity setting fades the panel, its outline, the slots and the items. The items are not tinted (item textures
+ * cannot be on 26.1.2, see {@link #drawStack}): each occupied cell gets a veil in the slot colour at (100 - opacity)%
+ * drawn over its item, so an item fades toward the slot colour rather than the world. Not a true per-item alpha.
  * Where it sits when never moved: centred above the hotbar, a little way up ({@link InventoryHudElement#defaultX}).
  */
 public final class InventoryHudFeature {
@@ -207,6 +208,9 @@ public final class InventoryHudFeature {
         }
         Font font = Minecraft.getInstance().font;
         Inventory inventory = player.getInventory();
+        int veil = itemVeil(bg, opacity);
+        // One batch for every occupied cell's veil, submitted after the items so each veil sits over its item and count.
+        GuiRects veils = veil == 0 ? null : GuiRects.begin(graphics);
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
                 ItemStack stack = inventory.getItem(MAIN_START + row * COLS + col);
@@ -227,14 +231,36 @@ public final class InventoryHudFeature {
                 } else {
                     drawStack(graphics, font, stack, cx + 1, cy + 1, cfg, partialTick);
                 }
+                if (veils != null) {
+                    // The same rectangle the slot backdrop covers (the 16x16 icon in a full slot, the 8x8 one in mini mode).
+                    int inset = cfg.isMiniMode() ? 0 : 1;
+                    veils.fill(cx + inset, cy + inset, cx + cell - 1, cy + cell - 1, veil);
+                }
             }
         }
+        if (veils != null) {
+            veils.submit();
+        }
+    }
 
-        // No dimming quad any more (killer560, 2026-10-18: "lowering the opacity still leaves this black box and it
-        // shouldnt"). From 2026-09-27 a translucent black quad covered the whole panel, items included, to fade the
-        // icons (item textures cannot be tinted on 26.1.2); it could only ever darken, so every step down from 100%
-        // put a black box over the panel instead of letting the world show through. Opacity now fades the panel,
-        // its outline and its slots, and the items stay as they are - the one thing it cannot do is fade an icon.
+    /**
+     * The veil drawn over each occupied cell after its item, as ARGB at (100 - opacity)%: the colour the panel is drawn
+     * behind the items with (the slot backdrop, or the panel fill when there are no slot backdrops), so the item fades
+     * toward that colour. Returns 0 (no veil, no extra draw) at 100% opacity, and with no panel under the items (None),
+     * where there is no colour to fade toward.
+     */
+    private static int itemVeil(InventoryHudConfig.Background bg, int opacity) {
+        if (opacity >= 100 || bg == InventoryHudConfig.Background.NONE) {
+            return 0;
+        }
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
+        int rgb;
+        if (bg == InventoryHudConfig.Background.SLOTS) {
+            rgb = menu == null ? SLOT_BG : menu.card();
+        } else {
+            rgb = menu == null ? PANEL_BG : menu.panel();
+        }
+        return withAlpha(rgb, 100 - opacity);
     }
 
     /**
@@ -277,30 +303,16 @@ public final class InventoryHudFeature {
         return cfg.isVertical() ? col : row;
     }
 
-    /** One 16x16 item at (x, y): vanilla hotbar pop animation, then count / durability decorations.
-     *  <p>
-     *  killer560 (2026-09-27): "the opacity doesn't affect the items opacity and it should." Item
-     *  rendering ({@code graphics.item}) ignores a plain ARGB colour the way text/fill do - it draws the
-     *  item's own texture at full alpha regardless, so this method still cannot tint what it draws. See
-     *  the comment below for why, and see {@link #drawPanel}'s dimming-quad comment for the workaround
-     *  that now compensates for it from outside this method instead. */
+    /** One 16x16 item at (x, y): vanilla hotbar pop animation, then count / durability decorations. The item is drawn
+     *  at full alpha; the Opacity fade is {@link #itemVeil}, drawn by {@link #drawPanel} over this method's output. */
     private static void drawStack(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int x, int y,
                                   InventoryHudConfig cfg, float partialTick) {
-        // TRUE PER-ITEM OPACITY IS STILL NOT IMPLEMENTED HERE, and this is the honest place to say why.
-        //
-        // killer560 (2026-09-27): "For inventory hud the opacity doesn't affect the items opacity and it should."
-        // He is right that it should. The obvious way - RenderSystem.setShaderColor(1,1,1,alpha) around the item
-        // draw - is how it was done for years and does NOT exist in 26.1.2: the method is gone from RenderSystem
-        // entirely (javap-checked against the mapped jar), because item rendering now goes through the submit /
-        // render-pipeline path rather than a global shader colour. Tinting an item here would mean a custom
-        // RenderPipeline or a mixin into the item render layer, which is a real piece of work and exactly the kind
-        // of change that quietly breaks every item this mod draws if it is got wrong.
-        //
-        // That part of the ask is still blocked for the reason above. What's no longer blocked is the actual
-        // complaint - the items looking untouched by the Opacity slider. killer560's own fallback ("dim the whole
-        // menu or something") is implemented one level up: drawPanel draws a translucent black quad over the whole
-        // panel, including every item this method draws, right after this method returns. So the ITEMS this method
-        // draws are still opaque textures with no alpha of their own; they just get dimmed from above afterwards.
+        // Why the item itself is not faded (checked in the 26.1.2 and 26.2 merged jars, 2026-10-18): RenderSystem has no
+        // setShaderColor any more, and GuiGraphicsExtractor.item(ItemStack, int, int, int) only takes a position and a
+        // seed. It builds a TrackingItemStackRenderState and adds a GuiItemRenderState (pose, state, x, y, scissor),
+        // which carries no colour either. The only per-item colour is the tints array on submitItem, which a mixin
+        // would have to rewrite, and blending of its alpha has not been verified in game. So the fade is the veil
+        // drawn by drawPanel (see itemVeil): an approximation, not a true per-item alpha.
         try {
             float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
             if (pop > 0f) {
