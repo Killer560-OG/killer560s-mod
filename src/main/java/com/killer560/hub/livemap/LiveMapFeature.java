@@ -639,8 +639,8 @@ public final class LiveMapFeature {
             if (mapKind == DungeonMapScanner.KIND_DOOR) {
                 continue; // the dungeon map shows a door in this gap, not a room connector
             }
-            if (!connectorMayJoin(mapKind)) {
-                continue; // the calibrated map shows nothing in this gap: two rooms with no link between them
+            if (!connectorMayJoin(idx)) {
+                continue; // the map shows both rooms and nothing in this gap: two rooms with no link between them
             }
             // A world-scanned connector only merges when something confirms it: the dungeon map shows a
             // room separator here, or an adjacent tile is identified (so the shape cap/name check apply).
@@ -737,13 +737,48 @@ public final class LiveMapFeature {
     }
 
     /**
-     * Whether a world-scanned connector may join the rooms either side of it. Once the dungeon map is calibrated it
-     * decides: only a room separator (the map draws the room's interior there) joins. A gap the map shows as nothing
-     * is a wall, and two identified rooms either side of a wall are two rooms - that is how Well, Fairy and Puzzle
-     * were drawn as one (2026-10-18). Before calibration there is no map to ask, so the old rule stands.
+     * Whether a world-scanned connector may join the rooms either side of it. The dungeon map vetoes the join only
+     * where it has something to say: it shows the rooms on both sides of the gap and nothing in the gap itself. That
+     * gap is a wall, and two rooms either side of a wall are two rooms - that is how Well, Fairy and Puzzle were drawn
+     * as one (2026-10-18).
+     * <p>killer560, 2026-10-19: "it isn't linking rooms like it should be" and "the map is perfect until the gate drops
+     * then it overwrites it looking bad". Until then ANY calibrated map vetoed every gap it did not show as a separator,
+     * and the map shows nothing at all of a room nobody has reached yet. So the moment the map item arrived and
+     * calibrated (the start gate), every multi-tile room the map had not revealed fell apart into single tiles, and
+     * each of its connectors, now in no room, was drawn as nothing - a row of squares with empty gaps where the world
+     * scan had drawn the whole room. A gap whose rooms the map does not show yet keeps the world scan's answer.
      */
-    private static boolean connectorMayJoin(int mapKind) {
-        return !DungeonMapScanner.isCalibrated() || mapKind == DungeonMapScanner.KIND_SEPARATOR;
+    private static boolean connectorMayJoin(int idx) {
+        if (!DungeonMapScanner.isCalibrated()) {
+            return true;
+        }
+        int mapKind = DungeonMapScanner.kindAt(idx);
+        if (mapKind == DungeonMapScanner.KIND_SEPARATOR) {
+            return true;
+        }
+        if (mapKind == DungeonMapScanner.KIND_DOOR) {
+            return false;
+        }
+        return !mapShowsRoomsAround(idx);
+    }
+
+    /** Whether the dungeon map shows a room on every tile the gap {@code idx} lies between: left and right of a gap
+     *  between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's centre. */
+    private static boolean mapShowsRoomsAround(int idx) {
+        int gx = idx % GRID;
+        int gz = idx / GRID;
+        boolean oddX = gx % 2 == 1;
+        boolean oddZ = gz % 2 == 1;
+        int[][] tiles = oddX && oddZ
+                ? new int[][]{{gx - 1, gz - 1}, {gx + 1, gz - 1}, {gx - 1, gz + 1}, {gx + 1, gz + 1}}
+                : oddX ? new int[][]{{gx - 1, gz}, {gx + 1, gz}} : new int[][]{{gx, gz - 1}, {gx, gz + 1}};
+        for (int[] t : tiles) {
+            if (t[0] < 0 || t[1] < 0 || t[0] >= GRID || t[1] >= GRID
+                    || DungeonMapScanner.kindAt(t[0] + t[1] * GRID) != DungeonMapScanner.KIND_ROOM) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Joins the tile {@code a} to the tile {@code b} two cells away when they carry the same name and the connector
@@ -753,7 +788,7 @@ public final class LiveMapFeature {
         if (!isTile[b] || roomEntryGrid[b] == null || !name.equals(roomEntryGrid[b].name)) {
             return 0;
         }
-        if (!roomish[connector] || !connectorMayJoin(DungeonMapScanner.kindAt(connector))) {
+        if (!roomish[connector] || !connectorMayJoin(connector)) {
             return 0;
         }
         return union(parent, tileCount, rootEntry, a, b) ? 0 : 1;
