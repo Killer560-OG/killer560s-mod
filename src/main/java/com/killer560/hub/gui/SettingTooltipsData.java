@@ -1721,6 +1721,7 @@ final class SettingTooltipsData {
         d.put("inventory hud/show", "When the panel shows: Always, while you hold the key, or toggled with the key.");
         d.put("inventory hud/vertical", "Lays the panel out as 3 columns by 9 rows instead of 9 by 3.");
         d.put("item browser/item width (columns)", "How many item columns wide the panel is, 3-20.");
+        d.put("item browser/only in inventory", "On: the panel only shows on your inventory screen, not in chests or other menus. Off: it shows in every menu.");
         d.put("item browser/scale", "Resizes the whole panel.");
         d.put("item browser/orientation", "Whether items fill rows left to right or columns top to bottom.");
         d.put("item browser/centered", "Which side of the screen the panel sits on.");

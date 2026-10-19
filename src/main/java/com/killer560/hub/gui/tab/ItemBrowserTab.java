@@ -45,6 +45,13 @@ public class ItemBrowserTab extends BaseTab {
 
         y += 4;
 
+        widgets.add(SettingsButtonWidget.builder(onOff("Only In Inventory", cfg.isInventoryOnly()), btn -> {
+                    cfg.setInventoryOnly(!cfg.isInventoryOnly());
+                    cfg.save();
+                    btn.setMessage(onOff("Only In Inventory", cfg.isInventoryOnly()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         int columnRange = ItemBrowserConfig.MAX_COLUMNS - ItemBrowserConfig.MIN_COLUMNS;
         double columnsNormalized = (cfg.getColumns() - ItemBrowserConfig.MIN_COLUMNS) / (double) columnRange;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, columnsText(cfg), columnsNormalized) {

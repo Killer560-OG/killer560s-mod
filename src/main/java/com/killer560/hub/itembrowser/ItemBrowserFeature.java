@@ -9,6 +9,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -110,7 +111,7 @@ public final class ItemBrowserFeature {
                 return false;
             }
             ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
-            if (!cfg.isEnabled()) {
+            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg)) {
                 return true;
             }
             PanelLayout layout = layout(containerScreen, cfg);
@@ -134,7 +135,7 @@ public final class ItemBrowserFeature {
             // The sort button (right at the panel's bottom) responds to both buttons - left cycles the
             // mode forward, right goes back one, same repo-wide rule every other cycling button follows
             // (see SettingsButtonWidget). Everything else in the panel stays left-click only, unchanged.
-            if (!cfg.isEnabled() || (event.button() != 0 && event.button() != 1)) {
+            if (!cfg.isEnabled() || !showsOn(containerScreen, cfg) || (event.button() != 0 && event.button() != 1)) {
                 return true;
             }
             PanelLayout layout = layout(containerScreen, cfg);
@@ -178,6 +179,12 @@ public final class ItemBrowserFeature {
      *  panel's {@code setTooltipForNextFrame} lands in this frame's tooltip pass. */
     public static void renderFromMixin(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         render(screen, graphics, mouseX, mouseY);
+    }
+
+    /** killer560 (2026-10-18): with "Only In Inventory" on (the default), the panel is drawn and clickable only on the
+     *  player's own inventory screen; every other container (chests, NPC and Bazaar menus...) gets none of it. */
+    private static boolean showsOn(AbstractContainerScreen<?> screen, ItemBrowserConfig cfg) {
+        return !cfg.isInventoryOnly() || screen instanceof InventoryScreen;
     }
 
     /** @return true when the vanilla slot tooltip should be skipped this frame (the craft popup covers the menu). */
@@ -362,7 +369,7 @@ public final class ItemBrowserFeature {
             return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
         }
         ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() || !showsOn(screen, cfg)) {
             if (ItemCraftView.isOpen()) {
                 ItemCraftView.close();
             }

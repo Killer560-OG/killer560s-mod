@@ -95,6 +95,9 @@ public final class ItemBrowserConfig {
      *  like skyhanni that shows the items value on its tooltip". Off by default like every other new
      *  tooltip-altering feature in this mod (EnchantColorsTooltipMixin etc.). */
     private boolean showItemValue = false;
+    /** Only draw the panel on the player's inventory screen (killer560, 2026-10-18: "only have the item browser only show in
+     *  inventory open not all menus"). Off = every container screen, the old behaviour. On by default. */
+    private boolean inventoryOnly = true;
 
     private ItemBrowserConfig() {
     }
@@ -123,6 +126,7 @@ public final class ItemBrowserConfig {
             cfg.align = ConfigJson.getEnum(obj, "align", HorizontalAlign.class, HorizontalAlign.RIGHT);
             cfg.sortMode = ConfigJson.getEnum(obj, "sortMode", SortMode.class, SortMode.VALUE_HIGH_LOW);
             cfg.showItemValue = ConfigJson.getBool(obj, "showItemValue", false);
+            cfg.inventoryOnly = ConfigJson.getBool(obj, "inventoryOnly", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new ItemBrowserConfig();
@@ -140,6 +144,7 @@ public final class ItemBrowserConfig {
             obj.addProperty("align", align.name());
             obj.addProperty("sortMode", sortMode.name());
             obj.addProperty("showItemValue", showItemValue);
+            obj.addProperty("inventoryOnly", inventoryOnly);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -199,5 +204,13 @@ public final class ItemBrowserConfig {
 
     public void setShowItemValue(boolean showItemValue) {
         this.showItemValue = showItemValue;
+    }
+
+    public boolean isInventoryOnly() {
+        return inventoryOnly;
+    }
+
+    public void setInventoryOnly(boolean inventoryOnly) {
+        this.inventoryOnly = inventoryOnly;
     }
 }
