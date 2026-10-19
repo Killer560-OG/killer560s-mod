@@ -78,7 +78,7 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         addRenderableWidget(search);
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
+                .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
     }
 
     private void applyFilter() {
