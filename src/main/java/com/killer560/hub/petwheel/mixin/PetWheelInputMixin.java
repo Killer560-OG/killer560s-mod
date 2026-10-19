@@ -1,6 +1,9 @@
 package com.killer560.hub.petwheel.mixin;
 
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.petwheel.PetSummoner;
+import com.killer560.hub.petwheel.PetWheelScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.entity.player.Input;
@@ -24,7 +27,10 @@ public abstract class PetWheelInputMixin extends ClientInput {
 
     @Inject(method = "tick", at = @At("TAIL"), require = 0)
     private void killer560smod$petWheelHoldStill(CallbackInfo ci) {
-        if (!PetSummoner.suppressesMovement()) {
+        // Also while the pet wheel itself is the open screen (killer560, 2026-10-18: "block my movement while it is in
+        // the pets menu"). Checked live each tick, so closing the wheel by Escape or by letting the hold key go frees
+        // movement on the next tick with nothing to undo.
+        if (!PetSummoner.suppressesMovement() && !(McCompat.screen(Minecraft.getInstance()) instanceof PetWheelScreen)) {
             return;
         }
         Input k = this.keyPresses;

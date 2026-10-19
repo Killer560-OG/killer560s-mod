@@ -2285,6 +2285,8 @@ final class SettingTooltipsData {
         d.put("pet wheel/hide name", "Hides each pet's name under it on the wheel.");
         d.put("pet wheel/hide pets menu", "Keeps the /pets menu invisible while the wheel summons a pet; it still opens and closes behind the scenes.");
         d.put("pet wheel/page", "The wheel is made of pages, each its own set of pets. This is the page the wheel opens on and Edit Pets edits; click to go forward, right-click back. On the wheel itself, scroll or press Left/Right to change page.");
+        d.put("pet wheel/previous page", "A key or mouse button that changes the wheel to the page before this one, on top of Left, Scroll up or Right to next; Escape clears it.");
+        d.put("pet wheel/next page", "A key or mouse button that changes the wheel to the next page, on top of Right, Scroll down or Left to previous; Escape clears it.");
         d.put("pet wheel/page name", "A name for this page, shown on the wheel when you have more than one page.");
         d.put("pet wheel/add page", "Adds an empty page after the last one and switches to it. Open Edit Pets to fill it.");
         d.put("pet wheel/delete page", "Deletes the page shown above (never the last one).");
