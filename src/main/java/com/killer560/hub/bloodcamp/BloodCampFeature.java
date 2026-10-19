@@ -1700,10 +1700,8 @@ public final class BloodCampFeature {
         }
         LAST_FRAME.clear();
         LAST_FRAME.addAll(frame);
-        LAST_FRAME_TEXT.clear();
-        for (double[] f : frame) {
-            LAST_FRAME_TEXT.add(timerText(f[13]));
-        }
+        // The text rows are no longer rebuilt here every frame (a second String.format per mob, for the testkit only):
+        // lastFrameText() derives them from these rows, with the same timerText on the same ticks-left value.
     }
 
     /** Noamm's box colour (255, 0, 255), and its invert once the mob is due within your ping. */
@@ -1717,14 +1715,17 @@ public final class BloodCampFeature {
     /** What the last frame drew, one row per mob: line start xyz (NaN with Spawn Line off), line end xyz, box
      *  min xyz, box max xyz, ARGB colour, ticks left, stand entity id. For the testkit; rebuilt every frame. */
     private static final List<double[]> LAST_FRAME = new ArrayList<>();
-    private static final List<String> LAST_FRAME_TEXT = new ArrayList<>();
 
     public static List<double[]> lastFrame() {
         return new ArrayList<>(LAST_FRAME);
     }
 
     public static List<String> lastFrameText() {
-        return new ArrayList<>(LAST_FRAME_TEXT);
+        List<String> out = new ArrayList<>(LAST_FRAME.size());
+        for (double[] f : LAST_FRAME) {
+            out.add(timerText(f[13]));
+        }
+        return out;
     }
 
     /** "Kill now": your ping in ms is more than the time left (Noamm's colour flip). With no ping known, at zero. */
@@ -1746,8 +1747,25 @@ public final class BloodCampFeature {
     static String timerText(double remainingTicks) {
         double seconds = (remainingTicks - 0.8) / 20.0;
         double rounded = Math.round(seconds * 10.0) / 10.0;
-        return String.format(Locale.US, "%.1f", rounded);
+        // Memoised on the rounded value (fps pass 2026-10-19): a String.format per mob per frame, for a label that
+        // changes a few times a second. Pure function of `rounded`; small direct-mapped table of immutable entries, so a
+        // reader on another thread (the testkit) can only miss, never pair one value with another's text.
+        long bits = Double.doubleToRawLongBits(rounded);
+        int slot = (int) (bits ^ (bits >>> 32) ^ (bits >>> 47)) & (TIMER_SLOTS - 1);
+        TimerText known = TIMER_TEXT[slot];
+        if (known != null && known.bits == bits) {
+            return known.text;
+        }
+        String text = String.format(Locale.US, "%.1f", rounded);
+        TIMER_TEXT[slot] = new TimerText(bits, text);
+        return text;
     }
+
+    private record TimerText(long bits, String text) {
+    }
+
+    private static final int TIMER_SLOTS = 64;
+    private static final TimerText[] TIMER_TEXT = new TimerText[TIMER_SLOTS];
 
     /** Testkit: the colour the last countdown text was drawn in. */
     private static int lastTimerTextColor;
