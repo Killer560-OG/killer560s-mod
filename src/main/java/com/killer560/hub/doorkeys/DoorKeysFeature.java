@@ -164,6 +164,16 @@ public final class DoorKeysFeature {
         return standY + standBoxHeight * 0.5 + lift;
     }
 
+    /**
+     * Where the tracer ends: the centre of the block the key rests in (x and z), at the circle's own height with the Radius
+     * style so the line meets the ring (killer560, 2026-10-18: "have the tracer point to the same height as the circle").
+     * The Sphere style's circle is its equator at the stand's position, and its tracer keeps the block centre's height.
+     */
+    public static Vec3 tracerTarget(Vec3 keyPos, double standBoxHeight, float lift, boolean sphere) {
+        double y = sphere ? Math.floor(keyPos.y) + 0.5 : circleY(keyPos.y, standBoxHeight, lift);
+        return new Vec3(Math.floor(keyPos.x) + 0.5, y, Math.floor(keyPos.z) + 0.5);
+    }
+
     /** A colour setting as r, g, b, a floats: {@code configured} (ARGB) unless it is {@link DoorKeysConfig#COLOR_AUTO},
      *  then {@code auto} with {@code autoAlpha}. */
     public static float[] resolveColor(int configured, float[] auto, float autoAlpha) {
@@ -231,7 +241,7 @@ public final class DoorKeysFeature {
         // Anchor it to the centre of the block the key is resting in instead: it stops moving the moment the
         // key settles, and still follows if the key is actually thrown somewhere else.
         Vec3 keyPos = currentKey.position();
-        Vec3 target = new Vec3(Math.floor(keyPos.x) + 0.5, Math.floor(keyPos.y) + 0.5, Math.floor(keyPos.z) + 0.5);
+        Vec3 target = tracerTarget(keyPos, currentKey.getBbHeight(), cfg.getCircleLift(), sphere);
         float thickness = cfg.getTracerThickness();
         if (sphere) {
             // A see-through shaded ball of the pickup radius around the stand: step inside it and the key is his.
