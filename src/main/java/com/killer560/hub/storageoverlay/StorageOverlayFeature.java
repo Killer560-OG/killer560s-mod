@@ -353,12 +353,19 @@ public final class StorageOverlayFeature {
                 break;
             }
             ItemStack stack = slot.getItem();
-            contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
+            contents.add(stack == null ? ItemStack.EMPTY : stack);
         }
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
         List<ItemStack> cached = cache.get(key);
+        // Compared against the live stacks (sameContents reads only emptiness, count and item, which a copy shares):
+        // this runs every frame on an open page, and copying ~45 stacks first only to find nothing changed was most of
+        // it (fps pass 2026-10-19). The copies are made only when the page really is stored.
         if (sameContents(cached, contents)) {
             return;
+        }
+        for (int i = 0; i < contents.size(); i++) {
+            ItemStack stack = contents.get(i);
+            contents.set(i, stack == ItemStack.EMPTY ? ItemStack.EMPTY : stack.copy());
         }
         cache.put(key, contents);
     }
