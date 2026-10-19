@@ -66,6 +66,18 @@ public final class ModChatChannel {
                             switchToModChat();
                             return 1;
                         })
+                        .then(ClientCommands.literal("msg")
+                                .then(ClientCommands.argument("name", StringArgumentType.word())
+                                        .then(ClientCommands.argument("text", StringArgumentType.greedyString())
+                                                .executes(context -> {
+                                                    String result = ModChatFeature.whisper(
+                                                            StringArgumentType.getString(context, "name"),
+                                                            StringArgumentType.getString(context, "text"));
+                                                    if (result.startsWith("\u00a7c")) {
+                                                        ModChat.send("ModChat", ModChat.bad(result.substring(2)));
+                                                    }
+                                                    return 1;
+                                                }))))
                         .then(ClientCommands.argument("message", StringArgumentType.greedyString())
                                 .executes(context -> {
                                     sendLine(StringArgumentType.getString(context, "message"));

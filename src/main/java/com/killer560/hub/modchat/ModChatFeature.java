@@ -114,6 +114,47 @@ public final class ModChatFeature {
         return "[ModChat] Sent to " + others + " other mod user" + (others == 1 ? "" : "s") + ".";
     }
 
+    /** Marks a whisper inside a Mod Chat line: a control character no typed chat contains, then the target, then the text. */
+    static final String WHISPER_PREFIX = "\u001EWHISPER\u001F";
+    private static final String WHISPER_SEP = "\u001F";
+    private static final java.util.regex.Pattern WHISPER_TARGET = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,16}");
+
+    /** {@code /kc msg <name> <text>}: a Mod Chat line only that player shows. Every mod user's relay gets it; only the named
+     *  player (and the sender) display it, so it is hidden in the game but not encrypted. */
+    public static String whisper(String target, String text) {
+        if (target == null || !WHISPER_TARGET.matcher(target).matches()) {
+            return "§c[ModChat] That is not a player name.";
+        }
+        if (text == null || text.isBlank()) {
+            return "§c[ModChat] Nothing to whisper.";
+        }
+        String line = WHISPER_PREFIX + target + WHISPER_SEP + text.trim();
+        if (line.length() > 512) {
+            return "§c[ModChat] Too long - 512 characters at most.";
+        }
+        return send(line);
+    }
+
+    /** Shows a received whisper if it is to or from this player; any other whisper is dropped on the floor. */
+    private static void handleWhisper(String from, String message) {
+        String body = message.substring(WHISPER_PREFIX.length());
+        int sep = body.indexOf(WHISPER_SEP);
+        if (sep <= 0 || from == null) {
+            return;
+        }
+        String target = body.substring(0, sep);
+        String text = body.substring(sep + 1);
+        if (!WHISPER_TARGET.matcher(target).matches() || text.isEmpty()) {
+            return;
+        }
+        if (isSelf(from)) {
+            ModChat.send("ModChat", ModChat.dim("To " + target + ": "), ModChat.text(text));
+        } else if (isSelf(target)) {
+            ModChat.send("ModChat", ModChat.dim("Whisper from "), ModChat.value(from), ModChat.text(": " + text));
+            com.killer560.hub.notify.ModOverlayMessage.show("[ModChat] whisper from " + from + ": " + text, 4000);
+        }
+    }
+
     /** @return who else is in your relay room right now, for the settings tab. Never null. */
     public static List<String> online() {
         return RelayClient.online();
@@ -140,6 +181,10 @@ public final class ModChatFeature {
                 ModChatConfig cfg = ModChatConfig.getInstance();
                 if (!cfg.isEnabled()) {
                     return;
+                }
+                if (message.startsWith(WHISPER_PREFIX)) {
+                    handleWhisper(from, message);
+                    return; // a whisper is never shown to anyone else, and never reaches the party or meow listeners
                 }
                 if (cfg.isLogToChat()) {
                     // The relay echoes your own line back; in chat that echo IS the record of what you said, the
