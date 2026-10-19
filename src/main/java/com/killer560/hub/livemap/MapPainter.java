@@ -450,9 +450,9 @@ public final class MapPainter {
 
     /**
      * A room still shown unopened that sits behind a blood door (the Blood Room's door, red on the map): killer560,
-     * 2026-10-18: greyed out in both styles. Funny Map: like every other unopened room. Regular map: the light
-     * (undarkened) unopened grey with no "?" over it, so he can see it is there. Such a room is told apart by the blood door beside it (the map
-     * item gives no type for an unopened room), or by its database type where the identity is already shown.
+     * 2026-10-18: greyed out in the Funny Map's greyed brown in both styles, and on the regular map with no "?" over it.
+     * Such a room is told apart by the blood door beside it being its only door (the map item gives no type for an
+     * unopened room), or by its database type where the identity is already shown.
      */
     static boolean unopenedBloodRoom(LiveMapFeature.RoomGroup group) {
         // Unopened by the map item's own word: Funny Map promotes a scanned room to "discovered" in visibleState, but the
@@ -460,10 +460,14 @@ public final class MapPainter {
         if (!unexplored(group)) {
             return false;
         }
-        if (identityRevealed(group) && group.entry != null && group.entry.type != null
-                && group.entry.type.equalsIgnoreCase("BLOOD")) {
-            return true;
+        if (identityRevealed(group) && group.entry != null && group.entry.type != null) {
+            // Its type is already shown: that answers it, whichever doors are next to it.
+            return group.entry.type.equalsIgnoreCase("BLOOD");
         }
+        // A blood door has a room on BOTH sides, and the one it is reached from is often still unopened as well (the
+        // Gold room in killer560's 2026-10-18 screenshot was greyed with the blood room). The Blood Room is the dead end:
+        // the blood door is its only door.
+        boolean bloodDoor = false;
         int g = LiveMapFeature.GRID;
         int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int tile : group.tiles) {
@@ -475,12 +479,16 @@ public final class MapPainter {
                 if (dx < 0 || dz < 0 || dx >= g || dz >= g) {
                     continue;
                 }
-                if (LiveMapFeature.effectiveTile(dz * g + dx) == LiveMapFeature.Tile.DOOR_BLOOD) {
-                    return true;
+                LiveMapFeature.Tile t = LiveMapFeature.effectiveTile(dz * g + dx);
+                if (t == LiveMapFeature.Tile.DOOR_BLOOD) {
+                    bloodDoor = true;
+                } else if (t == LiveMapFeature.Tile.DOOR_NORMAL || t == LiveMapFeature.Tile.DOOR_WITHER
+                        || t == LiveMapFeature.Tile.DOOR_ENTRANCE) {
+                    return false;
                 }
             }
         }
-        return false;
+        return bloodDoor;
     }
 
     static int typeColor(String type, LiveMapConfig cfg) {
@@ -526,10 +534,15 @@ public final class MapPainter {
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
         if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
-            // Funny Map: greyed like every other unopened room. Regular map: the light grey, so he sees it is there.
-            return cfg.isFunnyMap() ? multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened()) : cfg.getColorUnopened();
+            // killer560, 2026-10-18: the unopened Blood Room is greyed in the Funny Map's style in both styles - the
+            // greyed brown Funny Map gives every unopened room (Normal darkened by Darken Unexplored), never the dark
+            // unopened grey. On the regular map only once its blood door is known (unopenedBloodRoom needs the door).
+            return multiply(cfg.getColorNormal(), 1f - cfg.getDarkenUnopened());
         }
-        if (state == DungeonMapScanner.STATE_UNOPENED || state == DungeonMapScanner.STATE_UNDISCOVERED) {
+        // Funny Map: an unopened room the world scan has not reached yet is still a Funny Map room - its own colour
+        // (the map item's byte, Normal brown for a plain unopened room) darkened below, not the regular map's grey.
+        if (state == DungeonMapScanner.STATE_UNDISCOVERED
+                || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap())) {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
         int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();

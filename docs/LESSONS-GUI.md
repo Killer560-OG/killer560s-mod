@@ -487,6 +487,10 @@ section) and the bars have their own editor, `HudEditorScreen.forBars`.
   world-scanned room was promoted to DISCOVERED first, so the slider could not reach a drawn pixel on either build
   (killer560, 2026-10-15: "Darken Unexplored does not work"). `MapPainter.unexplored` now decides from the map item's own
   tile states, and testkit 1015-sim-map-item-only reads the drawn fill at Darken 0 and 0.6.
+- **A blood door has a room on both sides.** `MapPainter.unopenedBloodRoom` took any unopened room touching it, so the
+  unopened room it is reached from (his F7 Gold room, 2026-10-18) was greyed as the blood room too. The Blood Room is the dead
+  end: the blood door must be its only door. Funny Map also painted a not-yet-scanned unopened room in the regular map's grey;
+  it is its own colour darkened now (testkit 1018-map-unopened-funny/-blood).
 - **A half-width row with no partner keeps its switch halfway across the drawer.** `ModScreen.stackRows` widened only rows of
   two or more, so a row whose partner was hidden (Door Keys' Show Tracer with the tracer off) or never planned (Names
   Holding Leap) stopped in the middle. Lone plain rows now take the drawer's full width, stacked or not
