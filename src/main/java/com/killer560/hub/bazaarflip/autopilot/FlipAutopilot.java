@@ -59,24 +59,61 @@ public final class FlipAutopilot {
      * @param maxSpendFraction     share of the spendable purse (purse - reserve) one new buy order may take
      * @param instaSellSlack       Insta Sell is preferred over a sell offer when it nets at least (1 - this) of the offer
      * @param maxHoldDays          stock or an order expected to take longer than this to sell or fill is sized down or sold
+     * @param collectMinFraction   a part-filled order is collected once this share of it is waiting (a full one always)
      */
     public record Limits(double reserve, int maxOpenOrders, int maxOrdersPerSession, int maxRelistsPerOrder,
                          long minRelistAgeMs, long maxOrderUnits, double maxSpendFraction, double instaSellSlack,
-                         double maxHoldDays) {
+                         double maxHoldDays, double collectMinFraction) {
 
         public static Limits defaults() {
-            return new Limits(0, 14, 50, 5, 60_000L, 71_680L, 0.34, 0.005, 1.0);
+            return new Limits(0, 14, 50, 5, 60_000L, 71_680L, 0.34, 0.005, 1.0, 0.25);
         }
 
         public Limits withReserve(double coins) {
             return new Limits(Math.max(0, coins), maxOpenOrders, maxOrdersPerSession, maxRelistsPerOrder, minRelistAgeMs,
-                    maxOrderUnits, maxSpendFraction, instaSellSlack, maxHoldDays);
+                    maxOrderUnits, maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction);
         }
 
         public Limits withMaxOrdersPerSession(int n) {
             return new Limits(reserve, maxOpenOrders, Math.max(0, n), maxRelistsPerOrder, minRelistAgeMs, maxOrderUnits,
-                    maxSpendFraction, instaSellSlack, maxHoldDays);
+                    maxSpendFraction, instaSellSlack, maxHoldDays, collectMinFraction);
         }
+    }
+
+    /** Hypixel wants an Insta Buy's quote (the cheapest offer plus 4%, the unused part refunded) in the purse up front
+     *  (docs/LESSONS.md, "The Instant Buy page quotes the book plus 4%"). Same value as {@code BazaarFlipScanner}'s. */
+    public static final double INSTANT_BUY_QUOTE_MARGIN = 0.04;
+
+    /** Units the sell offers hold below {@code limitEach}, cheapest first: an Insta Buy bigger than this pays more
+     *  than the sale brings back for the extra units. The levels the API gives are only the top of the book, so a
+     *  book that runs out below the limit caps the buy at what was seen. */
+    public static long profitableDepth(BazaarProduct p, double limitEach) {
+        long units = 0;
+        for (com.killer560.hub.auction.BazaarOrderLevel l : p.topSellOffers()) {
+            if (l.pricePerUnit() >= limitEach) {
+                break;
+            }
+            units += l.amount();
+        }
+        return units;
+    }
+
+    /** Coins an Insta Buy of {@code n} units costs, walking the sell offers cheapest first (the last level seen
+     *  repeats past the end of the known book). */
+    public static double walkCost(BazaarProduct p, long n) {
+        double total = 0;
+        long left = n;
+        double last = 0;
+        for (com.killer560.hub.auction.BazaarOrderLevel l : p.topSellOffers()) {
+            long take = Math.min(left, l.amount());
+            total += take * l.pricePerUnit();
+            left -= take;
+            last = l.pricePerUnit();
+            if (left == 0) {
+                return total;
+            }
+        }
+        return total + left * last;
     }
 
     /**
@@ -150,6 +187,13 @@ public final class FlipAutopilot {
     private static FlipAction collect(Situation s) {
         for (FlipOrder o : s.orders()) {
             if (!o.ours() || !(o.claimable() || o.claimableItems() > 0 || o.claimableCoins() > 0)) {
+                continue;
+            }
+            // Every claim is a trip to Manage Orders: wait for a full fill or a worthwhile part of one.
+            long waiting = o.buy() ? o.claimableItems()
+                    : o.claimableCoins() >= 0 && o.price() > 0 ? (long) Math.floor(o.claimableCoins() / o.price()) : -1;
+            boolean full = o.filled() >= o.amount();
+            if (!full && waiting >= 0 && waiting < Math.ceil(o.amount() * s.limits().collectMinFraction())) {
                 continue;
             }
             if (o.buy() && o.claimableItems() != 0) {
@@ -342,7 +386,7 @@ public final class FlipAutopilot {
                 return npcLeft;
             }
         };
-        double budget = ans.instaBuy() ? spendable : spendable * lim.maxSpendFraction();
+        double budget = ans.instaBuy() ? spendable / (1 + INSTANT_BUY_QUOTE_MARGIN) : spendable * lim.maxSpendFraction();
         // Buy orders: a product is only worth an order if a meaningful part of it can fill in the hold window.
         FlipPricing.Pick pick = FlipPricing.best(s.products(), ans, look, budget, id -> busy.contains(id)
                 || (!ans.instaBuy() && byId.get(id) != null && expectedBuyFillsPerDay(byId.get(id)) * lim.maxHoldDays() < 1));
@@ -355,6 +399,11 @@ public final class FlipAutopilot {
             units = Math.min(units, Math.max(1, pick.expectedSold())); // never buy more than sells in the horizon
         }
         if (ans.instaBuy()) {
+            // Only the units the offers hold below the sale price, and only what the purse covers at the walked price.
+            units = Math.min(units, profitableDepth(p, pick.sell()));
+            while (units >= 1 && walkCost(p, units) * (1 + INSTANT_BUY_QUOTE_MARGIN) > spendable) {
+                units = units / 2;
+            }
             if (units < 1) {
                 return null;
             }
