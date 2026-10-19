@@ -1,15 +1,20 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cape.CapeConfig;
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntConsumer;
 
-/** Custom Cape: pick one of the built-in designs to wear (your own player only). Click to step; the first click on None
- *  starts at the first design. */
+/** Custom Cape: pick one of the built-in designs to wear (your own player only), or Make Your Own: a pattern and two colours.
+ *  Click to step; the first click on None starts at the first design, and Make Your Own comes after the last design. */
 public class CapeTab extends BaseTab {
 
     public CapeTab() {
@@ -24,12 +29,42 @@ public class CapeTab extends BaseTab {
                     cfg.cycle(dir);
                     cfg.save();
                     btn.setMessage(capeText(cfg));
+                    requestRebuild.run();
                 }).bounds(contentX, contentY, contentWidth, 18).build());
+        if (cfg.isCustom()) {
+            int y = contentY + 22;
+            widgets.add(SettingsButtonWidget.cycling(patternText(cfg), (btn, dir) -> {
+                        CapeConfig.Pattern[] all = CapeConfig.Pattern.values();
+                        cfg.setCustomPattern(all[SettingsButtonWidget.step(cfg.getCustomPattern().ordinal(), dir, all.length)]);
+                        cfg.save();
+                        btn.setMessage(patternText(cfg));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(colourRow("Colour A", cfg.getCustomColourA(), 0x2D6CDF, cfg::setCustomColourA, cfg, contentX, y, contentWidth));
+            y += 22;
+            widgets.add(colourRow("Colour B", cfg.getCustomColourB(), 0xF2B134, cfg::setCustomColourB, cfg, contentX, y, contentWidth));
+        }
         return widgets;
     }
 
+    private static AbstractWidget colourRow(String label, int rgb, int defaultRgb, IntConsumer set, CapeConfig cfg,
+                                            int x, int y, int w) {
+        return SettingsButtonWidget.builder(ColorSwatch.label(label, 0xFF000000 | rgb), btn -> {
+                    Minecraft client = Minecraft.getInstance();
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label,
+                            0xFF000000 | rgb, 0xFF000000 | defaultRgb, argb -> {
+                        set.accept(argb & 0xFFFFFF);
+                        cfg.save();
+                    }));
+                }).bounds(x, y, w, 18).build();
+    }
+
+    private static Component patternText(CapeConfig cfg) {
+        return Component.literal("Pattern: " + cfg.getCustomPattern().label);
+    }
+
     private static Component capeText(CapeConfig cfg) {
-        String name = cfg.hasCape() ? titleCase(cfg.getSelected()) : "None";
+        String name = cfg.isCustom() ? "Make Your Own" : cfg.hasCape() ? titleCase(cfg.getSelected()) : "None";
         return Component.literal("Cape: " + name);
     }
 

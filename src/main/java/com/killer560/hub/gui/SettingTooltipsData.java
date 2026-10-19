@@ -2491,7 +2491,7 @@ final class SettingTooltipsData {
         d.put("see other mod users", "Shows a coloured diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
         d.put("show as", "Which variant you show to others: legit (green) or cheat (red). Only the cheat build can show cheat.");
-        d.put("cape", "Wear one of the built-in capes. Only your own player shows it; other players see their own cape.");
+        d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colours), or pick Make Your Own to choose a pattern and two colours. Only your own player shows it; other players see their own cape.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");
