@@ -99,10 +99,6 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, 220, 20).build());
         y += 22;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("Terminals to solve:"), Minecraft.getInstance().font));
-        y += 16;
-
         widgets.add(SettingsButtonWidget.builder(panesText(), btn -> {
                     TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
                     cfg.setPanesEnabled(!cfg.isPanesEnabled());
