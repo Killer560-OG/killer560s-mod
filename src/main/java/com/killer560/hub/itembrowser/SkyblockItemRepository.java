@@ -58,6 +58,10 @@ public final class SkyblockItemRepository {
     private static final Path CACHE_PATH =
             ModPaths.config("killer560smod-itembrowser-items-cache.json");
     private static final long CACHE_TTL_MS = 12L * 60 * 60 * 1000;
+    /** Bump when the cache gains a field. Schema 2 added leather {@code color}; an older cache is still served
+     *  but treated as stale, so one refresh rewrites it with colour. */
+    private static final int CACHE_SCHEMA = 2;
+    private static final long SCHEMA_RETRY_MS = 5L * 60 * 1000;
 
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -84,6 +88,9 @@ public final class SkyblockItemRepository {
     private static volatile long lastFetchAtMs = 0;
     private static final AtomicBoolean refreshing = new AtomicBoolean(false);
     private static volatile boolean triedCache = false;
+    /** True while the loaded cache was written by an older {@link #CACHE_SCHEMA}; cleared by a successful refresh. */
+    private static volatile boolean schemaStale = false;
+    private static volatile long schemaRetryAtMs = 0;
 
     private SkyblockItemRepository() {
     }
@@ -103,8 +110,10 @@ public final class SkyblockItemRepository {
         return byId.get(id);
     }
 
-    /** The catalog entry for {@code id} from the on-disk cache alone: never starts a download, so it is safe with the
-     *  Item Browser switched off (the compactor preview reads it that way; killer560, 2026-10-18: "only shows paper"). */
+    /** The catalog entry for {@code id} from the on-disk cache alone (the compactor preview reads it that way; killer560,
+     *  2026-10-18: "only shows paper"). The one exception is a cache older than {@link #CACHE_SCHEMA}: that starts a single
+     *  refresh (retried at most every {@link #SCHEMA_RETRY_MS} while it keeps failing) so leather colour reaches the disk
+     *  even with the Item Browser off. Everything else here stays download-free. */
     public static SkyblockItemEntry findOnDisk(String id) {
         if (id == null) {
             return null;
@@ -112,6 +121,11 @@ public final class SkyblockItemRepository {
         if (!triedCache) {
             triedCache = true;
             loadFromDisk();
+        }
+        long now = System.currentTimeMillis();
+        if (schemaStale && now - schemaRetryAtMs > SCHEMA_RETRY_MS) {
+            schemaRetryAtMs = now;
+            refreshAsync();
         }
         return byId.get(id);
     }
@@ -145,6 +159,7 @@ public final class SkyblockItemRepository {
             }
             setItems(fetched);
             lastFetchAtMs = System.currentTimeMillis();
+            schemaStale = false;
             saveToDisk(fetched);
         });
     }
@@ -204,6 +219,9 @@ public final class SkyblockItemRepository {
                     : (item.has("category_display") ? item.get("category_display").getAsString() : null);
             Double npcSellPrice = item.has("npc_sell_price") ? item.get("npc_sell_price").getAsDouble() : null;
             String description = item.has("description") ? cleanDescription(item.get("description").getAsString()) : null;
+            // Leather armour's "color" is a string "r,g,b" (e.g. "139,0,0"); absent or unparseable -> null.
+            String rawColor = item.has("color") && item.get("color").isJsonPrimitive() ? item.get("color").getAsString() : null;
+            Integer dyeColor = DyeColors.parse(rawColor);
 
             RecipeData recipe = parseRecipe(item);
             List<String> obtainLines = buildObtainLines(item);
@@ -211,7 +229,7 @@ public final class SkyblockItemRepository {
             result.add(new SkyblockItemEntry(id, name, material, itemModel, skinValue, skinSignature,
                     tier, category, npcSellPrice, description,
                     recipe == null ? null : recipe.ingredients, recipe == null ? null : recipe.outputId,
-                    recipe == null ? 0 : recipe.outputCount, obtainLines));
+                    recipe == null ? 0 : recipe.outputCount, obtainLines, dyeColor));
         }
         return result;
     }
@@ -430,10 +448,17 @@ public final class SkyblockItemRepository {
             String json = Files.readString(CACHE_PATH, StandardCharsets.UTF_8);
             JsonObject root = JsonParser.parseString(json).getAsJsonObject();
             long cachedAt = root.has("cachedAtMs") ? root.get("cachedAtMs").getAsLong() : 0;
+            int schema = root.has("schema") ? root.get("schema").getAsInt() : 1;
             List<SkyblockItemEntry> cached = parseHypixelItems(root.getAsJsonArray("items"));
             if (!cached.isEmpty()) {
                 setItems(cached);
                 lastFetchAtMs = cachedAt;
+                if (schema < CACHE_SCHEMA) {
+                    // Written before the current fields existed (no leather colour): serve it, but mark it stale
+                    // so the next refresh rewrites it. Zero makes ensureLoaded refresh now; findOnDisk does too.
+                    lastFetchAtMs = 0;
+                    schemaStale = true;
+                }
             }
         } catch (Exception e) {
             LOGGER.warn("[ItemBrowser] Failed to read real item catalog cache.", e);
@@ -448,6 +473,7 @@ public final class SkyblockItemRepository {
             Files.createDirectories(CACHE_PATH.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("cachedAtMs", lastFetchAtMs);
+            root.addProperty("schema", CACHE_SCHEMA);
             JsonArray array = new JsonArray();
             for (SkyblockItemEntry entry : toSave) {
                 JsonObject obj = new JsonObject();
@@ -479,6 +505,9 @@ public final class SkyblockItemRepository {
                 // parser without a second "already-cleaned" code path.
                 if (entry.description() != null) {
                     obj.addProperty("description", entry.description());
+                }
+                if (entry.dyeColor() != null) {
+                    obj.addProperty("color", DyeColors.format(entry.dyeColor()));
                 }
                 if (entry.recipeIngredients() != null) {
                     JsonArray recipes = new JsonArray();
