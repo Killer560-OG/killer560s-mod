@@ -1637,9 +1637,16 @@ public final class BazaarView {
     }
 
     private static void setQuery(String q) {
-        query = q;
+        query = com.killer560.hub.auction.MenuSearch.boxText(q, com.killer560.hub.auction.MenuSearch.BAZAAR_NAMES);
         mode = Mode.BROWSE;
         listScroll = 0;
+    }
+
+    /** "/bazaar sugar" typed while this menu is open (auction.MenuSearch): the search box's own search for that term. */
+    public static void searchFromCommand(String term) {
+        searchFocused = false;
+        BazaarFollowUp.disarm("command search");
+        setQuery(term);
     }
 
     // ---- small drawing helpers ------------------------------------------------------------------------------------
