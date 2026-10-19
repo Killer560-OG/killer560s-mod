@@ -1606,19 +1606,48 @@ public final class StorageOverlayFeature {
      *  current account/profile's own storages in the settings tab. */
     public static String accountProfilePrefix() {
         Minecraft client = Minecraft.getInstance();
-        String account = client.getUser() != null && client.getUser().getProfileId() != null
-                ? client.getUser().getProfileId().toString() : "unknown-account";
-        return account + "|" + currentProfileName();
+        java.util.UUID id = client.getUser() != null ? client.getUser().getProfileId() : null;
+        String profile = currentProfileName();
+        if (!client.isSameThread()) {
+            return (id != null ? id.toString() : "unknown-account") + "|" + profile;
+        }
+        // Built again only when the account or the profile name changes (the name String is the memoised one below,
+        // so identity is exact).
+        if (profile != prefixProfile || !java.util.Objects.equals(id, prefixId) || prefixValue == null) {
+            prefixValue = (id != null ? id.toString() : "unknown-account") + "|" + profile;
+            prefixProfile = profile;
+            prefixId = id;
+        }
+        return prefixValue;
     }
 
     private static String currentProfileName() {
         String sidebar = readSidebarText();
-        Matcher m = PROFILE_LINE.matcher(sidebar);
-        if (m.find()) {
-            return m.group(1);
+        if (Minecraft.getInstance().isSameThread() && sidebar == profileFor) {
+            return profileValue;
         }
-        return "unknown-profile";
+        Matcher m = PROFILE_LINE.matcher(sidebar);
+        String profile = m.find() ? m.group(1) : "unknown-profile";
+        if (Minecraft.getInstance().isSameThread()) {
+            profileFor = sidebar;
+            profileValue = profile;
+        }
+        return profile;
     }
+
+    // The account+profile prefix was rebuilt from the whole sidebar on every call: ~27 times a frame on the Storage
+    // overview (once per panel) and twice a frame on an open Ender Chest or Backpack page, with the overlay on by
+    // default (fps pass 2026-10-19). The sidebar text depends only on the objective, its title Component, the
+    // Language and each entry's owner and display Component, all of which the server replaces rather than edits,
+    // so the text is rebuilt only when one of them is a different object; the profile name and the prefix are kept
+    // per text. Client thread only; another thread reads afresh as before.
+    private static Object[] sidebarKey = new Object[0];
+    private static String sidebarText = "";
+    private static String profileFor;
+    private static String profileValue;
+    private static String prefixProfile;
+    private static java.util.UUID prefixId;
+    private static String prefixValue;
 
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
@@ -1630,11 +1659,46 @@ public final class StorageOverlayFeature {
         if (sidebar == null) {
             return "";
         }
+        java.util.Collection<PlayerScoreEntry> entries = scoreboard.listPlayerScores(sidebar);
+        boolean memo = client.isSameThread();
+        net.minecraft.network.chat.Component title = sidebar.getDisplayName();
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (memo) {
+            Object[] key = sidebarKey;
+            boolean same = key.length == 3 + 2 * entries.size() && key[0] == sidebar && key[1] == title
+                    && key[2] == language;
+            if (same) {
+                int k = 3;
+                for (PlayerScoreEntry entry : entries) {
+                    if (key[k++] != entry.owner() || key[k++] != entry.display()) {
+                        same = false;
+                        break;
+                    }
+                }
+            }
+            if (same) {
+                return sidebarText;
+            }
+        }
         StringBuilder sb = new StringBuilder();
-        sb.append(sidebar.getDisplayName().getString()).append('\n');
-        for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
+        sb.append(title.getString()).append('\n');
+        for (PlayerScoreEntry entry : entries) {
             sb.append(entry.display() != null ? entry.display().getString() : entry.owner()).append('\n');
         }
-        return sb.toString();
+        String text = sb.toString();
+        if (memo) {
+            Object[] key = new Object[3 + 2 * entries.size()];
+            key[0] = sidebar;
+            key[1] = title;
+            key[2] = language;
+            int k = 3;
+            for (PlayerScoreEntry entry : entries) {
+                key[k++] = entry.owner();
+                key[k++] = entry.display();
+            }
+            sidebarKey = key;
+            sidebarText = text;
+        }
+        return text;
     }
 }
