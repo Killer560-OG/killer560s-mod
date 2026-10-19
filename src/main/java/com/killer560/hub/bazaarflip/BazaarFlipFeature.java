@@ -1188,6 +1188,13 @@ public final class BazaarFlipFeature {
         if (target != null && carriedAtStart >= 0) {
             bought = carried(client) - carriedAtStart;
         }
+        // Diagnostic (2026-10-18: flips ended with purse and inventory room left): the three limits at the moment buying stops.
+        if (target != null && client.player != null) {
+            LOGGER.info("[BazaarFlip] Buying ends ({}): bought {} of {}, purse {}, free room {}, NPC sell room {} coins",
+                    why, bought, target.units(), readPurse(),
+                    BazaarFlipMenus.roomFor(client.player.containerMenu, target.productId(), target.displayName(), Math.max(1, target.stackSize())),
+                    BazaarFlipNpcLimit.remaining());
+        }
         custom = Custom.NONE;
         if (bought <= 0) {
             stop("bought nothing - " + why);
