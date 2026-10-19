@@ -88,6 +88,12 @@ public final class HoppityEggs {
     public static void register() {
         java.util.Arrays.fill(status, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
+        net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> {
+            net.minecraft.world.phys.Vec3 g = LocatorTrail.guess(System.currentTimeMillis());
+            if (g != null) {
+                EggEsp.drawGuess(ctx, g);
+            }
+        });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tickLocator);
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
                 client -> EggTracker.tick(System.currentTimeMillis()));
@@ -156,6 +162,7 @@ public final class HoppityEggs {
         }
         m = FOUND.matcher(plain);
         if (m.matches()) {
+            LocatorTrail.clearGuess();
             set(m.group(1), Status.FOUND);
             sessionEggs++;
             EggTracker.eggFound();
@@ -169,6 +176,7 @@ public final class HoppityEggs {
         if (NONE_NEARBY.matcher(plain).matches()) {
             // The Egglocator's "none left" answer: Skyblocker reads it as every live egg collected, and so do we.
             java.util.Arrays.fill(status, Status.FOUND);
+            LocatorTrail.clearGuess();
             setLocatorResult("§cNo eggs left on this island.");
             return;
         }
@@ -226,6 +234,7 @@ public final class HoppityEggs {
                 && client.player.getMainHandItem().getHoverName().getString().contains("Egglocator");
         if (down && !useWasDown && System.currentTimeMillis() >= locatorUsedMs + LOCATOR_COOLDOWN_MS) {
             locatorUsedMs = System.currentTimeMillis();
+            LocatorTrail.onUse(locatorUsedMs);
         }
         useWasDown = down;
     }

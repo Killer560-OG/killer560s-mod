@@ -199,6 +199,26 @@ public final class EggEsp {
         });
     }
 
+    /** The Egglocator's guessed egg (LocatorTrail): a box at the point and a line from the player to it, through walls. */
+    static void drawGuess(LevelRenderContext context, net.minecraft.world.phys.Vec3 g) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return;
+        }
+        net.minecraft.world.phys.Vec3 eye = client.player.getEyePosition();
+        AABB box = new AABB(g.x - 0.3, g.y - 0.3, g.z - 0.3, g.x + 0.3, g.y + 0.3, g.z + 0.3);
+        McRender.inCameraSpace(context, ThroughWalls.FILLED, (pose, buffer) ->
+                filledBox(pose.pose(), buffer, box, 1f, 0.85f, 0.2f, 0.35f));
+        McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
+            lineBox(pose, buffer, box, 1f, 0.85f, 0.2f, 1f, 2.5f);
+            float dx = (float) (g.x - eye.x), dy = (float) (g.y - eye.y), dz = (float) (g.z - eye.z);
+            buffer.addVertex(pose, (float) eye.x, (float) eye.y, (float) eye.z)
+                    .setColor(0.33f, 1f, 0.33f, 1f).setNormal(pose, dx, dy, dz).setLineWidth(3f);
+            buffer.addVertex(pose, (float) g.x, (float) g.y, (float) g.z)
+                    .setColor(0.33f, 1f, 0.33f, 1f).setNormal(pose, dx, dy, dz).setLineWidth(3f);
+        });
+    }
+
     /** The head of a full-size armour stand sits about 1.45-2.0 blocks above its feet. */
     private static AABB boxFor(Egg egg) {
         return new AABB(egg.x() - 0.3, egg.y() + 1.4, egg.z() - 0.3, egg.x() + 0.3, egg.y() + 2.0, egg.z() + 0.3);
@@ -217,7 +237,7 @@ public final class EggEsp {
     }
 
     /** Holder idiom - built once, on {@link #register()} (cheat build only). */
-    private static final class ThroughWalls {
+    static final class ThroughWalls {
         static final RenderType LINES = RenderType.create("killer560smod_eggesp_lines_through_walls",
                 RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
                         .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/eggesp_lines_through_walls"))

@@ -100,6 +100,7 @@
     "killer560smod-zoom.mixins.json",
     "killer560smod-modusers.mixins.json",
     "killer560smod-cape.mixins.json",
+    "killer560smod-egglocator.mixins.json",
     "killer560smod-perfprobe.mixins.json"
   ],
   "depends": {
