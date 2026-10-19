@@ -24,6 +24,9 @@ import java.util.List;
  *   <li>{@code description} - Hypixel's own real {@code description} flavor-text field (494 of 5,655
  *   items), with its {@code %%color%%} tokens converted to section-sign codes. Not full item lore (no
  *   stats) - Hypixel's public resource doesn't expose that.</li>
+ *   <li>{@code dyeColor} - packed {@code 0xRRGGBB} from Hypixel's {@code "color":"r,g,b"} field, which the
+ *   catalog gives leather armour (Arachne pieces are {@code 139,0,0}). Null when the item has none or the
+ *   value does not parse. See {@link DyeColors}.</li>
  * </ul>
  */
 public record SkyblockItemEntry(
@@ -40,6 +43,7 @@ public record SkyblockItemEntry(
         List<String> recipeIngredients,
         String recipeOutputId,
         int recipeOutputCount,
-        List<String> obtainLines
+        List<String> obtainLines,
+        Integer dyeColor
 ) {
 }

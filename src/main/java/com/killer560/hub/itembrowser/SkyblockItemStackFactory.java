@@ -14,6 +14,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.component.ResolvableProfile;
 
 import java.util.Locale;
@@ -103,7 +104,7 @@ public final class SkyblockItemStackFactory {
      *  the whole catalog in mid-session) still invalidates correctly even though the {@code entry.id()} it
      *  came from didn't change. */
     private record VisualKey(String skinValue, String skinSignature, String material, String itemModel,
-            boolean packDisabled) {
+            boolean packDisabled, Integer dyeColor) {
     }
 
     /** FPS fix: the item browser panel and craft/obtain popup call this once per visible grid cell every
@@ -116,7 +117,8 @@ public final class SkyblockItemStackFactory {
 
     public static ItemStack build(SkyblockItemEntry entry) {
         VisualKey key = new VisualKey(entry.skinValue(), entry.skinSignature(), entry.material(), entry.itemModel(),
-                entry.itemModel() != null && (DetectedMods.isPackDisablerActive() || PackDisabler.isActive()));
+                entry.itemModel() != null && (DetectedMods.isPackDisablerActive() || PackDisabler.isActive()),
+                entry.dyeColor());
         ItemStack cached = BUILD_CACHE.get(key);
         if (cached != null) {
             return cached;
@@ -167,6 +169,12 @@ public final class SkyblockItemStackFactory {
             if (modelId != null) {
                 stack.set(DataComponents.ITEM_MODEL, modelId);
             }
+        }
+
+        // Leather armour: Hypixel's own "color" (see DyeColors). Without DYED_COLOR the leather layer draws the
+        // default brown. Same component and constructor LegacyItems already uses under src/main for both versions.
+        if (entry.dyeColor() != null && entry.material() != null && entry.material().startsWith("LEATHER")) {
+            stack.set(DataComponents.DYED_COLOR, new DyedItemColor(entry.dyeColor()));
         }
         return stack;
     }
