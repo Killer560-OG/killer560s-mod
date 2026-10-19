@@ -90,6 +90,10 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         int col2W = (contentWidth - gap) / 2;
         int col2bX = contentX + col2W + gap;
 
+        // Theme sits directly under the Pet Wheel switch (moved up from the bottom of the tab, killer560, 2026-10-18).
+        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.petwheel.PetWheelScreen.THEME_ID, contentX, y, contentWidth, 18));
+        y += 24;
+
         widgets.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
                     capturing = Capturing.WHEEL;
                     btn.setMessage(Component.literal("Press any key/button..."));
@@ -158,30 +162,31 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        // Pages (killer560, 2026-10-18): the wheel's presets. The page cycled to here is the one Edit Pets edits and the
+        // Pages (killer560, 2026-10-18): the wheel's presets. The page shown here is the one Edit Pets edits and the
         // wheel opens on; on the wheel itself, scroll or Left/Right changes it.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Pages", false), font));
         y += 16;
-        widgets.add(SettingsButtonWidget.cycling(pageText(cfg), (btn, dir) -> {
-                    cfg.stepPage(dir);
+        // One row as a group: Previous, "Page N of M", Next, then the page's name (the name is saved as it is typed).
+        int sideW = contentWidth / 5;
+        int labelW = contentWidth * 27 / 100;
+        int rowGap = 4;
+        int nameW = contentWidth - 2 * sideW - labelW - 3 * rowGap;
+        int labelX = contentX + sideW + rowGap;
+        int nextX = labelX + labelW + rowGap;
+        int nameX = nextX + sideW + rowGap;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Previous"), btn -> {
+                    cfg.stepPage(-1);
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 22;
-        // killer560, 2026-10-18: custom page keys. Left/Right and scroll always work on the wheel as well.
-        widgets.add(SettingsButtonWidget.builder(pageKeyText("Previous Page", cfg.getPrevPageKeyCode(),
-                        capturing == Capturing.PREV_PAGE), btn -> {
-                    capturing = Capturing.PREV_PAGE;
-                    btn.setMessage(Component.literal("Press any key/button..."));
-                }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(pageKeyText("Next Page", cfg.getNextPageKeyCode(),
-                        capturing == Capturing.NEXT_PAGE), btn -> {
-                    capturing = Capturing.NEXT_PAGE;
-                    btn.setMessage(Component.literal("Press any key/button..."));
-                }).bounds(col2bX, y, col2W, 18).build());
-        y += 22;
+                }).bounds(contentX, y, sideW, 18).build());
+        widgets.add(new StringWidget(labelX, y + 3, labelW, 12, pageText(cfg), font));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Next"), btn -> {
+                    cfg.stepPage(1);
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(nextX, y, sideW, 18).build());
         net.minecraft.client.gui.components.EditBox pageName = new net.minecraft.client.gui.components.EditBox(font,
-                contentX, y, contentWidth, 18, Component.literal("Page Name"));
+                nameX, y, nameW, 18, Component.literal("Page Name"));
         pageName.setMaxLength(PetWheelConfig.MAX_PAGE_NAME);
         pageName.setValue(cfg.getCurrentPageName());
         pageName.setHint(Component.literal("§8Page name"));
@@ -204,9 +209,18 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                     }
                     requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18).build());
-        y += 26;
-
-        widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.petwheel.PetWheelScreen.THEME_ID, contentX, y, contentWidth, 18));
+        y += 22;
+        // killer560, 2026-10-18: custom page keys. Left/Right and scroll always work on the wheel as well.
+        widgets.add(SettingsButtonWidget.builder(pageKeyText("Previous Page", cfg.getPrevPageKeyCode(),
+                        capturing == Capturing.PREV_PAGE), btn -> {
+                    capturing = Capturing.PREV_PAGE;
+                    btn.setMessage(Component.literal("Press any key/button..."));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(pageKeyText("Next Page", cfg.getNextPageKeyCode(),
+                        capturing == Capturing.NEXT_PAGE), btn -> {
+                    capturing = Capturing.NEXT_PAGE;
+                    btn.setMessage(Component.literal("Press any key/button..."));
+                }).bounds(col2bX, y, col2W, 18).build());
         y += 24;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Edit Pets"), btn ->
@@ -218,7 +232,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component pageText(PetWheelConfig cfg) {
-        return Component.literal("Page: " + (cfg.getPageIndex() + 1) + "/" + cfg.getPageCount());
+        return Component.literal("Page " + (cfg.getPageIndex() + 1) + " of " + cfg.getPageCount());
     }
 
     private static Component onOff(String label, boolean value) {
