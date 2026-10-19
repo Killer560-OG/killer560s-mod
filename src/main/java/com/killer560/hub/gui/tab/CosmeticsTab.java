@@ -294,9 +294,6 @@ public class CosmeticsTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Visual only - your hitbox stays a player. Your size sliders apply to your mob."), font));
-        y += 12;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 Component.literal("§7Shared with Share if Supporter; never shown on others inside dungeons."), font));
         return y + 18;
     }
