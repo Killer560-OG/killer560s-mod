@@ -199,7 +199,6 @@ public final class AutoGfsFeature {
         lastCommandMs = now;
         sent = item;
         countAtSend = before;
-        ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Auto GFS: "), ModChat.value("/gfs " + args));
     }
 
     /** @return how many to pull, or 0 if no refill is due. */

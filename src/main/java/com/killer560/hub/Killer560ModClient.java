@@ -423,6 +423,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autosell.AutoSellToggleKey.register();
         com.killer560.hub.terminals.FakeCursor.register();
         com.killer560.hub.zoom.ZoomFeature.register();
+        com.killer560.hub.gfs.LegitGfs.register();
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             com.killer560.hub.streamer.StreamerCommands.register();
         }

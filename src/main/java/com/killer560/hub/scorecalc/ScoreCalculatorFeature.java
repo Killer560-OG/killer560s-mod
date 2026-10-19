@@ -773,7 +773,7 @@ public final class ScoreCalculatorFeature {
         if (r.secretsRemaining() <= 0) {
             return "done (" + secretsFound + "/" + r.secretsNeeded() + ")";
         }
-        return r.secretsRemaining() + " more (" + secretsFound + "/" + r.secretsNeeded() + ")";
+        return "§b" + r.secretsRemaining() + " §7more (" + secretsFound + "/" + r.secretsNeeded() + ")";
     }
 
     /**
@@ -800,8 +800,9 @@ public final class ScoreCalculatorFeature {
         } else {
             String sc = r.total() < 270 ? "§c" : r.total() < 300 ? "§e" : "§a";
             score = "§6Score: " + sc + r.total() + " §7(" + sc + r.rank() + "§7)";
+            // The blue number is what you still need to find, not the total the S+ score wants (killer560, 2026-10-19).
             String needed = r.secretsNeeded() < 0 ? "?" : r.secretsNeeded() == Integer.MAX_VALUE ? "§c-"
-                    : (r.secretsRemaining() <= 0 ? "§a" : "§b") + r.secretsNeeded();
+                    : (r.secretsRemaining() <= 0 ? "§a" : "§b") + Math.max(0, r.secretsRemaining());
             String total = r.totalSecrets() > 0 ? "§7/§e" + r.totalSecrets() : "";
             secrets = "§6Secrets: " + (r.secretsRemaining() <= 0 && r.secretsNeeded() >= 0 ? "§a" : "§f") + found
                     + "§7/" + needed + total;

@@ -22,6 +22,7 @@ public class HelpersTab extends FolderTab {
                 new PathfindingTab(),
                 new TrajectoriesTab(),
                 new AbilityKeybindsTab(),
+                new LegitGfsTab(),
                 // The legit, SkyHanni-style helper (killer560, 2026-10-11); Auto Chocolate Factory stays in the cheat block.
                 new ChocolateFactoryTab()
         ));
