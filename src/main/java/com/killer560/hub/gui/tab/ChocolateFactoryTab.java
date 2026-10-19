@@ -40,6 +40,7 @@ public class ChocolateFactoryTab extends BaseTab {
         toggle(w, contentX, y, "Upgrade Info Line", cfg::isInfoLine, cfg::setInfoLine, null);
         toggle(w, contentX, y, "Hoppity Egg Timers", cfg::isEggHud, cfg::setEggHud, null);
         toggle(w, contentX, y, "Duplicate Rabbit Values", cfg::isEggDupeValues, cfg::setEggDupeValues, null);
+        toggle(w, contentX, y, "Hoppity Tracker", cfg::isEggTracker, cfg::setEggTracker, null);
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only settings go at the bottom of the tab under a red header (CLAUDE.md menu placement).
             y[0] += 6;

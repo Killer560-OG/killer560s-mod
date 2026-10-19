@@ -89,6 +89,8 @@ public final class HoppityEggs {
         java.util.Arrays.fill(status, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tickLocator);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                client -> EggTracker.tick(System.currentTimeMillis()));
         ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tick);
         HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
@@ -156,6 +158,7 @@ public final class HoppityEggs {
         if (m.matches()) {
             set(m.group(1), Status.FOUND);
             sessionEggs++;
+            EggTracker.eggFound();
             return;
         }
         m = ALREADY.matcher(plain);
@@ -175,6 +178,7 @@ public final class HoppityEggs {
         }
         if (NEW_RABBIT.matcher(plain).matches()) {
             sessionNew++;
+            EggTracker.newRabbit();
             return;
         }
         m = DUPLICATE.matcher(plain);
@@ -182,6 +186,7 @@ public final class HoppityEggs {
             sessionDupes++;
             try {
                 sessionDupeChocolate += Long.parseLong(m.group(1).replace(",", ""));
+                EggTracker.duplicate(Long.parseLong(m.group(1).replace(",", "")));
             } catch (NumberFormatException ignored) {
                 // Bounded to 20 digits above; a value past a long is simply not added.
             }
@@ -263,6 +268,12 @@ public final class HoppityEggs {
         out.add("§7Next egg in §f" + ChocolateFactoryMenu.duration((soonest - now + 999) / 1000)
                 + (ready > 0 ? " §7| §a" + ready + " to find" : ""));
         out.add(locatorLine(now));
+        if (EggTracker.enabled()) {
+            long[] t = EggTracker.totals();
+            EggTracker.Hunt h = EggTracker.current();
+            out.add("§dTracker: §f" + (h == null ? 0 : h.eggs) + " §7eggs this hunt §8| §f" + t[0] + " §7total over §f"
+                    + t[4] + " §7hunts");
+        }
         int eggs = preview ? 5 : sessionEggs;
         if (eggs > 0 || preview) {
             int dupes = preview ? 3 : sessionDupes;

@@ -28,6 +28,8 @@ public final class ChocolateFactoryConfig {
     private boolean infoLine = true;
     /** Hoppity's Hunt egg timers HUD (legit, read-only) - see {@code egg/HoppityEggs}. */
     private boolean eggHud = true;
+    /** Hoppity egg tracker: counts eggs, rabbits and duplicates per hunt (off by default). */
+    private boolean eggTracker = false;
     /** The duplicate-rabbit chocolate values line on that HUD. */
     private boolean eggDupeValues = true;
     /** Egg ESP: boxes the hidden Chocolate Eggs through walls. Cheat build only, ships off. */
@@ -59,6 +61,7 @@ public final class ChocolateFactoryConfig {
                 cfg.timeTowerReminder = ConfigJson.getBool(o, "timeTowerReminder", true);
                 cfg.infoLine = ConfigJson.getBool(o, "infoLine", true);
                 cfg.eggHud = ConfigJson.getBool(o, "eggHud", true);
+                cfg.eggTracker = ConfigJson.getBool(o, "eggTracker", false);
                 cfg.eggDupeValues = ConfigJson.getBool(o, "eggDupeValues", true);
                 cfg.eggEsp = ConfigJson.getBool(o, "eggEsp", false);
                 cfg.eggEspHideFound = ConfigJson.getBool(o, "eggEspHideFound", true);
@@ -84,6 +87,7 @@ public final class ChocolateFactoryConfig {
             o.addProperty("timeTowerReminder", timeTowerReminder);
             o.addProperty("infoLine", infoLine);
             o.addProperty("eggHud", eggHud);
+            o.addProperty("eggTracker", eggTracker);
             o.addProperty("eggDupeValues", eggDupeValues);
             o.addProperty("eggEsp", eggEsp);
             o.addProperty("eggEspHideFound", eggEspHideFound);
@@ -144,6 +148,14 @@ public final class ChocolateFactoryConfig {
 
     public void setInfoLine(boolean v) {
         infoLine = v;
+    }
+
+    public boolean isEggTracker() {
+        return eggTracker;
+    }
+
+    public void setEggTracker(boolean v) {
+        eggTracker = v;
     }
 
     public boolean isEggHud() {
