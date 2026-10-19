@@ -43,6 +43,8 @@ public abstract class RightClickSendMixin {
                     // A use of ours as it leaves the client: what a sceptre BAT node counts its first downward uses by (the sim's
                     // callback answers the game mode's calls at the head, so those are not seen). Was in BlockClickGapSendMixin.
                     com.killer560.hub.autoroutes.AwaitEvents.onUseSent();
+                    // His own right click mid-route (a manual etherwarp): its teleport is not a server correction.
+                    com.killer560.hub.autoroutes.RouteExecutor.onUseSent();
                 }
             }
         } catch (Throwable t) {

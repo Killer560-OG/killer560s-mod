@@ -935,10 +935,7 @@ public final class MapPainter {
         for (int c : group.cells) {
             int gx = c % LiveMapFeature.GRID;
             int gz = c / LiveMapFeature.GRID;
-            if (gx % 2 == 1 && gz % 2 == 1 && !centreOfSquare(gid, gx, gz)) {
-                continue; // an L-room's inner corner is not part of the room (QUOI lCorners)
-            }
-            if (!cellRevealed(c)) {
+            if (!drawnCell(gid, gx, gz) || !cellRevealed(c)) {
                 continue;
             }
             if (n * 4 + 4 > ROOM_RECTS.length) {
@@ -956,13 +953,38 @@ public final class MapPainter {
             for (int c : group.cells) {
                 int gx = c % LiveMapFeature.GRID;
                 int gz = c / LiveMapFeature.GRID;
-                if ((gx % 2 == 1 && gz % 2 == 1 && !centreOfSquare(gid, gx, gz)) || !cellRevealed(c)) {
+                if (!drawnCell(gid, gx, gz) || !cellRevealed(c)) {
                     continue;
                 }
                 hatchUnits(graphics, ox, oy, ppu, cellPos(gx), cellPos(gz), cellPos(gx) + cellSize(gx),
                         cellPos(gz) + cellSize(gz));
             }
         }
+    }
+
+    /**
+     * Whether {@link #drawRoom} paints cell (gx, gz) of room {@code gid}: every tile; a 2x2 room's centre; and a gap
+     * between two tiles only when the room's tiles on BOTH sides of it are in the room. A gap the grouping joined to one
+     * room alone (its union with the room on the other side was refused, or that side is not a room) is a wall, not part
+     * of the room. killer560, 2026-10-19 15:39: "map broke again and looks all weird" - such a strip bridged a room into
+     * its neighbour, and the standing-room fill (cellRevealed) painted it even where the map item shows nothing.
+     */
+    static boolean drawnCell(int gid, int gx, int gz) {
+        boolean oddX = gx % 2 == 1;
+        boolean oddZ = gz % 2 == 1;
+        if (oddX && oddZ) {
+            return centreOfSquare(gid, gx, gz); // an L-room's inner corner is not part of the room (QUOI lCorners)
+        }
+        if (!oddX && !oddZ) {
+            return true;
+        }
+        int g = LiveMapFeature.GRID;
+        int ax = oddX ? gx - 1 : gx;
+        int az = oddX ? gz : gz - 1;
+        int bx = oddX ? gx + 1 : gx;
+        int bz = oddX ? gz : gz + 1;
+        return ax >= 0 && az >= 0 && bx < g && bz < g
+                && LiveMapFeature.groupIdAt(ax + az * g) == gid && LiveMapFeature.groupIdAt(bx + bz * g) == gid;
     }
 
     /** Stripe spacing, in map units along x + z: a one-unit stripe every this many units. */

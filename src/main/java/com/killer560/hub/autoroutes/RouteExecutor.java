@@ -599,6 +599,7 @@ public final class RouteExecutor {
         execTicks = 0;
         positionPacketsHandled = positionPackets;
         ownTeleportUntil = 0;
+        manualUseAt = Long.MIN_VALUE / 2;
         nextWarpAt = Double.NEGATIVE_INFINITY;
         forceSneak = false;
         unsneakOverride = false;
@@ -704,6 +705,53 @@ public final class RouteExecutor {
         positionPackets++;
     }
 
+    /** {@link #execTicks} of the last use packet HIS right click sent while a route ran (see {@link #onUseSent}). */
+    private static long manualUseAt = Long.MIN_VALUE / 2;
+    /** True while {@link #useHeldItem} sends the route's own use, so the send tap never takes it for his. */
+    private static boolean routeUsing;
+
+    /**
+     * From the send tap ({@code RightClickSendMixin}) for every use / use-on packet as it leaves the client. One sent
+     * while the physical use button is down, and not by {@link #useHeldItem}, is his own right click - a manual etherwarp
+     * or transmission mid-route (killer560, 2026-10-19: "make sure stuff like etherwarping through mobs and things wont
+     * block the auto routes"). A position packet a round trip or so after it is his own teleport, not a server correction:
+     * {@link #checkCorrections} then carries on exactly as before but without the correction alarm.
+     */
+    public static void onUseSent() {
+        if (!running || routeUsing) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (useButtonPhysicallyDown(mc)) {
+            manualUseAt = execTicks;
+        }
+    }
+
+    /** The physical key or mouse button bound to use, ignoring the mapping's own down-flag (a crypt node holds it). */
+    private static boolean useButtonPhysicallyDown(Minecraft client) {
+        try {
+            com.mojang.blaze3d.platform.InputConstants.Key key =
+                    ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) client.options.keyUse)
+                            .killer560smod$getKey();
+            if (key == null) {
+                return false;
+            }
+            if (key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.MOUSE) {
+                return org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().handle(), key.getValue())
+                        == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+            }
+            return key.getType() == com.mojang.blaze3d.platform.InputConstants.Type.KEYSYM
+                    && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), key.getValue());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** His own right click went out within a few round trips: a teleport now is his, not the server's. */
+    private static boolean manualTeleportLikely() {
+        return execTicks - manualUseAt <= (long) warpRoundTripTicks() * NO_ACK_ROUND_TRIPS;
+    }
+
     /**
      * Mod rule (killer560, 2026-10-06: "Nothing in this mod should stop from server corrections ever - just have it send
      * a chat message and make noises"). Run at the top of every tick: a server position packet the route did not ask
@@ -779,6 +827,17 @@ public final class RouteExecutor {
      *  not read as him turning the camera (the same re-base a confirmed landing does). */
     private static void reportCorrection(String what) {
         LocalPlayer self = Minecraft.getInstance().player;
+        if (manualTeleportLikely()) {
+            // His own right click (a manual etherwarp, a transmission) teleported him: the route handles the move exactly
+            // as it would a correction, but no alarm and no correction line (onUseSent).
+            LOGGER.info("[AutoRoutes] Manual teleport tolerated: your own right click {} tick(s) ago moved you {} blocks {}"
+                    + " - not a server correction, no alarm; the route carries on", execTicks - manualUseAt,
+                    String.format(Locale.US, "%.1f", ServerCorrections.lastMoveDistance()), what);
+            manualUseAt = Long.MIN_VALUE / 2;
+            RouteRotation.rebase();
+            cameraGraceTicks = Math.max(cameraGraceTicks, 3);
+            return;
+        }
         RouteTrace.correction(traceIndex(activeNode), activeNode == null ? "-" : traceWhat(activeNode),
                 self == null ? null : self.position(), ServerCorrections.lastMoveDistance(), what);
         ServerCorrections.report("Auto Routes", what, ServerCorrections.lastMoveDistance());
@@ -4160,6 +4219,17 @@ public final class RouteExecutor {
      *  {@link #turnBody}) and the use packet sent with that same rotation. */
     static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
                             boolean blockInteraction) {
+        // The route's own use: the send tap must not take it for his right click (onUseSent), even with his button down.
+        routeUsing = true;
+        try {
+            sendHeldItemUse(client, player, targetYaw, targetPitch, blockInteraction);
+        } finally {
+            routeUsing = false;
+        }
+    }
+
+    private static void sendHeldItemUse(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
+                                        boolean blockInteraction) {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
         // A use of ours: what a crypt / prince kill is attributed to (legit's gameMode.useItem is seen by the mixin too).
         AwaitEvents.onLocalWeaponUse();

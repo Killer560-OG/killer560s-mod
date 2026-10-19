@@ -1702,6 +1702,7 @@ public final class LiveMapFeature {
                 MapPainter.drawRoom(roomRects, group, gid, MapPainter.roomColor(group, cfg), ox, oy, ppu);
             }
             roomRects.submit();
+            logLayout();
 
             // killer560s-mod-relay task (2026-09-21): teammate-reported rooms this client has not scanned
             // itself yet - PartyMapIntel already dropped any cell local scanning has since taken over.
@@ -1715,6 +1716,29 @@ public final class LiveMapFeature {
             }
             // Predictive Rooms and the Special Room Guess, over tiles the map does not already name (2026-10-15).
             PredictedRoomsPainter.draw(graphics, client.font, cfg, ox, oy, ppu);
+        }
+
+        private static int loggedLayoutVersion = Integer.MIN_VALUE;
+
+        /**
+         * One INFO line each time the map redraws with a new room grouping: the room and cell counts and each room's tiles,
+         * so a map that "looks all weird" (killer560, 2026-10-19 15:39) can be read back from latest.log.
+         */
+        private static void logLayout() {
+            if (mapVersion == loggedLayoutVersion) {
+                return;
+            }
+            loggedLayoutVersion = mapVersion;
+            int cells = 0;
+            StringBuilder sb = new StringBuilder();
+            for (RoomGroup group : groups) {
+                cells += group.cells.length;
+                sb.append(' ').append(group.entry != null && group.entry.name != null ? group.entry.name : "?")
+                        .append(java.util.Arrays.toString(group.tiles).replace(" ", ""))
+                        .append('/').append(group.cells.length);
+            }
+            LOGGER.info("Map layout: {} rooms, {} cells, calibrated={}:{}", groups.size(), cells,
+                    DungeonMapScanner.isCalibrated(), sb);
         }
 
         private static void paintMarkers(GuiGraphicsExtractor graphics, LiveMapConfig cfg, Minecraft client, float ox,
