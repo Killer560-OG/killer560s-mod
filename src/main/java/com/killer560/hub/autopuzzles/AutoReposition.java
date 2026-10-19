@@ -59,6 +59,22 @@ final class AutoReposition {
     /** Client tick the use went out, and how many ticks the last warp took from the use to the client seeing him land. */
     private long useTick = -1;
     private int lastTravelTicks = -1;
+    /** Where he stood when the use went out, and whether this warp's use has been sent a second time. */
+    private net.minecraft.world.phys.Vec3 usePos;
+    private boolean resent;
+    private static int resends;
+
+    /** Ticks after a use with no landing before it is sent again: twice the last measured landing time and two, or
+     *  {@code RightClick.eatenRetryTicks} (the round trip and half again, plus 2) when that is longer. */
+    private int resendTicks() {
+        int travel = lastTravelTicks >= 0 ? lastTravelTicks : 4;
+        return Math.max(com.killer560.hub.util.RightClick.eatenRetryTicks(), 2 * travel + 2);
+    }
+
+    /** Uses any reposition sent a second time for want of a landing - read by the testkit. */
+    static int resends() {
+        return resends;
+    }
 
     AutoReposition(String tag, FreeCam camera) {
         this(tag, camera, true);
@@ -117,6 +133,8 @@ final class AutoReposition {
             return false;
         }
         lastRefusal = null;
+        resent = false;
+        usePos = null;
         spot = target;
         bow = bowAfter;
         awaitStand = awaitStandStill;
@@ -215,8 +233,11 @@ final class AutoReposition {
                         AutoPuzzleUtil.skyblockId(player.getMainHandItem()), player.isShiftKeyDown());
                 // Our own warp - waive the gate's teleport stand-down so the arrival step isn't held off too.
                 com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
-                wait = ARRIVE_TIMEOUT_TICKS;
+                if (!resent) {
+                    wait = ARRIVE_TIMEOUT_TICKS; // a resend keeps the first use's timeout running
+                }
                 useTick = com.killer560.hub.util.ActionGate.currentTick();
+                usePos = player.position();
                 warpLag = com.killer560.hub.util.ServerLag.mark();
                 stage = Stage.AWAIT_ARRIVE;
             }
@@ -245,6 +266,24 @@ final class AutoReposition {
                     if (!bow) {
                         releaseSneak(client);
                     }
+                    tick(client);
+                } else if (nextTick && !resent && usePos != null && player.position().distanceToSqr(usePos) < 1.0e-6
+                        && com.killer560.hub.util.ActionGate.currentTick() - useTick
+                        >= resendTicks() + com.killer560.hub.util.ServerLag.ticksSince(warpLag)) {
+                    // No landing by the time one is due (the measured round trip, doubled, and any server stall since):
+                    // the use was dropped, so it goes again now rather than after the 40-tick timeout and a fresh start.
+                    // His Hypixel run 2026-10-18 19:25:14 and 19:25:17: two warps a tick after a lever click got no
+                    // landing, each was resent 42 ticks later with the same look and landed 2 ticks after, and the levers
+                    // they were for went 22 and 43 ticks late - the water's timing was gone. Once only per warp; still
+                    // nothing after that and the full timeout applies. He has not moved, so a late landing of the first
+                    // use cannot have happened yet (it would have moved him) and the second goes from the same spot.
+                    resent = true;
+                    resends++;
+                    LOGGER.info("[AutoPuzzles] {}: no landing on {} {} tick(s) after the use (landings take {}) - sending "
+                                    + "the use again", tag, AutoPuzzleUtil.fmt(spot),
+                            com.killer560.hub.util.ActionGate.currentTick() - useTick,
+                            lastTravelTicks < 0 ? "unmeasured" : lastTravelTicks + " tick(s)");
+                    stage = Stage.USE;
                     tick(client);
                 } else if (--wait + com.killer560.hub.util.ServerLag.ticksSince(warpLag) <= 0) {
                     LOGGER.info("[AutoPuzzles] {}: reposition to {} timed out", tag, spot);

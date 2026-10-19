@@ -455,3 +455,13 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   gathering blocks was the wait, not rebuilding or queueing. A doorway seen from a corridor is a slot a handful of the 336
   grid rays reach; the sweep now adds eight rays round each grid ray that met an unopened room (at most 336 more) and
   sweeps every 2 ticks instead of 4 while it sees one (1018-predict-hypixel-corridor: named at ticks 2-3; tick 35 without them; never on main, stuck at 73 seen).
+- **Predictive Rooms never named Water Board on Hypixel: "every placement ruled out - 330 block(s) seen, 0 of 412"** (his
+  Mod Only Test log, 2026-10-18 19:25:02). Glass has no visual shape, so a look into the room mostly meets the board behind
+  the front glass, and Hypixel's board differs every run (four layouts, 27 piston gates the levers move); every Water Board
+  capture there is (bundled, Mod Only Test's - the same rotated 90 degrees - and Map Logger's) is the same frame of board 0.
+  `RoomPredictor.VOLATILE` leaves the board planes and the colour columns out of the comparison. Write such boxes in
+  ROOM-RELATIVE coordinates and turn them through each capture's own `RoomCaptureRotation`: the first version held capture
+  boxes decoded off the bundled file, and his disk capture (which wins) is turned a quarter, so they covered the wrong
+  wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
+  mirrors the board planes first (main: 0 placements standing, as on Hypixel; `RoomPredictor.disagreements` lists what a
+  placement disagreed on).
