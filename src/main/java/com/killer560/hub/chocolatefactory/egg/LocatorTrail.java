@@ -63,8 +63,23 @@ public final class LocatorTrail {
         guessAt = now;
     }
 
-    /** The egg's guessed position, or null when there is none to show. */
+    /**
+     * The egg's position, or null when there is none to show: the trail's last point snapped to the nearest egg this client
+     * has seen on the island (EggPositions). A trail point with no known egg within reach is not drawn, because no egg
+     * can be there.
+     */
     public static Vec3 guess(long now) {
+        Vec3 raw = rawGuess(now);
+        return raw == null ? null : EggPositions.snap(raw);
+    }
+
+    /** True when a trail is live but no known egg lies within reach of it (the Egglocator line says so). */
+    public static boolean unmatched(long now) {
+        Vec3 raw = rawGuess(now);
+        return raw != null && EggPositions.snap(raw) == null;
+    }
+
+    private static Vec3 rawGuess(long now) {
         if (guess == null || now - guessAt > GUESS_MS) {
             return null;
         }

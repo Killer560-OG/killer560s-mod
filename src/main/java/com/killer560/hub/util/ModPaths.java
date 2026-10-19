@@ -155,6 +155,8 @@ public final class ModPaths {
         t.put("autoclosechest", "skyblock/autoclosechest");
         t.put("cheatutils", "skyblock/cheatutils");
         t.put("chocolatefactory", "skyblock/chocolatefactory");
+        // Egg spots the Egglocator snaps to, per island (killer560smod-eggpositions.json), 2026-10-19.
+        t.put("eggpositions", "skyblock/chocolatefactory");
         t.put("autokick", "skyblock/autokick");
         t.put("autojoinskyblock", "skyblock/autojoinskyblock");
 

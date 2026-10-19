@@ -98,6 +98,7 @@ public final class HoppityEggs {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
                 client -> EggTracker.tick(System.currentTimeMillis()));
         ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(EggPositions::tick);
         HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
                 Identifier.fromNamespaceAndPath("killer560smod", "chocolatefactory_" + HUD.id()),
@@ -220,7 +221,8 @@ public final class HoppityEggs {
         long cooling = locatorUsedMs + LOCATOR_COOLDOWN_MS - now;
         String state = cooling > 0 ? "§7cooling " + ((cooling + 999) / 1000) + "s" : "§aready";
         String last = locatorResult.isEmpty() || now - locatorResultMs > LOCATOR_RESULT_MS ? "" : " §7| " + locatorResult;
-        return "§dEgglocator: " + state + last;
+        String note = LocatorTrail.unmatched(now) ? " §7| §cno known egg there yet" : "";
+        return "§dEgglocator: " + state + last + note;
     }
 
     private static void setLocatorResult(String text) {
