@@ -455,3 +455,6 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   gathering blocks was the wait, not rebuilding or queueing. A doorway seen from a corridor is a slot a handful of the 336
   grid rays reach; the sweep now adds eight rays round each grid ray that met an unopened room (at most 336 more) and
   sweeps every 2 ticks instead of 4 while it sees one (1018-predict-hypixel-corridor: named at ticks 2-3; tick 35 without them; never on main, stuck at 73 seen).
+- Custom Party Finder: "the auto accept didnt work" (2026-10-18) was the LEADER's side - his Untested Cheat log shows a request
+  sitting 47 s with nothing sent, because only a click on Accept answered one; the joiner's invite accept was already there.
+  Read the leader's log before blaming the joiner's chat pattern (Hypixel's framed invite line matched INVITE as written).

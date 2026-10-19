@@ -35,19 +35,26 @@ import java.util.regex.Pattern;
  * <p>
  * <b>The flow.</b> A leader lists his party (the menu's Create, or automatically when he queues in Hypixel's dungeon Party
  * Finder - "dual list"). Every mod user sees it through the relay. A player clicks Join: his client sends a join request
- * to the relay (only that; nothing to Hypixel). The leader's client shows it with the listing's requirements checked
- * against the joiner's stats and an Accept button (default (a): the leader accepts first, no automatic invite). His click
- * sends {@code /party invite <joiner>} and tells the relay. The joiner's client sees the acceptance and, when Hypixel's own
+ * to the relay (only that; nothing to Hypixel; the relay itself refuses a joiner under the listing's Cata Level, Secrets
+ * or S+ PB, or one whose stats it does not have). The leader's client checks the request against the listing's
+ * requirements again: under any of them, or with stats nobody could read, it is rejected (no Accept, the relay told
+ * "declined"). One that meets them all is invited - by his click on Accept, or, with Auto Accept Requests on (the
+ * default since 2026-10-18, when killer560 reported "the auto accept didnt work": he had waited 47 s on a request that
+ * only a click could answer), by his client straight away. Either way {@code /party invite <joiner>} goes through
+ * {@link LfgCommandGate} and the relay is told. The joiner's client sees the acceptance and, when Hypixel's own
  * invite line from that leader arrives, sends {@code /party accept <leader>} once.
  * <p>
  * <b>Hypixel's own "join request".</b> He asked for the joiner to send a join request instead of being invited, if Hypixel
  * has such a thing. This mod knows no Hypixel command for it, so it is not guessed at: invite + accept is the only path.
  * <p>
  * <b>Safety.</b> Every command goes through {@link LfgCommandGate} (names {@code [A-Za-z0-9_]{1,16}}, hard limits). An
- * invite needs the leader's click on a request the relay delivered; an accept needs (1) a join request this player made
+ * invite needs a request the relay delivered for the leader's own live listing (the joiner's name stamped by the relay
+ * from his verified token) that meets every checked requirement, and his click unless Auto Accept Requests is on; an
+ * accept needs (1) a join request this player made
  * by clicking, (2) the relay saying that request's leader accepted it, and (3) Hypixel's anchored invite line naming that
- * same leader - and it is spent after one use. Requests from other mod users can only fill the leader's inbox. Never a
- * movement packet, never a camera change.
+ * same leader - and it is spent after one use. Requests from other mod users can at most fill the leader's inbox (eight)
+ * and, with Auto Accept Requests on, draw invites no faster than the gate's limits. Never a movement packet, never a
+ * camera change.
  * <p>
  * <b>When a listing goes</b> (default (c)): when the party fills (the relay drops a listing whose size reaches its max),
  * when Hypixel says the party ended (left, disbanded, kicked), on entering a dungeon, on leaving the server, or when he
@@ -92,12 +99,29 @@ public final class LfgFeature {
     private static long lastListAt = 0;
     private static long lastJoinClickAt = 0;
     private static boolean screenOpen = false;
-    private static LfgCategory screenTab = LfgCategory.DUNGEONS;
+    private static LfgCategory screenTab = null;
 
     private static final Map<LfgCategory, List<LfgListing>> LISTINGS = new EnumMap<>(LfgCategory.class);
     private static final List<LfgListing.Request> INBOX = new ArrayList<>();
     /** Requests the leader answered here; hidden until the relay drops them, and never invited twice. */
     private static final Set<String> ANSWERED = new HashSet<>();
+    /** Requests turned away here for being under the listing's requirements (or with stats nobody could read): shown as
+     *  rejected, with no Accept, for {@link #REJECTED_SHOWN_MS}; the relay was told "declined". */
+    private static final Map<String, Rejected> REJECTED = new LinkedHashMap<>();
+    static final long REJECTED_SHOWN_MS = 60_000L;
+    /** Auto Accept Requests: after the command gate turns an invite away (its spacing), wait this long before trying again. */
+    static final long AUTO_RETRY_MS = 1_000L;
+    private static long nextAutoAcceptAt = 0;
+
+    /** What the leader's menu may do with a request: invite it, wait for the joiner's stats, or nothing at all. */
+    public enum Verdict { OK, CHECKING, REJECTED }
+
+    /** One row of the leader's inbox. {@code why} names the unmet requirement(s) for a rejected one. */
+    public record InboxRow(LfgListing.Request request, Verdict verdict, String why) {
+    }
+
+    private record Rejected(LfgListing.Request request, String why, long at) {
+    }
     /** Join requests THIS player made by clicking Join: id -> what it was for. Only these can arm an accept. */
     private static final Map<String, LfgListing> MY_REQUESTS = new LinkedHashMap<>();
     private static final Map<String, String> MY_REQUEST_STATE = new HashMap<>();
@@ -151,6 +175,50 @@ public final class LfgFeature {
         return out;
     }
 
+    /** The leader's inbox as the menu shows it: every waiting request with what may be done with it, then the ones turned
+     *  away in the last minute. Only an {@link Verdict#OK} row gets an Accept button. */
+    public static List<InboxRow> inboxRows() {
+        List<InboxRow> out = new ArrayList<>();
+        for (LfgListing.Request r : INBOX) {
+            if (!ANSWERED.contains(r.id())) {
+                out.add(verdict(r));
+            }
+        }
+        long now = System.currentTimeMillis();
+        for (Rejected x : REJECTED.values()) {
+            if (now - x.at() < REJECTED_SHOWN_MS) {
+                out.add(new InboxRow(x.request(), Verdict.REJECTED, x.why()));
+            }
+        }
+        return out;
+    }
+
+    /** The joiner's stats against the leader's own listing: any unmet requirement, or stats that could not be read at
+     *  all, is REJECTED; stats still being looked up are CHECKING; otherwise OK. */
+    static InboxRow verdict(LfgListing.Request r) {
+        LfgListing mine = myListing;
+        if (mine == null) {
+            return new InboxRow(r, Verdict.CHECKING, "");
+        }
+        List<LfgRequirements.Check> checks = LfgRequirements.check(mine.category(), mine.activity(), mine.reqs(), r.joiner());
+        List<String> unmet = new ArrayList<>();
+        for (LfgRequirements.Check c : checks) {
+            if (c.result() == LfgRequirements.Result.UNMET) {
+                unmet.add(c.plain());
+            }
+        }
+        if (!unmet.isEmpty()) {
+            return new InboxRow(r, Verdict.REJECTED, "under " + String.join(", ", unmet));
+        }
+        if (LfgRequirements.anyUnknown(checks)) {
+            if (PartyFinderStatsApi.hasFailed(r.joiner())) {
+                return new InboxRow(r, Verdict.REJECTED, "stats unknown");
+            }
+            return new InboxRow(r, Verdict.CHECKING, "checking stats");
+        }
+        return new InboxRow(r, Verdict.OK, "");
+    }
+
     /** "pending" / "accepted" / "declined" for this player's own request on that listing, or null. */
     public static String myRequestStateFor(String listingId) {
         for (Map.Entry<String, LfgListing> e : MY_REQUESTS.entrySet()) {
@@ -169,8 +237,8 @@ public final class LfgFeature {
     public static void setScreen(boolean open, LfgCategory tab) {
         boolean opened = open && !screenOpen;
         screenOpen = open;
-        if (tab != null && tab != screenTab) {
-            screenTab = tab;
+        if (tab != screenTab) {
+            screenTab = tab; // null: the start screen, which shows no listings and polls none
             lastListAt = 0;
         }
         if (opened) {
@@ -241,6 +309,7 @@ public final class LfgFeature {
         myListing = null;
         INBOX.clear();
         ANSWERED.clear();
+        REJECTED.clear();
         lastSentSize = -1;
         if (had) {
             event("unlist: " + why);
@@ -313,8 +382,9 @@ public final class LfgFeature {
             return "Wait a moment.";
         }
         if (cfg.isCheckRequirements()) {
-            List<LfgRequirements.Check> checks = LfgRequirements.check(listing.category(), listing.reqs(), me);
-            if (me != null && checks.stream().anyMatch(c -> c.result() == LfgRequirements.Result.UNKNOWN)) {
+            List<LfgRequirements.Check> checks = LfgRequirements.check(listing.category(), listing.activity(), listing.reqs(), me);
+            boolean unknown = LfgRequirements.anyUnknown(checks);
+            if (me != null && unknown) {
                 PartyFinderStatsApi.requestHot(List.of(me));
             }
             if (LfgRequirements.anyUnmet(checks)) {
@@ -326,6 +396,13 @@ public final class LfgFeature {
                 }
                 event("join refused (requirements) " + listing.leader());
                 return sb.toString();
+            }
+            if (unknown) {
+                // Unknown is not "met": the leader's client and the relay both turn it away, so say so here first.
+                event("join refused (stats unknown) " + listing.leader());
+                return me != null && PartyFinderStatsApi.hasFailed(me)
+                        ? "Couldn't read your stats, so this party's requirements can't be checked."
+                        : "Your stats are still loading - try again in a moment.";
             }
         }
         lastJoinClickAt = now;
@@ -363,6 +440,14 @@ public final class LfgFeature {
         }
         if (req == null || myListing == null) {
             return "That request is gone.";
+        }
+        InboxRow v = verdict(req);
+        if (v.verdict() == Verdict.REJECTED) {
+            event("invite refused " + req.joiner() + ": " + v.why());
+            return req.joiner() + " is " + v.why() + ".";
+        }
+        if (v.verdict() == Verdict.CHECKING) {
+            return "Still checking " + req.joiner() + "'s stats.";
         }
         String refused = LfgCommandGate.invite(req.joiner());
         if (refused != null) {
@@ -428,10 +513,11 @@ public final class LfgFeature {
                 names.add(r.joiner());
             }
             PartyFinderStatsApi.requestHot(names);
+            boolean auto = LfgConfig.getInstance().isAutoAcceptRequests();
             for (String name : fresh) {
                 event("request from " + name);
                 ModChat.send(CHAT, ModChat.value(name), ModChat.text(" wants to join - "),
-                        ModChat.dim("open /cpf to accept."));
+                        ModChat.dim(auto ? "inviting if they meet your requirements." : "open /cpf to accept."));
             }
         }
 
@@ -625,6 +711,7 @@ public final class LfgFeature {
             if (now - lastUpsertAt >= HEARTBEAT_MS || (size != lastSentSize && now - lastUpsertAt >= UPSERT_GAP_MS)) {
                 upsertNow();
             }
+            judgeInbox(now);
         }
         ARMED.entrySet().removeIf(e -> now > e.getValue());
         if ((wanted != null || !MY_REQUESTS.isEmpty()) && now - lastMeAt >= ME_POLL_MS) {
@@ -635,7 +722,7 @@ public final class LfgFeature {
                 }
             }));
         }
-        if (screenOpen && now - lastListAt >= LIST_POLL_MS) {
+        if (screenOpen && screenTab != null && now - lastListAt >= LIST_POLL_MS) {
             lastListAt = now;
             LfgCategory tab = screenTab;
             LfgRelay.listings(tab).thenAccept(reply -> onClient(() -> {
@@ -646,6 +733,57 @@ public final class LfgFeature {
                 }
             }));
         }
+    }
+
+    /**
+     * The leader's side of the requirements, every tick: a request under the listing's requirements (or whose stats could
+     * not be read) is turned away - the relay is told "declined" and the menu shows it rejected, with no Accept; with Auto
+     * Accept Requests on, one that meets them all is invited through {@link #accept}, so through the same command gate as
+     * a click (its spacing and per-minute limits hold; a turned-away invite is tried again after {@link #AUTO_RETRY_MS}).
+     */
+    static void judgeInbox(long now) {
+        if (myListing == null) {
+            return;
+        }
+        REJECTED.values().removeIf(x -> now - x.at() >= REJECTED_SHOWN_MS);
+        boolean auto = LfgConfig.getInstance().isAutoAcceptRequests();
+        List<String> checking = new ArrayList<>();
+        for (LfgListing.Request r : List.copyOf(INBOX)) {
+            if (ANSWERED.contains(r.id())) {
+                continue;
+            }
+            InboxRow v = verdict(r);
+            switch (v.verdict()) {
+                case REJECTED -> {
+                    ANSWERED.add(r.id());
+                    REJECTED.put(r.id(), new Rejected(r, v.why(), now));
+                    event("rejected " + r.joiner() + ": " + v.why());
+                    LfgRelay.respond(r.id(), false);
+                    ModChat.send(CHAT, ModChat.value(r.joiner()), ModChat.text(" can't join - "), ModChat.dim(v.why() + "."));
+                    changed(null);
+                }
+                case CHECKING -> checking.add(r.joiner());
+                case OK -> {
+                    if (auto && now >= nextAutoAcceptAt) {
+                        String refused = accept(r.id());
+                        if (refused == null) {
+                            ModChat.send(CHAT, ModChat.text("Invited "), ModChat.value(r.joiner()),
+                                    ModChat.dim(" (meets your requirements)."));
+                        } else {
+                            nextAutoAcceptAt = now + AUTO_RETRY_MS;
+                        }
+                    }
+                }
+            }
+        }
+        if (!checking.isEmpty()) {
+            PartyFinderStatsApi.requestHot(checking);
+        }
+    }
+
+    /** Test hook: one pass of the leader's inbox judging, as the tick does it. */
+    public static void judgeInboxForTest() {
+        judgeInbox(System.currentTimeMillis());
     }
 
     private static void onClient(Runnable r) {
@@ -694,6 +832,9 @@ public final class LfgFeature {
         LISTINGS.clear();
         INBOX.clear();
         ANSWERED.clear();
+        REJECTED.clear();
+        nextAutoAcceptAt = 0;
+        screenTab = null;
         MY_REQUESTS.clear();
         MY_REQUEST_STATE.clear();
         ARMED.clear();

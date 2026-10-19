@@ -13,7 +13,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import com.killer560.hub.compat.McCompat;
 
-/** Custom Party Finder ({@link com.killer560.hub.lfg.LfgFeature}): the switch, the menu (/cpf) and its three options. */
+/** Custom Party Finder ({@link com.killer560.hub.lfg.LfgFeature}): the switch, the menu (/cpf) and its four options. */
 public class CustomPartyFinderTab extends BaseTab {
 
     public CustomPartyFinderTab() {
@@ -40,6 +40,8 @@ public class CustomPartyFinderTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
         widgets.add(toggle("Dual-List Hypixel Queues", cfg::isDualList, cfg::setDualList, cfg, contentX, y, contentWidth));
+        y += 22;
+        widgets.add(toggle("Auto Accept Requests", cfg::isAutoAcceptRequests, cfg::setAutoAcceptRequests, cfg, contentX, y, contentWidth));
         y += 22;
         widgets.add(toggle("Auto Accept Invite", cfg::isAutoAcceptInvite, cfg::setAutoAcceptInvite, cfg, contentX, y, contentWidth));
         y += 22;

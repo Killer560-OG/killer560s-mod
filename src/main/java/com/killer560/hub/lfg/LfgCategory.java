@@ -4,19 +4,32 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * The Custom Party Finder's three tabs (killer560's to-do item 1, 2026-10-18; Kuudra is left out until he asks for it), in
- * his order. Each names the relay's category id, the largest party it allows (the relay checks the same numbers), the
+ * The Custom Party Finder's activities (killer560's to-do item 1, 2026-10-18; Kuudra is left out until he asks for it; Misc
+ * added the same day), in his order: the start screen offers each. Each names the relay's category id, the largest party it allows (the relay checks the same numbers), the
  * activities a listing picks from, and the numeric requirements a listing can set.
  * <p>
  * Only requirements this mod can read for another player are CHECKED against a joiner ({@link LfgRequirements}): Catacombs
- * level and total secrets, from the Party Finder stats cache. The rest are shown to everyone but never checked, and say so.
+ * level, total secrets and the floor's S+ PB, from the Party Finder stats cache (the relay checks the same three). The rest are shown to everyone but never checked, and say so.
  */
 public enum LfgCategory {
     DUNGEONS("dungeons", "Dungeons", 5,
             List.of("Entrance", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7"),
-            List.of(new Field("cata", "Cata Level", 50), new Field("secrets", "Secrets", 200000))),
+            List.of(new Field("cata", "Cata Level", 50), new Field("secrets", "Secrets", 200000),
+                    new Field("pb", "S+ PB", 3599))), // "pb" is PB below (an enum constant cannot name it yet)
     DIANA("diana", "Diana", 5, List.of("Diana"), List.of()),
-    FISHING("fishing", "Fishing", 5, List.of("Fishing"), List.of());
+    FISHING("fishing", "Fishing", 5, List.of("Fishing"), List.of()),
+    /** Any party that fits none of the others (killer560, 2026-10-18); its activity is typed, not picked. */
+    MISC("misc", "Misc", 5, List.of("Misc"), List.of());
+
+    /** The PB requirement's key: the floor's S+ personal best, in whole seconds, at most this fast (lower is harder). */
+    public static final String PB = "pb";
+    /** What a typed activity may hold (the relay's own rule). */
+    public static final java.util.regex.Pattern ACTIVITY = java.util.regex.Pattern.compile("^[A-Za-z0-9 +\\-]{1,24}$");
+
+    /** True when a listing's activity is one this category allows: one of its list, or for Misc any typed one. */
+    public boolean allowsActivity(String activity) {
+        return activity != null && (activities.contains(activity) || (this == MISC && ACTIVITY.matcher(activity).matches()));
+    }
 
     /** One requirement a listing can set: the relay key, the label, and the largest value the box accepts. */
     public record Field(String key, String label, int max) {
