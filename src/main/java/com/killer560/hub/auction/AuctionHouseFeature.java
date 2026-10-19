@@ -6,6 +6,7 @@ import com.killer560.hub.util.KeyUtil;
 import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -35,6 +36,9 @@ public final class AuctionHouseFeature {
         // Hypixel's real AH menus drawn in the unified look (2026-10-07).
         com.killer560.hub.auction.ah.AhReskin.register();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AuctionHouseFeature.tick", AuctionHouseFeature::tick));
+        // "/bazaar sugar" and "/ah hype" typed while a Bazaar or Auction House menu is open search that menu instead of
+        // being sent. With no menu open MenuSearch.allowCommand returns true and nothing changes.
+        ClientSendMessageEvents.ALLOW_COMMAND.register(MenuSearch::allowCommand);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             // Real Hypixel /ah - intercepted client-side only while both the browser is enabled AND
             // killer560 turned the override on; otherwise this sends the exact same "/ah" straight to
@@ -50,7 +54,11 @@ public final class AuctionHouseFeature {
                 }
                 return 1;
             }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
-                forwardToServer("ah " + StringArgumentType.getString(ctx, "args"));
+                String line = "ah " + StringArgumentType.getString(ctx, "args");
+                // An open Auction House runs the search itself; see MenuSearch.
+                if (!MenuSearch.tryInMenu(line)) {
+                    forwardToServer(line);
+                }
                 return 1;
             })));
             // Explicit bypass - "Hypixel's still reachable by an explicit command" - always the real menu

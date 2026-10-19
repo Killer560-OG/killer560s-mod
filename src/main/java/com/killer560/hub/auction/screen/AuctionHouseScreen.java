@@ -555,8 +555,10 @@ public final class AuctionHouseScreen extends Screen {
             if (key == InputConstants.KEY_V && event.hasControlDown()) {
                 String clip = this.minecraft.keyboardHandler.getClipboard();
                 if (clip != null) {
-                    query = (query + clip.replaceAll("[\\r\\n\\t]", " ")).substring(0,
-                            Math.min(64, query.length() + clip.length()));
+                    query = com.killer560.hub.auction.MenuSearch.boxText(
+                            (query + clip.replaceAll("[\\r\\n\\t]", " ")).substring(0,
+                                    Math.min(64, query.length() + clip.length())),
+                            com.killer560.hub.auction.MenuSearch.AH_NAMES);
                     typed();
                 }
                 return true;
@@ -575,7 +577,7 @@ public final class AuctionHouseScreen extends Screen {
         // Typing anywhere starts a search: the field takes focus with the first character.
         searchFocused = true;
         if (query.length() < 64) {
-            query += s;
+            query = com.killer560.hub.auction.MenuSearch.boxText(query + s, com.killer560.hub.auction.MenuSearch.AH_NAMES);
             typed();
         }
         return true;
@@ -584,6 +586,16 @@ public final class AuctionHouseScreen extends Screen {
     private void typed() {
         typedAtMs = System.currentTimeMillis();
         typedSinceCommit = true;
+    }
+
+    /** "/ah hype" typed while this browser is open (auction.MenuSearch): the box's own search for that term, recorded as
+     *  a typed search the way Enter records one. */
+    public void searchFromCommand(String term) {
+        query = term.length() > 64 ? term.substring(0, 64) : term;
+        searchFocused = false;
+        scroll = 0;
+        typed();
+        commitSearch();
     }
 
     // ---- testkit hooks --------------------------------------------------------------------------------------------

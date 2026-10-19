@@ -48,7 +48,10 @@ public final class BazaarFeature {
                 forwardToServer("bz");
                 return 1;
             }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
-                forwardToServer("bz " + StringArgumentType.getString(ctx, "args"));
+                String line = "bz " + StringArgumentType.getString(ctx, "args");
+                if (!com.killer560.hub.auction.MenuSearch.tryInMenu(line)) {
+                    forwardToServer(line);
+                }
                 return 1;
             })));
             // Kept as an alias of /bz for anyone used to typing it.
@@ -56,7 +59,10 @@ public final class BazaarFeature {
                 forwardToServer("bz");
                 return 1;
             }).then(ClientCommands.argument("args", StringArgumentType.greedyString()).executes(ctx -> {
-                forwardToServer("bz " + StringArgumentType.getString(ctx, "args"));
+                String line = "bz " + StringArgumentType.getString(ctx, "args");
+                if (!com.killer560.hub.auction.MenuSearch.tryInMenu(line)) {
+                    forwardToServer(line);
+                }
                 return 1;
             })));
         });
