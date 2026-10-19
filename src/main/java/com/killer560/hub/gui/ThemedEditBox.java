@@ -22,6 +22,8 @@ public class ThemedEditBox extends EditBox {
     private final int oh;
     private String themedHint = "";
     private boolean brightHint;
+    /** Alpha of the well's fill, 0 to 255; 255 (the default) draws the theme's well exactly as before. */
+    private int wellAlpha = 255;
 
     public ThemedEditBox(Font font, int x, int y, int w, int h, Component narration) {
         super(font, x + 5, y + (h - 8) / 2, Math.max(8, w - 10), 9, narration);
@@ -41,6 +43,12 @@ public class ThemedEditBox extends EditBox {
     /** Draws the hint in the text colour instead of the dim one (killer560's proxy fields: "make it all white"). */
     public ThemedEditBox brightHint() {
         this.brightHint = true;
+        return this;
+    }
+
+    /** The well's background alpha (0 to 255), for a screen that lets the box be see-through. The text stays opaque. */
+    public ThemedEditBox wellAlpha(int alpha) {
+        this.wellAlpha = Math.max(0, Math.min(255, alpha));
         return this;
     }
 
@@ -83,7 +91,8 @@ public class ThemedEditBox extends EditBox {
         setTextShadow(MenuStyle.TEXT_SHADOW);
         boolean hover = mouseX >= ox && mouseX < ox + ow && mouseY >= oy && mouseY < oy + oh;
         GuiRects r = GuiRects.begin(g);
-        MenuStyle.well(r, ox, oy, ow, oh, MenuStyle.WELL_DEEP);
+        int fill = wellAlpha >= 255 ? MenuStyle.WELL_DEEP : (MenuStyle.WELL_DEEP & 0x00FFFFFF) | (wellAlpha << 24);
+        MenuStyle.well(r, ox, oy, ow, oh, fill);
         if (isFocused() || hover) {
             r.outline(ox - 1, oy - 1, ow + 2, oh + 2, isFocused() ? MenuStyle.OR2 : MenuStyle.KEY_CHIP_EDGE);
         }

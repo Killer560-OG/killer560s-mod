@@ -2142,6 +2142,7 @@ final class SettingTooltipsData {
         d.put("auto mask/return to slot", "Switches back to what you were holding once the rod has been thrown.");
         d.put("auto mask/phoenix route", "How an automatic swap puts Phoenix out: throw your rod, or open /pets and click it.");
         d.put("storage search/storage search", "Run /search to find items across all your cached storages, chests and menus.");
+        d.put("storage search/search box opacity", "How see-through the search box is: 100% is solid as before, lower shows the screen behind it. The text stays solid.");
         d.put("storage search/open bind 1", "Click, then press the key or mouse button that opens the search.");
         d.put("storage search/open bind 2", "A second key or mouse button that opens the search.");
         d.put("storage search/open bind 3", "A third key or mouse button that opens the search.");

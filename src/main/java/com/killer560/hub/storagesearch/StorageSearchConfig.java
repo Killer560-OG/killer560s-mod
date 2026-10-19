@@ -109,6 +109,8 @@ public final class StorageSearchConfig {
     private boolean focusSingleStorage = true;
     private SortMode sortMode = SortMode.DEFAULT;
     private SourceFilter sourceFilter = SourceFilter.ALL;
+    /** The search box's background opacity, 0 to 100 percent (killer560, 2026-10-18); 100 is the box as it always was. */
+    private int searchBoxOpacity = 100;
 
     private StorageSearchConfig() {
         binds.add(new StorageSearchBind(StorageSearchBind.MOD_CTRL, org.lwjgl.glfw.GLFW.GLFW_KEY_F));
@@ -193,6 +195,9 @@ public final class StorageSearchConfig {
                 if (obj.has("sortMode")) {
                     cfg.sortMode = parseEnum(obj.get("sortMode").getAsString(), SortMode.values(), SortMode.DEFAULT);
                 }
+                if (obj.has("searchBoxOpacity")) {
+                    cfg.setSearchBoxOpacity(obj.get("searchBoxOpacity").getAsInt());
+                }
                 if (obj.has("sourceFilter")) {
                     cfg.sourceFilter = parseEnum(obj.get("sourceFilter").getAsString(), SourceFilter.values(), SourceFilter.ALL);
                 }
@@ -235,9 +240,19 @@ public final class StorageSearchConfig {
             obj.addProperty("focusSingleStorage", focusSingleStorage);
             obj.addProperty("sortMode", sortMode.name());
             obj.addProperty("sourceFilter", sourceFilter.name());
+            obj.addProperty("searchBoxOpacity", searchBoxOpacity);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    /** The search box's background opacity, 0 to 100 percent. */
+    public int getSearchBoxOpacity() {
+        return searchBoxOpacity;
+    }
+
+    public void setSearchBoxOpacity(int percent) {
+        this.searchBoxOpacity = Math.max(0, Math.min(100, percent));
     }
 
     public boolean isEnabled() {
