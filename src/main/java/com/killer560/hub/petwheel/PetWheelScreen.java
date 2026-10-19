@@ -484,6 +484,10 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
                 dragging = false;
                 dragCurrentX = event.x();
                 dragCurrentY = event.y();
+            } else if (hit >= 0) {
+                // killer560 (2026-10-18): a blank slot takes a new pet on a left click as well as a right click. Only
+                // replacing a pet that is already there stays on right click.
+                PetWheelEditor.beginPick(hit, this);
             }
             return true;
         }
