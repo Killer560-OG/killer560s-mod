@@ -16,6 +16,32 @@ import java.nio.file.Path;
  *  other new feature in this mod. */
 public final class LividSolverConfig {
 
+    /** Tracer thickness range (killer560, 2026-10-18: "tracer thickness" for the Livid solver). */
+    public static final float MIN_TRACER_THICKNESS = 1f;
+    public static final float MAX_TRACER_THICKNESS = 10f;
+    public static final float DEFAULT_TRACER_THICKNESS = 2f;
+    public static final int DEFAULT_CUSTOM_COLOUR = 0xFFFFFFFF;
+
+    /** Where the highlight and the tracer get their colour (killer560, 2026-10-18): the Livid's own wool colour, or the
+     *  two colours set in the Custom settings. */
+    public enum ColourMode {
+        MATCH("Match Livid"), CUSTOM("Custom");
+
+        public final String label;
+
+        ColourMode(String label) {
+            this.label = label;
+        }
+
+        public ColourMode next() {
+            return this == MATCH ? CUSTOM : MATCH;
+        }
+
+        public ColourMode previous() {
+            return this == MATCH ? CUSTOM : MATCH;
+        }
+    }
+
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-lividsolver.json");
@@ -26,6 +52,10 @@ public final class LividSolverConfig {
     private boolean showTimer = true;
     /** killer560, 2026-09-20: "add an option to draw a line to the correct livid". */
     private boolean showLine = true;
+    private float tracerThickness = DEFAULT_TRACER_THICKNESS;
+    private ColourMode colourMode = ColourMode.MATCH;
+    private int highlightColour = DEFAULT_CUSTOM_COLOUR;
+    private int tracerColour = DEFAULT_CUSTOM_COLOUR;
 
     private LividSolverConfig() {
     }
@@ -55,6 +85,10 @@ public final class LividSolverConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.showTimer = ConfigJson.getBool(obj, "showTimer", true);
             cfg.showLine = ConfigJson.getBool(obj, "showLine", true);
+            cfg.tracerThickness = clampThickness(ConfigJson.getFloat(obj, "tracerThickness", DEFAULT_TRACER_THICKNESS));
+            cfg.colourMode = ConfigJson.getEnum(obj, "colourMode", ColourMode.class, ColourMode.MATCH);
+            cfg.highlightColour = ConfigJson.getInt(obj, "highlightColour", DEFAULT_CUSTOM_COLOUR);
+            cfg.tracerColour = ConfigJson.getInt(obj, "tracerColour", DEFAULT_CUSTOM_COLOUR);
             instance = cfg;
         } catch (Exception e) {
             instance = new LividSolverConfig();
@@ -68,6 +102,10 @@ public final class LividSolverConfig {
             obj.addProperty("enabled", enabled);
             obj.addProperty("showTimer", showTimer);
             obj.addProperty("showLine", showLine);
+            obj.addProperty("tracerThickness", tracerThickness);
+            obj.addProperty("colourMode", colourMode.name());
+            obj.addProperty("highlightColour", highlightColour);
+            obj.addProperty("tracerColour", tracerColour);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -101,5 +139,41 @@ public final class LividSolverConfig {
 
     public void setShowLine(boolean showLine) {
         this.showLine = showLine;
+    }
+
+    public float getTracerThickness() {
+        return tracerThickness;
+    }
+
+    public void setTracerThickness(float tracerThickness) {
+        this.tracerThickness = clampThickness(tracerThickness);
+    }
+
+    public ColourMode getColourMode() {
+        return colourMode;
+    }
+
+    public void setColourMode(ColourMode colourMode) {
+        this.colourMode = colourMode == null ? ColourMode.MATCH : colourMode;
+    }
+
+    public int getHighlightColour() {
+        return highlightColour;
+    }
+
+    public void setHighlightColour(int argb) {
+        this.highlightColour = argb;
+    }
+
+    public int getTracerColour() {
+        return tracerColour;
+    }
+
+    public void setTracerColour(int argb) {
+        this.tracerColour = argb;
+    }
+
+    private static float clampThickness(float v) {
+        return Math.max(MIN_TRACER_THICKNESS, Math.min(MAX_TRACER_THICKNESS, v));
     }
 }

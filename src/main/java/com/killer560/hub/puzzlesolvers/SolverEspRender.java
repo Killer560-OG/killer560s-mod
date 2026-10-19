@@ -75,6 +75,10 @@ public final class SolverEspRender {
     }
 
     private static boolean throughWalls(SolverEspConfig.Solver solver) {
+        // Livid's through-walls highlight is cheat-only (killer560, 2026-10-18): a legit build never draws it through blocks.
+        if (solver == SolverEspConfig.Solver.LIVID && !com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return false;
+        }
         return SolverEspConfig.getInstance().isThroughWalls(solver);
     }
 

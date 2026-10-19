@@ -26,6 +26,13 @@ final class SolverEspRows {
     /** Adds the rows one section under everything already in {@code widgets}. {@code waypoints}: the solver draws waypoints. */
     static void append(List<AbstractWidget> widgets, SolverEspConfig.Solver solver, int x, int width, int fallbackY,
                        boolean waypoints) {
+        append(widgets, solver, x, width, fallbackY, waypoints, true);
+    }
+
+    /** As {@link #append(List, SolverEspConfig.Solver, int, int, int, boolean)}; {@code throughWallsRow} false leaves the
+     *  Through Walls row out, for a tab that puts it somewhere else (Livid's is cheat-only, at the bottom of its tab). */
+    static void append(List<AbstractWidget> widgets, SolverEspConfig.Solver solver, int x, int width, int fallbackY,
+                       boolean waypoints, boolean throughWallsRow) {
         int y = fallbackY;
         for (AbstractWidget w : widgets) {
             y = Math.max(y, w.getY() + w.getHeight() + 6);
@@ -40,12 +47,10 @@ final class SolverEspRows {
                     btn.setMessage(onOff("Solver Highlight", cfg.isEnabled(solver)));
                 }).bounds(x, y, width, 18).build());
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)), btn -> {
-                    cfg.setThroughWalls(solver, !cfg.isThroughWalls(solver));
-                    cfg.save();
-                    btn.setMessage(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)));
-                }).bounds(x, y, width, 18).build());
-        y += 22;
+        if (throughWallsRow) {
+            throughWallsRow(widgets, solver, x, width, y);
+            y += 22;
+        }
         if (waypoints) {
             widgets.add(SettingsButtonWidget.cycling(styleText(cfg, solver), (btn, dir) -> {
                         cfg.setWaypointStyle(solver, SettingsButtonWidget.step(cfg.getWaypointStyle(solver), dir));
@@ -53,6 +58,16 @@ final class SolverEspRows {
                         btn.setMessage(styleText(cfg, solver));
                     }).bounds(x, y, width, 18).build());
         }
+    }
+
+    /** The Through Walls row alone, at {@code y}. */
+    static void throughWallsRow(List<AbstractWidget> widgets, SolverEspConfig.Solver solver, int x, int width, int y) {
+        SolverEspConfig cfg = SolverEspConfig.getInstance();
+        widgets.add(SettingsButtonWidget.builder(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)), btn -> {
+                    cfg.setThroughWalls(solver, !cfg.isThroughWalls(solver));
+                    cfg.save();
+                    btn.setMessage(onOff("Solver Highlight Through Walls", cfg.isThroughWalls(solver)));
+                }).bounds(x, y, width, 18).build());
     }
 
     private static Component styleText(SolverEspConfig cfg, SolverEspConfig.Solver solver) {
