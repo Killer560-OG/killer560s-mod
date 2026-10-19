@@ -61,6 +61,8 @@ public final class InventoryHudConfig {
     private boolean miniMode = false;
     private Background background = Background.SLOTS;
     private int backgroundOpacity = 80;
+    /** Percent. The fade over each item (the veil); 100 draws no veil. Independent of the panel's background opacity. */
+    private int itemOpacity = 100;
     private boolean showCounts = true;
     private boolean showDurability = true;
     private boolean pickupAnimation = true;
@@ -103,6 +105,8 @@ public final class InventoryHudConfig {
                 cfg.background = enumValue(obj, "background", Background.class, cfg.background);
                 cfg.backgroundOpacity = obj.has("backgroundOpacity")
                         ? clampOpacity(obj.get("backgroundOpacity").getAsInt()) : cfg.backgroundOpacity;
+                cfg.itemOpacity = obj.has("itemOpacity")
+                        ? clampOpacity(obj.get("itemOpacity").getAsInt()) : cfg.itemOpacity;
                 cfg.showCounts = bool(obj, "showCounts", cfg.showCounts);
                 cfg.showDurability = bool(obj, "showDurability", cfg.showDurability);
                 cfg.pickupAnimation = bool(obj, "pickupAnimation", cfg.pickupAnimation);
@@ -127,6 +131,7 @@ public final class InventoryHudConfig {
             obj.addProperty("miniMode", miniMode);
             obj.addProperty("background", background.name());
             obj.addProperty("backgroundOpacity", backgroundOpacity);
+            obj.addProperty("itemOpacity", itemOpacity);
             obj.addProperty("showCounts", showCounts);
             obj.addProperty("showDurability", showDurability);
             obj.addProperty("pickupAnimation", pickupAnimation);
@@ -197,6 +202,14 @@ public final class InventoryHudConfig {
 
     public void setBackgroundOpacity(int backgroundOpacity) {
         this.backgroundOpacity = clampOpacity(backgroundOpacity);
+    }
+
+    public int getItemOpacity() {
+        return itemOpacity;
+    }
+
+    public void setItemOpacity(int itemOpacity) {
+        this.itemOpacity = clampOpacity(itemOpacity);
     }
 
     public boolean isShowCounts() {

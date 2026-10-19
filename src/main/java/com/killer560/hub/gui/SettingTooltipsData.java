@@ -1715,7 +1715,8 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/player", "Type the name of the player the i4 leap goes to.");
         d.put("sharp shooter (i4)/backup", "Who to leap to if no Melody player is known yet. Left click cycles forward, right click back.");
         d.put("inventory hud/background", "What is drawn behind the panel: None, Panel, or Slots.");
-        d.put("inventory hud/opacity", "How solid the panel background is, 0-100%.");
+        d.put("inventory hud/background opacity", "How solid the panel background, its outline and the slot backdrops are, 0-100%. At 0% the whole panel is hidden, items included.");
+        d.put("inventory hud/item opacity", "How solid the items are, 0-100%. Lower fades each item toward its slot color; 100% leaves them untouched.");
         d.put("inventory hud/key", "Key used by Show. Click, then press a key; Esc clears it.");
         d.put("inventory hud/show", "When the panel shows: Always, while you hold the key, or toggled with the key.");
         d.put("inventory hud/vertical", "Lays the panel out as 3 columns by 9 rows instead of 9 by 3.");
