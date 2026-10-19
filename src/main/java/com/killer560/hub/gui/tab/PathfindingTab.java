@@ -172,7 +172,7 @@ public class PathfindingTab extends BaseTab {
                     btn.setMessage(onOff("Chat Feedback", cfg.isChatFeedback()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Mark Island Found"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Mark All Found (This Island)"), btn -> {
                     FairySoulsFeature.markIslandFound();
                     requestRebuild.run();
                 }).bounds(contentX, y, col2W, 18).build());

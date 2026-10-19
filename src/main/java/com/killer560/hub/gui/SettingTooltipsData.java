@@ -1158,7 +1158,7 @@ final class SettingTooltipsData {
         d.put("fairy souls/dim path", "Also draws the rest of the route faintly.");
         d.put("fairy souls/hud", "Shows how many Fairy Souls you have found on this island, and the distance to the next one.");
         d.put("start on island join", "Starts guiding automatically when you arrive on an island with missing souls.");
-        d.put("mark island found", "Logs every soul on this island as found.");
+        d.put("mark all found (this island)", "Logs every fairy soul on this island as found, so the walker skips them.");
         d.put("reset this island", "Clears the found-soul log for this island. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island. Click twice to confirm.");
         d.put("auto fairy souls", "Cheat build: walks the island's soul route and clicks each Fairy Soul, with your camera free. Any key or click stops it. Needs nothing else on.");
