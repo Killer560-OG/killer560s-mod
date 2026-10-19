@@ -91,6 +91,19 @@ public class BloodCampTab extends BaseTab {
             });
             y += 22;
 
+            // killer560, 2026-10-18: a colour for Blood Camp's text - the countdown on each box. White by default.
+            widgets.add(SettingsButtonWidget.builder(
+                    com.killer560.hub.gui.ColorSwatch.label("Timer Text Color", cfg.getTimerTextColor()), btn -> {
+                        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                        com.killer560.hub.compat.McCompat.setScreen(mc, new com.killer560.hub.gui.ColorPickerScreen(
+                                com.killer560.hub.compat.McCompat.screen(mc), "Timer Text Color", cfg.getTimerTextColor(),
+                                BloodCampConfig.DEFAULT_TIMER_TEXT_COLOR, argb -> {
+                            cfg.setTimerTextColor(argb);
+                            cfg.save();
+                        }));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+
             widgets.add(SettingsButtonWidget.builder(onOff("Spawn Line", cfg.getSpawnLineRaw()), btn -> {
                         cfg.setSpawnLine(!cfg.getSpawnLineRaw());
                         cfg.save();
@@ -118,34 +131,22 @@ public class BloodCampTab extends BaseTab {
             }
         }
 
-        // Countdown sounds (killer560, 2026-10-07): legit, both builds.
-        widgets.add(SettingsButtonWidget.builder(onOff("Countdown Start Sound", cfg.isCountdownStartSound()), btn -> {
-                    cfg.setCountdownStartSound(!cfg.isCountdownStartSound());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(col2aX, y, col2W, 18).build());
+        // Kill Sound (killer560, 2026-10-07; 2026-10-18 "The sound should play only on the tick the trigger bot should
+        // hit to kill a mob, not every tick while a mob is on the wall or starting to spawn"): one sound, on the hit tick.
+        // The Countdown Start Sound was that "starting to spawn" sound and is gone; its saved value is still read.
         widgets.add(SettingsButtonWidget.builder(onOff("Kill Sound", cfg.isKillSound()), btn -> {
                     cfg.setKillSound(!cfg.isKillSound());
                     cfg.save();
                     requestRebuild.run();
-                }).bounds(col2bX, y, col2W, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        if (cfg.isCountdownStartSound() || cfg.isKillSound()) {
-            if (cfg.isCountdownStartSound()) {
-                widgets.add(SettingsButtonWidget.cycling(startSoundText(cfg), (btn, dir) -> {
-                            cfg.setCountdownStartSoundId(nextSound(dir, cfg.getCountdownStartSoundId()));
-                            cfg.save();
-                            btn.setMessage(startSoundText(cfg));
-                        }).bounds(col2aX, y, col2W, 18).build());
-            }
-            if (cfg.isKillSound()) {
-                widgets.add(SettingsButtonWidget.cycling(killSoundText(cfg), (btn, dir) -> {
-                            cfg.setKillSoundId(nextSound(dir, cfg.getKillSoundId()));
-                            cfg.save();
-                            btn.setMessage(killSoundText(cfg));
-                        }).bounds(col2bX, y, col2W, 18).build());
-            }
+        if (cfg.isKillSound()) {
+            widgets.add(SettingsButtonWidget.cycling(killSoundText(cfg), (btn, dir) -> {
+                        cfg.setKillSoundId(nextSound(dir, cfg.getKillSoundId()));
+                        cfg.save();
+                        btn.setMessage(killSoundText(cfg));
+                    }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, soundVolumeText(cfg), cfg.getSoundVolume()) {
                 @Override
@@ -167,11 +168,6 @@ public class BloodCampTab extends BaseTab {
 
     private static String nextSound(int dir, String id) {
         return SettingsButtonWidget.step(com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(id), dir).name();
-    }
-
-    private static Component startSoundText(BloodCampConfig cfg) {
-        return Component.literal("Start Sound Type: "
-                + com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getCountdownStartSoundId()).label);
     }
 
     private static Component killSoundText(BloodCampConfig cfg) {

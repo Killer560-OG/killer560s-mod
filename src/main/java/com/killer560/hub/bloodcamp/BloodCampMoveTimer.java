@@ -89,6 +89,11 @@ public final class BloodCampMoveTimer {
         return firstSpawns;
     }
 
+    /** Testkit: whether {@link #killTimerAllows} lets an attack through now at {@code offsetTicks}. */
+    public static boolean killTimerAllowsForTest(int offsetTicks) {
+        return killTimerAllows(offsetTicks);
+    }
+
     static void reset() {
         bloodOpenTick = -1L;
         moveAtTick = -1L;
@@ -168,6 +173,39 @@ public final class BloodCampMoveTimer {
     private static long nowTick() {
         Minecraft client = Minecraft.getInstance();
         return client.level == null ? -1L : client.level.getGameTime();
+    }
+
+    /**
+     * Whether Auto Blood Camp may attack yet: the kill timer - the moment this popup turns to "KILL" - moved by the
+     * Trigger Offset, has come (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
+     * off"). His log of that run: the Trigger Bot clicked at 19:19:53 on a mob's own countdown, in the same second the
+     * popup was armed 100 ticks out. Offset 0 opens on the tick "KILL" shows, -1 (the default) one tick after it, +2 two
+     * ticks before it.
+     * <ul>
+     *   <li>No greeting seen in this level (joined mid-blood, or a greeting another mod rewrote): there is no kill timer
+     *   to wait for, so this never holds anything back.</li>
+     *   <li>Greeting seen, last wave not out yet: the kill timer has not gone off, so nothing is attacked yet.</li>
+     * </ul>
+     */
+    static boolean killTimerAllows(int offsetTicks) {
+        if (bloodOpenTick < 0) {
+            return true;
+        }
+        if (moveAtTick < 0) {
+            return false;
+        }
+        long now = nowTick();
+        return now < 0 || now >= killShownTick() - offsetTicks;
+    }
+
+    /** The game tick the popup turns to "KILL" (the predicted move less Kill Popup Lead), or -1 with no prediction. */
+    static long killShownTick() {
+        return moveAtTick < 0 ? -1L : moveAtTick - BloodCampConfig.getInstance().getKillPopupLeadTicks();
+    }
+
+    /** Testkit: {@link #killShownTick()}. */
+    public static long killShownTickForTest() {
+        return killShownTick();
     }
 
     /** Ticks until the Watcher is predicted to move, or {@link Double#NaN} while there is no prediction. */

@@ -1957,7 +1957,7 @@ final class SettingTooltipsData {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
             // Chest. Inside the constant, so a legit jar carries none of these strings.
-            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it and can see it, and clicks again if the hit missed - never faster than your weapon's attack speed (cheat build only; only in the Blood Room).");
+            d.put("auto blood camp/trigger bot", "Left-clicks a blood mob at its kill timer if you are aiming at it and can see it, and clicks again if the hit missed - never faster than your weapon's attack speed. Nothing is clicked before the Kill Popup's KILL (moved by Trigger Offset), and after that any blood mob that comes under your aim is clicked (cheat build only; only in the Blood Room).");
             d.put("auto blood camp/aura", "Turns you toward the next blood mob you can see, at its chest, with a human-looking mouse movement, and clicks it with whatever you hold until it dies, at any range you can see it - mobs already on the floor too - at your weapon's attack speed. Moving your mouse takes over (cheat build only; only in the Blood Room).");
             d.put("auto blood camp/never miss", "The first hit waits until the mob is really there - on the spot, in reach and in sight - and goes that tick, instead of on the kill timer.");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
@@ -2333,13 +2333,14 @@ final class SettingTooltipsData {
         d.put("thorn (f4)/overkill to party", "Also sends each Spirit Bear's overkill count to party chat (/pc).");
         d.put("thorn (f4)/spirit bear hud", "Shows Spirit Bear kills and a spawn countdown in F4/M4.");
         d.put("blood camp/timer text scale", "Size of the countdown text on each blood mob's box, 1x-4x.");
+        d.put("blood camp/timer text color", "Colour of the countdown text on each blood mob's box. White by default; the picker has a reset.");
         d.put("blood camp/spawn line", "Draws a cyan line from each blood mob's skull in the wall to the spot it will land, through walls.");
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
         d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
-        d.put("blood camp/kill sound", "Plays a sound the moment a blood mob's countdown reaches zero and it can be killed. Mobs due together make one sound.");
+        d.put("blood camp/kill sound", "Plays a sound once per blood mob, on the tick the Trigger Bot is to hit it: its kill timer moved by Trigger Offset, and not before the Kill Popup's KILL. Mobs due together make one sound.");
         d.put("blood camp/start sound type", "Which sound Countdown Start Sound plays. Left click cycles forward, right click back.");
         d.put("blood camp/kill sound type", "Which sound Kill Sound plays. Left click cycles forward, right click back.");
-        d.put("blood camp/sound volume", "Volume of both countdown sounds, 0-1.");
+        d.put("blood camp/sound volume", "Volume of the Kill Sound, 0-1.");
         d.put("ap3/align timer (dev)", "Dev builds only: prints how long each Align took.");
         d.put("advanced position/advanced position", "Shows your exact X, Y and Z as a small movable HUD.");
         d.put("advanced position/decimal places", "How many decimal places the HUD shows (0-8).");
