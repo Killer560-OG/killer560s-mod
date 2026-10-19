@@ -15,7 +15,12 @@ public final class SearchAliases {
     private static final Map<String, String> ALIASES = Map.of(
             "etable", "experiment",
             "e table", "experiment",
-            "exp table", "experiment");
+            "exp table", "experiment",
+            // killer560 (2026-10-18): "make chat keybinds also pop up if I search something like chat commands" - the tab was
+            // renamed from Command Shortcuts, so the old names find it too.
+            "chat command", "chat keybind",
+            "command shortcut", "chat keybind",
+            "command keybind", "chat keybind");
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
