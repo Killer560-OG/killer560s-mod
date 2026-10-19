@@ -1,5 +1,6 @@
 package com.killer560.hub.itemprotect;
 
+import com.killer560.hub.slotbinds.SlotBindsFeature;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.KeyUtil;
@@ -151,6 +152,11 @@ public final class ItemProtectFeature {
         if (!cfg.isProtectItemEnabled() || !ItemProtectConfig.isBoundCode(key) || key != cfg.getProtectKey()) {
             return true;
         }
+        if (SlotBindsFeature.ownsSharedKey(screen, key)) {
+            // Slot Binds has the same key bound: a quick press toggles protect when the key comes UP there
+            // (2026-10-18), and a press that drags to another slot is a slot bind only.
+            return true;
+        }
         long now = System.currentTimeMillis();
         if (key == lastToggleKey && now - lastToggleAt < TOGGLE_DEBOUNCE_MS) {
             // Still swallow the key so a held-down protect key doesn't leak into vanilla handling mid-repeat.
@@ -159,18 +165,25 @@ public final class ItemProtectFeature {
         lastToggleAt = now;
         lastToggleKey = key;
 
-        Slot hovered = ((AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
+        toggleProtectFromSlot(((AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot());
+        return false;
+    }
+
+    /** Toggles Protect Item on the item in {@code hovered} (null = hovering nothing) and says so in chat. Called from
+     *  the protect key press, or from Slot Binds' release when the shared key is a quick press. */
+    public static void toggleProtectFromSlot(Slot hovered) {
+        ItemProtectConfig cfg = ItemProtectConfig.getInstance();
         ItemStack stack = hovered == null ? ItemStack.EMPTY : hovered.getItem();
         if (stack.isEmpty()) {
             ModChat.send("Item Protect", ModChat.text("Hover an item to protect it."));
-            return false;
+            return;
         }
         String protectKey = ItemProtect.protectKeyFor(stack, cfg);
         if (protectKey == null) {
             ModChat.send("Item Protect", ModChat.bad("Can't protect "),
                     ModChat.value(ItemProtect.displayName(stack)),
                     ModChat.text(" - it has no Skyblock UUID. Turn on Item ID Fallback to protect it by item id."));
-            return false;
+            return;
         }
         boolean added = cfg.toggleProtectedKey(protectKey);
         cfg.save();
@@ -178,7 +191,6 @@ public final class ItemProtectFeature {
         ModChat.send("Item Protect",
                 added ? ModChat.good("Protected ") : ModChat.bad("Unprotected "),
                 ModChat.value(ItemProtect.displayName(stack)));
-        return false;
     }
 
     /** Called from {@code ItemProtectStarSlotMixin} at the end of every slot's own draw, so the star is drawn under

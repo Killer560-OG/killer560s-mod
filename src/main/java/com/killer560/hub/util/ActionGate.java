@@ -222,6 +222,10 @@ public final class ActionGate {
          *  (killer560: "I should be able to save item locations in my inventory and have them sorted there"). A
          *  convenience, not a race-losing action - sits with the shop/farm automation at the bottom. */
         INVENTORY_SORTER(Kind.SCREEN),
+        /** Slot Binds' hold-and-release drag: the player holds the bind key over one slot, releases it over a hotbar
+         *  pairing, and the swap is sent one tick later from {@code slotbinds.SlotBindsFeature} (2026-10-18). Player
+         *  input, not automation, but it goes through the gate so it never shares a tick with another click. */
+        SLOT_BIND(Kind.SCREEN),
         /** Auto Sell clicking sellable items in whatever NPC screen is open (killer560: "add an auto sell feature
          *  you can refrence quoi for it" - QUOI's own source has no auto-sell module to port; see
          *  {@code autosell.AutoSellFeature}'s class doc). Same "no one dies if this is a tick late" bucket. */
