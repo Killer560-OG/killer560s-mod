@@ -13,6 +13,8 @@ public class CosmeticsCategoryTab extends FolderTab {
         super("Cosmetics", List.of(
                 new CosmeticsTab(),
                 new PlayerSizeTab(),
+                new ModTagTab(),
+                new CapeTab(),
                 new CustomItemsTab(),
                 new HeldOutlineTab(),
                 new NickhiderTab(),

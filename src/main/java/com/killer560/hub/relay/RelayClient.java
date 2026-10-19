@@ -180,6 +180,20 @@ public final class RelayClient {
     }
 
     /** @return false if nothing was sent (not connected) - the caller must say so rather than fall back. */
+    /** Tells the relay which variant this build is and whether, and as which variant, it shows itself to others.
+     *  Mod User Tag (killer560, 2026-10-19). The relay decides what is shown; nothing else is sent. */
+    public static boolean sendHello(String variant, boolean share, String shareAs) {
+        if (state != State.CONNECTED || socket == null) {
+            return false;
+        }
+        JsonObject packet = new JsonObject();
+        packet.addProperty("type", "hello");
+        packet.addProperty("variant", variant);
+        packet.addProperty("share", share);
+        packet.addProperty("shareAs", shareAs);
+        return send(packet);
+    }
+
     public static boolean sendChat(String message) {
         if (message == null || message.isBlank() || state != State.CONNECTED || socket == null) {
             return false;
@@ -514,6 +528,9 @@ public final class RelayClient {
             case "welcome" -> {
                 List<String> names = names(packet);
                 online = names;
+                JsonElement mods = packet.get("mods");
+                com.killer560.hub.modusers.ModUsers.onWelcome(mods != null && mods.isJsonObject() ? mods.getAsJsonObject() : null);
+                com.killer560.hub.modusers.ModUsers.announce();
                 target.onConnected(activeRoom, names);
                 for (RelayListener extra : extraListeners) {
                     extra.onConnected(activeRoom, names);
@@ -528,6 +545,14 @@ public final class RelayClient {
             case "presence" -> {
                 List<String> names = names(packet);
                 online = names;
+                String event = str(packet, "event");
+                if ("mod".equals(event)) {
+                    JsonElement shared = packet.get("shareAs");
+                    com.killer560.hub.modusers.ModUsers.onPresence(str(packet, "name"),
+                            shared != null && shared.isJsonPrimitive() ? shared.getAsString() : null);
+                } else if ("leave".equals(event)) {
+                    com.killer560.hub.modusers.ModUsers.onPresence(str(packet, "name"), null);
+                }
                 target.onPresence(str(packet, "event"), str(packet, "name"), names);
                 for (RelayListener extra : extraListeners) {
                     extra.onPresence(str(packet, "event"), str(packet, "name"), names);
