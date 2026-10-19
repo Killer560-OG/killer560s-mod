@@ -423,6 +423,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autosell.AutoSellToggleKey.register();
         com.killer560.hub.autoanvil.AutoAnvilFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();
+        com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipCommands.register();
 
         // Four back-to-back END handlers as one listener, same order, each still guarded under its own name.

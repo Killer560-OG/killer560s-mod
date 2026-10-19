@@ -2482,6 +2482,9 @@ final class SettingTooltipsData {
 
     private static void bazaarFlip(Map<String, String> d) {
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
+        d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
+        d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
+        d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");
         d.put("bazaar flipper/start key", "Starts a flipping session. Any key or mouse button you press while it runs stops it, in a menu or not.");
         d.put("bazaar flipper/rank by", "Picks the best flip by percentage margin or by total profit per run; anything with a profit after fees qualifies.");
         d.put("bazaar flipper/target purse", "Stops flipping once your purse reaches this. Type a number: 5,000,000, 750k, 2.5m or 1b. Empty or 0 means off.");
