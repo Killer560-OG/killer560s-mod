@@ -79,14 +79,15 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         listW = panelW - 12;
         int topY = panelY + 28;
         int rightX = panelX + panelW - 6;
-        if (LfgFeature.isListed()) {
+        boolean listed = LfgFeature.isListed();
+        if (listed) {
+            creating = false; // Create comes back only once the listing is taken down
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§cUnlist"), btn -> {
                 LfgFeature.unlist("unlisted");
                 rebuildWidgets();
-            }).bounds(rightX - 60, topY, 60, 18).build());
-            rightX -= 64;
+            }).bounds(rightX - 64, topY, 64, 18).build());
         }
-        boolean inbox = LfgFeature.isListed() && !creating;
+        boolean inbox = listed && !creating;
         int bottom = panelY + panelH - 18;
         inboxY = inbox ? bottom - (14 + INBOX_ROWS * INBOX_ROW_H) : bottom;
 
@@ -108,11 +109,18 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             message = "";
             rebuildWidgets();
         }).bounds(panelX + 6, topY, 54, 18).build());
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(creating ? "< Listings" : "Create"), btn -> {
-            creating = !creating;
-            message = creating ? "New " + tab.label + " listing - it starts from what you used last." : "";
-            rebuildWidgets();
-        }).bounds(rightX - 64, topY, 64, 18).build());
+        if (!listed) {
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal(creating ? "< Listings" : "Create"), btn -> {
+                creating = !creating;
+                message = creating ? "New " + tab.label + " listing - it starts from what you used last." : "";
+                rebuildWidgets();
+            }).bounds(rightX - 64, topY, 64, 18).build());
+        }
+        if (!creating) {
+            // Between Back and the right-hand button, so it overlaps neither.
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Refresh"), btn -> LfgFeature.refreshNow())
+                    .bounds(panelX + 64, topY, 58, 18).build());
+        }
 
         if (creating) {
             listY = topY + 24;
@@ -195,18 +203,18 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             }).bounds(x, y, w, 18).build());
             x += w + 4;
         }
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(cfg.isMeetsOnly() ? "§6I meet" : "Any reqs"), btn -> {
+        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(meetsLabel(cfg.isMeetsOnly())), (btn, dir) -> {
             cfg.setMeetsOnly(!cfg.isMeetsOnly());
             cfg.save();
-            btn.setMessage(Component.literal(cfg.isMeetsOnly() ? "§6I meet" : "Any reqs"));
+            btn.setMessage(Component.literal(meetsLabel(cfg.isMeetsOnly())));
             page = 0;
             refreshList();
         }).bounds(x, y, w, 18).build());
         x += w + 4;
-        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(cfg.isHideFull() ? "Full: hide" : "Full: show"), btn -> {
+        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(fullLabel(cfg.isHideFull())), (btn, dir) -> {
             cfg.setHideFull(!cfg.isHideFull());
             cfg.save();
-            btn.setMessage(Component.literal(cfg.isHideFull() ? "Full: hide" : "Full: show"));
+            btn.setMessage(Component.literal(fullLabel(cfg.isHideFull())));
             page = 0;
             refreshList();
         }).bounds(x, y, w, 18).build());
@@ -220,6 +228,14 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             page = 0;
             refreshList();
         }).bounds(x, y, listX + listW - x, 18).build());
+    }
+
+    private static String meetsLabel(boolean meetsOnly) {
+        return meetsOnly ? "§6I meet" : "Any reqs";
+    }
+
+    private static String fullLabel(boolean hideFull) {
+        return hideFull ? "Full: hide" : "Full: show";
     }
 
     private static String activityLabel(String a) {
