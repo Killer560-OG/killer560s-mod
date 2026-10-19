@@ -131,8 +131,8 @@ public final class PriceTooltipFeature {
         if (cfg.isBazaar() && bazaar) {
             Double buy = PriceData.bazaarBuy(key);
             Double sell = PriceData.bazaarSell(key);
-            out.add(Component.literal("§eBazaar Buy/Sell: §b" + coins(buy == null ? 0 : buy * mult) + " / "
-                    + coins(sell == null ? 0 : sell * mult) + " Coins" + countSuffix(mult)));
+            out.add(Component.literal("§eBazaar Buy: §b" + coins(buy == null ? 0 : buy * mult) + " Coins" + countSuffix(mult)));
+            out.add(Component.literal("§eBazaar Sell: §b" + coins(sell == null ? 0 : sell * mult) + " Coins" + countSuffix(mult)));
         }
         if (!bazaar) {
             Double lbin = PriceData.lowestBin(key);

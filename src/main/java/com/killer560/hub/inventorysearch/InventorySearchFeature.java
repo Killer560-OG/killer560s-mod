@@ -355,6 +355,11 @@ public final class InventorySearchFeature {
             graphics.pose().scale(scale, scale);
             graphics.fill(0, 0, boxWidth, boxHeight, 0xCC0D0D0D);
             graphics.outline(0, 0, boxWidth, boxHeight, listening ? 0xFFCC6600 : 0xFF553311);
+            if (selectedAll && !QUERY.isEmpty()) {
+                // Ctrl+A: the query shows as selected (a blue block behind it, as in any text box).
+                int selectedWidth = Minecraft.getInstance().font.width(QUERY.toString());
+                graphics.fill(3, 3, 5 + selectedWidth, 13, 0xFF3366CC);
+            }
             // the bar's text keeps its visual order between frames (the same sequence vanilla computes, hud/HudTextCache)
             graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
                     0xFFFFFFFF, false);
