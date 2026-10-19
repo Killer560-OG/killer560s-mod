@@ -19,8 +19,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * answer "how much of this split/run was actually lag" rather than just "is the server stalled right now".
  * <p>
  * <b>Definition ("without lag" / "lag lost"):</b> whenever two consecutive ping-driven ticks are further
- * apart than one nominal Minecraft tick (50ms, plus a small jitter allowance), the excess over 50ms is real
- * server stall and is added to the running total. A split's/run's "lagless" time is its plain wall-clock
+ * apart than three nominal Minecraft ticks (150ms), the excess over 50ms is real server stall and is added to the
+ * running total. Gaps under that are ordinary arrival jitter on the connection, not stalls, and count for nothing
+ * (killer560, 2026-10-18: the Lag line kept climbing a little at a time with the server not lagging at all). A split's/run's "lagless" time is its plain wall-clock
  * duration minus however much of this total accumulated during that exact window (the delta between the
  * accumulator's value at the window's start and end) - never a second, differently-defined "lag".
  * <p>
@@ -36,8 +37,9 @@ final class SplitLagClock {
 
     /** One Minecraft tick - the cadence {@link ServerTickClock}'s ping-driven mode fires at. */
     private static final long NOMINAL_TICK_MS = 50L;
-    /** Below this gap it's ordinary jitter, not a real stall - only excess beyond this counts. */
-    private static final long STALL_THRESHOLD_MS = 75L;
+    /** Below this gap it's ordinary jitter, not a real stall - only a gap beyond this counts, and then all of its excess.
+     *  Pings arrive a few tens of milliseconds early or late on a normal connection, so a 75ms line counted that jitter. */
+    private static final long STALL_THRESHOLD_MS = 150L;
 
     private static volatile long accumulatedLagMs = 0L;
     private static volatile long lastPingDrivenTickMs = 0L;
