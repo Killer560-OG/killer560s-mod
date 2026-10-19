@@ -4,6 +4,7 @@ import com.killer560.hub.arrowalign.ArrowAlignConfig;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.RangeSliderWidget;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.Minecraft;
@@ -126,25 +127,59 @@ public class ArrowAlignTab extends BaseTab {
         y += 22;
 
         if (cfg.getTriggerBotRaw()) {
-            int maxTrigger = ArrowAlignConfig.MAX_TRIGGER_BOT_DELAY_MS;
-            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"),
-                    cfg.getTriggerBotDelayMs() / (double) maxTrigger) {
+            widgets.add(new RangeSliderWidget(contentX, y, contentWidth, 18,
+                    ArrowAlignConfig.MIN_TRIGGER_BOT_CPS, ArrowAlignConfig.MAX_TRIGGER_BOT_CPS,
+                    cfg.getTriggerBotCpsMin(), cfg.getTriggerBotCpsMax()) {
                 @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"));
+                protected Component label(int low, int high) {
+                    return Component.literal("Trigger Bot CPS: " + low + " - " + high);
                 }
 
                 @Override
-                protected void applyValue() {
-                    cfg.setTriggerBotDelayMs((int) Math.round(this.value * maxTrigger));
+                protected void onRangeChanged(int low, int high) {
+                    cfg.setTriggerBotCpsRange(low, high);
                     cfg.save();
                 }
             });
             y += 22;
+            widgets.add(SettingsButtonWidget.builder(onOff("Disable Trigger Bot While Crouching",
+                            cfg.isTriggerBotDisableWhileCrouching()), btn -> {
+                        cfg.setTriggerBotDisableWhileCrouching(!cfg.isTriggerBotDisableWhileCrouching());
+                        cfg.save();
+                        btn.setMessage(onOff("Disable Trigger Bot While Crouching", cfg.isTriggerBotDisableWhileCrouching()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
         }
 
         if (cfg.getAuraRaw()) {
+            widgets.add(SettingsButtonWidget.builder(onOff("Disable Aura While Crouching",
+                            cfg.isAuraDisableWhileCrouching()), btn -> {
+                        cfg.setAuraDisableWhileCrouching(!cfg.isAuraDisableWhileCrouching());
+                        cfg.save();
+                        btn.setMessage(onOff("Disable Aura While Crouching", cfg.isAuraDisableWhileCrouching()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(SettingsButtonWidget.cycling(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()),
+                    (btn, dir) -> {
+                        cfg.setAuraClicksPerTick((int) SettingsButtonWidget.step(cfg.getAuraClicksPerTick(), 1, 1, 4, dir));
+                        cfg.save();
+                        btn.setMessage(Component.literal("Aura Clicks Per Tick: " + cfg.getAuraClicksPerTick()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(SettingsButtonWidget.builder(onOff("Leave Last Arrow", cfg.isAuraLeaveLastArrow()), btn -> {
+                        cfg.setAuraLeaveLastArrow(!cfg.isAuraLeaveLastArrow());
+                        cfg.save();
+                        btn.setMessage(onOff("Leave Last Arrow", cfg.isAuraLeaveLastArrow()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(SettingsButtonWidget.builder(onOff("Disable Leave Last Arrow While Crouching",
+                            cfg.isLeaveLastArrowDisableWhileCrouching()), btn -> {
+                        cfg.setLeaveLastArrowDisableWhileCrouching(!cfg.isLeaveLastArrowDisableWhileCrouching());
+                        cfg.save();
+                        btn.setMessage(onOff("Disable Leave Last Arrow While Crouching",
+                                cfg.isLeaveLastArrowDisableWhileCrouching()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
             int minCps = ArrowAlignConfig.MIN_AURA_CPS;
             int maxCps = ArrowAlignConfig.MAX_AURA_CPS;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,

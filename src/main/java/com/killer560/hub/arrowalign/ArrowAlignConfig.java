@@ -19,7 +19,10 @@ public final class ArrowAlignConfig {
 
     public static final float MIN_NUMBER_SCALE = 0.5f;
     public static final float MAX_NUMBER_SCALE = 3.0f;
-    public static final int MAX_TRIGGER_BOT_DELAY_MS = 500;
+    /** Trigger Bot CPS range ends (killer560, 2026-10-18: "have trigger bot delay for arrow align be a range of cps
+     *  instead"). 20 is one a tick, the most the mod-wide gate allows. */
+    public static final int MIN_TRIGGER_BOT_CPS = 1;
+    public static final int MAX_TRIGGER_BOT_CPS = 20;
     /** Aura CPS slider ends (killer560, 2026-10-12: "For aura I should be able to set cps instead of delay. From 1 to 20"). */
     public static final int MIN_AURA_CPS = 1;
     public static final int MAX_AURA_CPS = 20;
@@ -38,8 +41,9 @@ public final class ArrowAlignConfig {
     // change - these are still milliseconds - only the out-of-the-box values do, so a saved config keeps its own
     // numbers. Note the inversion: MORE clicks per second is a SHORTER delay, so 17 cps is the MIN ms and 15 cps
     // the MAX ms. Rounded to the nearest whole millisecond (1000/15 = 66.67 -> 67, 1000/17 = 58.82 -> 59).
-    /** 15 cps. */
-    public static final int DEFAULT_TRIGGER_BOT_DELAY_MS = 67;
+    /** The Trigger Bot's default band, 15-17 cps: the old fixed 67 ms (15 cps) delay is its slow end. */
+    public static final int DEFAULT_TRIGGER_BOT_CPS_MIN = 15;
+    public static final int DEFAULT_TRIGGER_BOT_CPS_MAX = 17;
     /** 16 cps: the middle of the old 15-17 cps (59-67 ms) delay band it replaces. */
     public static final int DEFAULT_AURA_CPS = 16;
 
@@ -62,7 +66,15 @@ public final class ArrowAlignConfig {
 
     // Cheat build
     private boolean triggerBotEnabled = false;
-    private int triggerBotDelayMs = DEFAULT_TRIGGER_BOT_DELAY_MS;
+    private int triggerBotCpsMin = DEFAULT_TRIGGER_BOT_CPS_MIN;
+    private int triggerBotCpsMax = DEFAULT_TRIGGER_BOT_CPS_MAX;
+    // killer560, 2026-10-18: each automation has its own "Disable While Crouching", ON by default.
+    private boolean triggerBotDisableWhileCrouching = true;
+    private boolean auraDisableWhileCrouching = true;
+    /** The Aura leaves the lowest, leftmost arrow undone until stage S3 starts (killer560, 2026-10-18). */
+    private boolean auraLeaveLastArrow = true;
+    private boolean leaveLastArrowDisableWhileCrouching = true;
+    private int auraClicksPerTick = 1;
     private boolean auraEnabled = false;
     private int auraCps = DEFAULT_AURA_CPS;
     private double auraRange = MAX_AURA_RANGE;
@@ -105,9 +117,20 @@ public final class ArrowAlignConfig {
             cfg.crouchOverride = ConfigJson.getBool(obj, "crouchOverride", true);
             cfg.solveTimeEnabled = ConfigJson.getBool(obj, "solveTimeEnabled", false);
             cfg.triggerBotEnabled = ConfigJson.getBool(obj, "triggerBotEnabled", false);
-            // Key names and units are unchanged (still milliseconds), so a config saved before the cps-derived
-            // defaults landed keeps the exact delays killer560 already had - only a MISSING key gets the new value.
-            cfg.setTriggerBotDelayMs(ConfigJson.getInt(obj, "triggerBotDelayMs", DEFAULT_TRIGGER_BOT_DELAY_MS));
+            if (obj.has("triggerBotCpsMin") || obj.has("triggerBotCpsMax")) {
+                cfg.setTriggerBotCpsRange(ConfigJson.getInt(obj, "triggerBotCpsMin", DEFAULT_TRIGGER_BOT_CPS_MIN),
+                        ConfigJson.getInt(obj, "triggerBotCpsMax", DEFAULT_TRIGGER_BOT_CPS_MAX));
+            } else if (obj.has("triggerBotDelayMs")) {
+                // A config from before the range: the old fixed delay becomes the band's slow end, two cps wide
+                // (67 ms = 15 cps -> 15-17, the new default; 0 ms -> 20-20).
+                int cps = cpsFromDelayMs(ConfigJson.getInt(obj, "triggerBotDelayMs", 67));
+                cfg.setTriggerBotCpsRange(cps, cps + 2);
+            }
+            cfg.triggerBotDisableWhileCrouching = ConfigJson.getBool(obj, "triggerBotDisableWhileCrouching", true);
+            cfg.auraDisableWhileCrouching = ConfigJson.getBool(obj, "auraDisableWhileCrouching", true);
+            cfg.auraLeaveLastArrow = ConfigJson.getBool(obj, "auraLeaveLastArrow", true);
+            cfg.leaveLastArrowDisableWhileCrouching = ConfigJson.getBool(obj, "leaveLastArrowDisableWhileCrouching", true);
+            cfg.setAuraClicksPerTick(ConfigJson.getInt(obj, "auraClicksPerTick", 1));
             cfg.auraEnabled = ConfigJson.getBool(obj, "auraEnabled", false);
             if (obj.has("auraCps")) {
                 cfg.setAuraCps(ConfigJson.getInt(obj, "auraCps", DEFAULT_AURA_CPS));
@@ -136,7 +159,13 @@ public final class ArrowAlignConfig {
             obj.addProperty("crouchOverride", crouchOverride);
             obj.addProperty("solveTimeEnabled", solveTimeEnabled);
             obj.addProperty("triggerBotEnabled", triggerBotEnabled);
-            obj.addProperty("triggerBotDelayMs", triggerBotDelayMs);
+            obj.addProperty("triggerBotCpsMin", triggerBotCpsMin);
+            obj.addProperty("triggerBotCpsMax", triggerBotCpsMax);
+            obj.addProperty("triggerBotDisableWhileCrouching", triggerBotDisableWhileCrouching);
+            obj.addProperty("auraDisableWhileCrouching", auraDisableWhileCrouching);
+            obj.addProperty("auraLeaveLastArrow", auraLeaveLastArrow);
+            obj.addProperty("leaveLastArrowDisableWhileCrouching", leaveLastArrowDisableWhileCrouching);
+            obj.addProperty("auraClicksPerTick", auraClicksPerTick);
             obj.addProperty("auraEnabled", auraEnabled);
             obj.addProperty("auraCps", auraCps);
             obj.addProperty("auraRange", auraRange);
@@ -235,15 +264,64 @@ public final class ArrowAlignConfig {
         this.triggerBotEnabled = triggerBotEnabled;
     }
 
-    public int getTriggerBotDelayMs() {
-        return triggerBotDelayMs;
+    public int getTriggerBotCpsMin() {
+        return triggerBotCpsMin;
     }
 
-    public void setTriggerBotDelayMs(int ms) {
-        this.triggerBotDelayMs = Math.max(0, Math.min(MAX_TRIGGER_BOT_DELAY_MS, ms));
+    public int getTriggerBotCpsMax() {
+        return triggerBotCpsMax;
+    }
+
+    /** Clamped into {@link #MIN_TRIGGER_BOT_CPS}..{@link #MAX_TRIGGER_BOT_CPS}, with min &lt;= max always holding. */
+    public void setTriggerBotCpsRange(int min, int max) {
+        int lo = Math.max(MIN_TRIGGER_BOT_CPS, Math.min(MAX_TRIGGER_BOT_CPS, min));
+        int hi = Math.max(MIN_TRIGGER_BOT_CPS, Math.min(MAX_TRIGGER_BOT_CPS, max));
+        this.triggerBotCpsMin = Math.min(lo, hi);
+        this.triggerBotCpsMax = Math.max(lo, hi);
+    }
+
+    public boolean isTriggerBotDisableWhileCrouching() {
+        return triggerBotDisableWhileCrouching;
+    }
+
+    public void setTriggerBotDisableWhileCrouching(boolean v) {
+        this.triggerBotDisableWhileCrouching = v;
     }
 
     // ---- Aura (cheat) ----
+
+    public boolean isAuraDisableWhileCrouching() {
+        return auraDisableWhileCrouching;
+    }
+
+    public void setAuraDisableWhileCrouching(boolean v) {
+        this.auraDisableWhileCrouching = v;
+    }
+
+    /** Aura clicks on one frame within a single tick, 1-4 (1 = the normal one interaction per tick). */
+    public int getAuraClicksPerTick() {
+        return auraClicksPerTick;
+    }
+
+    public void setAuraClicksPerTick(int n) {
+        this.auraClicksPerTick = Math.max(1, Math.min(4, n));
+    }
+
+    public boolean isAuraLeaveLastArrow() {
+        return auraLeaveLastArrow;
+    }
+
+    public void setAuraLeaveLastArrow(boolean v) {
+        this.auraLeaveLastArrow = v;
+    }
+
+    public boolean isLeaveLastArrowDisableWhileCrouching() {
+        return leaveLastArrowDisableWhileCrouching;
+    }
+
+    public void setLeaveLastArrowDisableWhileCrouching(boolean v) {
+        this.leaveLastArrowDisableWhileCrouching = v;
+    }
 
     public boolean isAuraEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && auraEnabled

@@ -83,6 +83,8 @@ public final class ArrowAlignFeature {
     private static final int[] pending = new int[25];
     private static final long[] lastClickMs = new long[25];
     private static int[] solution = null;
+    /** Grid index the Aura leaves undone before S3 (-1 none, -2 not chosen yet for this solution). */
+    private static int heldIndex = -2;
     private static boolean active = false;
     private static ClientLevel lastLevel = null;
 
@@ -96,7 +98,8 @@ public final class ArrowAlignFeature {
     // Client ticks (ActionGate.currentTick), not ms: the clicks go out at the start of a tick.
     private static int triggerAimIndex = -1;
     private static long triggerAimSinceTick = 0L;
-    private static long lastTriggerClickTick = Long.MIN_VALUE / 4;
+    /** Fractional tick the Trigger Bot may next click: one rolled gap after the aim landed, then after each click. */
+    private static double nextTriggerClickDueTick = 0.0;
     /** Fractional, so the Aura's rolled 15-17 CPS stays 15-17 on average instead of rounding to 10. */
     private static double nextAuraClickDueTick = 0.0;
     /** The tick a due Aura click first went to turning the body (TurnFirst), or -1: the click is scheduled from there. */
@@ -189,6 +192,7 @@ public final class ArrowAlignFeature {
         int[] match = findSolution();
         if (match != solution) {
             solution = match;
+            heldIndex = -2;
         }
     }
 
@@ -237,11 +241,13 @@ public final class ArrowAlignFeature {
         Arrays.fill(pending, 0);
         Arrays.fill(lastClickMs, 0L);
         solution = null;
+        heldIndex = -2;
         active = false;
         firstClickMs = 0L;
         clicksThisSolve = 0;
         solvedAnnounced = false;
         triggerAimIndex = -1;
+        nextTriggerClickDueTick = 0.0;
         lastAuraIndex = -1;
         nextAuraClickDueTick = 0.0;
         auraTurnStartTick = -1L;
@@ -334,6 +340,12 @@ public final class ArrowAlignFeature {
      *  ({@code gameMode.interact(player, entity, hitResult, hand)} - sends the interact packet with the hit location
      *  relative to the entity). Callers must already be behind a cheat-gated config getter. */
     private static boolean sendClick(Minecraft client, int index, long now) {
+        return sendClick(client, index, now, true);
+    }
+
+    /** {@code claimGate} false is the Aura's extra clicks in the same tick (Clicks Per Tick above 1): the first click of
+     *  the tick already took the ActionGate claim. */
+    private static boolean sendClick(Minecraft client, int index, long now, boolean claimGate) {
         sendClickTurned = false;
         ItemFrame frame = frames[index];
         if (frame == null || frame.isRemoved() || client.player == null || client.gameMode == null) {
@@ -354,7 +366,7 @@ public final class ArrowAlignFeature {
         // sort of coordination"). Trigger Bot and Aura are both allowed to run on the same tick above, so this is
         // also what stops THIS feature putting two interact packets in one tick. A denial must leave the caller's
         // delay/target bookkeeping untouched so the same frame is simply clicked a tick later.
-        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
+        if (claimGate && !com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
             return false;
         }
         // Where the line from the eye meets the frame's box - the point a real click reports. (It was the centre of
@@ -414,25 +426,44 @@ public final class ArrowAlignFeature {
             triggerAimIndex = -1;
             return;
         }
+        // killer560, 2026-10-18: the Trigger Bot does nothing while the crouch key is held. Dropping the aim too means
+        // the first click after the release waits a fresh gap, like a click on a newly aimed frame.
+        if (cfg.isTriggerBotDisableWhileCrouching() && client.player.isShiftKeyDown()) {
+            triggerAimIndex = -1;
+            return;
+        }
         long tick = com.killer560.hub.util.ActionGate.currentTick();
         if (index != triggerAimIndex) {
             triggerAimIndex = index;
-            triggerAimSinceTick = tick;
+            nextTriggerClickDueTick = tick + rollTriggerGapTicks(cfg);
         }
-        // Trigger Bot Delay in whole ticks, rounded up (ActionGate.delayTicks): 0 ms clicks on the tick the crosshair
-        // lands, 300 ms six ticks later; the same gap again between clicks on one frame.
-        int delay = com.killer560.hub.util.ActionGate.delayTicks(cfg.getTriggerBotDelayMs());
-        if (tick - triggerAimSinceTick < delay || tick - lastTriggerClickTick < delay) {
+        if (tick < nextTriggerClickDueTick) {
             return;
         }
         if (!sendClick(client, index, now)) {
-            return; // gate held this tick back - nothing sent, so the aim timer and delay stay where they are
+            return; // gate held this tick back - nothing sent, so the due tick stays where it is
         }
-        lastTriggerClickTick = tick;
+        // From the due tick, not from now, so the band's average survives tick rounding; a click the gate held back
+        // carries at most a tick of backlog.
+        nextTriggerClickDueTick = Math.max(nextTriggerClickDueTick, tick - 1) + rollTriggerGapTicks(cfg);
+    }
+
+    /** A fresh gap for every click: a CPS uniformly inside the Trigger Bot's range, as client ticks (fractional). */
+    static double rollTriggerGapTicks(ArrowAlignConfig cfg) {
+        double min = cfg.getTriggerBotCpsMin();
+        double max = Math.max(min, cfg.getTriggerBotCpsMax());
+        double cps = max > min ? ThreadLocalRandom.current().nextDouble(min, max) : min;
+        return 1000.0 / Math.max(1.0, cps) / 50.0;
     }
 
     private static void tickAura(Minecraft client, ArrowAlignConfig cfg, long now) {
         long tick = com.killer560.hub.util.ActionGate.currentTick();
+        // killer560, 2026-10-18: Disable While Crouching (per feature, on by default).
+        if (cfg.isAuraDisableWhileCrouching() && client.player.isShiftKeyDown()) {
+            lastAuraIndex = -1;
+            auraTurnStartTick = -1L;
+            return;
+        }
         if (tick < nextAuraClickDueTick) {
             return;
         }
@@ -453,6 +484,11 @@ public final class ArrowAlignFeature {
             return;
         }
         lastAuraIndex = target;
+        for (int extra = 1; extra < cfg.getAuraClicksPerTick() && clicksNeeded(target) > 0; extra++) {
+            if (!sendClick(client, target, now, false)) {
+                break;
+            }
+        }
         // A click that needed a turn first counts from the turn's tick, not the tick after: otherwise every turn tick was
         // added to the gap (Lever Aura's identical schedule measured 7.89 at 10 CPS, testkit 846; the sweep here, 832).
         long base = auraTurnStartTick >= 0 ? auraTurnStartTick : tick;
@@ -508,12 +544,49 @@ public final class ArrowAlignFeature {
         return onLook >= 0 ? onLook : nearest;
     }
 
+    /**
+     * The frame the Aura must leave undone (killer560, 2026-10-18: "before S3 starts, during the PD phase, the aura
+     * should always leave the lowest, leftmost arrow not done, so the last arrow is only completed once S3 starts"), or
+     * -1 when nothing is held: the setting is off, Disable While Crouching applies, or S3 (or later) has started.
+     * Chosen once per solution from the frames that need clicks: lowest row first, then the leftmost as the player sees
+     * the wall (the frames face east, the player looks west, so left is the larger z).
+     */
+    private static int heldIndexNow() {
+        ArrowAlignConfig cfg = ArrowAlignConfig.getInstance();
+        if (!cfg.isAuraLeaveLastArrow() || !beforeS3()) {
+            return -1;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (cfg.isLeaveLastArrowDisableWhileCrouching() && mc.player != null && mc.player.isShiftKeyDown()) {
+            return -1;
+        }
+        if (heldIndex == -2) {
+            int best = -1;
+            for (int i = 0; i < 25; i++) {
+                if (clicksNeeded(i) == 0) {
+                    continue;
+                }
+                if (best < 0 || i % 5 < best % 5 || (i % 5 == best % 5 && i / 5 > best / 5)) {
+                    best = i;
+                }
+            }
+            heldIndex = best;
+        }
+        return heldIndex;
+    }
+
+    /** True in a Floor 7 fight until the P3 stage tracker reaches S3 (the Predev stretch). */
+    static boolean beforeS3() {
+        return com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()
+                && com.killer560.hub.fastleap.Floor7Tracker.getStage().number < 3;
+    }
+
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {
         ItemFrame frame = frames[index];
         // To the frame's BOX, not its centre. A frame is about 0.75 wide and 1/16 deep, so the centre reads up
         // to ~0.53 further and the effective aura range was nearer 2.5 than the 3.0 the config clamps to -
         // frames the server would have accepted looked out of range.
-        return frame != null && !frame.isRemoved() && clicksNeeded(index) > 0
+        return frame != null && !frame.isRemoved() && clicksNeeded(index) > 0 && index != heldIndexNow()
                 && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, frame.getBoundingBox()) <= rangeSq;
     }
 
