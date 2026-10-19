@@ -70,7 +70,8 @@ public final class AutoSellFeature {
 
     private static boolean running = false;
     private static long stateSinceMs;
-    private static long nextActionAtMs;
+    /** Client ticks left before the next sell click may go out (see {@link #randomTicks}). */
+    private static int waitTicks;
     private static int clicksSent;
     private static int attempted;
     /** Identities already clicked this session - tracked by IDENTITY, not slot: a shift-click that doesn't
@@ -124,7 +125,7 @@ public final class AutoSellFeature {
         attempted = 0;
         running = true;
         stateSinceMs = System.currentTimeMillis();
-        nextActionAtMs = stateSinceMs;
+        waitTicks = 0;
         return null;
     }
 
@@ -167,8 +168,8 @@ public final class AutoSellFeature {
             stop("safety limit reached");
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now < nextActionAtMs) {
+        if (waitTicks > 0) {
+            waitTicks--;
             return;
         }
         AutoSellConfig cfg = AutoSellConfig.getInstance();
@@ -189,7 +190,7 @@ public final class AutoSellFeature {
             handled.add(identity);
             clicksSent++;
             attempted++;
-            nextActionAtMs = now + randomDelay(cfg);
+            waitTicks = randomTicks(cfg);
             return;
         }
         finish();
@@ -228,9 +229,10 @@ public final class AutoSellFeature {
         }
     }
 
-    private static long randomDelay(AutoSellConfig cfg) {
-        int lo = cfg.getMinDelayMs();
-        int hi = Math.max(lo, cfg.getMaxDelayMs());
+    /** Client ticks to wait before the next sell click: uniform from the configured min to max, both 0..10. */
+    private static int randomTicks(AutoSellConfig cfg) {
+        int lo = cfg.getMinTicks();
+        int hi = Math.max(lo, cfg.getMaxTicks());
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
     }
 

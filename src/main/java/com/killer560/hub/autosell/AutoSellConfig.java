@@ -40,8 +40,11 @@ public final class AutoSellConfig {
     private static AutoSellConfig instance;
 
     private boolean enabled = false;
-    private int minDelayMs = 150;
-    private int maxDelayMs = 350;
+    /** Random wait between two sell clicks, in client ticks: a uniform pick from {@link #minTicks} to {@link #maxTicks}
+     *  (killer560, 2026-10-18: "a random ticks between selling from 0 to 10"). Both clamped to 0..{@link #MAX_TICKS}. */
+    public static final int MAX_TICKS = 10;
+    private int minTicks = 0;
+    private int maxTicks = MAX_TICKS;
     private String screenTitlePattern = DEFAULT_SCREEN_TITLE_PATTERN;
     private final Set<String> sellIdentities = new LinkedHashSet<>();
     private final Set<String> neverSellIdentities = new LinkedHashSet<>();
@@ -65,8 +68,9 @@ public final class AutoSellConfig {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             AutoSellConfig cfg = new AutoSellConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-            cfg.minDelayMs = ConfigJson.getInt(obj, "minDelayMs", cfg.minDelayMs);
-            cfg.maxDelayMs = ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs);
+            // A file from before the tick setting has minDelayMs/maxDelayMs (150-350 ms); those are not carried over.
+            cfg.setMinTicks(ConfigJson.getInt(obj, "minTicks", cfg.minTicks));
+            cfg.setMaxTicks(ConfigJson.getInt(obj, "maxTicks", cfg.maxTicks));
             cfg.screenTitlePattern = validPatternOrDefault(ConfigJson.getString(obj, "screenTitlePattern", cfg.screenTitlePattern));
             readIdentities(obj, "sellIdentities", cfg.sellIdentities);
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
@@ -97,8 +101,8 @@ public final class AutoSellConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("minDelayMs", minDelayMs);
-            obj.addProperty("maxDelayMs", maxDelayMs);
+            obj.addProperty("minTicks", minTicks);
+            obj.addProperty("maxTicks", maxTicks);
             obj.addProperty("screenTitlePattern", screenTitlePattern);
             JsonArray sell = new JsonArray();
             sellIdentities.forEach(sell::add);
@@ -126,20 +130,28 @@ public final class AutoSellConfig {
         this.enabled = enabled;
     }
 
-    public int getMinDelayMs() {
-        return minDelayMs;
+    public int getMinTicks() {
+        return minTicks;
     }
 
-    public int getMaxDelayMs() {
-        return maxDelayMs;
+    public int getMaxTicks() {
+        return maxTicks;
     }
 
-    public void setMinDelayMs(int v) {
-        this.minDelayMs = Math.max(0, v);
+    /** Clamped to 0..{@link #MAX_TICKS}; the max is pulled up to it if it would fall below. */
+    public void setMinTicks(int v) {
+        this.minTicks = Math.max(0, Math.min(MAX_TICKS, v));
+        if (maxTicks < minTicks) {
+            maxTicks = minTicks;
+        }
     }
 
-    public void setMaxDelayMs(int v) {
-        this.maxDelayMs = Math.max(0, v);
+    /** Clamped to 0..{@link #MAX_TICKS}; the min is pulled down to it if it would rise above. */
+    public void setMaxTicks(int v) {
+        this.maxTicks = Math.max(0, Math.min(MAX_TICKS, v));
+        if (minTicks > maxTicks) {
+            minTicks = maxTicks;
+        }
     }
 
     public String getScreenTitlePattern() {

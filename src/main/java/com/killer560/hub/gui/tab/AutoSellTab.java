@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.autosell.AutoSellConfig;
 import com.killer560.hub.autosell.AutoSellFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
 
@@ -40,6 +41,41 @@ public class AutoSellTab extends BaseTab {
             return widgets;
         }
 
+        // Random wait between two sell clicks, 0..10 ticks, one slider for each end (killer560, 2026-10-18).
+        int tickRange = AutoSellConfig.MAX_TICKS;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, minTicksText(cfg),
+                cfg.getMinTicks() / (double) tickRange) {
+            @Override
+            protected void updateMessage() {
+                setMessage(minTicksText(AutoSellConfig.getInstance()));
+            }
+
+            @Override
+            protected void applyValue() {
+                AutoSellConfig c = AutoSellConfig.getInstance();
+                c.setMinTicks((int) Math.round(this.value * tickRange));
+                c.save();
+                this.value = c.getMinTicks() / (double) tickRange;
+            }
+        });
+        y += 24;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, maxTicksText(cfg),
+                cfg.getMaxTicks() / (double) tickRange) {
+            @Override
+            protected void updateMessage() {
+                setMessage(maxTicksText(AutoSellConfig.getInstance()));
+            }
+
+            @Override
+            protected void applyValue() {
+                AutoSellConfig c = AutoSellConfig.getInstance();
+                c.setMaxTicks((int) Math.round(this.value * tickRange));
+                c.save();
+                this.value = c.getMaxTicks() / (double) tickRange;
+            }
+        });
+        y += 26;
+
         boolean running = AutoSellFeature.isRunning();
         widgets.add(SettingsButtonWidget.builder(
                         Component.literal(running ? "§cRunning... /autosell stop" : "§7Not running - /autosell start"),
@@ -71,6 +107,14 @@ public class AutoSellTab extends BaseTab {
                 }).bounds(x, y, width, 16).build();
         w.active = false;
         return w;
+    }
+
+    private static Component minTicksText(AutoSellConfig cfg) {
+        return Component.literal("Min Wait Between Sells: " + cfg.getMinTicks() + " ticks");
+    }
+
+    private static Component maxTicksText(AutoSellConfig cfg) {
+        return Component.literal("Max Wait Between Sells: " + cfg.getMaxTicks() + " ticks");
     }
 
     private static Component onOff(String label, boolean value) {
