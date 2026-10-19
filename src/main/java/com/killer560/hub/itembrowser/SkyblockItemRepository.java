@@ -103,6 +103,19 @@ public final class SkyblockItemRepository {
         return byId.get(id);
     }
 
+    /** The catalog entry for {@code id} from the on-disk cache alone: never starts a download, so it is safe with the
+     *  Item Browser switched off (the compactor preview reads it that way; killer560, 2026-10-18: "only shows paper"). */
+    public static SkyblockItemEntry findOnDisk(String id) {
+        if (id == null) {
+            return null;
+        }
+        if (!triedCache) {
+            triedCache = true;
+            loadFromDisk();
+        }
+        return byId.get(id);
+    }
+
     public static boolean isRefreshing() {
         return refreshing.get();
     }
