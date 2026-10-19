@@ -192,7 +192,7 @@ public final class P3NavFeature {
             if (terminal ? !wantTerminals : (!device || !wantDevices)) {
                 continue;
             }
-            int standSection = terminal ? terminalSection(stand) : sectionAt(stand.position());
+            int standSection = terminal ? terminalSection(stand) : deviceSection(stand.position());
             if (standSection == 0 || (onlyCurrent && standSection != section)) {
                 continue;
             }
@@ -214,6 +214,39 @@ public final class P3NavFeature {
         // Not in the table (a Hypixel layout tweak, or p3sim.net drifting a stand): fall back to the section box
         // so the terminal is still highlighted rather than silently dropped.
         return sectionAt(stand.position());
+    }
+
+    /** Devices ("Not Activated" stands) have no table like the terminals do. A device stand that stands just outside its
+     *  section box (a wall-mounted lever) used to be dropped, so it never highlighted; now it takes the nearest box within
+     *  {@link #DEVICE_BOX_SLACK} blocks. Each device's position is logged once, with the section it got, so a test shows it. */
+    private static final double DEVICE_BOX_SLACK = 8.0;
+    private static final java.util.Set<String> LOGGED_DEVICES = new java.util.HashSet<>();
+
+    private static int deviceSection(Vec3 pos) {
+        int inside = sectionAt(pos);
+        int result = inside;
+        if (result == 0) {
+            double best = DEVICE_BOX_SLACK * DEVICE_BOX_SLACK;
+            for (int i = 0; i < SECTION_BOXES.length; i++) {
+                double d = distanceSqToBox(SECTION_BOXES[i], pos);
+                if (d <= best) {
+                    best = d;
+                    result = i + 1;
+                }
+            }
+        }
+        String key = (int) Math.floor(pos.x) + "," + (int) Math.floor(pos.y) + "," + (int) Math.floor(pos.z);
+        if (LOGGED_DEVICES.add(key)) {
+            LOGGER.info("[P3Nav] device at {} -> section {} ({})", key, result, inside == 0 ? "outside every box" : "inside");
+        }
+        return result;
+    }
+
+    private static double distanceSqToBox(AABB box, Vec3 p) {
+        double dx = Math.max(Math.max(box.minX - p.x, 0.0), p.x - box.maxX);
+        double dy = Math.max(Math.max(box.minY - p.y, 0.0), p.y - box.maxY);
+        double dz = Math.max(Math.max(box.minZ - p.z, 0.0), p.z - box.maxZ);
+        return dx * dx + dy * dy + dz * dz;
     }
 
     private static int sectionAt(Vec3 pos) {
