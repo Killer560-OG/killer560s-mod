@@ -165,6 +165,11 @@ public final class BazaarFlipFeature {
      */
     private static int scanGeneration = 0;
     private static boolean keyWasDown = false;
+    /** When a screen last closed, and whether one was open on the previous tick - the start key waits
+     *  {@link #MENU_CLOSE_DELAY_MS} after a menu closes (killer560, 2026-10-18). */
+    private static boolean screenWasOpen = false;
+    private static long menuClosedAtMs = 0L;
+    static final long MENU_CLOSE_DELAY_MS = 250L;
     /**
      * True from a start until the start bind is seen UP again. Without it, holding the start key for longer
      * than {@link #START_GRACE_MS} makes the session stop itself on the very key that began it, which is
@@ -472,6 +477,13 @@ public final class BazaarFlipFeature {
     }
 
     private static void pollStartKey(Minecraft client, BazaarFlipConfig cfg) {
+        // Remember when the last screen closed (killer560, 2026-10-18: the button only works a quarter of a second after
+        // a menu closes) - the key that closed the menu must not also start the flip.
+        boolean screenOpen = McCompat.screen(client) != null;
+        if (screenWasOpen && !screenOpen) {
+            menuClosedAtMs = System.currentTimeMillis();
+        }
+        screenWasOpen = screenOpen;
         if (!cfg.isEnabled() || client.getWindow() == null) {
             keyWasDown = false;
             return;
@@ -487,7 +499,8 @@ public final class BazaarFlipFeature {
         }
         // Rising edge, and only with no screen open, so the bind can't fire while he is typing in chat or
         // clicking around this mod's own settings.
-        if (down && !keyWasDown && McCompat.screen(client) == null && state == State.IDLE) {
+        boolean afterMenuDelay = System.currentTimeMillis() - menuClosedAtMs >= MENU_CLOSE_DELAY_MS;
+        if (down && !keyWasDown && !screenOpen && afterMenuDelay && state == State.IDLE) {
             String refusal = start();
             if (refusal != null) {
                 ModChat.send("Bazaar Flip", ModChat.bad("Can't start: "), ModChat.text(refusal));
