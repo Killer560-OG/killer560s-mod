@@ -106,6 +106,13 @@ public final class PlayerStatsFeature {
     private static long lastLogNanos;
     private static String lastLogText = null;
 
+    /** ALLOW_GAME phase that runs before every default listener, so no other feature's drop hides a line from Stat Bars. */
+    private static final net.minecraft.resources.Identifier READ_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "statbars_read");
+    /** The line read last: a system-chat action bar reaches both ALLOW_GAME and setOverlayMessage as the same object
+     *  (nothing in this mod rewrites an overlay line), and is parsed once. Client thread. */
+    private static Component lastRead;
+
     private PlayerStatsFeature() {
     }
 
@@ -113,6 +120,20 @@ public final class PlayerStatsFeature {
         // The stat text is read by onActionBar, which CustomScoreboardGuiMixin calls at setOverlayMessage. It is not a
         // MODIFY_GAME listener: Hypixel's action bar arrives as ClientboundSetActionBarTextPacket, which calls
         // Gui.setOverlayMessage directly (javap 26.1.2 and 26.2), so Fabric's MODIFY_GAME never sees it (2026-10-18).
+        // An action bar that comes as system chat (overlay = true) goes through Fabric's ALLOW_GAME first, and any
+        // listener there returning false drops it before setOverlayMessage: Chat Hider's "Hide actionbar"
+        // (ObjectHiderFeature.allowsGameLine) does exactly that, so with it on Stat Bars never read a single line and
+        // every bar stayed blank (2026-10-19). Hiding the line is a display choice; it must not starve the reader. So
+        // the line is also read here, in a phase before every default ALLOW_GAME listener, and always let through.
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME
+                .addPhaseOrdering(READ_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents.ALLOW_GAME.register(READ_PHASE,
+                (message, overlay) -> {
+                    if (overlay) {
+                        onActionBar(message);
+                    }
+                    return true;
+                });
         registerVanillaSuppression();
         // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
         // level"). Fabric's INFO_BAR is the contextual bar slot - the XP bar, and also the locator and
@@ -246,10 +267,18 @@ public final class PlayerStatsFeature {
      * every line. Only reads; the line itself is not changed here (see {@link #actionBarReplacement}).
      */
     public static void onActionBar(Component message) {
-        if (message == null || !PlayerStatsConfig.getInstance().isEnabled()) {
+        if (message == null || message == lastRead || !PlayerStatsConfig.getInstance().isEnabled()) {
             return;
         }
-        String raw = message.getString();
+        lastRead = message;
+        try {
+            read(message.getString());
+        } catch (RuntimeException e) {
+            // Packet path (ALLOW_GAME and setOverlayMessage): a throw here would disconnect him from Hypixel.
+        }
+    }
+
+    private static void read(String raw) {
 
         Matcher healthMatch = HEALTH_REGEX.matcher(raw);
         boolean healthHit = healthMatch.find();

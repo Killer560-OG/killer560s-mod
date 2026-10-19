@@ -2070,6 +2070,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/other resource text", "Any other current/max stat Hypixel shows on the action bar, as text.");
         d.put("health and mana bars/color", "Color of this text readout.");
         d.put("health and mana bars/bar width", "Length of every custom bar at once. To size one bar on its own, drag its edges in Edit HUD; moving this slider puts every bar back to it.");
+        d.put("health and mana bars/bar size", "Size of every bar and text in the Predefined layout, from 0.5x to 3.0x in steps of 0.5. Scrolling a bar in Edit Bars changes the same size in finer steps.");
         d.put("health and mana bars/bar height", "Thickness of every custom bar at once. To size one bar on its own, drag its edges in Edit HUD (Custom layout); moving this slider puts every bar back to it. In the Predefined layout every bar is this thick. A bar showing its number is never thinner than the number plus a little room above and below.");
         d.put("health and mana bars/vitality bar", "Your vitality (the resource healing abilities, Wither Shield and Creeper Veil use) as a bar. Hypixel only shows it on the action bar while it is in use, so the bar shows then too.");
         d.put("health and mana bars/vitality text", "Your vitality as text, from the action bar.");
