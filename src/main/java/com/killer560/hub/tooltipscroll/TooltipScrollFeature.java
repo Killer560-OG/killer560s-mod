@@ -2,12 +2,14 @@ package com.killer560.hub.tooltipscroll;
 
 import com.killer560.hub.util.FeatureGuard;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.gui.screens.inventory.tooltip.TooltipRenderUtil;
 import net.minecraft.world.item.ItemStack;
+import org.lwjgl.glfw.GLFW;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -179,6 +181,16 @@ public final class TooltipScrollFeature {
     public static boolean onMouseScrolled(double scrollY) {
         scrollHookSeen = true;
         TooltipScrollConfig cfg = TooltipScrollConfig.getInstance();
+        // killer560, 2026-10-18: "if I am holding shift and scroll it will go left and right". Shift turns the wheel into a
+        // sideways move of the whole tooltip (wheel up = left, the same sign as the nudge above), and never scrolls the lines.
+        if (cfg.isEnabled() && hovered.get() != null && scrollY != 0.0 && shiftHeld()) {
+            int direction = scrollY > 0 ? -1 : 1;
+            if (cfg.isInvert()) {
+                direction = -direction;
+            }
+            nudgeX = clamp(nudgeX + direction * cfg.getLinesPerScroll() * NUDGE_PX_PER_LINE, -maxNudgeX, maxNudgeX);
+            return true;
+        }
         // Not enabled or nothing hovered: hand the wheel straight back so it keeps doing whatever it
         // normally does (hotbar slot, another mod's scrollable list, bundles). Unlike before 2026-09-27 this
         // no longer bails out just because the tooltip fits - see the nudge branch below.
@@ -209,6 +221,21 @@ public final class TooltipScrollFeature {
         // Consumed even when already clamped at an end, so the wheel can't "fall through" to the container
         // the moment you hit the top/bottom of a long tooltip or the limit of a nudge.
         return true;
+    }
+
+    /** Pixels the tooltip is moved sideways by Shift + wheel (killer560, 2026-10-18). Clamped to the GUI width each render. */
+    private static int nudgeX;
+    private static int maxNudgeX = 40;
+
+    private static boolean shiftHeld() {
+        long handle = Minecraft.getInstance().getWindow().handle();
+        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    }
+
+    /** The sideways move the tooltip should be drawn with this frame (0 = none). Used by the render mixin. */
+    public static int horizontalOffset() {
+        return nudgeX;
     }
 
     // ---------------------------------------------------------------- rendering
@@ -256,6 +283,7 @@ public final class TooltipScrollFeature {
         // that arrives between renders (there always was at least one by the time a scroll can fire) still
         // has some room to work with.
         maxNudge = Math.max(40, available);
+        maxNudgeX = Math.max(40, graphics.guiWidth());
         int overflow = total - available;
         if (available < 10 || overflow <= 0) {
             scrollable = false;

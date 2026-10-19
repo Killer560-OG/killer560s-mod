@@ -52,7 +52,8 @@ public abstract class TooltipScrollGraphicsMixin {
             // Measurement only; a failure here just means this frame's tooltip isn't translated.
             pixelOffset = 0;
         }
-        if (pixelOffset == 0) {
+        int dx = TooltipScrollFeature.horizontalOffset();
+        if (pixelOffset == 0 && dx == 0) {
             // The common case (feature off, nothing hovered, tooltip already fits) must cost nothing beyond
             // the measurement above - no push/pop, tooltip renders exactly as vanilla always has.
             original.call(font, components, x, y, positioner, style);
@@ -63,7 +64,7 @@ public abstract class TooltipScrollGraphicsMixin {
         try {
             // Negative Y moves the whole rendered picture UP on screen, sliding earlier lines out of view at
             // the top and revealing later ones at the bottom - exactly what "translate by pixelOffset" means.
-            pose.translate(0, -pixelOffset);
+            pose.translate(dx, -pixelOffset);
             original.call(font, components, x, y, positioner, style);
         } catch (Throwable ignored) {
             // A render exception must never take down the frame; the pop below still runs regardless.
