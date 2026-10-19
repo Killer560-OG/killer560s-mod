@@ -19,6 +19,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -178,35 +179,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         refresh();
     }
 
-    /** Steps through the Hypixel leather colours (from the catalog) and arms the colour. */
-    private void stepHypixelDye(int dir) {
-        ArmourDyeEntry e = editable();
-        if (e == null) {
-            return;
-        }
-        int cur = hypixelDyeIndex(e.color);
-        int idx = cur < 0
-                ? (dir > 0 ? 0 : HypixelDyes.COLORS.length - 1)
-                : SettingsButtonWidget.step(cur, dir, HypixelDyes.COLORS.length);
-        e.color = 0xFF000000 | HypixelDyes.COLORS[idx];
-        e.colorEnabled = true;
-        cfg().save();
-        showLook();
-        say("Dye: " + HypixelDyes.NAMES[idx] + ".", false);
-        refresh();
-    }
-
-    /** The index of a Hypixel dye colour matching this ARGB, or -1. */
-    static int hypixelDyeIndex(int argb) {
-        int rgb = argb & 0xFFFFFF;
-        for (int i = 0; i < HypixelDyes.COLORS.length; i++) {
-            if (HypixelDyes.COLORS[i] == rgb) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
     /** Cycles the armour skin; {@code forward} false goes back one. Public for tests. */
     public void cycleSkin(boolean forward) {
         ArmourDyeEntry e = editable();
@@ -223,22 +195,31 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         refresh();
     }
 
-    private void cycleTrim(boolean material, boolean forward) {
+    /** Opens the list of trim materials or patterns; the current one is marked. */
+    private void openChoices(boolean material) {
+        ArmourDyeEntry e = entry();
+        List<String> options = new ArrayList<>();
+        options.add("");
+        options.addAll(material ? ArmourTrims.materials() : ArmourTrims.patterns());
+        String cur = e == null ? "" : (material ? e.trimMaterial : e.trimPattern);
+        minecraft.setScreenAndShow(new ChoiceListScreen(this, material ? "Trim" : "Pattern", options, cur,
+                value -> setTrimChoice(material, value)));
+    }
+
+    /** Sets the trim material or pattern picked from the list (blank = none). */
+    private void setTrimChoice(boolean material, String value) {
         ArmourDyeEntry e = editable();
         if (e == null) {
             return;
         }
-        List<String> options = material ? ArmourTrims.materials() : ArmourTrims.patterns();
-        String cur = material ? e.trimMaterial : e.trimPattern;
-        String next = cycle(options, cur, forward);
         if (material) {
-            e.trimMaterial = next;
+            e.trimMaterial = value;
         } else {
-            e.trimPattern = next;
+            e.trimPattern = value;
         }
         cfg().save();
         showLook();
-        refresh();
+        say((material ? "Trim" : "Pattern") + " set to " + (value.isEmpty() ? "none" : value) + ".", false);
     }
 
     /** Sets the Look from text: an item model id ({@code diamond_sword}, {@code minecraft:diamond_sword}) or, if it
@@ -338,23 +319,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    private static String cycle(List<String> options, String current, boolean forward) {
-        if (options.isEmpty()) {
-            return "";
-        }
-        int idx = options.indexOf(current);
-        if (forward) {
-            if (idx < 0) {
-                return options.get(0);
-            }
-            return idx + 1 >= options.size() ? "" : options.get(idx + 1);
-        }
-        if (idx < 0) {
-            return options.get(options.size() - 1);
-        }
-        return idx == 0 ? "" : options.get(idx - 1);
-    }
-
     private static String shortId(String id) {
         if (id == null || id.isBlank()) {
             return "§8Off";
@@ -394,7 +358,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         rightW = Math.max(60, panelX + panelW - 8 - rightX);
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
-                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
+                .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
 
         searchBox = new ThemedEditBox(this.font, gridX, panelY + 24, GRID_W, 18, Component.literal("Search"))
                 .hint("search items by name");
@@ -431,51 +395,42 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         use.active = has;
         addRenderableWidget(use);
 
-        // Row 2: Hypixel leather colour dropdown (cycles the catalog colours).
-        int dye = e == null ? -1 : hypixelDyeIndex(e.color);
-        SettingsButtonWidget hypixelDye = SettingsButtonWidget.cycling(
-                        Component.literal("Hypixel Dye: " + (dye < 0 ? "pick" : HypixelDyes.NAMES[dye])),
-                        (b, dir) -> stepHypixelDye(dir))
-                .bounds(rightX, row(2), rightW, BTN_H).build();
-        hypixelDye.active = has;
-        addRenderableWidget(hypixelDye);
-
         // Row 3: armour skin dropdown, and the Hypixel item skin picker.
         SettingsButtonWidget skin = SettingsButtonWidget.cycling(
                         Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
                         (b, dir) -> cycleSkin(dir > 0))
-                .bounds(rightX, row(3), half, BTN_H).build();
+                .bounds(rightX, row(2), half, BTN_H).build();
         skin.active = has && armour;
         addRenderableWidget(skin);
         SettingsButtonWidget hypixelSkin = SettingsButtonWidget.builder(Component.literal("Hypixel Skin..."),
                         b -> minecraft.setScreenAndShow(new HypixelSkinScreen(this, this::applyHypixelSkin)))
-                .bounds(x2, row(3), rest, BTN_H).build();
+                .bounds(x2, row(2), rest, BTN_H).build();
         hypixelSkin.active = has;
         addRenderableWidget(hypixelSkin);
 
-        // Row 4: trim and pattern dropdowns.
-        SettingsButtonWidget trim = SettingsButtonWidget.cycling(
+        // Row 3: trim and pattern. Each opens a list of its choices, the current one marked.
+        SettingsButtonWidget trim = SettingsButtonWidget.builder(
                         Component.literal("Trim: " + shortId(e == null ? "" : e.trimMaterial)),
-                        (b, dir) -> cycleTrim(true, dir > 0))
-                .bounds(rightX, row(4), half, BTN_H).build();
+                        b -> openChoices(true))
+                .bounds(rightX, row(3), half, BTN_H).build();
         trim.active = has && armour;
         addRenderableWidget(trim);
-        SettingsButtonWidget pattern = SettingsButtonWidget.cycling(
+        SettingsButtonWidget pattern = SettingsButtonWidget.builder(
                         Component.literal("Pattern: " + shortId(e == null ? "" : e.trimPattern)),
-                        (b, dir) -> cycleTrim(false, dir > 0))
-                .bounds(x2, row(4), rest, BTN_H).build();
+                        b -> openChoices(false))
+                .bounds(x2, row(3), rest, BTN_H).build();
         pattern.active = has && armour;
         addRenderableWidget(pattern);
 
-        // Row 5: free-text Look and its Set button.
-        lookBox = new ThemedEditBox(this.font, rightX, row(5) + 2, rightW - 40, 16, Component.literal("Look"))
+        // Row 4: free-text Look        // Row 5: free-text Look and its Set button.
+        lookBox = new ThemedEditBox(this.font, rightX, row(4) + 2, rightW - 40, 16, Component.literal("Look"))
                 .hint(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
                         : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword");
         lookBox.setMaxLength(4096);
         lookBox.active = has;
         addRenderableWidget(lookBox);
         SettingsButtonWidget set = SettingsButtonWidget.builder(Component.literal("Set"), b -> setLook(lookBox.getValue()))
-                .bounds(rightX + rightW - 36, row(5), 36, BTN_H).build();
+                .bounds(rightX + rightW - 36, row(4), 36, BTN_H).build();
         set.active = has;
         addRenderableWidget(set);
 
@@ -484,11 +439,11 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                 b -> {
                     copyingLook = !copyingLook;
                     b.setMessage(Component.literal(copyingLook ? "Pick item..." : "Copy Look"));
-                }).bounds(rightX, row(6), half, BTN_H).build();
+                }).bounds(rightX, row(5), half, BTN_H).build();
         copy.active = has;
         addRenderableWidget(copy);
         SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear Look"), b -> setLook(""))
-                .bounds(x2, row(6), rest, BTN_H).build();
+                .bounds(x2, row(5), rest, BTN_H).build();
         clear.active = e != null && (!e.iconModel.isBlank() || !e.headTexture.isBlank());
         addRenderableWidget(clear);
 
@@ -498,11 +453,11 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                         b -> {
                             showClear = !showClear;
                             refresh();
-                        }).bounds(rightX, row(7), half, BTN_H).build();
+                        }).bounds(rightX, row(6), half, BTN_H).build();
         preview.active = !selectedStack.isEmpty();
         addRenderableWidget(preview);
         SettingsButtonWidget remove = SettingsButtonWidget.builder(Component.literal("§cRemove Look"), b -> removeSelected())
-                .bounds(x2, row(7), rest, BTN_H).build();
+                .bounds(x2, row(6), rest, BTN_H).build();
         remove.active = e != null;
         addRenderableWidget(remove);
     }
@@ -569,7 +524,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Custom Items");
         if (!cfg().isEnabledRaw()) {
             MenuStyle.text(graphics, this.font.plainSubstrByWidth(
-                    "Custom Items is OFF in its tab - looks are saved but not drawn.", panelW - 80 - 54),
+                    "Custom Items is OFF in its tab - looks are saved but not drawn.", panelW - 80 - 72),
                     panelX + 80, panelY + 6, ScreenChrome.bad());
         }
 

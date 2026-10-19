@@ -2431,7 +2431,6 @@ final class SettingTooltipsData {
         d.put("custom items", "Recolors and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
-        d.put("hypixel dye", "Picks one of the leather colours Hypixel's own armour uses (from the item catalog), one step per click; right click goes back.");
         d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
         d.put("show with look", "Previews the item with its saved skin, colour, trim and look drawn on it.");
         d.put("show clear item", "Previews the item as it really is, with no custom skin, colour, trim or look drawn on it.");
