@@ -1428,7 +1428,6 @@ final class SettingTooltipsData {
         d.put("status", "Shows whether Discord Rich Presence is connected.");
         d.put("what to show", "Chooses which details are shown on your Discord profile.");
         d.put("score milestone messages", "Send Now buttons for party messages when you hit 270 and 300.");
-        d.put("terminals to solve", "Chooses which of the six F7 terminal types get highlighted.");
         d.put("terminals to auto-click", "Chooses which terminal types are clicked automatically (cheat build only).");
         d.put("restrict when these apply", "Limits the enlarged hitboxes to dungeons or the boss fight.");
         d.put("overlay colors", "Colors the terminal solver uses for its highlights.");
