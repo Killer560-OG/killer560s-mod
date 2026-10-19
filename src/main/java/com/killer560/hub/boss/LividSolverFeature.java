@@ -22,6 +22,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -190,16 +191,28 @@ public final class LividSolverFeature {
         if (client.player != null && client.player.hasEffect(MobEffects.BLINDNESS)) {
             return;
         }
-        float[] c = currentLivid.color;
-        SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.LIVID, context, lividEntity.getBoundingBox(), c[0], c[1], c[2], 1f, 2f);
+        // Match Livid (killer560, 2026-10-18): the highlight and the tracer take the Livid's own colour. Custom: the two
+        // colours set in the menu, each on its own.
+        boolean match = cfg.getColourMode() == LividSolverConfig.ColourMode.MATCH;
+        float[] hc = match ? currentLivid.color : WorldRenderUtils.argbToFloats(cfg.getHighlightColour());
+        float[] tc = match ? currentLivid.color : WorldRenderUtils.argbToFloats(cfg.getTracerColour());
+        com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver solver = com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.LIVID;
+        AABB box = lividEntity.getBoundingBox();
+        // The solver's Waypoint Style: an outline, or a see-through full block (SolverEspRender does the drawing).
+        if (com.killer560.hub.puzzlesolvers.SolverEspConfig.getInstance().getWaypointStyle(solver)
+                == com.killer560.hub.puzzlesolvers.SolverEspConfig.WaypointStyle.FULL) {
+            SolverEspRender.renderFilledBox(solver, context, box, hc[0], hc[1], hc[2], 0.45f);
+        } else {
+            SolverEspRender.renderOutlineBox(solver, context, box, hc[0], hc[1], hc[2], 1f, 2f);
+        }
         // killer560, 2026-09-20: "add an option to draw a line to the correct livid".
         if (cfg.isShowLine() && client.player != null) {
-            Vec3 target = lividEntity.getBoundingBox().getCenter();
+            Vec3 target = box.getCenter();
             // WorldRenderUtils.tracerOrigin(context), not client.player.getEyePosition() - see that method's doc for
             // the head-instead-of-crosshair bug killer560 reported on doorkeys/wither ESP's tracers (this one
             // moves the same way).
-            SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.LIVID, context, List.of(WorldRenderUtils.tracerOrigin(context), target),
-                    c[0], c[1], c[2], 1f, 2f);
+            SolverEspRender.renderLineStrip(solver, context, List.of(WorldRenderUtils.tracerOrigin(context), target),
+                    tc[0], tc[1], tc[2], 1f, cfg.getTracerThickness());
         }
     }
 

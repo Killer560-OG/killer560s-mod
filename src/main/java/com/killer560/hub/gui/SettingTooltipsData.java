@@ -1907,6 +1907,10 @@ final class SettingTooltipsData {
         d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
         d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
         d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
+        d.put("livid colour", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool colour. Custom uses the Highlight Colour and Tracer Colour you set below.");
+        d.put("highlight colour", "Livid Solver, Custom colour mode: the colour of the box drawn round Livid.");
+        d.put("tracer colour", "Livid Solver, Custom colour mode: the colour of the line from you to Livid.");
+        d.put("tracer thickness", "How thick the line from you to Livid is drawn, in units from 1 to 10.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
         // Chat Keybinds holds Command Shortcuts too since 2026-10-08 (one tab, sub-tab "Chat Keybinds"): every entry for
         // either feature is scoped "chat keybinds/..." - the old "command shortcuts/..." keys were orphaned by the move.
