@@ -113,12 +113,6 @@ public class ItemBrowserTab extends BaseTab {
         // The old "Show Item Value (Tooltip)" row (2026-09-27) became its own feature, Price Tooltip, in the Items
         // category on 2026-10-15 (pricetooltip/); its saved value seeds that feature's switch once.
 
-        int itemCount = SkyblockItemRepository.getItems().size();
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Real item catalog: " + (itemCount > 0 ? itemCount + " items loaded" : "not loaded yet")
-                        + (SkyblockItemRepository.isRefreshing() ? " (refreshing...)" : "")),
-                Minecraft.getInstance().font));
-
         return widgets;
     }
 
