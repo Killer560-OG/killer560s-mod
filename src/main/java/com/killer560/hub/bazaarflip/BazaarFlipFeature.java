@@ -100,7 +100,7 @@ public final class BazaarFlipFeature {
     /** "Buy only one!" is only for a tail smaller than a stack, and only this many times a cycle. */
     private static final int MAX_SINGLE_BUYS = 8;
     /** The Trades menu; the exact title is not documented, so anything naming Trades. */
-    private static final Pattern TRADES_TITLE = Pattern.compile("(?i)^.{0,24}\\btrades?\\b.{0,24}$");
+    static final Pattern TRADES_TITLE =Pattern.compile("(?i)^.{0,24}\\btrades?\\b.{0,24}$");
     private static final Pattern CANNOT_AFFORD = Pattern.compile("^\\[Bazaar\\] You cannot afford this!$");
     /** "[Bazaar] Bought 16x Ender Pearl for 112.0 coins!" (his 2026-10-08 dump and 62 lines in his logs). */
     static final Pattern BOUGHT_LINE =
@@ -140,8 +140,13 @@ public final class BazaarFlipFeature {
         /** The NPC menu is open: selling. */
         SELL,
         /** Everything is sold; waiting (bounded) for the last "You sold" lines before the cycle is logged. */
-        LOG_CYCLE
+        LOG_CYCLE,
+        /** The autopilot ({@link BazaarFlipAutopilot}) is running instead of the cycle above. */
+        AUTOPILOT
     }
+
+    /** Clicks one autopilot session may send (each order is about five; the cycle's cap is {@link #MAX_CLICKS_PER_SESSION}). */
+    private static final int MAX_AUTOPILOT_CLICKS = 1500;
 
     /** Where a Custom Amount purchase is. */
     private enum Custom {
@@ -247,6 +252,9 @@ public final class BazaarFlipFeature {
         if (line.startsWith("[Bazaar Flip]")) {
             return; // this feature's own lines
         }
+        if (state == State.AUTOPILOT) {
+            BazaarFlipAutopilot.onChatLine(line);
+        }
         if (state == State.BAZAAR && CANNOT_AFFORD.matcher(line).matches()) {
             cannotAfford = true;
             return;
@@ -334,6 +342,23 @@ public final class BazaarFlipFeature {
         if (cfg.getTargetPurse() > 0 && purse >= cfg.getTargetPurse()) {
             return String.format(Locale.US, "your purse is already at the target (%,.0f of %,d).",
                     purse, cfg.getTargetPurse());
+        }
+        if (cfg.isAutopilot()) {
+            String refusal = BazaarFlipAutopilot.begin(client, purse);
+            if (refusal != null) {
+                return refusal;
+            }
+            target = null;
+            clicks = 0;
+            cycles = 0;
+            npcLimitHit = false;
+            lastStopReason = "";
+            startPurse = purse;
+            startedAtMs = System.currentTimeMillis();
+            startBindStillHeld = cfg.getStartKeyCode() != KeyUtil.NONE && client.getWindow() != null
+                    && KeyUtil.isBindDown(client.getWindow(), cfg.getStartKeyCode());
+            setState(State.AUTOPILOT);
+            return null;
         }
         if (BazaarFlipNpcLimit.remaining() <= 0) {
             return npcLimitText();
@@ -446,8 +471,15 @@ public final class BazaarFlipFeature {
         if (McCompat.screen(client) == null && anyKeyDownInWorld(client)) {
             return;
         }
-        if (clicks >= MAX_CLICKS_PER_SESSION) {
-            stop("safety limit of " + MAX_CLICKS_PER_SESSION + " clicks reached");
+        int clickCap = state == State.AUTOPILOT ? MAX_AUTOPILOT_CLICKS : MAX_CLICKS_PER_SESSION;
+        if (clicks >= clickCap) {
+            stop("safety limit of " + clickCap + " clicks reached");
+            return;
+        }
+        if (state == State.AUTOPILOT) {
+            // The autopilot reads the NPC limit itself (BazaarFlipNpcLimit) and simply stops selling to the NPC.
+            npcLimitHit = false;
+            BazaarFlipAutopilot.tick(client, cfg);
             return;
         }
         if (npcLimitHit && state != State.LOG_CYCLE) {
@@ -473,7 +505,7 @@ public final class BazaarFlipFeature {
             case WAIT_TRADES_MENU -> tickWaitMenu(client, "the /trades NPC menu", State.SELL);
             case SELL -> tickSell(client, cfg);
             case LOG_CYCLE -> tickLogCycle(client);
-            case IDLE -> {
+            case IDLE, AUTOPILOT -> {
             }
         }
     }
@@ -646,7 +678,7 @@ public final class BazaarFlipFeature {
      * True once the open menu's items have sat unchanged for {@link #SETTLE_MS}. Hypixel sends a page's items a
      * moment after the window, so a page is never judged (or clicked) half-loaded.
      */
-    private static boolean settled(AbstractContainerScreen<?> screen) {
+    static boolean settled(AbstractContainerScreen<?> screen) {
         long now = System.currentTimeMillis();
         int id = screen.getMenu().containerId;
         String sig = BazaarFlipMenus.signature(screen.getMenu());
@@ -660,7 +692,7 @@ public final class BazaarFlipFeature {
     }
 
     /** After a click that should change the page: true while the same page is still up (nothing to judge yet). */
-    private static boolean stillOnClickedPage(AbstractContainerScreen<?> screen) {
+    static boolean stillOnClickedPage(AbstractContainerScreen<?> screen) {
         if (clickedContainerId == Integer.MIN_VALUE) {
             return false;
         }
@@ -1366,7 +1398,7 @@ public final class BazaarFlipFeature {
      * @param changesPage the click should bring up a different page; nothing is judged until it does
      * @return whether the click was sent (false: the gate denied this tick, nothing happened)
      */
-    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
+    static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slotIndex,
                                  ContainerInput input, BazaarFlipConfig cfg, boolean changesPage) {
         if (client.gameMode == null || client.player == null) {
             return false;
@@ -1389,7 +1421,7 @@ public final class BazaarFlipFeature {
     }
 
     /** A chat command through the gate, sent below this mod's own client dispatcher. */
-    private static boolean sendCommand(String command) {
+    static boolean sendCommand(String command) {
         if (!ActionGate.tryAct(ActionGate.Actor.BAZAAR_FLIP_CMD)) {
             return false; // retried next tick
         }
@@ -1436,14 +1468,14 @@ public final class BazaarFlipFeature {
     }
 
     /** Pacing between two consecutive automated actions in the menus - the menu speed slider's only job. */
-    private static long randomDelay(BazaarFlipConfig cfg) {
+    static long randomDelay(BazaarFlipConfig cfg) {
         int lo = cfg.getActionDelayMinMs();
         int hi = Math.max(lo, cfg.getActionDelayMaxMs());
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
     }
 
     /** Pacing between two consecutive sell shift-clicks - the sell speed slider's only job. */
-    private static long randomSellDelay(BazaarFlipConfig cfg) {
+    static long randomSellDelay(BazaarFlipConfig cfg) {
         int lo = cfg.getSellDelayMinMs();
         int hi = Math.max(lo, cfg.getSellDelayMaxMs());
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
@@ -1504,7 +1536,40 @@ public final class BazaarFlipFeature {
         reset();
     }
 
+    // ---- the autopilot's way in (BazaarFlipAutopilot shares this class's pacing, gate, click cap and stop) ----------
+
+    /** Whether the pacing since the last automated action has passed. */
+    static boolean paced() {
+        return System.currentTimeMillis() >= nextActionAtMs;
+    }
+
+    /** Holds the next automated action back by at least {@code ms}. */
+    static void delayNext(long ms) {
+        nextActionAtMs = Math.max(nextActionAtMs, System.currentTimeMillis() + ms);
+    }
+
+    /** Forgets the page the last click was made on (after the autopilot closes a menu itself). */
+    static void forgetPage() {
+        clickedContainerId = Integer.MIN_VALUE;
+        seenContainerId = Integer.MIN_VALUE;
+    }
+
+    static void stopFromAutopilot(String reason) {
+        if (state == State.AUTOPILOT) {
+            stop(reason);
+        }
+    }
+
+    static void finishFromAutopilot(String why) {
+        if (state == State.AUTOPILOT) {
+            finish(why);
+        }
+    }
+
     private static void reset() {
+        if (state == State.AUTOPILOT) {
+            BazaarFlipAutopilot.reset();
+        }
         state = State.IDLE;
         target = null;
         custom = Custom.NONE;

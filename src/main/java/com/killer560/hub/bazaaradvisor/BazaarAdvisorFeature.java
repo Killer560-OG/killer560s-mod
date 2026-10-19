@@ -5,6 +5,7 @@ import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.bazaarflip.BazaarFlipFeature;
 import com.killer560.hub.bazaarflip.BazaarFlipMenus;
 import com.killer560.hub.bazaarflip.BazaarFlipNpcLimit;
+import com.killer560.hub.bazaarflip.autopilot.FlipPricing;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
@@ -35,12 +36,6 @@ import java.util.Locale;
 public final class BazaarAdvisorFeature {
 
     private static final String CHAT = "Bazaar Advisor";
-    /** Bazaar sell tax taken from the amount a sell fills at. */
-    private static final double SELL_TAX = 0.0125;
-    /** How far a buy order bids above the best buy order, and an undercut below the cheapest sell offer, in coins. */
-    private static final double TICK = 0.1;
-    /** Days of sales the expected profit is counted over: what sells within one day counts. */
-    private static final double HORIZON_DAYS = 1.0;
 
     /** The screen the advice was last given for: one line per menu open, not one per tick. */
     private static AbstractContainerScreen<?> advisedScreen;
@@ -96,86 +91,50 @@ public final class BazaarAdvisorFeature {
      * read from {@code menu}, so the setup summary and the menu hook share it.
      */
     public static Recommendation recommend(List<BazaarProduct> products, BazaarAdvisorConfig cfg, AbstractContainerMenu menu, Double purse) {
-        boolean insta = cfg.getBuyMethod() == BazaarAdvisorConfig.BuyMethod.INSTA_BUY;
-        boolean npc = cfg.getMode() == BazaarAdvisorConfig.Mode.NPC;
-        Recommendation best = null;
-        for (BazaarProduct p : products) {
-            SkyblockItemEntry entry = SkyblockItemRepository.findById(p.productId());
-            double buy = insta ? p.topSellOfferPrice() : p.topBuyOrderPrice() + TICK;
-            if (buy <= 0) {
-                continue;
-            }
-            double sell;
-            double soldPerDay;
-            String sellLabel;
-            if (npc) {
-                Double npcPrice = entry == null ? null : entry.npcSellPrice();
-                if (npcPrice == null || npcPrice <= 0) {
-                    continue;
-                }
-                sell = npcPrice;
-                soldPerDay = Double.MAX_VALUE; // the NPC takes what it will take; its daily limit caps the count below
-                sellLabel = "sell to the NPC";
-            } else if (cfg.getSellMethod() == BazaarAdvisorConfig.SellMethod.INSTA_SELL) {
-                sell = p.topBuyOrderPrice() * (1 - SELL_TAX);
-                soldPerDay = p.sellMovingWeek() / 7.0;
-                sellLabel = "sell with Insta Sell";
-            } else {
-                sell = (p.topSellOfferPrice() - TICK) * (1 - SELL_TAX);
-                soldPerDay = p.buyMovingWeek() / 7.0;
-                sellLabel = "sell with a Sell Offer";
-            }
-            double profitEach = sell - buy;
-            if (profitEach <= 0 || sell <= 0) {
-                continue;
-            }
-            if (!npc && soldPerDay < 1) {
-                continue; // nobody is trading it on the Bazaar side we sell into
-            }
-            int stack = entry == null ? 64 : Math.max(1, SkyblockItemStackFactory.materialMaxStackSize(entry.material()));
-            long cap = Long.MAX_VALUE;
-            String capNote = "as many as your purse allows";
-            if (insta && menu != null) {
-                cap = Math.max(0, BazaarFlipMenus.roomFor(menu, p.productId(), p.displayName(), stack));
-                capNote = "capped by your inventory space";
-            }
-            if (purse != null) {
-                cap = Math.min(cap, (long) Math.floor(purse / buy));
-            }
-            if (npc) {
-                cap = Math.min(cap, (long) Math.floor(BazaarFlipNpcLimit.remaining() / sell));
-            }
-            if (cap < 1) {
-                continue;
-            }
-            long units = cap;
-            long sold = npc ? units : (long) Math.min(units, Math.floor(soldPerDay * HORIZON_DAYS));
-            if (sold < 1) {
-                continue;
-            }
-            double expected = profitEach * sold;
-            double percent = profitEach / buy * 100.0;
-            Recommendation r = new Recommendation(p.productId(), p.displayName(), units, buy, sell, profitEach, percent,
-                    expected, sold, insta ? "Insta Buy" : "Buy Order", sellLabel, capNote);
-            if (best == null || beats(cfg, r, best)) {
-                best = r;
-            }
+        // The model itself is FlipPricing (pure, shared with the Bazaar Flipper's autopilot); this only supplies the
+        // Minecraft-side lookups.
+        FlipPricing.Pick p = FlipPricing.best(products, answers(cfg), lookups(menu), purse, null);
+        if (p == null) {
+            return null;
         }
-        return best;
+        return new Recommendation(p.productId(), p.name(), p.units(), p.buy(), p.sell(), p.profitEach(), p.profitPercent(),
+                p.expectedProfit(), p.expectedSold(), p.buyLabel(), p.sellLabel(), p.capNote());
     }
 
-    /** Total profit ranks by the expected profit; percentage ranks by the profit per coin spent, then by expected profit. */
-    private static boolean beats(BazaarAdvisorConfig cfg, Recommendation a, Recommendation b) {
-        if (cfg.getGoal() == BazaarAdvisorConfig.Goal.PROFIT_PERCENT) {
-            if (a.profitPercent() != b.profitPercent()) {
-                return a.profitPercent() > b.profitPercent();
+    /** The stored /bzflip answers as the pricing model's flags. */
+    public static FlipPricing.Answers answers(BazaarAdvisorConfig cfg) {
+        return new FlipPricing.Answers(cfg.getMode() == BazaarAdvisorConfig.Mode.NPC,
+                cfg.getGoal() == BazaarAdvisorConfig.Goal.PROFIT_PERCENT,
+                cfg.getBuyMethod() == BazaarAdvisorConfig.BuyMethod.INSTA_BUY,
+                cfg.getSellMethod() == BazaarAdvisorConfig.SellMethod.INSTA_SELL);
+    }
+
+    /** NPC price and stack size from the item repository, inventory room from {@code menu} (no cap when null), the
+     *  NPC room from {@link BazaarFlipNpcLimit}. */
+    public static FlipPricing.Lookups lookups(AbstractContainerMenu menu) {
+        return new FlipPricing.Lookups() {
+            @Override
+            public Double npcPrice(String productId) {
+                SkyblockItemEntry entry = SkyblockItemRepository.findById(productId);
+                return entry == null ? null : entry.npcSellPrice();
             }
-            return a.expectedProfit() > b.expectedProfit();
-        }
-        if (a.expectedProfit() != b.expectedProfit()) {
-            return a.expectedProfit() > b.expectedProfit();
-        }
-        return a.profitPercent() > b.profitPercent();
+
+            @Override
+            public int stackSize(String productId) {
+                SkyblockItemEntry entry = SkyblockItemRepository.findById(productId);
+                return entry == null ? 64 : Math.max(1, SkyblockItemStackFactory.materialMaxStackSize(entry.material()));
+            }
+
+            @Override
+            public long room(String productId, String displayName, int stackSize) {
+                return menu == null ? -1 : Math.max(0, BazaarFlipMenus.roomFor(menu, productId, displayName, stackSize));
+            }
+
+            @Override
+            public double npcRemaining() {
+                return BazaarFlipNpcLimit.remaining();
+            }
+        };
     }
 
     private static String money(double coins) {

@@ -59,6 +59,12 @@ public final class BazaarApi {
         return products;
     }
 
+    /** The last fetched products WITHOUT starting the five-minute background loop: for the Bazaar Flipper's autopilot,
+     *  which refreshes on its own schedule ({@link #refreshAsync()}) only while it runs. */
+    public static List<BazaarProduct> peekProducts() {
+        return products;
+    }
+
     public static boolean isRefreshing() {
         return refreshing.get();
     }
