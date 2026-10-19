@@ -6,7 +6,7 @@ import net.minecraft.client.Minecraft;
 import com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -14,6 +14,7 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -25,7 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -36,9 +39,10 @@ import java.util.stream.Stream;
  * {@code SoundManager.play}. The {@code SoundManagerClickMixin} hands each such instance to {@link #replace}, which swaps
  * it for the chosen sound: a bundled preset (a {@code killer560smod:click_*} event from {@code sounds.json}) or an
  * imported .ogg from {@link #importDir()}. The swap happens on every screen. Choosing Default changes nothing at all
- * (except that a volume above 100% still layers the vanilla click).
+ * (except that a volume above 100% still layers the vanilla click). Every other game sound goes to
+ * {@link SoundEffects#replace}, which does the same for the Sound Effects the player has turned on.
  *
- * <p>An imported file is played through {@link ImportedClickInstance}; {@code SoundBufferLibraryClickMixin} lets the
+ * <p>An imported file is played through {@link ImportedSoundInstance}; {@code SoundBufferLibraryClickMixin} lets the
  * sound engine read it from the folder (it is not in any resource pack), via {@link ClickSoundBuffers}.
  *
  * <p>The presets are original synthesized sounds (tools/gen-click-sounds.py), CC0; see docs/SOUND-LICENSES.md.
@@ -57,6 +61,13 @@ public final class ClickSounds {
     static final String NAMESPACE = "killer560smod";
     /** An imported file may be at most this big (a click is a fraction of a second; this stops a song being dropped in). */
     public static final long MAX_IMPORT_BYTES = 1024L * 1024L;
+    /** The longest sound an import may keep as it is, in seconds. Longer ones (and video) are cut to {@link #CONVERT_SECONDS}. */
+    static final int MAX_SECONDS = 10;
+    /** The longest part of a file ffmpeg keeps, in seconds: a click or a hit, not a song. */
+    static final int CONVERT_SECONDS = 3;
+
+    /** Sound types the JDK and the bundled MP3 decoder read without ffmpeg (besides .ogg, which JOrbis reads). */
+    static final Set<String> NATIVE_EXTENSIONS = Set.of("wav", "mp3", "aiff", "aif", "au");
 
     /** A bundled click sound: its id, label and event. */
     public record Preset(String id, String label, SoundEvent event) {
@@ -89,7 +100,7 @@ public final class ClickSounds {
         return PRESETS;
     }
 
-    /** The folder imported .ogg files live in (created on demand). */
+    /** The folder imported sound files live in (created on demand). */
     public static Path importDir() {
         Path dir = ModPaths.config("killer560smod-menu-clicksounds");
         try {
@@ -100,7 +111,7 @@ public final class ClickSounds {
         return dir;
     }
 
-    /** The .ogg file names in {@link #importDir()}, sorted. */
+    /** The sound file names in {@link #importDir()} (.ogg and the native list), sorted. */
     public static List<String> importedFiles() {
         List<String> out = new ArrayList<>();
         try (Stream<Path> files = Files.list(importDir())) {
@@ -155,11 +166,23 @@ public final class ClickSounds {
         return all.get(Math.floorMod(i + dir, all.size()));
     }
 
-    /** The sound a click should make for {@code id}, or null (Default, or an imported file that is gone). */
+    /** The UI sound a click should make for {@code id} at {@code volume}, or null (Default, or an import that is gone). */
     public static SoundInstance make(String id, float volume) {
+        return make(id, volume, null);
+    }
+
+    /**
+     * The sound {@code id} makes at {@code volume}, or null (Default, or an import that is gone). {@code at} is the game
+     * sound it replaces when it is a sound effect: the new one is then heard from the same place, at the same pitch and
+     * source, and fades with distance. Null {@code at} is a UI click (master volume, no position).
+     */
+    public static SoundInstance make(String id, float volume, SoundInstance at) {
         if (id == null || DEFAULT_ID.equals(id)) {
             return null;
         }
+        boolean positional = at != null && at.getAttenuation() != SoundInstance.Attenuation.NONE && !at.isRelative();
+        SoundSource source = at == null ? SoundSource.MASTER : at.getSource();
+        float pitch = at == null ? 1.0f : at.getPitch();
         if (id.startsWith(IMPORT_PREFIX)) {
             String name = id.substring(IMPORT_PREFIX.length());
             Path dir = importDir().normalize();
@@ -169,11 +192,16 @@ public final class ClickSounds {
             }
             String key = "imported/s" + Integer.toHexString(name.toLowerCase(Locale.ROOT).hashCode());
             IMPORT_KEYS.put(key, file);
-            return new ImportedClickInstance(key, volume);
+            return positional
+                    ? new ImportedSoundInstance(key, source, volume, pitch, at.getX(), at.getY(), at.getZ(), true)
+                    : new ImportedSoundInstance(key, source, volume, 1.0f, 0, 0, 0, false);
         }
         for (Preset p : PRESETS) {
             if (p.id().equals(id)) {
-                return SimpleSoundInstance.forUI(p.event(), 1.0f, volume);
+                return positional
+                        ? new SimpleSoundInstance(p.event(), source, volume, pitch, SoundInstance.createUnseededRandom(),
+                                at.getX(), at.getY(), at.getZ())
+                        : SimpleSoundInstance.forUI(p.event(), 1.0f, volume);
             }
         }
         return null;
@@ -191,13 +219,17 @@ public final class ClickSounds {
 
     /**
      * Called for every instance handed to {@code SoundManager.play}: a vanilla button click comes back as the chosen
-     * sound, anything else comes back untouched. It applies on every screen (killer560, 2026-10-18: "the click sounds if
-     * on should work for all menus regardless"). Above 100% the click is played in layers - the sound engine clamps one
-     * instance's gain to 1.0, so 300% is three copies playing together (each source adds to the mix).
+     * sound, a sound effect is handed on to {@link SoundEffects}, anything else comes back untouched. It applies on every
+     * screen (killer560, 2026-10-18: "the click sounds if on should work for all menus regardless"). Above 100% the click
+     * is played in layers - the sound engine clamps one instance's gain to 1.0, so 300% is three copies playing together
+     * (each source adds to the mix).
      */
     public static SoundInstance replace(SoundInstance in) {
-        if (in == null || layering || !VANILLA_CLICK_ID.equals(in.getIdentifier())) {
+        if (in == null || layering) {
             return in;
+        }
+        if (!VANILLA_CLICK_ID.equals(in.getIdentifier())) {
+            return SoundEffects.replace(in);
         }
         SoundInstance out = in;
         try {
@@ -257,8 +289,8 @@ public final class ClickSounds {
         return layersPlayed;
     }
 
-    /** Plays the chosen click for a click on a menu slot in a chest-style screen (Hypixel's menus are chests; vanilla makes
-     *  no sound there). Does nothing on Default. */
+    /** Plays the chosen click for a left click on an item slot in any container screen (Hypixel's menus are chests; vanilla
+     *  makes no sound there). Does nothing on Default. */
     public static void playSlotClick() {
         ClickSoundConfig cfg = ClickSoundConfig.getInstance();
         if (DEFAULT_ID.equals(cfg.getChoice())) {
@@ -275,18 +307,23 @@ public final class ClickSounds {
         }
     }
 
-    /** Slot clicks in chest-style screens that played the click (testkit evidence). */
+    /** Slot clicks in container screens that played the click (testkit evidence). */
     public static int slotClicks() {
         return slotClicks;
     }
 
-    /** Hooks every chest-style container screen (a Skyblock menu): a click on a slot holding an item plays the click. */
+    /** Hooks every container screen - a Skyblock chest, the mod's own inventory-style screens and the vanilla ones (killer560,
+     *  2026-10-18: the chest hook used to match only the vanilla ContainerScreen class): a left click on a slot holding an
+     *  item plays the click. */
     public static void register() {
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            if (!(screen instanceof ContainerScreen container)) {
+            if (!(screen instanceof AbstractContainerScreen<?> container)) {
                 return;
             }
             ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+                if (event.button() != 0) {
+                    return true;
+                }
                 try {
                     Slot slot = ((AbstractContainerScreenAccessor) container).killer560smod$getHoveredSlot();
                     if (slot != null && slot.hasItem()) {
@@ -319,41 +356,65 @@ public final class ClickSounds {
     }
 
     /**
-     * Copies {@code source} into the import folder after checking it is a short, readable sound. An .ogg is Ogg Vorbis; a
-     * .wav, .mp3, .aiff or .au is read by the JDK and the bundled MP3 decoder. Anything else, or a file those cannot read -
-     * a video such as mp4 or mkv, where only the audio is used - is turned into a short .wav by ffmpeg when ffmpeg is
-     * installed (killer560, 2026-10-18: "any sound file type can be used even a video but it just uses the audio").
+     * Imports the file whose path is on the clipboard (the quotes Explorer's "Copy as path" adds are stripped). Returns the
+     * name it was saved as.
+     * @throws IOException with the message to show him when it is refused
+     */
+    public static String importClipboard(String clip) throws IOException {
+        String text = clip == null ? "" : clip.strip();
+        if (text.length() > 1 && text.startsWith("\"") && text.endsWith("\"")) {
+            text = text.substring(1, text.length() - 1);
+        }
+        if (text.isEmpty()) {
+            throw new IOException("Copy a sound or video file's path first (Shift + right click it, Copy as path).");
+        }
+        Path path;
+        try {
+            path = Path.of(text);
+        } catch (java.nio.file.InvalidPathException e) {
+            throw new IOException("That is not a file path.");
+        }
+        return importFile(path);
+    }
+
+    /**
+     * Copies {@code source} into the import folder after checking it is a short, readable sound. An .ogg, .wav, .mp3, .aiff
+     * or .au that is at most {@link #MAX_SECONDS} long and {@link #MAX_IMPORT_BYTES} big is kept as it is, with no ffmpeg
+     * needed. Anything else - a video (only its audio is used), another audio type, or a longer or bigger sound - is cut to
+     * its first {@link #CONVERT_SECONDS} and saved as .ogg by ffmpeg, which must be installed (killer560, 2026-10-18: "any
+     * sound file type can be used even a video but it just uses the audio").
      * @return the file name it was saved as
-     * @throws IOException with a message fit to show him when it is refused
+     * @throws IOException with a message fit to show him when it is refused; a file with no sound says so
      */
     public static String importFile(Path source) throws IOException {
         if (source == null || !Files.isRegularFile(source)) {
             throw new IOException("No such file.");
         }
         String name = source.getFileName().toString();
-        boolean ogg = name.toLowerCase(Locale.ROOT).endsWith(".ogg");
+        String ext = extension(name);
         boolean small = Files.size(source) <= MAX_IMPORT_BYTES;
-        if (ogg) {
-            if (!small) {
-                throw new IOException("That file is over 1 MB; a click should be a fraction of a second.");
-            }
-            checkReadable(source);
-            return keep(source, name);
-        }
-        if (small && NATIVE_EXTENSIONS.contains(extension(name)) && readable(source)) {
+        if (small && (ext.equals("ogg") || NATIVE_EXTENSIONS.contains(ext)) && shortEnough(source, ext)) {
             return keep(source, name);
         }
         return convertWithFfmpeg(source, name);
     }
 
-    /** Sound types the JDK and the bundled MP3 decoder read without ffmpeg (besides .ogg, which JOrbis reads). */
-    static final java.util.Set<String> NATIVE_EXTENSIONS = java.util.Set.of("wav", "mp3", "aiff", "aif", "au");
-    /** The longest sound an import may hold, in seconds of audio. */
-    static final int MAX_SECONDS = 10;
-
     static String extension(String name) {
         int dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    /** True when the file is a readable sound of at most {@link #MAX_SECONDS}, decoded the way the engine decodes it. */
+    private static boolean shortEnough(Path file, String ext) {
+        try (InputStream in = Files.newInputStream(file)) {
+            if (ext.equals("ogg")) {
+                return ClickSoundBuffers.oggSeconds(in) <= MAX_SECONDS;
+            }
+            ClickSoundBuffers.decodeAudio(in, true);   // refuses one longer than MAX_SECONDS
+            return true;
+        } catch (IOException | RuntimeException e) {
+            return false;
+        }
     }
 
     private static String keep(Path source, String name) throws IOException {
@@ -363,58 +424,56 @@ public final class ClickSounds {
         return name;
     }
 
-    private static boolean readable(Path file) {
-        try (InputStream in = Files.newInputStream(file)) {
-            ClickSoundBuffers.decodeAudio(in, true);
-            return true;
-        } catch (IOException | RuntimeException e) {
-            return false;
-        }
-    }
-
-    private static void checkReadable(Path file) throws IOException {
-        try (InputStream in = Files.newInputStream(file)) {
-            ClickSoundBuffers.decode(in);
-        } catch (IOException | RuntimeException e) {
-            throw new IOException("That is not a readable Ogg Vorbis file.");
-        }
-    }
-
-    /** The longest part of a long file the converter keeps, in seconds. */
-    static final int CONVERT_SECONDS = 5;
-
+    /** Converts any sound or video file to a short .ogg in the import folder, through ffmpeg's libvorbis. */
     private static String convertWithFfmpeg(Path source, String name) throws IOException {
         int dot = name.lastIndexOf('.');
         String base = (dot > 0 ? name.substring(0, dot) : name).replaceAll("[^A-Za-z0-9 _-]", "_");
         if (base.isBlank()) {
             base = "sound";
         }
-        Path target = importDir().resolve(base + ".wav");
-        Process p;
+        Path work = Files.createTempFile("killer560smod-clicksound-", ".ogg");
+        Path log = Files.createTempFile("killer560smod-clicksound-", ".log");
         try {
-            p = new ProcessBuilder("ffmpeg", "-y", "-v", "quiet", "-i", source.toAbsolutePath().toString(), "-vn",
-                    "-t", String.valueOf(CONVERT_SECONDS), "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le",
-                    target.toAbsolutePath().toString())
-                    .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-        } catch (IOException e) {
-            throw new IOException("Could not read that file here. .ogg, .wav and .mp3 import as they are; other types need ffmpeg installed.");
-        }
-        try {
-            if (!p.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
-                p.destroyForcibly();
-                throw new IOException("ffmpeg took too long on that file.");
+            Process p;
+            try {
+                p = new ProcessBuilder("ffmpeg", "-y", "-hide_banner", "-v", "error",
+                        "-i", source.toAbsolutePath().toString(), "-vn", "-t", String.valueOf(CONVERT_SECONDS),
+                        "-ac", "2", "-ar", "44100", "-c:a", "libvorbis", "-q:a", "4",
+                        work.toAbsolutePath().toString())
+                        .redirectErrorStream(true).redirectOutput(log.toFile()).start();
+            } catch (IOException e) {
+                throw new IOException(name + " needs ffmpeg to import (a video, another type, or a sound over "
+                        + MAX_SECONDS + " seconds or 1 MB). ffmpeg was not found: install it, then restart Minecraft. "
+                        + ".ogg, .wav, .mp3, .aiff and .au under " + MAX_SECONDS + " seconds import without it.");
             }
-        } catch (InterruptedException e) {
-            p.destroyForcibly();
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted.");
+            try {
+                if (!p.waitFor(30, TimeUnit.SECONDS)) {
+                    p.destroyForcibly();
+                    throw new IOException("ffmpeg took too long on " + name + ".");
+                }
+            } catch (InterruptedException e) {
+                p.destroyForcibly();
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted.");
+            }
+            String errors = new String(Files.readAllBytes(log), java.nio.charset.StandardCharsets.UTF_8);
+            if (p.exitValue() != 0 || !Files.isRegularFile(work) || Files.size(work) == 0) {
+                if (errors.contains("matches no streams") || errors.contains("does not contain any stream")) {
+                    throw new IOException(name + " has no audio track, so there is no sound to import.");
+                }
+                throw new IOException(name + " is not a sound or video file that ffmpeg can read.");
+            }
+            if (Files.size(work) > MAX_IMPORT_BYTES || !shortEnough(work, "ogg")) {
+                throw new IOException("ffmpeg could not make a short enough sound from " + name + ".");
+            }
+            Path target = importDir().resolve(base + ".ogg");
+            Files.move(work, target, StandardCopyOption.REPLACE_EXISTING);
+            ClickSoundBuffers.forget(target);
+            return target.getFileName().toString();
+        } finally {
+            Files.deleteIfExists(work);
+            Files.deleteIfExists(log);
         }
-        if (p.exitValue() != 0 || !Files.isRegularFile(target) || Files.size(target) > MAX_IMPORT_BYTES) {
-            Files.deleteIfExists(target);
-            throw new IOException("ffmpeg could not read any audio in that file.");
-        }
-        ClickSoundBuffers.forget(target);
-        return target.getFileName().toString();
     }
 
     /** The id of the last button-click sound handed to the engine (testkit evidence), "" before any. */

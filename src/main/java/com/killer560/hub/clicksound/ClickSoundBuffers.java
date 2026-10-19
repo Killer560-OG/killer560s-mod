@@ -73,6 +73,19 @@ public final class ClickSoundBuffers {
         }
     }
 
+    /** The length of an Ogg Vorbis stream in seconds (an import check: the stream is read whole, so a broken one throws). */
+    static double oggSeconds(InputStream in) throws IOException {
+        try (JOrbisAudioStream stream = new JOrbisAudioStream(in)) {
+            FiniteAudioStream finite = stream;
+            ByteBuffer data = finite.readAll();
+            javax.sound.sampled.AudioFormat format = finite.getFormat();
+            if (data.remaining() == 0) {
+                throw new IOException("empty");
+            }
+            return data.remaining() / (double) (format.getFrameSize() * format.getSampleRate());
+        }
+    }
+
     /** Decodes a sound the JDK or the bundled MP3 decoder reads (wav, aiff, au, mp3) to 16-bit little-endian PCM, the form
      *  the sound engine's buffers take. {@code forImport}: refuse one longer than {@link ClickSounds#MAX_SECONDS}. */
     static SoundBuffer decodeAudio(InputStream in, boolean forImport) throws IOException {
