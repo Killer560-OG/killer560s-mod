@@ -346,7 +346,7 @@ public final class CustomScoreboardConfig {
     private boolean roundedCorners = false;
     private int cornerRadius = 6;
     private boolean borderEnabled = true;
-    private BorderStyle borderStyle = BorderStyle.MENU;
+    private BorderStyle borderStyle = BorderStyle.CUSTOM;
     private int borderColor = DEFAULT_BORDER_COLOR;
     private int borderThickness = 1;
     private boolean borderGradient = false;
@@ -453,10 +453,10 @@ public final class CustomScoreboardConfig {
                 if (obj.has("borderStyle")) {
                     cfg.borderStyle = ConfigJson.getEnum(obj, "borderStyle", BorderStyle.class, cfg.borderStyle);
                 } else {
-                    // A file from before Border Style: a border he had recoloured or gradiented keeps those colours (Custom);
-                    // the plain orange one now follows the menu's accent.
-                    cfg.borderStyle = cfg.borderColor != DEFAULT_BORDER_COLOR || cfg.borderGradient
-                            || cfg.borderColorBottom != DEFAULT_BORDER_BOTTOM_COLOR ? BorderStyle.CUSTOM : BorderStyle.MENU;
+                    // A file from before Border Style (or a key that was never written): it takes the new default, Custom,
+                    // which draws the Border Color and Bottom Color. Those are the colours such a file already had, so
+                    // its border looks the same as before. A saved borderStyle is never overwritten here.
+                    cfg.borderStyle = BorderStyle.CUSTOM;
                 }
                 cfg.chromaBorder = ConfigJson.getBool(obj, "chromaBorder", cfg.chromaBorder);
                 cfg.chromaSpeed = clamp(ConfigJson.getInt(obj, "chromaSpeed", cfg.chromaSpeed), 1, 20);
@@ -1108,7 +1108,7 @@ public final class CustomScoreboardConfig {
     }
 
     public void setBorderStyle(BorderStyle v) {
-        borderStyle = v == null ? BorderStyle.MENU : v;
+        borderStyle = v == null ? BorderStyle.CUSTOM : v;
     }
 
     public int getBorderColor() {
