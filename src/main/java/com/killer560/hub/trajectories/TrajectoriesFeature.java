@@ -106,7 +106,7 @@ public final class TrajectoriesFeature {
         renderCalls++;
         lastArcCount = 0;
         lastKind = "NONE";
-        lastYaws = new float[0];
+        lastYaws = NO_YAWS; // read only through lastYaws(), which clones
         lastSpeed = 0;
         lastArcs.clear();
         TrajectoriesConfig cfg = TrajectoriesConfig.getInstance();
@@ -119,7 +119,8 @@ public final class TrajectoriesFeature {
         Item item = heldItem.getItem();
         float yaw = player.getYRot();
         float pitch = player.getXRot();
-        if (Shortbows.isShortbow(heldItem)) {
+        classifyHeld(heldItem);
+        if (heldShortbow) {
             // killer560 (2026-10-15): a shortbow fires the moment it is clicked, always at full power, so its path shows
             // the whole time it is held - no draw. A Terminator's three arrows each get their own arc, the side ones at
             // the same pitch and +-5 degrees of yaw. Its arrows leave from the eye (QUOI's arrowOrigin), the rest from
@@ -127,9 +128,9 @@ public final class TrajectoriesFeature {
             if (!cfg.isShowShortbows()) {
                 return;
             }
-            boolean terminator = Shortbows.isTerminator(heldItem);
+            boolean terminator = heldTerminator;
             Vec3 eye = player.getEyePosition();
-            float[] offsets = Shortbows.yawOffsets(Shortbows.arrowCount(heldItem));
+            float[] offsets = Shortbows.yawOffsets(heldArrows);
             float[] yaws = new float[offsets.length];
             for (int i = 0; i < offsets.length; i++) {
                 yaws[i] = yaw + offsets[i];
@@ -162,6 +163,39 @@ public final class TrajectoriesFeature {
                 record("PEARL", new float[]{yaw}, pitch, 1.5);
             }
         }
+    }
+
+    private static final float[] NO_YAWS = new float[0];
+
+    // Shortbows' answers for the held stack. Asked every frame whatever is held (a sword too), and each frame flattened,
+    // regex-stripped and lower-cased every lore line, twice more for a shortbow (fps pass 2026-10-19). They read only
+    // the stack's LORE and CUSTOM_DATA components (and the Language, through getString); components are replaced, never
+    // edited, so the same stack with the same two component objects gives the same answers.
+    private static ItemStack heldStack;
+    private static boolean heldEmpty;
+    private static Object heldLore;
+    private static Object heldData;
+    private static net.minecraft.locale.Language heldLanguage;
+    private static boolean heldShortbow;
+    private static boolean heldTerminator;
+    private static int heldArrows = 1;
+
+    private static void classifyHeld(ItemStack stack) {
+        boolean empty = stack.isEmpty();
+        Object lore = stack.get(net.minecraft.core.component.DataComponents.LORE);
+        Object data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (stack == heldStack && empty == heldEmpty && lore == heldLore && data == heldData && language == heldLanguage) {
+            return;
+        }
+        heldShortbow = Shortbows.isShortbow(stack);
+        heldTerminator = heldShortbow && Shortbows.isTerminator(stack);
+        heldArrows = heldShortbow ? Shortbows.arrowCount(stack) : 1;
+        heldStack = stack;
+        heldEmpty = empty;
+        heldLore = lore;
+        heldData = data;
+        heldLanguage = language;
     }
 
     private static void record(String kind, float[] yaws, float pitch, double speed) {
