@@ -32,6 +32,7 @@ public abstract class TooltipScrollContainerMixin {
     @Inject(method = "extractTooltip(Lnet/minecraft/client/gui/GuiGraphicsExtractor;II)V", at = @At("HEAD"), require = 0)
     private void killer560smod$trackHoveredItem(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CallbackInfo ci) {
         try {
+            TooltipScrollFeature.onScreen(this);
             Slot slot = this.hoveredSlot;
             TooltipScrollFeature.setHovered(slot == null || !slot.hasItem() ? null : slot.getItem());
         } catch (Throwable ignored) {

@@ -163,6 +163,22 @@ public final class TooltipScrollFeature {
      *  nothing is). Changing item resets the scroll - killer560: "scroll resets when you hover a different
      *  item". Compared by identity, like {@code ItemRarityFeature}'s cache, because {@link ItemStack} has no
      *  value equality. */
+    /** The container screen the last tooltip was drawn on. A different one (the inventory was closed and opened again) resets
+     *  every scroll and nudge, so a reopened inventory starts with its tooltips where they belong (killer560, 2026-10-18). */
+    private static WeakReference<Object> lastScreen = new WeakReference<>(null);
+
+    public static void onScreen(Object screen) {
+        if (lastScreen.get() == screen) {
+            return;
+        }
+        lastScreen = new WeakReference<>(screen);
+        offset = 0;
+        maxOffset = 0;
+        scrollable = false;
+        nudgeOffset = 0;
+        nudgeX = 0;
+    }
+
     public static void setHovered(ItemStack stack) {
         ItemStack previous = hovered.get();
         if (previous == stack) {
