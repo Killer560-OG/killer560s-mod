@@ -301,9 +301,7 @@ public class CosmeticsTab extends BaseTab {
                     }));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Shared with Share if Supporter; never shown on others inside dungeons."), font));
-        return y + 18;
+        return y;
     }
 
     private static Component myMobLabel(String id) {
