@@ -123,6 +123,12 @@ public class CosmeticsTab extends BaseTab {
                     btn.setMessage(onOff("Show Others' Trails", cfg.isShowOthersTrails()));
                 }).bounds(contentX + half + 4, y, contentWidth - half - 4, 18).build());
         y += 20;
+        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Mobs", cfg.isShowOthersMobs()), btn -> {
+                    cfg.setShowOthersMobs(!cfg.isShowOthersMobs());
+                    cfg.save();
+                    btn.setMessage(onOff("Show Others' Mobs", cfg.isShowOthersMobs()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
         if (trailBlocker != null && (cfg.isShareTrail() || !canShareTrail)) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7" + trailBlocker), font));
             y += 14;
@@ -285,12 +291,6 @@ public class CosmeticsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(myMobLabel(cfg.getOwnMob()));
                     SupportersAutoShare.shareCurrent(err -> shareError = err);
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Show Others' Mobs", cfg.isShowOthersMobs()), btn -> {
-                    cfg.setShowOthersMobs(!cfg.isShowOthersMobs());
-                    cfg.save();
-                    btn.setMessage(onOff("Show Others' Mobs", cfg.isShowOthersMobs()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
