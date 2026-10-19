@@ -94,8 +94,9 @@ public final class SecretWaypointsFeature {
      *  (killer560, 2026-09-21: "if I click/get a secret then that waypoint should disappear"). Cleared on leaving
      *  the dungeon. */
     private static final java.util.Set<BlockPos> COLLECTED = new java.util.HashSet<>();
-    /** Item / bat entities near you last tick (id -> position), to notice one being picked up / killed. */
-    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_ITEMS = new java.util.HashMap<>();
+    /** Item entities lying at an ITEM waypoint, by entity id, to notice one being picked up (see {@link #watchPickups}). */
+    private static final java.util.Map<Integer, WatchedItem> WATCHED_ITEMS = new java.util.HashMap<>();
+    /** Dying bats near you last tick (id -> position), so each death counts once. */
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> NEAR_BATS = new java.util.HashMap<>();
 
     private static boolean wasInDungeon = false;
@@ -207,21 +208,38 @@ public final class SecretWaypointsFeature {
         markCollected(pos, Kind.WITHER, 3.0);
     }
 
-    /** Items picked up (they vanish while you're next to them) and bats killed near you. */
+    /** An item entity lying at an ITEM waypoint: which waypoint, and where the item was last seen. */
+    private record WatchedItem(BlockPos waypoint, net.minecraft.world.phys.Vec3 lastPos) {
+    }
+
+    /** How far from its waypoint an item entity may lie and still be that secret - the radius {@link #markCollected}
+     *  has always used for an item. */
+    private static final double ITEM_AT_WAYPOINT = 2.5;
+    /** An item that leaves the client this close to you was removed by the server, not dropped from tracking - far
+     *  inside any entity tracking range, and inside the room you stand in. */
+    private static final double ITEM_GONE_RANGE = 24.0;
+
+    /**
+     * Items picked up and bats killed.
+     *
+     * <p>Items: killer560, 2026-10-19: "sometimes I pick up an item as I grab a chest or something and the item
+     * waypoint doesn't disappear", and "the item issue is if I am too far away from it". This used to count an item only
+     * when it vanished inside a box 3 blocks out from where YOU stood that tick, among the items within 8 blocks of you.
+     * The server takes the item when you walk over it, but its removal reaches the client a round trip later, by which
+     * time an etherwarp, a leap or a Secret Aura chest grab had carried him past 3 blocks, so the pickup was never seen.
+     * Now each item entity lying at an ITEM waypoint is watched by its own id, and the waypoint goes when that entity is
+     * REMOVED from the level (not merely out of some box around you), wherever you are by then, within
+     * {@link #ITEM_GONE_RANGE}. A teammate taking it hides it too: the secret is gone either way.
+     */
     private static void watchPickups(Minecraft client) {
         if (client.level == null || client.player == null || CACHED.isEmpty()) {
-            NEAR_ITEMS.clear();
+            WATCHED_ITEMS.clear();
             NEAR_BATS.clear();
             return;
         }
         var player = client.player;
         AABB around = player.getBoundingBox().inflate(8.0);
-        // Two reused maps instead of two new ones every tick in a dungeon (FPS pass, 2026-10-15).
-        java.util.Map<Integer, net.minecraft.world.phys.Vec3> items = SCRATCH_ITEMS;
-        items.clear();
-        for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, around)) {
-            items.put(e.getId(), e.position());
-        }
+        watchItems(client);
         // Bats: a bat that flies out of range also leaves the entity list, so only a bat actually seen DYING
         // counts (its death animation keeps it around client-side for a moment) - once per bat.
         java.util.Map<Integer, net.minecraft.world.phys.Vec3> bats = SCRATCH_BATS;
@@ -234,21 +252,47 @@ public final class SecretWaypointsFeature {
                 bats.put(e.getId(), e.position());
             }
         }
-        for (var gone : NEAR_ITEMS.entrySet()) {
-            // Only an item that vanished right next to YOU (pickup range) - one a teammate grabbed a few blocks away,
-            // or that merged / despawned, must not hide your waypoint - and only a waypoint right where it lay.
-            if (!items.containsKey(gone.getKey())
-                    && player.getBoundingBox().inflate(3.0, 1.5, 3.0).contains(gone.getValue())) {
-                markCollected(BlockPos.containing(gone.getValue()), Kind.ITEM, 2.5);
-            }
-        }
-        NEAR_ITEMS.clear();
-        NEAR_ITEMS.putAll(items);
         NEAR_BATS.clear();
         NEAR_BATS.putAll(bats);
     }
 
-    private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> SCRATCH_ITEMS = new java.util.HashMap<>();
+    /** See {@link #watchPickups}: follow every item entity lying at an ITEM waypoint by id until it is removed. */
+    private static void watchItems(Minecraft client) {
+        var level = client.level;
+        var player = client.player;
+        java.util.Map<Integer, WatchedItem> next = SCRATCH_ITEMS;
+        next.clear();
+        double goneSq = ITEM_GONE_RANGE * ITEM_GONE_RANGE;
+        boolean changed = false;
+        for (var watched : WATCHED_ITEMS.entrySet()) {
+            WatchedItem w = watched.getValue();
+            if (COLLECTED.contains(w.waypoint())) {
+                continue;
+            }
+            var entity = level.getEntity(watched.getKey());
+            if (entity instanceof net.minecraft.world.entity.item.ItemEntity && !entity.isRemoved()) {
+                next.put(watched.getKey(), new WatchedItem(w.waypoint(), entity.position()));
+            } else if (player.position().distanceToSqr(w.lastPos()) <= goneSq && COLLECTED.add(w.waypoint())) {
+                changed = true;
+            }
+        }
+        for (Waypoint w : CACHED) {
+            if (w.kind() != Kind.ITEM || COLLECTED.contains(w.pos())) {
+                continue;
+            }
+            AABB at = new AABB(w.pos()).inflate(ITEM_AT_WAYPOINT);
+            for (var e : level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, at)) {
+                next.putIfAbsent(e.getId(), new WatchedItem(w.pos(), e.position()));
+            }
+        }
+        WATCHED_ITEMS.clear();
+        WATCHED_ITEMS.putAll(next);
+        if (changed) {
+            invalidateCache();
+        }
+    }
+
+    private static final java.util.Map<Integer, WatchedItem> SCRATCH_ITEMS = new java.util.HashMap<>();
     private static final java.util.Map<Integer, net.minecraft.world.phys.Vec3> SCRATCH_BATS = new java.util.HashMap<>();
 
     private static void tick() {
@@ -365,9 +409,7 @@ public final class SecretWaypointsFeature {
     /** One crypt or prince seen this run, keyed by {@link CryptScanner.Found#anchor}. */
     private static final class CryptState {
         final CryptScanner.Found found;
-        /** When its blocks were first seen gone - 0 while the tomb is still shut. */
-        long openedAtMs;
-        /** Opened and nothing left alive at it: never drawn again this run. */
+        /** Blown open: never drawn again this run. */
         boolean done;
 
         CryptState(CryptScanner.Found found) {
@@ -383,14 +425,6 @@ public final class SecretWaypointsFeature {
     private static final java.util.Map<Long, List<BlockPos>> LEVERS_BY_CHUNK = new java.util.HashMap<>();
 
     /**
-     * How long an opened tomb keeps its waypoint while nothing has appeared at it yet. The undead is spawned by
-     * the blast that opens it, but it reaches the client a tick or more later.
-     */
-    private static final long OPEN_GRACE_MS = 3000L;
-    /** How close to the tomb a living mob must be to count as its undead (or prince) still to be killed. */
-    private static final double UNDEAD_RADIUS = 5.0;
-
-    /**
      * killer560, 2026-10-05: "add crypt and prince waypoints as toggleables for secret waypoints, that will perform
      * the exact same as secret waypoints just for princes and crypts."
      *
@@ -398,9 +432,8 @@ public final class SecretWaypointsFeature {
      * has already returned in boss), same box style, colours, names and through-walls. What differs is where the
      * positions come from - see {@link CryptScanner} for why it is the room's blocks and not the room database.
      *
-     * <p>Done the way a secret is done: a shut tomb is drawn; once its blocks are gone (the Superboom opened it) the
-     * waypoint stays for as long as a living mob is next to the hole - the Crypt Undead or Prince the blast spawned -
-     * and goes for good when nothing is left alive there, which is when the crypt has actually counted.
+     * <p>Done the way a secret is done: a shut tomb is drawn, and once most of its blocks are gone (the Superboom
+     * opened it) the waypoint goes for the rest of the run, whether or not what came out has been killed.
      */
     private static void addCrypts(SecretWaypointsConfig cfg, int currentIdx) {
         boolean crypts = cfg.isShowCrypts();
@@ -416,7 +449,6 @@ public final class SecretWaypointsFeature {
         for (CryptScanner.Found f : CryptScanner.scan(client.level, bounds)) {
             CRYPTS.putIfAbsent(f.anchor(), new CryptState(f));
         }
-        long now = System.currentTimeMillis();
         for (CryptState s : CRYPTS.values()) {
             CryptScanner.Found f = s.found;
             if (s.done || f.maxX() < bounds[0] || f.minX() > bounds[2] || f.maxZ() < bounds[1] || f.minZ() > bounds[3]) {
@@ -440,14 +472,12 @@ public final class SecretWaypointsFeature {
                     }
                 }
             }
+            // Blown open: gone for the run, at once. killer560, 2026-10-19: when he blows up a crypt or a prince with
+            // a Superboom it should disappear - he does not kill what comes out, he only opens it. It used to stay up
+            // for as long as a living mob stood within five blocks of the hole, which with nothing killed was forever.
             if (readable && standing * 2 < f.blocks().size()) {
-                if (s.openedAtMs == 0L) {
-                    s.openedAtMs = now;
-                }
-                if (now - s.openedAtMs >= OPEN_GRACE_MS && !undeadNear(client, tomb)) {
-                    s.done = true;
-                    continue;
-                }
+                s.done = true;
+                continue;
             }
             int argb = isPrince ? cfg.getPrinceColor() : cfg.getCryptColor();
             float a = ((argb >> 24) & 0xFF) / 255f;
@@ -466,30 +496,6 @@ public final class SecretWaypointsFeature {
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
                     r, g, b, a, f.anchor(), kind, labelFor(kind, "")));
         }
-    }
-
-    /**
-     * Whether a living mob is still at an opened tomb: anything alive within {@link #UNDEAD_RADIUS} that is not an
-     * armour stand, not a secret bat, not you and not a real player. Hypixel draws some dungeon mobs as player models, so a player
-     * entity counts unless its UUID is a real account's (version 4); Hypixel's NPC players are not version 4.
-     */
-    private static boolean undeadNear(Minecraft client, AABB tomb) {
-        if (client.level == null) {
-            return false;
-        }
-        for (var e : client.level.getEntitiesOfClass(net.minecraft.world.entity.LivingEntity.class,
-                tomb.inflate(UNDEAD_RADIUS))) {
-            if (!e.isAlive() || e.isRemoved() || e == client.player
-                    || e instanceof net.minecraft.world.entity.decoration.ArmorStand
-                    || e instanceof net.minecraft.world.entity.ambient.Bat) {
-                continue;
-            }
-            if (e instanceof net.minecraft.world.entity.player.Player && e.getUUID().version() == 4) {
-                continue;
-            }
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -520,7 +526,7 @@ public final class SecretWaypointsFeature {
                 continue;
             }
             for (RoomEntry.Pos relative : entry.secretCoords.item) {
-                BlockPos real = RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift);
+                BlockPos real = itemRestingBlock(RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift));
                 if (!out.contains(real)) {
                     out.add(real);
                 }
@@ -727,6 +733,9 @@ public final class SecretWaypointsFeature {
         for (RoomEntry.Pos relative : positions) {
             BlockPos real = RoomDatabase.toRealCoord(relative, clayX, clayZ, rotation)
                     .above(shift);
+            if ("item".equals(group)) {
+                real = itemRestingBlock(real);
+            }
             if (COLLECTED.contains(real) || !seen.add(real)) {
                 continue;
             }
@@ -751,6 +760,28 @@ public final class SecretWaypointsFeature {
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,
                     wr, wg, wb, a, real, kind, labelFor(kind, group)));
         }
+    }
+
+    /**
+     * Where an ITEM secret really lies: the database block, or the block above it when the database block is a
+     * full-height solid block with air on top. An item cannot lie inside the floor. Checked against the 135 room
+     * captures (2026-10-19, every chest and essence of the database landing on its capture block): two rooms' items
+     * are one block low, Black Flag's (database 22,59,27, inside coarse dirt) and Granite's (14,60,24, inside stone
+     * bricks), so their waypoints sat buried in the floor. Every other room's items are in the open and are untouched.
+     * An unloaded block reads as air, so it is left where the database says.
+     */
+    private static BlockPos itemRestingBlock(BlockPos pos) {
+        var level = Minecraft.getInstance().level;
+        if (level == null || !level.isLoaded(pos)) {
+            return pos;
+        }
+        var state = level.getBlockState(pos);
+        var shape = state.getCollisionShape(level, pos);
+        if (shape.isEmpty() || shape.max(net.minecraft.core.Direction.Axis.Y) < 1.0) {
+            return pos;
+        }
+        BlockPos up = pos.above();
+        return level.getBlockState(up).isAir() ? up : pos;
     }
 
     /** See the mimic note in {@link #addGroup}. */

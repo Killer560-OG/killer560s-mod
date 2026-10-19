@@ -32,8 +32,9 @@ import java.util.Set;
  * gets 82. The prince is one of the database's crypts: Red Blue, Sloth and Leaves (database 1) have no lid and one
  * prince, Chambers (6) has five lids and a prince. The misses are listed in
  * {@code killer560s-mod-logs/crypt-waypoints.md}: some decorative slab panels (Hallway is the worst, thirteen 2x3
- * panels for one crypt), a few tombs of another shape, and Pirate's three gold-on-slab spots, which match the prince
- * rule without being princes as far as the count says.
+ * panels for one crypt) and a few tombs of another shape. Pirate's three lantern tables and the Stairs room's slab
+ * staircase used to match too; since 2026-10-19 a crown needs air above it ({@link #isPrinceCrown}) and a slab
+ * staircase is not a lid ({@link #isStaircase}), which brings the census to 118 of 134 rooms exact.
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
@@ -80,9 +81,19 @@ public final class CryptScanner {
     /**
      * Whether this block is a prince's crown: a gold block with a smooth stone slab beside it, or a sea lantern
      * with polished andesite on all four sides. See {@code SimPrince} for how each shape was found.
+     *
+     * <p>Either way the crown is the tomb's open TOP: air directly above it. killer560, 2026-10-19: "these are not
+     * princes in pirates". Pirate's three matches are 3x3 polished andesite tables with a sea lantern in the middle and
+     * a grey carpet ON it (capture x 22..24, y 64, z 25..37); Stairs has a fourth (light grey carpet, x 16..18, y 89,
+     * z 12..14), and Doors' gold has more gold on top of it. Every real crown in the 135 captures (Chambers, Leaves,
+     * Market, Red Blue, Sloth) has air above. Census: crypts + princes equal the database's count in 118 rooms, up from
+     * 116, and no room that matched before stops matching.
      */
     public static boolean isPrinceCrown(Level level, BlockPos at) {
         BlockState state = level.getBlockState(at);
+        if ((state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) && !level.getBlockState(at.above()).isAir()) {
+            return false;
+        }
         if (state.is(Blocks.GOLD_BLOCK)) {
             for (Direction dir : Direction.Plane.HORIZONTAL) {
                 if (level.getBlockState(at.relative(dir)).is(Blocks.SMOOTH_STONE_SLAB)) {
@@ -433,6 +444,9 @@ public final class CryptScanner {
             if (touchesAny(run, princeBlocks)) {
                 continue;
             }
+            if (isStaircase(level, run)) {
+                continue;
+            }
             if (!whole(level, f)) {
                 continue;
             }
@@ -450,6 +464,29 @@ public final class CryptScanner {
     private static boolean whole(Level level, Found f) {
         return com.killer560.hub.util.ClientChunks.allLoaded(level, f.minX() - 1, f.minZ() - 1, f.maxX() + 1,
                 f.maxZ() + 1);
+    }
+
+    /**
+     * Whether a slab run is one step of a slab STAIRCASE: a double slab of the run with a smooth stone slab beside it one
+     * block up - the next step. killer560, 2026-10-19: "this is not a crypt in stairs". The Stairs room climbs on rows of
+     * smooth stone slabs, a row of bottom slabs then a row of double slabs, one block higher each pair (capture x 31..35,
+     * y 87..89, z 19..22), and one pair passed as a 5x2 lid. A lid has nothing stacked beside it: over all 135
+     * captures this drops only that one (Stairs now matches its database count of 1, its real crypt being the
+     * slab-and-carpet lid on stone brick stairs at x 10..14, y 72) and no other room's count moves.
+     */
+    private static boolean isStaircase(Level level, List<BlockPos> run) {
+        for (BlockPos p : run) {
+            BlockState state = level.getBlockState(p);
+            if (!state.hasProperty(SlabBlock.TYPE) || state.getValue(SlabBlock.TYPE) != SlabType.DOUBLE) {
+                continue;
+            }
+            for (Direction dir : HORIZONTAL) {
+                if (level.getBlockState(p.relative(dir).above()).is(Blocks.SMOOTH_STONE_SLAB)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {
