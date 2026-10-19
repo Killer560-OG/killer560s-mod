@@ -6,6 +6,7 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.partyfinder.PartyFinderStatsApi;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -51,6 +52,9 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     private final Map<String, EditBox> reqBoxes = new LinkedHashMap<>();
     private EditBox noteBox;
     private EditBox activityBox;
+    /** The player's own stats, which fill the Create form's requirements; statsPending while they have not arrived yet. */
+    private PartyFinderStatsApi.PlayerStats ownStats;
+    private boolean statsPending = false;
 
     /** The start screen. */
     public LfgScreen(Screen parent) {
@@ -347,6 +351,12 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         LfgConfig cfg = LfgConfig.getInstance();
         LfgConfig.Draft d = cfg.draft(tab);
         int colW = (listW - 8) / 2;
+        String self = selfName();
+        ownStats = self == null ? null : PartyFinderStatsApi.get(self);
+        statsPending = self != null && ownStats == null;
+        if (statsPending) {
+            PartyFinderStatsApi.requestHot(List.of(self)); // the form fills itself in tick() once they arrive
+        }
         int y = listY + 4;
         activityBox = null;
         if (tab == LfgCategory.MISC) {
@@ -360,6 +370,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
                 d.activity = tab.activities.get(SettingsButtonWidget.step(at, dir, tab.activities.size()));
                 cfg.save();
                 btn.setMessage(Component.literal("Activity: §6" + d.activity));
+                refillPb();
             }).bounds(listX, y, colW, 18).build());
         }
         addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Party Size: §6" + d.max), (btn, dir) -> {
@@ -378,7 +389,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             ThemedEditBox box = new ThemedEditBox(this.font, bx, by, colW, 18, Component.literal(f.label()))
                     .hint(pb ? f.label() + " m:ss, at most (blank = none)" : f.label() + " (0 = none)");
             box.setMaxLength(7);
-            Integer v = d.reqs.get(f.key());
+            Integer v = LfgRequirements.ownValue(f.key(), ownStats, d.activity, f.max());
             box.setValue(v == null || v <= 0 ? "" : pb ? LfgRequirements.mmSs(v) : String.valueOf(v));
             addRenderableWidget(box);
             reqBoxes.put(f.key(), box);
@@ -393,6 +404,21 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         y += 30;
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("§aList Party"), btn -> listParty())
                 .bounds(listX, y, colW, 20).build());
+    }
+
+    /** The PB box follows the floor he picks: his S+ PB on that floor, or blank when he has none. */
+    private void refillPb() {
+        EditBox pb = reqBoxes.get(LfgCategory.PB);
+        if (pb == null) {
+            return;
+        }
+        LfgConfig.Draft d = LfgConfig.getInstance().draft(tab);
+        for (LfgCategory.Field f : tab.fields) {
+            if (f.key().equals(LfgCategory.PB)) {
+                Integer v = LfgRequirements.ownValue(f.key(), ownStats, d.activity, f.max());
+                pb.setValue(v == null ? "" : LfgRequirements.mmSs(v));
+            }
+        }
     }
 
     private void listParty() {
@@ -436,6 +462,9 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     @Override
     public void tick() {
         super.tick();
+        if (creating && statsPending && selfName() != null && PartyFinderStatsApi.get(selfName()) != null) {
+            rebuildWidgets(); // his stats arrived after the form opened: fill it now
+        }
         if (!creating && LfgFeature.version() != seenVersion) {
             if (searchBox != null && searchBox.isFocused()) {
                 seenVersion = LfgFeature.version();
