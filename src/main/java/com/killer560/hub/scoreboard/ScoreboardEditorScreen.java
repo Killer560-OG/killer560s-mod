@@ -57,13 +57,8 @@ import java.util.function.Supplier;
  */
 public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
-    /** The Theme setting this screen follows (ScreenThemes; "Theme Default" = the menu's theme). */
-    public static final String THEME_ID = "scoreboard";
-
-    @Override
-    public String themeId() {
-        return THEME_ID;
-    }
+    // No Theme of its own (killer560, 2026-10-18): the editor always draws in the mod menu's theme. A ScreenThemes entry
+    // saved under the old "scoreboard" id is still read and written by ScreenThemes, and does nothing here.
 
     /** {x, y, w, h} of the themed panel as last drawn (the testkit samples it). */
     private int[] themedBounds = new int[4];
@@ -378,9 +373,8 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
         // The top of the page, in killer560's order (2026-10-18): 1 to 11. Every row is a setting that already existed;
         // only its place moved. Two columns, so one row is two settings.
-        // 1. Theme: the board's Menu Theme (its Default is the board's own colours, as the tab had it), then the editor's.
+        // 1. Theme: the board's Menu Theme. Default is the mod menu's theme; the editor itself always draws in that theme.
         out.add(ScreenThemes.overlayButton(OverlayThemes.CUSTOM_SCOREBOARD, "Theme", x, y, colW, ROW));
-        out.add(ScreenThemes.button(ScoreboardEditorScreen.THEME_ID, "Editor Theme", colBX, y, colW, ROW));
         y += STEP;
         // 2. Text Align, 3. Reset Position.
         out.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
@@ -496,14 +490,21 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
                 cfg::setBorderThickness));
         y += STEP;
-        out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
-                cfg::setBorderColor, x, y, colW));
-        out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, colBX, y, colW));
-        y += STEP;
-        out.add(colorButton("Bottom Color", cfg::getBorderColorBottom,
-                CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, x, y, colW));
+        // Default: the menu's accent. Custom: the colours below (killer560, 2026-10-18).
+        out.add(cycle(() -> "Border Style: §6" + cfg.getBorderStyle().label,
+                () -> cfg.setBorderStyle(cfg.getBorderStyle().next()),
+                () -> cfg.setBorderStyle(cfg.getBorderStyle().previous()), x, y, colW));
         out.add(slider(colBX, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
         y += STEP;
+        if (cfg.getBorderStyle() == CustomScoreboardConfig.BorderStyle.CUSTOM) {
+            out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
+                    cfg::setBorderColor, x, y, colW));
+            out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, colBX, y, colW));
+            y += STEP;
+            out.add(colorButton("Bottom Color", cfg::getBorderColorBottom,
+                    CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, x, y, colW));
+            y += STEP;
+        }
         out.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, x, y, colW));
         out.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed));
         y += STEP;

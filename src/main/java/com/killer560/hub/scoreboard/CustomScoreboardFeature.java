@@ -799,13 +799,6 @@ public final class CustomScoreboardFeature {
         return Math.max(cfg.getMinHeight(), contentHeight(font, lines, cfg) + 2 * (cfg.getPadding() + borderSize(cfg)));
     }
 
-    /** What the title band lays OVER the board's background: the same colour at a little under half its alpha, which
-     *  over a 0x50 board reads like vanilla's darker title row (0x66 over its lines' 0x4C). */
-    static int titleBandOverlay(int background) {
-        int a = background >>> 24;
-        return Math.max(0x18, a * 45 / 100) << 24 | (background & 0xFFFFFF);
-    }
-
     /**
      * @param titleRows how many first lines are the title: drawn on a slightly darker band, the vanilla sidebar's one
      *                  piece of structure (2026-10-15). 0 for none.
@@ -823,25 +816,24 @@ public final class CustomScoreboardFeature {
         if (inGame && cfg.isBackgroundBlur()) {
             ScoreboardBlur.submit(g, x, y, w, h, radius, cfg.getBlurStrength());
         }
-        // Menu Theme (killer560, 2026-10-18: the custom scoreboard "isn't following my mods custom theme"): Default keeps the
-        // colours set on this tab; any other theme gives the board's background, title band and solid border its colours.
-        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD);
+        // Menu Theme (killer560, 2026-10-18): Default is the mod menu's theme, so the background, title band and border take
+        // its colours; a theme he picked overrides that. The Box's Background Color keeps only its alpha (how solid the box
+        // is), and the image background is his own Box setting, so it still shows on Default (never over a picked theme).
+        com.killer560.hub.gui.OverlayPalette menu = menuPalette();
         if (cfg.isBackgroundEnabled()) {
-            Identifier image = cfg.isImageBackground() && menu == null ? ScoreboardBackgroundImage.texture() : null;
+            Identifier image = cfg.isImageBackground() && !themed() ? ScoreboardBackgroundImage.texture() : null;
             if (image != null) {
                 blitRounded(g, image, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b),
                         ((cfg.getImageOpacity() * 255 / 100) << 24) | 0xFFFFFF);
             } else {
-                int background = menu == null ? cfg.getBackgroundColor()
-                        : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), cfg.getBackgroundColor() >>> 24);
+                int background = com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), cfg.getBackgroundColor() >>> 24);
                 fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), background);
                 if (titleRows > 0 && titleRows < lines.size() && radius == 0) {
                     // From the box's top edge to halfway into the gap under the title's last row.
                     int bandBottom = y + b + pad + titleRows * (font.lineHeight + cfg.getLineSpacing())
                             - (cfg.getLineSpacing() + 1) / 2;
                     g.fill(x + b, y + b, x + w - b, Math.min(y + h - b, bandBottom),
-                            menu == null ? titleBandOverlay(background)
-                                    : com.killer560.hub.gui.OverlayPalette.alpha(menu.panelDeep(), 0x60));
+                            com.killer560.hub.gui.OverlayPalette.alpha(menu.panelDeep(), 0x60));
                 }
             }
         }
@@ -937,12 +929,23 @@ public final class CustomScoreboardFeature {
         g.blit(RenderPipelines.GUI_TEXTURED, texture, x, y + r, 0f, r, w, h - 2 * r, w, h - 2 * r, w, h, color);
     }
 
+    /** The board's Menu Theme as a palette: the theme he picked, or the mod menu's own theme on Default. */
+    static com.killer560.hub.gui.OverlayPalette menuPalette() {
+        com.killer560.hub.gui.OverlayPalette picked = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD);
+        return picked != null ? picked : com.killer560.hub.gui.OverlayThemes.menu();
+    }
+
+    /** Whether the board's Menu Theme is a theme he picked (not Default). */
+    static boolean themed() {
+        return com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD) != null;
+    }
+
     /** Border colour for row {@code row} of an {@code h}-tall border: solid or top-to-bottom gradient. Chroma is
-     *  {@link #drawChromaBorder}, which colours by position along the row too. */
+     *  {@link #drawChromaBorder}, which colours by position along the row too. Border Style Default is the menu's accent
+     *  (alpha from the Border Color, so a faded border stays faded); Custom uses the Border Color and Bottom Color. */
     private static int borderColor(CustomScoreboardConfig cfg, int row, int h, long now) {
-        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD);
-        if (menu != null) {
-            return menu.accent() | (cfg.getBorderColor() & 0xFF000000);
+        if (cfg.getBorderStyle() == CustomScoreboardConfig.BorderStyle.MENU) {
+            return menuPalette().accent() | (cfg.getBorderColor() & 0xFF000000);
         }
         float t = h <= 1 ? 0f : row / (float) (h - 1);
         if (!cfg.isBorderGradient()) {

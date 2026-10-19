@@ -222,6 +222,29 @@ public final class CustomScoreboardConfig {
         }
     }
 
+    /**
+     * Where the border's colour comes from (killer560, 2026-10-18: "make a custom border for it"). MENU ("Default"): the
+     * mod menu's accent colour, so the border is there under the default theme. CUSTOM: the Border Color, Bottom Color and
+     * Gradient Border settings. The border thickness and Border On/Off apply to both; Chroma Border still overrides both.
+     */
+    public enum BorderStyle {
+        MENU("Default"), CUSTOM("Custom");
+
+        public final String label;
+
+        BorderStyle(String label) {
+            this.label = label;
+        }
+
+        public BorderStyle next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+
+        public BorderStyle previous() {
+            return values()[(values().length + ordinal() - 1) % values().length];
+        }
+    }
+
     /** A plain translucent black like the vanilla sidebar's (2026-10-15, "make the custom scoreboard simpler"); the title
      *  row is drawn a little darker over it, as vanilla does. */
     public static final int DEFAULT_BACKGROUND_COLOR = 0x50000000;
@@ -322,7 +345,8 @@ public final class CustomScoreboardConfig {
     private int padding = 2;
     private boolean roundedCorners = false;
     private int cornerRadius = 6;
-    private boolean borderEnabled = false;
+    private boolean borderEnabled = true;
+    private BorderStyle borderStyle = BorderStyle.MENU;
     private int borderColor = DEFAULT_BORDER_COLOR;
     private int borderThickness = 1;
     private boolean borderGradient = false;
@@ -426,6 +450,14 @@ public final class CustomScoreboardConfig {
                 cfg.borderThickness = clamp(ConfigJson.getInt(obj, "borderThickness", cfg.borderThickness), 1, 5);
                 cfg.borderGradient = ConfigJson.getBool(obj, "borderGradient", cfg.borderGradient);
                 cfg.borderColorBottom = ConfigJson.getInt(obj, "borderColorBottom", cfg.borderColorBottom);
+                if (obj.has("borderStyle")) {
+                    cfg.borderStyle = ConfigJson.getEnum(obj, "borderStyle", BorderStyle.class, cfg.borderStyle);
+                } else {
+                    // A file from before Border Style: a border he had recoloured or gradiented keeps those colours (Custom);
+                    // the plain orange one now follows the menu's accent.
+                    cfg.borderStyle = cfg.borderColor != DEFAULT_BORDER_COLOR || cfg.borderGradient
+                            || cfg.borderColorBottom != DEFAULT_BORDER_BOTTOM_COLOR ? BorderStyle.CUSTOM : BorderStyle.MENU;
+                }
                 cfg.chromaBorder = ConfigJson.getBool(obj, "chromaBorder", cfg.chromaBorder);
                 cfg.chromaSpeed = clamp(ConfigJson.getInt(obj, "chromaSpeed", cfg.chromaSpeed), 1, 20);
                 cfg.imageBackground = ConfigJson.getBool(obj, "imageBackground", cfg.imageBackground);
@@ -527,6 +559,7 @@ public final class CustomScoreboardConfig {
             obj.addProperty("roundedCorners", roundedCorners);
             obj.addProperty("cornerRadius", cornerRadius);
             obj.addProperty("borderEnabled", borderEnabled);
+            obj.addProperty("borderStyle", borderStyle.name());
             obj.addProperty("borderColor", borderColor);
             obj.addProperty("borderThickness", borderThickness);
             obj.addProperty("borderGradient", borderGradient);
@@ -563,7 +596,8 @@ public final class CustomScoreboardConfig {
         if (ConfigJson.getBool(obj, "roundedCorners", true)) {
             roundedCorners = false;
         }
-        if (ConfigJson.getBool(obj, "borderEnabled", true) && !ConfigJson.getBool(obj, "chromaBorder", false)
+        // A file with no borderEnabled key never chose a border, so it takes the new default (on) rather than this rule.
+        if (obj.has("borderEnabled") && ConfigJson.getBool(obj, "borderEnabled", true) && !ConfigJson.getBool(obj, "chromaBorder", false)
                 && !ConfigJson.getBool(obj, "borderGradient", false)
                 && ConfigJson.getInt(obj, "borderColor", DEFAULT_BORDER_COLOR) == DEFAULT_BORDER_COLOR) {
             borderEnabled = false; // the plain orange border nobody chose; a chroma, gradient or recolored one stays
@@ -1067,6 +1101,14 @@ public final class CustomScoreboardConfig {
 
     public void setBorderEnabled(boolean v) {
         borderEnabled = v;
+    }
+
+    public BorderStyle getBorderStyle() {
+        return borderStyle;
+    }
+
+    public void setBorderStyle(BorderStyle v) {
+        borderStyle = v == null ? BorderStyle.MENU : v;
     }
 
     public int getBorderColor() {
