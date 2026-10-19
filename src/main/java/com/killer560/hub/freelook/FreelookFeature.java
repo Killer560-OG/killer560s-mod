@@ -64,29 +64,27 @@ public final class FreelookFeature {
             rearActive = false;
         }
 
-        KeyMapping perspective = client.options.keyTogglePerspective;
-        int clicks = 0;
-        while (perspective.consumeClick()) {
-            clicks++;
-        }
+        // The rear view is driven by the Freelook key (killer560, 2026-10-18), not F5: F5 keeps vanilla cycling. Toggle flips
+        // the view on each press of that key; Hold keeps it while the key is down.
+        boolean panDown = panHeld(client, cfg);
         if (cfg.getMode() == FreelookConfig.Mode.TOGGLE) {
-            for (int i = 0; i < clicks; i++) {
+            if (panDown && !panKeyWasDown) {
                 setRear(client, !rearActive);
             }
-        } else {
-            boolean down = perspective.isDown();
-            if (down != rearActive) {
-                setRear(client, down);
-            }
+        } else if (panDown != rearActive) {
+            setRear(client, panDown);
         }
+        panKeyWasDown = panDown;
 
-        boolean panDown = panHeld(client, cfg);
         if (panDown && !panning) {
             startPan(client);
         } else if (!panDown && panning) {
             stopPan(client);
         }
     }
+
+    /** The Freelook key's state last tick, for the Toggle press edge. */
+    private static boolean panKeyWasDown = false;
 
     private static boolean panHeld(Minecraft client, FreelookConfig cfg) {
         Boolean forced = panHeldForTest;
