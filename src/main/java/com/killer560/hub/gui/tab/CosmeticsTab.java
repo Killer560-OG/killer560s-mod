@@ -135,8 +135,20 @@ public class CosmeticsTab extends BaseTab {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§7" + trailBlocker), font));
             y += 14;
         }
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(statusLine()), font));
-        y += 14;
+        // The status line wraps to the tab's width, so the whole sentence can be read (killer560, 2026-10-18).
+        String status = statusLine();
+        String colour = status.length() >= 2 && status.charAt(0) == '§' ? status.substring(0, 2) : "";
+        String rest = status.substring(colour.length());
+        while (!rest.isEmpty()) {
+            String line = font.plainSubstrByWidth(rest, contentWidth);
+            if (line.isEmpty()) {
+                line = rest.substring(0, 1);
+            }
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(colour + line), font));
+            y += 12;
+            rest = rest.substring(line.length());
+        }
+        y += 2;
         if (shareError != null) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§c" + shareError), font));
             y += 14;
