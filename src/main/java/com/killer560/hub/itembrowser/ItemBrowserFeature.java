@@ -264,14 +264,36 @@ public final class ItemBrowserFeature {
 
     /** @return every tier of {@code entry}'s minion, lowest first, or just {@code entry} when it is not a minion. */
     public static List<SkyblockItemEntry> minionTiers(SkyblockItemEntry entry) {
+        // Asked per grid cell per frame (the tier-stack corner mark): kept per entry until the catalog list is replaced,
+        // instead of a regex match and a group substring per cell per frame (fps pass 2026-10-19). The answer depends
+        // only on the entry's id and the catalog's minion groups, which are rebuilt only for a new catalog list.
+        List<SkyblockItemEntry> catalog = SkyblockItemRepository.getItems();
+        if (catalog != tiersSource) {
+            TIERS.clear();
+            tiersSource = catalog;
+        }
+        List<SkyblockItemEntry> known = TIERS.get(entry);
+        if (known != null) {
+            return known;
+        }
+        List<SkyblockItemEntry> tiers;
         java.util.regex.Matcher m = MINION_ID.matcher(entry.id());
         if (!m.matches()) {
-            return List.of(entry);
+            tiers = List.of(entry);
+        } else {
+            ensureMinionGroups(catalog);
+            List<SkyblockItemEntry> group = minionGroups.get(m.group(1));
+            tiers = group == null || group.isEmpty() ? List.of(entry) : group;
         }
-        ensureMinionGroups(SkyblockItemRepository.getItems());
-        List<SkyblockItemEntry> group = minionGroups.get(m.group(1));
-        return group == null || group.isEmpty() ? List.of(entry) : group;
+        if (TIERS.size() > 16384) {
+            TIERS.clear();
+        }
+        TIERS.put(entry, tiers);
+        return tiers;
     }
+
+    private static final java.util.Map<SkyblockItemEntry, List<SkyblockItemEntry>> TIERS = new java.util.IdentityHashMap<>();
+    private static List<SkyblockItemEntry> tiersSource;
 
     static int minionTier(SkyblockItemEntry entry) {
         java.util.regex.Matcher m = MINION_ID.matcher(entry.id());
