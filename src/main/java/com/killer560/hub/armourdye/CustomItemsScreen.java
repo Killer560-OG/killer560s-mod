@@ -7,6 +7,7 @@ import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ThemedEditBox;
+import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -18,52 +19,58 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The Custom Items menu (killer560, 2026-10-08): "It should be a command or a button there that you open. You then
- * select an item in your inventory and you can then apply a skin to it or recolor or something ... You should be able
- * to remove skins in that menu as well."
+ * The Custom Items menu (killer560, 2026-10-08): select an item in your inventory and change its colour, skin, trim,
+ * pattern or look. Nothing is ever sent to the server.
  * <p>
- * Left: his armour, inventory and hotbar (the real stacks, drawn through the overrides, so a change shows at once), and
- * under them every saved look. Click an item (or a saved look) to select it. Right: a large preview and the controls -
- * Applies To (this item by UUID / every copy by Skyblock id), Colour + Use Colour (dyeable items, which is most
- * Skyblock armour), Skin and Trim / Pattern (armour), the Look (any item model id, or "Copy Look" then
- * click another item - a head's texture comes with it), and Remove. Nothing is ever sent to the server.
+ * Left: a search box (2026-10-18: filters the item grid by name, any word typed matches), then his armour, inventory
+ * and hotbar (the real stacks, drawn through the overrides). Right: the preview and the controls. Selecting an item
+ * shows its CLEAR look (no override drawn) until the Preview button switches to the look it has. The saved-looks list
+ * was removed from the menu on 2026-10-18 (killer560: "remove the saved looks"); a look already saved still applies
+ * to its item, and it can still be removed from the item's controls.
  */
 public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
-    private static final int SLOT = 18;
-    private static final int PANEL_W = 364;
-    private static final int PANEL_H = 212;
-    private static final int LIST_ROW = 11;
-    private static final int LIST_ROWS = 5;
+    private static final int SLOT = 22;
+    private static final int GRID_W = 9 * SLOT;
+    private static final int MAX_W = 460;
+    private static final int MAX_H = 300;
+    private static final int LEFT_PAD = 8;
+    private static final int COL_GAP = 12;
+    private static final int ROW_H = 24;
     private static final EquipmentSlot[] ARMOUR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
             EquipmentSlot.FEET};
 
     private final Screen parent;
 
-    /** The selected real stack (live, from the inventory), or EMPTY when a saved look is selected on its own. */
+    /** The selected real stack (live, from the inventory), or EMPTY when nothing is selected. */
     private ItemStack selectedStack = ItemStack.EMPTY;
     /** The key the selection edits (an id or UUID: key), or null for no selection. */
     private String selectedKey;
     private String selectedLabel = "";
     private boolean copyingLook;
-    private int listScroll;
+    /** True: the preview draws the clear item (no override). Reset to true on every new selection. */
+    private boolean showClear = true;
+    /** The search text, kept across rebuilds. Any word typed matches an item whose name contains it. */
+    private String query = "";
     private String status = "";
     private boolean statusBad;
 
+    private int panelW;
+    private int panelH;
     private int panelX;
     private int panelY;
     private int gridX;
     private int gridY;
     private int rightX;
     private int rightW;
-    private int listY;
 
     private EditBox lookBox;
+    private EditBox searchBox;
 
     public CustomItemsScreen(Screen parent) {
         super(Component.literal("Custom Items"));
@@ -90,7 +97,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     }
 
     /** Selects a real item. Its existing look is found by UUID first, then by id; a new look defaults to every copy.
-     *  Public for tests. */
+     *  The preview starts on the clear item. Public for tests. */
     public void select(ItemStack stack) {
         copyingLook = false;
         if (stack == null || stack.isEmpty()) {
@@ -98,6 +105,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         selectedStack = stack;
         selectedLabel = stack.getHoverName().getString();
+        showClear = true;
         String uuid = ArmourDye.uuidOf(stack);
         String id = ArmourDye.identityOf(stack);
         if (uuid != null && cfg().get(ArmourDyeConfig.uuidKey(uuid)) != null) {
@@ -111,51 +119,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             say("That item can't be identified, so a look can't be kept for it.", true);
         }
         refresh();
-    }
-
-    /** Selects a saved look by key (the item may not be in the inventory). Public for tests. */
-    public void selectKey(String key) {
-        ArmourDyeEntry e = cfg().get(key);
-        if (e == null) {
-            return;
-        }
-        copyingLook = false;
-        selectedKey = e.itemId;
-        selectedLabel = e.label;
-        selectedStack = findInInventory(e.itemId);
-        refresh();
-    }
-
-    private ItemStack findInInventory(String key) {
-        Player p = Minecraft.getInstance().player;
-        if (p == null) {
-            return ItemStack.EMPTY;
-        }
-        for (ItemStack s : allStacks(p)) {
-            if (s.isEmpty()) {
-                continue;
-            }
-            String uuid = ArmourDye.uuidOf(s);
-            if (uuid != null && ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid)).equals(key)) {
-                return s;
-            }
-            String id = ArmourDye.identityOf(s);
-            if (id != null && ArmourDyeConfig.normaliseId(id).equals(key)) {
-                return s;
-            }
-        }
-        return ItemStack.EMPTY;
-    }
-
-    private static List<ItemStack> allStacks(Player p) {
-        List<ItemStack> out = new ArrayList<>();
-        for (EquipmentSlot s : ARMOUR) {
-            out.add(p.getItemBySlot(s));
-        }
-        for (int i = 0; i < 36; i++) {
-            out.add(p.getInventory().getItem(i));
-        }
-        return out;
     }
 
     /** Switches between this item (UUID) and every copy (id). Public for tests. */
@@ -200,6 +163,34 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.colorEnabled = !e.colorEnabled;
         cfg().save();
         refresh();
+    }
+
+    /** Steps through the Hypixel leather colours (from the catalog) and arms the colour. */
+    private void stepHypixelDye(int dir) {
+        ArmourDyeEntry e = editable();
+        if (e == null) {
+            return;
+        }
+        int cur = hypixelDyeIndex(e.color);
+        int idx = cur < 0
+                ? (dir > 0 ? 0 : HypixelDyes.COLORS.length - 1)
+                : SettingsButtonWidget.step(cur, dir, HypixelDyes.COLORS.length);
+        e.color = 0xFF000000 | HypixelDyes.COLORS[idx];
+        e.colorEnabled = true;
+        cfg().save();
+        say("Dye: " + HypixelDyes.NAMES[idx] + ".", false);
+        refresh();
+    }
+
+    /** The index of a Hypixel dye colour matching this ARGB, or -1. */
+    static int hypixelDyeIndex(int argb) {
+        int rgb = argb & 0xFFFFFF;
+        for (int i = 0; i < HypixelDyes.COLORS.length; i++) {
+            if (HypixelDyes.COLORS[i] == rgb) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** Cycles the armour skin; {@code forward} false goes back one. Public for tests. */
@@ -261,6 +252,19 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             say("Look set to " + id + ".", false);
         }
         cfg().save();
+        refresh();
+    }
+
+    /** Sets a head texture from the Hypixel item catalog (its real item skin) as the Look. */
+    void applyHypixelSkin(SkyblockItemEntry item) {
+        ArmourDyeEntry e = editable();
+        if (e == null || item == null || item.skinValue() == null) {
+            return;
+        }
+        e.headTexture = item.skinValue().trim();
+        e.iconModel = "";
+        cfg().save();
+        say("Skin set to " + item.name() + ".", false);
         refresh();
     }
 
@@ -340,95 +344,156 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return colon < 0 ? id : id.substring(colon + 1);
     }
 
+    /**
+     * Search: true when the item name contains ANY word of the query, case-insensitive. A blank query matches all.
+     * Package-visible for the item-grid filter and its tests.
+     */
+    static boolean matchesQuery(String name, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        String lower = name == null ? "" : name.toLowerCase(Locale.ROOT);
+        for (String word : query.trim().toLowerCase(Locale.ROOT).split("\\s+")) {
+            if (!word.isEmpty() && lower.contains(word)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------------------------------- layout
 
     @Override
     protected void init() {
-        panelX = (this.width - PANEL_W) / 2;
-        panelY = Math.max(2, (this.height - PANEL_H) / 2);
-        gridX = panelX + 8;
-        gridY = panelY + 20;
-        rightX = gridX + 9 * SLOT + 10;
-        rightW = panelX + PANEL_W - 8 - rightX;
-        listY = gridY + SLOT + 4 + 3 * SLOT + 4 + SLOT + 14;
+        panelW = Math.min(MAX_W, this.width - 8);
+        panelH = Math.min(MAX_H, this.height - 8);
+        panelX = (this.width - panelW) / 2;
+        panelY = Math.max(2, (this.height - panelH) / 2);
+        gridX = panelX + LEFT_PAD;
+        gridY = panelY + 48;
+        rightX = gridX + GRID_W + COL_GAP;
+        rightW = Math.max(60, panelX + panelW - 8 - rightX);
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
-                .bounds(panelX + PANEL_W - 48, panelY + 4, 40, 14).build());
+                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
+
+        searchBox = new ThemedEditBox(this.font, gridX, panelY + 24, GRID_W, 18, Component.literal("Search"))
+                .hint("search items by name");
+        searchBox.setMaxLength(64);
+        searchBox.setResponder(text -> query = text);
+        searchBox.setValue(query);
+        addRenderableWidget(searchBox);
 
         ArmourDyeEntry e = entry();
         boolean has = selectedKey != null;
         boolean armour = ArmourDye.isArmour(selectedStack);
         int half = (rightW - 4) / 2;
-        int y = gridY + 64;
+        int rest = rightW - half - 4;
+        int x2 = rightX + half + 4;
 
         boolean canSwitch = !selectedStack.isEmpty() && ArmourDye.uuidOf(selectedStack) != null
                 && ArmourDye.identityOf(selectedStack) != null;
         SettingsButtonWidget applies = SettingsButtonWidget.builder(Component.literal("Applies To: "
                         + (selectedKey != null && selectedKey.startsWith(ArmourDyeEntry.UUID_PREFIX) ? "This Item" : "Every Copy")),
-                b -> toggleAppliesTo()).bounds(rightX + 52, gridY + 14, rightW - 52, 16).build();
+                b -> toggleAppliesTo()).bounds(rightX, row(0), rightW, BTN_H).build();
         applies.active = canSwitch;
         addRenderableWidget(applies);
 
+        // Row 1: colour picker and the on/off for it.
         SettingsButtonWidget colour = SettingsButtonWidget.builder(ColorSwatch.label("Color", e == null ? 0xFFFFFFFF : e.color), b -> {
                     ArmourDyeEntry cur = entry();
                     McOpen.colourPicker(this, selectedLabel, cur == null ? 0xFFFFFFFF : cur.color, this::setColour);
-                }).bounds(rightX, y, half, 18).build();
+                }).bounds(rightX, row(1), half, BTN_H).build();
         colour.active = has;
         addRenderableWidget(colour);
         SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Color: "
                         + (e != null && e.colorEnabled ? "§aON" : "§cOFF")), b -> toggleUseColour())
-                .bounds(rightX + half + 4, y, rightW - half - 4, 18).build();
+                .bounds(x2, row(1), rest, BTN_H).build();
         use.active = has;
         addRenderableWidget(use);
-        y += 22;
 
-        SettingsButtonWidget skin = SettingsButtonWidget.builder(Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
-                        b -> cycleSkin(true)).secondaryPress(b -> cycleSkin(false))
-                .bounds(rightX, y, half, 18).build();
+        // Row 2: Hypixel leather colour dropdown (cycles the catalog colours).
+        int dye = e == null ? -1 : hypixelDyeIndex(e.color);
+        SettingsButtonWidget hypixelDye = SettingsButtonWidget.cycling(
+                        Component.literal("Hypixel Dye: " + (dye < 0 ? "pick" : HypixelDyes.NAMES[dye])),
+                        (b, dir) -> stepHypixelDye(dir))
+                .bounds(rightX, row(2), rightW, BTN_H).build();
+        hypixelDye.active = has;
+        addRenderableWidget(hypixelDye);
+
+        // Row 3: armour skin dropdown, and the Hypixel item skin picker.
+        SettingsButtonWidget skin = SettingsButtonWidget.cycling(
+                        Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
+                        (b, dir) -> cycleSkin(dir > 0))
+                .bounds(rightX, row(3), half, BTN_H).build();
         skin.active = has && armour;
         addRenderableWidget(skin);
-        SettingsButtonWidget trim = SettingsButtonWidget.builder(Component.literal("Trim: " + shortId(e == null ? "" : e.trimMaterial)),
-                        b -> cycleTrim(true, true)).secondaryPress(b -> cycleTrim(true, false))
-                .bounds(rightX + half + 4, y, rightW - half - 4, 18).build();
+        SettingsButtonWidget hypixelSkin = SettingsButtonWidget.builder(Component.literal("Hypixel Skin..."),
+                        b -> minecraft.setScreenAndShow(new HypixelSkinScreen(this, this::applyHypixelSkin)))
+                .bounds(x2, row(3), rest, BTN_H).build();
+        hypixelSkin.active = has;
+        addRenderableWidget(hypixelSkin);
+
+        // Row 4: trim and pattern dropdowns.
+        SettingsButtonWidget trim = SettingsButtonWidget.cycling(
+                        Component.literal("Trim: " + shortId(e == null ? "" : e.trimMaterial)),
+                        (b, dir) -> cycleTrim(true, dir > 0))
+                .bounds(rightX, row(4), half, BTN_H).build();
         trim.active = has && armour;
         addRenderableWidget(trim);
-        y += 22;
-
-        SettingsButtonWidget pattern = SettingsButtonWidget.builder(Component.literal("Pattern: " + shortId(e == null ? "" : e.trimPattern)),
-                        b -> cycleTrim(false, true)).secondaryPress(b -> cycleTrim(false, false))
-                .bounds(rightX, y, half, 18).build();
+        SettingsButtonWidget pattern = SettingsButtonWidget.cycling(
+                        Component.literal("Pattern: " + shortId(e == null ? "" : e.trimPattern)),
+                        (b, dir) -> cycleTrim(false, dir > 0))
+                .bounds(x2, row(4), rest, BTN_H).build();
         pattern.active = has && armour;
         addRenderableWidget(pattern);
-        SettingsButtonWidget remove = SettingsButtonWidget.builder(Component.literal("§cRemove"), b -> removeSelected())
-                .bounds(rightX + half + 4, y, rightW - half - 4, 18).build();
-        remove.active = e != null;
-        addRenderableWidget(remove);
-        y += 22;
 
-        lookBox = new ThemedEditBox(this.font, rightX, y + 1, rightW - 40, 16, Component.literal("Look"))
+        // Row 5: free-text Look and its Set button.
+        lookBox = new ThemedEditBox(this.font, rightX, row(5) + 2, rightW - 40, 16, Component.literal("Look"))
                 .hint(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
                         : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword");
         lookBox.setMaxLength(4096);
         lookBox.active = has;
         addRenderableWidget(lookBox);
         SettingsButtonWidget set = SettingsButtonWidget.builder(Component.literal("Set"), b -> setLook(lookBox.getValue()))
-                .bounds(rightX + rightW - 36, y, 36, 18).build();
+                .bounds(rightX + rightW - 36, row(5), 36, BTN_H).build();
         set.active = has;
         addRenderableWidget(set);
-        y += 22;
 
+        // Row 6: copy or clear a Look.
         SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal(copyingLook ? "Pick item..." : "Copy Look"),
                 b -> {
                     copyingLook = !copyingLook;
                     b.setMessage(Component.literal(copyingLook ? "Pick item..." : "Copy Look"));
-                }).bounds(rightX, y, half, 18).build();
+                }).bounds(rightX, row(6), half, BTN_H).build();
         copy.active = has;
         addRenderableWidget(copy);
         SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear Look"), b -> setLook(""))
-                .bounds(rightX + half + 4, y, rightW - half - 4, 18).build();
+                .bounds(x2, row(6), rest, BTN_H).build();
         clear.active = e != null && (!e.iconModel.isBlank() || !e.headTexture.isBlank());
         addRenderableWidget(clear);
+
+        // Row 7: preview switch, and removing the look.
+        SettingsButtonWidget preview = SettingsButtonWidget.builder(
+                        Component.literal(showClear ? "Show With Look" : "Show Clear Item"),
+                        b -> {
+                            showClear = !showClear;
+                            refresh();
+                        }).bounds(rightX, row(7), half, BTN_H).build();
+        preview.active = !selectedStack.isEmpty();
+        addRenderableWidget(preview);
+        SettingsButtonWidget remove = SettingsButtonWidget.builder(Component.literal("§cRemove Look"), b -> removeSelected())
+                .bounds(x2, row(7), rest, BTN_H).build();
+        remove.active = e != null;
+        addRenderableWidget(remove);
     }
+
+    /** Y of right-column control {@code k}. */
+    private int row(int k) {
+        return panelY + 100 + k * ROW_H;
+    }
+
+    private static final int BTN_H = 20;
 
     /** Top-left of grid cell {@code index}: 0-3 armour (head first), 4-30 main storage (inventory 9-35), 31-39 hotbar. */
     public int[] cellPos(int index) {
@@ -457,6 +522,15 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return p.getInventory().getItem(index - 31);
     }
 
+    /** The stack in a cell when it passes the search, else EMPTY (a non-matching cell is drawn and clicked as empty). */
+    private ItemStack shownStack(int index) {
+        ItemStack stack = cellStack(index);
+        if (stack.isEmpty() || !matchesQuery(stack.getHoverName().getString(), query)) {
+            return ItemStack.EMPTY;
+        }
+        return stack;
+    }
+
     private int cellAt(double x, double y) {
         for (int i = 0; i < 40; i++) {
             int[] p = cellPos(i);
@@ -471,28 +545,26 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        // In the menu's theme (sweep-b, 2026-10-13); cells, rows and buttons keep their places.
         ScreenChrome.backdrop(graphics, this.width, this.height);
-        ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
-        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 16, "Custom Items");
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Custom Items");
         if (!cfg().isEnabledRaw()) {
             MenuStyle.text(graphics, this.font.plainSubstrByWidth(
-                    "Custom Items is OFF in its tab - looks are saved but not drawn.", PANEL_W - 80 - 54),
+                    "Custom Items is OFF in its tab - looks are saved but not drawn.", panelW - 80 - 54),
                     panelX + 80, panelY + 6, ScreenChrome.bad());
         }
-
 
         ItemStack hover = ItemStack.EMPTY;
         for (int i = 0; i < 40; i++) {
             int[] p = cellPos(i);
-            ItemStack stack = cellStack(i);
+            ItemStack stack = shownStack(i);
             boolean sel = !selectedStack.isEmpty() && stack == selectedStack;
             ScreenChrome.slot(graphics, p[0], p[1], SLOT, sel, false);
             if (stack.isEmpty()) {
                 continue;
             }
-            graphics.item(stack, p[0] + 1, p[1] + 1);
-            graphics.itemDecorations(this.font, stack, p[0] + 1, p[1] + 1);
+            graphics.item(stack, p[0] + 3, p[1] + 3);
+            graphics.itemDecorations(this.font, stack, p[0] + 3, p[1] + 3);
             if (ArmourDye.entryFor(stack) != null) {
                 graphics.fill(p[0] + SLOT - 4, p[1] + 1, p[0] + SLOT - 1, p[1] + 4, MenuStyle.OR); // has a look
             }
@@ -502,37 +574,30 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             }
         }
 
-        // Saved looks.
-        List<ArmourDyeEntry> entries = cfg().getEntries();
-        MenuStyle.text(graphics, "SAVED LOOKS (" + entries.size() + ")", gridX, listY - 11, MenuStyle.DIM);
-        listScroll = Math.max(0, Math.min(listScroll, Math.max(0, entries.size() - LIST_ROWS)));
-        ScreenChrome.well(graphics, gridX, listY, 9 * SLOT, LIST_ROWS * LIST_ROW + 1);
-        for (int row = 0; row < LIST_ROWS && listScroll + row < entries.size(); row++) {
-            ArmourDyeEntry e = entries.get(listScroll + row);
-            int ry = listY + 1 + row * LIST_ROW;
-            boolean sel = e.itemId.equals(selectedKey);
-            boolean over = mouseX >= gridX && mouseX < gridX + 9 * SLOT && mouseY >= ry && mouseY < ry + LIST_ROW;
-            ScreenChrome.row(graphics, gridX + 1, ry, 9 * SLOT - 2, LIST_ROW, over, sel, (row) % 2 == 1);
-            String text = (e.isPerItem() ? "[item] " : "") + e.label;
-            MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(text, 9 * SLOT - 8)), gridX + 4,
-                    ry + 2, !e.enabled ? MenuStyle.DIM2 : sel ? MenuStyle.OR_HOVER : MenuStyle.TXT);
-        }
-
-        // Right side: preview + name.
+        // Right side: title, preview (clear or with the look), then the controls.
         String title = selectedKey == null ? "Click an item to change its look" : selectedLabel;
-        MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(title, rightW)), rightX, gridY,
+        MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(title, rightW)), rightX, panelY + 24,
                 selectedKey == null ? MenuStyle.DIM : MenuStyle.TXT);
-        ScreenChrome.well(graphics, rightX, gridY + 12, 48, 48);
+        if (selectedKey != null) {
+            MenuStyle.text(graphics, showClear ? "Showing the clear item" : "Showing the look",
+                    rightX, panelY + 34, MenuStyle.DIM);
+        }
+        ScreenChrome.well(graphics, rightX, panelY + 44, 52, 52);
         if (!selectedStack.isEmpty()) {
             graphics.pose().pushMatrix();
-            graphics.pose().translate(rightX + 4, gridY + 16);
-            graphics.pose().scale(2.5f, 2.5f);
-            graphics.item(selectedStack, 0, 0);
+            graphics.pose().translate(rightX + 6, panelY + 50);
+            graphics.pose().scale(2.75f, 2.75f);
+            if (showClear) {
+                ArmourDye.withoutOverrides(() -> graphics.item(selectedStack, 0, 0));
+            } else {
+                graphics.item(selectedStack, 0, 0);
+            }
             graphics.pose().popMatrix();
         }
 
-        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, PANEL_W - 16), panelX + 8,
-                panelY + PANEL_H - 12, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
+        // Left column under the grid: the status line.
+        MenuStyle.text(graphics, this.font.plainSubstrByWidth(status, GRID_W), gridX,
+                gridY + 5 * SLOT + 14, statusBad ? ScreenChrome.bad() : ScreenChrome.good());
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
@@ -548,7 +613,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         int cell = cellAt(event.x(), event.y());
         if (cell >= 0) {
-            ItemStack stack = cellStack(cell);
+            ItemStack stack = shownStack(cell);
             if (stack.isEmpty()) {
                 return true;
             }
@@ -559,25 +624,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             }
             return true;
         }
-        if (event.x() >= gridX && event.x() < gridX + 9 * SLOT && event.y() >= listY
-                && event.y() < listY + LIST_ROWS * LIST_ROW) {
-            int row = (int) ((event.y() - listY - 1) / LIST_ROW);
-            List<ArmourDyeEntry> entries = cfg().getEntries();
-            if (row >= 0 && listScroll + row < entries.size()) {
-                selectKey(entries.get(listScroll + row).itemId);
-            }
-            return true;
-        }
         return super.mouseClicked(event, doubleClick);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (mouseX >= gridX && mouseX < gridX + 9 * SLOT && mouseY >= listY && mouseY < listY + LIST_ROWS * LIST_ROW) {
-            listScroll = Math.max(0, listScroll - (int) Math.signum(scrollY));
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -597,9 +644,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             mc.setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
         }
     }
+
     @Override
     public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, PANEL_W, PANEL_H};
+        return new int[]{panelX, panelY, panelW, panelH};
     }
 
     @Override
