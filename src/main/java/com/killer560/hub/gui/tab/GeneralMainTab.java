@@ -15,7 +15,7 @@ import java.util.List;
 public class GeneralMainTab extends BaseTab {
 
     public GeneralMainTab() {
-        super("General");
+        super("Auto Join Skyblock");
     }
 
     @Override
