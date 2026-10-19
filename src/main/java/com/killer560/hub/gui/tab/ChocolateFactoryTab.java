@@ -1,8 +1,12 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.BuildVariant;
 import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -34,6 +38,17 @@ public class ChocolateFactoryTab extends BaseTab {
         toggle(w, contentX, y, "Stray Alert", cfg::isStrayAlert, cfg::setStrayAlert, null);
         toggle(w, contentX, y, "Time Tower Reminder", cfg::isTimeTowerReminder, cfg::setTimeTowerReminder, null);
         toggle(w, contentX, y, "Upgrade Info Line", cfg::isInfoLine, cfg::setInfoLine, null);
+        toggle(w, contentX, y, "Hoppity Egg Timers", cfg::isEggHud, cfg::setEggHud, null);
+        toggle(w, contentX, y, "Duplicate Rabbit Values", cfg::isEggDupeValues, cfg::setEggDupeValues, null);
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // Cheat-only settings go at the bottom of the tab under a red header (CLAUDE.md menu placement).
+            y[0] += 6;
+            w.add(new StringWidget(contentX, y[0], BTN_W, 12, SectionHeaders.header("Cheat", true),
+                    Minecraft.getInstance().font));
+            y[0] += 16;
+            toggle(w, contentX, y, "Egg ESP", cfg::isEggEsp, cfg::setEggEsp, null);
+            toggle(w, contentX, y, "Hide Found Eggs", cfg::isEggEspHideFound, cfg::setEggEspHideFound, null);
+        }
         return w;
     }
 

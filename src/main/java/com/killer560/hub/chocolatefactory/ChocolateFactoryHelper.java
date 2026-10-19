@@ -77,6 +77,8 @@ public final class ChocolateFactoryHelper {
                 .previewSize(() -> new int[]{Minecraft.getInstance().font.width(lastInfoLine), 9});
         ClientTickEvents.END_CLIENT_TICK.register(ChocolateFactoryHelper::tick);
         ScreenEvents.AFTER_INIT.register(ChocolateFactoryHelper::onScreenInit);
+        // Hoppity's Hunt egg timers and duplicate values (legit), and the cheat-only Egg ESP it registers itself.
+        com.killer560.hub.chocolatefactory.egg.HoppityEggs.register();
     }
 
     /** The menu as last read (null when no factory is open) - the testkit reads it. */

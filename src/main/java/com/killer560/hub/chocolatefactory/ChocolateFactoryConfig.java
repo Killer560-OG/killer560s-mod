@@ -26,6 +26,16 @@ public final class ChocolateFactoryConfig {
     private boolean strayAlert = true;
     private boolean timeTowerReminder = true;
     private boolean infoLine = true;
+    /** Hoppity's Hunt egg timers HUD (legit, read-only) - see {@code egg/HoppityEggs}. */
+    private boolean eggHud = true;
+    /** The duplicate-rabbit chocolate values line on that HUD. */
+    private boolean eggDupeValues = true;
+    /** Egg ESP: boxes the hidden Chocolate Eggs through walls. Cheat build only, ships off. */
+    private boolean eggEsp = false;
+    /** Egg ESP leaves out the meals already found since their last spawn. */
+    private boolean eggEspHideFound = true;
+    /** Chocolate per second as last read in the factory menu, for the duplicate values while the menu is closed. */
+    private double lastCps = 0;
 
     private ChocolateFactoryConfig() {
     }
@@ -48,6 +58,14 @@ public final class ChocolateFactoryConfig {
                 cfg.strayAlert = ConfigJson.getBool(o, "strayAlert", true);
                 cfg.timeTowerReminder = ConfigJson.getBool(o, "timeTowerReminder", true);
                 cfg.infoLine = ConfigJson.getBool(o, "infoLine", true);
+                cfg.eggHud = ConfigJson.getBool(o, "eggHud", true);
+                cfg.eggDupeValues = ConfigJson.getBool(o, "eggDupeValues", true);
+                cfg.eggEsp = ConfigJson.getBool(o, "eggEsp", false);
+                cfg.eggEspHideFound = ConfigJson.getBool(o, "eggEspHideFound", true);
+                if (o.has("lastCps") && o.get("lastCps").isJsonPrimitive()) {
+                    double v = o.get("lastCps").getAsDouble();
+                    cfg.lastCps = Double.isFinite(v) && v > 0 ? v : 0;
+                }
             } catch (Exception e) {
                 cfg = new ChocolateFactoryConfig();
             }
@@ -65,6 +83,11 @@ public final class ChocolateFactoryConfig {
             o.addProperty("strayAlert", strayAlert);
             o.addProperty("timeTowerReminder", timeTowerReminder);
             o.addProperty("infoLine", infoLine);
+            o.addProperty("eggHud", eggHud);
+            o.addProperty("eggDupeValues", eggDupeValues);
+            o.addProperty("eggEsp", eggEsp);
+            o.addProperty("eggEspHideFound", eggEspHideFound);
+            o.addProperty("lastCps", lastCps);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -121,5 +144,46 @@ public final class ChocolateFactoryConfig {
 
     public void setInfoLine(boolean v) {
         infoLine = v;
+    }
+
+    public boolean isEggHud() {
+        return eggHud;
+    }
+
+    public void setEggHud(boolean v) {
+        eggHud = v;
+    }
+
+    public boolean isEggDupeValues() {
+        return eggDupeValues;
+    }
+
+    public void setEggDupeValues(boolean v) {
+        eggDupeValues = v;
+    }
+
+    /** The raw Egg ESP switch; the ESP itself also needs a cheat build ({@code egg/EggEsp}). */
+    public boolean isEggEsp() {
+        return eggEsp;
+    }
+
+    public void setEggEsp(boolean v) {
+        eggEsp = v;
+    }
+
+    public boolean isEggEspHideFound() {
+        return eggEspHideFound;
+    }
+
+    public void setEggEspHideFound(boolean v) {
+        eggEspHideFound = v;
+    }
+
+    public double getLastCps() {
+        return lastCps;
+    }
+
+    public void setLastCps(double v) {
+        lastCps = Double.isFinite(v) && v > 0 ? v : 0;
     }
 }
