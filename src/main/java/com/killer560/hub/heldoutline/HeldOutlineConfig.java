@@ -74,7 +74,7 @@ public final class HeldOutlineConfig {
 
     private boolean enabled = false;
     private Style style = Style.OUTLINE;
-    private Side side = Side.NEAR;
+    private Side side = Side.FAR;
     private int outlineColor = DEFAULT_OUTLINE_COLOR;
     private int fillColor = DEFAULT_FILL_COLOR;
     private float width = DEFAULT_WIDTH;
@@ -118,7 +118,7 @@ public final class HeldOutlineConfig {
     }
 
     public void setSide(Side v) {
-        side = v == null ? Side.NEAR : v;
+        side = v == null ? Side.FAR : v;
     }
 
     public int getOutlineColor() {
