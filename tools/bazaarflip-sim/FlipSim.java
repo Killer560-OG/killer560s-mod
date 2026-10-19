@@ -310,7 +310,7 @@ public final class FlipSim {
                     }
                 };
                 FlipAction a = FlipAutopilot.decide(new FlipAutopilot.Situation(m.products(), purse, holdings, cost, view,
-                        ans, look, lim, placed));
+                        ans, look, lim, placed, java.util.Set.of()));
                 r.actions.merge(a.getClass().getSimpleName(), 1, Integer::sum);
                 if (a instanceof FlipAction.Wait) {
                     break;

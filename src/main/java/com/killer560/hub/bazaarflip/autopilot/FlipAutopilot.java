@@ -126,10 +126,12 @@ public final class FlipAutopilot {
      * @param costBasis     what each held unit cost, by product id (absent: unknown)
      * @param orders        every open order Manage Orders last showed (the bot's and the player's own)
      * @param placedThisSession new orders and Insta Buys placed so far this session
+     * @param avoid         products no new position is opened in: ones the player carries of his own, because Sell
+     *                      Instantly and a Sell Offer take every unit of the item, not just the bot's
      */
     public record Situation(List<BazaarProduct> products, double purse, Map<String, Long> holdings,
                             Map<String, Double> costBasis, List<FlipOrder> orders, FlipPricing.Answers answers,
-                            FlipPricing.Lookups lookups, Limits limits, int placedThisSession) {
+                            FlipPricing.Lookups lookups, Limits limits, int placedThisSession, Set<String> avoid) {
     }
 
     private FlipAutopilot() {
@@ -317,11 +319,16 @@ public final class FlipAutopilot {
 
     /** What one unit nets when sold the way the answers say. */
     static double unitSellNet(Situation s, BazaarProduct p) {
-        if (s.answers().npc()) {
-            Double npc = s.lookups().npcPrice(p.productId());
+        return unitSellNet(s.answers(), s.lookups(), p);
+    }
+
+    /** What one unit nets when sold the way the answers say (the driver checks live page prices against it). */
+    public static double unitSellNet(FlipPricing.Answers a, FlipPricing.Lookups look, BazaarProduct p) {
+        if (a.npc()) {
+            Double npc = look.npcPrice(p.productId());
             return npc == null ? 0 : npc;
         }
-        return FlipPricing.bazaarSellNet(p, s.answers().instaSell());
+        return FlipPricing.bazaarSellNet(p, a.instaSell());
     }
 
     // ---- 4. open a new position -------------------------------------------------------------------------------------
@@ -343,7 +350,7 @@ public final class FlipAutopilot {
         if (!ans.instaBuy() && s.orders().size() >= lim.maxOpenOrders()) {
             return null;
         }
-        Set<String> busy = new HashSet<>();
+        Set<String> busy = new HashSet<>(s.avoid() == null ? Set.of() : s.avoid());
         double npcCommitted = 0;
         for (FlipOrder o : s.orders()) {
             if (o.ours()) {

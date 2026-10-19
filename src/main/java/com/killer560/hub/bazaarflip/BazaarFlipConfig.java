@@ -60,6 +60,15 @@ public final class BazaarFlipConfig {
     private int speed = 5;
     /** Sell speed, same 1-10 scale as the menu speed but much faster at every step (killer560, 2026-10-19). */
     private int sellSpeed = 5;
+    /** Run the autopilot (buy orders, sell offers, relists, collecting; decided from the Bazaar Advisor's answers)
+     *  instead of the Insta Buy to /trades cycle. Off by default (2026-10-19). */
+    private boolean autopilot = false;
+    /** Coins the autopilot never spends below, and stops under. 0 = a tenth of the purse it started with. */
+    private long autopilotReserve = 0L;
+    /** New orders and Insta Buys one autopilot session may place (relists do not count). */
+    private int autopilotMaxOrders = 20;
+    /** The order caps the tab steps through. */
+    public static final int[] AUTOPILOT_ORDER_CAPS = {5, 10, 20, 50, 100};
 
     private BazaarFlipConfig() {
     }
@@ -88,6 +97,9 @@ public final class BazaarFlipConfig {
             cfg.targetPurse = clampPurse(ConfigJson.getLong(obj, "targetPurse", cfg.targetPurse));
             cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
             cfg.sellSpeed = clampSpeed(ConfigJson.getInt(obj, "sellSpeed", cfg.sellSpeed));
+            cfg.autopilot = ConfigJson.getBool(obj, "autopilot", cfg.autopilot);
+            cfg.autopilotReserve = clampPurse(ConfigJson.getLong(obj, "autopilotReserve", cfg.autopilotReserve));
+            cfg.autopilotMaxOrders = clampOrderCap(ConfigJson.getInt(obj, "autopilotMaxOrders", cfg.autopilotMaxOrders));
             instance = cfg;
         } catch (Exception e) {
             instance = new BazaarFlipConfig();
@@ -104,6 +116,9 @@ public final class BazaarFlipConfig {
             obj.addProperty("targetPurse", targetPurse);
             obj.addProperty("speed", speed);
             obj.addProperty("sellSpeed", sellSpeed);
+            obj.addProperty("autopilot", autopilot);
+            obj.addProperty("autopilotReserve", autopilotReserve);
+            obj.addProperty("autopilotMaxOrders", autopilotMaxOrders);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -260,5 +275,48 @@ public final class BazaarFlipConfig {
     /** Longest wait between two sell shift-clicks: 220 ms at sell speed 1 down to 58 ms at 10. */
     public int getSellDelayMaxMs() {
         return 220 - 18 * (clampSpeed(sellSpeed) - 1);
+    }
+
+    // ---- autopilot ----
+
+    /** Whether the start key runs the autopilot rather than the Insta Buy to /trades cycle. Cheat build only, like the
+     *  whole feature: {@link #isEnabled()} already folds everything away in a legit jar. */
+    public boolean isAutopilot() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autopilot;
+    }
+
+    public void setAutopilot(boolean autopilot) {
+        this.autopilot = autopilot;
+    }
+
+    public long getAutopilotReserve() {
+        return autopilotReserve;
+    }
+
+    public void setAutopilotReserve(long coins) {
+        this.autopilotReserve = clampPurse(coins);
+    }
+
+    public int getAutopilotMaxOrders() {
+        return autopilotMaxOrders;
+    }
+
+    public void setAutopilotMaxOrders(int n) {
+        this.autopilotMaxOrders = clampOrderCap(n);
+    }
+
+    /** Steps the order cap through {@link #AUTOPILOT_ORDER_CAPS}, wrapping (left click forward, right click back). */
+    public void stepAutopilotMaxOrders(int dir) {
+        int at = 0;
+        for (int i = 0; i < AUTOPILOT_ORDER_CAPS.length; i++) {
+            if (AUTOPILOT_ORDER_CAPS[i] == autopilotMaxOrders) {
+                at = i;
+            }
+        }
+        autopilotMaxOrders = AUTOPILOT_ORDER_CAPS[Math.floorMod(at + dir, AUTOPILOT_ORDER_CAPS.length)];
+    }
+
+    private static int clampOrderCap(int v) {
+        return Math.max(1, Math.min(1000, v));
     }
 }
