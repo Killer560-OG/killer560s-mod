@@ -7,6 +7,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.KeyUtil;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -48,6 +49,8 @@ public final class AutoSellConfig {
     private String screenTitlePattern = DEFAULT_SCREEN_TITLE_PATTERN;
     private final Set<String> sellIdentities = new LinkedHashSet<>();
     private final Set<String> neverSellIdentities = new LinkedHashSet<>();
+    /** Key that adds or removes the hovered inventory item on the sell list (killer560, 2026-10-18). {@code KeyUtil.NONE} = unset. */
+    private int toggleKeyCode = KeyUtil.NONE;
 
     private AutoSellConfig() {
     }
@@ -74,6 +77,7 @@ public final class AutoSellConfig {
             cfg.screenTitlePattern = validPatternOrDefault(ConfigJson.getString(obj, "screenTitlePattern", cfg.screenTitlePattern));
             readIdentities(obj, "sellIdentities", cfg.sellIdentities);
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
+            cfg.toggleKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "toggleKeyCode", cfg.toggleKeyCode));
             instance = cfg;
         } catch (Exception e) {
             instance = new AutoSellConfig();
@@ -110,6 +114,7 @@ public final class AutoSellConfig {
             JsonArray never = new JsonArray();
             neverSellIdentities.forEach(never::add);
             obj.add("neverSellIdentities", never);
+            obj.addProperty("toggleKeyCode", toggleKeyCode);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -203,5 +208,13 @@ public final class AutoSellConfig {
 
     public boolean removeNeverSellIdentity(String identity) {
         return identity != null && neverSellIdentities.remove(identity.trim().toUpperCase(Locale.ROOT));
+    }
+
+    public int getToggleKeyCode() {
+        return toggleKeyCode;
+    }
+
+    public void setToggleKeyCode(int code) {
+        this.toggleKeyCode = KeyUtil.sanitizeBind(code);
     }
 }

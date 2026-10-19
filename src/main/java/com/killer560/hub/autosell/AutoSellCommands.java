@@ -98,7 +98,7 @@ public final class AutoSellCommands {
         ModChat.send(FEATURE, ModChat.value("/autosell add held|<IDENTITY>"), ModChat.dim(" - add to the sell list"));
         ModChat.send(FEATURE, ModChat.value("/autosell remove held|<IDENTITY>"), ModChat.dim(" - remove from the sell list"));
         ModChat.send(FEATURE, ModChat.value("/autosell neversell add|remove held|<IDENTITY>"), ModChat.dim(" - the safety list; always wins"));
-        ModChat.send(FEATURE, ModChat.value("/autosell list"), ModChat.dim(" - both lists"));
+        ModChat.send(FEATURE, ModChat.value("/autosell list"), ModChat.dim(" - open the sell list as a menu"));
         ModChat.send(FEATURE, ModChat.value("/autosell screentitle <regex>"), ModChat.dim(" - which screen title counts as a sell screen (default matches anything with \"sell\" in it)"));
         ModChat.send(FEATURE, ModChat.dim("Nothing is ever clicked unless it's explicitly on the sell list, and the never-sell list always wins."));
     }
@@ -218,13 +218,13 @@ public final class AutoSellCommands {
                 ModChat.value(identity), ModChat.text("."));
     }
 
+    /** Opens the sell list as a menu, where items can be added or taken off it (killer560, 2026-10-18). */
     private static void list() {
-        AutoSellConfig cfg = AutoSellConfig.getInstance();
-        ModChat.send(FEATURE, ModChat.text("Sell list (" + cfg.getSellIdentities().size() + "): "),
-                ModChat.value(cfg.getSellIdentities().isEmpty() ? "(empty)" : String.join(", ", cfg.getSellIdentities())));
-        ModChat.send(FEATURE, ModChat.text("Never-sell list (" + cfg.getNeverSellIdentities().size() + "): "),
-                ModChat.value(cfg.getNeverSellIdentities().isEmpty() ? "(empty)" : String.join(", ", cfg.getNeverSellIdentities())));
-        ModChat.send(FEATURE, ModChat.dim("Sell screen title pattern: " + cfg.getScreenTitlePattern()));
+        if (!ready()) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        com.killer560.hub.compat.McCompat.setScreen(client, new AutoSellListScreen(com.killer560.hub.compat.McCompat.screen(client)));
     }
 
     private static void setScreenTitle(String regex) {
