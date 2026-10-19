@@ -20,7 +20,9 @@ public final class BazaarAdvisorCommands {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
                 dispatcher.register(ClientCommands.literal("bzflip")
                         .executes(context -> {
-                            list();
+                            // Opened on the next tick: the chat screen that sent this command closes itself after it returns.
+                            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                            client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client, new BazaarAdvisorSetupScreen()));
                             return 1;
                         })
                         .then(ClientCommands.literal("npc").executes(context -> set(c -> c.setMode(BazaarAdvisorConfig.Mode.NPC), "Sell to the NPC")))
