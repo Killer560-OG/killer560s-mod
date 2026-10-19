@@ -225,10 +225,28 @@ final class BazaarFlipAutopilot {
         placed = 0;
         boughtCoins = 0;
         lastWaitWhy = "";
+        chatWarning = null;
     }
+
+    /**
+     * A Bazaar line that reads like a refusal or a limit. Anchored on "[Bazaar] " at the very start, which no player's
+     * chat can produce (theirs start with a rank or name), and bounded. The success lines are not in the repo, so this
+     * goes by the warning's words rather than by a list of known good lines - a new success wording does not stop it.
+     */
+    static final Pattern BAZAAR_WARNING = Pattern.compile(
+            "^\\[Bazaar\\] (?=.{0,200}$).{0,200}\\b(?i:cannot|can't|couldn't|could not|not enough|don't have|do not have|"
+                    + "too many|limit|maximum|reached|error|failed|unable|invalid|not allowed)\\b.{0,200}$");
+    /** Hypixel's command rate limit (unverified wording; harmless if it never matches). */
+    static final Pattern COMMANDS_TOO_FAST = Pattern.compile("^You are sending commands too fast!.{0,60}$");
+    /** Set from the chat thread, acted on by the next tick. */
+    private static volatile String chatWarning;
 
     /** Colour-stripped chat while the autopilot runs (BazaarFlipFeature forwards it). Every pattern anchored. */
     static void onChatLine(String line) {
+        if (BAZAAR_WARNING.matcher(line).matches() || COMMANDS_TOO_FAST.matcher(line).matches()) {
+            chatWarning = line;
+            return;
+        }
         Matcher m = BazaarFlipFeature.BOUGHT_LINE.matcher(line);
         if (m.matches() && action instanceof FlipAction.InstaBuy b && m.group(2).equalsIgnoreCase(b.name())) {
             try {
@@ -248,6 +266,26 @@ final class BazaarFlipAutopilot {
             BazaarApi.refreshAsync();
         }
         Screen open = McCompat.screen(client);
+        // ---- stops (killer560's step 4): a Bazaar warning, the purse under the reserve, a menu nobody asked for ----
+        String warning = chatWarning;
+        if (warning != null) {
+            chatWarning = null;
+            fail("Hypixel said \"" + warning + "\"");
+            return;
+        }
+        if (expect == Expect.NONE) {
+            // Between steps only: mid-purchase Hypixel holds the quote and refunds the rest a moment later.
+            Double purse = BazaarFlipFeature.readPurse();
+            if (purse != null && purse < reserve) {
+                fail(String.format(Locale.US, "your purse (%,.0f) dropped below the reserve (%,.0f)", purse, reserve));
+                return;
+            }
+        }
+        if (action == null && !refresh && expect == Expect.NONE && open != null && unexpected(open)) {
+            fail("an unexpected menu opened: " + (open instanceof AbstractContainerScreen<?> c
+                    ? BazaarFlipMenus.describe(c) : open.getClass().getSimpleName()));
+            return;
+        }
         if (expect == Expect.SIGN) {
             tickSign(open, cfg, now);
             return;
@@ -303,6 +341,20 @@ final class BazaarFlipAutopilot {
         } else {
             tickProductPages(client, screen, page, cfg, now);
         }
+    }
+
+    /** Between steps, any screen but a settled Bazaar page or the Trades menu the last step left open. A page still
+     *  loading is not judged yet. */
+    private static boolean unexpected(Screen open) {
+        if (!(open instanceof AbstractContainerScreen<?> c)) {
+            return true;
+        }
+        if (!BazaarFlipFeature.settled(c)) {
+            return false;
+        }
+        String title = BazaarFlipMenus.titleOf(c);
+        return BazaarFlipMenus.page(c).kind() == BazaarPages.Kind.UNKNOWN && !BazaarFlipFeature.TRADES_TITLE.matcher(title).matches()
+                && !BazaarFlipFeature.CONFIRM_INSTANT_BUY.equals(title);
     }
 
     // ---- deciding -------------------------------------------------------------------------------------------------------
