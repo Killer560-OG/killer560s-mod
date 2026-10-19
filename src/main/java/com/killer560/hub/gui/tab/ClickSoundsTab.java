@@ -11,15 +11,14 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Home's Click Sounds (killer560, 2026-10-15): the sound every button click makes - Default (Minecraft's), one of the
- * bundled presets, or a sound of his own from the import folder - and how loud, up to 500% (2026-10-18). It plays on every screen.
- * Import: drop a short .ogg into the folder (Open Sound Folder), or copy an .ogg file's path and press Import From
- * Clipboard. See {@link ClickSounds}.
+ * bundled presets, or a sound of his own from the import folder - and how loud, from 100% to 500% (2026-10-18). It plays on
+ * every screen. Import: drop a file into the folder (Open Sound Folder), or copy a file's path and press Import From
+ * Clipboard (video included: only its audio is kept). See {@link ClickSounds}.
  */
 public class ClickSoundsTab extends BaseTab {
 
@@ -53,7 +52,8 @@ public class ClickSoundsTab extends BaseTab {
         y += 24;
 
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, volumeText(),
-                ClickSoundConfig.getInstance().getVolume() / ClickSoundConfig.MAX_VOLUME) {
+                (ClickSoundConfig.getInstance().getVolume() - ClickSoundConfig.MIN_VOLUME)
+                        / (ClickSoundConfig.MAX_VOLUME - ClickSoundConfig.MIN_VOLUME)) {
             @Override
             protected void updateMessage() {
                 setMessage(volumeText());
@@ -62,7 +62,9 @@ public class ClickSoundsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 ClickSoundConfig cfg = ClickSoundConfig.getInstance();
-                cfg.setVolume(Math.round(this.value * ClickSoundConfig.MAX_VOLUME * 20) / 20f);
+                // 100% to 500% in steps of 5 (killer560, 2026-10-18: the slider starts at 100%).
+                cfg.setVolume(ClickSoundConfig.MIN_VOLUME
+                        + Math.round(this.value * (ClickSoundConfig.MAX_VOLUME - ClickSoundConfig.MIN_VOLUME) * 20) / 20f);
                 cfg.save();
             }
         });
@@ -90,24 +92,16 @@ public class ClickSoundsTab extends BaseTab {
         return widgets;
     }
 
-    /** Copies the .ogg whose path is on the clipboard into the import folder and selects it; the text to show. */
+    /** Copies the file whose path is on the clipboard into the import folder and selects it; the text to show. */
     static String importFromClipboard() {
-        String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
-        String text = clip == null ? "" : clip.strip();
-        if (text.length() > 1 && text.startsWith("\"") && text.endsWith("\"")) {
-            text = text.substring(1, text.length() - 1);
-        }
-        if (text.isEmpty()) {
-            return "§cCopy a sound or video file's path first (Shift + right click it, Copy as path).";
-        }
         try {
-            String name = ClickSounds.importFile(Path.of(text));
+            String name = ClickSounds.importClipboard(Minecraft.getInstance().keyboardHandler.getClipboard());
             ClickSoundConfig cfg = ClickSoundConfig.getInstance();
             cfg.setChoice(ClickSounds.IMPORT_PREFIX + name);
             cfg.save();
             return "§aImported " + name + " and selected it.";
-        } catch (java.io.IOException | java.nio.file.InvalidPathException e) {
-            return "§c" + (e instanceof java.io.IOException ? e.getMessage() : "That is not a file path.");
+        } catch (java.io.IOException e) {
+            return "§c" + e.getMessage();
         }
     }
 

@@ -74,10 +74,19 @@ final class SettingTooltipsData {
         // killer560, 2026-10-15: the menu click sound and the Descriptions switches (clicksound/, gui/tab/ClickSoundsTab, DescriptionsTab).
         d.put("click sounds", "The sound every button click makes. Default is Minecraft's own click; the presets are short original sounds; Import adds your own .ogg.");
         d.put("click sounds/click sound", "Default (Minecraft's click), a preset (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep) or a sound you imported. Left click goes to the next and plays it, right click back.");
-        d.put("click sounds/click volume", "How loud the chosen click is, 0-500%. Above 100% the click plays in layers, so 300% is three copies together. It is also scaled by your Minecraft master volume.");
+        d.put("click sounds/click volume", "How loud the chosen click is, 100% to 500%. Above 100% the click plays in layers, so 300% is three copies together. It is also scaled by your Minecraft master volume.");
         d.put("click sounds/preview", "Plays the chosen click once.");
-        d.put("click sounds/open sound folder", "Opens the folder your imported .ogg files live in. Drop a short .ogg, .wav or .mp3 in (under 1 MB), then step Click Sound to it.");
-        d.put("click sounds/import from clipboard", "Copy a sound or video file's path (Shift + right click it in Explorer, Copy as path) then press this: an .ogg, .wav or .mp3 is checked and copied into the sound folder; anything else (a video such as mp4, m4a, flac) has its audio cut to 5 seconds by ffmpeg if you have it installed. The result is chosen.");
+        d.put("click sounds/open sound folder", "Opens the folder your imported sounds live in. Drop an .ogg, .wav or .mp3 in (under 1 MB, up to 10 seconds), then step Click Sound to it.");
+        d.put("click sounds/import from clipboard", "Copy a sound or video file's path (Shift + right click it in Explorer, Copy as path) then press this. An .ogg, .wav, .mp3, .aiff or .au that is short enough is copied as it is. Anything else - a video (only its audio is kept), m4a, flac, or a longer sound - is cut to its first 3 seconds and saved as .ogg by ffmpeg, which must be installed. A file with no sound, or not a sound at all, is refused and says so. The result is chosen.");
+        d.put("sound effects", "Replaces game sounds with the sound you choose: an arrow hitting, every left click that hits a mob or a block, a mob dying, a block breaking. Each row is a switch and its sound. Off by default; Default keeps the game's own sound.");
+        d.put("sound effects/arrow hit", "An arrow hitting a mob or a player: the game's arrow-hit sound is replaced by the sound you choose here.");
+        d.put("sound effects/attack hit", "Every left click that hits a mob: Minecraft's attack sound is replaced. Heard from where the mob is, like the original.");
+        d.put("sound effects/block hit", "Every left click on a block: the hit sound you hear while mining is replaced. Heard from the block, like the original.");
+        d.put("sound effects/mob death", "A mob dying (not a player): its death sound is replaced.");
+        d.put("sound effects/block break", "A block breaking: the sound it makes when it is mined is replaced.");
+        d.put("sound effects/sound", "The sound this effect plays: Default (the game's own), a preset, or an imported file from the sound folder. Left click steps to the next and plays it, right click goes back.");
+        d.put("sound effects/open sound folder", "Opens the folder imported sounds live in. Import a file here, then step a row's Sound to it.");
+        d.put("sound effects/import from clipboard", "Copy a sound or video file's path (Shift + right click it, Copy as path), then press this. The file is imported into the sound folder (an .ogg is kept as it is; a video or other type is cut to 3 seconds by ffmpeg). Step a row's Sound to it to use it.");
         d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
         d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");
         d.put("descriptions/show editor descriptions", "Off hides the hint line at the top of the HUD editor (drag, resize, scroll, Esc). The line saying why the editor is empty stays.");

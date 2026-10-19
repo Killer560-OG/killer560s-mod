@@ -24,7 +24,9 @@ public final class ClickSoundConfig {
     private static ClickSoundConfig instance;
 
     private String choice = ClickSounds.DEFAULT_ID;
-    private float volume = 1.0f;
+    private float volume = MIN_VOLUME;
+    /** The quietest a click can be set: 100% (killer560, 2026-10-18: the slider runs 100% to 500%). */
+    public static final float MIN_VOLUME = 1.0f;
     /** The loudest a click can be set: five times (500%), made by playing it in layers (see {@link ClickSounds}). */
     public static final float MAX_VOLUME = 5.0f;
 
@@ -72,12 +74,12 @@ public final class ClickSoundConfig {
         choice = id == null || id.isBlank() ? ClickSounds.DEFAULT_ID : id.trim();
     }
 
-    /** 0..5, 1 being 100%: the click's loudness as a multiple of its own. */
+    /** 1..5, 1 being 100%: the click's loudness as a multiple of its own. */
     public float getVolume() {
         return volume;
     }
 
     public void setVolume(float v) {
-        volume = Float.isNaN(v) ? 1.0f : Math.max(0f, Math.min(MAX_VOLUME, v));
+        volume = Float.isNaN(v) ? MIN_VOLUME : Math.max(MIN_VOLUME, Math.min(MAX_VOLUME, v));
     }
 }
