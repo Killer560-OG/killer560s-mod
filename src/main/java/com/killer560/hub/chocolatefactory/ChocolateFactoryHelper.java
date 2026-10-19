@@ -28,7 +28,8 @@ import com.killer560.hub.compat.McCompat;
  * while the Chocolate Factory menu is open it:
  * <ul>
  * <li>outlines the best-value upgrade green (cheapest chocolate per extra chocolate-per-second, the same valuation the
- * cheat auto buys by) and every other upgrade you can afford yellow;</li>
+ * cheat auto buys by) once you can afford it, and keeps that outline on an upgrade you have picked up until the pick-up
+ * ends (see updateHeldBest below);</li>
  * <li>outlines stray rabbits gold, and plays a ping with a chat line the moment one appears;</li>
  * <li>outlines the Time Tower aqua while it has a charge and is not running, with one chat reminder per menu open;</li>
  * <li>prints one line above the menu: chocolate per second, the best upgrade, its cost and how long until you can
@@ -41,7 +42,6 @@ public final class ChocolateFactoryHelper {
     private static final Logger LOGGER = ModLog.get("killer560smod-chocolatefactory");
     private static final String CHAT = "Chocolate Factory";
     private static final int GREEN = 0xFF55FF55;
-    private static final int YELLOW = 0xFFFFFF55;
     private static final int GOLD = 0xFFFFAA00;
     private static final int AQUA = 0xFF55FFFF;
 
@@ -49,6 +49,13 @@ public final class ChocolateFactoryHelper {
     private static int stateContainer = -1;
     private static final Set<Integer> strayAlerted = new HashSet<>();
     private static boolean towerReminded;
+    /** The best upgrade as the reader had it on the last tick, so a pick-up has a slot to hold (killer560, 2026-10-18). */
+    private static ChocolateFactoryMenu.Upgrade lastBest;
+    /** The upgrade the cursor picked up, held as the best until the pick-up ends; null when nothing is held. */
+    private static ChocolateFactoryMenu.Upgrade heldBest;
+    private static int heldTicks;
+    /** A held upgrade that stops reading (its item is blank while carried) is released after this many ticks. */
+    private static final int HOLD_TICKS = 200;
     /** Testkit read-outs: alerts and reminders given since launch. */
     private static int strayAlerts;
     private static int towerReminders;
@@ -108,6 +115,8 @@ public final class ChocolateFactoryHelper {
                 stateContainer = -1;
                 strayAlerted.clear();
                 towerReminded = false;
+                lastBest = null;
+                heldBest = null;
                 return;
             }
             AbstractContainerMenu menu = screen.getMenu();
@@ -122,9 +131,12 @@ public final class ChocolateFactoryHelper {
                 stateContainer = menu.containerId;
                 strayAlerted.clear();
                 towerReminded = false;
+                lastBest = null;
+                heldBest = null;
                 dumpMenu(top);
             }
             state = ChocolateFactoryMenu.read(top);
+            updateHeldBest(menu, state);
             if (cfg.isStrayAlert()) {
                 for (int slot : state.strays()) {
                     if (strayAlerted.add(slot)) {
@@ -144,6 +156,48 @@ public final class ChocolateFactoryHelper {
         } catch (RuntimeException e) {
             LOGGER.error("[ChocolateFactory] helper tick failed", e);
         }
+    }
+
+    /**
+     * Keeps the best outline on the upgrade the cursor picked up. Picking an upgrade up empties its slot in the container,
+     * so the reader's next read re-picks the best from what is left and the outline jumps to another slot for no reason
+     * (killer560, 2026-10-18). The hold starts on the first tick the cursor holds an item while the last read had a best,
+     * and ends when the slot reads again with a different cost (bought, or changed, so the reader's own valuation is
+     * fresh), when it reads again while the cursor is empty (put back unchanged), after {@link #HOLD_TICKS} blank ticks,
+     * or when the menu changes or closes. A purchase that changes the cost therefore releases the hold on the tick the
+     * new lore arrives. Read with {@link AbstractContainerMenu#getCarried()}, so no mouse hook is needed.
+     */
+    private static void updateHeldBest(AbstractContainerMenu menu, ChocolateFactoryMenu.State st) {
+        boolean holding = !menu.getCarried().isEmpty();
+        if (heldBest == null && holding && lastBest != null) {
+            heldBest = lastBest;
+            heldTicks = 0;
+        }
+        if (heldBest != null) {
+            ChocolateFactoryMenu.Upgrade now = null;
+            for (ChocolateFactoryMenu.Upgrade u : st.upgrades()) {
+                if (u.slot() == heldBest.slot()) {
+                    now = u;
+                    break;
+                }
+            }
+            heldTicks++;
+            boolean release;
+            if (now == null) {
+                release = !holding || heldTicks > HOLD_TICKS;
+            } else {
+                release = !holding || now.cost() != heldBest.cost();
+            }
+            if (release) {
+                heldBest = null;
+            }
+        }
+        lastBest = st.best();
+    }
+
+    /** The upgrade the best outline and the info line show: the held one while a pick-up holds it, else the reader's best. */
+    private static ChocolateFactoryMenu.Upgrade shownBest(ChocolateFactoryMenu.State st) {
+        return heldBest != null ? heldBest : st.best();
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
@@ -172,14 +226,10 @@ public final class ChocolateFactoryHelper {
         AbstractContainerMenu menu = screen.getMenu();
         graphics.nextStratum();
         if (cfg.isHighlightBestUpgrade()) {
-            for (ChocolateFactoryMenu.Upgrade u : st.upgrades()) {
-                if (u != st.best() && st.chocolate() >= u.cost()) {
-                    outline(graphics, menu, u.slot(), left, top, YELLOW);
-                }
-            }
-            // The best upgrade is only outlined once you can actually afford it (killer560, 2026-10-18).
-            if (st.best() != null && st.chocolate() >= st.best().cost()) {
-                outline(graphics, menu, st.best().slot(), left, top, GREEN);
+            // Only the single best upgrade is outlined, and only once you can afford it (killer560, 2026-10-18).
+            ChocolateFactoryMenu.Upgrade shown = shownBest(st);
+            if (shown != null && st.chocolate() >= shown.cost()) {
+                outline(graphics, menu, shown.slot(), left, top, GREEN);
             }
         }
         if (cfg.isHighlightStrays()) {
@@ -213,7 +263,7 @@ public final class ChocolateFactoryHelper {
 
     /** "| Best: Rabbit Sis - 1.25M (affordable now)" on the line below, or empty when there is no best upgrade. */
     public static String bestLine(ChocolateFactoryMenu.State st) {
-        ChocolateFactoryMenu.Upgrade best = st.best();
+        ChocolateFactoryMenu.Upgrade best = shownBest(st);
         if (best == null) {
             return "";
         }
