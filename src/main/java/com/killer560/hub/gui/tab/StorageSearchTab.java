@@ -202,7 +202,9 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
             }
         });
 
-        widgets.add(new ThemedSliderButton(contentX, y + 24, contentWidth, 20, opacityText(), cfg.getSearchBoxOpacity() / 100.0) {
+        // Search Box Opacity sits on its own row under the radius slider, so it is not drawn over another control.
+        y += 24;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, opacityText(), cfg.getSearchBoxOpacity() / 100.0) {
             @Override
             protected void updateMessage() {
                 setMessage(opacityText());
