@@ -17,7 +17,7 @@ import net.minecraft.network.chat.Component;
  */
 public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemedScreen {
 
-    private static final int PANEL_W = 260;
+    private static final int PANEL_W = 320;
     private static final int PANEL_H = 110;
 
     private int step;
@@ -46,7 +46,7 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
                 addButton(bx + bw + 12, by, bw, "Bazaar", () -> answer(c -> c.setMode(BazaarAdvisorConfig.Mode.BAZAAR), "Bazaar"));
             }
             case 1 -> {
-                addButton(bx, by, bw, "Total profit per inventory",
+                addButton(bx, by, bw, "Total profit",
                         () -> answer(c -> c.setGoal(BazaarAdvisorConfig.Goal.TOTAL_PROFIT), "Total profit"));
                 addButton(bx + bw + 12, by, bw, "Best profit %",
                         () -> answer(c -> c.setGoal(BazaarAdvisorConfig.Goal.PROFIT_PERCENT), "Best profit %"));

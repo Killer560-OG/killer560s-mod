@@ -4,6 +4,7 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import java.util.List;
 import java.util.Locale;
@@ -48,20 +49,40 @@ public final class BazaarFlipCommands {
                             }
                             return 1;
                         }))
-                        .then(ClientCommands.literal("scan")
+                        ));
+        // /bzscan replaces /bazaarflip scan (killer560, 2026-10-19).
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal("bzscan")
+                        .executes(context -> {
+                            scan(DEFAULT_TOP);
+                            return 1;
+                        })
+                        .then(ClientCommands.argument("top", IntegerArgumentType.integer(1, 25))
                                 .executes(context -> {
-                                    scan(DEFAULT_TOP);
+                                    scan(IntegerArgumentType.getInteger(context, "top"));
                                     return 1;
-                                })
-                                .then(ClientCommands.argument("top", IntegerArgumentType.integer(1, 25))
-                                        .executes(context -> {
-                                            scan(IntegerArgumentType.getInteger(context, "top"));
-                                            return 1;
-                                        })))));
+                                }))));
+        ClientTickEvents.END_CLIENT_TICK.register(BazaarFlipCommands::autoScanOnce);
+    }
+
+    private static boolean autoScanDone = false;
+
+    /** One silent scan once you are in a world with a readable purse, so the market is priced when the mod opens. */
+    private static void autoScanOnce(net.minecraft.client.Minecraft client) {
+        if (autoScanDone || client.player == null) {
+            return;
+        }
+        Double purse = BazaarFlipFeature.readPurse();
+        if (purse == null) {
+            return;
+        }
+        autoScanDone = true;
+        BazaarFlipConfig cfg = BazaarFlipConfig.getInstance();
+        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), BazaarFlipNpcLimit.remaining());
     }
 
     private static void help() {
-        ModChat.send(FEATURE, ModChat.text("/bazaarflip scan [n]"), ModChat.dim(" - price the market now, no clicks"));
+        ModChat.send(FEATURE, ModChat.text("/bzscan [n]"), ModChat.dim(" - price the market now, no clicks"));
         ModChat.send(FEATURE, ModChat.text("/bazaarflip start | stop"));
     }
 
