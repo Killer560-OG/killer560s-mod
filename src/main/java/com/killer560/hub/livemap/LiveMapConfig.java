@@ -63,6 +63,14 @@ public final class LiveMapConfig {
     private boolean colourByType = true;
     /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read. */
     private float darkenUnopened = 0.05f;
+    /**
+     * killer560, 2026-10-19: "now I cant tell for the map which rooms have been entered or not" - with Darken Unexplored
+     * at 0.05 (so the doorways stay bright) a room he has not been in looked exactly like one he has, and a Predictive
+     * Rooms name filled its room in its real color too. On: every room drawn in its color that he has not been in
+     * (Funny Map's unopened rooms, the Blood Room's greyed brown, Predictive Rooms' named rooms) carries diagonal
+     * stripes, so entered rooms are the solid ones. Doors are never striped.
+     */
+    private boolean hatchUnexplored = true;
     private int mapBackground = 0x99000000;
     private int mapBorderColor = 0xFFCC6600;
     /** killer560, 2026-10-15: "Change checkmarks sprites to custom checkmark sprite so by default if it is off it uses
@@ -194,6 +202,7 @@ public final class LiveMapConfig {
                         && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f || Math.abs(cfg.darkenUnopened - 0.15f) < 1e-4f)) {
                     cfg.darkenUnopened = 0.05f;
                 }
+                cfg.hatchUnexplored = ConfigJson.getBool(obj, "hatchUnexplored", true);
                 cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", 0x99000000);
                 cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
                 // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.
@@ -290,6 +299,7 @@ public final class LiveMapConfig {
             obj.addProperty("colourByType", colourByType);
             obj.addProperty("darkenUnopened", darkenUnopened);
             obj.addProperty("darkenUnopenedDefault1019", true);
+            obj.addProperty("hatchUnexplored", hatchUnexplored);
             obj.addProperty("mapBackground", mapBackground);
             obj.addProperty("mapBorderColor", mapBorderColor);
             obj.addProperty("customCheckmarks", customCheckmarks);
@@ -516,6 +526,14 @@ public final class LiveMapConfig {
 
     public void setDarkenUnopened(float v) {
         this.darkenUnopened = clamp(v, 0f, 0.9f);
+    }
+
+    public boolean isHatchUnexplored() {
+        return hatchUnexplored;
+    }
+
+    public void setHatchUnexplored(boolean v) {
+        this.hatchUnexplored = v;
     }
 
     public int getMapBackground() {

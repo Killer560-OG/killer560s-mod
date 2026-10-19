@@ -80,6 +80,51 @@ public final class PredictedRoomsPainter {
         }
     }
 
+    private static int namedTick = Integer.MIN_VALUE;
+    private static int namedVersion = Integer.MIN_VALUE;
+    private static final Set<Integer> NAMED_TILES = new HashSet<>();
+
+    /** Whether {@link #draw} paints a Predictive Rooms name over any of these tiles. Worked out once a client tick. */
+    static boolean namesAny(int[] tiles) {
+        int tick = LiveMapFeature.tickCount();
+        int version = RoomPredictor.predictionsVersion();
+        if (tick != namedTick || version != namedVersion) {
+            namedTick = tick;
+            namedVersion = version;
+            NAMED_TILES.clear();
+            Set<Integer> covered = new HashSet<>();
+            PredictiveRoomsConfig pc = PredictiveRoomsConfig.getInstance();
+            if (pc.isEnabled()) {
+                for (RoomPredictor.Prediction p : RoomPredictor.predictions()) {
+                    if (!alreadyNamed(p.certainTiles())) {
+                        for (int t : p.certainTiles()) {
+                            NAMED_TILES.add(t);
+                            covered.add(t);
+                        }
+                        for (int t : p.uncertainTiles()) {
+                            covered.add(t);
+                        }
+                    }
+                }
+            }
+            // A guessed tile with one answer is filled solid in that room's color (drawGuess): no "?" under it either.
+            if (pc.isSpecialGuess() && MapPainter.hideUnrevealed()) {
+                for (int tile = 0; tile < DungeonLayout.GRID * DungeonLayout.GRID; tile += 2) {
+                    if ((tile / DungeonLayout.GRID) % 2 == 0 && !covered.contains(tile)
+                            && SpecialRoomGuess.candidates(tile).size() == 1) {
+                        NAMED_TILES.add(tile);
+                    }
+                }
+            }
+        }
+        for (int t : tiles) {
+            if (NAMED_TILES.contains(t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Whether the map already names the room on any of these tiles. */
     static boolean alreadyNamed(int[] tiles) {
         List<LiveMapFeature.RoomGroup> groups = LiveMapFeature.groupsView();
@@ -126,13 +171,54 @@ public final class PredictedRoomsPainter {
         if (minX == Integer.MAX_VALUE) {
             return;
         }
+        if (cfg.isHatchUnexplored()) {
+            // Named, not entered: striped like every other room he has not been in (Stripe Unexplored). It used to be
+            // filled exactly like an opened room, and with Darken Unexplored at 0.05 nothing told the two apart.
+            com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+            for (int t : p.certainTiles()) {
+                int gx = t % DungeonLayout.GRID;
+                int gz = t / DungeonLayout.GRID;
+                hatchCell(rects, ox, oy, ppu, gx, gz);
+                if (certain.contains(t + 2)) {
+                    hatchCell(rects, ox, oy, ppu, gx + 1, gz);
+                }
+                if (certain.contains(t + 2 * DungeonLayout.GRID)) {
+                    hatchCell(rects, ox, oy, ppu, gx, gz + 1);
+                }
+            }
+            rects.submit();
+        }
         float cxUnits = (MapPainter.cellPos(minX) + MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS) / 2f;
         float czUnits = (MapPainter.cellPos(minZ) + MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS) / 2f;
         float boxW = (MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minX)) * ppu;
         float boxH = (MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minZ)) * ppu;
-        String[] lines = p.name().split(" ");
+        String[] lines = predictionLines(p, cfg.getRoomLabels());
         MapPainter.drawFittedLines(graphics, font, lines, ox + cxUnits * ppu, oy + czUnits * ppu, boxW, boxH,
                 0.4f * cfg.getFontScale() * ppu, 0xFFE0E0E0, true);
+    }
+
+    /**
+     * A predicted room's text for a Room Labels style, the way {@link MapPainter} writes an opened room's: Name + Secrets
+     * adds the secrets line ("0/4"; killer560, 2026-10-19: Stairs showed only its name beside "Wizard 0/4"), Secrets is the
+     * secrets line alone. Off and Checkmarks keep the name, as before - the name is what Predictive Rooms is for.
+     */
+    static String[] predictionLines(RoomPredictor.Prediction p, int style) {
+        String[] name = p.name().split(" ");
+        com.killer560.hub.roomdatabase.RoomEntry entry =
+                com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(p.name());
+        if (entry == null || style < 2) {
+            return name;
+        }
+        int found = LiveMapFeature.foundSecrets(p.name());
+        String secrets = found > 0 && entry.secrets > 0 ? Math.min(found, entry.secrets) + "/" + entry.secrets
+                : MapPainter.unvisitedSecretsText(entry.secrets);
+        List<String> lines = MapPainter.labelLines(style, p.type(), name, entry.secrets, secrets, false);
+        return lines.isEmpty() ? name : lines.toArray(new String[0]);
+    }
+
+    private static void hatchCell(com.killer560.hub.hud.GuiRects rects, float ox, float oy, float ppu, int gx, int gz) {
+        MapPainter.hatchUnits(rects, ox, oy, ppu, MapPainter.cellPos(gx), MapPainter.cellPos(gz),
+                MapPainter.cellPos(gx) + MapPainter.cellSize(gx), MapPainter.cellPos(gz) + MapPainter.cellSize(gz));
     }
 
     private static void drawGuess(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg, int tile,
@@ -144,6 +230,18 @@ public final class PredictedRoomsPainter {
         int x1 = Math.round(ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS) * ppu);
         int y1 = Math.round(oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS) * ppu);
         int n = types.size();
+        if (n == 1) {
+            // Only one thing it can be (the Blood Room behind its blood door, or the miniboss room once the trap and every
+            // puzzle are accounted for): filled in that room's own color like any named room, striped as not entered.
+            // killer560, 2026-10-19: "it still isnt auto filling yellow room ever", and the blood-door room stayed a "?".
+            graphics.fill(x0, y0, x1, y1, MapPainter.typeColor(types.get(0), cfg));
+            if (cfg.isHatchUnexplored()) {
+                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
+                hatchCell(rects, ox, oy, ppu, gx, gz);
+                rects.submit();
+            }
+            return;
+        }
         for (int i = 0; i < n; i++) {
             int a = x0 + (x1 - x0) * i / n;
             int b = x0 + (x1 - x0) * (i + 1) / n;

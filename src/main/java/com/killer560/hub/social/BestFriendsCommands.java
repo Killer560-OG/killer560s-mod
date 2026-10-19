@@ -14,8 +14,10 @@ public final class BestFriendsCommands {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}. */
     public static void register() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("bestfriends").executes(context -> open())));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            dispatcher.register(ClientCommands.literal("bestfriends").executes(context -> open()));
+            dispatcher.register(ClientCommands.literal("bf").executes(context -> open()));
+        });
     }
 
     private static int open() {

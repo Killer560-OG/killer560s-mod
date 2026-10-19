@@ -37,7 +37,17 @@ public final class SpecialRoomGuess {
      *  order - or an empty list when it is not an unopened one-tile room or nothing special is left. */
     public static List<String> candidates(int tile) {
         List<String> out = new ArrayList<>();
-        if (!HeldMap.available() || HeldMap.roomState(tile) != HeldMap.STATE_UNOPENED || !oneTile(tile)) {
+        if (!HeldMap.available() || HeldMap.roomState(tile) != HeldMap.STATE_UNOPENED) {
+            return out;
+        }
+        // killer560, 2026-10-19 (15:23:57): an unopened room with the red blood door beside it was split yellow/purple
+        // with a "?". The Blood Room is one tile and a dead end, and the blood door is drawn once the room on its other
+        // side is opened - so an unopened tile across a blood door from an opened room is the Blood Room.
+        if (behindBloodDoor(tile)) {
+            out.add("BLOOD");
+            return out;
+        }
+        if (!oneTile(tile)) {
             return out;
         }
         int puzzles = 0;
@@ -59,6 +69,34 @@ public final class SpecialRoomGuess {
                 }
             }
         }
+        // Rooms Predictive Rooms has named but nobody has opened yet count too (killer560, 2026-10-19: "it still isnt
+        // auto filling yellow room ever"): a named trap or puzzle ahead is one the guessed tile cannot be, which is what
+        // leaves the miniboss room as the only thing a lone tile can still be. Only predictions off this tile, unopened.
+        if (com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance().isEnabled()) {
+            java.util.Set<String> counted = new java.util.HashSet<>(); // one room can be named from two target tiles
+            for (com.killer560.hub.livemap.predict.RoomPredictor.Prediction p
+                    : com.killer560.hub.livemap.predict.RoomPredictor.predictions()) {
+                boolean here = false;
+                boolean opened = false;
+                for (int t : p.certainTiles()) {
+                    here |= t == tile;
+                    opened |= HeldMap.roomOpened(t);
+                }
+                for (int t : p.uncertainTiles()) {
+                    here |= t == tile;
+                }
+                if (here || opened || p.certainTiles().length == 0 || !counted.add(p.name())) {
+                    continue; // an opened room is already counted above from the map
+                }
+                switch (p.type()) {
+                    case "PUZZLE" -> puzzles++;
+                    case "TRAP" -> trap = true;
+                    case "CHAMPION", "MINIBOSS", "YELLOW" -> champion = true;
+                    default -> {
+                    }
+                }
+            }
+        }
         int total = puzzleCount();
         if (!champion) {
             out.add("CHAMPION");
@@ -70,6 +108,42 @@ public final class SpecialRoomGuess {
             out.add("PUZZLE");
         }
         return out;
+    }
+
+    /**
+     * The blood door is on one side of {@code tile} and it is the tile's only door the map shows, and no Blood Room is
+     * opened anywhere. A blood door has a room on both sides; the Blood Room is the dead end of the two, the one whose
+     * only door it is (the room it is reached from always has the door he came in by) - the rule
+     * {@code MapPainter.unopenedBloodRoom} uses for the room under it.
+     */
+    static boolean behindBloodDoor(int tile) {
+        int gx = tile % DungeonLayout.GRID;
+        int gz = tile / DungeonLayout.GRID;
+        int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        boolean found = false;
+        for (int[] d : dirs) {
+            int nx = gx + d[0];
+            int nz = gz + d[1];
+            if (nx < 0 || nz < 0 || nx >= DungeonLayout.GRID || nz >= DungeonLayout.GRID) {
+                continue;
+            }
+            int door = HeldMap.doorType(nz * DungeonLayout.GRID + nx);
+            if (door == DungeonLayout.DOOR_BLOOD) {
+                found = true;
+            } else if (door != DungeonLayout.DOOR_NONE) {
+                return false;
+            }
+        }
+        if (!found) {
+            return false;
+        }
+        for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
+            if ((idx % DungeonLayout.GRID) % 2 == 0 && (idx / DungeonLayout.GRID) % 2 == 0
+                    && "BLOOD".equals(HeldMap.roomType(idx))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Every side is the floor's edge or an opened room the map keeps separate. */

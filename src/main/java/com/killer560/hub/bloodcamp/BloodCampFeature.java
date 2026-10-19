@@ -117,6 +117,10 @@ public final class BloodCampFeature {
     /** Boxes are grown this much before the crosshair ray is tested against them - the same inflation
      *  {@code terminalaura.TerminalStands} uses for its own triggerbot. */
     private static final double AIM_INFLATE = 0.1;
+    /** The Trigger Bot's aim test ({@link #aimedAtRoughly}): the box is grown this much on every side, and a look within
+     *  this many degrees of the box's centre counts as well. */
+    private static final double TRIGGER_AIM_MARGIN = 0.5;
+    private static final double TRIGGER_AIM_CONE_DEGREES = 5.0;
     /** How far from a predicted spawn a real entity may be and still count as "the mob that spawned there". */
     private static final double TARGET_SEARCH_RADIUS = 2.0;
     /** The Trigger Bot only fires inside this many ticks past its due moment; after that the prediction is
@@ -567,7 +571,7 @@ public final class BloodCampFeature {
                     if (neverMiss) {
                         // Really there: a living mob on the spot, his look on it and reaching it before any block - at any
                         // range (a mage beam or a shortbow does not need melee reach).
-                        if (mob == null || remainingTicks < -RETRY_STALE_TICKS || !aimedAt(client, mob.getBoundingBox())) {
+                        if (mob == null || remainingTicks < -RETRY_STALE_TICKS || !aimedAtRoughly(client, mob.getBoundingBox())) {
                             continue;
                         }
                     } else if (remainingTicks >= clickBelow || remainingTicks <= -RETRY_STALE_TICKS
@@ -605,8 +609,8 @@ public final class BloodCampFeature {
                 // the drawn box; the stand's or the real mob's own box is accepted too. Judged on the BODY's look (what
                 // the movement packets report - the camera can be elsewhere in Freecam Mode), on both the look the
                 // server was last told and the one this tick's packet will carry, and never through a block.
-                if (!aimedAt(client, aimBox(data.endVector)) && !aimedAt(client, entity.getBoundingBox())
-                        && (mob == null || !aimedAt(client, mob.getBoundingBox()))) {
+                if (!aimedAtRoughly(client, aimBox(data.endVector)) && !aimedAtRoughly(client, entity.getBoundingBox())
+                        && (mob == null || !aimedAtRoughly(client, mob.getBoundingBox()))) {
                     continue;
                 }
                 triggerTarget = entity;
@@ -677,7 +681,7 @@ public final class BloodCampFeature {
                         continue;
                     }
                     Entity m = nearestMob(client, data.endVector);
-                    if (m != null && aimedAt(client, m.getBoundingBox())) {
+                    if (m != null && aimedAtRoughly(client, m.getBoundingBox())) {
                         fillerMob = m;
                         break;
                     }
@@ -1094,7 +1098,7 @@ public final class BloodCampFeature {
             if (fc != null && (fc.hit || fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
                 continue;
             }
-            if (!aimedAt(client, mob.getBoundingBox())) {
+            if (!aimedAtRoughly(client, mob.getBoundingBox())) {
                 continue;
             }
             double d = mob.getBoundingBox().getCenter().distanceToSqr(eye);
@@ -1568,6 +1572,51 @@ public final class BloodCampFeature {
             return true;
         }
         return reachesBeforeBlock(client, grown, eyes, Vec3.directionFromRotation(reportedPitch, reportedYaw));
+    }
+
+    /**
+     * The Trigger Bot's "is he aimed at it": the general position, not the exact box (killer560, 2026-10-19: "Make sure
+     * it isnt super precise with where I have to aim, only in its general position."). {@link #aimedAt} grows the box by
+     * only {@link #AIM_INFLATE}, so on a 0.6-wide blood mob ten blocks away his crosshair had to sit inside about 4
+     * degrees, on both the look last reported and this tick's, and most of his clicks were never sent. Here a look counts
+     * when its ray passes through the box grown by {@link #TRIGGER_AIM_MARGIN} on every side, or points within
+     * {@link #TRIGGER_AIM_CONE_DEGREES} of the box's centre (which is what matters at range, where half a block is a
+     * sliver of a degree). Still never through a wall: some part of the real box must be in sight, and the look's ray must
+     * not meet a block before the box. Both looks (reported and this tick's) must count, as in {@link #aimedAt}. Only
+     * the decision to click is widened: the entity an attack names is still the one under his real crosshair
+     * ({@link #resolveAttackTarget}, {@link #lookTarget}), so no attack packet names a mob his look misses. The Aura keeps
+     * {@link #aimedAt}.
+     */
+    private static boolean aimedAtRoughly(Minecraft client, AABB box) {
+        Vec3 eyes = client.player.getEyePosition();
+        if (!visible(client, box)) {
+            return false;
+        }
+        if (!roughLook(client, box, eyes, Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot()))) {
+            return false;
+        }
+        if (Float.isNaN(reportedYaw)) {
+            return true;
+        }
+        return roughLook(client, box, eyes, Vec3.directionFromRotation(reportedPitch, reportedYaw));
+    }
+
+    /** One look for {@link #aimedAtRoughly}: through the grown box before a block, or inside the cone round its centre. */
+    private static boolean roughLook(Minecraft client, AABB box, Vec3 eye, Vec3 dir) {
+        if (reachesBeforeBlock(client, box.inflate(TRIGGER_AIM_MARGIN), eye, dir)) {
+            return true;
+        }
+        Vec3 toCentre = box.getCenter().subtract(eye);
+        double distance = toCentre.length();
+        if (distance < 1e-6 || distance > AIM_RANGE) {
+            return distance < 1e-6;
+        }
+        double cos = toCentre.dot(dir) / distance;
+        if (cos < Math.cos(Math.toRadians(TRIGGER_AIM_CONE_DEGREES))) {
+            return false;
+        }
+        // The look itself must run out to the mob before meeting a block (no click at a mob round a corner).
+        return blockDistance(client, eye, dir, AIM_RANGE) + 1e-6 >= distance - Math.max(box.getXsize(), box.getZsize()) * 0.5;
     }
 
     /** Whether the ray from {@code eye} along {@code dir} meets {@code box} within AIM_RANGE before any block. */

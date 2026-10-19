@@ -87,7 +87,10 @@ public class AutoBloodCampTab extends BaseTab {
             y += 14;
         }
 
-        if (cfg.getTriggerBotRaw()) {
+        // killer560, 2026-10-19: Auto Detect Lag and Trigger Offset show (and act) for the Aura as well - the Aura's first
+        // click on a mob on its way already goes at triggerTargetTicks, and every Blood Camp click waits for the kill
+        // timer moved by the offset (BloodCampFeature#tick).
+        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Detect Lag", cfg.isAutoDetectLag()), btn -> {
                         cfg.setAutoDetectLag(!cfg.isAutoDetectLag());
                         cfg.save();

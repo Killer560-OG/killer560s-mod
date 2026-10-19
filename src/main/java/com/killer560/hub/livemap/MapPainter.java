@@ -299,7 +299,7 @@ public final class MapPainter {
      * discovered first, so the slider could not reach a single drawn pixel.
      */
     static boolean unexplored(LiveMapFeature.RoomGroup group) {
-        if (!DungeonMapScanner.isCalibrated()) {
+        if (!DungeonMapScanner.isCalibrated() || isStandingRoom(group)) {
             return false;
         }
         int best = DungeonMapScanner.STATE_UNDISCOVERED;
@@ -314,8 +314,72 @@ public final class MapPainter {
         if (!hideUnrevealed()) {
             return true;
         }
-        return DungeonMapScanner.isCalibrated() && DungeonMapScanner.kindAt(idx) != DungeonMapScanner.KIND_NONE
-                && DungeonMapScanner.stateAt(idx) != DungeonMapScanner.STATE_UNDISCOVERED;
+        if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.kindAt(idx) != DungeonMapScanner.KIND_NONE
+                && DungeonMapScanner.stateAt(idx) != DungeonMapScanner.STATE_UNDISCOVERED) {
+            return true;
+        }
+        int standing = standingTile();
+        return standing >= 0 && LiveMapFeature.groupIdAt(idx) >= 0
+                && LiveMapFeature.groupIdAt(idx) == LiveMapFeature.groupIdAt(standing);
+    }
+
+    // ------------------------------------------------------------------------------------------- the room he is in
+
+    /**
+     * killer560, 2026-10-19: "sometimes, after entering a room, it takes a while for the map to fill in the new
+     * split-off part of that room." The map drew a room's tiles only as the map item showed them, and Hypixel redraws the
+     * map item on its own schedule: the tile he walked into showed at once, the rest of the room up to a few seconds
+     * later. The room he is standing in is a room he has opened - he can see all of it - so its tiles (as the world scan
+     * groups them, which is what this map's rooms are) are drawn opened from the tick he is inside its walls. The map item
+     * still decides everything else.
+     */
+    private static int standingTick = Integer.MIN_VALUE;
+    private static int standingGeneration = Integer.MIN_VALUE;
+    private static int standingTileCached = -1;
+
+    /** The room tile (grid index) he is standing inside the walls of, or -1. Worked out once a client tick. */
+    static int standingTile() {
+        int tick = LiveMapFeature.tickCount();
+        int generation = LiveMapFeature.resetGeneration();
+        if (tick != standingTick || generation != standingGeneration) {
+            standingTick = tick;
+            standingGeneration = generation;
+            standingTileCached = computeStandingTile();
+        }
+        return standingTileCached;
+    }
+
+    private static int computeStandingTile() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            return -1;
+        }
+        int idx = LiveMapFeature.currentRoomIndex();
+        if (idx < 0 || (idx % LiveMapFeature.GRID) % 2 != 0 || (idx / LiveMapFeature.GRID) % 2 != 0
+                || LiveMapFeature.groupIdAt(idx) < 0) {
+            return -1; // in a doorway gap, or on a tile the world scan has no room on
+        }
+        // Inside the walls, not in the doorway: a step into the gap does not open the room on Hypixel either.
+        net.minecraft.core.BlockPos c = DungeonLayout.cellCenter(idx);
+        if (Math.abs(Math.floor(client.player.getX()) - c.getX()) > 14
+                || Math.abs(Math.floor(client.player.getZ()) - c.getZ()) > 14) {
+            return -1;
+        }
+        return idx;
+    }
+
+    /** Whether {@code group} is the room he is standing in. */
+    static boolean isStandingRoom(LiveMapFeature.RoomGroup group) {
+        int standing = standingTile();
+        if (standing < 0) {
+            return false;
+        }
+        for (int t : group.tiles) {
+            if (t == standing) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Map state of a whole room: the most progressed of its tiles, the way NoammAddons merges a {@code UniqueRoom}.
@@ -337,6 +401,9 @@ public final class MapPainter {
         int best = DungeonMapScanner.STATE_UNDISCOVERED;
         for (int tile : group.tiles) {
             best = Math.min(best, DungeonMapScanner.stateAt(tile));
+        }
+        if (best >= DungeonMapScanner.STATE_UNOPENED && isStandingRoom(group)) {
+            return DungeonMapScanner.STATE_DISCOVERED; // he is inside it: opened, whether or not the map item says so yet
         }
         // killer560, 2026-09-20 (screenshot 14.52.05, cheat build): "it still isn't properly showing each room as
         // grey - some still have question marks" - two teammates were standing INSIDE a room our own world scan had
@@ -885,6 +952,57 @@ public final class MapPainter {
             n++;
         }
         fillMerged(graphics, ROOM_RECTS, n, color);
+        if (hatched(group, LiveMapConfig.getInstance())) {
+            for (int c : group.cells) {
+                int gx = c % LiveMapFeature.GRID;
+                int gz = c / LiveMapFeature.GRID;
+                if ((gx % 2 == 1 && gz % 2 == 1 && !centreOfSquare(gid, gx, gz)) || !cellRevealed(c)) {
+                    continue;
+                }
+                hatchUnits(graphics, ox, oy, ppu, cellPos(gx), cellPos(gz), cellPos(gx) + cellSize(gx),
+                        cellPos(gz) + cellSize(gz));
+            }
+        }
+    }
+
+    /** Stripe spacing, in map units along x + z: a one-unit stripe every this many units. */
+    private static final int HATCH_PERIOD = 4;
+    /** The stripes' colour: 45% black over the room's own colour. */
+    static final int HATCH_COLOR = 0x73000000;
+
+    /**
+     * Whether Stripe Unexplored stripes this room: a room he has not been in that is drawn in a room colour (Funny Map's
+     * unopened rooms, the Blood Room's greyed brown, the Interactive Map's scanned rooms). The map item's grey "?" rooms
+     * already read as unopened and are left plain.
+     */
+    static boolean hatched(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
+        if (!cfg.isHatchUnexplored() || !unexplored(group)) {
+            return false;
+        }
+        int state = visibleState(group);
+        if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
+            return true;
+        }
+        return !(state == DungeonMapScanner.STATE_UNDISCOVERED
+                || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap()));
+    }
+
+    /**
+     * Diagonal stripes over the map-unit box [ux0, ux1) x [uz0, uz1): every unit square with (x + z) a multiple of
+     * {@link #HATCH_PERIOD}. Anchored to the map's own unit grid, so the stripes run on unbroken across a room's tiles and
+     * the gaps between them. Sixteen rows of four squares a tile.
+     */
+    static void hatchUnits(com.killer560.hub.hud.GuiRects graphics, float ox, float oy, float ppu, int ux0, int uz0,
+                           int ux1, int uz1) {
+        for (int uz = uz0; uz < uz1; uz++) {
+            int y0 = px(oy, uz, ppu);
+            int y1 = Math.max(y0 + 1, px(oy, uz + 1, ppu));
+            int first = ux0 + Math.floorMod(-uz - ux0, HATCH_PERIOD);
+            for (int ux = first; ux < ux1; ux += HATCH_PERIOD) {
+                int x0 = px(ox, ux, ppu);
+                graphics.fill(x0, y0, Math.max(x0 + 1, px(ox, ux + 1, ppu)), y1, HATCH_COLOR);
+            }
+        }
     }
 
     /** Scratch for {@link #drawRoom}'s cell rectangles (render thread only): x0, y0, x1, y1 per cell. */
@@ -1375,6 +1493,11 @@ public final class MapPainter {
                 continue;
             }
             if (!isRevealed(group) || (!cfg.isFunnyMap() && unopenedBloodRoom(group))) {
+                continue;
+            }
+            // A room Predictive Rooms names is drawn over by PredictedRoomsPainter, name and secrets included. Its "?"
+            // drawn here first showed through as a dark smudge behind the name (killer560's Stairs, 2026-10-19 15:22:38).
+            if (PredictedRoomsPainter.namesAny(group.tiles)) {
                 continue;
             }
             drawMark(graphics, group, visibleState(group), cfg, ox, oy,

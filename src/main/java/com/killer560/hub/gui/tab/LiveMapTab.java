@@ -122,6 +122,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         widgets.add(slider("Darken Unexplored", cfg::getDarkenUnopened, v -> cfg.setDarkenUnopened((float) v), 0, 0.9, "",
                 cfg, colB, y, colW));
         y += 20;
+        widgets.add(toggle("Stripe Unexplored", cfg::isHatchUnexplored, cfg::setHatchUnexplored, cfg, contentX, y, colW));
+        y += 20;
         widgets.add(slider("Font Scale", cfg::getFontScale, v -> cfg.setFontScale((float) v), 0.5, 3, "x", cfg, contentX, y, colW));
         widgets.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, cfg, colB, y, colW));
         y += 20;

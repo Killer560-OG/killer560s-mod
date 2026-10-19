@@ -991,6 +991,12 @@ public final class AutoRoutesFeature {
             lastRoom = frame.roomName();
             LOGGER.info("[AutoRoutes] Room {} - clay {},{} rotation {}, sim y offset {}", frame.roomName(),
                     frame.clayX(), frame.clayZ(), frame.rotation(), DungeonLayout.simYOffset());
+            // One line per room entry so he can see in latest.log whether a route was found for the room (the store
+            // is keyed by the room database name exactly as the map gives it).
+            Route entered = RouteStore.getInstance().forRoom(frame.roomName());
+            LOGGER.info("[AutoRoutes] Route lookup on entry: room \"{}\", key \"{}\" - {}", frame.roomName(),
+                    frame.roomName(), entered == null || entered.nodes().isEmpty() ? "no route saved"
+                            : "route found (" + entered.nodes().size() + " node(s))");
             latchedNode = null;
             addedToFire = null;
             addedToFireRoute = null;

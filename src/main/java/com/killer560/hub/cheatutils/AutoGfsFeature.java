@@ -210,7 +210,8 @@ public final class AutoGfsFeature {
         if (current >= (cfg.getGfsThresholdPercent() / 100.0) * item.maxStack) {
             return 0;
         }
-        int missing = item.maxStack - current;
+        // Only what tops the stack off, never a full stack - the same amount Legit GFS asks for.
+        int missing = com.killer560.hub.gfs.LegitGfs.topOffAmount(item.maxStack, current);
         return missing >= 4 ? missing : 0;
     }
 

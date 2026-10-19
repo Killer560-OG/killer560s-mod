@@ -949,7 +949,7 @@ final class SettingTooltipsData {
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1-4.7 blocks from your eyes to the skull block's center. Default 4.7, QUOI's value: Hypixel's reach for skulls looks tighter than for chests and levers, so skulls are kept a few tenths nearer.");
         d.put("click cooldown", "Minimum time between Secret Aura clicks, 100-2000 ms.");
-        d.put("auto gfs", "Runs /gfs to refill dungeon items from your sacks when you run low (cheat build only).");
+        d.put("auto gfs", "Runs /gfs to refill dungeon items from your sacks when you run low, asking only for what tops the stack off (cheat build only).");
         d.put("spirit leaps", "Lets Auto GFS refill Spirit Leaps (up to 16).");
         d.put("superboom tnt", "Lets Auto GFS refill Superboom TNT (up to 64).");
         d.put("inflatable jerry", "Lets Auto GFS refill Inflatable Jerries (up to 64).");
@@ -1887,6 +1887,7 @@ final class SettingTooltipsData {
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
         d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the gray question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
+        d.put("stripe unexplored", "Draws diagonal stripes over every room shown in its color that you have not been in yet (Funny Map's unopened rooms, the unopened Blood Room, and rooms Predictive Rooms has named), so the rooms you have entered are the solid ones. Doorways are never striped.");
         d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");

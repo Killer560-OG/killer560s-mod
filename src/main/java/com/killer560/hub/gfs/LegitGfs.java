@@ -93,7 +93,14 @@ public final class LegitGfs {
                                         })))));
     }
 
-    /** Asks for one item by its chat name ({@code pearl}, {@code boom}, {@code leap}, {@code jerry}). */
+    /**
+     * How many to ask the sack for to top a stack of {@code stack} off when {@code carried} are already held: the
+     * missing amount, never a full stack, and 0 when the stack is already full. Legit GFS and Auto GFS both use it.
+     */
+    public static int topOffAmount(int stack, int carried) {
+        return Math.max(0, stack - carried);
+    }
+
     /** How many of {@code item} the player carries, counted by the name each stack shows. */
     private static int carriedCount(Minecraft client, Item item) {
         int total = 0;
@@ -107,6 +114,7 @@ public final class LegitGfs {
         return total;
     }
 
+    /** Asks for one item by its chat name ({@code pearl}, {@code boom}, {@code leap}, {@code jerry}). */
     static void request(String word) {
         if (!isEnabled()) {
             return;
@@ -121,7 +129,7 @@ public final class LegitGfs {
             return;
         }
         // Only what it takes to top the stack off (killer560, 2026-10-19: "it should only get enough to top off the stack").
-        int missing = Math.max(0, item.stack - carriedCount(client, item));
+        int missing = topOffAmount(item.stack, carriedCount(client, item));
         if (missing == 0) {
             ModChat.send(FEATURE, ModChat.text(item.label + " is already full"));
             return;
