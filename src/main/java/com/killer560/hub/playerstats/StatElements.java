@@ -515,6 +515,16 @@ public final class StatElements {
             case HEALTH_BAR -> {
                 cur = PlayerStatsFeature.healthCur;
                 max = PlayerStatsFeature.healthMax;
+                // Until the action bar has given a health reading this session, draw the vanilla health instead (killer560,
+                // 2026-10-18: the bar stayed blank and the vanilla hearts were hidden). These are vanilla units (20 max), not
+                // the Skyblock numbers; the action bar's own values replace them as soon as it parses.
+                if (cur < 0) {
+                    net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+                    if (p != null && p.getMaxHealth() > 0f) {
+                        cur = Math.round(Math.ceil(p.getHealth()));
+                        max = Math.round(p.getMaxHealth());
+                    }
+                }
                 a = cur;
             }
             case MANA_BAR -> {
