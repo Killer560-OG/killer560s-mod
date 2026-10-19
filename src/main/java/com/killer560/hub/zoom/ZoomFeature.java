@@ -29,7 +29,7 @@ public final class ZoomFeature {
     private static void tick(Minecraft client) {
         ZoomConfig cfg = ZoomConfig.getInstance();
         held = cfg.isEnabled() && client.getWindow() != null && McCompat.screen(client) == null
-                && KeyUtil.isKeyDown(client.getWindow(), cfg.getKeyCode());
+                && KeyUtil.isBindDown(client.getWindow(), cfg.getKeyCode()); // the tab accepts mouse buttons too
         if (!held) {
             wheelLevel = -1f;
         }
