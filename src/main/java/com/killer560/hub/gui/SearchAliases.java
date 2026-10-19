@@ -20,7 +20,9 @@ public final class SearchAliases {
             // renamed from Command Shortcuts, so the old names find it too.
             "chat command", "chat keybind",
             "command shortcut", "chat keybind",
-            "command keybind", "chat keybind");
+            "command keybind", "chat keybind",
+            // killer560 (2026-10-18): "cf" should find the Chocolate Factory tab.
+            "cf", "chocolate factory");
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
