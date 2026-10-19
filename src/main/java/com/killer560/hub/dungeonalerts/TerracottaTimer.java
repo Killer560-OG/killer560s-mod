@@ -91,11 +91,28 @@ final class TerracottaTimer {
             return;
         }
         for (Terracotta t : SPAWNS) {
-            float seconds = t.ticksLeft / 20f;
-            char color = seconds > 5f ? 'a' : seconds > 2f ? '6' : 'c';
             Vec3 c = Vec3.atCenterOf(t.pos);
-            DungeonAlertsFeature.renderWorldText(context, "§" + color + String.format(Locale.US, "%.2f", seconds) + "s",
-                    c.x, c.y, c.z, 2f);
+            DungeonAlertsFeature.renderWorldText(context, label(t.ticksLeft), c.x, c.y, c.z, 2f);
         }
+    }
+
+    // The label per ticks-left value (fps pass 2026-10-19): a String.format per spawn per frame in the F6 boss before,
+    // for a value that changes once a tick. Pure function of the tick count; immutable entries in a small table.
+    private record Label(int ticks, String text) {
+    }
+
+    private static final Label[] LABELS = new Label[64];
+
+    private static String label(int ticksLeft) {
+        int slot = ticksLeft & (LABELS.length - 1);
+        Label known = LABELS[slot];
+        if (known != null && known.ticks == ticksLeft) {
+            return known.text;
+        }
+        float seconds = ticksLeft / 20f;
+        char color = seconds > 5f ? 'a' : seconds > 2f ? '6' : 'c';
+        String text = "§" + color + String.format(Locale.US, "%.2f", seconds) + "s";
+        LABELS[slot] = new Label(ticksLeft, text);
+        return text;
     }
 }
