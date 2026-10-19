@@ -2133,9 +2133,12 @@ final class SettingTooltipsData {
         d.put("auto mask/mode", "Keybind: swaps only when you press the Swap Key. Full Auto: swaps on its own once the mask you wear (or Phoenix) procs.");
         d.put("auto mask/swap key", "Keybind mode: press to put on a mask when you wear none, or swap to your other mask when you do (Phoenix where Swap Order puts it first). Skips anything on cooldown. Click, then press a key or mouse button; Escape clears it.");
         d.put("auto mask/swap order", "What a swap goes to next. Mask First: your other mask, then Phoenix. Phoenix First: summon Phoenix through the pet menu or rod, then the masks.");
-        d.put("auto mask/dungeons only", "Auto Mask never swaps outside the Catacombs.");
+        d.put("auto mask/swap to spirit", "Auto Mask may swap to Spirit Mask. Off: it is skipped in both modes, wherever it sits in Swap Order. Does not change the HUD timer switch on Mask Invincibility.");
+        d.put("auto mask/swap to bonzo", "Auto Mask may swap to Bonzo's Mask. Off: it is skipped in both modes, wherever it sits in Swap Order. Does not change the HUD timer switch on Mask Invincibility.");
+        d.put("auto mask/swap to phoenix", "Auto Mask may swap to your Phoenix Pet. Off: it is skipped in both modes, wherever it sits in Swap Order. Does not change the HUD timer switch on Mask Invincibility.");
+        d.put("auto mask/dungeons only","Auto Mask never swaps outside the Catacombs.");
         d.put("auto mask/boss only", "Auto Mask swaps only in the floor's boss fight, never during the clear. Implies Dungeons Only.");
-        d.put("auto mask/swap step delay", "Pause between each step of an automatic swap, in whole game ticks (20 a second); higher is safer on a laggy server.");
+        d.put("auto mask/swap step delay", "Pause between each step of an automatic swap, in whole game ticks, 0 to 40 (20 a second, so 40 is 2 seconds); higher is safer on a laggy server.");
         d.put("auto mask/return to slot", "Switches back to what you were holding once the rod has been thrown.");
         d.put("auto mask/phoenix route", "How an automatic swap puts Phoenix out: throw your rod, or open /pets and click it.");
         d.put("storage search/storage search", "Run /search to find items across all your cached storages, chests and menus.");

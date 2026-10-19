@@ -23,9 +23,10 @@ public final class MaskInvincibilityConfig {
 
     /** Bounds for {@link #getSwapStepDelayTicks()} - the pause between two steps of one automated swap, in whole
      *  client ticks (killer560, 2026-10-16: "change the mask ms timer to be in ticks"). The old millisecond range was
-     *  150-1000, i.e. 3-20 ticks; 0 was never allowed, so the floor stays 3. */
-    public static final int MIN_STEP_DELAY_TICKS = 3;
-    public static final int MAX_STEP_DELAY_TICKS = 20;
+     *  150-1000, i.e. 3-20 ticks. killer560, 2026-10-18: "0 to 2 seconds" - the range is now 0-40 ticks. A 0 delay
+     *  still waits one START tick between steps (the step gate is {@code tickNo < nextActionTick}), so no two steps share a tick. */
+    public static final int MIN_STEP_DELAY_TICKS = 0;
+    public static final int MAX_STEP_DELAY_TICKS = 40;
     public static final int DEFAULT_STEP_DELAY_TICKS = 7;
 
     private boolean enabled = false;
@@ -33,6 +34,10 @@ public final class MaskInvincibilityConfig {
     private boolean showSpirit = true;
     private boolean showBonzo = true;
     private boolean showPhoenix = true;
+    /** Auto Mask's own choice of what it may swap to (killer560, 2026-10-18), separate from the HUD switches above. */
+    private boolean autoSwapSpirit = true;
+    private boolean autoSwapBonzo = true;
+    private boolean autoSwapPhoenix = true;
     private boolean showItemIcons = false;
     private boolean hideMaskNames = false;
     private boolean onlyInDungeons = false;
@@ -117,6 +122,9 @@ public final class MaskInvincibilityConfig {
             cfg.showSpirit = ConfigJson.getBool(obj, "showSpirit", true);
             cfg.showBonzo = ConfigJson.getBool(obj, "showBonzo", true);
             cfg.showPhoenix = ConfigJson.getBool(obj, "showPhoenix", true);
+            cfg.autoSwapSpirit = ConfigJson.getBool(obj, "autoSwapSpirit", true);
+            cfg.autoSwapBonzo = ConfigJson.getBool(obj, "autoSwapBonzo", true);
+            cfg.autoSwapPhoenix = ConfigJson.getBool(obj, "autoSwapPhoenix", true);
             cfg.showItemIcons = ConfigJson.getBool(obj, "showItemIcons", false);
             cfg.hideMaskNames = ConfigJson.getBool(obj, "hideMaskNames", false);
             cfg.onlyInDungeons = ConfigJson.getBool(obj, "onlyInDungeons", false);
@@ -160,6 +168,9 @@ public final class MaskInvincibilityConfig {
             obj.addProperty("showSpirit", showSpirit);
             obj.addProperty("showBonzo", showBonzo);
             obj.addProperty("showPhoenix", showPhoenix);
+            obj.addProperty("autoSwapSpirit", autoSwapSpirit);
+            obj.addProperty("autoSwapBonzo", autoSwapBonzo);
+            obj.addProperty("autoSwapPhoenix", autoSwapPhoenix);
             obj.addProperty("showItemIcons", showItemIcons);
             obj.addProperty("hideMaskNames", hideMaskNames);
             obj.addProperty("onlyInDungeons", onlyInDungeons);
@@ -199,7 +210,7 @@ public final class MaskInvincibilityConfig {
 
     /** killer560 9.1: "allow them to select which invulnerabilities they actually own" - not just a HUD
      *  display toggle any more, since a proc timer for a mask you don't have is dead weight either way.
-     *  {@link MaskInvincibilityFeature#trySwapMask()} also skips Auto Swap-ing to a type this is off for. */
+     *  {@link MaskInvincibilityFeature#unusable} also makes Auto Mask skip a type this is off for. */
     public boolean isShowSpirit() {
         return showSpirit;
     }
@@ -224,6 +235,34 @@ public final class MaskInvincibilityConfig {
 
     public void setShowPhoenix(boolean showPhoenix) {
         this.showPhoenix = showPhoenix;
+    }
+
+    /** Auto Mask may swap to Spirit Mask (default on). Separate from the HUD's {@link #isShowSpirit()}, which
+     *  also still stops a swap to a mask you have switched off there. */
+    public boolean isAutoSwapSpirit() {
+        return autoSwapSpirit;
+    }
+
+    public void setAutoSwapSpirit(boolean autoSwapSpirit) {
+        this.autoSwapSpirit = autoSwapSpirit;
+    }
+
+    /** Auto Mask may swap to Bonzo's Mask (default on). See {@link #isAutoSwapSpirit()}. */
+    public boolean isAutoSwapBonzo() {
+        return autoSwapBonzo;
+    }
+
+    public void setAutoSwapBonzo(boolean autoSwapBonzo) {
+        this.autoSwapBonzo = autoSwapBonzo;
+    }
+
+    /** Auto Mask may swap to Phoenix (default on). See {@link #isAutoSwapSpirit()}. */
+    public boolean isAutoSwapPhoenix() {
+        return autoSwapPhoenix;
+    }
+
+    public void setAutoSwapPhoenix(boolean autoSwapPhoenix) {
+        this.autoSwapPhoenix = autoSwapPhoenix;
     }
 
     /** Draws the real item's texture next to each timer line (the stack out of your own inventory when it is

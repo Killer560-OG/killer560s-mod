@@ -120,6 +120,27 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, half, 18).build());
         y += 22;
 
+        // killer560, 2026-10-18: which masks Auto Mask may swap to. Off skips that one in both modes, wherever it sits
+        // in the Swap Order. Separate from the HUD Spirit/Bonzo/Phoenix rows on Mask Invincibility.
+        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Spirit", cfg.isAutoSwapSpirit()), btn -> {
+                    cfg.setAutoSwapSpirit(!cfg.isAutoSwapSpirit());
+                    cfg.save();
+                    btn.setMessage(onOff("Swap To Spirit", cfg.isAutoSwapSpirit()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Bonzo", cfg.isAutoSwapBonzo()), btn -> {
+                    cfg.setAutoSwapBonzo(!cfg.isAutoSwapBonzo());
+                    cfg.save();
+                    btn.setMessage(onOff("Swap To Bonzo", cfg.isAutoSwapBonzo()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        widgets.add(SettingsButtonWidget.builder(onOff("Swap To Phoenix", cfg.isAutoSwapPhoenix()), btn -> {
+                    cfg.setAutoSwapPhoenix(!cfg.isAutoSwapPhoenix());
+                    cfg.save();
+                    btn.setMessage(onOff("Swap To Phoenix", cfg.isAutoSwapPhoenix()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
         widgets.add(SettingsButtonWidget.builder(onOff("Dungeons Only", cfg.isAutoMaskDungeonsOnly()), btn -> {
                     cfg.setAutoMaskDungeonsOnly(!cfg.isAutoMaskDungeonsOnly());
                     cfg.save();
@@ -187,7 +208,8 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
 
     private static Component stepDelayLabel(MaskInvincibilityConfig cfg) {
         int t = cfg.getSwapStepDelayTicks();
-        return Component.literal("Swap Step Delay: " + t + (t == 1 ? " tick" : " ticks"));
+        return Component.literal("Swap Step Delay: " + t + (t == 1 ? " tick" : " ticks")
+                + String.format(" (%.2fs)", t / 20.0));
     }
 
     private static Component phoenixRouteLabel(MaskInvincibilityConfig cfg) {

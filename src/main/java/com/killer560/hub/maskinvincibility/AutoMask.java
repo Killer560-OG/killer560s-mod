@@ -30,8 +30,9 @@ import java.util.List;
  *       lands while a screen is open or another swap is running is kept for {@link #PENDING_TICKS} and started on the
  *       first tick it can be - never under a screen.</li>
  * </ul>
- * Nothing on cooldown, already worn, not owned (Mask Invincibility's Spirit/Bonzo/Phoenix switches) or already summoned
- * is picked; with nothing left it says so in chat once, for that press or that proc.
+ * Nothing on cooldown, already worn, turned off in Auto Mask's Swap To switches, not owned (Mask Invincibility's
+ * Spirit/Bonzo/Phoenix switches) or already summoned is picked; with nothing left it says so in chat once, for that press
+ * or that proc (and says the masks are turned off in Auto Mask when every Swap To switch is off).
  */
 public final class AutoMask {
 
@@ -182,11 +183,32 @@ public final class AutoMask {
         // false (the command floor): kept, asked again next tick - a local check, nothing is sent.
     }
 
+    /** killer560, 2026-10-18: the Swap To Spirit / Bonzo / Phoenix switches on the Auto Mask tab. Off means Auto Mask
+     *  never swaps to that one, whatever its place in the order. */
+    static boolean allowedToSwapTo(MaskSwapper.Target target) {
+        MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+        return switch (target) {
+            case SPIRIT -> cfg.isAutoSwapSpirit();
+            case BONZO -> cfg.isAutoSwapBonzo();
+            case PHOENIX -> cfg.isAutoSwapPhoenix();
+        };
+    }
+
     private static MaskSwapper.Target pick() {
-        return MaskSwapper.pickTarget(order(), MaskInvincibilityFeature::unusable);
+        return MaskSwapper.pickTarget(order(),
+                t -> !allowedToSwapTo(t) || MaskInvincibilityFeature.unusable(t));
     }
 
     private static void nothingAvailable(String why) {
+        boolean anyAllowed = false;
+        for (MaskSwapper.Target t : MaskSwapper.Target.values()) {
+            anyAllowed |= allowedToSwapTo(t);
+        }
+        if (!anyAllowed) {
+            ModChat.send(CHAT, ModChat.bad("Nothing to swap to - the masks are turned off in Auto Mask (Swap To Spirit, Bonzo and Phoenix)."));
+            decide("nothing available (" + why + "): all turned off in Auto Mask");
+            return;
+        }
         ModChat.send(CHAT, ModChat.bad("Nothing to swap to - every mask and Phoenix is on cooldown, worn, out or not owned."));
         decide("nothing available (" + why + ")");
     }
