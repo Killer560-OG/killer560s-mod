@@ -273,9 +273,7 @@ public class CosmeticsTab extends BaseTab {
         y += 20;
         widgets.add(dimensionSlider(contentX, y, contentWidth, "Thickness", cfg.getModelThickness(), cfg::setModelThickness, cfg));
         y += 20;
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Visual only - never touches hitboxes. Width/Height/Thickness are never shared."), font));
-        return y + 18;
+        return y;
     }
 
     /** My Mob (left click forward through the mobs this version has, right click back, Player first) and Show Others'
