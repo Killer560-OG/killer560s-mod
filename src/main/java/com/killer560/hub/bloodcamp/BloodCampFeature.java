@@ -411,6 +411,7 @@ public final class BloodCampFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             TAG_MEMO.clear(); // entity ids belong to the level
+            FLOOR_CLICKS.clear();
             bloodMobs.clear();
             watcherEntityId = null;
             BloodCampMoveTimer.reset();
@@ -516,6 +517,13 @@ public final class BloodCampFeature {
         lastCooldownTicks = cooldown;
         boolean cooldownReady = now - lastClickTick >= cooldown;
         boolean neverMiss = cfg.isNeverMiss();
+        // ---- The kill timer (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
+        // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
+        // moved by the Trigger Offset. A mob's own countdown only says when THAT mob can be hit; until then the
+        // Trigger Bot clicked on it alone, 100 ticks before "KILL" in his run. See BloodCampMoveTimer#killTimerAllows.
+        boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(cfg.getTriggerOffsetTicks());
+        lastKillTimerOpen = killTimerOpen;
+        trackFloorClicks(client, now);
 
         // ---- Trigger Bot ------------------------------------------------------------------------------------------
         // killer560 (2026-09-20): "if I have two levers in my range at once ... have it only pick one and then the
@@ -531,6 +539,7 @@ public final class BloodCampFeature {
         // thinks it will spawn"): the timer is not used at all - the first click goes the first tick a living mob stands
         // on the landing spot, in reach under his look, in sight.
         double clickBelow = triggerTargetTicks(cfg, client);
+        hitSound(cfg, now, clickBelow, killTimerOpen);
         boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
@@ -539,7 +548,7 @@ public final class BloodCampFeature {
         BloodMobState triggerData = null;
         boolean triggerIsRetry = false;
         double bestRemaining = Double.MAX_VALUE;
-        if (triggerBotUsable && cooldownReady) {
+        if (triggerBotUsable && cooldownReady && killTimerOpen) {
             int retryWindow = hitConfirmTicks(pingMs);
             for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
                 ArmorStand entity = entry.getKey();
@@ -560,8 +569,11 @@ public final class BloodCampFeature {
                         if (mob == null || remainingTicks < -RETRY_STALE_TICKS || !aimedAt(client, mob.getBoundingBox())) {
                             continue;
                         }
-                    } else if (remainingTicks >= clickBelow || remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS) {
-                        // Only inside the window: due, but not so long ago that the prediction is stale.
+                    } else if (remainingTicks >= clickBelow || remainingTicks <= -RETRY_STALE_TICKS
+                            || (remainingTicks < clickBelow - TRIGGER_WINDOW_TICKS && mob == null)) {
+                        // Due, and either inside the window or with the mob really standing on the spot: a prediction
+                        // that old with nothing there is stale, but a mob that landed while the kill timer held the
+                        // click back is still this trip's to hit (the trip ends at RETRY_STALE_TICKS, liveTrip).
                         continue;
                     }
                 } else {
@@ -613,7 +625,7 @@ public final class BloodCampFeature {
         // before any block. What is sent is what his own click with that weapon sends (see click()).
         Entity auraMob = null;
         BloodMobState auraHitData = null;
-        if (triggerTarget == null && cfg.isAuraEnabled() && inRoom
+        if (triggerTarget == null && cfg.isAuraEnabled() && inRoom && killTimerOpen
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             Entity mob = null;
             if (auraFloor != null) {
@@ -632,6 +644,18 @@ public final class BloodCampFeature {
             } else {
                 auraHitData = null;
             }
+        }
+
+        // ---- Trigger Bot on the next mob that comes into range (killer560, 2026-10-18: "then it attacked 1 mob after
+        // and didnt attack again"). The Trigger Bot used to act on a mob only through its trip: within 2 blocks of the
+        // predicted landing spot, from its due moment until TRIGGER_WINDOW_TICKS after it, while the skull stand was
+        // still tracked. A blood mob that landed while he looked elsewhere, or walked off its spot toward him, or landed
+        // before the kill timer let anything be clicked, was never clicked at all. Now any blood mob in the Blood Room
+        // that no live trip accounts for is clicked the first tick his look meets it (once, plus retries on a miss, the
+        // same rule as a trip's), at the weapon's pace - so the next mob is taken as soon as it is under his look.
+        Entity triggerFloor = null;
+        if (triggerTarget == null && auraMob == null && triggerBotUsable && cooldownReady && killTimerOpen) {
+            triggerFloor = triggerFloorMob(client, now, pingMs);
         }
 
         // ---- Human clicks between the hits (killer560, 2026-10-15: "make sure it is not only when the server should
@@ -659,13 +683,14 @@ public final class BloodCampFeature {
                 }
             }
         }
-        if (auraMob != null) {
+        if (auraMob != null || triggerFloor != null) {
             fillerMob = null;
         }
         boolean fillerNow = false;
         if (fillerMob == null) {
             HUMAN.idle(now);
-        } else if (triggerTarget == null && humanClicks && com.killer560.hub.util.AttackCooldown.onHypixel(client)
+        } else if (triggerTarget == null && killTimerOpen && humanClicks
+                && com.killer560.hub.util.AttackCooldown.onHypixel(client)
                 && now - lastClickTick <= cooldown - 2 && HUMAN.due(now)
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             fillerNow = true;
@@ -676,8 +701,9 @@ public final class BloodCampFeature {
         // killer560, 2026-10-15: "range only blood mobs, because if you do any mob, you could end up hitting mobs
         // outside of the room" - a click (beam, arrow or hit) only goes when nothing but the target is in its way.
         Entity firing = triggerTarget != null ? (triggerHit != null ? triggerHit : nearestMob(client, triggerData.endVector))
-                : auraMob != null ? auraMob : fillerMob;
-        if ((fillerNow || triggerTarget != null || auraMob != null) && !lineOfFireClear(client, firing)) {
+                : auraMob != null ? auraMob : triggerFloor != null ? triggerFloor : fillerMob;
+        if ((fillerNow || triggerTarget != null || auraMob != null || triggerFloor != null)
+                && !lineOfFireClear(client, firing)) {
             lineOfFireBlocks++;
             return;
         }
@@ -693,7 +719,7 @@ public final class BloodCampFeature {
             lastTrigger = "human " + kind.name().toLowerCase(Locale.ROOT) + " between hits";
             return;
         }
-        if ((triggerTarget != null || auraMob != null)
+        if ((triggerTarget != null || auraMob != null || triggerFloor != null)
                 && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
             lastClickTick = now;
             HUMAN.clicked(now);
@@ -704,6 +730,27 @@ public final class BloodCampFeature {
             RECENT_CLICKS.addLast(now);
             while (RECENT_CLICKS.size() > 32) {
                 RECENT_CLICKS.removeFirst();
+            }
+            if (triggerTarget == null && auraMob == null) {
+                Entity melee = lookTarget(client, reach);
+                Click done = click(client, melee == triggerFloor ? triggerFloor : null);
+                if (done == Click.ATTACK) {
+                    triggerAttacks++;
+                }
+                triggerClicks++;
+                triggerFloorClicks++;
+                FloorClick fc = FLOOR_CLICKS.computeIfAbsent(triggerFloor.getId(), id -> new FloorClick());
+                if (fc.clicks > 0) {
+                    triggerRetries++;
+                }
+                fc.clicks++;
+                fc.lastTick = now;
+                lastTrigger = (fc.clicks > 1 ? "retry " : "") + "next mob " + done.name().toLowerCase(Locale.ROOT) + " "
+                        + triggerFloor.getType().toShortString() + " #" + triggerFloor.getId()
+                        + String.format(Locale.US, ", %.1f blocks",
+                        client.player.getEyePosition().distanceTo(triggerFloor.getBoundingBox().getCenter()));
+                LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
+                return;
             }
             if (triggerTarget == null) {
                 Entity melee = lookTarget(client, reach);
@@ -725,6 +772,15 @@ public final class BloodCampFeature {
             Click done = click(client, triggerHit);
             if (done == Click.ATTACK) {
                 triggerAttacks++;
+            }
+            // Its mob carries this trip's clicks into the next-mob pass, so once the trip is over the mob is not
+            // clicked again as if new (one click per mob, plus retries on a miss).
+            Entity tripMob = triggerHit != null && !(triggerHit instanceof ArmorStand) ? triggerHit
+                    : nearestMob(client, triggerData.endVector);
+            if (tripMob != null) {
+                FloorClick fc = FLOOR_CLICKS.computeIfAbsent(tripMob.getId(), id -> new FloorClick());
+                fc.clicks = Math.max(fc.clicks, triggerData.clicks + 1);
+                fc.lastTick = now;
             }
             triggerData.triggerBotClicked = true;
             triggerData.clicks++;
@@ -966,6 +1022,77 @@ public final class BloodCampFeature {
 
     public static boolean lastTriggerMobPresent() {
         return lastTriggerMobPresent;
+    }
+
+    /** The Trigger Bot's clicks on one blood mob (by entity id): how many, the last one's tick, and whether it has been
+     *  hurt since the first - then it is done and never clicked again. */
+    private static final class FloorClick {
+        int clicks;
+        long lastTick;
+        boolean hit;
+    }
+
+    /** Per blood mob, the Trigger Bot's clicks (trip clicks and next-mob clicks alike). Entity ids belong to the level. */
+    private static final it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<FloorClick> FLOOR_CLICKS =
+            new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>();
+    /** Testkit: next-mob clicks sent, and whether the kill timer let attacks through last tick. */
+    private static int triggerFloorClicks;
+    private static boolean lastKillTimerOpen = true;
+
+    public static int triggerFloorClicks() {
+        return triggerFloorClicks;
+    }
+
+    public static boolean lastKillTimerOpen() {
+        return lastKillTimerOpen;
+    }
+
+    /** Marks a clicked mob done once it is hurt (by anyone - the hurt flash after a click) and forgets dead ones. */
+    private static void trackFloorClicks(Minecraft client, long now) {
+        if (FLOOR_CLICKS.isEmpty()) {
+            return;
+        }
+        var it = FLOOR_CLICKS.int2ObjectEntrySet().iterator();
+        while (it.hasNext()) {
+            var entry = it.next();
+            Entity e = client.level.getEntity(entry.getIntKey());
+            if (e == null || e.isRemoved() || !e.isAlive()) {
+                it.remove();
+                continue;
+            }
+            FloorClick fc = entry.getValue();
+            if (!fc.hit && now > fc.lastTick && e instanceof LivingEntity living && living.hurtTime > 0) {
+                fc.hit = true;
+            }
+        }
+    }
+
+    /**
+     * The blood mob the Trigger Bot clicks next outside any trip: one in the Blood Room that no live trip accounts for
+     * ({@link #floorMobs}), under his body's look before any block, not hurt since a click of ours, and either never
+     * clicked or clicked without effect - nothing seen hurt within one round trip + {@link #HIT_CONFIRM_TICKS} - at most
+     * {@link #MAX_RETRIES} more times. The nearest along his look wins. Null when there is none.
+     */
+    private static Entity triggerFloorMob(Minecraft client, long now, int pingMs) {
+        int confirm = hitConfirmTicks(pingMs);
+        Entity best = null;
+        double bestD = Double.MAX_VALUE;
+        Vec3 eye = client.player.getEyePosition();
+        for (Entity mob : floorMobs(client, now)) {
+            FloorClick fc = FLOOR_CLICKS.get(mob.getId());
+            if (fc != null && (fc.hit || fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
+                continue;
+            }
+            if (!aimedAt(client, mob.getBoundingBox())) {
+                continue;
+            }
+            double d = mob.getBoundingBox().getCenter().distanceToSqr(eye);
+            if (d < bestD) {
+                bestD = d;
+                best = mob;
+            }
+        }
+        return best;
     }
 
     /** A trip the Aura and the Trigger Bot still act on: it has a path, its stand is there, and it is not settled. */
@@ -1279,8 +1406,8 @@ public final class BloodCampFeature {
      * burst. A kill moment that is already stale (Blood Camp switched on mid-countdown) is marked without a sound.
      */
     private static void tickSounds(BloodCampConfig cfg, long nowTick, int pingMs) {
-        boolean start = false;
-        boolean kill = false;
+        // The kill timer's own moment (box green) is still recorded - the testkit measures the Trigger Offset from it -
+        // but nothing plays here any more: see hitSound.
         for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
             BloodMobState data = entry.getValue();
             if (data.endVector == null || entry.getKey().isRemoved()) {
@@ -1289,30 +1416,63 @@ public final class BloodCampFeature {
             double remaining = remainingTicks(data, nowTick);
             if (!data.startSoundDone) {
                 data.startSoundDone = true;
-                start |= remaining > 0;
             }
-            if (!data.killSoundDone && killable(remaining, pingMs)) {
-                data.killSoundDone = true;
+            if (!data.killableSeen && killable(remaining, pingMs)) {
+                data.killableSeen = true;
                 lastKillableAt = remaining;
                 lastKillablePingMs = pingMs;
-                kill |= remaining > -SOUND_STALE_TICKS;
             }
+        }
+    }
+
+    /** A trip whose stand moved less than this is a skull shuffling on the wall, not a mob on its way: no sound. */
+    private static final double MIN_TRIP_BLOCKS = 2.0;
+
+    /**
+     * The Kill Sound, once per mob, on the tick the Trigger Bot is to hit it (killer560, 2026-10-18: "The sound should
+     * play only on the tick the trigger bot should hit to kill a mob, not every tick while a mob is on the wall or
+     * starting to spawn"). That tick is the first one its countdown is below {@code clickBelow} (the kill timer moved by
+     * Trigger Offset, Auto Detect Lag's ping included) while the Kill Popup's kill timer lets attacks through - the same
+     * test the Trigger Bot's first click uses, so the two land on one tick. Only a stand that really travelled
+     * ({@link #MIN_TRIP_BLOCKS}) counts. The Countdown Start Sound no longer plays at all; it was the sound of a mob
+     * starting to spawn. Mobs due on the same tick, or within {@link #SOUND_MIN_GAP_TICKS}, share one sound.
+     */
+    private static void hitSound(BloodCampConfig cfg, long nowTick, double clickBelow, boolean killTimerOpen) {
+        if (!killTimerOpen) {
+            return;
+        }
+        boolean kill = false;
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            BloodMobState data = entry.getValue();
+            if (data.killSoundDone || data.endVector == null || entry.getKey().isRemoved()) {
+                continue;
+            }
+            double remaining = remainingTicks(data, nowTick);
+            // Measured to where the stand IS: a teleport/position-sync packet moves it without passing through here.
+            if (remaining >= clickBelow || data.startVec.distanceTo(entry.getKey().position()) < MIN_TRIP_BLOCKS) {
+                continue;
+            }
+            data.killSoundDone = true;
+            kill |= remaining > -RETRY_STALE_TICKS;
         }
         float volume = cfg.getSoundVolume();
         if (kill && cfg.isKillSound() && volume > 0f && nowTick - lastKillSoundTick >= SOUND_MIN_GAP_TICKS) {
             lastKillSoundTick = nowTick;
             killSoundsPlayed++;
+            KILL_SOUND_TICKS.addLast(nowTick);
+            while (KILL_SOUND_TICKS.size() > 32) {
+                KILL_SOUND_TICKS.removeFirst();
+            }
             com.killer560.hub.dungeonalerts.DungeonAlertsFeature.playSound(
                     com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getKillSoundId()).sound(), volume, 1.0f);
         }
-        if (start && cfg.isCountdownStartSound() && volume > 0f
-                && nowTick - lastStartSoundTick >= SOUND_MIN_GAP_TICKS) {
-            lastStartSoundTick = nowTick;
-            countdownStartSoundsPlayed++;
-            com.killer560.hub.dungeonalerts.DungeonAlertsFeature.playSound(
-                    com.killer560.hub.dungeonalerts.SecretSound.SoundChoice.byName(cfg.getCountdownStartSoundId()).sound(),
-                    volume, 1.0f);
-        }
+    }
+
+    /** Game ticks the last 32 Kill Sounds played on, oldest first (the testkit matches them to the hit ticks). */
+    private static final java.util.ArrayDeque<Long> KILL_SOUND_TICKS = new java.util.ArrayDeque<>();
+
+    public static List<Long> killSoundTicks() {
+        return new ArrayList<>(KILL_SOUND_TICKS);
     }
 
     /** Trigger Bot clicks sent / of them attacks, and the last one described (the testkit reads these). */
@@ -1589,6 +1749,13 @@ public final class BloodCampFeature {
         return String.format(Locale.US, "%.1f", rounded);
     }
 
+    /** Testkit: the colour the last countdown text was drawn in. */
+    private static int lastTimerTextColor;
+
+    public static int lastTimerTextColor() {
+        return lastTimerTextColor;
+    }
+
     private static void renderTimerText(LevelRenderContext context, double worldX, double worldY, double worldZ, String text) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
@@ -1606,7 +1773,10 @@ public final class BloodCampFeature {
         float width = font.width(text);
         // Centred across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
         // background plate, through walls - as Noamm's renderString draws it.
-        McRender.drawText(context, font, text, -width / 2f, 0f, 0xFFFFFFFF, true, poseStack,
+        // Timer Text Color (killer560, 2026-10-18), white by default as it always was.
+        int color = BloodCampConfig.getInstance().getTimerTextColor();
+        lastTimerTextColor = color;
+        McRender.drawText(context, font, text, -width / 2f, 0f, color, true, poseStack,
                 Font.DisplayMode.SEE_THROUGH, 0, 0xF000F0);
 
         poseStack.popPose();

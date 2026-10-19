@@ -66,6 +66,27 @@ public class AutoBloodCampTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
+        if (cfg.getAuraRaw()) {
+            // The Aura's own option, so it sits with the switches above the Attack Speed group.
+            widgets.add(SettingsButtonWidget.builder(onOff("Freecam Mode", cfg.isAuraFreecam()), btn -> {
+                        cfg.setAuraFreecam(!cfg.isAuraFreecam());
+                        cfg.save();
+                        btn.setMessage(onOff("Freecam Mode", cfg.isAuraFreecam()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+        }
+
+        // killer560, 2026-10-18: "For this menu make a small separator for the attack speed related stuff." Everything
+        // about WHEN a click goes - Auto Detect Lag, Trigger Offset, Never Miss - under one small header. Cheat-only
+        // tab, so the red SectionHeaders style.
+        if (cfg.getTriggerBotRaw() || cfg.getAuraRaw()) {
+            y += 2;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                    com.killer560.hub.gui.SectionHeaders.header(ATTACK_SPEED_HEADER, true),
+                    net.minecraft.client.Minecraft.getInstance().font));
+            y += 14;
+        }
+
         if (cfg.getTriggerBotRaw()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Auto Detect Lag", cfg.isAutoDetectLag()), btn -> {
                         cfg.setAutoDetectLag(!cfg.isAutoDetectLag());
@@ -106,16 +127,11 @@ public class AutoBloodCampTab extends BaseTab {
             y += 20;
         }
 
-        if (cfg.getAuraRaw()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Freecam Mode", cfg.isAuraFreecam()), btn -> {
-                        cfg.setAuraFreecam(!cfg.isAuraFreecam());
-                        cfg.save();
-                        btn.setMessage(onOff("Freecam Mode", cfg.isAuraFreecam()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-        }
-
         return widgets;
     }
+
+    /** The small section header over the attack timing settings. */
+    static final String ATTACK_SPEED_HEADER = "Attack Speed";
 
     /** "Trigger Offset: -1t (late)" - which way the click moves from the kill timer. */
     static String offsetLabel(int ticks) {

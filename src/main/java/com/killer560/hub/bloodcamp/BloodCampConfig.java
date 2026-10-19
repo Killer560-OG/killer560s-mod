@@ -69,6 +69,10 @@ public final class BloodCampConfig {
     private boolean killPopup = false;
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
+    /** Colour of the countdown text on each blood mob's box (killer560, 2026-10-18: a text colour option). Default
+     *  white, the colour it always had (NoammAddons' timerColor default). */
+    private int timerTextColor = DEFAULT_TIMER_TEXT_COLOR;
+    public static final int DEFAULT_TIMER_TEXT_COLOR = 0xFFFFFFFF;
     /** killer560: "it is from the wall spot to where it is going to spawn." Default ON - Blood Camp itself
      *  (and its overlay) is already the opt-in step; this is a sub-option of an overlay he has to turn on
      *  first, not a standalone new feature. */
@@ -127,6 +131,7 @@ public final class BloodCampConfig {
             cfg.killPopup = ConfigJson.getBool(obj, "killPopup", false);
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
+            cfg.setTimerTextColor(ConfigJson.getInt(obj, "timerTextColor", DEFAULT_TIMER_TEXT_COLOR));
             cfg.spawnLine = ConfigJson.getBool(obj, "spawnLine", true);
             cfg.setSpawnLineWidth(ConfigJson.getFloat(obj, "spawnLineWidth", DEFAULT_SPAWN_LINE_WIDTH));
             cfg.countdownStartSound = ConfigJson.getBool(obj, "countdownStartSound", true);
@@ -155,6 +160,7 @@ public final class BloodCampConfig {
             obj.addProperty("killPopup", killPopup);
             obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
             obj.addProperty("timerTextScale", timerTextScale);
+            obj.addProperty("timerTextColor", timerTextColor);
             obj.addProperty("spawnLine", spawnLine);
             obj.addProperty("spawnLineWidth", spawnLineWidth);
             obj.addProperty("countdownStartSound", countdownStartSound);
@@ -289,6 +295,16 @@ public final class BloodCampConfig {
 
     public void setTimerTextScale(float timerTextScale) {
         this.timerTextScale = Math.max(MIN_TIMER_TEXT_SCALE, Math.min(MAX_TIMER_TEXT_SCALE, timerTextScale));
+    }
+
+    /** ARGB colour of the countdown text on each blood mob's box. */
+    public int getTimerTextColor() {
+        return timerTextColor;
+    }
+
+    /** Any ARGB; a fully transparent value is taken as opaque (the text would vanish). */
+    public void setTimerTextColor(int argb) {
+        this.timerTextColor = (argb >>> 24) == 0 ? (argb | 0xFF000000) : argb;
     }
 
     /**

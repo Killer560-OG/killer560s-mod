@@ -25,6 +25,8 @@ final class BloodMobState {
     /** Countdown sounds: each fires once per trip (see {@code BloodCampFeature#tickSounds}). */
     boolean startSoundDone = false;
     boolean killSoundDone = false;
+    /** The kill timer (box green) has been reached this trip - recorded once for the testkit. */
+    boolean killableSeen = false;
     /** The exact position the trip's first move packet gave the stand (testkit comparison only). */
     Vec3 firstPacketExact;
     /** Trigger Bot clicks this trip (the first plus any retries after a miss), the tick of the last, whether it was an
@@ -63,6 +65,7 @@ final class BloodMobState {
         this.triggerBotClicked = false;
         this.startSoundDone = false;
         this.killSoundDone = false;
+        this.killableSeen = false;
         this.clicks = 0;
         this.lastClickTick = 0L;
         this.lastClickAttacked = false;

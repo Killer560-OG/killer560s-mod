@@ -156,6 +156,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   went out about four ticks before the "kill" he was watching for ("attacking them before the kill timer actually went
   off", 2026-10-15). It now clicks on the first tick with time left < ping ticks + Trigger Offset - the kill timer's own
   test shifted by the offset - so the delay is exactly -offset ticks (testkit 177, 792).
+- **"The kill timer" in his Blood Camp reports is the Kill Popup, not a mob's box.** On 2026-10-18 his own log (Mod Only
+  Test, 19:19:53) had the Trigger Bot click "use at 0.8 ticks" on a mob's countdown in the same second the popup was armed
+  100 ticks before KILL. Every Blood Camp attack now waits for `BloodCampMoveTimer.killTimerAllows(offset)` (no greeting:
+  no wait), and the Trigger Bot also clicks any blood mob off its landing spot or past its 20-tick window the first tick
+  his look meets it (1018-bloodtrigger-offset / -next-mob). The Kill Sound plays on that same hit tick, not at box green.
 - **A click cap holds at the client, not at the server.** Blood Camp's clicks go exactly the attack-speed cap apart
   (5 ticks at 100 Attack Speed), but the testkit server saw them 4 and 6 ticks apart, alternating (186, 2026-10-15): each
   end acts on a packet only at its own tick, so one landing a tick late and the next on time is a 4. The mean was exactly
