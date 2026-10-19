@@ -75,7 +75,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
         }
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
+                .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
         // Clear: empties the search box and the list goes back to the full catalogue.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
                     query = "";

@@ -134,7 +134,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
             }).bounds(panelX + 6, barY, 70, 18).build());
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Invite"), btn -> invite(selected))
                     .bounds(panelX + 6 + 74, barY, 56, 18).build());
-            int noteW = panelW - 12 - 70 - 56 - 70 - 12;
+            int noteW = panelW - 12 - 70 - 56 - 8;
             noteBox = new ThemedEditBox(this.font, panelX + 6 + 74 + 60, barY, noteW, 18, Component.literal("Note"))
                     .hint("Note...");
             noteBox.setMaxLength(64);
@@ -149,7 +149,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
                 selected = null;
                 scroll = 0;
                 rebuildWidgets();
-            }).bounds(panelX + panelW - 70, barY, 64, 18).build());
+            }).bounds(panelX + panelW - 10 - 56, panelY + 6, 56, 18).build());
         }
     }
 
@@ -340,7 +340,9 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.header(graphics, panelX, panelY, panelW, "Friends List");
         String right = FriendsListConfig.getInstance().isEnabled() ? "/fl opens this menu" : "/fl passes through to Hypixel";
-        ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+        if (selected == null) { // the detail view puts its Back button in this corner
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+        }
 
         ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);

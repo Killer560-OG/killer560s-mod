@@ -89,7 +89,7 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
         search.setFocused(true);
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
+                .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
     }
 
     private void applyFilter() {

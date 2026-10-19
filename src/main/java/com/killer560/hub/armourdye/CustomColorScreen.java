@@ -54,7 +54,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         int x2 = controlX + half + 4;
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
+                .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
 
         ArmourDyeEntry e = main.entry();
         boolean has = main.selectedKey() != null;
@@ -120,6 +120,13 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
                 .bounds(x2, row(3), rest, 20).build();
         pattern.active = has && armour;
         addRenderableWidget(pattern);
+
+        // Row 4: every Hypixel dye (from Hypixel's item list); picking one sets the colour.
+        SettingsButtonWidget dye = SettingsButtonWidget.builder(Component.literal("Dye..."),
+                        b -> minecraft.setScreenAndShow(new DyePickerScreen(this, main::setColour)))
+                .bounds(controlX, row(4), controlW, 20).build();
+        dye.active = has;
+        addRenderableWidget(dye);
     }
 
     private void openChoices(boolean material) {
