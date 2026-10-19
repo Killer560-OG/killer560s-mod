@@ -69,12 +69,13 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                         capturingIndex = index;
                         capturingMods = 0;
                         requestRebuild.run();
-                    }).bounds(contentX, y, contentWidth - 24, 18).build());
+                    }).bounds(contentX + 24, y, contentWidth - 24, 18).build());
+            // The red X sits on the left of the bind, so it is clear of the bind's own label (killer560, 2026-10-18).
             widgets.add(SettingsButtonWidget.builder(Component.literal("§cX"), btn -> {
                         cfg.removeBind(index);
                         cfg.save();
                         requestRebuild.run();
-                    }).bounds(contentX + contentWidth - 20, y, 20, 18).build());
+                    }).bounds(contentX, y, 20, 18).build());
             y += 22;
         }
         if (binds.size() < StorageSearchConfig.MAX_BINDS) {
