@@ -33,7 +33,8 @@ public abstract class CapeMixin {
         }
         PlayerSkin skin = state.skin;
         String name = cfg.getSelected();
-        Identifier texture = Identifier.fromNamespaceAndPath("killer560smod", "textures/cape/" + name + ".png");
+        Identifier texture = cfg.isCustom() ? com.killer560.hub.cape.CustomCapeTexture.ensure(cfg)
+                : Identifier.fromNamespaceAndPath("killer560smod", "textures/cape/" + name + ".png");
         Identifier asset = Identifier.fromNamespaceAndPath("killer560smod", "cape/" + name);
         state.skin = new PlayerSkin(skin.body(), new ClientAsset.ResourceTexture(asset, texture), skin.elytra(),
                 skin.model(), skin.secure());

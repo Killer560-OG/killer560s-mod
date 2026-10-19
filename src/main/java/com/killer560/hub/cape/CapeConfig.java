@@ -19,6 +19,19 @@ import java.util.List;
 public final class CapeConfig {
 
     public static final String NONE = "none";
+    /** The Make Your Own cape: generated at runtime from the two colours and the pattern below. */
+    public static final String CUSTOM = "custom";
+
+    /** Layouts for the Make Your Own cape. */
+    public enum Pattern {
+        SOLID("Solid"), STRIPES("Stripes"), GRADIENT("Gradient"), CENTRE_BAND("Centre Band");
+
+        public final String label;
+
+        Pattern(String label) {
+            this.label = label;
+        }
+    }
 
     /** Built-in designs, in the order the cape button cycles through them. */
     public static final List<String> DESIGNS = List.of(
@@ -30,6 +43,9 @@ public final class CapeConfig {
     private static CapeConfig instance;
 
     private String selected = NONE;
+    private int customColourA = 0x2D6CDF;
+    private int customColourB = 0xF2B134;
+    private Pattern customPattern = Pattern.STRIPES;
 
     private CapeConfig() {
     }
@@ -50,6 +66,12 @@ public final class CapeConfig {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             CapeConfig cfg = new CapeConfig();
             cfg.setSelected(ConfigJson.getString(obj, "selected", NONE));
+            cfg.setCustomColourA(ConfigJson.getInt(obj, "customColourA", cfg.customColourA));
+            cfg.setCustomColourB(ConfigJson.getInt(obj, "customColourB", cfg.customColourB));
+            try {
+                cfg.customPattern = Pattern.valueOf(ConfigJson.getString(obj, "customPattern", cfg.customPattern.name()));
+            } catch (IllegalArgumentException ignored) {
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new CapeConfig();
@@ -61,6 +83,9 @@ public final class CapeConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("selected", selected);
+            obj.addProperty("customColourA", customColourA);
+            obj.addProperty("customColourB", customColourB);
+            obj.addProperty("customPattern", customPattern.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -70,20 +95,49 @@ public final class CapeConfig {
         return selected;
     }
 
+    public boolean isCustom() {
+        return CUSTOM.equals(selected);
+    }
+
+    public int getCustomColourA() {
+        return customColourA;
+    }
+
+    public void setCustomColourA(int rgb) {
+        this.customColourA = rgb & 0xFFFFFF;
+    }
+
+    public int getCustomColourB() {
+        return customColourB;
+    }
+
+    public void setCustomColourB(int rgb) {
+        this.customColourB = rgb & 0xFFFFFF;
+    }
+
+    public Pattern getCustomPattern() {
+        return customPattern;
+    }
+
+    public void setCustomPattern(Pattern p) {
+        this.customPattern = p == null ? Pattern.STRIPES : p;
+    }
+
     /** Anything that is not a built-in design becomes {@link #NONE}. */
     public void setSelected(String id) {
-        this.selected = id != null && (id.equals(NONE) || DESIGNS.contains(id)) ? id : NONE;
+        this.selected = id != null && (id.equals(NONE) || id.equals(CUSTOM) || DESIGNS.contains(id)) ? id : NONE;
     }
 
     public boolean hasCape() {
         return !NONE.equals(selected);
     }
 
-    /** Cycles None, then each design, then back to None. */
+    /** Cycles None, each design, Make Your Own, then back to None. */
     public void cycle(int dir) {
-        int idx = selected.equals(NONE) ? -1 : DESIGNS.indexOf(selected);
-        int size = DESIGNS.size() + 1;
+        // Order: None, the built-in designs, then Make Your Own.
+        int idx = selected.equals(NONE) ? -1 : selected.equals(CUSTOM) ? DESIGNS.size() : DESIGNS.indexOf(selected);
+        int size = DESIGNS.size() + 2;
         int next = ((idx + 1 + dir) % size + size) % size;
-        selected = next == 0 ? NONE : DESIGNS.get(next - 1);
+        selected = next == 0 ? NONE : next == size - 1 ? CUSTOM : DESIGNS.get(next - 1);
     }
 }
