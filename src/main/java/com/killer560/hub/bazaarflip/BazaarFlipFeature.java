@@ -746,6 +746,9 @@ public final class BazaarFlipFeature {
                 awaitingReopenSinceMs = 0L; // the page is back: carry on buying from it
             } else if (open != null || now - awaitingReopenSinceMs > REOPEN_TIMEOUT_MS) {
                 awaitingReopenSinceMs = 0L;
+                if (reopenForTopUp(client)) {
+                    return;
+                }
                 doneBuying("bought the custom amount; the Bazaar did not reopen");
                 return;
             } else {
@@ -1444,6 +1447,28 @@ public final class BazaarFlipFeature {
         int lo = cfg.getSellDelayMinMs();
         int hi = Math.max(lo, cfg.getSellDelayMaxMs());
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+    }
+
+    /** The Bazaar did not reopen after a Custom Amount buy. If the purse and free room still cover more of this cycle's
+     *  product, sends {@code /bz <item>} again and keeps the cycle going (killer560, 2026-10-19: the cycle used to end
+     *  here with 2m in the purse). Returns false when there is nothing more to buy or the command could not be sent. */
+    private static boolean reopenForTopUp(Minecraft client) {
+        if (target == null || carriedAtStart < 0 || client.player == null || McCompat.screen(client) != null) {
+            return false;
+        }
+        int room = BazaarFlipMenus.roomFor(client.player.inventoryMenu, target.productId(), target.displayName(),
+                Math.max(1, target.stackSize()));
+        long sellable = (long) Math.floor(BazaarFlipNpcLimit.remaining() / target.npcSellPrice())
+                - (carried(client) - carriedAtStart);
+        if (topUpExtra(room, sellable, readPurse()) < 1) {
+            return false;
+        }
+        if (!sendCommand("bz " + target.displayName())) {
+            return false;
+        }
+        setState(State.WAIT_BAZAAR_MENU);
+        LOGGER.info("[BazaarFlip] Bazaar did not reopen with {} units to top up - sent /bz again", target.productId());
+        return true;
     }
 
     /** How many more units of this cycle's product the purse and the free room still cover, after the planned units
