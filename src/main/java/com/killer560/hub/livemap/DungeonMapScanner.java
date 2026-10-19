@@ -129,7 +129,6 @@ final class DungeonMapScanner {
     static int kindAt(int idx) {
         return calibrated ? kinds[idx] : KIND_NONE;
     }
-
     static int stateAt(int idx) {
         return calibrated ? states[idx] : STATE_UNDISCOVERED;
     }
@@ -256,7 +255,10 @@ final class DungeonMapScanner {
     private static void classify(int idx, int x, int y) {
         int center = centerColors[idx] & 0xFF;
         int side = sideColors[idx] & 0xFF;
+        // A cell the map does not show this time is no longer a room separator or door: its kind is cleared, so a bad
+        // read cannot leave an old separator behind to join two rooms the map no longer links (2026-10-18).
         if (center == 0) {
+            kinds[idx] = KIND_NONE;
             return;
         }
         int kind;
@@ -264,6 +266,7 @@ final class DungeonMapScanner {
         boolean puzzle = false;
         if (x % 2 == 0 && y % 2 == 0) {
             if (!isRoomColor(side)) {
+                kinds[idx] = KIND_NONE;
                 return;
             }
             kind = KIND_ROOM;
@@ -278,6 +281,7 @@ final class DungeonMapScanner {
         } else if (side == 0) {
             LiveMapFeature.Tile door = doorFromColor(center);
             if (door == null) {
+                kinds[idx] = KIND_NONE;
                 return;
             }
             kind = KIND_DOOR;
@@ -285,6 +289,7 @@ final class DungeonMapScanner {
             state = center == 85 ? STATE_UNOPENED : STATE_DISCOVERED;
         } else {
             if (!isRoomColor(side)) {
+                kinds[idx] = KIND_NONE;
                 return;
             }
             kind = KIND_SEPARATOR;
