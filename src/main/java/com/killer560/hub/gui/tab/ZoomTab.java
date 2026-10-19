@@ -99,16 +99,40 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Zoom Style: " + (cfg.isSmooth() ? "§aSmooth" : "§cInstant")), btn -> {
+        // How far one wheel notch moves the zoom, 2% to 50% (killer560, 2026-10-19: "a slider for how much the zoom changes").
+        float stepRange = ZoomConfig.MAX_SCROLL_STEP - ZoomConfig.MIN_SCROLL_STEP;
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, scrollStepText(cfg),
+                (cfg.getScrollStep() - ZoomConfig.MIN_SCROLL_STEP) / stepRange) {
+            @Override
+            protected void updateMessage() {
+                setMessage(scrollStepText(ZoomConfig.getInstance()));
+            }
+
+            @Override
+            protected void applyValue() {
+                ZoomConfig c = ZoomConfig.getInstance();
+                c.setScrollStep((float) (ZoomConfig.MIN_SCROLL_STEP + this.value * stepRange));
+                c.save();
+            }
+        });
+        y += 22;
+
+        // Zoom Style is a cycling setting like the others: the arrows step it, and the value is in the menu's orange.
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Zoom Style: §6" + (cfg.isSmooth() ? "Smooth" : "Instant")),
+                (btn, dir) -> {
                     cfg.setSmooth(!cfg.isSmooth());
                     cfg.save();
-                    requestRebuild.run();
+                    btn.setMessage(Component.literal("Zoom Style: §6" + (cfg.isSmooth() ? "Smooth" : "Instant")));
                 }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
 
     private static Component levelText(ZoomConfig cfg) {
         return Component.literal(String.format(Locale.US, "Zoom Level: %.1fx", cfg.getZoomLevel()));
+    }
+
+    private static Component scrollStepText(ZoomConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Scroll Step: %.0f%%", cfg.getScrollStep() * 100));
     }
 
     private static Component onOff(String label, boolean value) {

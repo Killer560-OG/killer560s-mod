@@ -32,6 +32,10 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
         capturing = null;
     }
 
+    private static Component onOff(String name, boolean on) {
+        return Component.literal(name + ": " + (on ? "§aON" : "§cOFF"));
+    }
+
     @Override
     public boolean supportsMouseCapture() {
         return true;
@@ -49,7 +53,8 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
         // The main switch: off stops the keybinds and /k gfs (killer560, 2026-10-19).
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Legit GFS: " + (LegitGfs.isEnabled() ? "§aOn" : "§cOff")), btn -> {
+        // Written like every other tab's master row ("Name: ON" / "Name: OFF") so the menu draws it as the card's switch.
+        widgets.add(SettingsButtonWidget.builder(onOff("Legit GFS", LegitGfs.isEnabled()), btn -> {
                     LegitGfs.setEnabled(!LegitGfs.isEnabled());
                     requestRebuild.run();
                 }).bounds(contentX, contentY, contentWidth, 18).build());

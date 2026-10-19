@@ -31,6 +31,10 @@ public final class ZoomConfig {
     private boolean scrollWhileZoomed = true;
     /** Smooth pans in and out over a fraction of a second; off snaps straight to the zoom level (killer560, 2026-10-19). */
     private boolean smooth = true;
+    /** How much one wheel notch changes the zoom, as a fraction (0.10 = 10% closer or further). killer560, 2026-10-19. */
+    public static final float MIN_SCROLL_STEP = 0.02f;
+    public static final float MAX_SCROLL_STEP = 0.50f;
+    private float scrollStep = 0.10f;
 
     private ZoomConfig() {
     }
@@ -55,6 +59,7 @@ public final class ZoomConfig {
             cfg.setZoomLevel(ConfigJson.getFloat(obj, "zoomLevel", 4f));
             cfg.scrollWhileZoomed = ConfigJson.getBool(obj, "scrollWhileZoomed", true);
             cfg.smooth = ConfigJson.getBool(obj, "smooth", true);
+            cfg.setScrollStep(ConfigJson.getFloat(obj, "scrollStep", 0.10f));
             instance = cfg;
         } catch (Exception e) {
             instance = new ZoomConfig();
@@ -70,6 +75,7 @@ public final class ZoomConfig {
             obj.addProperty("zoomLevel", zoomLevel);
             obj.addProperty("scrollWhileZoomed", scrollWhileZoomed);
             obj.addProperty("smooth", smooth);
+            obj.addProperty("scrollStep", scrollStep);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -113,5 +119,13 @@ public final class ZoomConfig {
 
     public void setSmooth(boolean smooth) {
         this.smooth = smooth;
+    }
+
+    public float getScrollStep() {
+        return scrollStep;
+    }
+
+    public void setScrollStep(float step) {
+        this.scrollStep = Math.max(MIN_SCROLL_STEP, Math.min(MAX_SCROLL_STEP, step));
     }
 }

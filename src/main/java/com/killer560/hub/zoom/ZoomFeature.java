@@ -10,20 +10,27 @@ import net.minecraft.client.Minecraft;
  * back to normal. While it is held, the mouse wheel changes the level (scroll up zooms in). Only the field of view changes:
  * the view is never moved, and nothing is clicked or sent.
  * <p>
- * Smooth mode (the default) pans in and out over {@link #PAN_NANOS} with a quintic ease, evaluated on every rendered frame
- * rather than every game tick, so the motion has no steps. Instant mode jumps straight to the level. killer560: "smooth
- * smoothly pans into max zoom (smoother than current), instant is instant".
+ * Pressing or releasing the key pans over {@link #PAN_NANOS} with a quintic ease, evaluated on every rendered frame. A wheel
+ * notch instead follows its target per frame with a short exponential approach, so a run of notches flows into one
+ * continuous move rather than stopping and restarting at each notch. Instant mode jumps straight to the level.
  */
 public final class ZoomFeature {
 
-    /** How long a smooth pan takes, in nanoseconds. */
+    /** How long a key press or release takes to pan, in nanoseconds. */
     private static final long PAN_NANOS = 450_000_000L;
+    /** The time constant of the wheel's follow, in seconds: about 90% of a notch is covered in 0.2 s. */
+    private static final double FOLLOW_TAU_SECONDS = 0.07;
 
     /** The zoom factor the ease starts from, and where it is heading. 1 is normal. */
     private static float from = 1f;
     private static float to = 1f;
-    /** When the current pan started (System.nanoTime). */
+    /** When the current key pan started (System.nanoTime). */
     private static long startedAt;
+    /** The wheel's follow: the value it is at, and when that was last computed. */
+    private static float follow = 1f;
+    private static long followAt;
+    private static boolean following;
+    private static boolean wheelMoved;
     private static boolean held;
     /** The level the wheel has set during this press, or -1 for the configured level. */
     private static float wheelLevel = -1f;
@@ -45,19 +52,39 @@ public final class ZoomFeature {
         float target = held ? (wheelLevel > 0f ? wheelLevel : cfg.getZoomLevel()) : 1f;
         if (target != to) {
             long now = System.nanoTime();
-            from = factorAt(now);
+            float at = factorAt(now);
             to = target;
-            startedAt = now;
+            if (wheelMoved && cfg.isSmooth()) {
+                following = true;
+                follow = at;
+                followAt = now;
+            } else {
+                following = false;
+                from = at;
+                startedAt = now;
+            }
         }
+        wheelMoved = false;
         if (!cfg.isSmooth()) {
             from = to;
+            follow = to;
+            following = false;
         }
     }
 
-    /** The zoom factor at {@code now}: eased from the last start towards the target, or the target once the pan is over. */
+    /** The zoom factor at {@code now}: the wheel's follow, or the key pan's ease, or the target once it is reached. */
     private static float factorAt(long now) {
         if (!ZoomConfig.getInstance().isSmooth()) {
             return to;
+        }
+        if (following) {
+            double dt = Math.max(0.0, (now - followAt) / 1e9);
+            follow += (to - follow) * (float) (1.0 - Math.exp(-dt / FOLLOW_TAU_SECONDS));
+            followAt = now;
+            if (Math.abs(to - follow) < 0.001f) {
+                follow = to;
+            }
+            return follow;
         }
         double t = Math.min(1.0, Math.max(0.0, (now - startedAt) / (double) PAN_NANOS));
         // Quintic smootherstep: starts and stops with no jerk, so the pan reads as one even movement.
@@ -82,8 +109,10 @@ public final class ZoomFeature {
             return false;
         }
         float level = wheelLevel > 0f ? wheelLevel : cfg.getZoomLevel();
-        level *= (float) Math.pow(1.1, yOffset);
+        // killer560, 2026-10-19: the Scroll Step slider sets how far one notch moves the zoom.
+        level *= (float) Math.pow(1.0 + cfg.getScrollStep(), yOffset);
         wheelLevel = Math.max(ZoomConfig.MIN_LEVEL, Math.min(ZoomConfig.MAX_LEVEL, level));
+        wheelMoved = true;
         return true;
     }
 }
