@@ -51,6 +51,8 @@ public class HealthAndManaBarsTab extends BaseTab {
     private static final int ROW = 22;
     /** Width of the "Colour: ■" button beside a readout's toggle. */
     private static final int SWATCH_W = 52;
+    /** Bar Size moves in halves (killer560, 2026-10-19). */
+    private static final double BAR_SIZE_STEP = 0.5;
 
     /** The Bars grid, two to a row, in reading order. */
     static final Readout[] BARS = {
@@ -199,7 +201,8 @@ public class HealthAndManaBarsTab extends BaseTab {
                     null);
             y[0] += ROW;
             // Every bar at once; one bar on its own is sized by dragging its edges in Edit Bars. Predefined's shared
-            // scale has no row here on purpose (killer560, 2026-10-07: "no one needs to adjust scale there"; testkit 393).
+            // size has had its own Bar Size row below since 2026-10-19 (he asked for it in 0.5 steps); per-readout scale
+            // sliders stay gone (killer560, 2026-10-07: "no one needs to adjust scale there"; testkit 393).
             slider(widgets, contentX, y[0], half, () -> "Bar Width: " + ps.getBarWidth(),
                     (ps.getBarWidth() - PlayerStatsConfig.MIN_BAR_WIDTH)
                             / (double) (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH),
@@ -217,6 +220,22 @@ public class HealthAndManaBarsTab extends BaseTab {
                         ps.save();
                     });
             y[0] += ROW;
+            // Bar Size (killer560, 2026-10-19: the bar size slider should move in 0.5 increments): the size every readout
+            // shares in the Predefined layout, the same value scrolling a bar in Edit Bars changes (that scroll keeps its
+            // 0.1 step). 0.5x to 3.0x, six stops. Custom sizes each readout on its own in Edit Bars, so no row there.
+            if (ps.isPredefinedLayout() || scanningForSearch) {
+                double span = PlayerStatsConfig.MAX_PREDEFINED_SCALE - PlayerStatsConfig.MIN_PREDEFINED_SCALE;
+                int stops = (int) Math.round(span / BAR_SIZE_STEP);
+                slider(widgets, contentX, y[0], contentWidth,
+                        () -> String.format(java.util.Locale.ROOT, "Bar Size: %.1fx", ps.getPredefinedScale()),
+                        (ps.getPredefinedScale() - PlayerStatsConfig.MIN_PREDEFINED_SCALE) / span,
+                        v -> {
+                            ps.setPredefinedScale((float) (PlayerStatsConfig.MIN_PREDEFINED_SCALE
+                                    + Math.round(v * stops) * BAR_SIZE_STEP));
+                            ps.save();
+                        }, stops);
+                y[0] += ROW;
+            }
 
             // Colours, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
             // empty track.
@@ -410,7 +429,13 @@ public class HealthAndManaBarsTab extends BaseTab {
 
     private static void slider(List<AbstractWidget> widgets, int x, int y, int width, Supplier<String> text,
                                double normalized, DoubleConsumer apply) {
-        widgets.add(new ThemedSliderButton(x, y, Math.max(1, width), ROW_H, Component.literal(text.get()),
+        slider(widgets, x, y, width, text, normalized, apply, 0);
+    }
+
+    /** {@code steps} > 0 snaps the knob to that many equal steps ({@link ThemedSliderButton#steps}). */
+    private static void slider(List<AbstractWidget> widgets, int x, int y, int width, Supplier<String> text,
+                               double normalized, DoubleConsumer apply, int steps) {
+        ThemedSliderButton s = new ThemedSliderButton(x, y, Math.max(1, width), ROW_H, Component.literal(text.get()),
                 Math.max(0.0, Math.min(1.0, normalized))) {
             @Override
             protected void updateMessage() {
@@ -421,7 +446,11 @@ public class HealthAndManaBarsTab extends BaseTab {
             protected void applyValue() {
                 apply.accept(this.value);
             }
-        });
+        };
+        if (steps > 0) {
+            s.steps(steps);
+        }
+        widgets.add(s);
     }
 
     private static Component onOff(String label, boolean value) {
