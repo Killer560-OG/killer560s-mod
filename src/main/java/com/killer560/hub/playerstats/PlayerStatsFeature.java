@@ -1,6 +1,5 @@
 package com.killer560.hub.playerstats;
 
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.network.chat.Component;
@@ -18,7 +17,7 @@ import java.util.regex.Pattern;
  * than pasting the actual invisible glyphs, so the source stays legible and unambiguous) - without
  * anchoring to the specific icon codepoint, a plain "current/max" pattern can't tell health apart from
  * mana at all, since both share the exact same shape (a real mistake caught and fixed before this ever
- * built). Reads the real overlay text via {@code ClientReceiveMessageEvents.MODIFY_GAME} and, once a
+ * built). Reads the real action-bar text in {@link #onActionBar} (called from {@code Gui.setOverlayMessage}) and, once a
  * line has matched at least one of the three icon-anchored patterns below (i.e. it's confirmed to be the
  * real stat line, not some other action-bar use like an ability name), takes the stat segments out of it
  * when "Hypixel Stat Text" is on under Hide -
@@ -101,18 +100,19 @@ public final class PlayerStatsFeature {
     // Diagnostics (killer560, 2026-10-18: the health, mana and vitality bars do not draw). Nothing else in this
     // feature logged, so it has its own logger, under the package's own name.
     private static final Logger LOGGER = ModLog.get("killer560smod-playerstats");
-    /** A repeat of the same reading is logged at most this often; a change is logged at once. */
-    private static final long LOG_EVERY_NANOS = 5_000_000_000L;
+    /** A repeat of the same action-bar text is logged at most this often; a changed line is logged at once. */
+    private static final long LOG_EVERY_NANOS = 1_000_000_000L;
     private static final int LOG_TEXT_MAX = 240;
-    private static long overlayLines;
     private static long lastLogNanos;
-    private static String lastLogSig = "";
+    private static String lastLogText = null;
 
     private PlayerStatsFeature() {
     }
 
     public static void register() {
-        ClientReceiveMessageEvents.MODIFY_GAME.register(PlayerStatsFeature::onModifyGameMessage);
+        // The stat text is read by onActionBar, which CustomScoreboardGuiMixin calls at setOverlayMessage. It is not a
+        // MODIFY_GAME listener: Hypixel's action bar arrives as ClientboundSetActionBarTextPacket, which calls
+        // Gui.setOverlayMessage directly (javap 26.1.2 and 26.2), so Fabric's MODIFY_GAME never sees it (2026-10-18).
         registerVanillaSuppression();
         // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
         // level"). Fabric's INFO_BAR is the contextual bar slot - the XP bar, and also the locator and
@@ -240,11 +240,16 @@ public final class PlayerStatsFeature {
                 && "THE_RIFT".equals(com.killer560.hub.pathfinding.IslandDetector.graphIsland());
     }
 
-    private static Component onModifyGameMessage(Component message, boolean overlay) {
-        if (!overlay || !PlayerStatsConfig.getInstance().isEnabled()) {
-            return message;
+    /**
+     * Reads one action-bar line as it reaches {@code Gui.setOverlayMessage} (called from {@code CustomScoreboardGuiMixin},
+     * both versions, at HEAD). Every action-bar path ends there, including the system-chat overlay path, so this sees
+     * every line. Only reads; the line itself is not changed here (see {@link #actionBarReplacement}).
+     */
+    public static void onActionBar(Component message) {
+        if (message == null || !PlayerStatsConfig.getInstance().isEnabled()) {
+            return;
         }
-        String raw = com.killer560.hub.util.ChatObserver.raw(message);
+        String raw = message.getString();
 
         Matcher healthMatch = HEALTH_REGEX.matcher(raw);
         boolean healthHit = healthMatch.find();
@@ -291,43 +296,24 @@ public final class PlayerStatsFeature {
             }
         }
         logActionBar(raw);
-        // The stat line is hidden from the screen (killer560, 2026-09-27: "it didn't hide the text that the
-        // server normally has"), but NOT here. Fabric chains MODIFY_GAME and then hands the result to GAME and
-        // to Gui.setOverlayMessage (javap, fabric-message-api-v1 7.0.5 and 7.0.8), so returning
-        // Component.empty() here blanked the line for every later reader: Ability Cooldown's own MODIFY_GAME
-        // listener, the GAME overlay readers (live map, Auto Routes, interop room secrets) and the Custom
-        // Scoreboard's "x/y Secrets". The line now passes through untouched and the Gui mixin
-        // (CustomScoreboardGuiMixin) strips it at setOverlayMessage via actionBarReplacement, after the
-        // scoreboard has read it.
-        return message;
     }
 
     /**
-     * One INFO line for each action-bar line the feature reads while Stat Bars is on: the raw text (non-ASCII as
-     * \\uXXXX, so the private-use icons are visible), whether each stat pattern matched, and the values held. Written
-     * when the matches or the values change, and otherwise at most every {@link #LOG_EVERY_NANOS}. Only reached from
-     * {@link #onModifyGameMessage} past its enabled check, so it is silent with the feature off. Never throws: this
-     * runs on the packet path.
+     * One INFO line, "[StatBars] action bar: ...", for each action-bar line the feature reads while Stat Bars is on:
+     * the raw text, non-ASCII written as \\uXXXX so the private-use icons show. A line whose text differs from the last
+     * logged one is written at once; a repeat is written at most once every {@link #LOG_EVERY_NANOS}. Only reached from
+     * {@link #onActionBar} past its enabled check. Never throws: this runs on the packet path.
      */
     private static void logActionBar(String raw) {
         try {
-            overlayLines++;
-            boolean health = HEALTH_REGEX.matcher(raw).find();
-            boolean mana = MANA_REGEX.matcher(raw).find();
-            boolean defence = DEFENSE_REGEX.matcher(raw).find();
-            boolean vitality = VITALITY_REGEX.matcher(raw).find();
-            String sig = health + "," + mana + "," + defence + "," + vitality + "|" + healthCur + "/" + healthMax
-                    + "|" + manaCur + "/" + manaMax + "|" + defenceValue + "|" + vitalityCur + "/" + vitalityMax;
             long now = System.nanoTime();
-            if (sig.equals(lastLogSig) && now - lastLogNanos < LOG_EVERY_NANOS) {
+            boolean changed = !raw.equals(lastLogText);
+            if (!changed && now - lastLogNanos < LOG_EVERY_NANOS) {
                 return;
             }
-            lastLogSig = sig;
+            lastLogText = raw;
             lastLogNanos = now;
-            LOGGER.info("[StatBars] action bar line #{}: \"{}\" | matched health={} mana={} defense={} vitality={}"
-                            + " | healthCur={}/{} manaCur={}/{} defence={} vitality={}/{} overflowMana={}",
-                    overlayLines, visible(raw), health, mana, defence, vitality, healthCur, healthMax, manaCur,
-                    manaMax, defenceValue, vitalityCur, vitalityMax, overflowMana);
+            LOGGER.info("[StatBars] action bar: {}", visible(raw));
         } catch (RuntimeException e) {
             // Diagnostics only: a failure here must never reach the chat listener.
         }

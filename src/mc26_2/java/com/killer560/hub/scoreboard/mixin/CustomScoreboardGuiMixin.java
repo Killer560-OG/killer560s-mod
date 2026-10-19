@@ -52,6 +52,8 @@ public abstract class CustomScoreboardGuiMixin {
         if (PlayerStatsFeature.isResending()) {
             return;
         }
+        // Stat Bars reads the stat segments here: every action-bar path ends in this method (javap, 26.2).
+        PlayerStatsFeature.onActionBar(message);
         if (CustomScoreboardFeature.isActive()) {
             ScoreboardData.onActionBar(message);
         }
