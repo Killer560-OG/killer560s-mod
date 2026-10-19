@@ -18,6 +18,8 @@ import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -27,29 +29,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The egg spots this client has actually seen, per island (killer560, 2026-10-19: "snap to the right points, those are the
- * only ones it can be at"). An egg is an invisible, unnamed armour stand wearing an egg head ({@link EggEsp#mealOf}); each
- * loaded one is written here the first time it is seen, and the file keeps them between sessions. The Egglocator's trail
- * guess is snapped to the nearest of these within {@link #MAX_SNAP} blocks (SkyHanni's MAX_GUESS_DISTANCE of 5), so the
- * marker lands on a real egg rather than on a particle.
- * <p>
- * Limit: this is only as complete as what has been loaded. An egg never seen on that island is not in the set, so a trail
- * to it does not snap and nothing is drawn. Read-only: it reads entities already loaded, sends nothing.
+ * The egg spots for each island (killer560, 2026-10-19: "make their current egg table saved, then if they ever find an egg
+ * at a non saved spot add that spot"). Two sources, both read at startup:
+ * <ul>
+ * <li>{@code assets/killer560smod/egg_locations.json}: the spots SkyHanni's HoppityEggLocations table lists per island
+ * (SkyHanni-REPO, MIT, Copyright (c) 2022 hannibal2). Converted to {@code [x,y,z]} per island; no meal, since the table
+ * does not give one.</li>
+ * <li>{@code killer560smod-eggpositions.json}: every egg armour stand this client has seen loaded (an invisible, unnamed
+ * armour stand wearing an egg head, {@link EggEsp#mealOf}). A spot not already in the set is added and the file saved.</li>
+ * </ul>
+ * The Egglocator's trail guess is snapped to the nearest spot within {@link #MAX_SNAP} blocks (SkyHanni's
+ * MAX_GUESS_DISTANCE of 5). Read-only: it reads entities already loaded, sends nothing.
  */
 public final class EggPositions {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-chocolatefactory");
     private static final Path PATH = ModPaths.config("killer560smod-eggpositions.json");
+    private static final String BUNDLED = "/assets/killer560smod/egg_locations.json";
 
     /** The Egglocator's guess is snapped only to an egg this close (SkyHanni MAX_GUESS_DISTANCE). */
     static final double MAX_SNAP = 5.0;
     /** Two stands of one meal this close on one island are the same egg. */
     private static final double SAME_EGG = 0.75;
-    /** Head height of a full-size armour stand above its feet: the point the snap lands on. */
+    /** Head height of a full-size armour stand above its feet. The table's spots are head points, so they are stored at feet. */
     private static final double HEAD_Y = 1.7;
     private static final int SCAN_EVERY_TICKS = 10;
 
-    /** One egg spot. Stored at the stand's feet; {@link #point} is the head height the snap uses. */
+    /** One egg spot, stored at the stand's feet. {@code meal} is null for a spot from the bundled table. */
     record Spot(double x, double y, double z, Meal meal) {
         Vec3 point() {
             return new Vec3(x, y + HEAD_Y, z);
@@ -101,17 +107,25 @@ public final class EggPositions {
         }
     }
 
-    /** Adds {@code spot} to {@code island} unless that egg is already known. Saves only when something new was added. */
+    /** Adds {@code spot} to {@code island} unless that egg is already in the set. Saves only when something new was added. */
     static synchronized void record(String island, Spot spot) {
         ensureLoaded();
+        if (add(island, spot)) {
+            save();
+        }
+    }
+
+    /** Adds {@code spot} unless a spot of the same meal (or any meal, when either has none) is this close. */
+    private static boolean add(String island, Spot spot) {
         List<Spot> list = ISLANDS.computeIfAbsent(island, k -> new ArrayList<>());
         for (Spot s : list) {
-            if (s.meal() == spot.meal() && distance(s.point(), spot.point()) < SAME_EGG) {
-                return;
+            boolean sameMeal = s.meal() == null || spot.meal() == null || s.meal() == spot.meal();
+            if (sameMeal && s.point().distanceTo(spot.point()) < SAME_EGG) {
+                return false;
             }
         }
         list.add(spot);
-        save();
+        return true;
     }
 
     /**
@@ -131,7 +145,7 @@ public final class EggPositions {
         Vec3 best = null;
         double bestDist = MAX_SNAP;
         for (Spot s : list) {
-            double d = distance(s.point(), guess);
+            double d = s.point().distanceTo(guess);
             if (d <= bestDist) {
                 bestDist = d;
                 best = s.point();
@@ -140,15 +154,12 @@ public final class EggPositions {
         return best;
     }
 
-    private static double distance(Vec3 a, Vec3 b) {
-        return a.distanceTo(b);
-    }
-
     private static synchronized void ensureLoaded() {
         if (loaded) {
             return;
         }
         loaded = true;
+        loadBundled();
         if (!Files.exists(PATH)) {
             return;
         }
@@ -159,17 +170,36 @@ public final class EggPositions {
                 return;
             }
             for (Map.Entry<String, JsonElement> entry : islands.entrySet()) {
-                List<Spot> list = new ArrayList<>();
                 for (JsonElement el : entry.getValue().getAsJsonArray()) {
                     JsonObject o = el.getAsJsonObject();
-                    list.add(new Spot(o.get("x").getAsDouble(), o.get("y").getAsDouble(), o.get("z").getAsDouble(),
-                            Meal.valueOf(o.get("meal").getAsString())));
+                    JsonElement meal = o.get("meal");
+                    Meal m = meal == null ? null : Meal.valueOf(meal.getAsString());
+                    add(entry.getKey(), new Spot(o.get("x").getAsDouble(), o.get("y").getAsDouble(),
+                            o.get("z").getAsDouble(), m));
                 }
-                ISLANDS.put(entry.getKey(), list);
             }
         } catch (Exception e) {
-            ISLANDS.clear();
             LOGGER.error("[EggPositions] could not read " + PATH, e);
+        }
+    }
+
+    /** The bundled table: {@code {island: [[x,y,z], ...]}} with head points, stored at feet. */
+    private static void loadBundled() {
+        try (InputStream in = EggPositions.class.getResourceAsStream(BUNDLED)) {
+            if (in == null) {
+                LOGGER.error("[EggPositions] bundled egg table missing: " + BUNDLED);
+                return;
+            }
+            JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+            for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
+                for (JsonElement el : entry.getValue().getAsJsonArray()) {
+                    JsonArray p = el.getAsJsonArray();
+                    add(entry.getKey(), new Spot(p.get(0).getAsDouble(), p.get(1).getAsDouble() - HEAD_Y,
+                            p.get(2).getAsDouble(), null));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("[EggPositions] could not read bundled egg table", e);
         }
     }
 
@@ -184,7 +214,9 @@ public final class EggPositions {
                     o.addProperty("x", s.x());
                     o.addProperty("y", s.y());
                     o.addProperty("z", s.z());
-                    o.addProperty("meal", s.meal().name());
+                    if (s.meal() != null) {
+                        o.addProperty("meal", s.meal().name());
+                    }
                     arr.add(o);
                 }
                 islands.add(entry.getKey(), arr);
