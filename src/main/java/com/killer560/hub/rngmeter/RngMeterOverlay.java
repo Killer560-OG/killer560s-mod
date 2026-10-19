@@ -97,6 +97,15 @@ public final class RngMeterOverlay {
         return List.copyOf(out);
     }
     private static volatile int scrollOffset = 0;
+    /** Rows the ranking panel was last drawn with. Scrolling clamps against THIS count, the one the panel really shows: the
+     *  clamp used to count the logged scan instead, so the offset could run past what was drawn and scrolling back up
+     *  did nothing until it came down past the drawn rows (killer560, 2026-10-18: "I cant scroll back up"). */
+    private static volatile int shownRowCount = 0;
+
+    /** The largest scroll offset that still shows a full page of {@code rowCount} rows. */
+    static int maxScrollOffset(int rowCount) {
+        return Math.max(0, rowCount - VISIBLE_ROWS);
+    }
 
     private RngMeterOverlay() {
     }
@@ -223,7 +232,10 @@ public final class RngMeterOverlay {
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            renderRanking(graphics, 0, 0, title, withUnpricedDyesFirst(RngMeterEngine.rankAll(scanned)), committedSelected);
+            List<RngMeterEngine.RankedItem> shown = withUnpricedDyesFirst(RngMeterEngine.rankAll(scanned));
+            shownRowCount = shown.size();
+            scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
+            renderRanking(graphics, 0, 0, title, shown, committedSelected);
             graphics.pose().popMatrix();
         } catch (Exception e) {
             LOGGER.error("Failed to render RNG Meter overlay", e);
@@ -351,7 +363,7 @@ public final class RngMeterOverlay {
         if (!RngMeterConfig.getInstance().isEnabled()) {
             return false;
         }
-        if (committedScan.size() <= VISIBLE_ROWS || scrollY == 0) {
+        if (shownRowCount <= VISIBLE_ROWS || scrollY == 0) {
             return false;
         }
         HudElement element = HudElementRegistry.byId(ELEMENT_ID);
@@ -365,9 +377,8 @@ public final class RngMeterOverlay {
         if (mouseX < pos[0] || mouseX > pos[0] + w || mouseY < pos[1] || mouseY > pos[1] + h) {
             return false;
         }
-        int maxOffset = Math.max(0, committedScan.size() - VISIBLE_ROWS);
         int delta = scrollY > 0 ? -1 : 1;
-        scrollOffset = Math.max(0, Math.min(maxOffset, scrollOffset + delta));
+        scrollOffset = Math.max(0, Math.min(maxScrollOffset(shownRowCount), scrollOffset + delta));
         return true;
     }
 
@@ -704,7 +715,7 @@ public final class RngMeterOverlay {
 
         String header = "§6§lRNG Meter";
         if (rows.size() > VISIBLE_ROWS) {
-            int from = Math.min(scrollOffset, Math.max(0, rows.size() - 1)) + 1;
+            int from = Math.min(scrollOffset, maxScrollOffset(rows.size())) + 1;
             int to = Math.min(rows.size(), from + VISIBLE_ROWS - 1);
             header += String.format(Locale.US, " §7(%d-%d of %d, scroll for more)", from, to, rows.size());
         }
@@ -727,7 +738,7 @@ public final class RngMeterOverlay {
             cursorY += 11;
         }
 
-        int start = Math.min(scrollOffset, Math.max(0, rows.size() - 1));
+        int start = Math.min(scrollOffset, maxScrollOffset(rows.size()));
         int shown = 0;
         for (int i = start; i < rows.size() && shown < VISIBLE_ROWS; i++) {
             RngMeterEngine.RankedItem r = rows.get(i);
