@@ -1745,7 +1745,7 @@ final class SettingTooltipsData {
         d.put("maxor's crystals/place timer", "Times how long you take to place a crystal and remembers your best.");
         d.put("maxor's crystals/unplaced crystal alert", "Warns you while you are carrying a crystal you have not placed.");
         d.put("maxor's crystals/active crystal counter", "Shows how many of the five crystals are currently active.");
-        d.put("maxor's crystals/reset best place time", "Shows your fastest crystal placement. Click twice to reset it.");
+        d.put("maxor's crystals/reset best place time", "Shows your fastest crystal placement. Click once and the box turns red; after 2 seconds, click again to wipe it.");
         d.put("maxor's crystals/highlight crystals", "Boxes the real crystals in the arena.");
         d.put("maxor's crystals/highlight color", "Color of the crystal boxes.");
         d.put("maxor's crystals/filled boxes", "Also fills the crystal boxes instead of drawing only the outline.");
