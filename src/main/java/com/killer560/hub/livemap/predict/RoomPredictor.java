@@ -48,7 +48,8 @@ import java.util.Set;
  * tile the block was seen in and no tile the map shows opened, inside the floor. Every seen block inside a candidate's
  * footprint is compared with the block that room has there (block ids only - states turn with the room; the edges of
  * each tile, where doorways differ between floors, are skipped, and so are chests, heads, levers' neighbours and door
- * blocks that change during a run). A candidate that disagrees with more than {@link #MISMATCH_FLOOR} plus
+ * blocks that change during a run, and a puzzle's moving parts - {@link #VOLATILE}, Water Board's board). A candidate
+ * that disagrees with more than {@link #MISMATCH_FLOOR} plus
  * {@link #MISMATCH_RATE} of what it was compared with is ruled out, for good.
  *
  * <p><b>What it says.</b> For a tile with at least {@link #MIN_EVIDENCE} seen blocks: if every candidate still standing
@@ -123,6 +124,10 @@ public final class RoomPredictor {
         final long tiles;        // bit tz * 6 + tx
         final int worldX0;
         final int worldZ0;
+        /** {@link #VOLATILE} boxes of this room, or null. */
+        final int[][] volatileBoxes;
+        /** {@link #volatilePalette} of this room, or null. */
+        final java.util.BitSet volatilePalette;
         int matches;
         int mismatches;
         int cursor;
@@ -137,6 +142,8 @@ public final class RoomPredictor {
             this.tiles = tiles;
             this.worldX0 = ORIGIN + ax * TILE_PITCH - room.margin;
             this.worldZ0 = ORIGIN + az * TILE_PITCH - room.margin;
+            this.volatileBoxes = volatileBoxes(room);
+            this.volatilePalette = volatilePalette(room);
         }
 
         String key() {
@@ -475,6 +482,9 @@ public final class RoomPredictor {
             if (tilesX == 2 && tilesZ == 2 && entry == null) {
                 continue; // an L or a 2x2 cannot be told apart before the room database is in
             }
+            if (VOLATILE.containsKey(room.name) && !RoomDatabase.isReady()) {
+                continue; // its moving parts are placed through the capture's turn, which needs the database
+            }
             int[] norm = NORM_CACHE.computeIfAbsent(room.name, n -> normalise(room));
             for (int rot = 0; rot < 360; rot += 90) {
                 int w = rot % 180 == 0 ? tilesX : tilesZ;
@@ -547,6 +557,14 @@ public final class RoomPredictor {
                 // tick's allocation (95-perf-features ALL ON, 2026-10-15).
                 long packed = obsPos[i];
                 int expected = expectedAt(c, BlockPos.getX(packed), BlockPos.getY(packed) - off, BlockPos.getZ(packed));
+                if (expected == VOLATILE_EXPECTED) {
+                    // A puzzle's moving part: its arrangement differs run to run, the blocks it is made of do not. One
+                    // of those blocks agrees with the room; anything else says nothing (never a mismatch).
+                    if (c.volatilePalette != null && c.volatilePalette.get(observed)) {
+                        c.matches++;
+                    }
+                    continue;
+                }
                 if (expected < 0 || ignored(expected)) {
                     continue;
                 }
@@ -569,30 +587,150 @@ public final class RoomPredictor {
         }
     }
 
+    /**
+     * Room-relative boxes {x0, y0, z0, x1, y1, z1} (inclusive; the room database's own frame, which the puzzle solvers
+     * use) of rooms whose blocks there differ from run to run, and during a run, for reasons that say nothing about which
+     * room it is. A block seen inside one is never a mismatch; it is a match when the capture's box holds that block
+     * somewhere ({@link #volatilePalette}).
+     *
+     * <p>Water Board (killer560, 2026-10-18: "it didnt work on water board"; his Mod Only Test log 19:25:02, "every
+     * placement ruled out - 330 block(s) seen, 0 of 412 placement(s) standing"). The front glass is see-through to a ray
+     * (glass has no visual shape), so most of what a look into the room meets is the board behind it, and that board is
+     * different on every run: Hypixel has four layouts (the identifier blocks at relative (14|16, 77|78, 27) say which),
+     * and twenty-seven sticky pistons move its ore gates as the levers are flicked. Every capture of the room there is
+     * holds the same frame of board 0, every colour retracted. Under the walkway glass, three of the five colour columns
+     * are pushed out on every run. Decoded off the bundled {@code Water_Board.json} (capture x = relative z + 1, capture z
+     * = 31 - relative x, its own turn 270): the front glass is relative z 25; the maze plane, the ore wall, the pistons and
+     * the redstone behind them are relative z 26..30 from y 59 up; the colour columns are relative z 15..19, x 12..18,
+     * y 54..57 (the wool and the pistons beside it). The room's shell, floors, stairs, walkway and lever plinths are
+     * compared as for any room, and they are what names it.
+     *
+     * <p>Relative, not capture, coordinates on purpose: his Mod Only Test instance holds its own capture of the room,
+     * turned a quarter from the bundled one, and a usable disk capture wins ({@code RoomLibrary}). Each loaded capture's
+     * boxes are worked out from its own turn ({@link #volatileBoxes}).
+     */
+    private static final Map<String, int[][]> VOLATILE = Map.of(
+            "Water Board", new int[][]{
+                    {-1, 59, 26, 31, 100, 31},
+                    {12, 54, 15, 18, 57, 19}});
+
+    /** {@link #VOLATILE} turned into each loaded capture's own coordinates, by capture (a library reload replaces them). */
+    private static final Map<RoomLibrary.Room, int[][]> VOLATILE_CAPTURE = new java.util.IdentityHashMap<>();
+    /** Every block id (not air, not {@link #changesDuringARun}) a capture has inside its {@link #VOLATILE} boxes. */
+    private static final Map<RoomLibrary.Room, java.util.BitSet> VOLATILE_PALETTE = new java.util.IdentityHashMap<>();
+    /** What {@link #expectedAt} returns inside a {@link #VOLATILE} box. */
+    private static final int VOLATILE_EXPECTED = -2;
+
+    /**
+     * The blocks {@code room}'s moving parts are made of, from its capture: a seen block inside a {@link #VOLATILE} box
+     * that is one of these counts as a match (the board's layout and gates move, its blocks do not - a look down a
+     * corridor at Water Board meets the board and little else, and with the board left out entirely a 10-block-back
+     * glance gathered 22 comparable blocks, under {@link #MIN_MATCHES}); any other block there says nothing. Never a
+     * mismatch, so another layout can never rule the room out. Null when the room has no boxes.
+     */
+    static java.util.BitSet volatilePalette(RoomLibrary.Room room) {
+        int[][] boxes = volatileBoxes(room);
+        if (boxes == null) {
+            return null;
+        }
+        return VOLATILE_PALETTE.computeIfAbsent(room, r -> {
+            int[] norm = NORM_CACHE.computeIfAbsent(r.name, n -> normalise(r));
+            java.util.BitSet out = new java.util.BitSet();
+            for (int[] b : boxes) {
+                for (int y = b[1]; y <= b[4]; y++) {
+                    for (int z = b[2]; z <= b[5]; z++) {
+                        for (int x = b[0]; x <= b[3]; x++) {
+                            short idx = r.at(x, y, z);
+                            if (idx >= 0 && !"minecraft:air".equals(BLOCK_NAMES.get(norm[idx])) && !ignored(norm[idx])) {
+                                out.set(norm[idx]);
+                            }
+                        }
+                    }
+                }
+            }
+            return out;
+        });
+    }
+
+    /**
+     * {@code room}'s {@link #VOLATILE} boxes in its capture's coordinates, or null when it has none. Pasted at rotation 0
+     * the capture's block (cx, cz) stands at (ORIGIN - margin + cx, ORIGIN - margin + cz) of tile (0, 0), and the room's
+     * relative frame there is the one {@code RoomCaptureRotation} reads off the capture (the sim places every secret and
+     * puzzle part through the same pair); each box's corners go through {@code RoomDatabase.toRealCoord} into it. Needs
+     * the room database (the capture's turn is voted on with its secrets): callers skip the room until it is ready.
+     */
+    static int[][] volatileBoxes(RoomLibrary.Room room) {
+        int[][] rel = VOLATILE.get(room.name);
+        if (rel == null) {
+            return null;
+        }
+        return VOLATILE_CAPTURE.computeIfAbsent(room, r -> {
+            int turn = com.killer560.hub.roomsim.RoomCaptureRotation.of(r);
+            int[] clay = com.killer560.hub.roomsim.SimSecrets.clayCorner(r, 0, 0, 0, turn);
+            int x0 = ORIGIN - r.margin;
+            int z0 = ORIGIN - r.margin;
+            int[][] out = new int[rel.length][];
+            for (int i = 0; i < rel.length; i++) {
+                int[] b = rel[i];
+                BlockPos a = RoomDatabase.toRealCoord(relPos(b[0], b[1], b[2]), clay[0], clay[1], turn);
+                BlockPos c = RoomDatabase.toRealCoord(relPos(b[3], b[4], b[5]), clay[0], clay[1], turn);
+                out[i] = new int[]{Math.min(a.getX(), c.getX()) - x0, b[1], Math.min(a.getZ(), c.getZ()) - z0,
+                        Math.max(a.getX(), c.getX()) - x0, b[4], Math.max(a.getZ(), c.getZ()) - z0};
+            }
+            LOGGER.info("[Predict] {}: capture turned {}, volatile capture box(es) {}", r.name, turn,
+                    java.util.Arrays.deepToString(out));
+            return out;
+        });
+    }
+
+    private static RoomEntry.Pos relPos(int x, int y, int z) {
+        RoomEntry.Pos p = new RoomEntry.Pos();
+        p.x = x;
+        p.y = y;
+        p.z = z;
+        return p;
+    }
+
+    /** Whether capture position x, cy, z lies in one of {@code boxes} (a room's {@link #VOLATILE} entry, or null). */
+    static boolean volatileAt(int[][] boxes, int x, int cy, int z) {
+        if (boxes == null) {
+            return false;
+        }
+        for (int[] b : boxes) {
+            if (x >= b[0] && x <= b[3] && cy >= b[1] && cy <= b[4] && z >= b[2] && z <= b[5]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Capture x of the block {@code lx, lz} from candidate {@code c}'s paste corner, turned with it. */
+    private static int captureX(Candidate c, int lx, int lz) {
+        return switch (c.rot) {
+            case 90 -> lz;
+            case 180 -> c.room.sizeX - 1 - lx;
+            case 270 -> c.room.sizeX - 1 - lz;
+            default -> lx;
+        };
+    }
+
+    /** Capture z of the block {@code lx, lz} from candidate {@code c}'s paste corner, turned with it. */
+    private static int captureZ(Candidate c, int lx, int lz) {
+        return switch (c.rot) {
+            case 90 -> c.room.sizeZ - 1 - lx;
+            case 180 -> c.room.sizeZ - 1 - lz;
+            case 270 -> lx;
+            default -> lz;
+        };
+    }
+
     /** The block id candidate {@code c} has at world x/z and CAPTURE y, or -1 where its capture has nothing. */
     private static int expectedAt(Candidate c, int wx, int cy, int wz) {
         RoomLibrary.Room r = c.room;
-        int lx = wx - c.worldX0;
-        int lz = wz - c.worldZ0;
-        int x;
-        int z;
-        switch (c.rot) {
-            case 90 -> {
-                x = lz;
-                z = r.sizeZ - 1 - lx;
-            }
-            case 180 -> {
-                x = r.sizeX - 1 - lx;
-                z = r.sizeZ - 1 - lz;
-            }
-            case 270 -> {
-                x = r.sizeX - 1 - lz;
-                z = lx;
-            }
-            default -> {
-                x = lx;
-                z = lz;
-            }
+        int x = captureX(c, wx - c.worldX0, wz - c.worldZ0);
+        int z = captureZ(c, wx - c.worldX0, wz - c.worldZ0);
+        if (volatileAt(c.volatileBoxes, x, cy, z)) {
+            return VOLATILE_EXPECTED; // differs between runs of this room: judged by its palette alone (evaluate)
         }
         short idx = r.at(x, cy, z);
         return idx < 0 ? -1 : c.norm[idx];
@@ -813,6 +951,35 @@ public final class RoomPredictor {
             if (!c.dead) {
                 out.add(c.key() + " " + c.matches + "/" + c.mismatches);
             }
+        }
+        return out;
+    }
+
+    /**
+     * Test hook: every seen block placement {@code key} ("name@rotation@ax,az", as {@link #standing} prints it, dead or not)
+     * disagrees with, "x,y,z seen=<id> expected=<id>", up to {@code max}. Empty when the placement was never built.
+     */
+    public static List<String> disagreements(String key, int max) {
+        List<String> out = new ArrayList<>();
+        Candidate c = ALL.get(key);
+        if (c == null) {
+            return out;
+        }
+        int off = DungeonLayout.simYOffset();
+        for (int i = 0; i < obsCount && out.size() < max; i++) {
+            if ((c.tiles & (1L << obsTile[i])) == 0 || ignored(obsBlock[i])) {
+                continue;
+            }
+            long packed = obsPos[i];
+            int expected = expectedAt(c, BlockPos.getX(packed), BlockPos.getY(packed) - off, BlockPos.getZ(packed));
+            if (expected < 0 || ignored(expected) || expected == obsBlock[i]) {
+                continue;
+            }
+            int lx = BlockPos.getX(packed) - c.worldX0;
+            int lz = BlockPos.getZ(packed) - c.worldZ0;
+            out.add(BlockPos.getX(packed) + "," + BlockPos.getY(packed) + "," + BlockPos.getZ(packed) + " (capture "
+                    + captureX(c, lx, lz) + "," + (BlockPos.getY(packed) - off) + "," + captureZ(c, lx, lz) + ") seen="
+                    + BLOCK_NAMES.get(obsBlock[i]) + " expected=" + BLOCK_NAMES.get(expected));
         }
         return out;
     }

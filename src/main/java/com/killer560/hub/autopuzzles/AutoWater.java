@@ -191,13 +191,19 @@ final class AutoWater {
             waitFor("not clicking " + AutoPuzzleUtil.fmt(next.pos()) + " - " + blocker);
             return;
         }
-        if (!aimedAt(player, next.pos())) {
-            // Normally done ahead of time by prepare(); only a lever due the very tick he lands gets here. Turning
+        if (!aimedAt(player, next.pos())
+                || !AutoPuzzleUtil.heardLookMeets(player, AutoPuzzleUtil.settledEye(player), next.pos())) {
+            // Normally done ahead of time by prepare(); only a lever due by the tick he lands gets here. Turning
             // here ourselves rather than leaving it to gateWorldClick's TurnFirst matters: that one sees this auto's own
             // free camera as "somebody else turning him" and waits up to 10 ticks for it - the 11 ticks late of
             // killer560's 2026-10-15 run.
-            aimBody(player, next.pos());
-            waitFor("turning to " + AutoPuzzleUtil.fmt(next.pos()) + " (the click goes next tick)");
+            // The click waits for the turn to be HEARD, not just made: prepare() turns the body earlier in this same
+            // tick when the lever is already due as he lands, and the click used to go straight after it, before the
+            // movement packet that reports the turn. His Hypixel run 2026-10-18 19:25:17 and 19:25:19 clicked the levers
+            // at relative (10, 61, 15) and (10, 61, 20) that way, with the server still holding the warp's look (0.00 and
+            // -180.00 yaw, 14.57 down, three blocks off the lever), and the reward chest stayed locked.
+            aimBody(player, next.pos()); // a no-op when the body already looks at it
+            waitFor("turning to " + AutoPuzzleUtil.fmt(next.pos()) + " (the click goes next tick, once the turn is heard)");
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, next.pos())) {

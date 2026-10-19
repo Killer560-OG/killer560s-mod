@@ -458,3 +458,13 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - Custom Party Finder: "the auto accept didnt work" (2026-10-18) was the LEADER's side - his Untested Cheat log shows a request
   sitting 47 s with nothing sent, because only a click on Accept answered one; the joiner's invite accept was already there.
   Read the leader's log before blaming the joiner's chat pattern (Hypixel's framed invite line matched INVITE as written).
+- **Predictive Rooms never named Water Board on Hypixel: "every placement ruled out - 330 block(s) seen, 0 of 412"** (his
+  Mod Only Test log, 2026-10-18 19:25:02). Glass has no visual shape, so a look into the room mostly meets the board behind
+  the front glass, and Hypixel's board differs every run (four layouts, 27 piston gates the levers move); every Water Board
+  capture there is (bundled, Mod Only Test's - the same rotated 90 degrees - and Map Logger's) is the same frame of board 0.
+  `RoomPredictor.VOLATILE` leaves the board planes and the colour columns out of the comparison. Write such boxes in
+  ROOM-RELATIVE coordinates and turn them through each capture's own `RoomCaptureRotation`: the first version held capture
+  boxes decoded off the bundled file, and his disk capture (which wins) is turned a quarter, so they covered the wrong
+  wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
+  mirrors the board planes first (main: 0 placements standing, as on Hypixel; `RoomPredictor.disagreements` lists what a
+  placement disagreed on).

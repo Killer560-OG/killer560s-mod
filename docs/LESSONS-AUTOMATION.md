@@ -666,3 +666,15 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   ran out of on-foot pairs and handed the room to Shoot mode, whose first step is an etherwarp onto the centre platform;
   from deep in the room there was no line onto it, AutoReposition refused once, and the auto sat there until he moved
   (his Mod Only Test log, reproduced by 1018-beams-melee-after). Melee now reaches each lantern itself (spot, AOTV, shot).
+- **"Aimed" must mean the look the server HEARD, not the body's look this tick** (Auto Water, killer560 2026-10-18: "failed
+  to flick a lever"). His Hypixel log 19:25:17 / 19:25:19: two levers due as he landed were clicked on the tick after the
+  landing with the server still holding the warp's look (0.00 and -180.00 yaw, 14.57 down, three blocks off the lever);
+  `prepare()` had turned the body earlier in that same tick, and `aimedAt`/`TurnFirst.readyBlock` read the body. The reward
+  chest stayed locked. `AutoPuzzleUtil.gateWorldClick` (block and entity) and Auto Water's own check now also require
+  `RightClick.heardLook` to meet the target; the click goes the next tick. Both clicks were late (22 and 43 ticks) because
+  the warps before them, sent a tick after a lever click, got no landing and `AutoReposition` waited its 40-tick timeout
+  before a fresh start; why Hypixel dropped them is NOT found (the server ray met nothing, the same look landed 2 ticks
+  after the resend). A use with no landing is now sent again after twice the measured landing time plus 2 ticks (or
+  `RightClick.eatenRetryTicks`, whichever is longer) plus any server stall, once per warp, while he has not moved. Testkit
+  1018-waterboard-lever (a server that refuses a lever click the heard look misses and drops that warp) and
+  1018-waterboard-grim (the real auto on a pasted board, GrimAC).

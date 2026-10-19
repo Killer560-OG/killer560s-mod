@@ -850,8 +850,52 @@ public final class AutoPuzzleUtil {
             return true; // nothing to aim at; the caller's own null handling decides
         }
         BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, client.player.getEyePosition());
-        return aim == null || TURN.readyBlock(client.player, client.level, pos, aim.getLocation(),
-                client.player.getEyePosition().distanceTo(aim.getLocation()) + 1.0);
+        if (aim == null) {
+            return true;
+        }
+        if (!TURN.readyBlock(client.player, client.level, pos, aim.getLocation(),
+                client.player.getEyePosition().distanceTo(aim.getLocation()) + 1.0)) {
+            return false;
+        }
+        // The body meets it, but the server judges the click by the look it last HEARD. An auto that turned the body
+        // earlier in this very tick (Auto Water's prepare() on the tick after a landing) would otherwise click before the
+        // movement packet that reports the turn: killer560's Hypixel run 2026-10-18 19:25:17 and :19 clicked two wall levers
+        // with the heard look 0.00/14.57 and -180.00/14.57, three blocks off the lever, and the puzzle failed. Held back a
+        // tick; the turn is heard in this tick's movement packet and the click goes the next.
+        return heardLookMeets(client.player, client.player.getEyePosition(), pos);
+    }
+
+    /**
+     * Whether the look the server last heard in a movement packet ({@code util/RightClick.heardLook}, the body's look
+     * when nothing has been sent yet) meets {@code pos}'s shape from {@code eye}, within the distance to its surface and a
+     * block. A block click is judged against that look (GrimAC RotationPlace; Hypixel's own check), not the body's look
+     * this tick, which may have been turned since and not been reported yet.
+     */
+    public static boolean heardLookMeets(LocalPlayer player, Vec3 eye, BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || pos == null || player == null) {
+            return true;
+        }
+        BlockHitResult aim = com.killer560.hub.util.BlockHits.surface(client.level, pos, eye);
+        if (aim == null) {
+            return true;
+        }
+        Vec3 end = eye.add(heardLook(player).scale(eye.distanceTo(aim.getLocation()) + 1.0));
+        VoxelShape shape = client.level.getBlockState(pos).getShape(client.level, pos);
+        return shape.isEmpty() ? new net.minecraft.world.phys.AABB(pos).clip(eye, end).isPresent()
+                : shape.clip(eye, end, pos) != null;
+    }
+
+    /** The heard look as a unit vector ({@link #heardLookMeets}). */
+    static Vec3 heardLook(LocalPlayer player) {
+        float[] heard = com.killer560.hub.util.RightClick.heardLook();
+        if (heard == null) {
+            return com.killer560.hub.util.TurnFirst.look(player);
+        }
+        float yaw = heard[0] * Mth.DEG_TO_RAD;
+        float pitch = heard[1] * Mth.DEG_TO_RAD;
+        float cp = Mth.cos(pitch);
+        return new Vec3(-Mth.sin(yaw) * cp, -Mth.sin(pitch), Mth.cos(yaw) * cp);
     }
 
     /**
@@ -952,9 +996,14 @@ public final class AutoPuzzleUtil {
             return false;
         }
         Vec3 eye = client.player.getEyePosition();
-        Vec3 aim = entity.getBoundingBox().clip(eye, entity.getBoundingBox().getCenter())
-                .orElse(entity.getBoundingBox().getCenter());
-        return TURN.readyBox(client.player, entity.getBoundingBox(), aim, eye.distanceTo(aim) + 1.0);
+        net.minecraft.world.phys.AABB box = entity.getBoundingBox();
+        Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
+        if (!TURN.readyBox(client.player, box, aim, eye.distanceTo(aim) + 1.0)) {
+            return false;
+        }
+        // As for a block: an interact is judged by the heard look, and a body turned this tick is not heard yet.
+        return box.contains(eye) || box.clip(eye, eye.add(heardLook(client.player).scale(eye.distanceTo(aim) + 1.0)))
+                .isPresent();
     }
 
     /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
