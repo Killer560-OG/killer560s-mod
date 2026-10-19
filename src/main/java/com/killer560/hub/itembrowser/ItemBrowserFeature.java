@@ -280,12 +280,17 @@ public final class ItemBrowserFeature {
 
     /** "Blaze Minion VII" -> "Blaze Minion". */
     public static String minionBaseName(SkyblockItemEntry entry) {
-        return entry.name().replaceFirst("\\s+[IVXLC]{1,8}$", "");
+        return MINION_TIER_SUFFIX.matcher(entry.name()).replaceFirst("");
     }
+
+    // Compiled once: both are called per tier cell per frame while the minion tier list is open (fps pass 2026-10-19;
+    // String.replaceFirst and an inline Pattern.compile each compiled the pattern again on every call).
+    private static final java.util.regex.Pattern MINION_TIER_SUFFIX = java.util.regex.Pattern.compile("\\s+[IVXLC]{1,8}$");
+    private static final java.util.regex.Pattern MINION_TIER_LABEL = java.util.regex.Pattern.compile("\\s([IVXLC]{1,8})$");
 
     /** "Blaze Minion VII" -> "VII"; falls back to the id's tier number. */
     public static String minionTierLabel(SkyblockItemEntry entry) {
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\s([IVXLC]{1,8})$").matcher(entry.name());
+        java.util.regex.Matcher m = MINION_TIER_LABEL.matcher(entry.name());
         return m.find() ? m.group(1) : String.valueOf(minionTier(entry));
     }
 
