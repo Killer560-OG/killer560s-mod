@@ -90,23 +90,12 @@ public class MaskInvincibilityTab extends BaseTab {
                 }).bounds(contentX + gateW + gateGap, y, gateW, 18).build());
         y += 22;
 
-        // killer560 9.1: "The announce to party text does not fit its box" - it was squeezed into the same
-        // 108px third column as the short "Phoenix"-style labels while sitting next to "Announce In Chat" in
-        // a 208px box, even though "Announce To Party" is the longer of the two labels. Even halves of the
-        // tab's real content width fit both.
-        int announceGap = 8;
-        int announceW = (contentWidth - announceGap) / 2;
-        widgets.add(SettingsButtonWidget.builder(onOff("Announce In Chat", cfg.isAnnounceInChat()), btn -> {
-                    cfg.setAnnounceInChat(!cfg.isAnnounceInChat());
-                    cfg.save();
-                    btn.setMessage(onOff("Announce In Chat", cfg.isAnnounceInChat()));
-                }).bounds(contentX, y, announceW, 18).build());
-
+        // Announce To Party is the only announce (killer560, 2026-10-18: "remove the announce in chat option"), full width.
         widgets.add(SettingsButtonWidget.builder(onOff("Announce To Party", cfg.isAnnounceToParty()), btn -> {
                     cfg.setAnnounceToParty(!cfg.isAnnounceToParty());
                     cfg.save();
                     btn.setMessage(onOff("Announce To Party", cfg.isAnnounceToParty()));
-                }).bounds(contentX + announceW + announceGap, y, announceW, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
         return widgets;

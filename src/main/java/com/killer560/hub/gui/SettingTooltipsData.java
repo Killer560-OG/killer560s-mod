@@ -2102,7 +2102,6 @@ final class SettingTooltipsData {
         d.put("mask invincibility/hide mask names", "Shows only the icon and the time, dropping the mask name label.");
         d.put("mask invincibility/only in dungeons", "Hides the HUD outside a dungeon run.");
         d.put("mask invincibility/boss only", "Hides the HUD until the boss fight starts.");
-        d.put("mask invincibility/announce in chat", "Prints a line only you can see when a mask or the Phoenix pet pops.");
         d.put("mask invincibility/announce to party", "Sends a /pc message to your party when a mask or Phoenix pops.");
         d.put("auto mask/auto mask", "Cheat build: Auto Mask as a whole - off, nothing here swaps masks or Phoenix for you. Needs Mask Invincibility on.");
         d.put("auto simon says/auto simon says", "Cheat build: Auto Simon Says as a whole - off, Trigger Bot, Auto Start, Auto Solve and Auto Restart all stay idle, whatever their own switches say.");
