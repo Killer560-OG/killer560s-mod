@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Custom Party Finder menu ({@code /cpf}): Dungeons / Diana / Fishing tabs of everyone's listings with a Join
+ * The Custom Party Finder menu ({@code /pf}): Dungeons / Diana / Fishing tabs of everyone's listings with a Join
  * button each, the player's own join requests waiting on his listing (Accept / Decline), and a Create page whose activity,
  * party size, requirements and note start from what he last used on that tab.
  */
@@ -272,7 +272,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.header(graphics, panelX, panelY, panelW, "Custom Party Finder");
         LfgListing mine = LfgFeature.myListing();
         String right = mine != null ? "Listed: " + mine.category().label + " " + mine.activity() + " " + mine.size() + "/" + mine.max()
-                : LfgFeature.isListed() ? "Listing..." : "/cpf";
+                : LfgFeature.isListed() ? "Listing..." : "/pf";
         ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
 
         ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);

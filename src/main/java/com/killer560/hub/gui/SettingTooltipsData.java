@@ -712,7 +712,6 @@ final class SettingTooltipsData {
         d.put("skip point", "Key that moves the active route on to the next point.");
         d.put("previous point", "Key that moves the active route back one point.");
         d.put("custom mage beam", "In dungeons, redraws every Mage beam as one clean colored line.");
-        d.put("hide particles", "Hides the vanilla Mage beam's firework particles in dungeons.");
         d.put("beam color", "Color of the custom Mage beam line.");
         d.put("auto dialogue", "Cheat build: clicks the first option in NPC dialogue, skipping anything that costs coins.");
         d.put("npc filter", "Cheat build: NPC names Auto Dialogue may answer, comma-separated; blank allows any.");
@@ -2415,8 +2414,8 @@ final class SettingTooltipsData {
 
     /** Custom Party Finder (killer560's to-do item 1, 2026-10-18). Scoped to the tab's name. */
     private static void customPartyFinder(Map<String, String> d) {
-        d.put("custom party finder", "Our own party finder (/cpf) for Dungeons, Diana and Fishing, shared by every mod user through the mod's relay.");
-        d.put("custom party finder/open party finder", "Opens the Custom Party Finder menu (also /cpf).");
+        d.put("custom party finder", "Our own party finder (/pf or /partyfinder) for Dungeons, Diana and Fishing, shared by every mod user through the mod's relay.");
+        d.put("custom party finder/open party finder", "Opens the Custom Party Finder menu (also /pf or /partyfinder).");
         d.put("custom party finder/dual-list hypixel queues", "When you queue a dungeon in Hypixel's Party Finder, the same party is listed here too.");
         d.put("custom party finder/auto accept invite", "After a leader accepts your join request, their Hypixel party invite is accepted for you (once, within a minute).");
         d.put("custom party finder/check requirements", "Checks a listing's Cata Level and Secrets against your stats before asking to join, and shows a joiner's against yours. Other requirements are shown, not checked.");

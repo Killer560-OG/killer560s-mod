@@ -32,7 +32,6 @@ public final class DungeonExtrasConfig {
 
     // Custom Mage Beam
     private boolean mageBeamEnabled = false;
-    private boolean mageBeamHideParticles = true;
     private boolean mageBeamFade = false;
     private int mageBeamColor = DEFAULT_BEAM_COLOR;
     private float mageBeamWidth = 2.0f;
@@ -201,7 +200,6 @@ public final class DungeonExtrasConfig {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.mageBeamEnabled = bool(o, "mageBeamEnabled", cfg.mageBeamEnabled);
-                cfg.mageBeamHideParticles = bool(o, "mageBeamHideParticles", cfg.mageBeamHideParticles);
                 cfg.mageBeamFade = bool(o, "mageBeamFade", cfg.mageBeamFade);
                 cfg.mageBeamColor = o.has("mageBeamColor") ? o.get("mageBeamColor").getAsInt() : cfg.mageBeamColor;
                 cfg.mageBeamWidth = clamp(o.has("mageBeamWidth") ? o.get("mageBeamWidth").getAsFloat() : cfg.mageBeamWidth, MIN_BEAM_WIDTH, MAX_BEAM_WIDTH);
@@ -271,7 +269,6 @@ public final class DungeonExtrasConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject o = new JsonObject();
             o.addProperty("mageBeamEnabled", mageBeamEnabled);
-            o.addProperty("mageBeamHideParticles", mageBeamHideParticles);
             o.addProperty("mageBeamFade", mageBeamFade);
             o.addProperty("mageBeamColor", mageBeamColor);
             o.addProperty("mageBeamWidth", mageBeamWidth);
@@ -333,8 +330,6 @@ public final class DungeonExtrasConfig {
     // ---- Custom Mage Beam (both builds) ----
     public boolean isMageBeamEnabled() { return mageBeamEnabled && com.killer560.hub.util.SkyblockGate.allows(); }
     public void setMageBeamEnabled(boolean v) { mageBeamEnabled = v; com.killer560.hub.util.FeatureBits.changed(); }
-    public boolean isMageBeamHideParticles() { return mageBeamHideParticles; }
-    public void setMageBeamHideParticles(boolean v) { mageBeamHideParticles = v; }
     public boolean isMageBeamFade() { return mageBeamFade; }
     public void setMageBeamFade(boolean v) { mageBeamFade = v; }
     public int getMageBeamColor() { return mageBeamColor; }
