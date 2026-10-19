@@ -1,12 +1,26 @@
 package com.killer560.hub.mobskin;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+import com.killer560.hub.petwheel.PetEntry;
+import com.killer560.hub.petwheel.PetWheelConfig;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
+import com.mojang.authlib.properties.PropertyMap;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ResolvableProfile;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Which mobs "Play as Mob" offers (Player Cosmetics; killer560's to-do item, 2026-10-18: "Make an option to change your
@@ -42,12 +56,20 @@ public final class MobSkins {
         if (id == null || id.isEmpty()) {
             return null;
         }
+        if (isPet(id)) {
+            return petFor(id) == null ? null : id;
+        }
         String lower = id.toLowerCase(Locale.ROOT);
         return lower.equals(id) && IDS.contains(id) ? id : null;
     }
 
     /** The entity type for an allowed id in THIS Minecraft version, or null (not allowed, or this version lacks it). */
     public static EntityType<?> type(String id) {
+        if (isPet(id)) {
+            // A pet is drawn as a head on an invisible armor stand (see petHead); the stand is always known.
+            return petFor(id) == null ? null
+                    : BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.withDefaultNamespace("armor_stand")).orElse(null);
+        }
         // Asked per swapped player per frame by the renderer (fps pass 2026-10-19). The built-in entity registry is
         // frozen before any of this runs, so the answer for an id never changes: remembered per id (bounded).
         if (id == null) {
@@ -96,10 +118,61 @@ public final class MobSkins {
 
     /** The mob's in-game name ("Zombified Piglin"), or "Player" for none. */
     public static String displayName(String id) {
+        if (isPet(id)) {
+            PetEntry pet = petFor(id);
+            return pet == null ? "Player" : "Pet: " + pet.name();
+        }
         EntityType<?> type = type(id);
         if (type == null) {
             return "Player";
         }
         return type.getDescription().getString();
+    }
+
+    /** Prefix of a pet's id: {@code "pet:" + the pet's uuid}. Pets come from the Pet Wheel's seen pets. */
+    public static final String PET_PREFIX = "pet:";
+
+    public static boolean isPet(String id) {
+        return id != null && id.startsWith(PET_PREFIX);
+    }
+
+    /** The seen pet behind a {@code pet:} id, or null when there is no such pet or it has no captured head texture. */
+    public static PetEntry petFor(String id) {
+        if (!isPet(id)) {
+            return null;
+        }
+        String uuid = id.substring(PET_PREFIX.length());
+        for (PetEntry pet : PetWheelConfig.getInstance().getKnownPets()) {
+            if (uuid.equals(pet.uuid()) && pet.skinValue() != null) {
+                return pet;
+            }
+        }
+        return null;
+    }
+
+    /** Every seen pet with a head texture, as {@code pet:} ids, for the picker. */
+    public static List<String> petIds() {
+        List<String> out = new ArrayList<>();
+        for (PetEntry pet : PetWheelConfig.getInstance().getKnownPets()) {
+            if (pet.skinValue() != null) {
+                out.add(PET_PREFIX + pet.uuid());
+            }
+        }
+        return out;
+    }
+
+    private static final Map<String, ItemStack> PET_HEADS = new ConcurrentHashMap<>();
+
+    /** The pet's head as a player-head item carrying the pet's own texture, built once per pet. The same profile
+     *  technique the Pet Wheel uses for its icons. */
+    public static ItemStack petHead(PetEntry pet) {
+        return PET_HEADS.computeIfAbsent(pet.uuid(), uuid -> {
+            ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
+            Multimap<String, Property> backing = HashMultimap.create();
+            backing.put("textures", new Property("textures", pet.skinValue(), null));
+            GameProfile profile = new GameProfile(UUID.randomUUID(), "Pet", new PropertyMap(backing));
+            stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
+            return stack;
+        });
     }
 }

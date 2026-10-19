@@ -237,7 +237,9 @@ public final class SupportersAutoShare {
     /** Your Play as Mob choice as it is shared (Share if Supporter covers it, like your name and size), or null for your
      *  normal player. */
     public static String mobToShare() {
-        return com.killer560.hub.mobskin.MobSkins.sanitize(SupportersConfig.getInstance().getActiveOwnMob());
+        String id = com.killer560.hub.mobskin.MobSkins.sanitize(SupportersConfig.getInstance().getActiveOwnMob());
+        // Pets are never shared: the relay only knows the mob list, so a pet shows for you alone.
+        return com.killer560.hub.mobskin.MobSkins.isPet(id) ? null : id;
     }
 
     /** Pushes the current name, colours, animation, size, trail and mob from the settings (no-op unless linked and Share

@@ -72,6 +72,7 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
         all.clear();
         all.add(PLAYER);
         all.addAll(MobSkins.available());
+        all.addAll(MobSkins.petIds());
         applyFilter();
 
         search = new ThemedEditBox(this.font, panelX + 8, panelY + 24, panelW - 16, 18, Component.literal("Search"))
@@ -136,7 +137,7 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
             ScreenChrome.row(graphics, panelX + 8, ry, rowW, ROW_H, over, picked, row % 2 == 1);
             MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(label(id), rowW - 12 - 70)),
                     panelX + 12, ry + 6, over || picked ? MenuStyle.OR_HOVER : MenuStyle.TXT);
-            if (!id.isEmpty()) {
+            if (!id.isEmpty() && !MobSkins.isPet(id)) {
                 String wire = this.font.plainSubstrByWidth(id, 64);
                 int wireRight = panelX + 8 + rowW - (scrollable ? 14 : 6);
                 MenuStyle.text(graphics, wire, wireRight - this.font.width(wire), ry + 6, MenuStyle.DIM);

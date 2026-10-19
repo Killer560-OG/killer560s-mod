@@ -12,7 +12,10 @@ import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import com.killer560.hub.petwheel.PetEntry;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -144,7 +147,7 @@ public final class MobSkinRender {
         }
         StandIn s = STAND_INS.get(owner);
         if (s != null && s.type() == type && s.level() == level) {
-            return s.entity();
+            return dressPet(id, s.entity());
         }
         if (STAND_INS.size() >= MAX_STAND_INS) {
             STAND_INS.clear();
@@ -159,7 +162,18 @@ public final class MobSkinRender {
         // never meet a server's, and the stand-in is never in the level to be looked up by it.
         living.setId(nextStandInId--);
         STAND_INS.put(owner, new StandIn(type, level, living));
-        return living;
+        return dressPet(id, living);
+    }
+
+    /** A pet is an armor stand wearing the pet's head, with the stand itself invisible. Set on every use, because one
+     *  stand-in is reused per player and type, so a different pet of the same type must replace the head. */
+    private static LivingEntity dressPet(String id, LivingEntity stand) {
+        PetEntry pet = MobSkins.petFor(id);
+        if (pet != null && stand instanceof ArmorStand armor) {
+            armor.setInvisible(true);
+            armor.setItemSlot(EquipmentSlot.HEAD, MobSkins.petHead(pet));
+        }
+        return stand;
     }
 
     /** Copies onto the mob's state everything that makes it move and look like the player. */
