@@ -48,38 +48,14 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Bazaar"), btn -> BazaarFeature.openOrExplain())
-                .bounds(contentX, y, colW, 18).build());
-
-        Component keyLabel = capturingKey && !capturingVanillaKey ? Component.literal("Press any key...") : keyText(cfg);
-        widgets.add(SettingsButtonWidget.builder(keyLabel, btn -> {
-                    capturingKey = true;
-                    capturingVanillaKey = false;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(colBX, y, colW, 18).build());
-        y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal(BazaarApi.isRefreshing() ? "Refreshing..." : "Refresh Now"),
-                        btn -> BazaarApi.refreshAsync())
-                .bounds(contentX, y, colW, 18).build());
-        // One switch (2026-10-11): the Bazaar Browser toggle above also turns Hypixel's Bazaar reskin on and off.
-        Component vanillaLabel = capturingKey && capturingVanillaKey ? Component.literal("Press any key...")
-                : vanillaKeyText(cfg);
-        widgets.add(SettingsButtonWidget.builder(vanillaLabel, btn -> {
-                    capturingKey = true;
-                    capturingVanillaKey = true;
-                    btn.setMessage(Component.literal("Press any key..."));
-                }).bounds(colBX, y, colW, 18).build());
+                .bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Track My Orders", cfg.isTrackBazaarOrders()), btn -> {
                     cfg.setTrackBazaarOrders(!cfg.isTrackBazaarOrders());
                     cfg.save();
                     btn.setMessage(onOff("Track My Orders", cfg.isTrackBazaarOrders()));
-                }).bounds(contentX, y, colW, 18).build());
-
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Manage Orders"),
-                        btn -> BazaarFeature.openManageOrders())
-                .bounds(colBX, y, colW, 18).build());
+                }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
         com.killer560.hub.bazaar.BazaarConfig bz = com.killer560.hub.bazaar.BazaarConfig.getInstance();
@@ -94,12 +70,6 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Hide HUDs in Bazaar", bz.isHideHuds()));
                 }).bounds(colBX, y, colW, 18).build());
         y += 26;
-
-        int count = BazaarApi.getProducts().size();
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7Cached products: " + (count > 0 ? String.valueOf(count) : "none yet")
-                        + (BazaarApi.isRefreshing() ? " (refreshing...)" : "")),
-                Minecraft.getInstance().font));
 
         return widgets;
     }
