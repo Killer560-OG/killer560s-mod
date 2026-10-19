@@ -331,13 +331,34 @@ public final class ArmourDye {
     private static ArmourDyeEntry lookup(Map<String, ArmourDyeEntry> map, ItemStack stack) {
         String uuid = uuidOf(stack);
         if (uuid != null) {
-            ArmourDyeEntry byUuid = map.get(ArmourDyeConfig.uuidKey(uuid));
+            ArmourDyeEntry byUuid = map.get(uuidKeyOf(uuid));
             if (byUuid != null) {
                 return byUuid;
             }
         }
         String id = identityOf(stack);
         return id == null ? null : map.get(id);
+    }
+
+    // ArmourDyeConfig.uuidKey(uuid) per uuid String object (fps pass 2026-10-19). With an entry on the list, every drawn
+    // Skyblock item's model read comes through lookup(), and each built the key afresh: an upper-cased copy, a
+    // concatenation and a new String hash per read, hundreds of times a frame in a busy hub. A tag's uuid String is the
+    // same object for as long as the tag lives, so the key built from it is kept per that object (immutable entries in
+    // a small direct-mapped table: any thread can only miss, never get another uuid's key). Same key, so same lookup.
+    private record UuidKey(String uuid, String key) {
+    }
+
+    private static final UuidKey[] UUID_KEYS = new UuidKey[256];
+
+    private static String uuidKeyOf(String uuid) {
+        int slot = System.identityHashCode(uuid) & (UUID_KEYS.length - 1);
+        UuidKey known = UUID_KEYS[slot];
+        if (known != null && known.uuid == uuid) {
+            return known.key;
+        }
+        String key = ArmourDyeConfig.uuidKey(uuid);
+        UUID_KEYS[slot] = new UuidKey(uuid, key);
+        return key;
     }
 
     /** The Skyblock {@code uuid}, read without copying the tag, or null. */
