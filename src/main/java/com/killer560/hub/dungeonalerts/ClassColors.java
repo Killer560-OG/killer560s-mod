@@ -30,7 +30,8 @@ import java.util.regex.Pattern;
  * display name; "DEAD" keeps the previously known class (same as Noamm).
  * <li>Nametags: Noamm {@code features/impl/dungeon/TeammateESP.kt} "Show Teammate Name" - "§e[C§e] " + class
  * color + name, drawn see-through at entity y + bbHeight + 0.7 + distance * 0.015, scale max(distance * 0.12, 1),
- * for every teammate except yourself. (Noamm also hides the vanilla nametag via a mixin - not done here.)
+ * for every teammate except yourself. The vanilla nametag of a teammate drawn this way is hidden
+ * ({@link #replacesVanillaNametag}, DungeonAlertsNametagMixin).
  * <li>Tab list: the teammate's name inside their tab entry is recolored (DungeonAlertsTabOverlayMixin -&gt;
  * {@link #recolorTabName}). This half is this mod's own; Noamm's ClassColors only defines the colors.
  * </ul>
@@ -197,6 +198,25 @@ public final class ClassColors {
 
     private static boolean isNameChar(char c) {
         return Character.isLetterOrDigit(c) || c == '_';
+    }
+
+    /**
+     * True when this mod draws the class-colour nametag for {@code player}, so the vanilla one above the model
+     * must not be drawn too (killer560, 2026-10-18: "they still keep their old nametag"). Same conditions as
+     * {@link #onWorldRender}'s per-player skip, nothing more: with Class Colors or its Nametags setting off this is
+     * false and vanilla is untouched. Called from AvatarRenderer.shouldShowName (DungeonAlertsNametagMixin), render thread.
+     */
+    public static boolean replacesVanillaNametag(Player player) {
+        DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
+        Minecraft client = Minecraft.getInstance();
+        if (player == null || !cfg.classColorsEnabled || !cfg.classColorsNametags || CLASSES.isEmpty()
+                || client.level == null || client.player == null || !DungeonState.isInDungeon()) {
+            return false;
+        }
+        String name = player.getGameProfile().name();
+        return name != null && !name.equals(client.player.getGameProfile().name())
+                && player.getUUID().version() == 4
+                && ClassOverrides.classOf(name, CLASSES.get(name)) != null;
     }
 
     static void onWorldRender(LevelRenderContext context) {

@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.dungeonalerts.mixin",
 	"client": [
+		"DungeonAlertsNametagMixin",
 		"DungeonAlertsPacketMixin",
 		"DungeonAlertsTabOverlayMixin"
 	],
