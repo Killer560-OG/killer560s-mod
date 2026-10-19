@@ -53,6 +53,21 @@ public class AutoTerminalTab extends BaseTab {
         // (Hover Terminals) must stay reachable - hover is most useful precisely when auto-clicking is
         // OFF, so it can no longer live behind an early return on this toggle.
         if (TerminalSolverConfig.getInstance().isAutoTerminalsEnabled()) {
+            // Screen-share privacy (killer560, 2026-10-19): hide the real pointer while clicks land, and show a fake one instead.
+            widgets.add(SettingsButtonWidget.builder(onOff("Hide Mouse Cursor", TerminalSolverConfig.getInstance().isHideMouseCursor()), btn -> {
+                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                        cfg.setHideMouseCursor(!cfg.isHideMouseCursor());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+            widgets.add(SettingsButtonWidget.builder(onOff("Fake Cursor", TerminalSolverConfig.getInstance().isFakeCursor()), btn -> {
+                        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+                        cfg.setFakeCursor(!cfg.isFakeCursor());
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));
             y += 16;
@@ -322,5 +337,9 @@ public class AutoTerminalTab extends BaseTab {
     private static Component melodySkipModeText() {
         return Component.literal("Melody Skip Mode: "
                 + (TerminalSolverConfig.getInstance().getMelodySkipMode() == TerminalSolverConfig.MelodySkipMode.ALL ? "All" : "Edges"));
+    }
+
+    private static Component onOff(String label, boolean value) {
+        return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 }

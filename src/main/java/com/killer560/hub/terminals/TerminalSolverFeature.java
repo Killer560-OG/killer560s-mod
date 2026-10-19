@@ -795,6 +795,7 @@ public final class TerminalSolverFeature {
         if (!invokeSlotClicked(screen, slot, button, clickType)) {
             return false;
         }
+        FakeCursor.clickAt(slotIndex);
         if (clickType == ContainerInput.PICKUP) {
             // Same real-click carried-item flash Rubix's own manual click path already guards against
             // (see #handleCustomGuiClick's matching comment) - a real PICKUP predicts the pickup locally

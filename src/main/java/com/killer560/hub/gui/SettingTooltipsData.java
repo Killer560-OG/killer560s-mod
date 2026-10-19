@@ -2484,6 +2484,8 @@ final class SettingTooltipsData {
         d.put("menu speed", "How fast the flipper clicks through Bazaar and Instant Buy menus, 1 (cautious) to 10 (fastest).");
         d.put("sell speed", "How fast the flipper shift-clicks items into the /trades NPC, 1 to 10. Same scale as Menu Speed, but much faster at every step.");
         d.put("bazaar flipper", "Buys items from the Bazaar and sells them to the /trades NPC.");
+        d.put("hide mouse cursor", "While auto terminal clicks are landing, the real mouse pointer is hidden, so a screen share shows no pointer moving on its own. It comes back as soon as the clicks stop.");
+        d.put("fake cursor", "Draws a pointer that travels to each auto click and shows a short click ripple, so the clicks look like a person's.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");

@@ -176,6 +176,10 @@ public final class TerminalSolverConfig {
     // proven-safe range.
     private int autoClickMinDelayMs = 120;
     private int autoClickMaxDelayMs = 200;
+    /** Hides the real mouse pointer while auto clicks are landing (screen-share privacy, killer560 2026-10-19). */
+    private boolean hideMouseCursor = false;
+    /** Draws a fake pointer that travels to each auto click and shows a click ripple. */
+    private boolean fakeCursor = false;
     // Per killer560's explicit "add a toggle on by default" (2026-09-09) - a stray real click/keypress
     // while the bot is mid-click could otherwise fight it, same real risk ExperimentsConfig's own
     // Block Input toggle protects against (that one defaults off; this one defaults ON per killer560's
@@ -267,6 +271,8 @@ public final class TerminalSolverConfig {
             cfg.autoClickMinDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMinDelayMs", 120));
             cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
+            cfg.hideMouseCursor = ConfigJson.getBool(obj, "hideMouseCursor", false);
+            cfg.fakeCursor = ConfigJson.getBool(obj, "fakeCursor", false);
             if (cfg.autoClickMaxDelayMs < cfg.autoClickMinDelayMs) {
                 cfg.autoClickMaxDelayMs = cfg.autoClickMinDelayMs;
             }
@@ -314,6 +320,8 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoMelodyEnabled", autoMelodyEnabled);
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
+            obj.addProperty("hideMouseCursor", hideMouseCursor);
+            obj.addProperty("fakeCursor", fakeCursor);
             obj.addProperty("blockInputWhileAutoClicking", blockInputWhileAutoClicking);
             obj.addProperty("announceCompletionTime", announceCompletionTime);
             obj.addProperty("melodyLookaheadClicks", melodyLookaheadClicks);
@@ -540,6 +548,22 @@ public final class TerminalSolverConfig {
             return autoClickMinDelayMs;
         }
         return autoClickMinDelayMs + RANDOM.nextInt(autoClickMaxDelayMs - autoClickMinDelayMs + 1);
+    }
+
+    public boolean isHideMouseCursor() {
+        return hideMouseCursor;
+    }
+
+    public void setHideMouseCursor(boolean hideMouseCursor) {
+        this.hideMouseCursor = hideMouseCursor;
+    }
+
+    public boolean isFakeCursor() {
+        return fakeCursor;
+    }
+
+    public void setFakeCursor(boolean fakeCursor) {
+        this.fakeCursor = fakeCursor;
     }
 
     public boolean isBlockInputWhileAutoClicking() {
