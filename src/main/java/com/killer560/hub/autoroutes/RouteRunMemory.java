@@ -212,8 +212,8 @@ public final class RouteRunMemory {
 
     /**
      * The secrets of this run got at or after {@code sinceTick} within {@link #NEAR_NODE} of {@code nodePos}, used by
-     * no met await and not among {@code exclude}: what the node before this one picked up on its way in, just before
-     * this node's window opened ({@link AwaitEvents#CARRY_TICKS}).
+     * no met await and not among {@code exclude}: what the node before this one picked up since its window opened
+     * ({@link AwaitEvents#windowStart}), whether on its way in or while it acted.
      */
     static List<Got> unclaimedNearSince(Vec3 nodePos, int sinceTick, Set<String> exclude) {
         check();
