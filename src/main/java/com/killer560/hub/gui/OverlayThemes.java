@@ -31,6 +31,8 @@ public final class OverlayThemes {
     public static final String LEAP_MENU = "leap_menu";
     public static final String ITEM_BROWSER = "item_browser";
     public static final String TERMINAL_SOLVER = "terminal_solver";
+    /** The Custom Scoreboard's board (background, title band and solid border; its text keeps its own colours). */
+    public static final String CUSTOM_SCOREBOARD = "custom_scoreboard";
     /** The Croesus start button (its id is the Croesus section's: {@link ScreenThemes#section}). */
     public static final String START_BUTTONS = "start_buttons";
     /** The Experiments start button (the Experiments section's, {@link ScreenThemes#section}). */
@@ -49,6 +51,7 @@ public final class OverlayThemes {
         NAMES.put(LEAP_MENU, "Leap Menu");
         NAMES.put(ITEM_BROWSER, "Item Browser");
         NAMES.put(TERMINAL_SOLVER, "Terminal Solver panels");
+        NAMES.put(CUSTOM_SCOREBOARD, "Custom Scoreboard");
     }
 
     /** Every overlay with a Menu Theme setting. */
