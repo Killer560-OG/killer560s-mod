@@ -46,14 +46,37 @@ public final class ClickTranslateFeature {
     // Style can only carry one ClickEvent at a time, so the wrap gate now fires for EITHER feature (Copy
     // still works with Translate off) and #tryHandleClick below decides which one a given click actually
     // means.
+    /**
+     * A line a player wrote: an optional channel prefix ("Party > ", "Guild > ", "From ", "To "), optional rank tags, a name
+     * ({@code [A-Za-z0-9_]{1,16}}), then ": " and the message. Server lines have none of that - "Killer560 picked up an Energy
+     * Crystal!" has no colon, and "[BOSS] Maxor: ..." or "[NPC] Mort: ..." carry a server tag - so they are never wrapped
+     * (killer560, 2026-10-18: a click on a server message must not translate it).
+     */
+    static final java.util.regex.Pattern PLAYER_LINE = java.util.regex.Pattern.compile(
+            "^(?:(?:Party|Guild|Co-op|Officer) > |From |To )?((?:\\[[^\\]]{1,24}\\] )*)[A-Za-z0-9_]{1,16}(?: [^\\s:]{1,3})?: \\S.*$");
+    private static final java.util.Set<String> SERVER_TAGS = java.util.Set.of("[BOSS]", "[NPC]", "[SKYBLOCK]");
+
+    static boolean isPlayerLine(String plain) {
+        java.util.regex.Matcher m = PLAYER_LINE.matcher(plain);
+        if (!m.matches()) {
+            return false;
+        }
+        for (String tag : m.group(1).trim().split(" ")) {
+            if (SERVER_TAGS.contains(tag)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static Component wrap(Component message) {
         // Translate only since 2026-10-08: Copy Chat no longer rides on this click event (it finds the clicked line
         // itself, copychat/CopyChatFeature), so with Translate off a plain click on chat is vanilla's again.
         if (!ClickTranslateConfig.getInstance().isEnabled()) {
             return message;
         }
-        String plain = message.getString();
-        if (plain.isBlank()) {
+        String plain = ChatFormatting.stripFormatting(message.getString());
+        if (plain == null || plain.isBlank() || !isPlayerLine(plain)) {
             return message;
         }
         ClickEvent clickEvent = new ClickEvent.Custom(TRANSLATE_ID, Optional.of(StringTag.valueOf(plain)));
