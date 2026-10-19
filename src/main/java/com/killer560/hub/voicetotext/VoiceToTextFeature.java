@@ -71,6 +71,10 @@ public final class VoiceToTextFeature {
      *  Without it, closing chat with a key that is still down (Escape, or the key the closed screen was opened with) read as a
      *  fresh press the moment the screen went away (killer560, 2026-10-18). */
     private static boolean ignoreUntilReleased = false;
+    /** Push to Talk is blocked for a second after a menu or chat closes (killer560, 2026-10-18). */
+    private static final long CLOSE_BLOCK_MS = 1000L;
+    private static long blockedUntilMs = 0L;
+    private static boolean menuWasOpen = false;
     /** Open Mic only: whether this "enabled" session has already been armed - see {@link #tick()}. Reset
      *  whenever the feature/window drops out so turning it back on gets exactly one fresh attempt, same as
      *  the disclosed native-library risk above says to keep any failure a single caught error, not a loop. */
@@ -125,6 +129,7 @@ public final class VoiceToTextFeature {
         // A menu or chat open: voice to text stays off (killer560, 2026-10-18). An open mic that was listening closes its mic.
         boolean menuOpen = McCompat.screen(client) != null;
         if (menuOpen) {
+            menuWasOpen = true;
             openMicArmed = false;
             if (state == State.RECORDING && openMicSession) {
                 stopOpenMic();
@@ -158,14 +163,19 @@ public final class VoiceToTextFeature {
         // with no screen open; opening one mid-recording reads as a release, so the mic closes and what
         // was already captured is transcribed, exactly as letting go of the key would.
         boolean held = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPushToTalkKeyCode());
-        if (menuOpen) {
+        if (!menuOpen && menuWasOpen) {
+            menuWasOpen = false;
+            blockedUntilMs = System.currentTimeMillis() + CLOSE_BLOCK_MS;
+        }
+        boolean blocked = menuOpen || System.currentTimeMillis() < blockedUntilMs;
+        if (blocked) {
             if (held) {
                 ignoreUntilReleased = true;
             }
         } else if (!held) {
             ignoreUntilReleased = false;
         }
-        boolean down = !menuOpen && !ignoreUntilReleased && held;
+        boolean down = !blocked && !ignoreUntilReleased && held;
         if (down && !keyWasDown) {
             onKeyPressed();
         } else if (!down && keyWasDown) {
