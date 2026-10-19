@@ -267,14 +267,30 @@ public final class EtherwarpOverlayFeature {
         if (lore == null) {
             return false;
         }
+        // Asked every frame while he sneaks with any Skyblock item in hand. ItemLore is an immutable record that the
+        // server REPLACES (never edits) with the stack, so the answer for the same lore object (and Language, which
+        // getString reads through) cannot change: flatten its lines once, not every frame (fps pass 2026-10-19).
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (lore == lastLore && language == lastLoreLanguage) {
+            return lastLoreEtherwarp;
+        }
+        boolean found = false;
         for (var line : lore.lines()) {
             String text = line.getString();
             if (text.contains("Etherwarp") || text.contains("etherwarp")) {
-                return true;
+                found = true;
+                break;
             }
         }
-        return false;
+        lastLore = lore;
+        lastLoreLanguage = language;
+        lastLoreEtherwarp = found;
+        return found;
     }
+
+    private static Object lastLore;
+    private static net.minecraft.locale.Language lastLoreLanguage;
+    private static boolean lastLoreEtherwarp;
 
     /**
      * The block an etherwarp from here would actually land on, or null if there is nowhere legal.
