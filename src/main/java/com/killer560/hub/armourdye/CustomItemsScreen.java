@@ -83,6 +83,17 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return ArmourDyeConfig.getInstance();
     }
 
+    /** The preview switches to showing the look whenever a setting changes. */
+    private void showLook() {
+        showClear = false;
+    }
+
+    /** True when the preview draws the item clear: Show Clear chosen, or nothing applied to the selection. */
+    private boolean clearShown() {
+        ArmourDyeEntry e = entry();
+        return showClear || e == null || e.isEmpty() || !e.enabled;
+    }
+
     /** The entry the selection has now, or null (nothing set yet). */
     public ArmourDyeEntry entry() {
         return selectedKey == null ? null : cfg().get(selectedKey);
@@ -153,6 +164,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.color = argb;
         e.colorEnabled = true;
         cfg().save();
+        showLook();
     }
 
     public void toggleUseColour() {
@@ -162,6 +174,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         e.colorEnabled = !e.colorEnabled;
         cfg().save();
+        showLook();
         refresh();
     }
 
@@ -178,6 +191,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.color = 0xFF000000 | HypixelDyes.COLORS[idx];
         e.colorEnabled = true;
         cfg().save();
+        showLook();
         say("Dye: " + HypixelDyes.NAMES[idx] + ".", false);
         refresh();
     }
@@ -205,6 +219,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         e.skin = next;
         cfg().save();
+        showLook();
         refresh();
     }
 
@@ -222,6 +237,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             e.trimPattern = next;
         }
         cfg().save();
+        showLook();
         refresh();
     }
 
@@ -252,6 +268,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             say("Look set to " + id + ".", false);
         }
         cfg().save();
+        showLook();
         refresh();
     }
 
@@ -264,6 +281,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.headTexture = item.skinValue().trim();
         e.iconModel = "";
         cfg().save();
+        showLook();
         say("Skin set to " + item.name() + ".", false);
         refresh();
     }
@@ -280,6 +298,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.headTexture = head == null ? "" : head;
         e.iconModel = head != null || model == null ? "" : model.toString();
         cfg().save();
+        showLook();
         say("Look copied from " + source.getHoverName().getString() + ".", false);
         refresh();
     }
@@ -368,7 +387,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         panelW = Math.min(MAX_W, this.width - 8);
         panelH = Math.min(MAX_H, this.height - 8);
         panelX = (this.width - panelW) / 2;
-        panelY = Math.max(2, (this.height - panelH) / 2);
+        panelY = (this.height - panelH) / 2;
         gridX = panelX + LEFT_PAD;
         gridY = panelY + 48;
         rightX = gridX + GRID_W + COL_GAP;
@@ -579,7 +598,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(title, rightW)), rightX, panelY + 24,
                 selectedKey == null ? MenuStyle.DIM : MenuStyle.TXT);
         if (selectedKey != null) {
-            MenuStyle.text(graphics, showClear ? "Showing the clear item" : "Showing the look",
+            MenuStyle.text(graphics, clearShown() ? "Showing the clear item" : "Showing the look",
                     rightX, panelY + 34, MenuStyle.DIM);
         }
         ScreenChrome.well(graphics, rightX, panelY + 44, 52, 52);
@@ -587,7 +606,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             graphics.pose().pushMatrix();
             graphics.pose().translate(rightX + 6, panelY + 50);
             graphics.pose().scale(2.75f, 2.75f);
-            if (showClear) {
+            if (clearShown()) {
                 ArmourDye.withoutOverrides(() -> graphics.item(selectedStack, 0, 0));
             } else {
                 graphics.item(selectedStack, 0, 0);
