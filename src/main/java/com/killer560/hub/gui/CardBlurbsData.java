@@ -166,6 +166,7 @@ final class CardBlurbsData {
         d.put("AbilityKeybindsTab", "Class ability keys.");
         d.put("ChocolateFactoryTab", "Chocolate Factory helper.");
         d.put("DisplayOptionsTab", "Borderless, main menu, Fullbright.");
+        d.put("PackDisablerTab", "SkyBlock items drawn with their pre-resource-pack look.");
         d.put("EtherwarpOverlayTab", "Etherwarp landing box.");
         d.put("ExperimentsTab", "Solves Experiments, tracks profit.");
         d.put("PathfindingTab", "Waypoints and a route to missing souls.");

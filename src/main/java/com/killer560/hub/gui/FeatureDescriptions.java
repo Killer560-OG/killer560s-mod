@@ -36,7 +36,8 @@ final class FeatureDescriptions {
         BY_TAB.put("P3NavTab", "F7/M7 Phase 3: highlights the next gate, the terminals and the devices.");
         BY_TAB.put("F7SpotsTab", "Your saved F7/M7 walk-to waypoints and aim spots in the boss arena.");
         BY_TAB.put("ObjectHiderTab", "Hides fire, fog, particles, falling blocks and other screen and world clutter.");
-        BY_TAB.put("DisplayOptionsTab", "Borderless fullscreen, the themed main menu, Pack Disabler and Fullbright.");
+        BY_TAB.put("DisplayOptionsTab", "Borderless fullscreen, the themed main menu and Fullbright.");
+        BY_TAB.put("PackDisablerTab", "SkyBlock items drawn with their pre-resource-pack look.");
         BY_TAB.put("ThornTab", "F4/M4 Thorn: Spirit Bear HUD and ESP, stun spots and overkill messages.");
         // Tabs whose card switch stands for several independent features (killer560, 2026-10-14; see MasterSwitch).
         BY_TAB.put("DungeonQueueTab", "Re-queues the dungeon after a run, and the Party Finder overlay: joinable highlight, counts, stats.");
