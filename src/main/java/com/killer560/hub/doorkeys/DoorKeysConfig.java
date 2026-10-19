@@ -193,7 +193,7 @@ public final class DoorKeysConfig {
     }
 
     public void setCircleThickness(float v) {
-        circleThickness = Float.isNaN(v) ? 2f : Math.max(MIN_CIRCLE_THICKNESS, Math.min(MAX_CIRCLE_THICKNESS, v));
+        circleThickness = Float.isNaN(v) ? 7f : Math.max(MIN_CIRCLE_THICKNESS, Math.min(MAX_CIRCLE_THICKNESS, v));
     }
 
     public float getCircleLift() {
