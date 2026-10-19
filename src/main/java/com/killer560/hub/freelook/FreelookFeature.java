@@ -60,7 +60,7 @@ public final class FreelookFeature {
             return;
         }
         // Something else changed the view under the rear view (a death screen, a respawn, another mod): it is over.
-        if (rearActive && client.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) {
+        if (rearActive && client.options.getCameraType() != CameraType.THIRD_PERSON_BACK) {
             rearActive = false;
         }
 
@@ -111,9 +111,9 @@ public final class FreelookFeature {
                 now = beforePan;
                 beforePan = null;
             }
-            beforeRear = now == CameraType.THIRD_PERSON_FRONT ? CameraType.FIRST_PERSON : now;
+            beforeRear = now == CameraType.THIRD_PERSON_BACK ? CameraType.FIRST_PERSON : now;
             rearActive = true;
-            setView(client, CameraType.THIRD_PERSON_FRONT);
+            setView(client, CameraType.THIRD_PERSON_BACK);
         } else {
             rearActive = false;
             setView(client, beforeRear);
@@ -147,7 +147,7 @@ public final class FreelookFeature {
         }
         if (rearActive && client.options != null) {
             rearActive = false;
-            if (client.options.getCameraType() == CameraType.THIRD_PERSON_FRONT) {
+            if (client.options.getCameraType() == CameraType.THIRD_PERSON_BACK) {
                 setView(client, beforeRear);
             }
         }
