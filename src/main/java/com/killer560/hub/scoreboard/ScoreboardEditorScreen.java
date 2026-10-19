@@ -472,6 +472,11 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
                 cfg::setBackgroundColor, colBX, y, colW));
         y += STEP;
+        // Background opacity: the alpha of the background colour, shown as a percentage (killer560, 2026-10-18).
+        out.add(slider(x, y, colW, (cfg.getBackgroundColor() >>> 24) * 100 / 255, 0, 100,
+                v -> "Background Opacity: " + v + "%",
+                v -> cfg.setBackgroundColor((Math.round(v * 255f / 100f) << 24) | (cfg.getBackgroundColor() & 0xFFFFFF))));
+        y += STEP;
         out.add(slider(x, y, colW, cfg.getPadding(), 0, 20, v -> "Padding: " + v, cfg::setPadding));
         out.add(slider(colBX, y, colW, cfg.getMinWidth(), 0, 400, v -> "Min Width: " + v, cfg::setMinWidth));
         y += STEP;
