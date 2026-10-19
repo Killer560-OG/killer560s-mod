@@ -523,6 +523,10 @@ public final class ActionGate {
     }
 
     private static boolean tryActInternal(Actor actor, Screen ownScreen, AbstractContainerMenu headlessMenu) {
+        // Streamer mode, Disable cheats option (killer560, 2026-10-19): no automated action goes out at all.
+        if (com.killer560.hub.streamer.StreamerMode.disablesCheats()) {
+            return false;
+        }
         WANTED_THIS_TICK[actor.ordinal()] = true;
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null || client.level == null) {

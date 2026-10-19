@@ -937,6 +937,9 @@ public class ModScreen extends Screen {
             int added = 0;
             for (String fav : MenuConfig.getInstance().getFavourites()) {
                 for (BaseTab leaf : leaves) {
+            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
+                continue; // streamer mode: no cheat tab in search
+            }
                     if (id(leaf).equals(fav)) {
                         items.add(new Item(ItemKind.CARD, leaf, null, false, null));
                         added++;
@@ -962,6 +965,9 @@ public class ModScreen extends Screen {
         for (BaseTab s : folder.subTabs()) {
             if (cat instanceof HomeTab && s instanceof com.killer560.hub.gui.tab.MenuThemeTab) {
                 continue; // killer560, 2026-10-13: set from Home's Menu Theme row; Customise... still opens its drawer
+            }
+            if (s.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
+                continue; // streamer mode: the cheat parts of the GUI are not shown
             }
             (s.isCheatOnly() ? cheat : legit).add(s);
         }
@@ -1652,6 +1658,9 @@ public class ModScreen extends Screen {
         List<BaseTab> leaves = allLeaves();
         Set<BaseTab> named = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
         for (BaseTab leaf : leaves) {
+            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
+                continue; // streamer mode: no cheat tab in search
+            }
             for (String q : variants) {
                 if (SearchAliases.nameMatches(leaf.name, q)) {
                     results.add(new Result(leaf, leaf.name, true, where(leaf)));
@@ -1662,6 +1671,9 @@ public class ModScreen extends Screen {
         }
         List<Result> settings = new ArrayList<>();
         for (BaseTab leaf : leaves) {
+            if (leaf.isCheatOnly() && com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
+                continue; // streamer mode: no cheat tab in search
+            }
             String hit = null;
             for (String q : variants) {
                 if (leaf.matchesSearch(q)) {
@@ -2092,6 +2104,9 @@ public class ModScreen extends Screen {
 
     /** "1.1.0 · cheat" under the brand: fixed for the session, so built once rather than every frame. */
     private static String headerVersion() {
+        if (com.killer560.hub.streamer.StreamerMode.hidesCheatUi()) {
+            return modVersion(); // streamer mode: no build name on screen
+        }
         String v = headerVersion;
         if (v == null) {
             v = modVersion() + " · " + com.killer560.hub.autoupdate.BuildInfo.variant()

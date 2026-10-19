@@ -30,6 +30,7 @@ public class HomeTab extends FolderTab {
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());
+            tabs.add(new StreamerModeTab());
         }
         return tabs;
     }
