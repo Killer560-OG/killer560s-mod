@@ -194,7 +194,7 @@ public final class PredictedRoomsPainter {
         float boxH = (MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minZ)) * ppu;
         String[] lines = predictionLines(p, cfg.getRoomLabels());
         MapPainter.drawFittedLines(graphics, font, lines, ox + cxUnits * ppu, oy + czUnits * ppu, boxW, boxH,
-                0.4f * cfg.getFontScale() * ppu, 0xFFE0E0E0, true);
+                MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu, 0xFFE0E0E0, true);
     }
 
     /**
@@ -245,7 +245,7 @@ public final class PredictedRoomsPainter {
                 MapPainter.drawFittedLines(graphics, font, new String[]{"Blood"},
                         ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS / 2f) * ppu,
                         oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS / 2f) * ppu,
-                        MapPainter.ROOM_UNITS * ppu, MapPainter.ROOM_UNITS * ppu, 0.4f * cfg.getFontScale() * ppu,
+                        MapPainter.ROOM_UNITS * ppu, MapPainter.ROOM_UNITS * ppu, MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu,
                         0xFFE0E0E0, true);
             }
             return;

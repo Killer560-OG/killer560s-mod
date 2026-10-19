@@ -45,8 +45,10 @@ public final class LiveMapConfig {
      *  should work on your own head as well." Both maps draw each player as their skin's face (with an orbiting
      *  heading tick) instead of the arrow; a player whose skin is not known falls back to the arrow. Default OFF.
      *  Saved under a NEW key: the old {@code playerHeads} option was removed on 2026-09-20, and an ancient config
-     *  still carrying it must not switch this on by itself. */
-    private boolean playerHeads = false;
+     *  still carrying it must not switch this on by itself.
+     *  Default ON since 2026-10-19: NoammAddons' map draws every player as their head ({@code MapRenderer.drawPlayerHead},
+     *  "Vanilla Head Marker" off by default). */
+    private boolean playerHeads = true;
     /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
      *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
     private int roomPx = 16;
@@ -71,8 +73,15 @@ public final class LiveMapConfig {
      * stripes, so entered rooms are the solid ones. Doors are never striped.
      */
     private boolean hatchUnexplored = true;
-    private int mapBackground = 0x99000000;
-    private int mapBorderColor = 0xFFCC6600;
+    /** NoammAddons' look (killer560, 2026-10-19): a faint white wash, {@code MapConfig.kt} "Map Background Color"
+     *  (255, 255, 255, 50), with a 1px white border ("Map Border Color", "Border Thickness" 1). Until then 60% black with
+     *  the mod's orange border; {@link #migrateNoammLook} moves a file still holding those defaults. */
+    public static final int DEFAULT_MAP_BACKGROUND = 0x32FFFFFF;
+    public static final int DEFAULT_MAP_BORDER = 0xFFFFFFFF;
+    private static final int OLD_MAP_BACKGROUND = 0x99000000;
+    private static final int OLD_MAP_BORDER = 0xFFCC6600;
+    private int mapBackground = DEFAULT_MAP_BACKGROUND;
+    private int mapBorderColor = DEFAULT_MAP_BORDER;
     /** killer560, 2026-10-15: "Change checkmarks sprites to custom checkmark sprite so by default if it is off it uses
      *  hypixels sprites. If it is on then it uses the one you created or they can make their own custom sprite." Off:
      *  Hypixel's own marks (read off the map item, see {@link MapMarks}). On: {@link #checkmarkSource}. */
@@ -105,7 +114,9 @@ public final class LiveMapConfig {
     private float mapScale = 5f;
     /** QUOI "Font scale" 0.5..3. */
     private float fontScale = 1f;
-    private boolean textShadow = false;
+    /** On by default since 2026-10-19: NoammAddons draws every room name and secret count with a shadow
+     *  ({@code Render2D.drawCenteredString}, {@code shadow = true}). */
+    private boolean textShadow = true;
     /** Whether the Interactive Map's side panel shows the full Controls list or just its one-line hint
      *  (2026-10-05: "See how cluttered that right side is, clean it up a bit"). Collapsed by default. */
     private boolean mapControlsExpanded = false;
@@ -185,7 +196,7 @@ public final class LiveMapConfig {
                 cfg.leapNames = ConfigJson.getBool(obj, "leapNames", false);
                 cfg.classRecolorTeammates = ConfigJson.getBool(obj, "classRecolorTeammates", true);
                 cfg.markReportedRooms = ConfigJson.getBool(obj, "markReportedRooms", true);
-                cfg.playerHeads = ConfigJson.getBool(obj, "playerHeadMarkers", false);
+                cfg.playerHeads = ConfigJson.getBool(obj, "playerHeadMarkers", true);
                 // Migration: the old uniform "cellSize" (4..16, default 8) was one grid step; a room is now two
                 // of those, so an existing config keeps roughly the map size it had.
                 cfg.setRoomPx(ConfigJson.getInt(obj, "roomPx", ConfigJson.getInt(obj, "cellSize", 8) * 2));
@@ -203,8 +214,8 @@ public final class LiveMapConfig {
                     cfg.darkenUnopened = 0.05f;
                 }
                 cfg.hatchUnexplored = ConfigJson.getBool(obj, "hatchUnexplored", true);
-                cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", 0x99000000);
-                cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
+                cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", DEFAULT_MAP_BACKGROUND);
+                cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", DEFAULT_MAP_BORDER);
                 // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.
                 cfg.customCheckmarks = ConfigJson.getBool(obj, "customCheckmarks", false);
                 cfg.setCheckmarkSource(ConfigJson.getInt(obj, "checkmarkSource", 0));
@@ -221,7 +232,8 @@ public final class LiveMapConfig {
                 cfg.openFromHudClick = ConfigJson.getBool(obj, "openFromHudClick", false);
                 cfg.setMapScale(ConfigJson.getFloat(obj, "mapScale", 5f));
                 cfg.setFontScale(ConfigJson.getFloat(obj, "fontScale", 1f));
-                cfg.textShadow = ConfigJson.getBool(obj, "textShadow", false);
+                cfg.textShadow = ConfigJson.getBool(obj, "textShadow", true);
+                migrateNoammLook(cfg, obj);
                 // "mapRoomLabels" (the Interactive Map's own copy of Room Labels) is gone: killer560 (2026-10-05)
                 // "have the map have the same settings for room name having the secrets ... as the regular map,
                 // they should be the same and synced". Both maps read roomLabels; an old key is simply ignored.
@@ -257,6 +269,26 @@ public final class LiveMapConfig {
         }
         instance = cfg;
         migrateRoomPx(cfg);
+    }
+
+    /**
+     * Once (2026-10-19, the NoammAddons look): a file saved before it holds every setting, so the new defaults would never
+     * reach him - a saved key wins over the default, as with Darken Unexplored above. A value that is exactly an OLD
+     * default is taken as never chosen and moved to the new one: the 60% black background, the orange border, Text Shadow
+     * off and Player Heads off. Anything else he set stays, and the flag saved with the file stops it running again.
+     */
+    private static void migrateNoammLook(LiveMapConfig cfg, JsonObject obj) {
+        if (ConfigJson.getBool(obj, "noammLook1019", false)) {
+            return;
+        }
+        if (cfg.mapBackground == OLD_MAP_BACKGROUND) {
+            cfg.mapBackground = DEFAULT_MAP_BACKGROUND;
+        }
+        if (cfg.mapBorderColor == OLD_MAP_BORDER) {
+            cfg.mapBorderColor = DEFAULT_MAP_BORDER;
+        }
+        cfg.textShadow = true;
+        cfg.playerHeads = true;
     }
 
     /**
@@ -330,6 +362,7 @@ public final class LiveMapConfig {
             obj.addProperty("mapScale", mapScale);
             obj.addProperty("fontScale", fontScale);
             obj.addProperty("textShadow", textShadow);
+            obj.addProperty("noammLook1019", true);
             obj.addProperty("mapControlsExpanded", mapControlsExpanded);
             obj.addProperty("classBorderColour", classBorderColour);
             obj.addProperty("playerNames", playerNames);
@@ -749,9 +782,11 @@ public final class LiveMapConfig {
             for (int k = 0; k < keys.length; k++) {
                 live[k] = ConfigJson.getInt(obj, "color" + keys[k], live[k]);
                 custom[k] = ConfigJson.getInt(obj, "customColor" + keys[k], custom[k]);
-                anyCustom |= custom[k] != MapThemes.REAL[k];
             }
+            anyCustom = !java.util.Arrays.equals(custom, MapThemes.REAL)
+                    && !java.util.Arrays.equals(custom, MapThemes.HYPIXEL_ITEM);
             boolean liveIsStock = java.util.Arrays.equals(live, MapThemes.REAL)
+                    || java.util.Arrays.equals(live, MapThemes.HYPIXEL_ITEM)
                     || java.util.Arrays.equals(live, MapThemes.AMBER);
             if (old == 2 || !liveIsStock) {
                 cfg.schemes.add(new MapThemes.Scheme("Scheme 1", live));

@@ -1304,8 +1304,15 @@ public final class LiveMapFeature {
          * Storage Overlay unclampable (see docs/LESSONS.md).
          */
         private static int mapPx() {
-            return Math.round(MapPainter.MAP_UNITS * LiveMapConfig.getInstance().getRoomPx() / 16f) + 4;
+            return Math.round(MapPainter.MAP_UNITS * LiveMapConfig.getInstance().getRoomPx() / 16f) + 2 * MAP_MARGIN;
         }
+
+        /**
+         * Pixels of background between the rooms and the map's edge on each side. NoammAddons' map is a 128px box with the
+         * 116px room grid inside it ({@code MapRenderer.renderBackground}, start corner 5,5 in {@code MapUtils}); 6 a side
+         * gives the same 128px box, centred (2 until 2026-10-19, which left the rooms almost touching the border).
+         */
+        private static final int MAP_MARGIN = 6;
 
         @Override
         public int width() {
@@ -1331,7 +1338,7 @@ public final class LiveMapFeature {
          * rows the same evening ("Try to make it smaller and only take up 2 rows"); 2026-10-15 the rows are centred and
          * filled NoammAddons-style ("lots of space to be used and it is used poorly") at the same sharp half size.
          */
-        private static final float EXTRA_TEXT_MAP = 240f;
+        private static final float EXTRA_TEXT_MAP = 256f; // 240 until the map grew to 128px (2026-10-19): still half size
 
         /** The Extra Info text size, in map units per font unit. */
         static float extraTextScale() {
@@ -1396,7 +1403,9 @@ public final class LiveMapFeature {
             }
             int w = mapPx();
             int h = extraInfoHeight(lines);
-            graphics.fill(x, y, x + w, y + h, cfg.getMapBackground());
+            // Inside the map's frame, which paintMap draws round both parts: leave its sides and bottom edge alone.
+            int edge = (cfg.getMapBorderColor() >>> 24) != 0 ? 1 : 0;
+            graphics.fill(x + edge, y, x + w - edge, y + h - edge, cfg.getMapBackground());
             net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
             float s = extraDrawScale(lines);
             int row = extraRow();
@@ -1457,7 +1466,8 @@ public final class LiveMapFeature {
                 if (!lines.isEmpty()) {
                     int ey = y + mapPx();
                     MapDrawCache.Key k = MapDrawCache.frameKey(EXTRA_KEY.begin(), graphics);
-                    k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.isTextShadow()).ref(lines);
+                    k.add(x).add(ey).add(mapPx()).add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
+                            .add(cfg.isTextShadow()).ref(lines);
                     paintGraphics = graphics;
                     paintX = x;
                     paintY = ey;
@@ -1494,8 +1504,8 @@ public final class LiveMapFeature {
             DungeonLayout layout = DungeonLayout.current();
             float[] fit = floorFitCached();
             ppu *= fit[0];
-            float ox = x + 2 + fit[1] * ppu;
-            float oy = y + 2 + fit[2] * ppu;
+            float ox = x + MAP_MARGIN + fit[1] * ppu;
+            float oy = y + MAP_MARGIN + fit[2] * ppu;
 
             paintGraphics = graphics;
             paintX = x;
@@ -1584,7 +1594,8 @@ public final class LiveMapFeature {
                     .add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
                     .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
                     .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())
-                    .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx());
+                    .add(cfg.getFontScale()).add(cfg.isTextShadow()).add(cfg.isMarkReportedRooms()).add(cfg.getRoomPx())
+                    .add(extraInfoLines().size()); // the frame wraps the Extra Info rows too
             com.killer560.hub.livemap.predict.PredictiveRoomsConfig pc =
                     com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance();
             boolean predicted = pc.isEnabled();
@@ -1684,7 +1695,9 @@ public final class LiveMapFeature {
             graphics.fill(x, y, x + sizeW, y + sizeH, cfg.getMapBackground());
             int border = cfg.getMapBorderColor();
             if ((border >>> 24) != 0) {
-                graphics.outline(x, y, sizeW, sizeH, border);
+                // One frame round the map AND the Extra Info under it, as NoammAddons draws them (renderBackground: one
+                // 128x140 box), not a box with a second strip hanging off it.
+                graphics.outline(x, y, sizeW, sizeH + extraInfoHeight(extraInfoLines()), border);
             }
             MapPainter.drawDoors(graphics, layout, cfg, ox, oy, ppu, -1);
             MapPainter.drawReportedDoors(graphics, cfg, ox, oy, ppu);
@@ -1739,6 +1752,27 @@ public final class LiveMapFeature {
             }
             LOGGER.info("Map layout: {} rooms, {} cells, calibrated={}:{}", groups.size(), cells,
                     DungeonMapScanner.isCalibrated(), sb);
+            // killer560, 2026-10-19 16:12: "the map looks really wrong now". Every cell of every room as grid (x,z), with
+            // the map item's kind/state there (k/s, -1 before calibration) and whether the map paints it (* = drawn), so
+            // the next screenshot can be matched cell by cell against both the world scan and Hypixel's own map.
+            StringBuilder cellsLine = new StringBuilder();
+            boolean calibrated = DungeonMapScanner.isCalibrated();
+            for (int gid = 0; gid < groups.size(); gid++) {
+                RoomGroup group = groups.get(gid);
+                cellsLine.append(" | ").append(group.entry != null && group.entry.name != null ? group.entry.name : "?")
+                        .append(':');
+                for (int c : group.cells) {
+                    int gx = c % GRID;
+                    int gz = c / GRID;
+                    cellsLine.append(" (").append(gx).append(',').append(gz).append(")k")
+                            .append(calibrated ? DungeonMapScanner.kindAt(c) : -1).append('s')
+                            .append(calibrated ? DungeonMapScanner.stateAt(c) : -1);
+                    if (MapPainter.drawnCell(gid, gx, gz)) {
+                        cellsLine.append('*');
+                    }
+                }
+            }
+            LOGGER.info("Map cells:{}", cellsLine);
         }
 
         private static void paintMarkers(GuiGraphicsExtractor graphics, LiveMapConfig cfg, Minecraft client, float ox,

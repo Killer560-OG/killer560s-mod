@@ -186,8 +186,10 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX, y, full, 18).build());
         }
         y += 20;
-        widgets.add(colour("Map Background", cfg::getMapBackground, cfg::setMapBackground, 0x99000000, cfg, contentX, y, colW));
-        widgets.add(colour("Border Color", cfg::getMapBorderColor, cfg::setMapBorderColor, 0xFFCC6600, cfg, colB, y, colW));
+        widgets.add(colour("Map Background", cfg::getMapBackground, cfg::setMapBackground,
+                LiveMapConfig.DEFAULT_MAP_BACKGROUND, cfg, contentX, y, colW));
+        widgets.add(colour("Border Color", cfg::getMapBorderColor, cfg::setMapBorderColor, LiveMapConfig.DEFAULT_MAP_BORDER,
+                cfg, colB, y, colW));
         y += 24;
 
         // ---------------------------------------------------------------- extras

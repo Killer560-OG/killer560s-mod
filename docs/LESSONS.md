@@ -481,3 +481,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
 - **Hypixel's public item list has no dyes.** `/v2/resources/skyblock/items` (the item browser cache, 5,680 items on 2026-10-19)
   has no `DYE_*` id, and its `color` field is only on leather armor, so a dye list built from it is empty. `armourdye/HypixelDyes`
   holds the 69 dyes with the hex each one's lore prints, copied from the NotEnoughUpdates-REPO `items/DYE_*.json` files.
+- Blue terracotta at a tile corner is not always the clay marker. Hallway, Mossy, Pipes, Pit, Quartz Knight and Waterfall
+  have a blue roof stripe crossing a tile join, so the per-tile fallback (room not fully on the map yet) took a join for the
+  corner and put routes and waypoints a tile off; the map never re-checks a found rotation (2026-10-19). `RoomDatabase.
+  findRotationAndCorner` now needs air one block outward on both axes (all 133 real markers in `rooms/` have it).

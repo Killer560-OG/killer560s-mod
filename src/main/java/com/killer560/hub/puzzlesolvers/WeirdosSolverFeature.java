@@ -78,8 +78,14 @@ public final class WeirdosSolverFeature {
     // [WeirdosSolver] diagnostics - logging only (chat-rate).
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
 
+    private static final Pattern TALK_FIRST = Pattern.compile("Talk to all of us first[.!]?");
+
     private static volatile BlockPos correctPos = null;
     private static final Set<BlockPos> wrongPositions = ConcurrentHashMap.newKeySet();
+    /** Weirdos (color-stripped names) that have said their line in this room; Hypixel opens no chest before all three. */
+    private static final Set<String> heardNpcs = ConcurrentHashMap.newKeySet();
+    /** "Talk to all of us first!" lines heard in this room: each one is a chest click the server refused. */
+    private static volatile int refusals = 0;
 
     private WeirdosSolverFeature() {
     }
@@ -138,6 +144,17 @@ public final class WeirdosSolverFeature {
         }
         String npc = matcher.group(1);
         String dialogue = matcher.group(2);
+
+        // Hypixel's refusal when a chest is clicked before all three have spoken: nothing opens and the puzzle is not
+        // failed (Mod Only Test log, 2026-10-19 16:13:52 - Auto Three Weirdos opened the right chest with two of three
+        // talked to and got this). Counted so the auto knows its click did nothing and goes back to talking.
+        if (TALK_FIRST.matcher(dialogue).matches()) {
+            refusals++;
+            LOGGER.info("[WeirdosSolver] \"{}\" refused the chest: \"{}\" ({} of 3 weirdos heard so far)", npc, dialogue,
+                    heardNpcs.size());
+            return;
+        }
+        heardNpcs.add(stripName(npc));
 
         boolean isSolution = SOLUTIONS.stream().anyMatch(p -> p.matcher(dialogue).matches());
         boolean isWrong = !isSolution && WRONG.stream().anyMatch(p -> p.matcher(dialogue).matches());
@@ -319,6 +336,16 @@ public final class WeirdosSolverFeature {
         return wrongPositions.size();
     }
 
+    /** How many different weirdos have said their line in this room (Hypixel opens no chest before all three). */
+    public static int getHeardCount() {
+        return heardNpcs.size();
+    }
+
+    /** How many times a weirdo has said "Talk to all of us first!" in this room (a refused chest click each). */
+    public static int getRefusalCount() {
+        return refusals;
+    }
+
     /**
      * Forgets this room's answer so a fresh set of three lines can be read.
      *
@@ -334,6 +361,8 @@ public final class WeirdosSolverFeature {
     private static void reset() {
         correctPos = null;
         wrongPositions.clear();
+        heardNpcs.clear();
+        refusals = 0;
         deducedLogged = false;
     }
 }

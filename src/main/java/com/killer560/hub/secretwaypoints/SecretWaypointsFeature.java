@@ -394,6 +394,7 @@ public final class SecretWaypointsFeature {
             int clayX = room[1];
             int clayZ = room[2];
             int rotation = room[3];
+            logRoomFrame(entry.name, clayX, clayZ, rotation);
             addGroup(entry.secretCoords.chest, clayX, clayZ, rotation, cfg.getChestColor(), Kind.CHEST, "chest", cfg, seen);
             addGroup(entry.secretCoords.item, clayX, clayZ, rotation, cfg.getItemColor(), Kind.ITEM, "item", cfg, seen);
             addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.WITHER, "wither", cfg, seen);
@@ -406,6 +407,21 @@ public final class SecretWaypointsFeature {
         // returned out of this method before this point was ever reached.
         scanLevers(cfg, currentIdx, seen);
         addCrypts(cfg, currentIdx);
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretwaypoints");
+
+    /** The room frame last logged, so the line is written once per room entry (and again if the frame changes). */
+    private static String lastLoggedFrame;
+
+    /** One INFO line per room entry: which room, and the rotation and clay origin its waypoints are placed from. */
+    private static void logRoomFrame(String name, int clayX, int clayZ, int rotation) {
+        String key = name + "|" + clayX + "|" + clayZ + "|" + rotation;
+        if (key.equals(lastLoggedFrame)) {
+            return;
+        }
+        lastLoggedFrame = key;
+        LOGGER.info("[SecretWaypoints] Room {} - rotation {}, origin (clay) {},{}", name, rotation, clayX, clayZ);
     }
 
     /** One crypt or prince seen this run, keyed by {@link CryptScanner.Found#anchor}. */

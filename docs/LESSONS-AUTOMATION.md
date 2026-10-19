@@ -604,6 +604,12 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   its own spot is re-aimed first when its look only lands for its exact floats (`TeleportUtils.holdsOn`). Testkit
   96-ar-1016-refused. Risk on Hypixel: a landing slower than 1.5 round trips + 2 ticks (plus measured server lag) would be
   followed by a second warp; ServerLag covers stalls, not a single late packet.
+  Since 2026-10-19 (his Mod Only Test log 16:17-16:18): on Hypixel the first warp a tick after a Secret Aura lever or chest
+  click went unanswered in 6 of 8 cases (cause still NOT found: server ray met nothing, the same look landed on the resend),
+  and the retry, gated on 3 round trips because Hypixel never acks a bare use, came 13-22 ticks later while every landing
+  took 2-4. It now goes past `RouteExecutor.refusedRetryTicks()` (2x the slowest of the last 5 landings + 2, or
+  `eatenRetryTicks`), up to twice per warp, and `retryAim` resends the same look when no other holds (it used to send
+  nothing: Pedestal #3, 16:15:55, waited for his left click). Each secret await logs "secret gap: ..." when the next node fires.
 - **62-argrim-chain's 20/s pace is the server's answer time.** The same jar read 1.00 and 1.18-1.55 ticks per warp an hour
   apart on a busy machine, base fcba4045 included, and every slow warp still went on its landing's tick; there was no
   regressing commit. The case judges 20/s against the round trip it measures (testkit fullclear-1016).

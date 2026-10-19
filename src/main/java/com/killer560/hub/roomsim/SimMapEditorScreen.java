@@ -1040,7 +1040,7 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         com.killer560.hub.livemap.LiveMapConfig labelCfg = com.killer560.hub.livemap.LiveMapConfig.getInstance();
         int style = labelCfg.getRoomLabels() < 2 ? 3 : labelCfg.getRoomLabels();
         int textColour = com.killer560.hub.livemap.MapPainter.unopenedTextColor();
-        float want = 0.4f * labelCfg.getFontScale() * cell
+        float want = com.killer560.hub.livemap.MapPainter.LABEL_SCALE * labelCfg.getFontScale() * cell
                 / (float) com.killer560.hub.livemap.MapPainter.ROOM_PITCH_UNITS;
         StringBuilder drawnNow = new StringBuilder();
         for (Map.Entry<Integer, String> e : placements.entrySet()) {

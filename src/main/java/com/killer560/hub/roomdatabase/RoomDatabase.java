@@ -307,17 +307,42 @@ public final class RoomDatabase {
         int[][] corners = {
                 {minX, minZ}, {maxX, minZ}, {maxX, maxZ}, {minX, maxZ}
         };
+        // Which way is "out of the room" from each corner, on x and on z.
+        int[][] outward = {
+                {-1, -1}, {1, -1}, {1, 1}, {-1, 1}
+        };
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
         for (int i = 0; i < 4; i++) {
             pos.set(corners[i][0], roofHeight, corners[i][1]);
             if (!ChunkCacheManager.isLoadedOrCached(level, pos)) {
                 continue;
             }
-            if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)) {
+            if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)
+                    && isOuterRoofCorner(level, corners[i][0], roofHeight, corners[i][1], outward[i][0], outward[i][1])) {
                 return new int[]{corners[i][0], corners[i][1], i * 90};
             }
         }
         return null;
+    }
+
+    /**
+     * Whether a roof corner is a corner of the whole ROOM and not just of one of its tiles: the block one step out
+     * of the tile on each axis, at roof height, is the 1-block gap between rooms (air). Inside a multi-tile room that
+     * step lands on the roofed join to the next tile instead. Hallway (2026-10-19) has a blue terracotta stripe along
+     * its roof edge that runs past the join between its first two tiles, so while the map knew only three of its
+     * four tiles the per-tile fallback took the second tile's corner for the marker: same rotation, origin one tile
+     * (32 blocks) off, and every route node and secret waypoint drawn 32 blocks down the room. Mossy, Pipes, Pit,
+     * Quartz Knight and Waterfall have the same stripe at a tile join. Checked against every capture in
+     * {@code rooms/}: all 133 real corner markers have air on both outward sides, and 12 of the 13 tile-join blue
+     * blocks do not. A neighbour in an unloaded chunk is not held against the corner.
+     */
+    private static boolean isOuterRoofCorner(Level level, int x, int y, int z, int dx, int dz) {
+        BlockPos sideX = new BlockPos(x + dx, y, z);
+        if (ChunkCacheManager.isLoadedOrCached(level, sideX) && !level.getBlockState(sideX).isAir()) {
+            return false;
+        }
+        BlockPos sideZ = new BlockPos(x, y, z + dz);
+        return !ChunkCacheManager.isLoadedOrCached(level, sideZ) || level.getBlockState(sideZ).isAir();
     }
 
     /** @return how many grid tiles a room of this database {@code shape} ("1x1", "1x2", "1x3", "1x4",

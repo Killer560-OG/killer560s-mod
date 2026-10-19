@@ -228,8 +228,11 @@ public final class RouteExecutor {
         return eatenResends;
     }
 
-    /** The warp under way was already aimed again once after no landing came (see {@link #retryAim}). */
-    private static boolean warpRetried;
+    /** Times the warp under way was sent again after no landing came (see {@link #retryAim}). */
+    private static int warpRetries;
+    /** A refused warp goes again at most this many times from the same spot; past that the landing timeout and
+     *  {@link #refireHoldAt} take over (a server refusing it every time - a block only it has - is not fought). */
+    private static final int MAX_REFUSED_RETRIES = 2;
     /** His left click released a hold on the warp under way (landing block missing, a breaker pick or a new block in its
      *  line): those checks are skipped until the next warp's PREP. */
     private static boolean warpForced;
@@ -260,22 +263,117 @@ public final class RouteExecutor {
         return refusedRetries;
     }
 
+    /** Use-to-landing ticks of the last few warps that landed (a ring), for {@link #refusedRetryTicks}. */
+    private static final int[] recentLandings = new int[5];
+    private static int recentLandingCount;
+    private static int recentLandingNext;
+
+    private static void noteLandingTicks(int ticks) {
+        recentLandings[recentLandingNext] = ticks;
+        recentLandingNext = (recentLandingNext + 1) % recentLandings.length;
+        recentLandingCount = Math.min(recentLandings.length, recentLandingCount + 1);
+    }
+
+    /**
+     * Ticks after a use with no landing (and no move) before the warp counts as refused and goes again: twice the slowest
+     * of the last few measured landings and two (4 before any), or {@code RightClick.eatenRetryTicks} when longer - the
+     * rule AutoReposition already uses. Hypixel never acks a bare use, so this used to be three of those round trips:
+     * his Mod Only Test log of 2026-10-19 16:17-16:18 has six warps a tick after a Secret Aura lever or chest click that
+     * never landed, each sent again only 13-22 ticks later while every landing in that run took 2-4 ticks - the route
+     * "really slow after collecting secrets". Callers add server lag on top.
+     */
+    static int refusedRetryTicks() {
+        int travel = recentLandingCount > 0 ? slowestRecentLanding() : 4;
+        return Math.max(com.killer560.hub.util.RightClick.eatenRetryTicks(), 2 * travel + 2);
+    }
+
+    private static int slowestRecentLanding() {
+        int travel = 0;
+        for (int i = 0; i < recentLandingCount; i++) {
+            travel = Math.max(travel, recentLandings[i]);
+        }
+        return travel;
+    }
+
+    /**
+     * The secret gap (killer560, 2026-10-19: "auto routes is really slow after collecting secrets a lot of the time"):
+     * {@link #execTicks} when a node's secret await was met, that node, and what held the route until the next node fired.
+     * One INFO line ("secret gap: ...") when the next node fires or the route ends. -1 when nothing is pending.
+     */
+    private static long secretMetAt = -1;
+    private static RouteNode secretMetNode;
+    private static final StringBuilder secretGapWhy = new StringBuilder();
+    /** The Kill Mimic hold was noted for the open gap. */
+    private static boolean mimicGapSaid;
+
+    /** A node's await was met by what it waited for (not a skip): the gap to the next node starts now. */
+    private static void startSecretGap(RouteNode node) {
+        if (node == null || node.awaitCondition == RouteNode.AwaitCondition.DELAY) {
+            return;
+        }
+        secretMetAt = execTicks;
+        secretMetNode = node;
+        secretGapWhy.setLength(0);
+        mimicGapSaid = false;
+    }
+
+    /** Something that held or moved the route while a secret gap is open, with its offset from the await being met. */
+    private static void noteSecretGap(String what) {
+        if (secretMetAt < 0) {
+            return;
+        }
+        if (secretGapWhy.length() > 0) {
+            secretGapWhy.append("; ");
+        }
+        secretGapWhy.append('+').append(execTicks - secretMetAt).append(' ').append(what);
+    }
+
+    /** The gap closes: {@code next} is what happened ("node #5 PATH fired", "the route ended"). */
+    private static void endSecretGap(String next) {
+        if (secretMetAt < 0) {
+            return;
+        }
+        LOGGER.info("[AutoRoutes] secret gap: {} {} tick(s) after node #{} {}'s await was met ({})", next,
+                execTicks - secretMetAt, route == null || secretMetNode == null ? "?" : route.indexOf(secretMetNode) + 1,
+                secretMetNode == null ? "?" : secretMetNode.type,
+                secretGapWhy.length() == 0 ? "nothing held it" : secretGapWhy);
+        secretMetAt = -1;
+        secretMetNode = null;
+        secretGapWhy.setLength(0);
+        mimicGapSaid = false;
+    }
+
     /** A look onto {@link #warpTarget} from his eye that holds within the planner's margin (it may be the look already
-     *  sent, if what stopped the first went away); false (nothing changed) when there is none. */
+     *  sent, if what stopped the first went away). When there is none the look already sent goes again: until
+     *  2026-10-19 this returned false and nothing was sent, so the warp sat out the 61-tick landing timeout or his left
+     *  click (his Mod Only Test log 16:15:55, Pedestal #3 hop 1: "still no landing", released by his click at 31 ticks,
+     *  and the SAME look landed 1 tick after that resend). */
     private static boolean retryAim(LocalPlayer player) {
         Vec3 at = player.position();
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
         double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
         TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
         if (rot == null || !TeleportUtils.holdsOn(eye, rot.yaw(), rot.pitch(), range, warpTarget)) {
-            return false;
+            LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after the use and he has not moved - the server "
+                            + "refused it; no other look from {} holds on {}, so the same look ({} / {}) goes once more "
+                            + "(refusal called past {} tick(s), server lag {})", stepTicks, fmt(at),
+                    warpTarget.toShortString(), String.format(Locale.US, "%.2f", Mth.wrapDegrees(warpYaw)),
+                    String.format(Locale.US, "%.2f", warpPitch), refusedRetryTicks(), serverLagTicks());
+            noteSecretGap("no landing " + stepTicks + " tick(s) after the use, server refused it - same look sent again");
+            warpAimFrom = at;
+            refusedRetries++;
+            return true;
         }
         float yaw = player.getYRot() + Mth.wrapDegrees(rot.yaw() - player.getYRot());
         LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after the use and he has not moved - the server "
-                        + "refused it; aimed again from {} at {} ({} / {} -> {} / {}), sending it once more", stepTicks,
+                        + "refused it; aimed again from {} at {} ({} / {} -> {} / {}), sending it once more (refusal "
+                        + "called past {} tick(s): recent landings took up to {}, server lag {})", stepTicks,
                 fmt(at), warpTarget.toShortString(), String.format(Locale.US, "%.2f", Mth.wrapDegrees(warpYaw)),
                 String.format(Locale.US, "%.2f", warpPitch), String.format(Locale.US, "%.2f", rot.yaw()),
-                String.format(Locale.US, "%.2f", rot.pitch()));
+                String.format(Locale.US, "%.2f", rot.pitch()), refusedRetryTicks(),
+                recentLandingCount == 0 ? "? (none measured yet)" : String.valueOf(slowestRecentLanding()),
+                serverLagTicks());
+        noteSecretGap("no landing " + stepTicks + " tick(s) after the use, server refused it - sent again");
         warpYaw = yaw;
         warpPitch = rot.pitch();
         warpAimFrom = at;
@@ -521,6 +619,9 @@ public final class RouteExecutor {
 
     public static void stop(String reason) {
         boolean wasRunning = running;
+        if (wasRunning) {
+            endSecretGap("the route stopped (" + reason + ")");
+        }
         if (wasRunning && reason != null && USER_STOP_REASONS.contains(reason)) {
             stoppedByUser = true;
         }
@@ -616,6 +717,9 @@ public final class RouteExecutor {
         chainAfterLanding = false;
         landingConfirmed = false;
         execTicks = 0;
+        secretMetAt = -1;
+        secretMetNode = null;
+        secretGapWhy.setLength(0);
         positionPacketsHandled = positionPackets;
         ownTeleportUntil = 0;
         manualUseAt = Long.MIN_VALUE / 2;
@@ -701,6 +805,7 @@ public final class RouteExecutor {
     }
 
     private static void complete() {
+        endSecretGap("the route completed");
         justFinished = true;
         RouteRunMemory.noteProgress(route.roomName(), ordered.size(), ordered.size());
         completions++;
@@ -1101,6 +1206,8 @@ public final class RouteExecutor {
                     tickAwait(client, player, activeNode);
                     if (awaitPhaseDone) {
                         awaitDoneAge = actionAge;
+                        startSecretGap(activeNode);
+                        noteSecretGap("met under a screen - fires when it closes");
                         LOGGER.info("[AutoRoutes] Node #{} {}: await met under a screen after {} tick(s) - fires when "
                                 + "it closes", route.indexOf(activeNode) + 1, activeNode.type, actionAge);
                     }
@@ -1116,6 +1223,7 @@ public final class RouteExecutor {
                 // something: wait under it like the await's own window (keys off, nothing sent), carry on once it is
                 // closed. It used to stop the route (2026-10-05, 96-ar-play on 26.2: "Stopped: a screen opened").
                 if (screen != lateChestWindow) {
+                    noteSecretGap("the clicked chest's window opened - waits under it until it closes");
                     LOGGER.info("[AutoRoutes] The clicked chest's window arrived after the route moved on - waiting "
                             + "under it, carries on when it closes");
                 }
@@ -1204,7 +1312,12 @@ public final class RouteExecutor {
                 tickAwait(client, player, activeNode);
                 if (awaitPhaseDone) {
                     awaitDoneAge = actionAge;
+                    startSecretGap(activeNode);
+                    noteSecretGap("met while Kill Mimic had the hands - waits for it");
                 }
+            } else if (secretMetAt >= 0 && !mimicGapSaid) {
+                mimicGapSaid = true;
+                noteSecretGap("Kill Mimic has the hands - waiting for it");
             }
             applyFallbackKeys(client);
             return;
@@ -1526,6 +1639,7 @@ public final class RouteExecutor {
 
     private static void beginAction(RouteNode node) {
         actionsBegun++;
+        endSecretGap("node #" + (route == null ? "?" : String.valueOf(route.indexOf(node) + 1)) + " " + node.type + " fired");
         // Another node fired: a breaker node still mining what was out of reach stops here (see tickBreakerLinger).
         clearBreakerLinger(node.type == RouteNode.Type.DUNGEON_BREAKER ? "the breaker fired again" : "another node fired");
         LocalPlayer self = Minecraft.getInstance().player;
@@ -1791,6 +1905,9 @@ public final class RouteExecutor {
                 && (plannedNext.type == RouteNode.Type.ETHERWARP || plannedNext.type == RouteNode.Type.PATH);
         chainAfterLanding = warpNext;
         settleTicks = warpNext ? 0 : cfg.getInteractDelayTicks();
+        if (settleTicks > 0) {
+            noteSecretGap("Interact Delay setting " + settleTicks + " tick(s) before the next node");
+        }
     }
 
     /**
@@ -1887,7 +2004,9 @@ public final class RouteExecutor {
             // clears, the action starts in this same tick.
             tickAwait(client, player, node);
             boolean early = false;
+            boolean skipped = false;
             if (!awaitPhaseDone && activeNode == node && (takeSkipClick(client) || (early = takeEarlySkip()))) {
+                skipped = true;
                 // killer560, 2026-10-06: "if I left click while on an await node then it should perform the teleport
                 // even if it didn't grab a secret yet". The click is consumed here, at START_CLIENT_TICK, so vanilla's
                 // handleKeybinds later this tick never sees it: no startAttack, no swing, no dig - the node's own
@@ -1907,6 +2026,9 @@ public final class RouteExecutor {
             if (actionAge > 0) {
                 LOGGER.info("[AutoRoutes] Node #{} {}: await held it {} tick(s)", route.indexOf(node) + 1, node.type,
                         actionAge);
+            }
+            if (!skipped) {
+                startSecretGap(node);
             }
         }
         awaitHeld = false;
@@ -2560,7 +2682,7 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
-            warpRetried = false;
+            warpRetries = 0;
             warpForced = false;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
@@ -2726,6 +2848,11 @@ public final class RouteExecutor {
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
+                if (teleportPacketSeen) {
+                    noteLandingTicks(stepTicks);
+                }
+                noteSecretGap((hopIndex >= 0 ? "hop " + (hopIndex + 1) + " " : "") + "landed " + stepTicks
+                        + " tick(s) after its use");
                 boolean onTarget = checkLandingBlock(client, player, node);
                 RouteTrace.landed(traceIndex(node), traceWhat(node), actionOrigin, player.position(), warpTarget, onTarget,
                         teleportPacketSeen, stepTicks);
@@ -2742,6 +2869,7 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Left click on node #{} {}: released its wait for the landing ({} tick(s), no "
                         + "teleport, ack {}) - sending the warp again", route.indexOf(node) + 1, node.type, stepTicks,
                         com.killer560.hub.util.ChestWindows.acked(warpUseSeq) ? "in" : "not in");
+                noteSecretGap("no landing " + stepTicks + " tick(s) after the use - your left click sent it again");
                 warpEaten = false;
                 step = Step.AIM;
                 stepTicks = 0;
@@ -2755,12 +2883,13 @@ public final class RouteExecutor {
                 // Stall stopped the route (fullclear-1016: Crypt #5, Cathedral #15).
                 LOGGER.info("[AutoRoutes] Etherwarp: no landing {} tick(s) after a use the server took as the block "
                         + "click's second half - the click is paired now, sending the warp again", stepTicks);
+                noteSecretGap("no landing " + stepTicks + " tick(s) after a use taken as the click's second half - sent again");
                 warpEaten = false;
                 eatenResends++;
                 step = Step.AIM;
                 stepTicks = 0;
                 return false;
-            } else if (!warpRetried && !teleportPacketSeen && warpTarget != null && actionOrigin != null
+            } else if (warpRetries < MAX_REFUSED_RETRIES && !teleportPacketSeen && warpTarget != null && actionOrigin != null
                     && player.position().distanceTo(actionOrigin) < 0.3
                     && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()
                     // The server has HANDLED the use (its ack is in) and no teleport came before the ack: refused, not
@@ -2768,14 +2897,16 @@ public final class RouteExecutor {
                     // past the node (testkit 96-ar-1015-earlyskip, failing since f1226757).
                     && (com.killer560.hub.util.ChestWindows.acked(warpUseSeq)
                     // Hypixel never acks a bare use (see NO_ACK_ROUND_TRIPS): without this the retry waited for one of
-                    // his own block clicks to bring an ack in, and otherwise never came.
-                    || stepTicks > warpRoundTripTicks() * NO_ACK_ROUND_TRIPS)
+                    // his own block clicks to bring an ack in, and otherwise never came. Past twice the slowest recent
+                    // landing it is refused, not slow (refusedRetryTicks); three round trips cost 13-22 ticks after
+                    // every secret click on Hypixel (his 2026-10-19 16:17 log).
+                    || stepTicks > refusedRetryTicks() + serverLagTicks())
                     && retryAim(player)) {
                 // No landing a round trip on, and he has not moved: the server refused the warp (its ray stopped short -
                 // his Doors #13 hop 3 on a jungle log, fullclear-1016 run 019). Aimed again from where he stands with a
                 // look that holds, it goes once more; the 61-tick wait below then let the node go off every ring and the
                 // route stood until Route Stall.
-                warpRetried = true;
+                warpRetries++;
                 step = Step.AIM;
                 stepTicks = 0;
                 return false;
@@ -2784,6 +2915,7 @@ public final class RouteExecutor {
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
                         fmt(actionOrigin), fmt(warpLanding));
+                noteSecretGap("no landing after " + stepTicks + " tick(s) - landing timeout, node let go");
                 RouteTrace.timeout(traceIndex(node), traceWhat(node), "no landing at the recorded spot (server teleport "
                         + (teleportPacketSeen ? "came, elsewhere" : "never came") + "; target "
                         + (warpTarget == null ? "none" : warpTarget.toShortString()) + ")", stepTicks, player.position());
@@ -2805,6 +2937,7 @@ public final class RouteExecutor {
                 }
             } else if (!warpSlowSaid && !teleportPacketSeen && stepTicks > warpRoundTripTicks() * NO_ACK_ROUND_TRIPS) {
                 warpSlowSaid = true;
+                noteSecretGap("still no landing " + stepTicks + " tick(s) after the use");
                 LOGGER.info("[AutoRoutes] Node #{} {}: still no landing {} tick(s) after the use (ack {}, moved {}) - "
                                 + "waiting; a left click sends it again", route.indexOf(node) + 1, node.type, stepTicks,
                         com.killer560.hub.util.ChestWindows.acked(warpUseSeq) ? "in" : "not in",
@@ -4346,6 +4479,8 @@ public final class RouteExecutor {
         nodeActed = true;
         LOGGER.info("[AutoRoutes] Node #{} {} acted {} tick(s) after firing{}{}", route == null ? "?" : route.indexOf(node) + 1,
                 node.type, actionAge - awaitDoneAge, nodeSwapped ? " (hotbar swap, same tick)" : "", detail);
+        noteSecretGap("#" + (route == null ? "?" : String.valueOf(route.indexOf(node) + 1)) + " " + node.type + " acted"
+                + detail);
     }
 
     /** Legit: a real right click at the live (already turned) rotation - for a use-item node the block in the

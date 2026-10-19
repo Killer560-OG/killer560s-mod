@@ -31,10 +31,11 @@ import java.util.Set;
  * in those units and is placed by an (origin, units-per-pixel) pair, so the same code draws a 116px HUD map and a
  * zoomed full-screen one.
  * <p>
- * Colours are the real map's own bytes, not invented: NoammAddons {@code RoomType.kt}/{@code DoorType.kt} decode
- * Hypixel's {@code MapColor} ids, giving brown normal {@code #724318} (byte 63), green entrance (30), magenta puzzle
- * (66), orange trap (62), yellow miniboss (74), pink fairy (82), red blood (18), grey unopened (85) and near-black
- * wither doors (119). Every one of them is a colour picker in the Dungeon Map tab; these are just the defaults.
+ * Room types come from the real map's own bytes: NoammAddons {@code RoomType.kt}/{@code DoorType.kt} decode Hypixel's
+ * {@code MapColor} ids (63/85 normal, 30 entrance, 66 puzzle, 62 trap, 74 miniboss, 82 fairy, 18 blood, 119 wither
+ * door). The default COLOURS they are drawn in are NoammAddons' {@code MapConfig.kt} ones since 2026-10-19 (killer560:
+ * "ours should essentially match that style"), Blood excepted - see {@link MapThemes#REAL}; a Custom scheme recolours
+ * any of them.
  * A plain door takes the colour of its most interesting neighbouring room (NoammAddons {@code DoorTile.getColor},
  * Devonian {@code doorColor}) - that is why corridors on the real map are the same brown as the rooms they join.
  */
@@ -648,7 +649,7 @@ public final class MapPainter {
         }
         // A failed puzzle does NOT recolour its square. killer560, 2026-10-01: "no not the square the text
         // should become red." The room keeps its own type colour and the NAME goes red, which it already does
-        // - every label's colour is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF5555. So the
+        // - every label's colour is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF0000. So the
         // only thing the sim had to add was a way to reach that state without a map item (SimRoomState).
         // killer560, 2026-09-27: "if you have cheater map then it should highlight the room tha thas mimic
         // as a faint red instead of the normal brown" - cheat build only, same live "is this known secret
@@ -900,9 +901,9 @@ public final class MapPainter {
         for (String s : lines) {
             maxWidth = Math.max(maxWidth, font.width(s));
         }
-        float want = 0.4f * cfg.getFontScale() * ppu;
+        float want = LABEL_SCALE * cfg.getFontScale() * ppu;
         float fit = Math.min(ROOM_UNITS * ppu / Math.max(1, maxWidth), ROOM_UNITS * ppu / (lines.size() * font.lineHeight));
-        float scale = Math.max(0.3f, Math.min(want, fit));
+        float scale = Math.max(LABEL_MIN_SCALE, Math.min(want, fit));
         float cx = ox + (cellPos(room.col()) + ROOM_UNITS / 2f) * ppu;
         float cy = oy + (cellPos(room.row()) + ROOM_UNITS / 2f) * ppu;
         int color = 0xFFCCCCCC; // neutral - a reported room has no cleared/failed/unopened state to colour by
@@ -1341,11 +1342,13 @@ public final class MapPainter {
             "...##...",
     };
 
+    /** Label (and mark) colour by room state: NoammAddons' {@code MapRenderer.renderText} (lines 177-182) - green
+     *  85,255,85, cleared white, failed pure red 255,0,0 (ours was 255,85,85 until 2026-10-19), anything else 170 grey. */
     static int stateColor(int state) {
         return switch (state) {
             case DungeonMapScanner.STATE_GREEN -> 0xFF55FF55;
             case DungeonMapScanner.STATE_CLEARED -> 0xFFFFFFFF;
-            case DungeonMapScanner.STATE_FAILED -> 0xFFFF5555;
+            case DungeonMapScanner.STATE_FAILED -> 0xFFFF0000;
             default -> 0xFFAAAAAA;
         };
     }
@@ -1396,6 +1399,15 @@ public final class MapPainter {
     }
 
     // ------------------------------------------------------------------------------------------- labels
+
+    /**
+     * Room text size per map unit at Font Scale 1, and the smallest it is ever shrunk to: NoammAddons' "Map Text Scale"
+     * default 1 and its "Limit Room Name Size" floor 0.39 ({@code MapConfig.kt} line 30, {@code MapRenderer.kt} line 199).
+     * The text is as big as it can be up to that, and shrinks only to fit the room. Until 2026-10-19 this was 0.4 and 0.3
+     * (QUOI's), which kept every name well under the room's width.
+     */
+    public static final float LABEL_SCALE = 1f;
+    public static final float LABEL_MIN_SCALE = 0.39f;
 
     /** One room's text label, in map units so the same cache serves the HUD and the full-screen map. */
     private record Label(String[] lines, int maxWidth, int color, float boxW, float boxH, float cx, float cy,
@@ -1571,7 +1583,7 @@ public final class MapPainter {
             return;
         }
         for (Label label : labels(style, font)) {
-            float want = 0.4f * cfg.getFontScale() * ppu;
+            float want = LABEL_SCALE * cfg.getFontScale() * ppu;
             // A shadow whenever the name would otherwise blend into the room it is written on, whatever
             // his Text Shadow setting says. The setting is about how he likes the map to look; this is
             // about the name being readable at all, and it only overrides when it has to.
@@ -1587,7 +1599,8 @@ public final class MapPainter {
      *
      * @param boxW  the room's width in screen pixels
      * @param boxH  the room's height in screen pixels
-     * @param want  the scale the text would like to be at; it only ever shrinks from there, never below 0.3
+     * @param want  the scale the text would like to be at; it only ever shrinks from there, never below
+     *              {@link #LABEL_MIN_SCALE}
      */
     public static void drawFittedLines(GuiGraphicsExtractor graphics, Font font, String[] lines, float cx,
                                        float cy, float boxW, float boxH, float want, int color, boolean shadow) {
@@ -1599,7 +1612,7 @@ public final class MapPainter {
             maxWidth = Math.max(maxWidth, font.width(s));
         }
         float fit = Math.min(boxW / Math.max(1, maxWidth), boxH / (lines.length * font.lineHeight));
-        float scale = Math.max(0.3f, Math.min(want, fit));
+        float scale = Math.max(LABEL_MIN_SCALE, Math.min(want, fit));
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
         graphics.pose().scale(scale, scale);
@@ -1664,6 +1677,9 @@ public final class MapPainter {
         return lastClassRing;
     }
 
+    /** A player head's size in map units at Player Marker Size 1 (NoammAddons' 12). */
+    static final int HEAD_UNITS = 12;
+
     /** His own marker's fill. Unchanged green; what keeps it off a green room is the contrast outline below. */
     static final int SELF_MARKER_COLOR = 0xFF55FF55;
     /** Outline thickness of an arrow / heading tick, in marker units (one unit = one skin pixel on a head). */
@@ -1696,6 +1712,9 @@ public final class MapPainter {
 
         net.minecraft.world.entity.player.PlayerSkin skin = cfg.isPlayerHeads() ? MapHeads.skinFor(mp) : null;
         if (skin != null) {
+            // NoammAddons' head is 12 map pixels with a 1px black frame (MapRenderer.drawPlayerHead, lines 289-290),
+            // half again the arrow's 8: the face has to be big enough to tell who it is.
+            size = Math.max(5, Math.round(HEAD_UNITS * cfg.getIconScale() * markerScale));
             // killer560, 2026-10-15: "have recolor by class ... also have a faint outline around their player head on
             // the map" - a teammate's head gets a translucent ring in his class colour outside its black edge.
             int ring = !mp.self() && classColours && cls != null ? (CLASS_RING_ALPHA << 24) | (cls.color() & 0xFFFFFF) : 0;
@@ -1709,7 +1728,8 @@ public final class MapPainter {
         }
 
         if (showName) {
-            float nameScale = 0.6f * cfg.getIconScale();
+            // NoammAddons' "Player Name Scale" 0.5, under the marker (MapConfig.kt line 33, MapRenderer.kt line 300).
+            float nameScale = 0.5f * cfg.getIconScale();
             graphics.pose().pushMatrix();
             graphics.pose().translate(x, y + size / 2f + 2);
             graphics.pose().scale(nameScale, nameScale);

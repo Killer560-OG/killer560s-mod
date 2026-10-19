@@ -466,6 +466,9 @@ public final class SimQuizPuzzle {
     /** {npc stand, click stand} per weirdo, in index order, for moving and removing them. */
     private static final List<UUID[]> NPC_IDS = new java.util.concurrent.CopyOnWriteArrayList<>();
 
+    /** Weirdos (by index) that have said their line this round; a chest opens only once all three have. */
+    private static final Set<Integer> WEIRDOS_SPOKEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /**
      * A weirdo's line, in the server's own {@code [NPC] Name: line} shape, when he talks to it. The one at the
      * correct chest says a SOLUTION line and the other two WRONG lines - the rule the solver implements.
@@ -490,6 +493,7 @@ public final class SimQuizPuzzle {
             }
             line = WEIRDO_WRONG[Math.min(rank, WEIRDO_WRONG.length - 1)];
         }
+        WEIRDOS_SPOKEN.add(index);
         // A server system message, which reaches his chat the way Hypixel's NPC lines do.
         player.sendSystemMessage(Component.literal("[NPC] " + WEIRDO_NAMES[index] + ": " + line));
         com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim three weirdos: {} {} - said its line",
@@ -539,6 +543,7 @@ public final class SimQuizPuzzle {
             }
         }
         correctIndex = correctSlot;
+        WEIRDOS_SPOKEN.clear();
         chestPos = positions;
         boundPositions = bound ? positions : null;
         for (int i = 0; i < 3; i++) {
@@ -978,6 +983,14 @@ public final class SimQuizPuzzle {
 
     private static void onChestClick(Minecraft client, int index) {
         MinecraftServer server = client.getSingleplayerServer();
+        if (weirdosRoom && WEIRDOS_SPOKEN.size() < 3) {
+            // Hypixel refuses a chest until all three weirdos have spoken: the chest's weirdo says this, nothing opens and
+            // the puzzle is not failed (Mod Only Test log, 2026-10-19 16:13:52, "[NPC] Luverne: Talk to all of us first!"
+            // after Auto Three Weirdos opened the right chest with two of three talked to).
+            raw(client, "[NPC] " + WEIRDO_NAMES[Math.max(0, Math.min(index, WEIRDO_NAMES.length - 1))]
+                    + ": Talk to all of us first!");
+            return;
+        }
         // NO ANSWER DELAY - the standalone /simpuzzle arena and Three Weirdos only; the bound Quiz room is answered through
         // Oruo's cooldowns on the server (onOruoPress, 2026-10-17). killer560 asked for one ("have a 5s delay from the question coming out to being
         // able to answer it") and then asked for it back out ("remove the quiz delay I dont like it"), so an

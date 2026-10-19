@@ -89,6 +89,11 @@ final class AutoWeirdos {
 
     private static String loggedWait = null;
 
+    /** Refusals ("Talk to all of us first!") already acted on, and how many re-tries that has cost in this room. */
+    private static int seenRefusals = 0;
+    private static int retries = 0;
+    private static final int MAX_REFUSED_RETRIES = 2;
+
     private AutoWeirdos() {
     }
 
@@ -138,6 +143,7 @@ final class AutoWeirdos {
             talked.clear();
             moveFor = null;
             moves = 0;
+            retries = 0;
         }
         CAMERA.keep(player);
 
@@ -159,6 +165,28 @@ final class AutoWeirdos {
             actedPos = null;
             pendingPos = null;
         }
+        int refusalCount = WeirdosSolverFeature.getRefusalCount();
+        if (refusalCount < seenRefusals) {
+            seenRefusals = refusalCount; // the solver reset (new room or round)
+        }
+        if (refusalCount > seenRefusals) {
+            seenRefusals = refusalCount;
+            if (actedPos != null) {
+                // Hypixel answered the click with "Talk to all of us first!": nothing opened. Talk to all three again
+                // (one whose line we never got is the one missing; a repeat is harmless) and open it after that.
+                retries++;
+                LOGGER.info("[AutoPuzzles] Weirdos: chest {} refused - not every weirdo has spoken ({} of 3 heard, {} of 3"
+                        + " talked to); talking to all three again (retry {}/{})", AutoPuzzleUtil.fmt(actedPos),
+                        WeirdosSolverFeature.getHeardCount(), talked.size(), retries, MAX_REFUSED_RETRIES);
+                if (retries <= MAX_REFUSED_RETRIES) {
+                    actedPos = null;
+                    pendingPos = null;
+                    talked.clear();
+                    moveFor = null;
+                    moves = 0;
+                }
+            }
+        }
         if (actedPos != null) {
             return; // once per room
         }
@@ -176,12 +204,20 @@ final class AutoWeirdos {
         // A correct chest IS the answer: it comes from a solution line (or from two wrong ones ruling the rest out). This
         // also used to want two wrong chests on top, so a run where one weirdo's line went unread sat at "all three
         // talked to" with the answer highlighted in front of him (killer560, 2026-10-19: "it just sits there").
-        boolean solved = chest != null;
+        //
+        // But the answer is not the go-ahead: Hypixel opens no chest until all three weirdos have spoken. The earlier
+        // version opened the right chest as soon as the second weirdo's solution line arrived, with two of three talked
+        // to, and Hypixel answered "Talk to all of us first!" (Mod Only Test log, 2026-10-19 16:13:52); the auto had
+        // marked the room done and never clicked again. So it keeps talking until all three have spoken.
+        boolean solved = chest != null && allSpoken();
         if (!solved) {
             if (!cfg.isWeirdosTalkToNpcs()) {
                 stopWalking(client, "talk to NPCs is off");
-                waitFor("the solver has no correct chest yet (" + WeirdosSolverFeature.getWrongChestCount()
-                        + " wrong chest(s) known, talk to NPCs is off)");
+                waitFor(chest == null
+                        ? "the solver has no correct chest yet (" + WeirdosSolverFeature.getWrongChestCount()
+                                + " wrong chest(s) known, talk to NPCs is off)"
+                        : "correct chest " + AutoPuzzleUtil.fmt(chest) + " known, but only "
+                                + WeirdosSolverFeature.getHeardCount() + " of 3 weirdos have spoken (talk to NPCs is off)");
                 return;
             }
             if (McCompat.screen(client) != null) {
@@ -202,6 +238,11 @@ final class AutoWeirdos {
     }
 
     // ------------------------------------------------------------------ talking
+
+    /** Every weirdo has spoken: all three talked to by the auto, or three different lines heard (he talked to some). */
+    private static boolean allSpoken() {
+        return talked.size() >= 3 || WeirdosSolverFeature.getHeardCount() >= 3;
+    }
 
     private static void talk(Minecraft client, LocalPlayer player) {
         if (talked.size() >= 3) {
@@ -600,7 +641,7 @@ final class AutoWeirdos {
     /** On a landing: the body onto the next weirdo in reach, or onto the chest once all three have spoken. */
     private static void readyBody(Minecraft client, LocalPlayer player, BlockPos chest) {
         Vec3 eye = AutoPuzzleUtil.settledEye(player);
-        if (chest == null && talked.size() < 3) {
+        if (!allSpoken()) {
             List<Entity> left = untalkedStands(client, player);
             Entity best = null;
             double bestSq = NPC_REACH * NPC_REACH;
@@ -714,6 +755,8 @@ final class AutoWeirdos {
         moves = 0;
         lastRoom = null;
         solverHadAnswer = false;
+        seenRefusals = 0;
+        retries = 0;
     }
 
     /** Test aid: weirdos talked to in this room. */

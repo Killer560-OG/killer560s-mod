@@ -34,8 +34,19 @@ public final class MapThemes {
     public static final String[] SLOT_NAMES = {"Normal", "Entrance", "Puzzle", "Trap", "Miniboss", "Fairy", "Blood",
             "Rare", "Unexplored", "Wither Door"};
 
-    /** The real dungeon map's own colours, decoded from Hypixel's MapColor bytes (see {@link MapPainter}). */
-    static final int[] REAL = {0xFF724318, 0xFF00FF00, 0xFFB24CD8, 0xFFD87F33, 0xFFE5E533, 0xFFF27FA5, 0xFFFF0000,
+    /**
+     * The default map colours (theme "Real Map", saved as {@code REAL}). killer560, 2026-10-19: "I love how their map
+     * looks and ours should essentially match that style" - these are NoammAddons' {@code MapConfig.kt} defaults
+     * (lines 59-71: normal 121,70,0; entrance 0,255,0; puzzle 123,0,123; trap 255,130,0; miniboss 255,200,0; fairy
+     * 227,155,226; rare 178,178,178; unopened 65,65,65; wither door 16,16,16). Blood stays our #FF0000, which he asked for
+     * on 2026-10-19 (NoammAddons' is 178,0,0). Until then this was {@link #HYPIXEL_ITEM}.
+     */
+    static final int[] REAL = {0xFF794600, 0xFF00FF00, 0xFF7B007B, 0xFFFF8200, 0xFFFFC800, 0xFFE39BE2, 0xFFFF0000,
+            0xFFB2B2B2, 0xFF414141, 0xFF101010};
+
+    /** The map item's own colours decoded from Hypixel's MapColor bytes: {@link #REAL} before 2026-10-19. Kept for the
+     *  pre-2026-10-15 config migration, which tells a stock palette from a hand-picked one by comparing against it. */
+    static final int[] HYPIXEL_ITEM = {0xFF724318, 0xFF00FF00, 0xFFB24CD8, 0xFFD87F33, 0xFFE5E533, 0xFFF27FA5, 0xFFFF0000,
             0xFFB2B2B2, 0xFF414141, 0xFF101010};
 
     /** killer560, 2026-09-20: "a custom one matching the mod's amber look". Blood stays reddish and trap warning-red so

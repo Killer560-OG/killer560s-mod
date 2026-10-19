@@ -81,6 +81,8 @@ public final class AutoRoutesFeature {
     private static RouteNode ringNode;
     private static int ringEnteredAt;
     private static String lastRoom;
+    /** The room frame (rotation and clay origin) last written to the log. */
+    private static RouteCoords.Frame lastLoggedFrame;
     private static Object lastLevel;
     /** {@link LiveMapFeature#resetGeneration} at the last tick: a change is a new run in the same world. */
     private static int lastMapGeneration = -1;
@@ -983,14 +985,21 @@ public final class AutoRoutesFeature {
             RouteExecutor.clearBreakerLinger("left the dungeon room");
             return;
         }
+        if (frame.roomName().equals(lastRoom) && !frame.sameRoom(lastLoggedFrame)) {
+            // Same room, but its rotation or origin moved under us: say so, since every node moves with it.
+            lastLoggedFrame = frame;
+            LOGGER.info("[AutoRoutes] Room {} frame changed - rotation {}, origin (clay) {},{}", frame.roomName(),
+                    frame.rotation(), frame.clayX(), frame.clayZ());
+        }
         if (!frame.roomName().equals(lastRoom)) {
             RouteExecutor.clearBreakerLinger("room change");
             if (lastRoom != null && RouteExecutor.isRunning()) {
                 RouteExecutor.stop("left the room");
             }
             lastRoom = frame.roomName();
-            LOGGER.info("[AutoRoutes] Room {} - clay {},{} rotation {}, sim y offset {}", frame.roomName(),
-                    frame.clayX(), frame.clayZ(), frame.rotation(), DungeonLayout.simYOffset());
+            lastLoggedFrame = frame;
+            LOGGER.info("[AutoRoutes] Room {} - rotation {}, origin (clay) {},{}, sim y offset {}", frame.roomName(),
+                    frame.rotation(), frame.clayX(), frame.clayZ(), DungeonLayout.simYOffset());
             // One line per room entry so he can see in latest.log whether a route was found for the room (the store
             // is keyed by the room database name exactly as the map gives it).
             Route entered = RouteStore.getInstance().forRoom(frame.roomName());
