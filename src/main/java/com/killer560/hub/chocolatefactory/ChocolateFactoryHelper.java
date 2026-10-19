@@ -177,7 +177,8 @@ public final class ChocolateFactoryHelper {
                     outline(graphics, menu, u.slot(), left, top, YELLOW);
                 }
             }
-            if (st.best() != null) {
+            // The best upgrade is only outlined once you can actually afford it (killer560, 2026-10-18).
+            if (st.best() != null && st.chocolate() >= st.best().cost()) {
                 outline(graphics, menu, st.best().slot(), left, top, GREEN);
             }
         }
@@ -190,12 +191,35 @@ public final class ChocolateFactoryHelper {
             outline(graphics, menu, st.timeTowerSlot(), left, top, AQUA);
         }
         if (cfg.isInfoLine()) {
-            String line = infoLine(st);
-            lastInfoLine = line;
-            // Just above the menu, unless he has placed it in Edit HUD (ContainerOverlayElement).
-            infoLineElement.draw(graphics, left, top - 11, client.font.width(line), 9,
-                    (g, x, y) -> g.text(client.font, line, x, y, 0xFFFFFFFF, true));
+            // Two lines above the menu: chocolate per second, then the best upgrade on the line below it (killer560, 2026-10-18).
+            String cps = cpsLine(st);
+            String best = bestLine(st);
+            lastInfoLine = best.isEmpty() ? cps : cps + "\n" + best;
+            int w = Math.max(client.font.width(cps), client.font.width(best));
+            infoLineElement.draw(graphics, left, top - 21, w, 19,
+                    (g, x, y) -> {
+                        g.text(client.font, cps, x, y, 0xFFFFFFFF, true);
+                        if (!best.isEmpty()) {
+                            g.text(client.font, best, x, y + 10, 0xFFFFFFFF, true);
+                        }
+                    });
         }
+    }
+
+    /** "123.4/s" in gold, the first of the two info lines. */
+    public static String cpsLine(ChocolateFactoryMenu.State st) {
+        return "§6" + String.format(java.util.Locale.US, "%,.1f", st.cps()) + "/s";
+    }
+
+    /** "| Best: Rabbit Sis - 1.25M (affordable now)" on the line below, or empty when there is no best upgrade. */
+    public static String bestLine(ChocolateFactoryMenu.State st) {
+        ChocolateFactoryMenu.Upgrade best = st.best();
+        if (best == null) {
+            return "";
+        }
+        long secs = st.secondsUntil(best);
+        return "§7Best: §a" + best.name() + " §7- §6" + ChocolateFactoryMenu.compact(best.cost())
+                + " §7(" + (secs == 0 ? "§aaffordable now" : secs < 0 ? "?" : "in " + ChocolateFactoryMenu.duration(secs)) + "§7)";
     }
 
     /** "§6123.4/s §7| Best: §aRabbit Sis §7- §61.25M §7(affordable now)". */
