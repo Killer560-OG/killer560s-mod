@@ -103,7 +103,7 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().setScreen(null);
+        com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(), null);
     }
 
     @Override
