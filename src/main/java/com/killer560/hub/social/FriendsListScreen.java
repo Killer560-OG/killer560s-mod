@@ -95,9 +95,16 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         int addBtnW = 70;
         int refreshBtnW = 62;
         int addBoxW = panelW - 12 - addBtnW - 4 - refreshBtnW - 4;
-        addBox = new ThemedEditBox(this.font, panelX + 6, panelY + 34, addBoxW, 18, Component.literal("Add by name"))
-                .hint("Add by name (sends /f add)...");
+        // The one search bar: typing filters the friends list, and Add sends /f add with whatever is typed.
+        addBox = new ThemedEditBox(this.font, panelX + 6, panelY + 34, addBoxW, 18, Component.literal("Search"))
+                .hint("Search friends, or type a name and press Add...");
         addBox.setMaxLength(16);
+        addBox.setValue(searchQuery);
+        addBox.setResponder(text -> {
+            searchQuery = text;
+            scroll = 0;
+            refresh();
+        });
         addRenderableWidget(addBox);
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Add"), btn -> addByName())
                 .bounds(panelX + 6 + addBoxW + 4, panelY + 34, addBtnW, 18).build());
@@ -114,18 +121,6 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
                 }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
 
         searchBox = null;
-        if (selected == null) {
-            searchBox = new ThemedEditBox(this.font, panelX + 6, panelY + 56, panelW - 12, 18, Component.literal("Search"))
-                    .hint("Type to search friends...");
-            searchBox.setMaxLength(16);
-            searchBox.setValue(searchQuery);
-            searchBox.setResponder(text -> {
-                searchQuery = text;
-                scroll = 0;
-                refresh();
-            });
-            addRenderableWidget(searchBox);
-        }
 
         refresh();
 
@@ -452,9 +447,10 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
 
             int lineY1 = rowY + 2;
             int lineY2 = rowY + 12;
+            // Vertically centred in the row, level with the Invite button.
             String status = onlineStatusText(f);
             int statusW = this.font.width(status);
-            ScreenChrome.text(graphics, status, bx - 6 - statusW, lineY1, MenuStyle.TXT);
+            ScreenChrome.text(graphics, status, bx - 6 - statusW, rowY + (ROW_H - this.font.lineHeight) / 2, MenuStyle.TXT);
             String name = f.name == null || f.name.isBlank() ? "?" : f.name;
             int nameX = listX + 3 + HEAD_SIZE + 6;
             String label = name + (f.note != null && !f.note.isBlank() ? "  §7- " + f.note : "");
