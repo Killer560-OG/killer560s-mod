@@ -29,7 +29,6 @@ public final class MaskInvincibilityConfig {
     public static final int DEFAULT_STEP_DELAY_TICKS = 7;
 
     private boolean enabled = false;
-    private boolean announceInChat = true;
     private boolean announceToParty = false;
     private boolean showSpirit = true;
     private boolean showBonzo = true;
@@ -114,7 +113,6 @@ public final class MaskInvincibilityConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             MaskInvincibilityConfig cfg = new MaskInvincibilityConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-            cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", true);
             cfg.announceToParty = ConfigJson.getBool(obj, "announceToParty", false);
             cfg.showSpirit = ConfigJson.getBool(obj, "showSpirit", true);
             cfg.showBonzo = ConfigJson.getBool(obj, "showBonzo", true);
@@ -158,7 +156,6 @@ public final class MaskInvincibilityConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("announceInChat", announceInChat);
             obj.addProperty("announceToParty", announceToParty);
             obj.addProperty("showSpirit", showSpirit);
             obj.addProperty("showBonzo", showBonzo);
@@ -187,14 +184,6 @@ public final class MaskInvincibilityConfig {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public boolean isAnnounceInChat() {
-        return announceInChat;
-    }
-
-    public void setAnnounceInChat(boolean announceInChat) {
-        this.announceInChat = announceInChat;
     }
 
     /** killer560, 2026-09-21: "For announce in chat make it send to party chat not client side." Kept as its

@@ -115,12 +115,6 @@ public final class MaskInvincibilityFeature {
             if (t.pattern.matcher(raw).matches()) {
                 activeRemaining.put(t, t.activeTicks);
                 cooldownRemaining.put(t, t.cooldownTicks);
-                if (cfg.isAnnounceInChat()) {
-                    Minecraft client = Minecraft.getInstance();
-                    if (client.player != null) {
-                        client.player.sendSystemMessage(ModChat.line("Mask", ModChat.value(t.label), ModChat.text(" procced!")));
-                    }
-                }
                 if (cfg.isAnnounceToParty()) {
                     sendPartyChat(t.label + " popped!");
                 }
