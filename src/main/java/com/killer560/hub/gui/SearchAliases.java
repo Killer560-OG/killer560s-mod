@@ -22,7 +22,11 @@ public final class SearchAliases {
             "command shortcut", "chat keybind",
             "command keybind", "chat keybind",
             // killer560 (2026-10-18): "cf" should find the Chocolate Factory tab.
-            "cf", "chocolate factory");
+            "cf", "chocolate factory",
+            // killer560 (2026-10-19): "make chocolate factory also show up if you search something like hoppity or egg".
+            "hoppity", "chocolate factory",
+            "egg", "chocolate factory",
+            "egglocator", "chocolate factory");
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;
