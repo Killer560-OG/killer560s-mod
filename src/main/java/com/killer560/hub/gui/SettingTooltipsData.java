@@ -971,7 +971,11 @@ final class SettingTooltipsData {
         d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
         d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
         d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
-        d.put("upgrade info line", "Shows chocolate per second, the best upgrade, its cost and how long until you can afford it, above the menu.");
+        d.put("hoppity egg timers", "A movable HUD for Hoppity's Hunt: each meal's egg (ready, found or ? when unknown), when the next one spawns, eggs spawned of 279, and your eggs and duplicates this session. Outside the hunt it shows when the next one starts. Read-only.");
+        d.put("duplicate rabbit values", "Adds a line to the Hoppity egg HUD with the chocolate a duplicate rabbit pays at your production, per rarity (first-duplicate bonus). Production is read the last time you opened the factory.");
+        d.put("egg esp", "Cheat build only. Boxes the hidden Hoppity's Hunt Chocolate Eggs through walls, gold for Breakfast, blue for Lunch, green for Dinner.");
+        d.put("hide found eggs", "Egg ESP leaves out a meal's egg once you have found it, until that meal's next egg spawns.");
+        d.put("upgrade info line","Shows chocolate per second, the best upgrade, its cost and how long until you can afford it, above the menu.");
         d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Zero Ping, Breaker Aura, Auto Routes breaker nodes) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
         d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
