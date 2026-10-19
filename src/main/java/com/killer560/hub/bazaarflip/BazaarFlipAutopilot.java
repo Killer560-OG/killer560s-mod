@@ -178,11 +178,12 @@ final class BazaarFlipAutopilot {
     static String begin(Minecraft client, double purse) {
         reset();
         BazaarFlipConfig cfg = BazaarFlipConfig.getInstance();
-        reserve = cfg.getAutopilotReserve() > 0 ? cfg.getAutopilotReserve() : purse * 0.10;
+        reserve = purse * cfg.getAutopilotReservePercent() / 100.0;
         if (purse <= reserve) {
             return String.format(Locale.US, "your purse (%,.0f) is not above the autopilot's reserve (%,.0f).", purse, reserve);
         }
-        limits = FlipAutopilot.Limits.defaults().withReserve(reserve).withMaxOrdersPerSession(cfg.getAutopilotMaxOrders());
+        int orderCap = cfg.isAutopilotMaxOrdersOn() ? cfg.getAutopilotMaxOrders() : Integer.MAX_VALUE;
+        limits = FlipAutopilot.Limits.defaults().withReserve(reserve).withMaxOrdersPerSession(orderCap);
         // Every Skyblock item he already carries is his: never flipped, so no sale ever takes his own units.
         if (client.player != null) {
             for (int i = 0; i < 36; i++) {
@@ -1030,6 +1031,12 @@ final class BazaarFlipAutopilot {
             Map<String, Integer> slots = readOrders(screen);
             if (refresh) {
                 done("read " + orders.size() + " order(s) (" + refreshWhy + ")");
+                // Leave Manage Orders before the next decision: the buy that follows starts from the product page, and it
+                // stopped with "unknown menu" when this page was still open (killer560, 2026-10-19, 14:23:38). Closing it
+                // sends the next step back through /bz, as any other reopen does, without counting toward the reopen cap.
+                closeMenu(client);
+                commandSentAtMs = 0L;
+                lastStepAtMs = 0L;
                 return;
             }
             FlipOrder target = action instanceof FlipAction.Collect c ? c.order()

@@ -122,6 +122,34 @@ public final class HoppityCalendar {
         return at;
     }
 
+    /** Whether the egg spawned on {@code spawnDayIndex} carries the odd-day name (Breakfast, Lunch, Dinner). */
+    public static boolean oddDay(long spawnDayIndex) {
+        return (dayOfYear(spawnDayIndex) + 1) % 2 == 1;
+    }
+
+    /** When the live egg of {@code meal} under its odd ({@code odd}) or even name spawned (ms), or -1 when that one has
+     *  not spawned this hunt / the hunt is off. Each of the six named eggs stays until its own next spawn, two days on. */
+    public static long lastSpawn(Meal meal, boolean odd, long nowMs) {
+        long at = lastSpawn(meal, nowMs);
+        if (at < 0) {
+            return -1;
+        }
+        if (oddDay(spawnDay(at)) != odd) {
+            at -= DAY_MS;
+        }
+        return huntDay(spawnDay(at)) ? at : -1;
+    }
+
+    /** When {@code meal} next spawns under its odd ({@code odd}) or even name (ms), skipping into the next hunt. */
+    public static long nextSpawn(Meal meal, boolean odd, long nowMs) {
+        long at = nextSpawn(meal, nowMs);
+        // Names alternate by day, so the right one is at most two spawns on (three across a hunt's end).
+        for (int i = 0; i < 4 && oddDay(spawnDay(at)) != odd; i++) {
+            at = nextSpawn(meal, at);
+        }
+        return at;
+    }
+
     /** When the next hunt starts (ms); in the past or now when one is on. */
     public static long nextHuntStart(long nowMs) {
         long day = dayIndex(nowMs);

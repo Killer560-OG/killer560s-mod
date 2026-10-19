@@ -50,12 +50,13 @@ public class CosmeticsTab extends BaseTab {
             "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter",
             "share trail", "show others' trails", "trail", "ribbon trail", "ribbon", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item", "play as mob", "my mob",
-            "show others' mobs", "mob",
+            "show others' mobs", "mob", "cape", "custom cape",
             "copy settings for global cosmetics", "reset cosmetics");
 
     private final NameChangerTab nameChangerTab = new NameChangerTab();
     private final HeldItemTab heldItemTab = new HeldItemTab();
     private final RibbonTrailTab ribbonTrailTab = new RibbonTrailTab(true);
+    private final CapeTab capeTab = new CapeTab();
 
     // Touched from the relay's own IO thread as well as the client thread.
     private volatile MeStatus status = MeStatus.CHECKING;
@@ -69,6 +70,7 @@ public class CosmeticsTab extends BaseTab {
     private boolean playerSizeOpen = false;
     private boolean playAsMobOpen = false;
     private boolean ribbonTrailOpen = false;
+    private boolean capeOpen = false;
 
     public CosmeticsTab() {
         super("Player Cosmetics");
@@ -193,6 +195,21 @@ public class CosmeticsTab extends BaseTab {
                 });
         if (playerSizeOpen) {
             y = buildPlayerSize(widgets, contentX, y, contentWidth, font, cfg, requestRebuild);
+        }
+
+        // --- Cape (killer560, 2026-10-19: "cape should not be its own setting, it should be under the other cosmetic section")
+        y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Cape", false, capeOpen,
+                () -> {
+                    capeOpen = !capeOpen;
+                    requestRebuild.run();
+                });
+        if (capeOpen) {
+            List<AbstractWidget> built = capeTab.buildWidgets(contentX, y, contentWidth, requestRebuild);
+            for (AbstractWidget w : built) {
+                SettingTooltips.scope(w, capeTab.name);
+            }
+            widgets.addAll(built);
+            y = bottomOf(built, y) + 6;
         }
 
         // --- Play as Mob (killer560, 2026-10-18: "Make an option to change your character to any ingame mob. Still have

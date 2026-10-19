@@ -29,6 +29,8 @@ public final class ZoomConfig {
     private int keyCode = DEFAULT_KEY;
     private float zoomLevel = 4f;
     private boolean scrollWhileZoomed = true;
+    /** Smooth pans in and out over a fraction of a second; off snaps straight to the zoom level (killer560, 2026-10-19). */
+    private boolean smooth = true;
 
     private ZoomConfig() {
     }
@@ -52,6 +54,7 @@ public final class ZoomConfig {
             cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", DEFAULT_KEY));
             cfg.setZoomLevel(ConfigJson.getFloat(obj, "zoomLevel", 4f));
             cfg.scrollWhileZoomed = ConfigJson.getBool(obj, "scrollWhileZoomed", true);
+            cfg.smooth = ConfigJson.getBool(obj, "smooth", true);
             instance = cfg;
         } catch (Exception e) {
             instance = new ZoomConfig();
@@ -66,6 +69,7 @@ public final class ZoomConfig {
             obj.addProperty("keyCode", keyCode);
             obj.addProperty("zoomLevel", zoomLevel);
             obj.addProperty("scrollWhileZoomed", scrollWhileZoomed);
+            obj.addProperty("smooth", smooth);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -101,5 +105,13 @@ public final class ZoomConfig {
 
     public void setScrollWhileZoomed(boolean scrollWhileZoomed) {
         this.scrollWhileZoomed = scrollWhileZoomed;
+    }
+
+    public boolean isSmooth() {
+        return smooth;
+    }
+
+    public void setSmooth(boolean smooth) {
+        this.smooth = smooth;
     }
 }

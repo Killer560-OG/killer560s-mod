@@ -212,9 +212,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   `EspRenderer`, `P3NavRenderer`, Teammates/Thorn ESP, the box methods of `SolverEspRender`/`WorldRenderUtils`.
 - Crypts and princes have no positions anywhere (room database and every installed mod's rooms.json: a count), and
   their undead do not exist until the tomb is blown, so `secretwaypoints/CryptScanner` finds them from blocks. The
-  rule was fitted against the captures vs the database count (118/134 rooms exact since 2026-10-19: a crown needs air
-  above, a slab staircase is not a lid); the census scripts and misses are in killer560s-mod-logs/crypt-waypoints.md.
-  crypt_rule_b.py there predates the lid, obsidian and sarcophagus prince rules, so mirror those before trusting it. Re-run that census before changing the rule.
+  rule was fitted against the captures vs the database count (121/134 rooms exact since 2026-10-19: a crown needs air
+  above, a slab staircase, a covered wall panel and a ledge 3+ blocks over the floor are not lids). Re-run
+  killer560s-mod-logs/crypt-census/crypt_scan_port.py (a full port of CryptScanner; `--new` tries crypt_new_rule.py)
+  before changing the rule; crypt_rule_b.py there is the stale 2026-10-05 version.
 - An item pickup reaches the client a round trip after the server took it, by which time an etherwarp or a chest grab has
   carried the player away; Secret Waypoints missed pickups by checking a 3-block box around the player (2026-10-19).
   Watch the item entity by id and count its REMOVAL from the level, not its leaving a box around the player.

@@ -39,15 +39,19 @@ public class ModTagTab extends BaseTab {
         y += 22;
 
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
-            String shown = "cheat".equals(cfg.getShareAs()) ? "Cheat (red)" : "Legit (green)";
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Show As: " + shown), btn -> {
+            // Arrows like the other cycling settings: left click steps forward, right click back (killer560, 2026-10-19).
+            widgets.add(SettingsButtonWidget.cycling(showAsText(cfg), (btn, dir) -> {
                         cfg.setShareAs("cheat".equals(cfg.getShareAs()) ? "legit" : "cheat");
                         cfg.save();
                         ModUsers.announce();
-                        requestRebuild.run();
+                        btn.setMessage(showAsText(cfg));
                     }).bounds(contentX, y, contentWidth, 18).build());
         }
         return widgets;
+    }
+
+    private static Component showAsText(ModUserConfig cfg) {
+        return Component.literal("Show As: " + ("cheat".equals(cfg.getShareAs()) ? "Cheat (red)" : "Legit (green)"));
     }
 
     private static Component onOff(String label, boolean value) {

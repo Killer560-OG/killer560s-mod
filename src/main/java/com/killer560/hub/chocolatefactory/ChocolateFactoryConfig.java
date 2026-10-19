@@ -30,8 +30,15 @@ public final class ChocolateFactoryConfig {
     private boolean eggHud = true;
     /** Hoppity egg tracker: counts eggs, rabbits and duplicates per hunt (off by default). */
     private boolean eggTracker = false;
-    /** The duplicate-rabbit chocolate values line on that HUD. */
+    /** The duplicate-rabbit chocolate values line on that HUD. Since 2026-10-19 that line is part of Egg Extra Info and
+     *  this has no menu row or effect; it is still read and written so a saved file keeps its value. */
     private boolean eggDupeValues = true;
+    /** Egg Extra Info (killer560, 2026-10-19): the HUD's lines past the six egg timers - the hunt's progress, next egg,
+     *  Egglocator, tracker, session and duplicate values. Off, so a fresh config shows just the six timers. */
+    private boolean eggExtraInfo = false;
+    /** Egglocator Tracer Line: the green line from the crosshair to the Egglocator's guess. The guess box and label are
+     *  drawn either way. */
+    private boolean eggLocatorLine = true;
     /** Egg ESP: boxes the hidden Chocolate Eggs through walls. Cheat build only, ships off. */
     private boolean eggEsp = false;
     /** Egg ESP leaves out the meals already found since their last spawn. */
@@ -63,6 +70,9 @@ public final class ChocolateFactoryConfig {
                 cfg.eggHud = ConfigJson.getBool(o, "eggHud", true);
                 cfg.eggTracker = ConfigJson.getBool(o, "eggTracker", false);
                 cfg.eggDupeValues = ConfigJson.getBool(o, "eggDupeValues", true);
+                // No fallback to eggDupeValues (on in every saved file): he asked for the six timers alone by default.
+                cfg.eggExtraInfo = ConfigJson.getBool(o, "eggExtraInfo", false);
+                cfg.eggLocatorLine = ConfigJson.getBool(o, "eggLocatorLine", true);
                 cfg.eggEsp = ConfigJson.getBool(o, "eggEsp", false);
                 cfg.eggEspHideFound = ConfigJson.getBool(o, "eggEspHideFound", true);
                 if (o.has("lastCps") && o.get("lastCps").isJsonPrimitive()) {
@@ -89,6 +99,8 @@ public final class ChocolateFactoryConfig {
             o.addProperty("eggHud", eggHud);
             o.addProperty("eggTracker", eggTracker);
             o.addProperty("eggDupeValues", eggDupeValues);
+            o.addProperty("eggExtraInfo", eggExtraInfo);
+            o.addProperty("eggLocatorLine", eggLocatorLine);
             o.addProperty("eggEsp", eggEsp);
             o.addProperty("eggEspHideFound", eggEspHideFound);
             o.addProperty("lastCps", lastCps);
@@ -172,6 +184,22 @@ public final class ChocolateFactoryConfig {
 
     public void setEggDupeValues(boolean v) {
         eggDupeValues = v;
+    }
+
+    public boolean isEggExtraInfo() {
+        return eggExtraInfo;
+    }
+
+    public void setEggExtraInfo(boolean v) {
+        eggExtraInfo = v;
+    }
+
+    public boolean isEggLocatorLine() {
+        return eggLocatorLine;
+    }
+
+    public void setEggLocatorLine(boolean v) {
+        eggLocatorLine = v;
     }
 
     /** The raw Egg ESP switch; the ESP itself also needs a cheat build ({@code egg/EggEsp}). */

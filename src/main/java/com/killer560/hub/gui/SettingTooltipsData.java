@@ -971,11 +971,13 @@ final class SettingTooltipsData {
         d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
         d.put("stray alert", "Plays a ping and prints a chat line the moment a stray rabbit appears in the factory menu.");
         d.put("time tower reminder", "Outlines the Time Tower and reminds you once per visit when it has a charge and is not running.");
-        d.put("hoppity egg timers", "A movable HUD for Hoppity's Hunt: each meal's egg (ready, found or ? when unknown), when the next one spawns, eggs spawned of 279, and your eggs and duplicates this session. Outside the hunt it shows when the next one starts. Read-only.");
-        d.put("duplicate rabbit values", "Adds a line to the Hoppity egg HUD with the chocolate a duplicate rabbit pays at your production, per rarity (first-duplicate bonus). Production is read the last time you opened the factory.");
+        d.put("hoppity egg timers", "A movable HUD for Hoppity's Hunt with all six eggs - Breakfast, Lunch, Dinner, Brunch, Déjeuner and Supper - each ready, found or ? when unknown, and when it next spawns. Read-only.");
+        d.put("egg extra info", "Adds the rest to the Hoppity egg HUD: eggs spawned of 279 (or when the next hunt starts), time to the next egg and how many are left to find, the Egglocator's state, the tracker's totals, your eggs and duplicates this session, and what a duplicate rabbit pays at your production per rarity.");
+        d.put("egglocator tracer line", "Draws a line from your crosshair to the Egglocator's guess. Off leaves just the box and label on the guessed block.");
+        d.put("hoppity tracker", "Counts the eggs you find, new rabbits and duplicates per hunt and in total, kept between sessions. Its totals show under Egg Extra Info.");
         d.put("egg esp", "Cheat build only. Boxes the hidden Hoppity's Hunt Chocolate Eggs through walls, gold for Breakfast, blue for Lunch, green for Dinner.");
         d.put("hide found eggs", "Egg ESP leaves out a meal's egg once you have found it, until that meal's next egg spawns.");
-        d.put("upgrade info line","Shows chocolate per second, the best upgrade, its cost and how long until you can afford it, above the menu.");
+        d.put("extra stat counter","Shows chocolate per second, the chocolate you hold, your multiplier, and the best upgrade with how long until you can afford it, above the menu.");
         d.put("don't break secrets", "Cheat build only. The Dungeon Breaker (Zero Ping, Breaker Aura, Auto Routes breaker nodes) never breaks a secret: chests, trapped chests, levers, Wither Essence and Redstone Key skulls. Fairy rooms are always left alone.");
         d.put("fatigue only", "Makes Zero Ping only work while you have Mining Fatigue (cheat build only).");
         d.put("i hate diorite", "Turns Storm's diorite pillars into see-through glass in F7/M7 (cheat build only).");
@@ -2081,7 +2083,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/xp bar", "Your experience bar: level and progress, as the game has them. Hypixel sometimes uses this bar for a countdown instead, and then that is what it shows.");
         d.put("health and mana bars/xp text", "Your experience level and how far the bar is to the next one, as text.");
         d.put("health and mana bars/layout", "Predefined: the bars and texts sit in areas round the hotbar (two rows above it, left of it, right of it), share a row's width and stay clear of the vanilla rows still shown; in Edit HUD drag one onto another area, or onto Hidden; every one is the same size there, and scrolling any of them in Edit HUD resizes them all together. Custom: each one goes exactly where you drag it in Edit HUD. Switching keeps both arrangements.");
-        d.put("health and mana bars/show value", "Draws the number on each custom bar, with room round it. When the full number does not fit the bar's length, only the current value shows, and on a very short bar none.");
+        d.put("health and mana bars/show value", "Draws the number on each custom bar, with room round it. When the full number does not fit the bar's length, only the current value shows (the Defense bar drops its percentage), and on a very short bar none.");
         d.put("health and mana bars/background", "Color of the empty part of every custom bar.");
         d.put("health and mana bars/absorption color", "Color of the health bar's absorption segment: your absorption (health past your max on the action bar, or the game's own absorption), drawn after your health like golden hearts.");
         d.put("health and mana bars/style", "The bars' look. Bold (the default): a black and orange double rim, a glossy two-band fill and quarter notches. Sleek: a thin dark frame, a sunken track and a gradient fill with a light top edge. Both draw the stat's icon, the overflow layer and the outlined number.");
@@ -2095,6 +2097,7 @@ final class SettingTooltipsData {
         d.put("health and mana bars/text size", "Size of the number on each bar. Small (the default) is about 0.85 of the game's text size, kept on whole screen pixels where it can be; Normal is the game's own size. Both have a dark outline all round so they read on any fill color.");
         d.put("health and mana bars/corners", "Rounded or square corners on the Sleek and Bold frames.");
         d.put("health and mana bars/icons", "Draws the stat's icon at each bar's left: a golden apple, enchanted book, iron chestplate, Hypixel's ♨ for Vitality, a bottle o' enchanting, a clock for the other resource. It takes a square the bar's thickness from the bar's length (a smaller one on a short bar), so the box you place in Edit Bars stays the same; a bar thinner than 6 has none.");
+        d.put("health and mana bars/show symbols", "Puts Hypixel's stat symbol in front of each bar's number: ❤ Health, ✎ Mana, ❈ Defense, ♨ Vitality. Needs Show Value. Where the bar is too short for the symbol and the number, the number wins.");
         d.put("health and mana bars/value position", "Inside: the number centered on the bar. Beside: the number after the bar's end in the bar's color, the bar made shorter to fit it inside the same box; bars stacked in one column keep room for the widest number among them, so they all end at the same length. A bar too short for that keeps it inside.");
         d.put("health and mana bars/smooth fill", "The fill slides to a new value over about a third of a second instead of jumping.");
         d.put("health and mana bars/damage ghost", "After a drop (a hit, a spent ability) a pale strip shows where the bar was, holds for a moment, then drains down to the new value.");

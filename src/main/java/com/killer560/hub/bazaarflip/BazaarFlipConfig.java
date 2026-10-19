@@ -63,10 +63,12 @@ public final class BazaarFlipConfig {
     /** Run the autopilot (buy orders, sell offers, relists, collecting; decided from the Bazaar Advisor's answers)
      *  instead of the Insta Buy to /trades cycle. Off by default (2026-10-19). */
     private boolean autopilot = false;
-    /** Coins the autopilot never spends below, and stops under. 0 = a tenth of the purse it started with. */
-    private long autopilotReserve = 0L;
+    /** Share of the purse the autopilot never spends below, 0 to 100 (killer560, 2026-10-19: a slider, not coins). */
+    private int autopilotReservePercent = 10;
     /** New orders and Insta Buys one autopilot session may place (relists do not count). */
     private int autopilotMaxOrders = 20;
+    /** Whether that cap applies at all (killer560, 2026-10-19: a toggle). Off = no cap. */
+    private boolean autopilotMaxOrdersOn = true;
     /** The order caps the tab steps through. */
     public static final int[] AUTOPILOT_ORDER_CAPS = {5, 10, 20, 50, 100};
 
@@ -98,8 +100,9 @@ public final class BazaarFlipConfig {
             cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
             cfg.sellSpeed = clampSpeed(ConfigJson.getInt(obj, "sellSpeed", cfg.sellSpeed));
             cfg.autopilot = ConfigJson.getBool(obj, "autopilot", cfg.autopilot);
-            cfg.autopilotReserve = clampPurse(ConfigJson.getLong(obj, "autopilotReserve", cfg.autopilotReserve));
+            cfg.autopilotReservePercent = clampPercent(ConfigJson.getInt(obj, "autopilotReservePercent", cfg.autopilotReservePercent));
             cfg.autopilotMaxOrders = clampOrderCap(ConfigJson.getInt(obj, "autopilotMaxOrders", cfg.autopilotMaxOrders));
+            cfg.autopilotMaxOrdersOn = ConfigJson.getBool(obj, "autopilotMaxOrdersOn", cfg.autopilotMaxOrdersOn);
             instance = cfg;
         } catch (Exception e) {
             instance = new BazaarFlipConfig();
@@ -117,8 +120,9 @@ public final class BazaarFlipConfig {
             obj.addProperty("speed", speed);
             obj.addProperty("sellSpeed", sellSpeed);
             obj.addProperty("autopilot", autopilot);
-            obj.addProperty("autopilotReserve", autopilotReserve);
+            obj.addProperty("autopilotReservePercent", autopilotReservePercent);
             obj.addProperty("autopilotMaxOrders", autopilotMaxOrders);
+            obj.addProperty("autopilotMaxOrdersOn", autopilotMaxOrdersOn);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -282,19 +286,34 @@ public final class BazaarFlipConfig {
     /** Whether the start key runs the autopilot rather than the Insta Buy to /trades cycle. Cheat build only, like the
      *  whole feature: {@link #isEnabled()} already folds everything away in a legit jar. */
     public boolean isAutopilot() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autopilot;
+        // killer560, 2026-10-19: "remove auto pilot as it should always be in autopilot mode". The Autopilot switch is gone,
+        // so the cheat build always runs the autopilot; the old saved flag is no longer read.
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
     }
 
     public void setAutopilot(boolean autopilot) {
         this.autopilot = autopilot;
     }
 
-    public long getAutopilotReserve() {
-        return autopilotReserve;
+    /** Share of the purse the autopilot keeps back, 0 to 100. */
+    public int getAutopilotReservePercent() {
+        return autopilotReservePercent;
     }
 
-    public void setAutopilotReserve(long coins) {
-        this.autopilotReserve = clampPurse(coins);
+    public void setAutopilotReservePercent(int percent) {
+        this.autopilotReservePercent = clampPercent(percent);
+    }
+
+    public boolean isAutopilotMaxOrdersOn() {
+        return autopilotMaxOrdersOn;
+    }
+
+    public void setAutopilotMaxOrdersOn(boolean on) {
+        this.autopilotMaxOrdersOn = on;
+    }
+
+    private static int clampPercent(int v) {
+        return Math.max(0, Math.min(100, v));
     }
 
     public int getAutopilotMaxOrders() {

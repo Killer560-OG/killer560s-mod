@@ -93,6 +93,8 @@ public final class SecretWaypointsFeature {
     /** Secrets already taken in this run (block positions from the room database) - their waypoints are gone
      *  (killer560, 2026-09-21: "if I click/get a secret then that waypoint should disappear"). Cleared on leaving
      *  the dungeon. */
+    /** How far the prince box sits below its tomb, in blocks. */
+    private static final double PRINCE_DROP = 0.5;
     private static final java.util.Set<BlockPos> COLLECTED = new java.util.HashSet<>();
     /** Item entities lying at an ITEM waypoint, by entity id, to notice one being picked up (see {@link #watchPickups}). */
     private static final java.util.Map<Integer, WatchedItem> WATCHED_ITEMS = new java.util.HashMap<>();
@@ -491,6 +493,10 @@ public final class SecretWaypointsFeature {
             AABB box = (!isPrince && cfg.getBoxSize() == SecretWaypointsConfig.BoxSize.HITBOX)
                     ? new AABB(tomb.minX, tomb.minY, tomb.minZ, tomb.maxX, tomb.minY + 0.5, tomb.maxZ)
                     : tomb;
+            // killer560, 2026-10-19: "move this prince box down a bit" - the prince's box sits half a block lower than its tomb.
+            if (isPrince) {
+                box = new AABB(box.minX, box.minY - PRINCE_DROP, box.minZ, box.maxX, box.maxY - PRINCE_DROP, box.maxZ);
+            }
             Kind kind = isPrince ? Kind.PRINCE : Kind.CRYPT;
             CACHED.add(new Waypoint(box,
                     (box.minX + box.maxX) * 0.5, (box.minY + box.maxY) * 0.5, (box.minZ + box.maxZ) * 0.5,

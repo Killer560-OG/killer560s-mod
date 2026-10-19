@@ -34,7 +34,10 @@ import java.util.Set;
  * {@code killer560s-mod-logs/crypt-waypoints.md}: some decorative slab panels (Hallway is the worst, thirteen 2x3
  * panels for one crypt) and a few tombs of another shape. Pirate's three lantern tables and the Stairs room's slab
  * staircase used to match too; since 2026-10-19 a crown needs air above it ({@link #isPrinceCrown}) and a slab
- * staircase is not a lid ({@link #isStaircase}), which brings the census to 118 of 134 rooms exact.
+ * staircase is not a lid ({@link #isStaircase}), which brings the census to 118 of 134 rooms exact. Also since
+ * 2026-10-19, a run with full blocks on top is a wall panel ({@link #isCovered}) and a run with no floor within two
+ * blocks beside it is a wall ledge ({@link #isLedge}): 121 of 134 (Banners, Doors and Hallway now exact). The census is
+ * {@code killer560s-mod-logs/crypt-census/crypt_scan_port.py}, a port of this class.
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
@@ -444,7 +447,7 @@ public final class CryptScanner {
             if (touchesAny(run, princeBlocks)) {
                 continue;
             }
-            if (isStaircase(level, run)) {
+            if (isStaircase(level, run) || isCovered(level, run) || isLedge(level, run)) {
                 continue;
             }
             if (!whole(level, f)) {
@@ -487,6 +490,62 @@ public final class CryptScanner {
             }
         }
         return false;
+    }
+
+    /** How far below a lid the floor beside it may lie before the run is a wall ledge ({@link #isLedge}). */
+    static final int LEDGE_DROP = 3;
+
+    /**
+     * Whether a slab run is a panel set INTO a wall: more than half its slabs have a full block directly on top. A lid is
+     * the open top of a tomb; killer560, 2026-10-19, of slab runs along stone brick corridor walls: "none of these are
+     * crypts" / "or these". Hallway's twelve 2x3 / 3x2 panels (capture x 2..29, y 72 and 74, under polished andesite,
+     * stone and andesite) and Banners' three stacked 3x2 panels (x 8..10, y 70..74, under stone bricks) are all of this
+     * shape, and both rooms then match the database (Hallway 1, Banners 1). No other capture's lid has more than a
+     * quarter of its slabs covered (stairs, slabs, carpet, chests and hoppers on a lid are not full blocks).
+     */
+    private static boolean isCovered(Level level, List<BlockPos> run) {
+        int covered = 0;
+        for (BlockPos p : run) {
+            BlockPos up = p.above();
+            if (level.getBlockState(up).isCollisionShapeFullBlock(level, up)) {
+                covered++;
+            }
+        }
+        return covered * 2 > run.size();
+    }
+
+    /**
+     * Whether a slab run is a LEDGE hung on a wall rather than a tomb standing on a floor: beside every open side of the
+     * run (a horizontal neighbour with nothing to collide with), the nearest floor is {@value #LEDGE_DROP} or more blocks
+     * below the slabs. killer560, 2026-10-19, of the two landings up Doors' wall stairs: "this is not a crypt in doors".
+     * Both are 5x2 runs at capture y 73 (x 14..18, z 2..3 and z 29..30), four blocks over the room floor at y 69 with
+     * nothing under their open side, and Doors then matches its database count of 7 (the seven lids at y 59). Over all
+     * 135 captures every lid the database confirms has a floor within two blocks beside it (most at 0 or 1; Catwalk's
+     * and Shadow Assassin's at 2); the only runs at 3 or more are these two, and Hallway's and Banners' upper wall
+     * panels, which {@link #isCovered} drops as well.
+     */
+    private static boolean isLedge(Level level, List<BlockPos> run) {
+        Set<BlockPos> cells = new HashSet<>(run);
+        int nearest = Integer.MAX_VALUE;
+        for (BlockPos p : run) {
+            for (Direction dir : HORIZONTAL) {
+                BlockPos side = p.relative(dir);
+                if (cells.contains(side) || !level.getBlockState(side).getCollisionShape(level, side).isEmpty()) {
+                    continue; // part of the run, or a wall / step beside it: not an open side
+                }
+                int drop = 0;
+                BlockPos under = side.below();
+                while (drop < LEDGE_DROP && level.getBlockState(under).getCollisionShape(level, under).isEmpty()) {
+                    drop++;
+                    under = under.below();
+                }
+                nearest = Math.min(nearest, drop);
+                if (nearest < LEDGE_DROP) {
+                    return false;
+                }
+            }
+        }
+        return nearest != Integer.MAX_VALUE && nearest >= LEDGE_DROP;
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {

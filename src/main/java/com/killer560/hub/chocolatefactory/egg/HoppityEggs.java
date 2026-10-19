@@ -65,6 +65,10 @@ public final class HoppityEggs {
     private static final Status[] status = new Status[3];
     /** The spawn (ms) each status refers to; 0 before the first tick. */
     private static final long[] statusSpawn = new long[3];
+    /** The same, per named egg (killer560, 2026-10-19: the HUD shows all six): index {@link #eggIndex}, Breakfast, Lunch,
+     *  Dinner, then Brunch, Déjeuner, Supper. Each named egg stays until its own next spawn, so each has its own state. */
+    private static final Status[] eggStatus = new Status[6];
+    private static final long[] eggStatusSpawn = new long[6];
     private static boolean initialised;
 
     private static int sessionEggs;
@@ -87,6 +91,7 @@ public final class HoppityEggs {
 
     public static void register() {
         java.util.Arrays.fill(status, Status.UNKNOWN);
+        java.util.Arrays.fill(eggStatus, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
         LocatorGuessRenderer.register();
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> {
@@ -153,6 +158,15 @@ public final class HoppityEggs {
                     status[i] = initialised && spawn > 0 ? Status.AVAILABLE : Status.UNKNOWN;
                     statusSpawn[i] = spawn;
                 }
+                for (int p = 0; p < 2; p++) {
+                    boolean odd = p == 0;
+                    long named = HoppityCalendar.lastSpawn(m, odd, now);
+                    int e = eggIndex(m, odd);
+                    if (named != eggStatusSpawn[e]) {
+                        eggStatus[e] = initialised && named > 0 ? Status.AVAILABLE : Status.UNKNOWN;
+                        eggStatusSpawn[e] = named;
+                    }
+                }
             }
             initialised = true;
             ChocolateFactoryMenu.State st = ChocolateFactoryHelper.state();
@@ -196,6 +210,7 @@ public final class HoppityEggs {
         if (NONE_NEARBY.matcher(plain).matches()) {
             // The Egglocator's "none left" answer: Skyblocker reads it as every live egg collected, and so do we.
             java.util.Arrays.fill(status, Status.FOUND);
+            java.util.Arrays.fill(eggStatus, Status.FOUND);
             LocatorTrail.clearGuess("none nearby");
             setLocatorResult("§cNo eggs left on this island.");
             return;
@@ -225,7 +240,13 @@ public final class HoppityEggs {
         Meal meal = Meal.byName(eggName);
         if (meal != null) {
             status[meal.ordinal()] = s;
+            eggStatus[eggIndex(meal, meal.oddName.equalsIgnoreCase(eggName))] = s;
         }
+    }
+
+    /** 0-2 for Breakfast, Lunch, Dinner; 3-5 for Brunch, Déjeuner, Supper. */
+    static int eggIndex(Meal meal, boolean odd) {
+        return meal.ordinal() + (odd ? 0 : 3);
     }
 
     /** Chocolate a duplicate of rarity index {@code r} pays at {@code cps}, first-duplicate bonus included. */
@@ -278,12 +299,47 @@ public final class HoppityEggs {
         LocatorTrail.onUse(now);
     }
 
-    /** The HUD's lines; empty when there is nothing to show. */
+    /**
+     * The HUD's lines. By default only the six egg timers (killer560, 2026-10-19: "by default should show the breakfast
+     * lunch and dinner and then the brunch ones all 6 egg things with the timer"): Breakfast, Lunch, Dinner, then Brunch,
+     * Déjeuner, Supper, each with its state and when it next spawns. Everything else - the hunt's progress or countdown,
+     * the next egg, eggs to find, the Egglocator, the tracker, the session and the duplicate values - is Egg Extra Info.
+     */
     static List<String> lines(boolean preview) {
         List<String> out = new ArrayList<>();
         ChocolateFactoryConfig cfg = ChocolateFactoryConfig.getInstance();
         long now = System.currentTimeMillis();
         boolean active = preview || HoppityCalendar.huntActive(now);
+        long soonest = Long.MAX_VALUE;
+        int ready = 0;
+        for (int p = 0; p < 2; p++) {
+            boolean odd = p == 0;
+            for (Meal m : Meal.values()) {
+                long next = HoppityCalendar.nextSpawn(m, odd, now);
+                soonest = Math.min(soonest, next);
+                long spawn = HoppityCalendar.lastSpawn(m, odd, now);
+                String timer = " §7(next " + ChocolateFactoryMenu.duration((next - now + 999) / 1000) + ")";
+                String name = odd ? m.oddName : m.evenName;
+                if (spawn <= 0 && !preview) {
+                    // No live egg of this name (before its first spawn of the hunt, or between hunts): just its timer.
+                    out.add(m.color + name + "§7:" + timer);
+                    continue;
+                }
+                Status s = preview ? (m == Meal.LUNCH ? Status.FOUND : Status.AVAILABLE) : eggStatus[eggIndex(m, odd)];
+                String state = switch (s) {
+                    case AVAILABLE -> "§aready";
+                    case FOUND -> "§8found";
+                    case UNKNOWN -> "§e?";
+                };
+                if (s == Status.AVAILABLE) {
+                    ready++;
+                }
+                out.add(m.color + name + "§7: " + state + timer);
+            }
+        }
+        if (!cfg.isEggExtraInfo()) {
+            return out;
+        }
         if (!active) {
             long start = HoppityCalendar.nextHuntStart(now);
             out.add("§6Hoppity's Hunt §7in §f" + ChocolateFactoryMenu.duration((start - now + 999) / 1000));
@@ -291,28 +347,6 @@ public final class HoppityEggs {
         }
         int spawned = preview ? 42 : HoppityCalendar.eggsSpawnedThisHunt(now);
         out.add("§6Hoppity's Hunt §7(" + spawned + "/" + HoppityCalendar.EGGS_PER_HUNT + " eggs)");
-        long soonest = Long.MAX_VALUE;
-        int ready = 0;
-        for (Meal m : Meal.values()) {
-            long next = HoppityCalendar.nextSpawn(m, now);
-            soonest = Math.min(soonest, next);
-            long spawn = HoppityCalendar.lastSpawn(m, now);
-            String name = spawn > 0 ? HoppityCalendar.eggName(m, HoppityCalendar.spawnDay(spawn))
-                    : HoppityCalendar.eggName(m, HoppityCalendar.spawnDay(next));
-            Status s = preview ? (m == Meal.LUNCH ? Status.FOUND : Status.AVAILABLE) : status(m);
-            if (spawn <= 0 && !preview) {
-                s = Status.UNKNOWN;
-            }
-            String state = switch (s) {
-                case AVAILABLE -> "§aready";
-                case FOUND -> "§8found";
-                case UNKNOWN -> "§e?";
-            };
-            if (s == Status.AVAILABLE) {
-                ready++;
-            }
-            out.add(m.color + name + "§7: " + state + " §7(next " + ChocolateFactoryMenu.duration((next - now + 999) / 1000) + ")");
-        }
         out.add("§7Next egg in §f" + ChocolateFactoryMenu.duration((soonest - now + 999) / 1000)
                 + (ready > 0 ? " §7| §a" + ready + " to find" : ""));
         out.add(locatorLine(now));
@@ -329,18 +363,17 @@ public final class HoppityEggs {
             out.add("§7Session: §f" + eggs + " §7eggs, §a" + (preview ? 2 : sessionNew) + " §7new, §e" + dupes
                     + " §7dupes §6+" + ChocolateFactoryMenu.compact(choc));
         }
-        if (cfg.isEggDupeValues()) {
-            double cps = preview && cfg.getLastCps() <= 0 ? 5000 : cfg.getLastCps();
-            if (cps > 0) {
-                StringBuilder b = new StringBuilder("§7Dupe:");
-                for (int r = 0; r < RARITY.length; r++) {
-                    b.append(' ').append(RARITY_COLOR[r]).append(RARITY[r]).append(" §6")
-                            .append(ChocolateFactoryMenu.compact(duplicateValue(r, cps)));
-                }
-                out.add(b.toString());
-            } else {
-                out.add("§7Dupe: §8open the factory once to read your production");
+        // Duplicate Rabbit Values had its own switch until 2026-10-19; it is part of Egg Extra Info now.
+        double cps = preview && cfg.getLastCps() <= 0 ? 5000 : cfg.getLastCps();
+        if (cps > 0) {
+            StringBuilder b = new StringBuilder("§7Dupe:");
+            for (int r = 0; r < RARITY.length; r++) {
+                b.append(' ').append(RARITY_COLOR[r]).append(RARITY[r]).append(" §6")
+                        .append(ChocolateFactoryMenu.compact(duplicateValue(r, cps)));
             }
+            out.add(b.toString());
+        } else {
+            out.add("§7Dupe: §8open the factory once to read your production");
         }
         return out;
     }

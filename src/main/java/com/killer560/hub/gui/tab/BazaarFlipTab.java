@@ -78,6 +78,12 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     if (!cfg.isEnabledRaw()) {
                         BazaarFlipFeature.requestStop();
+                    } else {
+                        // Every time it turns on, the advisor's answers are asked again, with Use last at the bottom
+                        // (killer560, 2026-10-19).
+                        com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(),
+                                new com.killer560.hub.bazaaradvisor.BazaarAdvisorSetupScreen());
+                        return;
                     }
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
@@ -103,54 +109,44 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        // Autopilot (2026-10-19): buy orders, sell offers, relists and collecting, decided from the Bazaar Advisor's
-        // /bzflip answers, instead of the Insta Buy to /trades cycle. Off by default; switching it stops a running session.
-        widgets.add(SettingsButtonWidget.builder(onOff("Autopilot", cfg.isAutopilot()), btn -> {
-                    cfg.setAutopilot(!cfg.isAutopilot());
+        // The autopilot is always on (killer560, 2026-10-19: "remove auto pilot as it should always be in autopilot mode").
+        // Its answers come from /bzflip: this button opens the same setup screen the bare command opens, so it runs the
+        // command for him, and he can still type /bzflip himself.
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Configure /bzflip"), btn ->
+                        com.killer560.hub.compat.McCompat.setScreen(Minecraft.getInstance(),
+                                new com.killer560.hub.bazaaradvisor.BazaarAdvisorSetupScreen()))
+                .bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        // Reserve: a slider from 0 to 100, the share of the purse the autopilot keeps back (default 10).
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, reserveText(cfg),
+                cfg.getAutopilotReservePercent() / 100.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(reserveText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setAutopilotReservePercent((int) Math.round(this.value * 100));
+                cfg.save();
+            }
+        });
+        y += 22;
+
+        // Max New Orders Per Session: a toggle; when on, the cap is the number beneath it.
+        widgets.add(SettingsButtonWidget.builder(onOff("Max New Orders Per Session", cfg.isAutopilotMaxOrdersOn()), btn -> {
+                    cfg.setAutopilotMaxOrdersOn(!cfg.isAutopilotMaxOrdersOn());
                     cfg.save();
-                    BazaarFlipFeature.requestStop();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-
-        if (cfg.isAutopilot()) {
-            widgets.add(inertLabel(contentX, y, contentWidth, "Uses /bzflip: " + shortAdvisor()));
-            y += 20;
-            SettingsButtonWidget reserveLabel = SettingsButtonWidget.builder(reserveText(cfg.getAutopilotReserve()), btn -> {
-            }).bounds(contentX, y, col2W, 18).build();
-            reserveLabel.active = false;
-            widgets.add(reserveLabel);
-            EditBox reserveBox = new EditBox(Minecraft.getInstance().font, col2bX, y, col2W, 18,
-                    Component.literal("Reserve"));
-            reserveBox.setMaxLength(24);
-            reserveBox.setValue(cfg.getAutopilotReserve() > 0 ? String.format(Locale.US, "%,d", cfg.getAutopilotReserve()) : "");
-            reserveBox.setResponder(text -> {
-                Long coins = BazaarFlipConfig.parseCoins(text);
-                if (coins == null) {
-                    reserveLabel.setMessage(Component.literal("Reserve: §cnot a number"));
-                    return;
-                }
-                if (cfg.getAutopilotReserve() != coins) {
-                    cfg.setAutopilotReserve(coins);
-                    cfg.save();
-                }
-                reserveLabel.setMessage(reserveText(cfg.getAutopilotReserve()));
-            });
-            widgets.add(reserveBox);
-            y += 22;
+        if (cfg.isAutopilotMaxOrdersOn()) {
             widgets.add(SettingsButtonWidget.cycling(orderCapText(cfg), (btn, dir) -> {
                 cfg.stepAutopilotMaxOrders(dir);
                 cfg.save();
                 btn.setMessage(orderCapText(cfg));
             }).bounds(contentX, y, contentWidth, 18).build());
-            y += 22;
-        } else {
-            widgets.add(SettingsButtonWidget.cycling(
-                    Component.literal("Rank By: §6" + cfg.getRankingMode().display), (btn, dir) -> {
-                        cfg.cycleRankingMode(dir);
-                        cfg.save();
-                        btn.setMessage(Component.literal("Rank By: §6" + cfg.getRankingMode().display));
-                    }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
         }
 
@@ -232,10 +228,8 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 : String.format(Locale.US, "Target Purse: §6%,d", coins));
     }
 
-    private static Component reserveText(long coins) {
-        return Component.literal(coins <= 0
-                ? "Reserve: §610% of purse"
-                : String.format(Locale.US, "Reserve: §6%,d", coins));
+    private static Component reserveText(BazaarFlipConfig cfg) {
+        return Component.literal("Reserve: §6" + cfg.getAutopilotReservePercent() + "% of purse");
     }
 
     private static Component orderCapText(BazaarFlipConfig cfg) {

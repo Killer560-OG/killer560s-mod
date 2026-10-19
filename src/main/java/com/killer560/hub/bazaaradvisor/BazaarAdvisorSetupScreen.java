@@ -62,6 +62,17 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
         }
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Close"), b -> onClose())
                 .bounds(panelX + PANEL_W - 52, panelY + 3, 44, 16).build());
+        // Use last (killer560, 2026-10-19: "on every turn on have it make me select ... or have a button for use last"):
+        // keeps the saved answers and carries on without asking again.
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Use last"), b -> useLast())
+                .bounds(panelX + 12, panelY + PANEL_H - 26, PANEL_W - 24, 20).build());
+    }
+
+    /** Keeps the saved answers. The Flipper's switch uses this screen every time it turns on. */
+    private void useLast() {
+        BazaarAdvisorConfig cfg = BazaarAdvisorConfig.getInstance();
+        ModChat.send("Bazaar Advisor", ModChat.text("Using last answers: "), ModChat.value(cfg.summary()));
+        onClose();
     }
 
     private void addButton(int x, int y, int w, String label, Runnable action) {

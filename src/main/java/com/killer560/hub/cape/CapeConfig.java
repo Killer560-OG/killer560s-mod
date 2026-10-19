@@ -46,8 +46,40 @@ public final class CapeConfig {
     private int customColourA = 0x2D6CDF;
     private int customColourB = 0xF2B134;
     private Pattern customPattern = Pattern.STRIPES;
+    /** The hand-painted back panel, row by row (10 wide, 16 tall), RGB per pixel; {@link #UNSET} takes the pattern's colour. */
+    public static final int PANEL_W = 10;
+    public static final int PANEL_H = 16;
+    public static final int UNSET = -1;
+    private int[] pixels = unsetPanel();
+    /** Bumped on every change, so the cape texture knows to rebuild (killer560, 2026-10-19: Make Your Own designer). */
+    private int revision;
 
     private CapeConfig() {
+    }
+
+    private static int[] unsetPanel() {
+        int[] p = new int[PANEL_W * PANEL_H];
+        java.util.Arrays.fill(p, UNSET);
+        return p;
+    }
+
+    /** The painted colour of back-panel pixel (x, y), or {@link #UNSET}. */
+    public int getPixel(int x, int y) {
+        return pixels[y * PANEL_W + x];
+    }
+
+    public void setPixel(int x, int y, int rgb) {
+        pixels[y * PANEL_W + x] = rgb == UNSET ? UNSET : rgb & 0xFFFFFF;
+        revision++;
+    }
+
+    public void clearPixels() {
+        java.util.Arrays.fill(pixels, UNSET);
+        revision++;
+    }
+
+    public int getRevision() {
+        return revision;
     }
 
     public static CapeConfig getInstance() {
@@ -72,6 +104,12 @@ public final class CapeConfig {
                 cfg.customPattern = Pattern.valueOf(ConfigJson.getString(obj, "customPattern", cfg.customPattern.name()));
             } catch (IllegalArgumentException ignored) {
             }
+            if (obj.has("panel") && obj.get("panel").isJsonArray()) {
+                var arr = obj.getAsJsonArray("panel");
+                for (int i = 0; i < Math.min(arr.size(), cfg.pixels.length); i++) {
+                    cfg.pixels[i] = arr.get(i).getAsInt();
+                }
+            }
             instance = cfg;
         } catch (Exception e) {
             instance = new CapeConfig();
@@ -86,6 +124,11 @@ public final class CapeConfig {
             obj.addProperty("customColourA", customColourA);
             obj.addProperty("customColourB", customColourB);
             obj.addProperty("customPattern", customPattern.name());
+            com.google.gson.JsonArray panel = new com.google.gson.JsonArray();
+            for (int p : pixels) {
+                panel.add(p);
+            }
+            obj.add("panel", panel);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

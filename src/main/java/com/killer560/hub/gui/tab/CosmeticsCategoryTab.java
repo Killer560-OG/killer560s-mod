@@ -14,7 +14,6 @@ public class CosmeticsCategoryTab extends FolderTab {
                 new CosmeticsTab(),
                 new HeldItemTab(),
                 new ModTagTab(),
-                new CapeTab(),
                 new CustomItemsTab(),
                 new HeldOutlineTab(),
                 new NickhiderTab(),

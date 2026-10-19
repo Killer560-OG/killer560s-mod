@@ -78,8 +78,14 @@ final class LocatorGuessRenderer {
 
         McRender.inCameraSpace(context, Types.FILLED, (pose, buffer) ->
                 EggEsp.filledBox(pose.pose(), buffer, box, 1f, 0.85f, 0.2f, 0.35f));
+        // Egglocator Tracer Line (killer560, 2026-10-19: "make a specific setting for toggling the line to hoppity eggs"):
+        // only the line from the crosshair; the box and label still mark the guess.
+        boolean tracer = com.killer560.hub.chocolatefactory.ChocolateFactoryConfig.getInstance().isEggLocatorLine();
         McRender.inCameraSpace(context, Types.LINES, (pose, buffer) -> {
             EggEsp.lineBox(pose, buffer, box, 1f, 0.85f, 0.2f, 1f, 2.5f);
+            if (!tracer) {
+                return;
+            }
             buffer.addVertex(pose, (float) start.x, (float) start.y, (float) start.z)
                     .setColor(0.33f, 1f, 0.33f, 1f).setNormal(pose, dx, dy, dz).setLineWidth(2f);
             buffer.addVertex(pose, (float) mark.x, (float) mark.y, (float) mark.z)

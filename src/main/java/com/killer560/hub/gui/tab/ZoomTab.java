@@ -97,6 +97,13 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Zoom Style: " + (cfg.isSmooth() ? "§aSmooth" : "§cInstant")), btn -> {
+                    cfg.setSmooth(!cfg.isSmooth());
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;
     }
 

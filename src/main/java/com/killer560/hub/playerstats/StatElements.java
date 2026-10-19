@@ -223,17 +223,57 @@ public final class StatElements {
         return cfg.isBarShowValue() ? Math.max(h, MIN_VALUE_THICKNESS) : h;
     }
 
-    /** What fits on a bar {@code w} units long with {@link #VALUE_PAD_X} at each end: {@code value}, else the part
-     *  before its slash (the current value), else null. */
+    /** What fits on a bar {@code w} units long with {@link #VALUE_PAD_X} at each end: {@code value}, else its short
+     *  form ({@link #shortValue}), else null. */
     static String fitValue(Font font, String value, int w, float s) {
-        if (value == null || font.width(value) * s + 2 * VALUE_PAD_X <= w) {
-            return value;
+        return fitValue(font, value, null, w, s);
+    }
+
+    /**
+     * {@link #fitValue(Font, String, int, float)} with the bar's symbol (Show Symbols, null for none) in front where it
+     * fits: the whole value with it, the whole value, the short form with it, the short form, else null. The number comes
+     * before the symbol, so a bar that showed its max before Show Symbols still does.
+     */
+    static String fitValue(Font font, String value, String symbol, int w, float s) {
+        if (value == null) {
+            return null;
         }
-        int slash = value.indexOf('/');
-        if (slash > 0 && font.width(value.substring(0, slash)) * s + 2 * VALUE_PAD_X <= w) {
-            return value.substring(0, slash);
+        String shortForm = shortValue(value);
+        String[] tries = symbol == null ? new String[]{value, shortForm}
+                : new String[]{symbol + value, value, shortForm == null ? null : symbol + shortForm, shortForm};
+        for (String t : tries) {
+            if (t != null && font.width(t) * s + 2 * VALUE_PAD_X <= w) {
+                return t;
+            }
         }
         return null;
+    }
+
+    /**
+     * The value's short form, for a bar too short for all of it: the part before its slash (the current value), else
+     * the part before " (" - the Defense bar's "996 (90.9%)" and the XP bar's "Level 30 (45%)" have no slash, so until
+     * 2026-10-19 a short bar showed no number for them at all (killer560: "the defence bar is not filling in the defence
+     * number"). Null when there is no shorter form.
+     */
+    static String shortValue(String value) {
+        int slash = value.indexOf('/');
+        if (slash > 0) {
+            return value.substring(0, slash);
+        }
+        int paren = value.indexOf(" (");
+        return paren > 0 ? value.substring(0, paren) : null;
+    }
+
+    /** The symbol Show Symbols puts in front of bar {@code r}'s number - Hypixel's own stat glyphs, the ones the text
+     *  readouts already use - or null for a bar without one (the Other bar's number already ends in its icon). */
+    static String symbol(Readout r) {
+        return switch (r) {
+            case HEALTH_BAR -> "❤ ";
+            case MANA_BAR -> "✎ ";
+            case DEFENCE_BAR -> "❈ ";
+            case VITALITY_BAR -> BarPainter.VITALITY_GLYPH + " ";
+            default -> null;
+        };
     }
 
     /**
@@ -447,16 +487,19 @@ public final class StatElements {
             float ts = textScale(g, cfg);
             if (cfg.isBarShowValue()) {
                 Font font = Minecraft.getInstance().font;
+                // Show Symbols (killer560, 2026-10-19: "add an option to show symbols as well for the bars").
+                String symbol = cfg.isBarSymbols() ? symbol(r) : null;
                 if (cfg.getBarValuePosition() == PlayerStatsConfig.ValuePosition.BESIDE) {
-                    int need = columnReserve(g, r, x, besideReserve(r, font, value, ts), now);
+                    String full = withSymbol(r, value, symbol);
+                    int need = columnReserve(g, r, x, besideReserve(r, font, full, ts), now);
                     // Beside only while the track keeps 24 units; else the number goes inside as usual.
                     if (w - need - BarPainter.iconRoom(cfg, w, h) >= 24) {
                         reserve = need;
-                        shown = value;
+                        shown = full;
                     }
                 }
                 if (reserve == 0) {
-                    shown = fitValueCached(r, font, value, w - BarPainter.iconRoom(cfg, w, h), ts);
+                    shown = fitValueCached(r, font, value, symbol, w - BarPainter.iconRoom(cfg, w, h), ts);
                 }
             }
             BarPainter.draw(g, cfg, r, style, x, y, w, h, fill, over, overColor, shown, reserve, ts, preview, now);
@@ -483,6 +526,10 @@ public final class StatElements {
     private static final String[] fitSource = new String[N];
     private static final int[] fitWidth = new int[N];
     private static final String[] fitOut = new String[N];
+    private static final String[] fitSymbol = new String[N];
+    private static final String[] symSource = new String[N];
+    private static final String[] symSymbol = new String[N];
+    private static final String[] symOut = new String[N];
     private static final float[] fitScale = new float[N];
     private static final float[] reserveScale = new float[N];
     // Beside numbers in one column (2026-10-12, left to us by killer560: bars stacked with the number beside them end at
@@ -579,16 +626,31 @@ public final class StatElements {
         return valueText[i];
     }
 
-    /** {@link #fitValue}, remembered for the last string and width, so a steady bar cuts no string per frame. */
-    static String fitValueCached(Readout r, Font font, String value, int w, float s) {
+    /** {@link #fitValue}, remembered for the last string, symbol and width, so a steady bar cuts no string per frame. */
+    static String fitValueCached(Readout r, Font font, String value, String symbol, int w, float s) {
         int i = r.ordinal();
-        if (fitSource[i] != value || fitWidth[i] != w || fitScale[i] != s) {
+        if (fitSource[i] != value || fitSymbol[i] != symbol || fitWidth[i] != w || fitScale[i] != s) {
             fitSource[i] = value;
+            fitSymbol[i] = symbol;
             fitWidth[i] = w;
             fitScale[i] = s;
-            fitOut[i] = fitValue(font, value, w, s);
+            fitOut[i] = fitValue(font, value, symbol, w, s);
         }
         return fitOut[i];
+    }
+
+    /** {@code symbol + value}, built only when either changes; {@code value} itself when there is no symbol. */
+    static String withSymbol(Readout r, String value, String symbol) {
+        if (symbol == null || value == null) {
+            return value;
+        }
+        int i = r.ordinal();
+        if (symSource[i] != value || symSymbol[i] != symbol) {
+            symSource[i] = value;
+            symSymbol[i] = symbol;
+            symOut[i] = symbol + value;
+        }
+        return symOut[i];
     }
 
     /** Room a Beside number needs after the bar: the widest number the bar has shown since its max last changed, so the

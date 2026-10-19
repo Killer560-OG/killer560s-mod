@@ -3,6 +3,7 @@ package com.killer560.hub.gui.tab;
 import com.killer560.hub.cape.CapeConfig;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
+import com.killer560.hub.gui.CapeDesignerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
@@ -31,8 +32,12 @@ public class CapeTab extends BaseTab {
                     btn.setMessage(capeText(cfg));
                     requestRebuild.run();
                 }).bounds(contentX, contentY, contentWidth, 18).build());
+        // Make Your Own's own designer: each pixel of the back panel is placed by hand (killer560, 2026-10-19).
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Design Make Your Own..."), btn ->
+                        McCompat.setScreen(Minecraft.getInstance(), new CapeDesignerScreen(McCompat.screen(Minecraft.getInstance()))))
+                .bounds(contentX, contentY + 22, contentWidth, 18).build());
         if (cfg.isCustom()) {
-            int y = contentY + 22;
+            int y = contentY + 44;
             widgets.add(SettingsButtonWidget.cycling(patternText(cfg), (btn, dir) -> {
                         CapeConfig.Pattern[] all = CapeConfig.Pattern.values();
                         cfg.setCustomPattern(all[SettingsButtonWidget.step(cfg.getCustomPattern().ordinal(), dir, all.length)]);

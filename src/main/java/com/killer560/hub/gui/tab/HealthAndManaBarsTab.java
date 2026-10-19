@@ -223,10 +223,12 @@ public class HealthAndManaBarsTab extends BaseTab {
             // Bar Size (killer560, 2026-10-19: the bar size slider should move in 0.5 increments): the size every readout
             // shares in the Predefined layout, the same value scrolling a bar in Edit Bars changes (that scroll keeps its
             // 0.1 step). 0.5x to 3.0x, six stops. Custom sizes each readout on its own in Edit Bars, so no row there.
+            // Show Symbols (killer560, 2026-10-19, default on) sits beside it: Hypixel's stat glyph before each number.
+            toggle(widgets, col2, y[0], half, "Show Symbols", ps::isBarSymbols, ps::setBarSymbols, ps::save, null);
             if (ps.isPredefinedLayout() || scanningForSearch) {
                 double span = PlayerStatsConfig.MAX_PREDEFINED_SCALE - PlayerStatsConfig.MIN_PREDEFINED_SCALE;
                 int stops = (int) Math.round(span / BAR_SIZE_STEP);
-                slider(widgets, contentX, y[0], contentWidth,
+                slider(widgets, contentX, y[0], half,
                         () -> String.format(java.util.Locale.ROOT, "Bar Size: %.1fx", ps.getPredefinedScale()),
                         (ps.getPredefinedScale() - PlayerStatsConfig.MIN_PREDEFINED_SCALE) / span,
                         v -> {
@@ -234,8 +236,8 @@ public class HealthAndManaBarsTab extends BaseTab {
                                     + Math.round(v * stops) * BAR_SIZE_STEP));
                             ps.save();
                         }, stops);
-                y[0] += ROW;
             }
+            y[0] += ROW;
 
             // Colours, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
             // empty track.

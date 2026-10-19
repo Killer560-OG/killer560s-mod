@@ -64,8 +64,21 @@ public final class LegitGfs {
     private static final Map<Item, Integer> KEYS = new EnumMap<>(Item.class);
     private static final Map<Item, Boolean> WAS_DOWN = new EnumMap<>(Item.class);
     private static boolean loaded;
+    /** The main switch: off stops the keybinds and /k gfs (killer560, 2026-10-19: "legit gfs should have a main toggle"). */
+    private static boolean enabled = true;
 
     private LegitGfs() {
+    }
+
+    public static boolean isEnabled() {
+        ensureLoaded();
+        return enabled;
+    }
+
+    public static void setEnabled(boolean v) {
+        ensureLoaded();
+        enabled = v;
+        save();
     }
 
     public static void register() {
@@ -82,6 +95,9 @@ public final class LegitGfs {
 
     /** Asks for one item by its chat name ({@code pearl}, {@code boom}, {@code leap}, {@code jerry}). */
     static void request(String word) {
+        if (!isEnabled()) {
+            return;
+        }
         Item item = Item.byWord(word);
         if (item == null) {
             ModChat.send(FEATURE, ModChat.bad("Unknown item. Use "), ModChat.value("pearl, boom, leap or jerry"), ModChat.text("."));
@@ -113,7 +129,7 @@ public final class LegitGfs {
 
     private static void tick(Minecraft client) {
         ensureLoaded();
-        if (client.getWindow() == null || McCompat.screen(client) != null) {
+        if (!enabled || client.getWindow() == null || McCompat.screen(client) != null) {
             WAS_DOWN.clear();
             return;
         }
@@ -138,6 +154,9 @@ public final class LegitGfs {
         }
         try {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (obj.has("enabled")) {
+                enabled = obj.get("enabled").getAsBoolean();
+            }
             for (Item item : Item.values()) {
                 String key = item.name().toLowerCase(Locale.ROOT);
                 if (obj.has(key)) {
@@ -153,6 +172,7 @@ public final class LegitGfs {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("enabled", enabled);
             for (Item item : Item.values()) {
                 obj.addProperty(item.name().toLowerCase(Locale.ROOT), KEYS.getOrDefault(item, KeyUtil.NONE));
             }

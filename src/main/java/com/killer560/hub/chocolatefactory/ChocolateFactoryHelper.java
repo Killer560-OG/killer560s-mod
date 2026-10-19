@@ -260,9 +260,19 @@ public final class ChocolateFactoryHelper {
         }
     }
 
-    /** "123.4/s" in gold, the first of the two info lines. */
+    /**
+     * The first of the two extra-stat lines: chocolate per second, the chocolate you hold, and the multiplier (killer560,
+     * 2026-10-19: "rename upgrade info line to extra stat counter"). Lifetime chocolate and time to prestige are not read
+     * yet: the menu's lore for them has not been sampled.
+     */
     public static String cpsLine(ChocolateFactoryMenu.State st) {
-        return "§6" + String.format(java.util.Locale.US, "%,.1f", st.cps()) + "/s";
+        StringBuilder b = new StringBuilder();
+        b.append("§6").append(String.format(java.util.Locale.US, "%,.1f", st.cps())).append("/s");
+        b.append(" §7| §fChocolate §6").append(ChocolateFactoryMenu.compact(st.chocolate()));
+        if (st.multiplier() > 0) {
+            b.append(" §7| §fx").append(String.format(java.util.Locale.US, "%.2f", st.multiplier()));
+        }
+        return b.toString();
     }
 
     /** "| Best: Rabbit Sis - 1.25M (affordable now)" on the line below, or empty when there is no best upgrade. */

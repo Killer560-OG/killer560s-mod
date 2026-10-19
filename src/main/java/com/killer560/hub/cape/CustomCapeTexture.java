@@ -21,7 +21,7 @@ public final class CustomCapeTexture {
 
     /** Makes sure the texture for the current settings is registered, and returns its id. */
     public static Identifier ensure(CapeConfig cfg) {
-        String key = cfg.getCustomPattern().name() + ":" + cfg.getCustomColourA() + ":" + cfg.getCustomColourB();
+        String key = cfg.getCustomPattern().name() + ":" + cfg.getCustomColourA() + ":" + cfg.getCustomColourB() + ":" + cfg.getRevision();
         if (key.equals(builtFor)) {
             return ID;
         }
@@ -31,7 +31,9 @@ public final class CustomCapeTexture {
                 for (int x = 0; x < 64; x++) {
                     int u = Math.max(0, Math.min(9, x - 1));
                     int v = Math.max(0, Math.min(15, y - 1));
-                    int rgb = colourAt(cfg.getCustomPattern(), cfg.getCustomColourA(), cfg.getCustomColourB(), u, v);
+                    int painted = cfg.getPixel(u, v);
+                    int rgb = painted != CapeConfig.UNSET ? painted
+                            : colourAt(cfg.getCustomPattern(), cfg.getCustomColourA(), cfg.getCustomColourB(), u, v);
                     int r = (rgb >> 16) & 0xFF;
                     int g = (rgb >> 8) & 0xFF;
                     int b = rgb & 0xFF;
@@ -45,6 +47,11 @@ public final class CustomCapeTexture {
             builtFor = key; // do not retry every frame
         }
         return ID;
+    }
+
+    /** What back-panel pixel (u 0..9, v 0..15) shows right now without a paint: the pattern's colour. For the designer's grid. */
+    public static int patternColour(CapeConfig cfg, int u, int v) {
+        return colourAt(cfg.getCustomPattern(), cfg.getCustomColourA(), cfg.getCustomColourB(), u, v);
     }
 
     /** The colour of one back-panel pixel (u 0..9, v 0..15) for a pattern. */

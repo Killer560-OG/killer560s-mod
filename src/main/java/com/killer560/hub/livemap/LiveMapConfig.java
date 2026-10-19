@@ -61,7 +61,8 @@ public final class LiveMapConfig {
     // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
     // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same grey.
     private boolean colourByType = true;
-    private float darkenUnopened = 0.4f;
+    /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read. */
+    private float darkenUnopened = 0.15f;
     private int mapBackground = 0x99000000;
     private int mapBorderColor = 0xFFCC6600;
     /** killer560, 2026-10-15: "Change checkmarks sprites to custom checkmark sprite so by default if it is off it uses
@@ -185,7 +186,7 @@ public final class LiveMapConfig {
                 cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
 
                 cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
-                cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", 0.4f));
+                cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", 0.15f));
                 cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", 0x99000000);
                 cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", 0xFFCC6600);
                 // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.

@@ -94,6 +94,9 @@ public final class PlayerStatsConfig {
     private boolean menuAdvancedOpen = false;
     private boolean barRounded = true;
     private boolean barIcons = true;
+    /** Show Symbols (killer560, 2026-10-19: "add an option to show symbols as well for the bars. Have it default on."):
+     *  Hypixel's stat glyph in front of each bar's number - see {@code StatElements.symbol}. */
+    private boolean barSymbols = true;
     private ValuePosition barValuePosition = ValuePosition.INSIDE;
     private boolean barSmooth = true;
     private boolean barDamageGhost = true;
@@ -215,6 +218,7 @@ public final class PlayerStatsConfig {
             cfg.barStyle = BarStyle.byKey(ConfigJson.getString(obj, "barStyle", null), cfg.barStyle);
             cfg.barRounded = ConfigJson.getBool(obj, "barRounded", cfg.barRounded);
             cfg.barIcons = ConfigJson.getBool(obj, "barIcons", cfg.barIcons);
+            cfg.barSymbols = ConfigJson.getBool(obj, "barSymbols", cfg.barSymbols);
             cfg.barValuePosition = ValuePosition.byKey(ConfigJson.getString(obj, "barValuePosition", null),
                     cfg.barValuePosition);
             cfg.barSmooth = ConfigJson.getBool(obj, "barSmooth", cfg.barSmooth);
@@ -286,6 +290,7 @@ public final class PlayerStatsConfig {
             obj.addProperty("menuAdvancedOpen", menuAdvancedOpen);
             obj.addProperty("barRounded", barRounded);
             obj.addProperty("barIcons", barIcons);
+            obj.addProperty("barSymbols", barSymbols);
             obj.addProperty("barValuePosition", barValuePosition.key);
             obj.addProperty("barSmooth", barSmooth);
             obj.addProperty("barDamageGhost", barDamageGhost);
@@ -691,6 +696,14 @@ public final class PlayerStatsConfig {
 
     public void setBarIcons(boolean v) {
         this.barIcons = v;
+    }
+
+    public boolean isBarSymbols() {
+        return barSymbols;
+    }
+
+    public void setBarSymbols(boolean v) {
+        this.barSymbols = v;
     }
 
     public ValuePosition getBarValuePosition() {

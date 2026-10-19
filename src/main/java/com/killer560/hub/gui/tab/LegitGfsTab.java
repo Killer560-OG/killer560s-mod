@@ -48,7 +48,12 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
-        int y = contentY;
+        // The main switch: off stops the keybinds and /k gfs (killer560, 2026-10-19).
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Legit GFS: " + (LegitGfs.isEnabled() ? "§aOn" : "§cOff")), btn -> {
+                    LegitGfs.setEnabled(!LegitGfs.isEnabled());
+                    requestRebuild.run();
+                }).bounds(contentX, contentY, contentWidth, 18).build());
+        int y = contentY + 22;
         for (LegitGfs.Item item : LegitGfs.Item.values()) {
             LegitGfs.Item row = item;
             int key = LegitGfs.keyFor(item);

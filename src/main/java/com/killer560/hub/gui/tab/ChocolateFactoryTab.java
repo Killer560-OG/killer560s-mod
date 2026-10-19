@@ -33,13 +33,22 @@ public class ChocolateFactoryTab extends BaseTab {
         if (!cfg.isEnabled()) {
             return w;
         }
+        // Split (killer560, 2026-10-19): what shows inside the factory menu, then Hoppity's Hunt outside it, then Cheat.
+        section(w, contentX, y, "Inside the Chocolate Factory menu");
         toggle(w, contentX, y, "Highlight Best Upgrade", cfg::isHighlightBestUpgrade, cfg::setHighlightBestUpgrade, null);
         toggle(w, contentX, y, "Highlight Strays", cfg::isHighlightStrays, cfg::setHighlightStrays, null);
         toggle(w, contentX, y, "Stray Alert", cfg::isStrayAlert, cfg::setStrayAlert, null);
         toggle(w, contentX, y, "Time Tower Reminder", cfg::isTimeTowerReminder, cfg::setTimeTowerReminder, null);
-        toggle(w, contentX, y, "Upgrade Info Line", cfg::isInfoLine, cfg::setInfoLine, null);
-        toggle(w, contentX, y, "Hoppity Egg Timers", cfg::isEggHud, cfg::setEggHud, null);
-        toggle(w, contentX, y, "Duplicate Rabbit Values", cfg::isEggDupeValues, cfg::setEggDupeValues, null);
+        toggle(w, contentX, y, "Extra Stat Counter", cfg::isInfoLine, cfg::setInfoLine, null);
+        // Hoppity's Hunt, simplified 2026-10-19 (killer560: "see if you can simplify the settings in that menu though and
+        // combine them"): the timers HUD, its Extra Info (which took in Duplicate Rabbit Values), the Egglocator's line
+        // and the tracker.
+        section(w, contentX, y, "Hoppity's Hunt (outside the menu)");
+        toggle(w, contentX, y, "Hoppity Egg Timers", cfg::isEggHud, cfg::setEggHud, requestRebuild);
+        if (cfg.isEggHud()) {
+            toggle(w, contentX, y, "Egg Extra Info", cfg::isEggExtraInfo, cfg::setEggExtraInfo, null);
+        }
+        toggle(w, contentX, y, "Egglocator Tracer Line", cfg::isEggLocatorLine, cfg::setEggLocatorLine, null);
         toggle(w, contentX, y, "Hoppity Tracker", cfg::isEggTracker, cfg::setEggTracker, null);
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             // Cheat-only settings go at the bottom of the tab under a red header (CLAUDE.md menu placement).
@@ -51,6 +60,12 @@ public class ChocolateFactoryTab extends BaseTab {
             toggle(w, contentX, y, "Hide Found Eggs", cfg::isEggEspHideFound, cfg::setEggEspHideFound, null);
         }
         return w;
+    }
+
+    /** A plain section label above a group of switches; takes one row of height. */
+    private static void section(List<AbstractWidget> w, int x, int[] y, String title) {
+        w.add(new StringWidget(x, y[0], BTN_W, 12, SectionHeaders.header(title, false), Minecraft.getInstance().font));
+        y[0] += 16;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int[] y, String name, Supplier<Boolean> getter,
