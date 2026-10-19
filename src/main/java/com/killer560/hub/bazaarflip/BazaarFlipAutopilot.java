@@ -316,6 +316,13 @@ final class BazaarFlipAutopilot {
                 fail("an unexpected screen opened: " + open.getClass().getSimpleName());
                 return;
             }
+            if (lastStepAtMs > 0) {
+                // Between two pages of this job (Hypixel closes the menu before the next one): wait for it.
+                if (now - lastStepAtMs > STEP_TIMEOUT_MS) {
+                    fail("the next Bazaar page never opened after the " + jobName() + "'s last step");
+                }
+                return;
+            }
             // No menu: open the Bazaar - the product's own search for a trade, the Bazaar's front for Manage Orders.
             if (commandSentAtMs > 0 && now - commandSentAtMs > STEP_TIMEOUT_MS) {
                 fail("the Bazaar menu never opened");
@@ -449,6 +456,7 @@ final class BazaarFlipAutopilot {
     private static void startJob(long now) {
         actionSinceMs = now;
         commandSentAtMs = 0L;
+        lastStepAtMs = 0L;
         reopens = 0;
         expect = Expect.NONE;
         orderClicks = 0;
@@ -499,6 +507,7 @@ final class BazaarFlipAutopilot {
         LOGGER.info("[BazaarFlip] Autopilot reopening: {}", why);
         closeMenu(client);
         commandSentAtMs = 0L;
+        lastStepAtMs = 0L;
     }
 
     // ---- expectations ---------------------------------------------------------------------------------------------------
@@ -698,7 +707,7 @@ final class BazaarFlipAutopilot {
                     reopen(client, "\"" + name + "\" is not on the Bazaar page " + BazaarFlipMenus.describe(screen));
                     return;
                 }
-                BazaarFlipFeature.click(client, screen, product.slot(), ContainerInput.PICKUP, cfg, true);
+                click(client, screen, product.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case PRODUCT -> {
                 if (BazaarFlipMenus.item(page, name) == null) {
@@ -715,12 +724,12 @@ final class BazaarFlipAutopilot {
                 }
                 if (action instanceof FlipAction.InstaSell) {
                     int have = carried(client, id);
-                    if (BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
+                    if (click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
                         expect(Expect.CARRIED_DOWN, have, screen);
                     }
                     return;
                 }
-                BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
+                click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case INSTANT_BUY -> {
                 if (!(action instanceof FlipAction.InstaBuy b) || !BazaarPages.isInstantBuyTitleFor(
@@ -738,7 +747,7 @@ final class BazaarFlipAutopilot {
                 for (String preset : new String[]{"Get me a stack!", "A big stack!", "One thousand!"}) {
                     BazaarPages.Item it = BazaarFlipMenus.item(page, preset);
                     if (it != null && BazaarFlipMenus.loreAmount(it.lore()) == b.amount()) {
-                        BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
+                        click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
                         return;
                     }
                 }
@@ -747,7 +756,7 @@ final class BazaarFlipAutopilot {
                     fail("unknown menu: no Custom Amount on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
-                if (BazaarFlipFeature.click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
+                if (click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
                     signAmount = b.amount();
                     signSeenAtMs = 0L;
                     expect(Expect.SIGN, 0, screen);
@@ -769,7 +778,7 @@ final class BazaarFlipAutopilot {
                     abandon(client, String.format(Locale.US, "the live bid (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
                     return;
                 }
-                BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
+                click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_BUY -> {
                 if (!(action instanceof FlipAction.PlaceBuyOrder b)) {
@@ -792,7 +801,7 @@ final class BazaarFlipAutopilot {
                     abandon(client, String.format(Locale.US, "the order's price (%,.1f) no longer sells at a profit (%,.1f)", live, sale));
                     return;
                 }
-                if (BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
+                if (click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
                     expect(Expect.PAGE_CHANGE, 0, screen);
                 }
             }
@@ -806,7 +815,7 @@ final class BazaarFlipAutopilot {
                     fail("unknown menu: no Best Offer -0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
-                BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
+                click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
             }
             case CONFIRM_SELL -> {
                 if (!(action instanceof FlipAction.PlaceSellOffer s)) {
@@ -819,7 +828,7 @@ final class BazaarFlipAutopilot {
                     return;
                 }
                 int have = carried(client, s.productId());
-                if (BazaarFlipFeature.click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
+                if (click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, false)) {
                     expect(Expect.CARRIED_DOWN, have, screen);
                 }
             }
@@ -891,7 +900,7 @@ final class BazaarFlipAutopilot {
         }
         int have = carried(client, b.productId());
         if (exact != null) {
-            if (BazaarFlipFeature.click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, false)) {
+            if (click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, false)) {
                 signAmount = want; // a Confirm Instant Buy page, if one follows, must state this amount
                 unitsBefore = have;
                 expect(Expect.CARRIED_UP, have, screen);
@@ -902,7 +911,7 @@ final class BazaarFlipAutopilot {
             fail("unknown menu: no Custom Amount on " + BazaarFlipMenus.describe(screen));
             return;
         }
-        if (BazaarFlipFeature.click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
+        if (click(client, screen, custom.slot(), ContainerInput.PICKUP, cfg, false)) {
             signAmount = want;
             signSeenAtMs = 0L;
             unitsBefore = have;
@@ -941,7 +950,7 @@ final class BazaarFlipAutopilot {
             abandon(client, String.format(Locale.US, "the confirm price (%,.1f each) no longer beats the sale (%,.1f)", each, sale));
             return;
         }
-        if (BazaarFlipFeature.click(client, screen, match.index, ContainerInput.PICKUP, cfg, true)) {
+        if (click(client, screen, match.index, ContainerInput.PICKUP, cfg, true)) {
             expect(Expect.CARRIED_UP, unitsBefore, null);
         }
     }
@@ -1003,6 +1012,7 @@ final class BazaarFlipAutopilot {
             return;
         }
         doneButton.onPress(new KeyEvent(InputConstants.KEY_RETURN, 0, 0));
+        lastStepAtMs = now;
         LOGGER.info("[BazaarFlip] Autopilot typed {} into the amount sign", text);
         BazaarFlipFeature.delayNext(BazaarFlipFeature.randomDelay(cfg));
         if (action instanceof FlipAction.InstaBuy) {
@@ -1035,7 +1045,7 @@ final class BazaarFlipAutopilot {
                 return;
             }
             int have = target.productId() == null ? 0 : carried(client, target.productId());
-            if (BazaarFlipFeature.click(client, screen, slot, ContainerInput.PICKUP, cfg, false)) {
+            if (click(client, screen, slot, ContainerInput.PICKUP, cfg, false)) {
                 if (action instanceof FlipAction.Collect) {
                     expect(Expect.CLAIM, have, screen);
                 } else {
@@ -1057,7 +1067,7 @@ final class BazaarFlipAutopilot {
                     fail("unknown menu: no Cancel Order on " + BazaarFlipMenus.describe(screen));
                     return;
                 }
-                if (BazaarFlipFeature.click(client, screen, cancel.slot(), ContainerInput.PICKUP, cfg, false)) {
+                if (click(client, screen, cancel.slot(), ContainerInput.PICKUP, cfg, false)) {
                     cancelClicked = true;
                     expect(Expect.PAGE_CHANGE, unitsBefore, screen);
                 }
@@ -1076,13 +1086,13 @@ final class BazaarFlipAutopilot {
             // /bz can reopen the page he was last on (a product page has no Manage Orders): Go Back toward the front.
             BazaarPages.Item back = BazaarFlipMenus.item(page, "Go Back");
             if (back != null && ++orderClicks <= MAX_ORDER_CLICKS) {
-                BazaarFlipFeature.click(client, screen, back.slot(), ContainerInput.PICKUP, cfg, true);
+                click(client, screen, back.slot(), ContainerInput.PICKUP, cfg, true);
                 return;
             }
             reopen(client, "no Manage Orders on " + BazaarFlipMenus.describe(screen));
             return;
         }
-        BazaarFlipFeature.click(client, screen, manage.slot(), ContainerInput.PICKUP, cfg, true);
+        click(client, screen, manage.slot(), ContainerInput.PICKUP, cfg, true);
     }
 
     /**
@@ -1198,7 +1208,7 @@ final class BazaarFlipAutopilot {
                 continue;
             }
             int count = slot.getItem().getCount();
-            if (BazaarFlipFeature.click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
+            if (click(client, screen, slot.index, ContainerInput.QUICK_MOVE, cfg, false)) {
                 sellPendingSlot = slot.index;
                 sellPendingCount = count;
                 sellPendingAtMs = now;
@@ -1219,6 +1229,20 @@ final class BazaarFlipAutopilot {
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------------
+
+    /** Every click of this class: {@link BazaarFlipFeature#click} (gate, pacing, cap), remembering that the job has
+     *  moved on, so a moment with no menu between two pages is waited out instead of answered with a new /bz. */
+    private static boolean click(Minecraft client, AbstractContainerScreen<?> screen, int slot, ContainerInput input,
+                                 BazaarFlipConfig cfg, boolean changesPage) {
+        if (!BazaarFlipFeature.click(client, screen, slot, input, cfg, changesPage)) {
+            return false;
+        }
+        lastStepAtMs = System.currentTimeMillis();
+        return true;
+    }
+
+    /** When this job last clicked or sent the sign (0: not yet, or the way back was just taken). */
+    private static long lastStepAtMs;
 
     private static void addHolding(String id, long n, double each) {
         if (id == null || n <= 0) {
