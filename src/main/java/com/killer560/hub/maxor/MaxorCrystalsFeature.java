@@ -158,8 +158,12 @@ public final class MaxorCrystalsFeature {
                 snapshotVisibleCrystals();
             }
         }
-        if (cfg.isSpawnTimerEnabled() && SPAWN.matcher(plain).matches()) {
-            tickTimer = RESPAWN_TICKS;
+        if (SPAWN.matcher(plain).matches()) {
+            // Logged whether or not the switch is on, so a test shows which of the two it was.
+            LOGGER.info("[Maxor] respawn line seen: switch={} countdown={} ticks", cfg.isSpawnTimerEnabled(), RESPAWN_TICKS);
+            if (cfg.isSpawnTimerEnabled()) {
+                tickTimer = RESPAWN_TICKS;
+            }
         }
         Matcher active = ACTIVE.matcher(plain);
         if (active.matches()) {
@@ -346,6 +350,23 @@ public final class MaxorCrystalsFeature {
             return 460;
         }
 
+        /** The last alert check written to the log, so a line is written only when one of the checks changes. */
+        private static String lastAlertCheck = "";
+
+        /** Writes the alert's inputs to the log whenever they change: the phase, the slot-9 item, and the verdict. */
+        private static void logAlertChecks(Minecraft client, boolean p1, boolean holding) {
+            ItemStack slot = client.player == null ? ItemStack.EMPTY
+                    : client.player.getInventory().getItem(CRYSTAL_HOTBAR_SLOT);
+            String check = "inF7Boss=" + Floor7Tracker.inF7Boss() + " phase=" + Floor7Tracker.getPhase()
+                    + " phaseAt=" + Floor7Tracker.getPhaseAt() + " p1=" + p1
+                    + " slot9='" + (slot == null || slot.isEmpty() ? "(empty)" : ChatObserver.strip(slot.getHoverName().getString()))
+                    + "' holding=" + holding;
+            if (!check.equals(lastAlertCheck)) {
+                lastAlertCheck = check;
+                LOGGER.info("[Maxor] alert check: {} -> shown={}", check, p1 && holding);
+            }
+        }
+
         /** The rows drawn right now - the editor's sample or the live ones; render() and the box both read it
          *  (the box was a fixed 110x29). */
         private static String crystalLine;
@@ -371,8 +392,13 @@ public final class MaxorCrystalsFeature {
                     out.add(crystalLine);
                 }
             }
-            if (cfg.isPlaceAlertEnabled() && inP1() && holdingUnplacedCrystal()) {
-                out.add("§e⚠ §bCrystal §e⚠");
+            if (cfg.isPlaceAlertEnabled()) {
+                boolean p1 = inP1();
+                boolean holding = holdingUnplacedCrystal();
+                logAlertChecks(client, p1, holding);
+                if (p1 && holding) {
+                    out.add("§e⚠ §bCrystal §e⚠");
+                }
             }
             if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
                 out.add("§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals);
