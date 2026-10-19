@@ -100,6 +100,12 @@ public final class RouteRunMemory {
         }
     }
 
+    /** Whether a secret under this key ("bat 67") was already got this run. */
+    static boolean has(String key) {
+        check();
+        return got.containsKey(key);
+    }
+
     /** The tick count secrets are stamped with ({@link AwaitEvents#now()}), for {@link #gotSince}. */
     public static int clock() {
         return AwaitEvents.now();

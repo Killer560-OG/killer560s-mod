@@ -240,6 +240,14 @@ public final class PredictedRoomsPainter {
                 hatchCell(rects, ox, oy, ppu, gx, gz);
                 rects.submit();
             }
+            if ("BLOOD".equals(types.get(0)) && cfg.getRoomLabels() >= 3) {
+                // Labelled like MapPainter labels it (killer560, 2026-10-19: "the map is not labeling blood").
+                MapPainter.drawFittedLines(graphics, font, new String[]{"Blood"},
+                        ox + (MapPainter.cellPos(gx) + MapPainter.ROOM_UNITS / 2f) * ppu,
+                        oy + (MapPainter.cellPos(gz) + MapPainter.ROOM_UNITS / 2f) * ppu,
+                        MapPainter.ROOM_UNITS * ppu, MapPainter.ROOM_UNITS * ppu, 0.4f * cfg.getFontScale() * ppu,
+                        0xFFE0E0E0, true);
+            }
             return;
         }
         for (int i = 0; i < n; i++) {

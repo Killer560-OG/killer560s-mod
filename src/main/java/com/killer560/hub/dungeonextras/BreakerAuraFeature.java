@@ -75,10 +75,17 @@ public final class BreakerAuraFeature {
             Blocks.CHEST, Blocks.TRAPPED_CHEST, Blocks.END_PORTAL_FRAME, Blocks.END_PORTAL,
             Blocks.PISTON, Blocks.PISTON_HEAD, Blocks.STICKY_PISTON, Blocks.MOVING_PISTON,
             Blocks.LEVER, Blocks.STONE_BUTTON, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD);
-    // Obsidian left this list 2026-10-05 (killer560: "breaker aura should be able to add obsidian as well") and is
-    // treated as any other block, zero-ping included.
+    // Obsidian left this list 2026-10-05 (killer560: "breaker aura should be able to add obsidian as well"). Since
+    // 2026-10-19 it is dug over time and never zero-pinged - see OBSIDIAN below.
 
     private static final Map<BlockPos, Long> RECENT = new HashMap<>();
+    /**
+     * The obsidian block being dug, if any. Obsidian is not broken by one START like every other block (killer560,
+     * 2026-10-19: it takes time): it is held as a hand holds it until the server's block update says it is gone, and no
+     * other dig goes out meanwhile - a START for another block would end it on the server. See ObsidianDig.
+     */
+    private static final com.killer560.hub.dungeonbreaker.ObsidianDig OBSIDIAN =
+            new com.killer560.hub.dungeonbreaker.ObsidianDig(LOGGER, "[DungeonExtras] Breaker Aura");
     /** Edge state for the pick key, so holding it toggles once rather than every tick. */
     private static boolean selectKeyWasDown;
     private static int cooldownTicks = 0;
@@ -127,7 +134,7 @@ public final class BreakerAuraFeature {
     // tick the aura was live and had something it wanted to break, and says where each one went, once every five
     // seconds and only while it is actually working.
     private static long censusFrom;
-    private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach;
+    private static int cTicks, cSent, cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach, cObsidian;
 
     /** How far ahead of him a block is, along the way he is moving (negative = behind). */
     private static double ahead(BlockPos pos, Vec3 feet, double dirX, double dirZ) {
@@ -155,6 +162,7 @@ public final class BreakerAuraFeature {
             case "face" -> cNoFace++;
             case "cooldown" -> cCooldown++;
             case "swap" -> cSwapWait++;
+            case "obsidian" -> cObsidian++;
             default -> cOutOfReach++;
         }
         long now = System.currentTimeMillis();
@@ -166,15 +174,15 @@ public final class BreakerAuraFeature {
             return;
         }
         double secs = (now - censusFrom) / 1000.0;
-        if (cSent > 0 || cGate > 0) {
+        if (cSent > 0 || cGate > 0 || cObsidian > 0) {
             LOGGER.info("[DungeonExtras] Breaker Aura {} tick(s) over {}s: {} sent ({} a second, ceiling 20)"
                             + " | {} gate gave the tick away | {} no face | {} cooldown | {} waiting on the swap"
-                            + " | {} nothing in reach",
+                            + " | {} holding an obsidian dig | {} nothing in reach",
                     cTicks, String.format("%.1f", secs), cSent, String.format("%.1f", cSent / secs),
-                    cGate, cNoFace, cCooldown, cSwapWait, cOutOfReach);
+                    cGate, cNoFace, cCooldown, cSwapWait, cObsidian, cOutOfReach);
         }
         censusFrom = now;
-        cTicks = cSent = cGate = cNoFace = cCooldown = cSwapWait = cOutOfReach = 0;
+        cTicks = cSent = cGate = cNoFace = cCooldown = cSwapWait = cOutOfReach = cObsidian = 0;
     }
 
     private static void skip(String reason) {
@@ -474,6 +482,7 @@ public final class BreakerAuraFeature {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
             if (!active) {
+                OBSIDIAN.abandon(client, "Breaker Aura inactive");
                 restoreSlot(client, "turned off");
             }
             resetState();
@@ -485,6 +494,7 @@ public final class BreakerAuraFeature {
         // work." Placing route nodes means right-clicking blocks you are standing next to, which is exactly what the
         // aura wants to chew through. Auto Routes owns the only real edit mode in the mod; AP3 has none (see notes).
         if (cfg.isBreakerAuraRespectEditMode() && isRouteEditModeActive()) {
+            OBSIDIAN.abandon(client, "Auto Routes edit mode");
             restoreSlot(client, "edit mode");
             skip("Auto Routes edit mode is active");
             return;
@@ -492,6 +502,7 @@ public final class BreakerAuraFeature {
         if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             // Mirrors ActionGate's WORLD rule (container screens only, not this mod's own menu),
             // but cheaper, and it keeps the swap-back from firing mid-menu.
+            OBSIDIAN.abandon(client, "a container screen opened");
             skip("a container screen is open");
             return;
         }
@@ -501,6 +512,20 @@ public final class BreakerAuraFeature {
         }
         LocalPlayer player = client.player;
         ClientLevel level = client.level;
+
+        // An obsidian dig under way holds the hand until the server answers (ObsidianDig): its swing every tick, its
+        // STOP when the client's progress is full, and nothing else sent meanwhile. Its charge was spent on its START.
+        if (OBSIDIAN.active()) {
+            double r = cfg.getBreakerAuraReach();
+            com.killer560.hub.dungeonbreaker.ObsidianDig.Result res = OBSIDIAN.tick(client, player, r * r,
+                    () -> ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA), null);
+            if (res == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
+                lastSkipReason = null;
+                idleSinceSwapTicks = 0;
+                census("obsidian");
+                return;
+            }
+        }
 
         int breakerSlot = findBreakerHotbarSlot(player);
         int selected = player.getInventory().getSelectedSlot();
@@ -702,6 +727,20 @@ public final class BreakerAuraFeature {
             if (hit == null) {
                 continue;
             }
+            if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(level.getBlockState(pos))) {
+                // Obsidian takes time (killer560, 2026-10-19): it is dug ALONE, held until the server breaks it, and
+                // never zero-pinged - a client-side hole over obsidian the server still has is a ghost hole. Other
+                // blocks already sent this tick go first; it starts on a later tick.
+                if (sent > 0) {
+                    continue;
+                }
+                ForeignBreakerProbe.ours();
+                OBSIDIAN.start(client, player, pos, hit.getDirection(), null);
+                RECENT.put(pos, now);
+                spentSinceLore++;
+                sent++;
+                break;
+            }
             // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
@@ -784,8 +823,9 @@ public final class BreakerAuraFeature {
     private static void breakBlock(MultiPlayerGameModeInvoker invoker, ClientLevel level, BlockPos pos,
                                    Direction face, boolean zeroPing) {
         invoker.killer560smod$invokeStartPrediction(level, sequence -> {
-            // Obsidian is zero-pinged like any other block (killer560, 2026-10-05: "it should be treated just as
-            // any other block") - QUOI's BreakerHelper exempts it, this does not.
+            // Obsidian never reaches here: it is dug over time by ObsidianDig and never zero-pinged (killer560,
+            // 2026-10-19: obsidian takes time on the breaker; the 2026-10-05 "treat it as any other block" made a
+            // ghost hole of it). QUOI's BreakerHelper exempts it from zero ping for the same reason.
             // Never for barrier or bedrock or anything unbreakable: the server never breaks them, so air here is a
             // ghost hole (killer560, 2026-10-06, seen in the sim with Zero Ping on).
             var state = level.getBlockState(pos);

@@ -361,6 +361,8 @@ public final class AutoBeams {
     private static BlockPos meleeBack = null;
     /** The teleport in flight: when it was used, its plan, the lantern it is for and where he stood. */
     private static long dashTick = -1L;
+    /** His feet when the teleport in flight was used. */
+    private static Vec3 dashFeet = null;
     private static AotvPlan dashPlan = null;
     private static BlockPos dashLantern = null;
     /** The plan of the teleport that last landed, until the hit it was for goes (or he moves on). */
@@ -371,6 +373,90 @@ public final class AutoBeams {
     private static int meleeShots = 0;
     /** Set when no lit pair can be finished any way at all: the rest of this room is played as Shoot mode plays it. */
     private static boolean meleeFallback = false;
+
+    /**
+     * Teleport looks Hypixel refused with "There are blocks in the way!", as "feet block|yaw|pitch" (one decimal), so
+     * {@link #planFrom} never hands the same look back. killer560's Mod Only Test log, 2026-10-19 15:49:30-35: the AOTV
+     * teleport from (-132.5, 74, -54.5) at yaw -45.0 pitch -41.2 was refused six times in a row, each time waited out for
+     * the full {@link #AOTV_LAND_TIMEOUT} and then planned again identically from where he stood ("dropped ... from where
+     * he stood - 5 left" dropped nothing, because the from-here plan is not in the list) - the "stuck" he saw.
+     */
+    private static final java.util.Set<String> REFUSED_LOOKS = new java.util.HashSet<>();
+    /** Set by {@link #onChat} when Hypixel refused the teleport in flight; read by {@link #meleeTick} the same tick. */
+    private static boolean dashRefused = false;
+    private static final java.util.regex.Pattern BLOCKS_IN_THE_WAY =
+            java.util.regex.Pattern.compile("^There are blocks in the way!$");
+
+    static {
+        com.killer560.hub.util.ChatObserver.subscribe(AutoBeams::onChat);
+    }
+
+    private static String lookKey(Vec3 feet, float yaw, float pitch) {
+        BlockPos b = BlockPos.containing(feet);
+        return b.asLong() + String.format(java.util.Locale.ROOT, "|%.1f|%.1f", yaw, pitch);
+    }
+
+    /** Hypixel's refusal of an Instant Transmission (or etherwarp) of ours, anchored so no player's chat line matches. */
+    private static void onChat(net.minecraft.network.chat.Component message) {
+        try {
+            if (!active) {
+                return;
+            }
+            String plain = com.killer560.hub.util.ChatObserver.strip(message).trim();
+            if (!BLOCKS_IN_THE_WAY.matcher(plain).matches()) {
+                return;
+            }
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null || client.level == null) {
+                return;
+            }
+            if (dashTick >= 0 && dashPlan != null) {
+                dashRefused = true;
+                logInTheWay(client, player, dashPlan.yaw(), dashPlan.pitch(), "the AOTV teleport toward "
+                        + AutoPuzzleUtil.fmt(dashLantern));
+            } else {
+                logInTheWay(client, player, player.getYRot(), player.getXRot(), "no AOTV teleport of melee's in flight "
+                        + "(an etherwarp, or a click with the AOTV held)");
+            }
+        } catch (RuntimeException e) {
+            LOGGER.error("[AutoPuzzles] Beams: blocks-in-the-way handler failed", e);
+        }
+    }
+
+    /** One INFO line naming what stands on the look: the eye's first block, and the first block the feet-to-head column
+     *  meets one step along it - so the log can say which block Hypixel stopped on. */
+    private static void logInTheWay(Minecraft client, LocalPlayer player, float yaw, float pitch, String what) {
+        float y = yaw * net.minecraft.util.Mth.DEG_TO_RAD;
+        float x = net.minecraft.util.Mth.clamp(pitch, -90f, 90f) * net.minecraft.util.Mth.DEG_TO_RAD;
+        float cp = net.minecraft.util.Mth.cos(x);
+        Vec3 look = new Vec3(-net.minecraft.util.Mth.sin(y) * cp, -net.minecraft.util.Mth.sin(x), net.minecraft.util.Mth.cos(y) * cp);
+        Vec3 eye = player.getEyePosition();
+        net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye,
+                eye.add(look.scale(3.0)), net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, player));
+        String eyeBlock = hit == null || hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK ? "nothing within 3"
+                : client.level.getBlockState(hit.getBlockPos()).getBlock().getName().getString() + " at "
+                + AutoPuzzleUtil.fmt(hit.getBlockPos()) + String.format(java.util.Locale.ROOT, " (%.2f out)",
+                hit.getLocation().distanceTo(eye));
+        StringBuilder column = new StringBuilder();
+        for (double d = 0.5; d <= 1.5 && column.isEmpty(); d += 0.5) {
+            Vec3 feet = player.position().add(look.scale(d));
+            for (int h = 0; h < 2; h++) {
+                BlockPos p = BlockPos.containing(feet.x, feet.y + h + 0.01, feet.z);
+                var st = client.level.getBlockState(p);
+                if (!st.getCollisionShape(client.level, p).isEmpty()) {
+                    column.append(st.getBlock().getName().getString()).append(" at ").append(AutoPuzzleUtil.fmt(p))
+                            .append(String.format(java.util.Locale.ROOT, " (%.1f along, %s)", d, h == 0 ? "feet" : "head"));
+                    break;
+                }
+            }
+        }
+        LOGGER.info("[AutoPuzzles] Beams: \"There are blocks in the way!\" for {} | from {} yaw {} pitch {} | eye ray meets "
+                        + "{} | body column meets {}", what, fmt(player.position()),
+                String.format(java.util.Locale.ROOT, "%.1f", yaw), String.format(java.util.Locale.ROOT, "%.1f", pitch),
+                eyeBlock, column.isEmpty() ? "nothing within 1.5" : column);
+    }
 
     /**
      * Melee mode (killer560's to-do item 29, 2026-10-18: "etherwarps and teleports around the room and will mele the
@@ -409,9 +495,17 @@ public final class AutoBeams {
                 aimAtVisible(client, player, dashLantern, player.getEyePosition());
                 return;
             }
-            if (now - dashTick > AOTV_LAND_TIMEOUT) {
-                LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} never landed at {} (he is at {}) - "
-                        + "dropping that teleport", AutoPuzzleUtil.fmt(dashLantern), fmt(plan.land()), fmt(player.position()));
+            if (dashRefused || now - dashTick > AOTV_LAND_TIMEOUT) {
+                // Refused: Hypixel's "There are blocks in the way!" came (onChat) - handled the tick it arrives instead of
+                // waiting out the timeout, and the look is never planned again from that block.
+                if (dashFeet != null) {
+                    REFUSED_LOOKS.add(lookKey(dashFeet, plan.yaw(), plan.pitch()));
+                }
+                LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} {} (planned landing {}, he is at {}) - "
+                                + "dropping that teleport and its look", AutoPuzzleUtil.fmt(dashLantern),
+                        dashRefused ? "was refused (\"There are blocks in the way!\") " + (now - dashTick) + " tick(s) "
+                                + "after the use" : "never landed", fmt(plan.land()), fmt(player.position()));
+                dashRefused = false;
                 dropPlan(dashLantern, plan);
                 requestBack(dashLantern);
                 dashTick = -1L;
@@ -651,6 +745,8 @@ public final class AutoBeams {
         }
         com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
         dashTick = now;
+        dashRefused = false;
+        dashFeet = player.position();
         dashPlan = new AotvPlan(plan.from(), plan.yaw(), plan.pitch(), land);
         dashLantern = lantern;
         meleeDashes++;
@@ -829,6 +925,12 @@ public final class AutoBeams {
         };
         for (Vec3 t : targets) {
             float[] d = AutoPuzzleUtil.direction(feet, t);
+            if (REFUSED_LOOKS.contains(lookKey(feet, d[0], d[1]))) {
+                LOGGER.info("[AutoPuzzles] Beams (melee): skipping the look {} / {} from {} - Hypixel refused it before",
+                        String.format(java.util.Locale.ROOT, "%.1f", d[0]), String.format(java.util.Locale.ROOT, "%.1f", d[1]),
+                        fmt(feet));
+                continue;
+            }
             Vec3 land = dashLanding(client, player, feet, d[0], d[1]);
             if (land != null && reachesFromFeet(client, land, lantern)) {
                 return new AotvPlan(from, d[0], d[1], land);
@@ -1318,6 +1420,9 @@ public final class AutoBeams {
         MELEE_SPOTS.clear();
         MELEE_DONE.clear();
         MELEE_BACKS.clear();
+        REFUSED_LOOKS.clear();
+        dashRefused = false;
+        dashFeet = null;
         meleeBack = null;
         meleeFallback = false;
         AOTV_PLANS.clear();

@@ -88,6 +88,19 @@ final class RewardChest {
      * @param maxChests chests to open, nearest the anchor first
      */
     RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests) {
+        this(tag, anchorRel, boxRel, maxChests, 0);
+    }
+
+    /**
+     * Ticks between clicks on a chest that has not opened yet, with no cap on the number of clicks; 0 for the default
+     * (a click retried only once its answer is overdue, at most {@link #MAX_CLICKS}). Water Board uses 4 (killer560,
+     * 2026-10-19: "waterboard should keep clicking that secret every 4 ticks until it gets it") - its chest stays locked
+     * until the water has run, so three answered clicks used to end the step with the chest still shut.
+     */
+    private final int retryEvery;
+
+    RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests, int retryEvery) {
+        this.retryEvery = retryEvery;
         this.tag = tag;
         this.camera = new FreeCam(tag + " chest");
         this.warp = new AutoReposition(tag + " chest", camera);
@@ -244,7 +257,11 @@ final class RewardChest {
             note("the reward chest is out of reach and no spot in reach of it can be got to");
             return;
         }
-        if (clicks > 0 && !unanswered()) {
+        if (retryEvery > 0) {
+            if (clicks > 0 && sinceClick < retryEvery) {
+                return; // the next click goes exactly retryEvery ticks after the last; the window or the lid ends it
+            }
+        } else if (clicks > 0 && !unanswered()) {
             return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
         }
         // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
@@ -259,7 +276,7 @@ final class RewardChest {
                 return;
             }
         }
-        if (clicks >= MAX_CLICKS) {
+        if (retryEvery <= 0 && clicks >= MAX_CLICKS) {
             LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s)", tag,
                     AutoPuzzleUtil.fmt(target), clicks);
             opened.add(target); // not again
@@ -288,8 +305,9 @@ final class RewardChest {
         clickedAwaitingScreen = true;
         windowMark = mark;
         clickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
-        LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {})", tag,
-                AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks);
+        LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {}{})", tag,
+                AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks,
+                retryEvery > 0 ? ", next in " + retryEvery + " tick(s) until it opens" : "");
     }
 
     /**

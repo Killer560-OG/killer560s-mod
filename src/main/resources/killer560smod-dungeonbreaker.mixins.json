@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_25",
 	"package": "com.killer560.hub.dungeonbreaker.mixin",
 	"client": [
-		"DungeonBreakerMixin"
+		"DungeonBreakerMixin",
+		"ObsidianDigPacketMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

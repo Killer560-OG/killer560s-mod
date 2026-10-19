@@ -54,9 +54,12 @@ final class AutoWater {
     /** Held from the first reposition warp until the chest spot (see {@link FreeCam}). */
     private static final FreeCam CAMERA = new FreeCam("Water");
     private static final AutoReposition REPOSITION = new AutoReposition("Water", CAMERA, true);
-    /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). */
+    /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). Clicked every
+     *  {@link #CHEST_CLICK_EVERY} ticks until it opens: it stays locked until the water has run. */
     private static final RewardChest CHEST = new RewardChest("Water Board", new int[]{15, 56, 22},
-            new int[]{0, 50, 0, 30, 64, 30}, 1);
+            new int[]{0, 50, 0, 30, 64, 30}, 1, AutoWater.CHEST_CLICK_EVERY);
+    /** killer560, 2026-10-19: "waterboard should keep clicking that secret every 4 ticks until it gets it". */
+    static final int CHEST_CLICK_EVERY = 4;
 
     private static boolean atChest = false;
     private static boolean stoppedThisRoom = false;

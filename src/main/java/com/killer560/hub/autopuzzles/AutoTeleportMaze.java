@@ -36,10 +36,11 @@ import com.killer560.hub.compat.McCompat;
  * From there this walks (plain forward-key + camera turn, same primitive already used above for pad-to-pad hops -
  * both "end" and "start" sit on the maze's own starting platform, not across a void gap, so no etherwarp/pathfinder
  * is needed or appropriate here - {@code AutoClearUtils.canPath} already refuses to path ANY "Maze" room for exactly
- * that reason) onto the "start" pad (the room's exit pad), auras the nearest secret chest there with its own
- * deliberate interact (not {@code SecretAuraFeature} - works even with Secret Aura off), then keeps walking to this
- * room's own doorway-side spot ({@link AutoClearUtils#roomOverride}, the same one "Interactive Map" uses to walk a
- * player INTO this room) so an etherwarp can be used again right after.
+ * that reason). Since 2026-10-19 the finish walks toward the centre cell's chest, clicking it with its own deliberate
+ * interact (not {@code SecretAuraFeature} - works even with Secret Aura off) once he is in that cell and in reach, until
+ * the server confirms the click; then walks onto the only pad in that cell (the "end" pad, which sends him out), then
+ * to this room's own doorway-side spot ({@link AutoClearUtils#roomOverride}, the same one "Interactive Map" uses to
+ * walk a player INTO this room) so an etherwarp can be used again right after. See {@link #tickFinish}.
  */
 final class AutoTeleportMaze {
 
@@ -50,7 +51,6 @@ final class AutoTeleportMaze {
     /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the centre. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
     private static final double ARRIVE_SQ = 2.25; // 1.5 blocks - "close enough", same feel as QUOI's own pad hops
-    private static final int MAX_AURA_ATTEMPTS = 3;
     // Same fixed relative layout TeleportMazeSolverFeature's own PADS array carries ("end"/"start", the two pads
     // outside every cell) - copied, not re-derived, so this can never disagree with what that solver detected.
     private static final int[] END_PAD_RELATIVE = {15, 69, 14};
@@ -80,13 +80,28 @@ final class AutoTeleportMaze {
     private static int startSeq = -1;
     private static boolean wasInRoom = false;
 
-    private enum FinishStage { NONE, AURA_CHEST, WALK_TO_EXIT_PAD, STEP_OFF_END_PAD, STEP_ON_END_PAD, WALK_OUT, DONE }
+    private enum FinishStage { NONE, CHEST, STEP_ON_END_PAD, WALK_OUT, DONE }
 
-    /** Database-relative spot beside the end pad's dais, inside the centre chamber - where the sim's finish steps
-     *  off the end pad so it can step back on and be sent out. */
-    private static final int[] BESIDE_END_PAD_RELATIVE = {13, 69, 16};
     /** Further than this from the end pad in one tick and the pad has sent him out. */
     private static final double SENT_OUT_SQ = 36.0;
+    /** The centre chamber's interior, database-relative (walls at x 11/19, z 13/21; SIM.md) - the last cell. The
+     *  end pad (15,69,14) is the only pad in it. */
+    private static final int[] CENTRE_MIN_RELATIVE = {12, 68, 14};
+    private static final int[] CENTRE_MAX_RELATIVE = {18, 71, 20};
+    /** How long the walk to the chest may go without the server confirming a click before the auto stops. */
+    private static final long CHEST_TIMEOUT_MS = 8000L;
+    /** Between clicks at the chest while its answer has not come; and how many are sent at most. */
+    private static final long CHEST_RECLICK_MS = 500L;
+    private static final int MAX_CHEST_CLICKS = 4;
+    /** Horizontal distance (squared) inside which the walk stops pushing into the chest and only waits. */
+    private static final double CHEST_STOP_SQ = 1.69;
+    /** The chest in the centre cell, once found. */
+    private static BlockPos finishChest = null;
+    /** {@code ChestWindows.count} when the final step began: a chest window after it is this chest's answer. */
+    private static int chestWindowMark = 0;
+    private static long lastChestClickMs = 0L;
+    private static int chestClicks = 0;
+    private static boolean chestMissingLogged = false;
 
     /**
      * Whether the auto is running, and so holding the free camera.
@@ -111,7 +126,6 @@ final class AutoTeleportMaze {
      *  pad's teleport out (2026-10-15). */
     private static long finishStageLag = 0L;
     private static long walkLag = 0L;
-    private static int auraAttempts = 0;
 
     private AutoTeleportMaze() {
     }
@@ -214,10 +228,16 @@ final class AutoTeleportMaze {
             } else {
                 stop(client);
                 if (isAtEndPad(player.position())) {
-                    finishStage = FinishStage.AURA_CHEST;
+                    LOGGER.info("[AutoPuzzles] TeleportMaze: final step reached - on the end pad at {} after {} hop(s)",
+                            AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.nearestPad(player.position())), hops);
+                    finishStage = FinishStage.CHEST;
                     finishStageStartMs = System.currentTimeMillis();
                     finishStageLag = com.killer560.hub.util.ServerLag.mark();
-                    auraAttempts = 0;
+                    finishChest = null;
+                    chestWindowMark = com.killer560.hub.util.ChestWindows.count();
+                    lastChestClickMs = 0L;
+                    chestClicks = 0;
+                    chestMissingLogged = false;
                 } else {
                     LOGGER.info("[AutoPuzzles] TeleportMaze: no pad to walk to - stopped");
                     disengage();
@@ -460,28 +480,29 @@ final class AutoTeleportMaze {
         return endReal.equals(landed);
     }
 
-    /** Aura the chest, walk to the exit pad, then walk out - see this class's own doc for why a plain walk (not
-     *  an etherwarp path) is both safe and correct here. */
+    /**
+     * The last cell: walk toward the chest (clicking it once he is in the centre cell and in reach) until the server
+     * confirms the click, then walk to the only pad in that cell - the end pad - which sends him out, then walk out.
+     *
+     * <p>killer560, 2026-10-19: "in tp maze once it gets to the final thing have it walk towards the chest till it
+     * realizes it clicked it then once it clicks it have it walk to the only pad in that cell", and the chest is
+     * aura'd once he is in the middle cell and in range. This replaced the old finish (one click from the end pad, then
+     * a walk to the start pad, which the centre's wall at z 13 made impossible on Hypixel - SIM.md).
+     */
     private static void tickFinish(Minecraft client) {
+        if (finishStage == FinishStage.CHEST) {
+            String confirmed = chestClickConfirmed(client);
+            if (confirmed != null) {
+                chestConfirmed(client, confirmed);
+            }
+        }
         if (McCompat.screen(client) != null) {
             return;
         }
         LocalPlayer player = client.player;
         switch (finishStage) {
-            case AURA_CHEST -> auraChest(client, player);
-            case STEP_OFF_END_PAD -> {
-                int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-                BlockPos beside = cr == null ? null : PuzzleCoords.real(BESIDE_END_PAD_RELATIVE[0],
-                        BESIDE_END_PAD_RELATIVE[1], BESIDE_END_PAD_RELATIVE[2], cr);
-                walkFinishLeg(client, player, beside, FinishStage.STEP_ON_END_PAD, "beside the end pad");
-            }
+            case CHEST -> tickChest(client, player);
             case STEP_ON_END_PAD -> stepOnEndPad(client, player);
-            case WALK_TO_EXIT_PAD -> {
-                int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-                BlockPos exitPad = cr == null ? null
-                        : PuzzleCoords.real(START_PAD_RELATIVE[0], START_PAD_RELATIVE[1], START_PAD_RELATIVE[2], cr);
-                walkFinishLeg(client, player, exitPad, FinishStage.WALK_OUT, "the exit pad");
-            }
             case WALK_OUT -> {
                 int[] cr = LiveMapFeature.currentRoomClayAndRotation();
                 int[] outsideRel = AutoClearUtils.roomOverride(ROOM);
@@ -499,54 +520,130 @@ final class AutoTeleportMaze {
         }
     }
 
-    private static void auraChest(Minecraft client, LocalPlayer player) {
-        if (auraAttempts >= MAX_AURA_ATTEMPTS) {
-            LOGGER.info("[AutoPuzzles] TeleportMaze: no chest found near the end pad after {} attempts - continuing",
-                    MAX_AURA_ATTEMPTS);
-            finishStage = afterChest();
-            finishStageStartMs = System.currentTimeMillis();
-            finishStageLag = com.killer560.hub.util.ServerLag.mark();
-            return;
+    /**
+     * Whether the server has answered a click on the centre chest, and how - the signals the other puzzle autos read
+     * for a chest (AutoBoulder.chestTaken): a chest window since the final step began (counted as its packet arrives,
+     * so Auto Close Chest cancelling the screen does not hide it), a container screen open, Secret Aura having seen it
+     * taken, or its lid open. Null while none has come.
+     */
+    private static String chestClickConfirmed(Minecraft client) {
+        if (com.killer560.hub.util.ChestWindows.since(chestWindowMark)) {
+            return "the server opened its window";
         }
-        BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
-        if (target == null) {
-            auraAttempts++;
-            return;
+        if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            return "its window is open";
         }
-        // To the box, like the picker above - measuring the gate one way and the choice another is how a
-        // module ends up clicking at something it cannot reach.
-        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
-        if (player.isShiftKeyDown() || distSq > AURA_REACH_SQ) {
-            auraAttempts++;
-            return;
+        if (finishChest == null || client.level == null) {
+            return null;
         }
-        if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
-            return; // gate held this tick back (or the body was turned to it) - not burnt, retried next tick
+        if (com.killer560.hub.cheatutils.SecretAuraFeature.isDone(finishChest)) {
+            return "Secret Aura saw it taken";
         }
-        auraAttempts++;
-        if (!AutoPuzzleUtil.interactBlock(client, target)) {
-            LOGGER.warn("[AutoPuzzles] TeleportMaze: no clickable shape at {} (attempt {}/{})", target, auraAttempts, MAX_AURA_ATTEMPTS);
-            return;
-        }
-        ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: aura'd the "), ModChat.good("secret chest"),
+        return client.level.getBlockEntity(finishChest)
+                instanceof net.minecraft.world.level.block.entity.ChestBlockEntity chest && chest.getOpenNess(0f) > 0f
+                ? "its lid opened" : null;
+    }
+
+    /** The click is in: stop at the chest and start the walk to the only pad in the cell. */
+    private static void chestConfirmed(Minecraft client, String how) {
+        LOGGER.info("[AutoPuzzles] TeleportMaze: chest click confirmed - {} ({} click(s) of ours)", how, chestClicks);
+        ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: opened the "), ModChat.good("secret chest"),
                 ModChat.text("."));
-        finishStage = afterChest();
+        client.options.keyUp.setDown(false);
+        walking = false;
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        BlockPos pad = cr == null ? null
+                : PuzzleCoords.real(END_PAD_RELATIVE[0], END_PAD_RELATIVE[1], END_PAD_RELATIVE[2], cr);
+        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to the only pad in the centre cell, the end pad at {}",
+                pad == null ? "(room rotation not known)" : AutoPuzzleUtil.fmt(pad));
+        finishStage = FinishStage.STEP_ON_END_PAD;
         finishStageStartMs = System.currentTimeMillis();
         finishStageLag = com.killer560.hub.util.ServerLag.mark();
     }
 
+    /** Whether his feet are inside the centre chamber. */
+    private static boolean inCentreCell(LocalPlayer player, int[] cr) {
+        BlockPos rel = PuzzleCoords.relative(player.blockPosition(), cr);
+        return rel.getX() >= CENTRE_MIN_RELATIVE[0] && rel.getX() <= CENTRE_MAX_RELATIVE[0]
+                && rel.getZ() >= CENTRE_MIN_RELATIVE[2] && rel.getZ() <= CENTRE_MAX_RELATIVE[2];
+    }
+
     /**
-     * Where the finish goes after the chest.
-     *
-     * <p>On Hypixel, unchanged: walk to the start pad, then out. In the sim the centre chamber is walled off from
-     * the start pad (relative z 13 is solid in the capture), and its end pad is the way out - it sends him to the
-     * Interactive Map's entry spot for this room, which is this finish's own last leg. So there he steps off the
-     * pad and back on, and the walk-out leg then finds him already there.
+     * Walks toward the chest in the centre cell, holding forward until right beside it, and clicks it (the puzzle
+     * autos' own click: gateWorldClick, then interactBlock) whenever he is inside the centre cell and it is in reach,
+     * again every {@link #CHEST_RECLICK_MS} while no answer has come. Gives up, and says why, after
+     * {@link #CHEST_TIMEOUT_MS} with no confirmation.
      */
-    private static FinishStage afterChest() {
-        return com.killer560.hub.roomsim.SimState.isActive()
-                && com.killer560.hub.roomsim.puzzles.SimTeleportMazePuzzle.returnSpot() != null
-                ? FinishStage.STEP_OFF_END_PAD : FinishStage.WALK_TO_EXIT_PAD;
+    private static void tickChest(Minecraft client, LocalPlayer player) {
+        if (com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > CHEST_TIMEOUT_MS) {
+            String why = finishChest == null ? "no chest was found in the centre cell"
+                    : chestClicks == 0 ? "the chest at " + AutoPuzzleUtil.fmt(finishChest) + " never came in reach"
+                    : "the server never answered " + chestClicks + " click(s) on the chest at "
+                    + AutoPuzzleUtil.fmt(finishChest);
+            LOGGER.info("[AutoPuzzles] TeleportMaze: chest click not confirmed after {}ms - {} - stopped",
+                    CHEST_TIMEOUT_MS, why);
+            ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
+                    ModChat.bad("the chest click was never confirmed"), ModChat.text(" - stopped."));
+            client.options.keyUp.setDown(false);
+            walking = false;
+            finishStage = FinishStage.DONE;
+            return;
+        }
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        if (finishChest == null && cr != null) {
+            List<BlockPos> chests = AutoPuzzleUtil.chestsInRoom(client.level, cr,
+                    CENTRE_MIN_RELATIVE[0], CENTRE_MIN_RELATIVE[1], CENTRE_MIN_RELATIVE[2],
+                    CENTRE_MAX_RELATIVE[0], CENTRE_MAX_RELATIVE[1], CENTRE_MAX_RELATIVE[2]);
+            if (chests != null && !chests.isEmpty()) {
+                Vec3 feet = player.position();
+                BlockPos nearest = null;
+                for (BlockPos c : chests) {
+                    if (nearest == null || feet.distanceToSqr(Vec3.atCenterOf(c))
+                            < feet.distanceToSqr(Vec3.atCenterOf(nearest))) {
+                        nearest = c;
+                    }
+                }
+                finishChest = nearest;
+                LOGGER.info("[AutoPuzzles] TeleportMaze: walking toward the chest at {} until a click is confirmed",
+                        AutoPuzzleUtil.fmt(finishChest));
+            }
+        }
+        if (finishChest == null) {
+            if (!chestMissingLogged) {
+                chestMissingLogged = true;
+                LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the centre cell yet - waiting");
+            }
+            client.options.keyUp.setDown(false);
+            walking = false;
+            return;
+        }
+        // Reach to the box, as everywhere else: the server's 4.5 is measured to it.
+        double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), finishChest);
+        long now = System.currentTimeMillis();
+        if (cr != null && inCentreCell(player, cr) && distSq <= AURA_REACH_SQ && !player.isShiftKeyDown()
+                && chestClicks < MAX_CHEST_CLICKS && now - lastChestClickMs >= CHEST_RECLICK_MS
+                && AutoPuzzleUtil.gateWorldClick(client, finishChest)) {
+            if (AutoPuzzleUtil.interactBlock(client, finishChest)) {
+                chestClicks++;
+                lastChestClickMs = now;
+                LOGGER.info("[AutoPuzzles] TeleportMaze: clicked the chest at {} (click {}), waiting for the server",
+                        AutoPuzzleUtil.fmt(finishChest), chestClicks);
+            } else {
+                LOGGER.warn("[AutoPuzzles] TeleportMaze: no clickable shape at {}", AutoPuzzleUtil.fmt(finishChest));
+            }
+        }
+        Vec3 centre = Vec3.atCenterOf(finishChest);
+        double dx = centre.x - player.getX();
+        double dz = centre.z - player.getZ();
+        if (dx * dx + dz * dz > CHEST_STOP_SQ) {
+            float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), centre);
+            AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
+            client.options.keyUp.setDown(true);
+            walking = true;
+        } else {
+            client.options.keyUp.setDown(false); // beside it: wait for the answer
+            walking = false;
+        }
     }
 
     /** Walks back onto the end pad until it sends him out (a jump of more than six blocks), or times out. */
@@ -697,6 +794,9 @@ final class AutoTeleportMaze {
         hops = 0;
         finishStage = FinishStage.NONE;
         finishStageStartMs = 0L;
-        auraAttempts = 0;
+        finishChest = null;
+        chestClicks = 0;
+        lastChestClickMs = 0L;
+        chestMissingLogged = false;
     }
 }

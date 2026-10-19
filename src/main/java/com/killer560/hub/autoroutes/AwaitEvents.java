@@ -103,6 +103,12 @@ public final class AwaitEvents {
                     && com.killer560.hub.scorecalc.ScoreCalculatorFeature.PRINCE_KILLED.matcher(plain).matches()) {
                 onCryptKill("prince killed");
             }
+            // Diagnostic only (no count: the skull click already counted it): when Hypixel confirms his essence, and
+            // whether a route was running and waiting. startsWith is safe - a player's chat line starts with his name.
+            if (plain.startsWith("You found a Wither Essence!")) {
+                LOGGER.info("[AutoRoutes] secret confirmed by chat: Wither Essence collected at tick {} ({} - window count "
+                        + "{})", ticks, active ? "route running" : "no route running", secrets);
+            }
         });
     }
 
@@ -199,6 +205,10 @@ public final class AwaitEvents {
 
     /** A node finished: what is counted from here on belongs to the next node's await. */
     static void window(Minecraft client) {
+        if (!counted.isEmpty()) {
+            LOGGER.info("[AutoRoutes] secret window reset at tick {} (opened tick {}): {} secret(s) handed to the carry {}",
+                    ticks, windowStart, secrets, counted);
+        }
         windowStart = ticks;
         secrets = 0;
         crypts = 0;
@@ -216,6 +226,10 @@ public final class AwaitEvents {
     }
 
     static void end() {
+        if (active) {
+            LOGGER.info("[AutoRoutes] secret counting stopped at tick {} (route ended) - {} secret(s) in the open window {}",
+                    ticks, secrets, counted);
+        }
         active = false;
         counted.clear();
         seenBats.clear();
@@ -275,7 +289,7 @@ public final class AwaitEvents {
             double d = bat.distanceTo(player);
             BlockPos p = bat.blockPosition();
             if (d > BAT_SPAWN_RANGE) {
-                LOGGER.debug("[AutoRoutes] await ignored: bat appeared at {} {} blocks away (over {})", p.toShortString(),
+                LOGGER.info("[AutoRoutes] secret ignored: bat appeared at {} {} blocks away (over {})", p.toShortString(),
                         String.format(Locale.US, "%.1f", d), BAT_SPAWN_RANGE);
                 continue;
             }
@@ -395,7 +409,10 @@ public final class AwaitEvents {
         String kind = b == Blocks.CHEST ? "chest"
                 : b == Blocks.LEVER ? "lever" : b == Blocks.PLAYER_HEAD || b == Blocks.PLAYER_WALL_HEAD ? "skull" : null;
         if (kind == null) {
-            LOGGER.debug("[AutoRoutes] await ignored: click on {} at {} is not a secret block", b, pos.toShortString());
+            if (active) {
+                LOGGER.info("[AutoRoutes] secret ignored: click on {} at {} is not a secret block (tick {})", b,
+                        pos.toShortString(), ticks);
+            }
             return;
         }
         // A dummy lever (Red Blue's cage nook, killer560 2026-10-17) is no secret: not for an await, not for the run
@@ -404,6 +421,9 @@ public final class AwaitEvents {
             LOGGER.info("[AutoRoutes] await ignored: the lever at {} is a dummy lever", pos.toShortString());
             return;
         }
+        LOGGER.info("[AutoRoutes] secret click sent: {} at {} face {} holding {} at tick {} ({})", kind, pos.toShortString(),
+                face, client.player == null ? "?" : client.player.getMainHandItem().getHoverName().getString(), ticks,
+                active ? "route running - counts for the waiting node" : "no route running - remembered for the start");
         RouteRunMemory.gotSecret("block " + pos.asLong(), Vec3.atCenterOf(pos), kind + " at " + pos.toShortString());
         if (!active) {
             // Its window can arrive after a route that counts it has started: waited under like any other (below).
@@ -568,7 +588,9 @@ public final class AwaitEvents {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || collectorId != player.getId()) {
-            LOGGER.debug("[AutoRoutes] await ignored: an item picked up by someone else");
+            if (active) {
+                LOGGER.info("[AutoRoutes] secret ignored: item {} picked up by entity {}, not you", itemId, collectorId);
+            }
             return;
         }
         Entity item = client.level == null ? null : client.level.getEntity(itemId);
@@ -628,21 +650,37 @@ public final class AwaitEvents {
         double d = bat.distanceTo(player);
         int ago = ticks - lastWeaponUse;
         if (d > BAT_KILL_RANGE || ago > CRYPT_WINDOW) {
-            LOGGER.debug("[AutoRoutes] await ignored: bat died {} blocks away, your last weapon use {} tick(s) earlier",
+            LOGGER.info("[AutoRoutes] secret ignored: bat died {} blocks away, your last weapon use {} tick(s) earlier",
                     String.format(Locale.US, "%.1f", d), ago);
             return;
         }
         bats++;
         pending.add("await bat " + bats + ": secret bat killed at " + bat.blockPosition().toShortString()
                 + String.format(Locale.US, " (%.1f blocks from you, your weapon use %d tick(s) earlier)", d, ago));
+        // The kill is also a SECRET for an await (QUOI: a bat's hurt/death sound calls onSecret on the waiting node),
+        // unless this bat's appearance was already counted this run - one bat, one secret. killer560's Spider, Mod Only
+        // Test 2026-10-19 15:33 and 15:36: the bat was alive before the route began (so its appearance was never
+        // counted), #1 BAT killed it, and #2 PATH "await 2" (the chest and that bat) sat at 1/2 until he left-clicked.
+        String key = "bat " + bat.getId();
+        boolean appearanceCounted = RouteRunMemory.has(key);
+        RouteRunMemory.gotSecret(key, bat.position(), "secret bat killed at " + bat.blockPosition().toShortString());
+        if (appearanceCounted) {
+            LOGGER.info("[AutoRoutes] secret: bat kill at {} not counted again - its appearance already counted this run",
+                    bat.blockPosition().toShortString());
+        } else {
+            addSecret(key, "secret bat killed by you at " + bat.blockPosition().toShortString()
+                    + String.format(Locale.US, " (%.1f blocks from you)", d));
+        }
     }
 
     private static void addSecret(String key, String what) {
         if (!counted.add(key)) {
+            LOGGER.info("[AutoRoutes] secret: {} already counted in this window ({}) - not counted twice", what, key);
             return;
         }
         secrets++;
         pending.add("await secret " + secrets + ": " + what);
+        LOGGER.info("[AutoRoutes] secret signal: {} [key {}] at tick {} - window count now {}", what, key, ticks, secrets);
     }
 
     /** The tick of our last chest click (during a route, or just before one) - its window can arrive after the route moved on. */

@@ -90,6 +90,8 @@ public final class AutoBoulder {
     /** Press / open from a standing eye within this of the box when there is such a spot; else {@link #REACH_LOOSE}. */
     private static final double REACH_SNUG = 3.3;
     private static final double REACH_LOOSE = 4.0;
+    /** Boulder's reward chest, room-relative: the back alcove (SimBoulderPuzzle.CHEST_SPOT, and his Hypixel log). */
+    private static final int[] KNOWN_CHEST_REL = {15, 66, 29};
     private static final long BUTTON_WAIT_MS = 3000L;
     private static final long SOLVER_WAIT_MS = 4000L;
     /** Secret Aura's wait, plus the "Boulder Chest Wait" slider, before he opens the chest himself. */
@@ -494,13 +496,13 @@ public final class AutoBoulder {
             java.util.List<BlockPos> found = AutoPuzzleUtil.chestsInRoom(client.level, cr, -1, 60, -1, 31, 75, 31);
             if (found == null) {
                 // Part of the room is not loaded on the client: unknown, not "no chest" - and never the furthest of
-                // the chests that happen to be loaded. Ask again on the next scan.
+                // the chests that happen to be loaded. The chest's spot is fixed, so go for it (see below).
                 if (!unloadedWarned) {
                     unloadedWarned = true;
-                    LOGGER.info("[AutoPuzzles] Boulder: part of the room is not loaded yet - looking for the chest again "
-                            + "every 20 ticks");
+                    LOGGER.info("[AutoPuzzles] Boulder: part of the room is not loaded yet - going for the known chest "
+                            + "spot");
                 }
-                return;
+                found = java.util.List.of();
             }
             for (BlockPos real : found) {
                 BlockPos r = PuzzleCoords.relative(real, cr);
@@ -509,12 +511,16 @@ public final class AutoBoulder {
                 }
             }
             if (bestRel == null) {
-                if (!noChestWarned) {
-                    noChestWarned = true;
-                    LOGGER.info("[AutoPuzzles] Boulder: no chest secret in the room database and no chest block in "
-                            + "the room yet - looking again every 20 ticks");
-                }
-                return;
+                // Boulder has one layout and its chest is always in the back alcove, relative (15, 66, 29) - read off his
+                // Hypixel run (Mod Only Test 2026-10-19 15:51:39) and the sim's CHEST_SPOT. After a map warp onto the
+                // doorway the far end of the room had not reached the client yet: the chunks read loaded but the chest
+                // block was not in them, and the auto stood at the doorway for 12 s "looking again every 20 ticks" until
+                // the blocks arrived (15:51:27 -> 15:51:39), which read as waiting for him to walk in. Go for the known
+                // spot now; the run to the bars and Secret Aura only need where it is.
+                bestRel = new BlockPos(KNOWN_CHEST_REL[0], KNOWN_CHEST_REL[1], KNOWN_CHEST_REL[2]);
+                LOGGER.info("[AutoPuzzles] Boulder: no chest block in the client's copy of the room yet - going for "
+                        + "Boulder's known chest spot (relative {}, {}, {}) instead of waiting for the blocks to arrive",
+                        KNOWN_CHEST_REL[0], KNOWN_CHEST_REL[1], KNOWN_CHEST_REL[2]);
             }
             chestRel = new RoomEntry.Pos();
             chestRel.x = bestRel.getX();

@@ -596,15 +596,44 @@ public final class MapPainter {
         };
     }
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+    /** Rooms already logged as Blood this run, keyed by reset generation + tiles, so the per-frame colour logs once. */
+    private static final Set<String> BLOOD_LOGGED = new HashSet<>();
+    private static int bloodLogGeneration = Integer.MIN_VALUE;
+
+    /** One INFO line the first time a room is coloured as Blood in a run (killer560 checks it in latest.log). */
+    private static void logBloodRoom(LiveMapFeature.RoomGroup group) {
+        int generation = LiveMapFeature.resetGeneration();
+        if (generation != bloodLogGeneration) {
+            bloodLogGeneration = generation;
+            BLOOD_LOGGED.clear();
+        }
+        String tiles = java.util.Arrays.toString(group.tiles);
+        if (BLOOD_LOGGED.add(tiles)) {
+            LOGGER.info("[LiveMap] Blood Room colored red at tiles {} (funnyMap={}, opened={}, identified={})", tiles,
+                    LiveMapConfig.getInstance().isFunnyMap(), !unexplored(group), group.entry != null);
+        }
+    }
+
+    /** Whether the map labels this room "Blood": the room behind the blood door, or a shown room of type Blood. */
+    static boolean bloodLabelled(LiveMapFeature.RoomGroup group) {
+        if (!isRevealed(group)) {
+            return false;
+        }
+        return unopenedBloodRoom(group) || (identityRevealed(group) && "BLOOD".equals(roomType(group)));
+    }
+
     /** Room fill before the current-room/hover tweaks. NoammAddons {@code RoomTile.getColor}: an unopened room is
      *  grey whatever its real type is, because that is all the map itself knows about it. */
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
         if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
-            // killer560, 2026-10-18: the unopened Blood Room is greyed in the Funny Map's style in both styles - the
-            // greyed brown Funny Map gives every unopened room (Normal darkened by Darken Unexplored), never the dark
-            // unopened grey. On the regular map only once its blood door is known (unopenedBloodRoom needs the door).
-            return multiply(cfg.getColorNormal(), 1f - cfg.getDarkenUnopened());
+            // killer560, 2026-10-19 (15:52:11): "the map is not labeling blood or showing it as red either for funny map."
+            // The room behind the blood door is the Blood Room: drawn in the Blood colour (darkened as unexplored, like
+            // every other room he has not been in), in both styles. It was the greyed Normal brown (2026-10-18), which
+            // on Funny Map read as an ordinary unopened room. On the regular map only once its blood door is known.
+            logBloodRoom(group);
+            return multiply(cfg.getColorBlood(), 1f - cfg.getDarkenUnopened());
         }
         // Funny Map: an unopened room the world scan has not reached yet is still a Funny Map room - its own colour
         // (the map item's byte, Normal brown for a plain unopened room) darkened below, not the regular map's grey.
@@ -612,7 +641,11 @@ public final class MapPainter {
                 || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap())) {
             return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
         }
-        int color = cfg.isColourByType() ? typeColor(roomType(group), cfg) : cfg.getColorNormal();
+        String type = roomType(group);
+        int color = cfg.isColourByType() ? typeColor(type, cfg) : cfg.getColorNormal();
+        if (cfg.isColourByType() && "BLOOD".equals(type)) {
+            logBloodRoom(group);
+        }
         // A failed puzzle does NOT recolour its square. killer560, 2026-10-01: "no not the square the text
         // should become red." The room keeps its own type colour and the NAME goes red, which it already does
         // - every label's colour is stateColor(visibleState(group)), and STATE_FAILED's is 0xFFFF5555. So the
@@ -994,7 +1027,7 @@ public final class MapPainter {
 
     /**
      * Whether Stripe Unexplored stripes this room: a room he has not been in that is drawn in a room colour (Funny Map's
-     * unopened rooms, the Blood Room's greyed brown, the Interactive Map's scanned rooms). The map item's grey "?" rooms
+     * unopened rooms, the unopened Blood Room's red, the Interactive Map's scanned rooms). The map item's grey "?" rooms
      * already read as unopened and are left plain.
      */
     static boolean hatched(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
@@ -1413,11 +1446,16 @@ public final class MapPainter {
         LABEL_CACHE.clear();
         for (LiveMapFeature.RoomGroup group : LiveMapFeature.groupsView()) {
             RoomEntry entry = group.entry;
-            if (entry == null || !identityRevealed(group)) {
+            List<String> lines;
+            if (style >= 3 && bloodLabelled(group)) {
+                // killer560, 2026-10-19: the Blood Room is labelled "Blood" in both styles, known by its blood door even
+                // before it is opened or identified (QUOI's renderName writes no name on it; he wants one).
+                lines = new ArrayList<>(List.of("Blood"));
+            } else if (entry == null || !identityRevealed(group)) {
                 continue; // unidentified (or, on the legit map, still-unopened) rooms only get a checkmark
+            } else {
+                lines = labelLines(style, roomType(group), group.nameLines, entry.secrets, secretsText(group), true);
             }
-            String type = roomType(group);
-            List<String> lines = labelLines(style, type, group.nameLines, entry.secrets, secretsText(group), true);
             if (lines.isEmpty()) {
                 continue;
             }
@@ -1515,6 +1553,10 @@ public final class MapPainter {
                 continue;
             }
             if (!isRevealed(group) || (!cfg.isFunnyMap() && unopenedBloodRoom(group))) {
+                continue;
+            }
+            // The unopened Blood Room carries its "Blood" label (labels below) instead of a "?" under it.
+            if (style >= 3 && unopenedBloodRoom(group)) {
                 continue;
             }
             // A room Predictive Rooms names is drawn over by PredictedRoomsPainter, name and secrets included. Its "?"

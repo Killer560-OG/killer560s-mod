@@ -317,6 +317,18 @@ public final class RouteExecutor {
     /** How long a breaker node waits for its charges before the route gives up (30 s; 2 come back a second). */
     private static final int BREAKER_WAIT_TIMEOUT = 600;
     private static final Set<BlockPos> breakerSent = new HashSet<>();
+    /** A breaker node's obsidian blocks, dug one at a time after its burst (killer560, 2026-10-19: obsidian takes time). */
+    private static final List<BlockPos> breakerObsidian = new ArrayList<>();
+    /** The obsidian block the node itself is digging, or null (a linger dig is not the node's). */
+    private static BlockPos obsidianDigPos;
+    /** The one obsidian dig under way, the node's or the linger's - never both, never beside another dig. */
+    private static final com.killer560.hub.dungeonbreaker.ObsidianDig OBSIDIAN =
+            new com.killer560.hub.dungeonbreaker.ObsidianDig(LOGGER, "[AutoRoutes] Breaker:");
+
+    /** Obvious mode turns the body to the obsidian before each of its dig packets (GrimAC RotationBreak); legit, nothing. */
+    private static java.util.function.Consumer<BlockPos> obsidianAim(LocalPlayer player) {
+        return AutoRoutesConfig.getInstance().isLegitMode() ? null : p -> turnBodyToward(player, Vec3.atCenterOf(p));
+    }
     private static BlockPos boomTarget;
     // ---- crypt ----
     /** The held slot before a crypt node swapped to its weapon, put back when it is done. */
@@ -358,6 +370,8 @@ public final class RouteExecutor {
 
     // ---- await ----
     private static long awaitStartMs;
+    /** The last whole second of the open await that {@link #tickAwait} logged its wait for. */
+    private static int awaitLogSecond;
     /** True once the CURRENT node's {@code awaitEnabled} gate (if it has one) has been satisfied - the node's
      *  own type-specific action (etherwarp, use, boom, ...) only starts once this is true. Set in
      *  {@link #beginAction}, read/advanced in {@link #tickAction}. AWAIT stopped being its own node type
@@ -520,6 +534,11 @@ public final class RouteExecutor {
         stopReason = reason;
         if (wasRunning && !stackQueue.isEmpty()) {
             LOGGER.info("[AutoRoutes] {} stacked node(s) not run: {}", stackQueue.size(), describeStack(stackQueue));
+        }
+        if (wasRunning && activeNode != null && !awaitPhaseDone && route != null) {
+            LOGGER.info("[AutoRoutes] secret wait aborted: node #{} {} stopped while waiting {}/{} after {} tick(s) - {}",
+                    route.indexOf(activeNode) + 1, activeNode.type, AwaitEvents.secrets() + awaitRemembered.size(),
+                    Math.max(1, activeNode.awaitAmount), (System.currentTimeMillis() - awaitStartMs) / 50L, reason);
         }
         stackQueue.clear();
         stackTrigger = null;
@@ -1608,6 +1627,8 @@ public final class RouteExecutor {
         nodeActed = false;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
+        breakerObsidian.clear();
+        obsidianDigPos = null;
         breakerReady = false;
         breakerWaitTicks = 0;
         breakerWaitSaid = false;
@@ -2182,7 +2203,15 @@ public final class RouteExecutor {
         boolean delay = node.awaitCondition == RouteNode.AwaitCondition.DELAY;
         if (step == Step.PREP) {
             awaitStartMs = System.currentTimeMillis();
+            awaitLogSecond = 0;
             step = Step.CONFIRM;
+            LOGGER.info("[AutoRoutes] secret wait start: node #{} {} waits for {} {} (window {} so far, {} remembered{}) - "
+                            + "counts your chest/lever/skull clicks, your item pickups, a secret bat appearing within {} "
+                            + "or killed by you, your mimic; a left click skips it", route.indexOf(node) + 1, node.type,
+                    delay ? node.awaitAmount + " ms" : String.valueOf(Math.max(1, node.awaitAmount)),
+                    delay ? "delay" : "secret(s)", AwaitEvents.secrets(), awaitRemembered.size(),
+                    awaitRemembered.isEmpty() ? "" : ": " + awaitRemembered.stream().map(RouteRunMemory.Got::what).toList(),
+                    AwaitEvents.BAT_SPAWN_RANGE);
         }
         boolean done;
         if (delay) {
@@ -2204,7 +2233,22 @@ public final class RouteExecutor {
                     used.add(g.key());
                 }
                 RouteRunMemory.met(awaitNodeKey, used);
-            } else if (!awaitWaitWarned && System.currentTimeMillis() - awaitStartMs >= AWAIT_WARN_MS) {
+            }
+            long waitedMs = System.currentTimeMillis() - awaitStartMs;
+            if (!done && waitedMs / 1000L > awaitLogSecond) {
+                // Once a second while it waits: what it has, what it needs, and where he is (killer560, 2026-10-19:
+                // "add a ton of loggers so it can find the cause" of Auto Routes sticking on secrets).
+                awaitLogSecond = (int) (waitedMs / 1000L);
+                LOGGER.info("[AutoRoutes] secret wait: node #{} {} still waiting {}/{} after {} tick(s) | window since tick "
+                                + "{}: {} | remembered: {} | player {} | screen {} | stays: not enough secrets of yours "
+                                + "seen yet", route.indexOf(node) + 1, node.type, have, Math.max(1, node.awaitAmount),
+                        waitedMs / 50L, AwaitEvents.windowStart(), AwaitEvents.windowSecrets(),
+                        awaitRemembered.stream().map(RouteRunMemory.Got::what).toList(),
+                        String.format(Locale.US, "%.2f, %.2f, %.2f", player.getX(), player.getY(), player.getZ()),
+                        com.killer560.hub.compat.McCompat.screen(client) == null ? "none"
+                                : com.killer560.hub.compat.McCompat.screen(client).getClass().getSimpleName());
+            }
+            if (!done && !awaitWaitWarned && System.currentTimeMillis() - awaitStartMs >= AWAIT_WARN_MS) {
                 awaitWaitWarned = true;
                 RouteTrace.awaitWaiting(traceIndex(node), node.type, node.awaitCondition == null ? "?"
                                 : node.awaitCondition.name().toLowerCase(Locale.ROOT), have, Math.max(1, node.awaitAmount),
@@ -3136,12 +3180,24 @@ public final class RouteExecutor {
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();
         float yaw = legit ? player.getYRot() : player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot());
         float pitch = legit ? player.getXRot() : Mth.clamp(warpPitch, -90f, 90f);
-        if (!com.killer560.hub.util.RightClick.unpaired() || !com.killer560.hub.util.RightClick.heard(player, yaw, pitch)
-                || !com.killer560.hub.util.RightClick.unpairable(client, player, null, yaw, pitch)) {
+        if (!com.killer560.hub.util.RightClick.unpaired()) {
             return false;
         }
+        // A block click left unpaired (Secret Aura's click on a Wither Essence skull with the Aspect of the Void in hand,
+        // say) is taken by Hypixel as the first half of the warp's use: his Mod Only Test log 2026-10-19 15:47:15 - the
+        // essence click at -61, 60, -78, the path warp 1 tick later moved him 1.00 toward the skull ("There are blocks in
+        // the way!") and the route flew warp 1 again. Every reason the click is NOT spent first is logged, so the next log
+        // says which one let a use pair with it.
+        boolean heard = com.killer560.hub.util.RightClick.heard(player, yaw, pitch);
+        boolean unpairable = heard && com.killer560.hub.util.RightClick.unpairable(client, player, null, yaw, pitch);
         int breaker = ItemIdentity.findHotbarSlotById(player, ItemIdentity.BREAKER_ID);
-        if (breaker < 0) {
+        if (!heard || !unpairable || breaker < 0) {
+            LOGGER.info("[AutoRoutes] secret click unpaired before the warp's use, not spent first: {} - the use may be "
+                            + "taken as that click's second half (look {} / {})",
+                    !heard ? "the server has not heard the warp's look yet" : !unpairable
+                            ? "the warp's look reaches a block from the client eye (a bare use cannot be sent)"
+                            : "no Dungeon Breaker in the hotbar to spend it with",
+                    String.format(Locale.US, "%.2f", yaw), String.format(Locale.US, "%.2f", pitch));
             return false;
         }
         int ether = player.getInventory().getSelectedSlot();
@@ -3923,6 +3979,16 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
                     continue;
                 }
+                if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
+                    // Obsidian takes time on the breaker (killer560, 2026-10-19), so it is not part of the burst: it
+                    // is dug alone after the others, held until the server breaks it (CONFIRM, ObsidianDig). Its
+                    // charge is set aside now so the burst cannot spend it.
+                    breakerObsidian.add(pos);
+                    breakerChargesLeft--;
+                    LOGGER.info("[AutoRoutes] Breaker: obsidian {} queued - dug alone after the burst, held until the"
+                            + " server breaks it", pos.toShortString());
+                    continue;
+                }
                 if (sentNow == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {
                     // Look at the (first) block this tick breaks, as a dig is always aimed (GrimAC RotationBreak).
                     turnBodyToward(player, Vec3.atCenterOf(pos));
@@ -3952,6 +4018,51 @@ public final class RouteExecutor {
             return;
         }
         if (step == Step.CONFIRM) {
+            // Obsidian: one dig at a time, held until the server's block update (ObsidianDig). The node moves on the
+            // tick the server breaks it - no fixed wait - and the confirm timeout below only counts from the dig's end.
+            if (OBSIDIAN.active()) {
+                com.killer560.hub.dungeonbreaker.ObsidianDig.Result r = OBSIDIAN.tick(client, player, BREAKER_RANGE_SQ,
+                        () -> true, obsidianAim(player));
+                if (r == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
+                    return;
+                }
+                if (r == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.ABANDONED && obsidianDigPos != null) {
+                    // Left to the linger (still one of this node's blocks), which digs it again once it is in reach.
+                    breakerSent.remove(obsidianDigPos);
+                }
+                obsidianDigPos = null;
+                stepTicks = 0;
+            }
+            while (!breakerObsidian.isEmpty()) {
+                BlockPos pos = breakerObsidian.remove(0);
+                if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()
+                        || !com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
+                    continue;
+                }
+                if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), pos) > BREAKER_RANGE_SQ) {
+                    LOGGER.info("[AutoRoutes] Breaker: obsidian {} out of range by its turn - left to the linger",
+                            pos.toShortString());
+                    continue;
+                }
+                int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+                if (slot < 0) {
+                    LOGGER.info("[AutoRoutes] Breaker: obsidian {} not dug - no Dungeon Breaker in the hotbar",
+                            pos.toShortString());
+                    breakerObsidian.clear();
+                    break;
+                }
+                select(client, player, slot);
+                Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos,
+                        player.getEyePosition()).getDirection();
+                OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
+                player.swing(InteractionHand.MAIN_HAND);
+                if (breakerSent.isEmpty()) {
+                    logActed(node, " (obsidian)");
+                }
+                breakerSent.add(pos);
+                obsidianDigPos = pos;
+                return;
+            }
             if (breakerSent.isEmpty()) {
                 logActed(node, " (nothing in range to break)");
                 finishAction();
@@ -4097,6 +4208,9 @@ public final class RouteExecutor {
         if (lingerNode != null && !lingerBlocks.isEmpty() && lingerSaid) {
             LOGGER.info("[AutoRoutes] Breaker linger ended ({}): {} block(s) left", why, lingerBlocks.size());
         }
+        // An obsidian dig, the node's or the linger's, belongs to this breaker node: it lets go with it.
+        OBSIDIAN.abandon(Minecraft.getInstance(), "breaker node over: " + why);
+        obsidianDigPos = null;
         lingerNode = null;
         lingerBlocks.clear();
         lingerSentAt.clear();
@@ -4130,12 +4244,20 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) still standing - mining them as they come into reach"
                     + " until another node fires", lingerBlocks.size());
         }
-        if (++lingerTicks > LINGER_MAX_TICKS) {
+        // A running obsidian dig is let finish on the server's answer; the linger's own limit applies between digs.
+        if (++lingerTicks > LINGER_MAX_TICKS && !OBSIDIAN.active()) {
             clearBreakerLinger("timed out");
             return;
         }
         if (AutoRoutesFeature.screenBlocks(client)) {
             return;
+        }
+        if (OBSIDIAN.active()) {
+            // Held every tick until the server breaks it; nothing else is dug meanwhile (ObsidianDig).
+            if (OBSIDIAN.tick(client, player, BREAKER_RANGE_SQ, () -> true, obsidianAim(player))
+                    == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
+                return;
+            }
         }
         boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
         int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
@@ -4165,6 +4287,19 @@ public final class RouteExecutor {
         int sentNow = 0;
         for (BlockPos pos : inReach) {
             if (sentNow >= charges[0]) {
+                break;
+            }
+            if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
+                // Obsidian is dug alone and held until the server breaks it - never re-STARTed on a timer, which
+                // restarts the server's dig. Left for a tick with nothing else sent.
+                if (sentNow > 0) {
+                    continue;
+                }
+                Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos, eye).getDirection();
+                OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
+                lingerSentAt.put(pos, lingerTicks);
+                lingerBroken++;
+                sentNow++;
                 break;
             }
             if (sentNow == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {

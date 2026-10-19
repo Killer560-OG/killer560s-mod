@@ -46,28 +46,33 @@ public final class WeirdosSolverFeature {
     // Name group non-greedy and bounded, so a colon inside the dialogue cannot become part of the name.
     private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] ([^:]{1,32}?): (.{1,200})$");
 
+    // Punctuation is NOT fixed: Hypixel ends the same sentence with "." in one run and "!" in another, and joins two
+    // clauses with ". " or ", ". killer560, 2026-10-19: Hope said "They are both telling the truth, the reward is in
+    // Marshall's chest!" while this list wanted a "." there, so her chest was never marked red and Auto Three Weirdos
+    // waited for a second wrong chest that never came. So every sentence end is "[.!]?" and every clause join "[.,!]?".
+    // A SOLUTION is matched before a WRONG, so the looser ends cannot turn a solution line into a wrong one.
     private static final List<Pattern> SOLUTIONS = List.of(
-            Pattern.compile("The reward is not in my chest!"),
-            Pattern.compile("At least one of them is lying, and the reward is not in .+'s chest\\.?"),
-            Pattern.compile("My chest doesn't have the reward\\. We are all telling the truth\\.?"),
-            Pattern.compile("My chest has the reward and I'm telling the truth!"),
-            Pattern.compile("The reward isn't in any of our chests\\.?"),
-            Pattern.compile("Both of them are telling the truth\\. Also, .+ has the reward in their chest\\.?")
+            Pattern.compile("The reward is not in my chest[.!]?"),
+            Pattern.compile("At least one of them is lying[.,!]? and the reward is not in .+'s chest[.!]?"),
+            Pattern.compile("My chest doesn't have the reward[.,!]? We are all telling the truth[.!]?"),
+            Pattern.compile("My chest has the reward and I'm telling the truth[.!]?"),
+            Pattern.compile("The reward isn't in any of our chests[.!]?"),
+            Pattern.compile("Both of them are telling the truth[.,!]? Also, .+ has the reward in their chest[.!]?")
     );
 
     private static final List<Pattern> WRONG = List.of(
-            Pattern.compile("One of us is telling the truth!"),
-            Pattern.compile("They are both telling the truth\\. The reward isn't in .+'s chest\\."),
-            Pattern.compile("We are all telling the truth!"),
-            Pattern.compile(".+ is telling the truth and the reward is in his chest\\."),
-            Pattern.compile("My chest doesn't have the reward\\. At least one of the others is telling the truth!"),
-            Pattern.compile("One of the others is lying\\."),
-            Pattern.compile("They are both telling the truth, the reward is in .+'s chest\\."),
-            Pattern.compile("They are both lying, the reward is in my chest!"),
-            Pattern.compile("The reward is in my chest\\."),
-            Pattern.compile("The reward is not in my chest\\. They are both lying\\."),
-            Pattern.compile(".+ is telling the truth\\."),
-            Pattern.compile("My chest has the reward\\.")
+            Pattern.compile("One of us is telling the truth[.!]?"),
+            Pattern.compile("They are both telling the truth[.,!]? The reward isn't in .+'s chest[.!]?"),
+            Pattern.compile("We are all telling the truth[.!]?"),
+            Pattern.compile(".+ is telling the truth and the reward is in his chest[.!]?"),
+            Pattern.compile("My chest doesn't have the reward[.,!]? At least one of the others is telling the truth[.!]?"),
+            Pattern.compile("One of the others is lying[.!]?"),
+            Pattern.compile("They are both telling the truth[.,!]? the reward is in .+'s chest[.!]?"),
+            Pattern.compile("They are both lying[.,!]? the reward is in my chest[.!]?"),
+            Pattern.compile("The reward is in my chest[.!]?"),
+            Pattern.compile("The reward is not in my chest[.,!]? They are both lying[.!]?"),
+            Pattern.compile(".+ is telling the truth[.!]?"),
+            Pattern.compile("My chest has the reward[.!]?")
     );
 
     // [WeirdosSolver] diagnostics - logging only (chat-rate).
@@ -137,6 +142,8 @@ public final class WeirdosSolverFeature {
         boolean isSolution = SOLUTIONS.stream().anyMatch(p -> p.matcher(dialogue).matches());
         boolean isWrong = !isSolution && WRONG.stream().anyMatch(p -> p.matcher(dialogue).matches());
         if (!isSolution && !isWrong) {
+            // Said out loud so a line Hypixel words differently from both lists is seen, not silently dropped.
+            LOGGER.info("[WeirdosSolver] Line from \"{}\" matches neither list - not used: \"{}\"", npc, dialogue);
             return;
         }
 
@@ -146,10 +153,71 @@ public final class WeirdosSolverFeature {
         }
         if (isSolution) {
             correctPos = chestPos;
+            wrongPositions.remove(chestPos);
+            deducedLogged = false;
+            LOGGER.info("[WeirdosSolver] Answer: \"{}\" said a solution line (\"{}\") - the reward is in {}'s chest at {}",
+                    npc, dialogue, npc, chestPos.toShortString());
             Minecraft.getInstance().getSoundManager().play(
                     SimpleSoundInstance.forUI(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 1.0f));
         } else {
-            wrongPositions.add(chestPos);
+            if (!chestPos.equals(correctPos)) {
+                wrongPositions.add(chestPos);
+            }
+            LOGGER.info("[WeirdosSolver] Wrong: \"{}\" said \"{}\" - {}'s chest at {} is not it ({} wrong known)",
+                    npc, dialogue, npc, chestPos.toShortString(), wrongPositions.size());
+            if (correctPos == null && wrongPositions.size() >= 2) {
+                deduceThirdChest();
+            }
+        }
+    }
+
+    private static boolean deducedLogged = false;
+
+    /**
+     * Two weirdos ruled their own chests out and nobody has said a solution line yet (it may be worded in a way neither
+     * list knows): the reward is in the third weirdo's chest. The third chest is the one beside another named stand in
+     * this room, found with the same relative offset {@link #findChestPos} uses, that is a chest and is not one of the
+     * two wrong ones. Only an answer when exactly one such chest exists.
+     */
+    private static void deduceThirdChest() {
+        Minecraft client = Minecraft.getInstance();
+        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+        if (client.level == null || cr == null) {
+            return;
+        }
+        Set<BlockPos> candidates = new java.util.HashSet<>();
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof ArmorStand)) {
+                continue;
+            }
+            String name = stripName(entity.getName().getString());
+            if (name.isBlank() || name.contains("CLICK")) {
+                continue;
+            }
+            boolean near = false;
+            for (BlockPos w : wrongPositions) {
+                near |= entity.distanceToSqr(w.getX() + 0.5, w.getY() + 0.5, w.getZ() + 0.5) < 12 * 12;
+            }
+            if (!near) {
+                continue;
+            }
+            BlockPos chest = chestPosFor(entity, cr);
+            if (wrongPositions.contains(chest)) {
+                continue;
+            }
+            if (client.level.getBlockState(chest).getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                candidates.add(chest);
+            }
+        }
+        if (candidates.size() == 1) {
+            correctPos = candidates.iterator().next();
+            LOGGER.info("[WeirdosSolver] Answer (deduced): two weirdos ruled their chests out and no solution line was"
+                    + " heard - the reward is in the remaining chest at {}", correctPos.toShortString());
+            client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 1.0f));
+        } else if (!deducedLogged) {
+            deducedLogged = true;
+            LOGGER.info("[WeirdosSolver] Two wrong chests known but {} candidate third chest(s) beside named stands - no"
+                    + " answer deduced", candidates.size());
         }
     }
 
@@ -203,6 +271,11 @@ public final class WeirdosSolverFeature {
         // the "off by -1 on one axis and +1 on the other" he saw. The class doc's own design is "the
         // chest sits one relative block over from the NPC", so the fix is to do the ENTIRE offset in
         // relative space (the existing `relative.x += 1` below) and nothing before it.
+        return chestPosFor(npc, clayAndRotation);
+    }
+
+    /** The chest of the weirdo standing at {@code npc}: one relative block over, on the dungeon floor's height. */
+    private static BlockPos chestPosFor(Entity npc, int[] clayAndRotation) {
         // 69 is Hypixel's dungeon floor; the sim shifts the whole map, so the literal has to move with it.
         // Same DungeonLayout.simYOffset() every other height in this mod goes through, zero on a real run.
         BlockPos npcBlockPos = new BlockPos((int) Math.floor(npc.getX()),
@@ -261,5 +334,6 @@ public final class WeirdosSolverFeature {
     private static void reset() {
         correctPos = null;
         wrongPositions.clear();
+        deducedLogged = false;
     }
 }

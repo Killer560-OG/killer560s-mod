@@ -173,7 +173,10 @@ final class AutoWeirdos {
             readyBody(client, player, chest);
             return;
         }
-        boolean solved = chest != null && WeirdosSolverFeature.getWrongChestCount() >= 2;
+        // A correct chest IS the answer: it comes from a solution line (or from two wrong ones ruling the rest out). This
+        // also used to want two wrong chests on top, so a run where one weirdo's line went unread sat at "all three
+        // talked to" with the answer highlighted in front of him (killer560, 2026-10-19: "it just sits there").
+        boolean solved = chest != null;
         if (!solved) {
             if (!cfg.isWeirdosTalkToNpcs()) {
                 stopWalking(client, "talk to NPCs is off");
@@ -597,7 +600,7 @@ final class AutoWeirdos {
     /** On a landing: the body onto the next weirdo in reach, or onto the chest once all three have spoken. */
     private static void readyBody(Minecraft client, LocalPlayer player, BlockPos chest) {
         Vec3 eye = AutoPuzzleUtil.settledEye(player);
-        if (talked.size() < 3) {
+        if (chest == null && talked.size() < 3) {
             List<Entity> left = untalkedStands(client, player);
             Entity best = null;
             double bestSq = NPC_REACH * NPC_REACH;
@@ -623,6 +626,8 @@ final class AutoWeirdos {
         if (!chest.equals(pendingPos)) {
             pendingPos = chest;
             pendingSinceMs = now;
+            LOGGER.info("[AutoPuzzles] Weirdos: chose the solver's correct chest {} ({} wrong chest(s) known, {} of 3"
+                    + " talked to)", AutoPuzzleUtil.fmt(chest), WeirdosSolverFeature.getWrongChestCount(), talked.size());
         }
         if (McCompat.screen(client) != null) {
             stopWalking(client, "a screen opened");
@@ -672,7 +677,7 @@ final class AutoWeirdos {
             CAMERA.release(player);
             return;
         }
-        LOGGER.info("[AutoPuzzles] Weirdos: opened the correct chest {}", AutoPuzzleUtil.fmt(chest));
+        LOGGER.info("[AutoPuzzles] Weirdos: click sent - opened the correct chest {}", AutoPuzzleUtil.fmt(chest));
         CAMERA.release(player);
         AutoPuzzleActivity.ended(); // the right chest is the solve: nothing follows
     }
