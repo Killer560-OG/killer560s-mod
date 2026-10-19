@@ -630,3 +630,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   Melee, 2026-10-18). The exact eye-to-centre ray met the lantern, the turned body's float yaw/pitch met the next block,
   and the auto turned every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks
   0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so centre-only sight hid most spots.
+- **A fallback that hands over to another mode inherits that mode's preconditions** (Creeper Beams Melee, 2026-10-18). Melee
+  ran out of on-foot pairs and handed the room to Shoot mode, whose first step is an etherwarp onto the centre platform;
+  from deep in the room there was no line onto it, AutoReposition refused once, and the auto sat there until he moved
+  (his Mod Only Test log, reproduced by 1018-beams-melee-after). Melee now reaches each lantern itself (spot, AOTV, shot).

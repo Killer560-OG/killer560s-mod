@@ -176,7 +176,7 @@ public final class AutoBeams {
         }
         boolean reposition = cfg.isEtherwarpReposition();
         if (melee && !meleeFallback) {
-            meleeTick(client, player, pairs, reposition);
+            meleeTick(client, player, pairs, reposition, cr);
             if (!meleeFallback) {
                 return;
             }
@@ -196,7 +196,14 @@ public final class AutoBeams {
         if (Math.abs(player.getY() - platformY) > 0.5) {
             if (reposition) {
                 say("off the center platform - repositioning onto " + AutoPuzzleUtil.fmt(start));
-                REPOSITION.start(client, start, true, false, false);
+                if (!REPOSITION.start(client, start, true, false, false) && melee) {
+                    // Melee's last resort only (Shoot mode is unchanged): no line onto the platform from wherever melee left
+                    // him, so a hop toward it first - waiting here was the in-game stall of 2026-10-18.
+                    BlockPos hop = AutoPuzzleUtil.hopToward(client, player, List.of(start));
+                    if (hop != null) {
+                        REPOSITION.start(client, hop, true, false, false);
+                    }
+                }
             } else {
                 say("waiting: stand on the center platform (Etherwarp Reposition is off)");
             }
@@ -305,69 +312,132 @@ public final class AutoBeams {
      * end), short enough that a refused one costs half a second.
      */
     private static final int MELEE_CONFIRM_TICKS = 12;
+    /** The same for a shot: the arrow's flight comes on top of the round trip. */
+    private static final int SHOT_CONFIRM_TICKS = 20;
+    /** Ticks an Aspect of the Void teleport may take to land him where it was planned to before the plan is dropped. */
+    private static final int AOTV_LAND_TIMEOUT = 20;
     /** Unanswered hits on one lantern before its pair is set aside for another. */
     private static final int MELEE_MAX_TRIES = 4;
     /** Spots are planned this far from the lantern's box, inside the 4.5 the server enforces, so the landing's own
      *  hover and rounding can never put the hit out of range; 4.5 itself is the fallback when nothing is that close. */
     private static final double MELEE_PLAN_REACH = 4.0;
 
+    /** How a lantern is reached, cheapest first: an etherwarp spot in reach, an Aspect of the Void teleport into reach
+     *  (from a spot it can be used from), a shot, or not at all. */
+    private enum Way { MELEE, AOTV, SHOOT, NONE }
+
+    /**
+     * An Aspect of the Void teleport (Instant Transmission, no sneak) that leaves him within reach of a lantern: used from
+     * {@code from} (null: from where he stands now) at {@code yaw}/{@code pitch}, it lands his feet at {@code land}.
+     */
+    private record AotvPlan(BlockPos from, float yaw, float pitch, Vec3 land) {
+    }
+
     /** The hit awaiting its answer: the client tick it went, the pair, which end (stage) and where it was hit from. */
     private static long meleeClickTick = -1L;
     private static LanternPair meleePair = null;
     private static int meleeStage = -1;
     private static BlockPos meleeFrom = null;
+    /** Whether that hit was a shot (its answer may take longer) and, for a hit made after a teleport, that teleport's plan. */
+    private static boolean meleeWasShot = false;
+    private static AotvPlan meleeFromPlan = null;
     private static int meleeTries = 0;
     /** Per lantern, the spots a hit from went unanswered - the retry goes from somewhere else. */
     private static final java.util.Map<BlockPos, java.util.Set<BlockPos>> MELEE_FAILED =
             new java.util.HashMap<>();
-    /** Lanterns no spot in the room reaches, or that never answered: pairs holding one are left to the others. */
+    /** Lanterns nothing reaches, or that never answered: pairs holding one are left to the others. */
     private static final java.util.Set<BlockPos> MELEE_SKIP = new java.util.HashSet<>();
     /** Both ends of every pair whose completing hurt sound came ({@link #onSound}). */
     private static final java.util.Set<BlockPos> MELEE_DONE = new java.util.HashSet<>();
+    /** Per lantern, the teleports that reach it ({@link #aotvPlans}) and the spots with a clear shot at it ({@link #shootSpots}). */
+    private static final java.util.Map<BlockPos, List<AotvPlan>> AOTV_PLANS = new java.util.HashMap<>();
+    private static final java.util.Map<BlockPos, List<BlockPos>> SHOOT_SPOTS = new java.util.HashMap<>();
+    /** The teleport in flight: when it was used, its plan, the lantern it is for and where he stood. */
+    private static long dashTick = -1L;
+    private static AotvPlan dashPlan = null;
+    private static BlockPos dashLantern = null;
+    /** The plan of the teleport that last landed, until the hit it was for goes (or he moves on). */
+    private static AotvPlan airPlan = null;
     private static int meleeHits = 0;
     private static int meleeWarps = 0;
-    /** Set when no pair is left that melee can finish: the rest of this room is played as Shoot mode plays it. */
+    private static int meleeDashes = 0;
+    private static int meleeShots = 0;
+    /** Set when no lit pair can be finished any way at all: the rest of this room is played as Shoot mode plays it. */
     private static boolean meleeFallback = false;
 
     /**
      * Melee mode (killer560's to-do item 29, 2026-10-18: "etherwarps and teleports around the room and will mele the
-     * blocks"). For the active pair's next lantern: if he stands within reach of it (eye to its box, and a point of it in
-     * sight) and that spot has not already failed it, hit it - one left click; otherwise etherwarp (the same
-     * {@link AutoReposition} every puzzle uses) to the nearest standable spot that reaches it. A hit counts once the hurt
-     * sound moves the pair's stage or the lantern changes; with neither inside {@link #MELEE_CONFIRM_TICKS} the spot is
-     * marked failed for that lantern and the next hit goes from another spot.
+     * blocks"). For the active pair's next lantern: if he is within reach of it (eye to its box, and a point of it in
+     * sight) and that spot has not already failed it, hit it - one left click. Otherwise, the cheapest way there:
+     * <ol>
+     *   <li>etherwarp (the same {@link AutoReposition} every puzzle uses) to the nearest standable spot that reaches it;</li>
+     *   <li>with no such spot - a lantern hung high up (killer560, 2026-10-18: "use a regular Aspect of the Void teleport
+     *   when etherwarp has no spot") - an Aspect of the Void teleport that lands him in reach, from where he stands or from
+     *   a spot it is warped to first, and the hit in the air the tick after the landing;</li>
+     *   <li>with neither, the shortbow, as Shoot mode shoots (from where he stands when the line is clear and misses the
+     *   creeper, else from a spot that has such a line) - "it should shoot that one instead of stopping".</li>
+     * </ol>
+     * A hit counts once the hurt sound moves the pair's stage or the lantern changes; with neither inside
+     * {@link #MELEE_CONFIRM_TICKS} (a shot: {@link #SHOT_CONFIRM_TICKS}) the spot, or the teleport, is marked failed for that
+     * lantern and the next try goes another way.
      *
-     * <p>Only discrete inputs: the warp is AutoReposition's sneak and use, the hit is vanilla's own left click
+     * <p>Only discrete inputs: the warp is AutoReposition's sneak and use, the teleport and the shot are the puzzle autos'
+     * use with its look in the packet ({@link AutoPuzzleUtil#useItemRotated}), the hit is vanilla's own left click
      * ({@link #meleeClick}), and the body is turned through the puzzle autos' turn-first path with the camera held.
      */
-    private static void meleeTick(Minecraft client, LocalPlayer player, List<BlockPos[]> pairs, boolean reposition) {
+    private static void meleeTick(Minecraft client, LocalPlayer player, List<BlockPos[]> pairs, boolean reposition, int[] cr) {
         long now = com.killer560.hub.util.ActionGate.currentTick();
+        if (dashTick >= 0) {
+            AotvPlan plan = dashPlan;
+            if (player.position().distanceToSqr(plan.land()) < 1.0) {
+                // Landed where it was planned. Our own landing: the gate's teleport settle must not hold the hit for 6 ticks.
+                com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD,
+                        com.killer560.hub.util.ActionGate.TELEPORT_SETTLE_TICKS);
+                LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport landed at {} ({} tick(s) after the use), {} eye to "
+                                + "box", fmt(player.position()), now - dashTick, String.format(java.util.Locale.ROOT, "%.2f",
+                        Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), dashLantern))));
+                dashTick = -1L;
+                airPlan = plan;
+                // The landing tick turns the body onto the lantern; the hit goes the tick after, before he has fallen.
+                aimAtVisible(client, player, dashLantern, player.getEyePosition());
+                return;
+            }
+            if (now - dashTick > AOTV_LAND_TIMEOUT) {
+                LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} never landed at {} (he is at {}) - "
+                        + "dropping that teleport", AutoPuzzleUtil.fmt(dashLantern), fmt(plan.land()), fmt(player.position()));
+                dropPlan(dashLantern, plan);
+                dashTick = -1L;
+            }
+            return;
+        }
         if (meleeClickTick >= 0) {
             LanternPair pair = activePair;
             boolean answered = pair == null || pair != meleePair || pair.stage != meleeStage
                     || !client.level.getBlockState(meleeTarget()).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN);
             if (answered) {
-                LOGGER.info("[AutoPuzzles] Beams (melee): hit on {} answered {} tick(s) after it", AutoPuzzleUtil.fmt(meleeTarget()),
-                        now - meleeClickTick);
+                LOGGER.info("[AutoPuzzles] Beams (melee): {} on {} answered {} tick(s) after it", meleeWasShot ? "shot" : "hit",
+                        AutoPuzzleUtil.fmt(meleeTarget()), now - meleeClickTick);
                 meleeClickTick = -1L;
                 meleeTries = 0;
-            } else if (now - meleeClickTick < MELEE_CONFIRM_TICKS) {
+            } else if (now - meleeClickTick < (meleeWasShot ? SHOT_CONFIRM_TICKS : MELEE_CONFIRM_TICKS)) {
                 return; // the server's answer is on its way
             } else {
                 BlockPos lantern = meleeTarget();
-                if (meleeFrom != null) {
+                if (meleeFromPlan != null) {
+                    dropPlan(lantern, meleeFromPlan);
+                } else if (meleeFrom != null) {
                     MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(meleeFrom);
                 }
                 meleeClickTick = -1L;
                 if (++meleeTries >= MELEE_MAX_TRIES) {
-                    LOGGER.info("[AutoPuzzles] Beams (melee): {} never answered {} hits - leaving its pair for another",
+                    LOGGER.info("[AutoPuzzles] Beams (melee): {} never answered {} tries - leaving its pair for another",
                             AutoPuzzleUtil.fmt(lantern), meleeTries);
                     MELEE_SKIP.add(lantern);
                     activePair = null;
                     meleeTries = 0;
                 } else {
-                    LOGGER.info("[AutoPuzzles] Beams (melee): no answer to the hit on {} in {} ticks - trying again from "
-                            + "another spot", AutoPuzzleUtil.fmt(lantern), MELEE_CONFIRM_TICKS);
+                    LOGGER.info("[AutoPuzzles] Beams (melee): no answer to the {} on {} - trying again another way",
+                            meleeWasShot ? "shot" : "hit", AutoPuzzleUtil.fmt(lantern));
                 }
             }
         }
@@ -376,23 +446,25 @@ public final class AutoBeams {
             say("melee: four pairs joined - waiting for the room to read solved");
             return;
         }
+        BlockPos creeper = PuzzleCoords.real(15, 74, 15, cr);
         if (activePair == null) {
-            activePair = pickMeleePair(client, player, pairs);
+            activePair = pickMeleePair(client, player, pairs, creeper);
             if (activePair == null) {
                 StringBuilder sb = new StringBuilder();
                 for (BlockPos[] p : pairs) {
-                    sb.append(' ').append(AutoPuzzleUtil.fmt(p[0])).append(" (").append(meleeSpots(client, p[0]).size())
-                            .append(") - ").append(AutoPuzzleUtil.fmt(p[1])).append(" (").append(meleeSpots(client, p[1]).size())
-                            .append(");");
+                    sb.append(' ').append(AutoPuzzleUtil.fmt(p[0])).append(" (").append(wayFor(client, player, p[0], creeper))
+                            .append(") - ").append(AutoPuzzleUtil.fmt(p[1])).append(" (")
+                            .append(wayFor(client, player, p[1], creeper)).append(");");
                 }
-                // Not stuck for good: the rest is shot, as Shoot mode does it (the platform, the shortbow), so a room where
-                // fewer pairs than it needs can be reached on foot is still finished.
-                LOGGER.info("[AutoPuzzles] Beams (melee): no lit pair left with both lanterns in reach of a spot -{} - "
-                        + "shooting the rest", sb);
+                LOGGER.info("[AutoPuzzles] Beams (melee): no lit pair left that can be finished any way -{} - playing the "
+                        + "rest as Shoot mode does", sb);
                 meleeFallback = true;
                 return;
             }
             meleeTries = 0;
+            LOGGER.info("[AutoPuzzles] Beams (melee): next pair {} ({}) - {} ({})", AutoPuzzleUtil.fmt(activePair.first),
+                    wayFor(client, player, activePair.first, creeper), AutoPuzzleUtil.fmt(activePair.second),
+                    wayFor(client, player, activePair.second, creeper));
         }
         LanternPair pair = activePair;
         BlockPos lantern = pair.stage == 0 ? pair.first : pair.second;
@@ -402,37 +474,57 @@ public final class AutoBeams {
             aimAtVisible(client, player, lantern, AutoPuzzleUtil.settledEye(player));
             return;
         }
-        if (player.isShiftKeyDown()) {
-            say("melee: waiting one tick for the landing's sneak to be let go");
-            return;
-        }
         BlockPos standing = standingOn(client, player);
         java.util.Set<BlockPos> failed = MELEE_FAILED.getOrDefault(lantern, java.util.Set.of());
         Vec3 eye = player.getEyePosition();
-        boolean inReach = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) <= AutoPuzzleUtil.BLOCK_REACH_SQ
+        boolean inReach = !player.isShiftKeyDown()
+                && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) <= AutoPuzzleUtil.BLOCK_REACH_SQ
                 && visiblePoint(client, eye, lantern) != null && (standing == null || !failed.contains(standing));
-        if (!inReach) {
-            if (!reposition) {
-                say("melee: " + AutoPuzzleUtil.fmt(lantern) + " is out of reach and Etherwarp Reposition is off");
-                return;
-            }
-            BlockPos spot = meleeSpot(client, player, lantern, failed);
-            if (spot == null) {
-                LOGGER.info("[AutoPuzzles] Beams (melee): no spot in the room reaches {} ({} tried) - leaving its pair",
-                        AutoPuzzleUtil.fmt(lantern), failed.size());
-                MELEE_SKIP.add(lantern);
-                activePair = null;
-                return;
-            }
-            say("melee: warping to " + AutoPuzzleUtil.fmt(spot) + " for " + AutoPuzzleUtil.fmt(lantern));
-            if (REPOSITION.start(client, spot, false, false, false)) {
-                meleeWarps++;
-                lastSaid = null;
-            } else {
-                MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
-            }
+        if (inReach) {
+            hitNow(client, player, pair, lantern, standing, eye, now);
             return;
         }
+        Way way = wayFor(client, player, lantern, creeper);
+        if (way != Way.SHOOT && player.isShiftKeyDown()) {
+            // A hit or a teleport goes standing: let go of a sneak an earlier warp or shot left held (only ever ours).
+            AutoReposition.releaseSneak(client);
+            say("melee: waiting one tick for the sneak to be let go");
+            return;
+        }
+        if (!reposition && way != Way.SHOOT) {
+            say("melee: " + AutoPuzzleUtil.fmt(lantern) + " is out of reach and Etherwarp Reposition is off");
+            return;
+        }
+        switch (way) {
+            case MELEE -> {
+                BlockPos spot = meleeSpot(client, player, lantern, failed);
+                if (spot == null) {
+                    say("melee: no spot he can warp to reaches " + AutoPuzzleUtil.fmt(lantern) + " from here");
+                    MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).addAll(meleeSpots(client, lantern));
+                    return;
+                }
+                say("melee: warping to " + AutoPuzzleUtil.fmt(spot) + " for " + AutoPuzzleUtil.fmt(lantern));
+                if (REPOSITION.start(client, spot, false, false, false)) {
+                    meleeWarps++;
+                    lastSaid = null;
+                } else {
+                    MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
+                }
+            }
+            case AOTV -> aotvStep(client, player, lantern, now);
+            case SHOOT -> shootStep(client, player, pair, lantern, creeper, standing, reposition, now);
+            case NONE -> {
+                LOGGER.info("[AutoPuzzles] Beams (melee): nothing reaches {} any more (stage {}) - leaving its pair",
+                        AutoPuzzleUtil.fmt(lantern), pair.stage);
+                MELEE_SKIP.add(lantern);
+                activePair = null;
+            }
+        }
+    }
+
+    /** The hit itself, from where he is (standing, or in the air after a teleport). */
+    private static void hitNow(Minecraft client, LocalPlayer player, LanternPair pair, BlockPos lantern, BlockPos standing,
+                               Vec3 eye, long now) {
         CAMERA.engage(player); // before any turn, so the held view is where he was looking
         if (aimAtVisible(client, player, lantern, eye)) {
             say("melee: turning onto " + AutoPuzzleUtil.fmt(lantern) + " - the hit goes next tick");
@@ -446,11 +538,356 @@ public final class AutoBeams {
         meleePair = pair;
         meleeStage = pair.stage;
         meleeFrom = standing;
+        meleeWasShot = false;
+        meleeFromPlan = standing == null ? airPlan : null;
         meleeHits++;
         lastSaid = null;
-        LOGGER.info("[AutoPuzzles] Beams (melee): hit {} (pair stage {}) from {}, eye to box {}", AutoPuzzleUtil.fmt(lantern),
-                pair.stage, AutoPuzzleUtil.fmt(standing), String.format(java.util.Locale.ROOT, "%.2f",
-                        Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern))));
+        LOGGER.info("[AutoPuzzles] Beams (melee): hit {} (pair stage {}) from {}, eye to box {}{}", AutoPuzzleUtil.fmt(lantern),
+                pair.stage, standing == null ? "the air at " + fmt(player.position()) : AutoPuzzleUtil.fmt(standing),
+                String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye,
+                        lantern))), meleeFromPlan != null ? " via aotv" : "");
+        airPlan = null;
+    }
+
+    /**
+     * An Aspect of the Void teleport into reach of {@code lantern}: from where he stands if one of the planned looks works
+     * from here, else from the nearest planned spot, etherwarped to first. Re-checked from his real position before the use
+     * (it is the server that moves him, along the look in the use packet), and dropped when it no longer lands in reach.
+     */
+    private static void aotvStep(Minecraft client, LocalPlayer player, BlockPos lantern, long now) {
+        List<AotvPlan> plans = aotvPlans(client, player, lantern);
+        AotvPlan here = player.onGround() ? planFrom(client, player, lantern, player.position(), null) : null;
+        AotvPlan plan = here;
+        if (plan == null) {
+            for (AotvPlan p : plans) {
+                if (AutoPuzzleUtil.at(player, p.from())) {
+                    plan = p;
+                    break;
+                }
+            }
+        }
+        if (plan == null) {
+            // Not on a spot to teleport from yet: warp to the first he can aim an etherwarp at, else a hop toward them.
+            BlockPos spot = null;
+            for (AotvPlan p : plans) {
+                if (AutoPuzzleUtil.etherwarpAim(client.level, player, p.from()) != null) {
+                    spot = p.from();
+                    break;
+                }
+            }
+            if (spot == null && !plans.isEmpty()) {
+                List<BlockPos> froms = new java.util.ArrayList<>();
+                for (AotvPlan p : plans) {
+                    froms.add(p.from());
+                }
+                spot = AutoPuzzleUtil.hopToward(client, player, froms);
+            }
+            if (spot == null) {
+                LOGGER.info("[AutoPuzzles] Beams (melee): none of the {} spot(s) to AOTV up to {} from can be warped to - "
+                        + "dropping them", plans.size(), AutoPuzzleUtil.fmt(lantern));
+                AOTV_PLANS.put(lantern, List.of());
+                return;
+            }
+            say("melee: warping to " + AutoPuzzleUtil.fmt(spot) + " to AOTV up to " + AutoPuzzleUtil.fmt(lantern));
+            if (REPOSITION.start(client, spot, false, false, false)) {
+                meleeWarps++;
+                lastSaid = null;
+            }
+            return;
+        }
+        if (!AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
+            AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
+            say("melee: the Aspect of the Void back in hand for the teleport");
+            return; // the swap is heard this tick, the use goes next
+        }
+        // From where he really is: the landing must still put him in reach.
+        Vec3 land = dashLanding(client, player, player.position(), plan.yaw(), plan.pitch());
+        if (land == null || !reachesFromFeet(client, land, lantern)) {
+            LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} would land at {} from here - out of reach, "
+                    + "dropping it", AutoPuzzleUtil.fmt(lantern), land == null ? "nowhere" : fmt(land));
+            dropPlan(lantern, plan);
+            return;
+        }
+        CAMERA.engage(player);
+        if (!AutoPuzzleUtil.useItemRotated(client, player, plan.yaw(), plan.pitch())) {
+            return; // gate held, or the look must be heard first: next tick
+        }
+        com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
+        dashTick = now;
+        dashPlan = new AotvPlan(plan.from(), plan.yaw(), plan.pitch(), land);
+        dashLantern = lantern;
+        meleeDashes++;
+        lastSaid = null;
+        LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport toward {} from {} (yaw {} pitch {}), landing planned at {}",
+                AutoPuzzleUtil.fmt(lantern), fmt(player.position()), String.format(java.util.Locale.ROOT, "%.1f", plan.yaw()),
+                String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()), fmt(land));
+    }
+
+    /**
+     * A shot at {@code lantern}, as Shoot mode shoots: the shortbow in hand, its look in the use packet, paced by the Shoot
+     * cooldown - from where he is when the line is clear and does not pass the creeper, else from the nearest spot with such
+     * a line ({@link #shootSpots}), warped to with the sneak kept and the bow back in hand, as Shoot mode's reposition does.
+     */
+    private static void shootStep(Minecraft client, LocalPlayer player, LanternPair pair, BlockPos lantern, BlockPos creeper,
+                                  BlockPos standing, boolean reposition, long now) {
+        Vec3 eye = player.getEyePosition();
+        float[] dir = clearShot(client, player, eye, lantern, creeper);
+        if (dir == null) {
+            if (!reposition) {
+                say("melee: no clear shot at " + AutoPuzzleUtil.fmt(lantern) + " from here and Etherwarp Reposition is off");
+                return;
+            }
+            List<BlockPos> spots = new java.util.ArrayList<>(shootSpots(client, player, lantern, creeper));
+            spots.removeAll(MELEE_FAILED.getOrDefault(lantern, java.util.Set.of()));
+            BlockPos spot = null;
+            for (BlockPos s : spots) {
+                if (!AutoPuzzleUtil.at(player, s) && AutoPuzzleUtil.etherwarpAim(client.level, player, s) != null) {
+                    spot = s;
+                    break;
+                }
+            }
+            if (spot == null && !spots.isEmpty()) {
+                spot = AutoPuzzleUtil.hopToward(client, player, spots);
+            }
+            if (spot == null) {
+                LOGGER.info("[AutoPuzzles] Beams (melee): no spot with a clear shot at {} can be warped to - leaving it",
+                        AutoPuzzleUtil.fmt(lantern));
+                SHOOT_SPOTS.put(lantern, List.of());
+                return;
+            }
+            say("melee: warping to " + AutoPuzzleUtil.fmt(spot) + " to shoot " + AutoPuzzleUtil.fmt(lantern));
+            if (REPOSITION.start(client, spot, true, false, false)) {
+                meleeWarps++;
+                lastSaid = null;
+            } else {
+                MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
+            }
+            return;
+        }
+        AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
+        if (bow == AutoPuzzleUtil.BowState.NONE) {
+            say("melee: no shortbow (\"" + AutoPuzzleUtil.SHORTBOW_LORE + "\" in its lore) in the hotbar to shoot "
+                    + AutoPuzzleUtil.fmt(lantern));
+            return;
+        }
+        long ms = System.currentTimeMillis();
+        if (bow != AutoPuzzleUtil.BowState.HELD || ms - lastShotTime < AutoPuzzlesConfig.getInstance().getShootCooldownMs()) {
+            return;
+        }
+        CAMERA.engage(player);
+        if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            return;
+        }
+        lastShotTime = ms;
+        meleeClickTick = now;
+        meleePair = pair;
+        meleeStage = pair.stage;
+        meleeFrom = standing;
+        meleeWasShot = true;
+        meleeFromPlan = null;
+        meleeShots++;
+        lastSaid = null;
+        LOGGER.info("[AutoPuzzles] Beams (melee): shot {} (pair stage {}) from {} - nothing in reach of it on foot or by AOTV",
+                AutoPuzzleUtil.fmt(lantern), pair.stage, fmt(eye));
+    }
+
+    /** {@link #shotAim} from {@code eye}, unless the line passes the creeper (the lantern under its feet excepted). */
+    private static float[] clearShot(Minecraft client, LocalPlayer player, Vec3 eye, BlockPos lantern, BlockPos creeper) {
+        if (!lantern.equals(creeper) && isPathBlocked(eye, Vec3.atCenterOf(lantern), creeper)) {
+            return null;
+        }
+        return shotAim(client, player, eye, lantern);
+    }
+
+    /** How {@code lantern} is reached now - see {@link Way}. Plans are worked out once per lantern and kept. */
+    private static Way wayFor(Minecraft client, LocalPlayer player, BlockPos lantern, BlockPos creeper) {
+        java.util.Set<BlockPos> failed = MELEE_FAILED.getOrDefault(lantern, java.util.Set.of());
+        for (BlockPos s : meleeSpots(client, lantern)) {
+            if (!failed.contains(s)) {
+                return Way.MELEE;
+            }
+        }
+        if (!aotvPlans(client, player, lantern).isEmpty()) {
+            return Way.AOTV;
+        }
+        if (clearShot(client, player, player.getEyePosition(), lantern, creeper) != null) {
+            return Way.SHOOT;
+        }
+        for (BlockPos s : shootSpots(client, player, lantern, creeper)) {
+            if (!failed.contains(s)) {
+                return Way.SHOOT;
+            }
+        }
+        return Way.NONE;
+    }
+
+    private static int cost(Way w) {
+        return switch (w) {
+            case MELEE -> 0;
+            case AOTV -> 1;
+            case SHOOT -> 3;
+            case NONE -> 1000;
+        };
+    }
+
+    private static void dropPlan(BlockPos lantern, AotvPlan plan) {
+        List<AotvPlan> plans = AOTV_PLANS.get(lantern);
+        if (plans == null) {
+            return;
+        }
+        List<AotvPlan> rest = new java.util.ArrayList<>(plans);
+        // The spot it was used from goes with it: its other looks were planned from the same block.
+        rest.removeIf(p -> java.util.Objects.equals(p.from(), plan.from()));
+        AOTV_PLANS.put(lantern, List.copyOf(rest));
+        LOGGER.info("[AutoPuzzles] Beams (melee): dropped the AOTV teleport from {} for {} - {} left",
+                plan.from() == null ? "where he stood" : AutoPuzzleUtil.fmt(plan.from()), AutoPuzzleUtil.fmt(lantern), rest.size());
+    }
+
+    private static String fmt(Vec3 v) {
+        return String.format(java.util.Locale.ROOT, "%.2f, %.2f, %.2f", v.x, v.y, v.z);
+    }
+
+    /** Instant Transmission's reach with the Aspect of the Void in his hotbar: 8, plus one per Transmission Tuner. */
+    private static double transmissionRange(LocalPlayer player) {
+        for (int i = 0; i < 9; i++) {
+            net.minecraft.world.item.ItemStack st = player.getInventory().getItem(i);
+            if (AutoPuzzleUtil.isAotv(st)) {
+                return com.killer560.hub.roomsim.SimAbilities.instantTransmissionRange(st);
+            }
+        }
+        return 8.0;
+    }
+
+    /** Where an Instant Transmission used at {@code yaw}/{@code pitch} from feet {@code feet} lands his feet - the measured
+     *  model the sim and Auto Clear share ({@code SimAbilities.dashTarget}) - or null when it goes nowhere. */
+    private static Vec3 dashLanding(Minecraft client, LocalPlayer player, Vec3 feet, float yaw, float pitch) {
+        float y = yaw * net.minecraft.util.Mth.DEG_TO_RAD;
+        float x = net.minecraft.util.Mth.clamp(pitch, -90f, 90f) * net.minecraft.util.Mth.DEG_TO_RAD;
+        float cp = net.minecraft.util.Mth.cos(x);
+        Vec3 look = new Vec3(-net.minecraft.util.Mth.sin(y) * cp, -net.minecraft.util.Mth.sin(x), net.minecraft.util.Mth.cos(y) * cp);
+        Vec3 land = com.killer560.hub.roomsim.SimAbilities.dashTarget(client.level, player, feet, look, transmissionRange(player));
+        return land == null || land.distanceToSqr(feet) < 1.0 ? null : land;
+    }
+
+    /** From feet at {@code land}, standing: the lantern's box within the planning reach and a point of it in sight. */
+    private static boolean reachesFromFeet(Minecraft client, Vec3 land, BlockPos lantern) {
+        Vec3 eye = land.add(0.0, AutoPuzzleUtil.EYE_STANDING, 0.0);
+        return com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) <= MELEE_PLAN_REACH * MELEE_PLAN_REACH
+                && visiblePoint(client, eye, lantern) != null;
+    }
+
+    /**
+     * A teleport from feet {@code feet} that lands in reach of {@code lantern}, or null. The looks tried put his feet on a
+     * line toward points under the lantern (so his EYE ends beside it) and straight up; the landing is the shared model's.
+     */
+    private static AotvPlan planFrom(Minecraft client, LocalPlayer player, BlockPos lantern, Vec3 feet, BlockPos from) {
+        Vec3 c = Vec3.atCenterOf(lantern);
+        Vec3 flat = new Vec3(feet.x - c.x, 0.0, feet.z - c.z);
+        Vec3 toward = flat.lengthSqr() < 1.0e-6 ? Vec3.ZERO : flat.normalize();
+        Vec3[] targets = {
+                c.add(0.0, -AutoPuzzleUtil.EYE_STANDING, 0.0),
+                c.add(0.0, -AutoPuzzleUtil.EYE_STANDING - 1.0, 0.0),
+                c.add(toward.scale(1.5)).add(0.0, -AutoPuzzleUtil.EYE_STANDING, 0.0),
+                c.add(toward.scale(2.5)).add(0.0, -AutoPuzzleUtil.EYE_STANDING - 1.0, 0.0),
+        };
+        for (Vec3 t : targets) {
+            float[] d = AutoPuzzleUtil.direction(feet, t);
+            Vec3 land = dashLanding(client, player, feet, d[0], d[1]);
+            if (land != null && reachesFromFeet(client, land, lantern)) {
+                return new AotvPlan(from, d[0], d[1], land);
+            }
+        }
+        Vec3 up = dashLanding(client, player, feet, player.getYRot(), -90f);
+        if (up != null && reachesFromFeet(client, up, lantern)) {
+            return new AotvPlan(from, player.getYRot(), -90f, up);
+        }
+        return null;
+    }
+
+    /**
+     * Every planned teleport into reach of {@code lantern}: from each standable spot in the room near enough for a teleport
+     * (nearest the lantern first, at most forty tried), the first look of {@link #planFrom} that works. Worked out once.
+     */
+    private static List<AotvPlan> aotvPlans(Minecraft client, LocalPlayer player, BlockPos lantern) {
+        List<AotvPlan> cached = AOTV_PLANS.get(lantern);
+        if (cached != null) {
+            return cached;
+        }
+        int reachOut = (int) Math.ceil(transmissionRange(player)) + 3;
+        List<BlockPos> stands = standables(client, lantern, reachOut, lantern.getY() - reachOut, lantern.getY() + 1);
+        List<AotvPlan> out = new java.util.ArrayList<>();
+        int tried = 0;
+        for (BlockPos s : stands) {
+            if (++tried > 40 || out.size() >= 6) {
+                break;
+            }
+            Vec3 feet = new Vec3(s.getX() + 0.5, s.getY() + standTop(client, s), s.getZ() + 0.5);
+            AotvPlan p = planFrom(client, player, lantern, feet, s);
+            if (p != null) {
+                out.add(p);
+            }
+        }
+        LOGGER.info("[AutoPuzzles] Beams (melee): {} - {} AOTV teleport(s) into reach ({} spot(s) tried)",
+                AutoPuzzleUtil.fmt(lantern), out.size(), Math.min(tried, stands.size()));
+        List<AotvPlan> result = List.copyOf(out);
+        AOTV_PLANS.put(lantern, result);
+        return result;
+    }
+
+    /**
+     * Spots with a clear shot at {@code lantern} (the sneaking eye, as a bow reposition leaves him, and not past the
+     * creeper), nearest the lantern first, at most eight, of the room's standable blocks within twenty. Worked out once.
+     */
+    private static List<BlockPos> shootSpots(Minecraft client, LocalPlayer player, BlockPos lantern, BlockPos creeper) {
+        List<BlockPos> cached = SHOOT_SPOTS.get(lantern);
+        if (cached != null) {
+            return cached;
+        }
+        List<BlockPos> stands = standables(client, lantern, 20, lantern.getY() - 16, lantern.getY() + 2);
+        List<BlockPos> out = new java.util.ArrayList<>();
+        int tried = 0;
+        for (BlockPos s : stands) {
+            if (++tried > 200 || out.size() >= 8) {
+                break;
+            }
+            Vec3 eye = new Vec3(s.getX() + 0.5, s.getY() + standTop(client, s) + AutoPuzzleUtil.EYE_SNEAKING, s.getZ() + 0.5);
+            if (clearShot(client, player, eye, lantern, creeper) != null) {
+                out.add(s);
+            }
+        }
+        LOGGER.info("[AutoPuzzles] Beams (melee): {} - {} spot(s) with a clear shot", AutoPuzzleUtil.fmt(lantern), out.size());
+        List<BlockPos> result = List.copyOf(out);
+        SHOOT_SPOTS.put(lantern, result);
+        return result;
+    }
+
+    /** Standable, landable blocks in the live map's room within {@code horiz} of {@code lantern} and between the two
+     *  heights, nearest the lantern first (the same test as {@link #meleeSpots}). */
+    private static List<BlockPos> standables(Minecraft client, BlockPos lantern, int horiz, int minY, int maxY) {
+        int idx = LiveMapFeature.currentRoomIndex();
+        int[] bounds = idx < 0 ? null : LiveMapFeature.roomWorldBounds(idx);
+        List<BlockPos> out = new java.util.ArrayList<>();
+        for (int x = lantern.getX() - horiz; x <= lantern.getX() + horiz; x++) {
+            for (int z = lantern.getZ() - horiz; z <= lantern.getZ() + horiz; z++) {
+                if (bounds != null && (x < bounds[0] || x > bounds[2] || z < bounds[1] || z > bounds[3])) {
+                    continue;
+                }
+                for (int y = minY; y <= maxY; y++) {
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (pos.equals(lantern) || AutoPuzzleUtil.isPassable(client.level.getBlockState(pos))
+                            || !client.level.getBlockState(pos.above()).isAir()
+                            || !client.level.getBlockState(pos.above(2)).isAir()) {
+                        continue;
+                    }
+                    if (com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.isEtherwarpable(pos) || stepBlock(client, pos)) {
+                        out.add(pos);
+                    }
+                }
+            }
+        }
+        Vec3 c = Vec3.atCenterOf(lantern);
+        out.sort(java.util.Comparator.comparingDouble((BlockPos b) -> Vec3.atCenterOf(b).distanceToSqr(c)));
+        return out;
     }
 
     /**
@@ -500,32 +937,57 @@ public final class AutoBeams {
     }
 
     /**
-     * The lit pair to melee next: of the pairs whose BOTH lanterns have a spot to hit them from (and none set aside), the
-     * one with a lantern nearest him, that lantern first. Both, before the first hit: a pair left after its first end is
-     * hit leaves that end held, and the next pair's first hit then reads as its partner - a wrong beam (seen in the sim's
-     * first run, where every pair has one end that is easy and many have one hanging under the ceiling out of reach).
+     * The lit pair to play next: of the pairs whose BOTH lanterns can be reached some way ({@link #wayFor}) and none set
+     * aside, the cheapest - both by etherwarp spots first, then teleports, shots last - and of those the one with a lantern
+     * nearest him, that lantern first. Both, before the first hit: a pair left after its first end is hit leaves that end
+     * held, and the next pair's first hit then reads as its partner - a wrong beam.
+     *
+     * <p>The first version only ever took pairs reachable by etherwarp spots alone, and his first in-game run (2026-10-18,
+     * Mod Only Test) lit only four pairs: two were played, then none was left, the room went to Shoot mode's platform
+     * reposition, which had no etherwarp line from where he stood, and it waited there until he moved 13 s later.
      */
-    private static LanternPair pickMeleePair(Minecraft client, LocalPlayer player, List<BlockPos[]> pairs) {
-        LanternPair best = null;
-        double bestD = Double.MAX_VALUE;
+    private static LanternPair pickMeleePair(Minecraft client, LocalPlayer player, List<BlockPos[]> pairs, BlockPos creeper) {
         Vec3 at = player.position();
-        for (BlockPos[] p : pairs) {
-            // Both still SEA LANTERNS: a pair just joined turns to prismarine a tick or more before the solver's list drops
-            // it, and picking it again in between hit a finished lantern and read the prismarine as an answer.
-            if (MELEE_SKIP.contains(p[0]) || MELEE_SKIP.contains(p[1]) || MELEE_DONE.contains(p[0]) || MELEE_DONE.contains(p[1])
-                    || !client.level.getBlockState(p[0]).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN)
-                    || !client.level.getBlockState(p[1]).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN)
-                    || meleeSpots(client, p[0]).isEmpty() || meleeSpots(client, p[1]).isEmpty()) {
-                continue;
+        for (int pass = 0; pass < 2; pass++) {
+            LanternPair best = null;
+            int bestCost = Integer.MAX_VALUE;
+            double bestD = Double.MAX_VALUE;
+            for (BlockPos[] p : pairs) {
+                // Both still SEA LANTERNS: a pair just joined turns to prismarine a tick or more before the solver's list
+                // drops it, and picking it again in between hit a finished lantern and read the prismarine as an answer.
+                if (MELEE_SKIP.contains(p[0]) || MELEE_SKIP.contains(p[1]) || MELEE_DONE.contains(p[0])
+                        || MELEE_DONE.contains(p[1])
+                        || !client.level.getBlockState(p[0]).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN)
+                        || !client.level.getBlockState(p[1]).is(net.minecraft.world.level.block.Blocks.SEA_LANTERN)) {
+                    continue;
+                }
+                int c;
+                if (pass == 0) {
+                    // Cheap first: the etherwarp spots alone, which never need the teleport or shot planning.
+                    if (meleeSpots(client, p[0]).isEmpty() || meleeSpots(client, p[1]).isEmpty()) {
+                        continue;
+                    }
+                    c = 0;
+                } else {
+                    c = cost(wayFor(client, player, p[0], creeper)) + cost(wayFor(client, player, p[1], creeper));
+                    if (c >= 1000) {
+                        continue;
+                    }
+                }
+                double d0 = Vec3.atCenterOf(p[0]).distanceToSqr(at);
+                double d1 = Vec3.atCenterOf(p[1]).distanceToSqr(at);
+                double d = Math.min(d0, d1);
+                if (c < bestCost || (c == bestCost && d < bestD)) {
+                    bestCost = c;
+                    bestD = d;
+                    best = d0 <= d1 ? new LanternPair(p[0], p[1]) : new LanternPair(p[1], p[0]);
+                }
             }
-            double d0 = Vec3.atCenterOf(p[0]).distanceToSqr(at);
-            double d1 = Vec3.atCenterOf(p[1]).distanceToSqr(at);
-            if (Math.min(d0, d1) < bestD) {
-                bestD = Math.min(d0, d1);
-                best = d0 <= d1 ? new LanternPair(p[0], p[1]) : new LanternPair(p[1], p[0]);
+            if (best != null) {
+                return best;
             }
         }
-        return best;
+        return null;
     }
 
     /**
@@ -819,6 +1281,16 @@ public final class AutoBeams {
         MELEE_SPOTS.clear();
         MELEE_DONE.clear();
         meleeFallback = false;
+        AOTV_PLANS.clear();
+        SHOOT_SPOTS.clear();
+        dashTick = -1L;
+        dashPlan = null;
+        dashLantern = null;
+        airPlan = null;
+        meleeWasShot = false;
+        meleeFromPlan = null;
+        meleeDashes = 0;
+        meleeShots = 0;
         meleeHits = 0;
         meleeWarps = 0;
     }
