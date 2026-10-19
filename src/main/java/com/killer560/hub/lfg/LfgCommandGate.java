@@ -12,15 +12,15 @@ import java.util.Map;
 /**
  * The ONLY way the Custom Party Finder sends anything to Hypixel, and the hard limits on it. Two commands exist:
  * <ul>
- * <li>{@code /party invite <name>} - only from the leader's own click on Accept, for a join request the relay delivered
- * (the name is the joiner's, stamped by the relay from his verified token). At most one every 3 s, six a minute, and the
- * same name once per 30 s.</li>
+ * <li>{@code /party invite <name>} - only for a join request the relay delivered for the leader's live listing (the name
+ * is the joiner's, stamped by the relay from his verified token) that meets the listing's checked requirements, from his
+ * click on Accept or from Auto Accept Requests. At most one every 3 s, six a minute, and the same name once per 30 s.</li>
  * <li>{@code /party accept <name>} - only when Hypixel's own anchored invite line names the leader who accepted a request
  * this player made by clicking Join. At most one every 5 s, four a minute.</li>
  * </ul>
  * Together never more than eight a minute. Every name must be {@code [A-Za-z0-9_]{1,16}}, so no space and so no second
  * argument can reach the command. So a mod user spamming requests can at most fill a leader's inbox (the relay caps it at
- * eight); nothing reaches Hypixel without that leader clicking, and nothing faster than these limits even then.
+ * eight) and draw invites no faster than these limits.
  */
 public final class LfgCommandGate {
 

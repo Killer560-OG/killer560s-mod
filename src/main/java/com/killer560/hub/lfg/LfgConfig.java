@@ -18,7 +18,8 @@ import java.util.Map;
 /**
  * Custom Party Finder settings ({@link LfgFeature}). Defaults: the feature on (nothing reaches the relay until the menu
  * is opened, a listing is made or a Hypixel queue is dual-listed), Dual-List Hypixel Queues on and Auto Accept Invite
- * on (both are what killer560 asked for), Check Requirements on. Per tab it remembers the last activity, party size,
+ * on (both are what killer560 asked for), Check Requirements on, Auto Accept Requests on. The browse page's sort and
+ * filters are kept here too, so they ride in profiles with the rest. Per tab it remembers the last activity, party size,
  * note and requirement values, which is what fills the Create form ("auto fill requirements").
  */
 public final class LfgConfig {
@@ -45,7 +46,16 @@ public final class LfgConfig {
     private boolean dualList = true;
     private boolean autoAcceptInvite = true;
     private boolean checkRequirements = true;
+    /** The leader's client invites a joiner who meets every checked requirement, without a click (killer560, 2026-10-18:
+     *  "Have my client send them a request to join and theirs accept it"). Off: every request waits for Accept. */
+    private boolean autoAcceptRequests = true;
     private LfgCategory lastTab = LfgCategory.DUNGEONS;
+    /** The browse page's sort and filters (local to the menu; the relay never sees them). */
+    private LfgFilter.Sort sort = LfgFilter.Sort.NEWEST;
+    private boolean meetsOnly = false;
+    private boolean hideFull = true;
+    /** The activity filter inside a category ("" = any), e.g. "F7" on the Dungeons page. */
+    private final Map<LfgCategory, String> activityFilter = new EnumMap<>(LfgCategory.class);
     private final Map<LfgCategory, Draft> drafts = new EnumMap<>(LfgCategory.class);
 
     private LfgConfig() {
@@ -70,6 +80,19 @@ public final class LfgConfig {
                 cfg.dualList = ConfigJson.getBool(obj, "dualList", true);
                 cfg.autoAcceptInvite = ConfigJson.getBool(obj, "autoAcceptInvite", true);
                 cfg.checkRequirements = ConfigJson.getBool(obj, "checkRequirements", true);
+                cfg.autoAcceptRequests = ConfigJson.getBool(obj, "autoAcceptRequests", true);
+                cfg.sort = LfgFilter.Sort.fromId(ConfigJson.getString(obj, "sort", "newest"));
+                cfg.meetsOnly = ConfigJson.getBool(obj, "meetsOnly", false);
+                cfg.hideFull = ConfigJson.getBool(obj, "hideFull", true);
+                JsonObject af = ConfigJson.getObject(obj, "activityFilter");
+                if (af != null) {
+                    for (LfgCategory c : LfgCategory.values()) {
+                        String a = ConfigJson.getString(af, c.id, "");
+                        if (c.activities.size() > 1 && c.activities.contains(a)) {
+                            cfg.activityFilter.put(c, a);
+                        }
+                    }
+                }
                 LfgCategory tab = LfgCategory.fromId(ConfigJson.getString(obj, "lastTab", "dungeons"));
                 cfg.lastTab = tab == null ? LfgCategory.DUNGEONS : tab;
                 JsonObject drafts = ConfigJson.getObject(obj, "drafts");
@@ -81,7 +104,7 @@ public final class LfgConfig {
                         }
                         Draft draft = cfg.drafts.get(c);
                         String act = ConfigJson.getString(d, "activity", draft.activity);
-                        if (c.activities.contains(act)) {
+                        if (c.allowsActivity(act)) {
                             draft.activity = act;
                         }
                         draft.max = Math.max(2, Math.min(c.maxParty, ConfigJson.getInt(d, "max", c.maxParty)));
@@ -112,6 +135,13 @@ public final class LfgConfig {
             obj.addProperty("dualList", dualList);
             obj.addProperty("autoAcceptInvite", autoAcceptInvite);
             obj.addProperty("checkRequirements", checkRequirements);
+            obj.addProperty("autoAcceptRequests", autoAcceptRequests);
+            obj.addProperty("sort", sort.id);
+            obj.addProperty("meetsOnly", meetsOnly);
+            obj.addProperty("hideFull", hideFull);
+            JsonObject af = new JsonObject();
+            activityFilter.forEach((c, a) -> af.addProperty(c.id, a));
+            obj.add("activityFilter", af);
             obj.addProperty("lastTab", lastTab.id);
             JsonObject all = new JsonObject();
             for (Map.Entry<LfgCategory, Draft> e : drafts.entrySet()) {
@@ -170,6 +200,53 @@ public final class LfgConfig {
 
     public void setCheckRequirements(boolean checkRequirements) {
         this.checkRequirements = checkRequirements;
+    }
+
+    public boolean isAutoAcceptRequests() {
+        return autoAcceptRequests;
+    }
+
+    public void setAutoAcceptRequests(boolean autoAcceptRequests) {
+        this.autoAcceptRequests = autoAcceptRequests;
+    }
+
+    public LfgFilter.Sort getSort() {
+        return sort;
+    }
+
+    public void setSort(LfgFilter.Sort sort) {
+        if (sort != null) {
+            this.sort = sort;
+        }
+    }
+
+    public boolean isMeetsOnly() {
+        return meetsOnly;
+    }
+
+    public void setMeetsOnly(boolean meetsOnly) {
+        this.meetsOnly = meetsOnly;
+    }
+
+    public boolean isHideFull() {
+        return hideFull;
+    }
+
+    public void setHideFull(boolean hideFull) {
+        this.hideFull = hideFull;
+    }
+
+    /** The activity filter for one category, "" for any. */
+    public String getActivityFilter(LfgCategory c) {
+        return activityFilter.getOrDefault(c, "");
+    }
+
+    public void setActivityFilter(LfgCategory c, String activity) {
+        if (activity == null || activity.isEmpty() || !c.activities.contains(activity)) {
+            activityFilter.remove(c);
+        } else {
+            activityFilter.put(c, activity);
+        }
     }
 
     public LfgCategory getLastTab() {
