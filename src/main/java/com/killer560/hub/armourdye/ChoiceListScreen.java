@@ -56,7 +56,7 @@ public final class ChoiceListScreen extends Screen implements MenuThemedScreen {
         scroll = Math.max(0, Math.min(scroll, Math.max(0, values.size() - rows)));
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
-                .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
+                .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
     }
 
     @Override
