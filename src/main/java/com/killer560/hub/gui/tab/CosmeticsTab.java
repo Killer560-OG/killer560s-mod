@@ -149,6 +149,14 @@ public class CosmeticsTab extends BaseTab {
         }
         SupportersAutoShare.shareCurrent(err -> shareError = err);
 
+        // My Name in F5 sits above Custom Names, outside it on purpose: it works with the Name Changer off too (your real name).
+        widgets.add(SettingsButtonWidget.builder(onOff("My Name in F5", cfg.isOwnNameInF5()), btn -> {
+                    cfg.setOwnNameInF5(!cfg.isOwnNameInF5());
+                    cfg.save();
+                    btn.setMessage(onOff("My Name in F5", cfg.isOwnNameInF5()));
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+
         // --- Custom Names
         y = CollapsibleSection.header(widgets, contentX, y, contentWidth, "Custom Names", false, customNamesOpen,
                 () -> {
@@ -156,13 +164,6 @@ public class CosmeticsTab extends BaseTab {
                     requestRebuild.run();
                 });
         if (customNamesOpen) {
-            // Outside the Name Changer's own widgets on purpose: it works with the Name Changer off too (your real name).
-            widgets.add(SettingsButtonWidget.builder(onOff("My Name in F5", cfg.isOwnNameInF5()), btn -> {
-                        cfg.setOwnNameInF5(!cfg.isOwnNameInF5());
-                        cfg.save();
-                        btn.setMessage(onOff("My Name in F5", cfg.isOwnNameInF5()));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 22;
             List<AbstractWidget> built = nameChangerTab.buildWidgets(contentX, y, contentWidth, requestRebuild);
             for (AbstractWidget w : built) {
                 SettingTooltips.scope(w, nameChangerTab.name);

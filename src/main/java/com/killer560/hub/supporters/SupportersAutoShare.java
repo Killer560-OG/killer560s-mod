@@ -133,7 +133,8 @@ public final class SupportersAutoShare {
                 SupportersFeature.refreshNow();
             } else {
                 lastPushedKey = null; // let the next rebuild retry instead of getting stuck on one failure
-                if (onError != null) {
+                // A rate-limit answer (429) is not shown to the player (killer560, 2026-10-18).
+                if (onError != null && result.httpStatus() != 429) {
                     onError.accept(result.error() == null ? "share failed" : result.error());
                 }
             }

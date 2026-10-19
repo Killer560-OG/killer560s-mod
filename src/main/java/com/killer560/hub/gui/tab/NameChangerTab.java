@@ -47,15 +47,6 @@ public class NameChangerTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // "Per-Profile Names" (killer560, 2026-10-15): off, your custom names are one set shared by every profile; on,
-        // they are saved inside each profile like the other settings. The switch itself is the same in every profile.
-        widgets.add(SettingsButtonWidget.builder(onOff("Per-Profile Names", cfg.isPerProfileNames()), btn -> {
-                    cfg.setPerProfileNames(!cfg.isPerProfileNames());
-                    cfg.save();
-                    btn.setMessage(onOff("Per-Profile Names", cfg.isPerProfileNames()));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
         if (!cfg.isEnabled()) {
             return widgets;
         }
