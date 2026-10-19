@@ -1,5 +1,6 @@
 package com.killer560.hub.gui;
 
+import com.killer560.hub.accounts.gui.AccountSwitcherScreen;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.hud.AutoScale;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -22,6 +23,10 @@ public final class MenuCloseFade {
 
     private static ModScreen closing;
 
+    /** The menu-themed screens already given their clock hook (a screen that is initialised again keeps one). */
+    private static final java.util.Set<Object> CLOCK_HOOKED =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
     static void start(ModScreen screen) {
         closing = screen;
     }
@@ -42,6 +47,14 @@ public final class MenuCloseFade {
             }
         });
         ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            // Only ModScreen (and the closing fade) advanced the animation clock, so a knob or switch glide started on
+            // a menu-themed screen (the Visual Editor, the editors, the trackers) never got a frame and stayed at its
+            // 'from' value (2026-10-18). Such a screen samples the clock once after each of its draws; the draw itself
+            // uses the frame before, a one-frame lag. AccountSwitcherScreen samples it itself.
+            if (screen instanceof MenuThemedScreen && !(screen instanceof AccountSwitcherScreen)
+                    && CLOCK_HOOKED.add(screen)) {
+                ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> MenuAnim.frame());
+            }
             if (!(screen instanceof ModScreen)) {
                 ScreenEvents.afterExtract(screen).register((s, g, mx, my, delta) -> {
                     if (closing != null && s == McCompat.screen(Minecraft.getInstance())) {
