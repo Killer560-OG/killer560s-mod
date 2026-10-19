@@ -887,16 +887,46 @@ public final class BazaarView {
     private record Columns(int nameRight, int buyR, int sellR, int marginR, int volR, boolean margin, boolean vol) {
     }
 
+    /** Space kept between one number column's widest value and the next column's; shrinks before a column is dropped. */
+    private static final int NUM_GAP = 8;
+    private static final int NUM_GAP_MIN = 3;
+    /** The room the product name keeps (from its left edge) before the numbers claim theirs. */
+    private static final int NAME_MIN = 120;
+    /** The widest text each number column can show, and its header with the sort arrow. Measured with the font. */
+    private static final String[] NUMBER_SAMPLES = {"-99999.9%", "99,999.9", "999.99M", "99.99B",
+            "Buy \u25BE", "Sell \u25BE", "Margin \u25BE", "7d vol \u25BE"};
+
+    /**
+     * Every number column has one fixed slot: the widest value or header plus a gap, and each value is right-aligned in its
+     * own slot, with its header on the same right edge. The product name gets what is left. On a tight row the gap shrinks
+     * first; a column (7d vol, then Margin) is dropped only when even the smallest gap cannot keep the name room.
+     */
     private static Columns columns(int x, int w) {
-        int colW = Math.max(font.width("Margin") + 8, font.width("999.9M") + 10);
+        int text = 0;
+        for (String s : NUMBER_SAMPLES) {
+            text = Math.max(text, font.width(s));
+        }
         int right = x + w - 8;
-        boolean vol = w - 160 - colW * 4 >= 0;
-        boolean margin = w - 140 - colW * (vol ? 4 : 3) >= 0;
+        int shown = 2;
+        int gap = NUM_GAP_MIN;
+        search:
+        for (int n = 4; n >= 2; n--) {
+            for (int g = NUM_GAP; g >= NUM_GAP_MIN; g--) {
+                if (x + 24 + NAME_MIN <= right - n * (text + g)) {
+                    shown = n;
+                    gap = g;
+                    break search;
+                }
+            }
+        }
+        int slot = text + gap;
+        boolean margin = shown >= 3;
+        boolean vol = shown >= 4;
         int volR = right;
-        int marginR = vol ? volR - colW : right;
-        int sellR = margin ? marginR - colW : marginR;
-        int buyR = sellR - colW;
-        return new Columns(buyR - colW - 4, buyR, sellR, marginR, volR, margin, vol);
+        int marginR = vol ? volR - slot : right;
+        int sellR = margin ? marginR - slot : marginR;
+        int buyR = sellR - slot;
+        return new Columns(buyR - slot, buyR, sellR, marginR, volR, margin, vol);
     }
 
     private static void drawBrowse(int x, int y, int w, int h) {
