@@ -193,7 +193,10 @@ public final class AutoSellCommands {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        com.killer560.hub.compat.McCompat.setScreen(client, new AutoSellListScreen(com.killer560.hub.compat.McCompat.screen(client)));
+        // Opened on the next tick: the chat screen that sent this command closes itself only after the command returns,
+        // which would close the list straight away if it were opened here (killer560, 2026-10-19: "/autosell list does not open").
+        client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client,
+                new AutoSellListScreen(com.killer560.hub.compat.McCompat.screen(client))));
     }
 
     private static void setScreenTitle(String regex) {
