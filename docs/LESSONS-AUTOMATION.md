@@ -143,6 +143,9 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `constants/HoppityEggLocations.json` the Time Tower is 38 (39 is the Rabbit Shrine), the Coach 41, and 42/43/47-51/53 are
   menu buttons. `chocolatefactory/ChocolateFactoryMenu` is the one reader for the auto and the legit helper; check that
   file in his SkyHanni repo copy before changing a slot (testkit 754 puts traps on 39 and 42).
+- **At 1x the factory's production lore has no "Total Multiplier" line** (2026-10-18 log, 22:49 vs 22:35): the reader needed
+  it, so no upgrade was ever a candidate and the helper highlighted nothing. A missing line now means 1x when "per second" is
+  there (`ChocolateFactoryMenu.read`).
 - **A click sent from a render frame is GrimAC Post, same as one from END_CLIENT_TICK** (2026-10-11): the frame runs after
   the tick's movement packet. Goldor Triggerbot, Arrow Align's Trigger Bot and Aura, Simon Says' Trigger Bot and Rotate
   Mode click, and Auto i4's shots all clicked from `LevelRenderEvents` for millisecond timing (testkit 786-788 recorded one
