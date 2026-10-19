@@ -4,6 +4,8 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.network.chat.Component;
+import org.slf4j.Logger;
+import com.killer560.hub.util.ModLog;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -95,6 +97,16 @@ public final class PlayerStatsFeature {
     static String otherIcon = "";
     /** Re-entry guard for the mixin, which re-sends a stripped line through setOverlayMessage. */
     private static boolean resending = false;
+
+    // Diagnostics (killer560, 2026-10-18: the health, mana and vitality bars do not draw). Nothing else in this
+    // feature logged, so it has its own logger, under the package's own name.
+    private static final Logger LOGGER = ModLog.get("killer560smod-playerstats");
+    /** A repeat of the same reading is logged at most this often; a change is logged at once. */
+    private static final long LOG_EVERY_NANOS = 5_000_000_000L;
+    private static final int LOG_TEXT_MAX = 240;
+    private static long overlayLines;
+    private static long lastLogNanos;
+    private static String lastLogSig = "";
 
     private PlayerStatsFeature() {
     }
@@ -278,6 +290,7 @@ public final class PlayerStatsFeature {
                 break;
             }
         }
+        logActionBar(raw);
         // The stat line is hidden from the screen (killer560, 2026-09-27: "it didn't hide the text that the
         // server normally has"), but NOT here. Fabric chains MODIFY_GAME and then hands the result to GAME and
         // to Gui.setOverlayMessage (javap, fabric-message-api-v1 7.0.5 and 7.0.8), so returning
@@ -287,6 +300,51 @@ public final class PlayerStatsFeature {
         // (CustomScoreboardGuiMixin) strips it at setOverlayMessage via actionBarReplacement, after the
         // scoreboard has read it.
         return message;
+    }
+
+    /**
+     * One INFO line for each action-bar line the feature reads while Stat Bars is on: the raw text (non-ASCII as
+     * \\uXXXX, so the private-use icons are visible), whether each stat pattern matched, and the values held. Written
+     * when the matches or the values change, and otherwise at most every {@link #LOG_EVERY_NANOS}. Only reached from
+     * {@link #onModifyGameMessage} past its enabled check, so it is silent with the feature off. Never throws: this
+     * runs on the packet path.
+     */
+    private static void logActionBar(String raw) {
+        try {
+            overlayLines++;
+            boolean health = HEALTH_REGEX.matcher(raw).find();
+            boolean mana = MANA_REGEX.matcher(raw).find();
+            boolean defence = DEFENSE_REGEX.matcher(raw).find();
+            boolean vitality = VITALITY_REGEX.matcher(raw).find();
+            String sig = health + "," + mana + "," + defence + "," + vitality + "|" + healthCur + "/" + healthMax
+                    + "|" + manaCur + "/" + manaMax + "|" + defenceValue + "|" + vitalityCur + "/" + vitalityMax;
+            long now = System.nanoTime();
+            if (sig.equals(lastLogSig) && now - lastLogNanos < LOG_EVERY_NANOS) {
+                return;
+            }
+            lastLogSig = sig;
+            lastLogNanos = now;
+            LOGGER.info("[StatBars] action bar line #{}: \"{}\" | matched health={} mana={} defense={} vitality={}"
+                            + " | healthCur={}/{} manaCur={}/{} defence={} vitality={}/{} overflowMana={}",
+                    overlayLines, visible(raw), health, mana, defence, vitality, healthCur, healthMax, manaCur,
+                    manaMax, defenceValue, vitalityCur, vitalityMax, overflowMana);
+        } catch (RuntimeException e) {
+            // Diagnostics only: a failure here must never reach the chat listener.
+        }
+    }
+
+    /** {@code s} with anything outside printable ASCII written as a \\uXXXX escape, cut to {@link #LOG_TEXT_MAX}. */
+    static String visible(String s) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < s.length() && b.length() < LOG_TEXT_MAX; i++) {
+            char c = s.charAt(i);
+            if (c >= 0x20 && c < 0x7F) {
+                b.append(c);
+            } else {
+                b.append(String.format("\\u%04X", (int) c));
+            }
+        }
+        return b.toString();
     }
 
     /** Parses "1,234" to 1234; -1 on anything unparsable. Never throws - this runs on the packet path, where
