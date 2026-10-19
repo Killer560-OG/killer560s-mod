@@ -823,19 +823,25 @@ public final class CustomScoreboardFeature {
         if (inGame && cfg.isBackgroundBlur()) {
             ScoreboardBlur.submit(g, x, y, w, h, radius, cfg.getBlurStrength());
         }
+        // Menu Theme (killer560, 2026-10-18: the custom scoreboard "isn't following my mods custom theme"): Default keeps the
+        // colours set on this tab; any other theme gives the board's background, title band and solid border its colours.
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD);
         if (cfg.isBackgroundEnabled()) {
-            Identifier image = cfg.isImageBackground() ? ScoreboardBackgroundImage.texture() : null;
+            Identifier image = cfg.isImageBackground() && menu == null ? ScoreboardBackgroundImage.texture() : null;
             if (image != null) {
                 blitRounded(g, image, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b),
                         ((cfg.getImageOpacity() * 255 / 100) << 24) | 0xFFFFFF);
             } else {
-                fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), cfg.getBackgroundColor());
+                int background = menu == null ? cfg.getBackgroundColor()
+                        : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), cfg.getBackgroundColor() >>> 24);
+                fillRounded(g, x + b, y + b, w - 2 * b, h - 2 * b, Math.max(0, radius - b), background);
                 if (titleRows > 0 && titleRows < lines.size() && radius == 0) {
                     // From the box's top edge to halfway into the gap under the title's last row.
                     int bandBottom = y + b + pad + titleRows * (font.lineHeight + cfg.getLineSpacing())
                             - (cfg.getLineSpacing() + 1) / 2;
                     g.fill(x + b, y + b, x + w - b, Math.min(y + h - b, bandBottom),
-                            titleBandOverlay(cfg.getBackgroundColor()));
+                            menu == null ? titleBandOverlay(background)
+                                    : com.killer560.hub.gui.OverlayPalette.alpha(menu.panelDeep(), 0x60));
                 }
             }
         }
@@ -934,6 +940,10 @@ public final class CustomScoreboardFeature {
     /** Border colour for row {@code row} of an {@code h}-tall border: solid or top-to-bottom gradient. Chroma is
      *  {@link #drawChromaBorder}, which colours by position along the row too. */
     private static int borderColor(CustomScoreboardConfig cfg, int row, int h, long now) {
+        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD);
+        if (menu != null) {
+            return menu.accent() | (cfg.getBorderColor() & 0xFF000000);
+        }
         float t = h <= 1 ? 0f : row / (float) (h - 1);
         if (!cfg.isBorderGradient()) {
             return cfg.getBorderColor();
