@@ -92,11 +92,9 @@ public final class PathWorldRenderer {
         }
         Vec3 cam = McRender.cameraPos(context);
         float[] c = WorldRenderUtils.argbToFloats(cfg.getTargetColor());
-        String profile = ProfileTracker.key();
-        for (IslandGraph.Node soul : graph.withTag(IslandGraph.TAG_FAIRY_SOUL)) {
-            if (FairySoulStore.isFound(profile, island, soul.x, soul.y, soul.z)) {
-                continue;
-            }
+        List<IslandGraph.Node> unfound = unfoundSouls(graph, island, ProfileTracker.key());
+        for (int i = 0; i < unfound.size(); i++) {
+            IslandGraph.Node soul = unfound.get(i);
             double distSq = cam.distanceToSqr(soul.x, soul.y, soul.z);
             if (distSq > 96 * 96) {
                 continue;
@@ -104,6 +102,34 @@ public final class PathWorldRenderer {
             AABB box = new AABB(soul.x, soul.y, soul.z, soul.x + 1, soul.y + 1, soul.z + 1);
             WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 0.75f, 2f);
         }
+    }
+
+    // The island's souls not yet found on this profile. Soul Waypoints is on by default, and this was worked out every
+    // frame on every island: a scan of the whole graph for the tag, a fresh list, and a synchronized walk of the found
+    // log per soul (fps pass 2026-10-19). It changes only with the graph, the island, the profile, or the found log,
+    // whose every change goes through FairySoulStore.save()/load() and bumps its version.
+    private static IslandGraph soulGraph;
+    private static String soulIsland;
+    private static String soulProfile;
+    private static int soulVersion = -1;
+    private static List<IslandGraph.Node> soulUnfound = List.of();
+
+    private static List<IslandGraph.Node> unfoundSouls(IslandGraph graph, String island, String profile) {
+        int version = FairySoulStore.version();
+        if (graph != soulGraph || version != soulVersion || !island.equals(soulIsland) || !profile.equals(soulProfile)) {
+            List<IslandGraph.Node> out = new ArrayList<>();
+            for (IslandGraph.Node soul : graph.withTag(IslandGraph.TAG_FAIRY_SOUL)) {
+                if (!FairySoulStore.isFound(profile, island, soul.x, soul.y, soul.z)) {
+                    out.add(soul);
+                }
+            }
+            soulUnfound = out;
+            soulGraph = graph;
+            soulIsland = island;
+            soulProfile = profile;
+            soulVersion = version;
+        }
+        return soulUnfound;
     }
 
     // NavigationManager always REPLACES its path list (never mutates it), so identity is a valid cache key. Without
