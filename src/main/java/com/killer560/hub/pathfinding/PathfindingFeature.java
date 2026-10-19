@@ -319,17 +319,49 @@ public final class PathfindingFeature {
         com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, HudElementImpl.INSTANCE);
     }
 
+    // The HUD's fairy soul line. It was rebuilt every frame on any island with a graph (the HUD is on by default with
+    // Pathfinding): two whole-graph tag scans, a synchronized found-log walk per soul and two profile keys (fps pass
+    // 2026-10-19). Its inputs are the island, its graph, the profile and the found log/menu counts, whose every change
+    // is followed by FairySoulStore.save() and so bumps its version.
+    private static String soulLineIsland;
+    private static IslandGraph soulLineGraph;
+    private static String soulLineProfile;
+    private static int soulLineVersion = -1;
+    private static String soulLine;
+
+    private static String soulLine() {
+        String island = IslandDetector.graphIsland();
+        IslandGraph graph = island == null ? null : GraphRepository.get(island);
+        String profile = ProfileTracker.key();
+        int version = FairySoulStore.version();
+        if (graph == soulLineGraph && version == soulLineVersion && java.util.Objects.equals(island, soulLineIsland)
+                && profile.equals(soulLineProfile)) {
+            return soulLine;
+        }
+        String line = null;
+        int[] counts = FairySoulsFeature.islandCounts();
+        if (counts != null) {
+            FairySoulStore.IslandRecord record = FairySoulsFeature.menuRecord();
+            String suffix = record != null && !record.menuComplete() && record.menuFound > 0
+                    ? " §7(menu " + record.menuFound + "/" + record.menuTotal + ")" : "";
+            line = "§6Fairy Souls §f" + counts[0] + "/" + counts[1] + suffix;
+        }
+        soulLine = line;
+        soulLineIsland = island;
+        soulLineGraph = graph;
+        soulLineProfile = profile;
+        soulLineVersion = version;
+        return line;
+    }
+
     /** Lines the HUD shows: fairy soul progress on this island, and the current navigation target. */
     static List<String> hudLines() {
         List<String> lines = new ArrayList<>(2);
         PathfindingConfig cfg = PathfindingConfig.getInstance();
         if (cfg.isFairySouls()) {
-            int[] counts = FairySoulsFeature.islandCounts();
-            if (counts != null) {
-                FairySoulStore.IslandRecord record = FairySoulsFeature.menuRecord();
-                String suffix = record != null && !record.menuComplete() && record.menuFound > 0
-                        ? " §7(menu " + record.menuFound + "/" + record.menuTotal + ")" : "";
-                lines.add("§6Fairy Souls §f" + counts[0] + "/" + counts[1] + suffix);
+            String soulLine = soulLine();
+            if (soulLine != null) {
+                lines.add(soulLine);
             }
         }
         if (NavigationManager.isActive()) {
