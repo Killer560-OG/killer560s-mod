@@ -125,14 +125,44 @@ public final class MobEspFeature {
 
     /** Glow mixin hook: whether this entity should get the vanilla glow outline. */
     public static boolean shouldGlow(Entity entity) {
-        Map<Integer, Integer> targets = glowTargets; // per entity per frame: no boxed id when nothing glows
-        return entity != null && !targets.isEmpty() && targets.containsKey(entity.getId());
+        GlowSet set = glowSet; // per entity per frame: a binary search over ints, no boxed id (fps pass 2026-10-19)
+        return entity != null && set.ids.length != 0 && java.util.Arrays.binarySearch(set.ids, entity.getId()) >= 0;
     }
 
     /** Glow mixin hook: the ARGB outline colour for this entity, or null if Dungeon ESP isn't glowing it. */
     public static Integer glowColor(Entity entity) {
-        Map<Integer, Integer> targets = glowTargets;
-        return entity == null || targets.isEmpty() ? null : targets.get(entity.getId());
+        GlowSet set = glowSet;
+        if (entity == null || set.ids.length == 0) {
+            return null;
+        }
+        int i = java.util.Arrays.binarySearch(set.ids, entity.getId());
+        return i >= 0 ? set.colors[i] : null;
+    }
+
+    /** {@link #glowTargets} as sorted entity ids and their colours (the map's own Integer objects), published with it.
+     *  The two glow hooks run for every entity every frame while anything glows, and each did a boxed-key map lookup
+     *  (entity ids are far above Integer's small cache, so a new Integer each time). Same answers as the map. */
+    private record GlowSet(int[] ids, Integer[] colors) {
+    }
+
+    private static final GlowSet NO_GLOW = new GlowSet(new int[0], new Integer[0]);
+    private static volatile GlowSet glowSet = NO_GLOW;
+
+    private static GlowSet glowSetOf(Map<Integer, Integer> targets) {
+        if (targets.isEmpty()) {
+            return NO_GLOW;
+        }
+        int[] ids = new int[targets.size()];
+        int n = 0;
+        for (Integer id : targets.keySet()) {
+            ids[n++] = id;
+        }
+        java.util.Arrays.sort(ids);
+        Integer[] colors = new Integer[ids.length];
+        for (int i = 0; i < ids.length; i++) {
+            colors[i] = targets.get(ids[i]);
+        }
+        return new GlowSet(ids, colors);
     }
 
     private static void tick() {
@@ -283,7 +313,9 @@ public final class MobEspFeature {
             boxTargets = Map.copyOf(foundBoxes);
         }
         if (!foundGlows.equals(glowTargets)) {
-            glowTargets = Map.copyOf(foundGlows);
+            Map<Integer, Integer> glows = Map.copyOf(foundGlows);
+            glowSet = glowSetOf(glows);
+            glowTargets = glows;
         }
         if (!foundTracers.equals(tracerTargets)) {
             tracerTargets = Map.copyOf(foundTracers);
@@ -554,6 +586,7 @@ public final class MobEspFeature {
 
     private static void clearTargets() {
         boxTargets = Map.of();
+        glowSet = NO_GLOW;
         glowTargets = Map.of();
         tracerTargets = Map.of();
     }
