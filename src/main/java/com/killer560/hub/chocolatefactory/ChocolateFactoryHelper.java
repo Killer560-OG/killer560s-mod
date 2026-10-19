@@ -248,6 +248,8 @@ public final class ChocolateFactoryHelper {
             int w = Math.max(client.font.width(cps), client.font.width(best));
             infoLineElement.draw(graphics, left, top - 21, w, 19,
                     (g, x, y) -> {
+                        // A dark backing behind both lines, so the info reads on any part of the menu.
+                        g.fill(x - 3, y - 3, x + w + 3, y + 19, 0xB0000000);
                         g.text(client.font, cps, x, y, 0xFFFFFFFF, true);
                         if (!best.isEmpty()) {
                             g.text(client.font, best, x, y + 10, 0xFFFFFFFF, true);
