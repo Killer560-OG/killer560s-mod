@@ -878,7 +878,7 @@ final class SettingTooltipsData {
         d.put("smooth teleport/other teleports", "Glide on Sinseeker Scythe and Aspect of the Leech teleports.");
         d.put("show when failed", "Also highlights the target when the etherwarp would fail.");
         d.put("full block box", "ON boxes the whole block; OFF follows its real shape.");
-        d.put("slot binds", "Links two inventory slots so shift-clicking one swaps them.");
+        d.put("slot binds", "Links two inventory slots so shift-clicking one swaps them. Hold the bind key over a slot and release it over a hotbar slot to swap the two. If Protect Item uses the same key, a quick tap protects the item and a drag is only a swap.");
         d.put("bind key", "Key to create or delete a bind: hover a slot and press it, then hover a second slot and press it again.");
         d.put("remove", "Deletes this slot bind pair.");
         d.put("chat commands", "Auto-replies to ! commands like !coords and !ping in the chat channels enabled below.");
