@@ -56,7 +56,10 @@ public final class BazaarFlipConfig {
     // "minProfitPerRun" is ignored on load and dropped on the next save.
     /** Stop once the purse reaches this. 0 means no target. Typed into a box since 2026-10-16 ({@link #parseCoins}). */
     private long targetPurse = 0L;
+    /** Menu speed (the key stays "speed" in the file, from before the sell slider existed). */
     private int speed = 5;
+    /** Sell speed, same 1-10 scale as the menu speed but much faster at every step (killer560, 2026-10-19). */
+    private int sellSpeed = 5;
 
     private BazaarFlipConfig() {
     }
@@ -84,6 +87,7 @@ public final class BazaarFlipConfig {
             cfg.rankingMode = ConfigJson.getEnum(obj, "rankingMode", RankingMode.class, cfg.rankingMode);
             cfg.targetPurse = clampPurse(ConfigJson.getLong(obj, "targetPurse", cfg.targetPurse));
             cfg.speed = clampSpeed(ConfigJson.getInt(obj, "speed", cfg.speed));
+            cfg.sellSpeed = clampSpeed(ConfigJson.getInt(obj, "sellSpeed", cfg.sellSpeed));
             instance = cfg;
         } catch (Exception e) {
             instance = new BazaarFlipConfig();
@@ -99,6 +103,7 @@ public final class BazaarFlipConfig {
             obj.addProperty("rankingMode", rankingMode.name());
             obj.addProperty("targetPurse", targetPurse);
             obj.addProperty("speed", speed);
+            obj.addProperty("sellSpeed", sellSpeed);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -236,5 +241,24 @@ public final class BazaarFlipConfig {
      *  never a metronome. */
     public int getActionDelayMaxMs() {
         return 1300 - 110 * (clampSpeed(speed) - 1);
+    }
+
+    public int getSellSpeed() {
+        return sellSpeed;
+    }
+
+    public void setSellSpeed(int sellSpeed) {
+        this.sellSpeed = clampSpeed(sellSpeed);
+    }
+
+    /** Shortest wait between two sell shift-clicks: 150 ms at sell speed 1 down to 51 ms at 10 (about one client tick, the
+     *  ActionGate floor, at the top). The menu speed never touches it. */
+    public int getSellDelayMinMs() {
+        return 150 - 11 * (clampSpeed(sellSpeed) - 1);
+    }
+
+    /** Longest wait between two sell shift-clicks: 220 ms at sell speed 1 down to 58 ms at 10. */
+    public int getSellDelayMaxMs() {
+        return 220 - 18 * (clampSpeed(sellSpeed) - 1);
     }
 }

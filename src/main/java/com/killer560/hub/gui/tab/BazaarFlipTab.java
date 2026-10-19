@@ -158,6 +158,23 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         });
         y += 22;
 
+        widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, sellSpeedText(cfg),
+                (cfg.getSellSpeed() - BazaarFlipConfig.MIN_SPEED)
+                        / (double) (BazaarFlipConfig.MAX_SPEED - BazaarFlipConfig.MIN_SPEED)) {
+            @Override
+            protected void updateMessage() {
+                setMessage(sellSpeedText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setSellSpeed((int) Math.round(BazaarFlipConfig.MIN_SPEED
+                        + this.value * (BazaarFlipConfig.MAX_SPEED - BazaarFlipConfig.MIN_SPEED)));
+                cfg.save();
+            }
+        });
+        y += 22;
+
         widgets.add(inertLabel(contentX, y, contentWidth, "/bazaarflip scan - price the market now, no clicks"));
         // The "Last scan" / "Best" lines under this were removed on 2026-10-16 (killer560: "remove those lines at the
         // bottom about last s... and best"); /bazaarflip scan still prints its result in chat, and /profit bazaarflip
@@ -173,8 +190,13 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component speedText(BazaarFlipConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Speed: §6%d §7(%d-%d ms between actions)",
+        return Component.literal(String.format(Locale.US, "Menu Speed: §6%d §7(%d-%d ms between actions)",
                 cfg.getSpeed(), cfg.getActionDelayMinMs(), cfg.getActionDelayMaxMs()));
+    }
+
+    private static Component sellSpeedText(BazaarFlipConfig cfg) {
+        return Component.literal(String.format(Locale.US, "Sell Speed: §6%d §7(%d-%d ms between sells)",
+                cfg.getSellSpeed(), cfg.getSellDelayMinMs(), cfg.getSellDelayMaxMs()));
     }
 
     private static AbstractWidget inertLabel(int x, int y, int width, String text) {

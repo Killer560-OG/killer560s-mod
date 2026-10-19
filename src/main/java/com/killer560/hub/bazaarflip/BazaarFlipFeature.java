@@ -187,6 +187,8 @@ public final class BazaarFlipFeature {
     private static long seenSinceMs = 0L;
     private static int clickedContainerId = Integer.MIN_VALUE;
     private static int carriedAtStart = -1;
+    /** Units bought beyond the scan's plan this cycle, once the plan ran out and the purse and room still covered more. */
+    private static int topUpUnits = 0;
     private static int singleBuys = 0;
     private static boolean pendingBuy = false;
     private static int pendingBuyCount = 0;
@@ -609,6 +611,7 @@ public final class BazaarFlipFeature {
         }
         target = best;
         carriedAtStart = -1;
+        topUpUnits = 0;
         singleBuys = 0;
         pendingBuy = false;
         cannotAfford = false;
@@ -841,7 +844,17 @@ public final class BazaarFlipFeature {
         int stack = Math.max(1, target.stackSize());
         int room = BazaarFlipMenus.roomFor(menu, target.productId(), target.displayName(), stack);
         long sellable = (long) Math.floor(BazaarFlipNpcLimit.remaining() / target.npcSellPrice()) - bought;
-        int remaining = target.units() - bought;
+        int remaining = target.units() + topUpUnits - bought;
+        if (remaining <= 0 && room > 0 && sellable > 0) {
+            // The planned units are in, but the purse and the free room may still take more of this product (killer560,
+            // 2026-10-19: "it still doesnt buy every last item it could"). Top up by what they cover, then keep buying.
+            long extra = topUpExtra(room, sellable, readPurse());
+            if (extra >= 1) {
+                topUpUnits += (int) extra;
+                remaining = target.units() + topUpUnits - bought;
+                LOGGER.info("[BazaarFlip] Topping up {} more {} (room {}, NPC room {})", extra, target.productId(), room, sellable);
+            }
+        }
         if (remaining <= 0 || room <= 0 || sellable <= 0) {
             doneBuying(remaining <= 0 ? "bought the planned " + target.units()
                     : room <= 0 ? "inventory full" : "the daily NPC sell limit has room for no more");
@@ -1266,6 +1279,8 @@ public final class BazaarFlipFeature {
                 sellPendingSlot = slot.index;
                 sellPendingCount = count;
                 sellPendingAtMs = now;
+                // Selling runs on its own pace: the sell slider, not the menu one (killer560, 2026-10-19).
+                nextActionAtMs = now + randomSellDelay(cfg);
             }
             return;
         }
@@ -1417,11 +1432,32 @@ public final class BazaarFlipFeature {
         stateSinceMs = System.currentTimeMillis();
     }
 
-    /** Pacing between two consecutive automated actions - the speed slider's only job. */
+    /** Pacing between two consecutive automated actions in the menus - the menu speed slider's only job. */
     private static long randomDelay(BazaarFlipConfig cfg) {
         int lo = cfg.getActionDelayMinMs();
         int hi = Math.max(lo, cfg.getActionDelayMaxMs());
         return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+    }
+
+    /** Pacing between two consecutive sell shift-clicks - the sell speed slider's only job. */
+    private static long randomSellDelay(BazaarFlipConfig cfg) {
+        int lo = cfg.getSellDelayMinMs();
+        int hi = Math.max(lo, cfg.getSellDelayMaxMs());
+        return lo + ThreadLocalRandom.current().nextInt(hi - lo + 1);
+    }
+
+    /** How many more units of this cycle's product the purse and the free room still cover, after the planned units
+     *  are in: at the book price the scan priced it at (plus the quote margin), capped by inventory room and NPC room. */
+    private static long topUpExtra(int room, long sellable, Double purse) {
+        if (purse == null || target == null) {
+            return 0;
+        }
+        double each = target.averageUnitCost() * (1 + BazaarFlipScanner.INSTANT_BUY_QUOTE_MARGIN);
+        if (each <= 0) {
+            return 0;
+        }
+        long byPurse = (long) Math.floor(purse / each);
+        return Math.max(0, Math.min(byPurse, Math.min(room, sellable)));
     }
 
     private static void finish(String why) {
