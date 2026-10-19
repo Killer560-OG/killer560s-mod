@@ -639,6 +639,9 @@ public final class LiveMapFeature {
             if (mapKind == DungeonMapScanner.KIND_DOOR) {
                 continue; // the dungeon map shows a door in this gap, not a room connector
             }
+            if (!connectorMayJoin(mapKind)) {
+                continue; // the calibrated map shows nothing in this gap: two rooms with no link between them
+            }
             // A world-scanned connector only merges when something confirms it: the dungeon map shows a
             // room separator here, or an adjacent tile is identified (so the shape cap/name check apply).
             // No map + no database = no merge = single tiles, exactly the pre-grouping behaviour. Never next
@@ -667,14 +670,20 @@ public final class LiveMapFeature {
             if (gz > 0 && roomish[idx - GRID] && !union(parent, tileCount, rootEntry, idx, idx - GRID)) refused++;
             if (gz < GRID - 1 && roomish[idx + GRID] && !union(parent, tileCount, rootEntry, idx, idx + GRID)) refused++;
         }
-        Map<String, Integer> firstByName = new HashMap<>();
+        // Same name, joined through a connector the map allows: the room is one room even where the world scan
+        // missed the gap. Only neighbours count - two rooms of one name on opposite sides of the floor are two rooms.
         for (int idx = 0; idx < n; idx++) {
             if (!isTile[idx] || roomEntryGrid[idx] == null || roomEntryGrid[idx].name == null) {
                 continue;
             }
-            Integer first = firstByName.putIfAbsent(roomEntryGrid[idx].name, idx);
-            if (first != null && !union(parent, tileCount, rootEntry, first, idx)) {
-                refused++;
+            int gx = idx % GRID;
+            int gz = idx / GRID;
+            String name = roomEntryGrid[idx].name;
+            if (gx + 2 < GRID) {
+                refused += sameNameJoin(parent, tileCount, rootEntry, roomish, isTile, idx, idx + 1, idx + 2, name);
+            }
+            if (gz + 2 < GRID) {
+                refused += sameNameJoin(parent, tileCount, rootEntry, roomish, isTile, idx, idx + GRID, idx + 2 * GRID, name);
             }
         }
 
@@ -725,6 +734,29 @@ public final class LiveMapFeature {
             i = parent[i];
         }
         return i;
+    }
+
+    /**
+     * Whether a world-scanned connector may join the rooms either side of it. Once the dungeon map is calibrated it
+     * decides: only a room separator (the map draws the room's interior there) joins. A gap the map shows as nothing
+     * is a wall, and two identified rooms either side of a wall are two rooms - that is how Well, Fairy and Puzzle
+     * were drawn as one (2026-10-18). Before calibration there is no map to ask, so the old rule stands.
+     */
+    private static boolean connectorMayJoin(int mapKind) {
+        return !DungeonMapScanner.isCalibrated() || mapKind == DungeonMapScanner.KIND_SEPARATOR;
+    }
+
+    /** Joins the tile {@code a} to the tile {@code b} two cells away when they carry the same name and the connector
+     *  between them may join. @return 1 when the join was refused, else 0. */
+    private static int sameNameJoin(int[] parent, int[] tileCount, RoomEntry[] rootEntry, boolean[] roomish,
+                                    boolean[] isTile, int a, int connector, int b, String name) {
+        if (!isTile[b] || roomEntryGrid[b] == null || !name.equals(roomEntryGrid[b].name)) {
+            return 0;
+        }
+        if (!roomish[connector] || !connectorMayJoin(DungeonMapScanner.kindAt(connector))) {
+            return 0;
+        }
+        return union(parent, tileCount, rootEntry, a, b) ? 0 : 1;
     }
 
     private static boolean union(int[] parent, int[] tileCount, RoomEntry[] rootEntry, int a, int b) {
