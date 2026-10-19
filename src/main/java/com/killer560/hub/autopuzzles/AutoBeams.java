@@ -318,6 +318,10 @@ public final class AutoBeams {
     private static final int AOTV_LAND_TIMEOUT = 20;
     /** Unanswered hits on one lantern before its pair is set aside for another. */
     private static final int MELEE_MAX_TRIES = 4;
+    /** Teleports back into reach of one lantern after unanswered hits (or a teleport that missed it), per room visit: a
+     *  hit that gets no answer while he is in the air or out of reach re-teleports from where he now is, at most this many
+     *  times, then the usual spot, shot and Shoot-mode handling takes over. */
+    private static final int MELEE_MAX_BACKS = 3;
     /** Spots are planned this far from the lantern's box, inside the 4.5 the server enforces, so the landing's own
      *  hover and rounding can never put the hit out of range; 4.5 itself is the fallback when nothing is that close. */
     private static final double MELEE_PLAN_REACH = 4.0;
@@ -352,6 +356,9 @@ public final class AutoBeams {
     /** Per lantern, the teleports that reach it ({@link #aotvPlans}) and the spots with a clear shot at it ({@link #shootSpots}). */
     private static final java.util.Map<BlockPos, List<AotvPlan>> AOTV_PLANS = new java.util.HashMap<>();
     private static final java.util.Map<BlockPos, List<BlockPos>> SHOOT_SPOTS = new java.util.HashMap<>();
+    /** Teleports back already asked for, per lantern, and the lantern whose next teleport goes from where he is now. */
+    private static final java.util.Map<BlockPos, Integer> MELEE_BACKS = new java.util.HashMap<>();
+    private static BlockPos meleeBack = null;
     /** The teleport in flight: when it was used, its plan, the lantern it is for and where he stood. */
     private static long dashTick = -1L;
     private static AotvPlan dashPlan = null;
@@ -406,6 +413,7 @@ public final class AutoBeams {
                 LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} never landed at {} (he is at {}) - "
                         + "dropping that teleport", AutoPuzzleUtil.fmt(dashLantern), fmt(plan.land()), fmt(player.position()));
                 dropPlan(dashLantern, plan);
+                requestBack(dashLantern);
                 dashTick = -1L;
             }
             return;
@@ -429,6 +437,9 @@ public final class AutoBeams {
                     MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(meleeFrom);
                 }
                 meleeClickTick = -1L;
+                if (!meleeWasShot && meleeTries + 1 < MELEE_MAX_TRIES) {
+                    requestBack(lantern);
+                }
                 if (++meleeTries >= MELEE_MAX_TRIES) {
                     LOGGER.info("[AutoPuzzles] Beams (melee): {} never answered {} tries - leaving its pair for another",
                             AutoPuzzleUtil.fmt(lantern), meleeTries);
@@ -477,14 +488,18 @@ public final class AutoBeams {
         BlockPos standing = standingOn(client, player);
         java.util.Set<BlockPos> failed = MELEE_FAILED.getOrDefault(lantern, java.util.Set.of());
         Vec3 eye = player.getEyePosition();
-        boolean inReach = !player.isShiftKeyDown()
-                && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) <= AutoPuzzleUtil.BLOCK_REACH_SQ
-                && visiblePoint(client, eye, lantern) != null && (standing == null || !failed.contains(standing));
+        boolean inGeom = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) <= AutoPuzzleUtil.BLOCK_REACH_SQ
+                && visiblePoint(client, eye, lantern) != null;
+        boolean inReach = !player.isShiftKeyDown() && inGeom && (standing == null || !failed.contains(standing));
         if (inReach) {
             hitNow(client, player, pair, lantern, standing, eye, now);
             return;
         }
-        Way way = wayFor(client, player, lantern, creeper);
+        // A hit with no answer, after which he is in the air or out of reach, teleports him back in from where he is now:
+        // the same Aspect of the Void teleport, planned, landed and reach-checked as always. Standing in reach on the ground
+        // the spot logic below moves him instead, as before.
+        boolean backFromHere = lantern.equals(meleeBack) && (!player.onGround() || !inGeom);
+        Way way = backFromHere ? Way.AOTV : wayFor(client, player, lantern, creeper);
         if (way != Way.SHOOT && player.isShiftKeyDown()) {
             // A hit or a teleport goes standing: let go of a sneak an earlier warp or shot left held (only ever ours).
             AutoReposition.releaseSneak(client);
@@ -511,7 +526,7 @@ public final class AutoBeams {
                     MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
                 }
             }
-            case AOTV -> aotvStep(client, player, lantern, now);
+            case AOTV -> aotvStep(client, player, lantern, now, backFromHere);
             case SHOOT -> shootStep(client, player, pair, lantern, creeper, standing, reposition, now);
             case NONE -> {
                 LOGGER.info("[AutoPuzzles] Beams (melee): nothing reaches {} any more (stage {}) - leaving its pair",
@@ -520,6 +535,24 @@ public final class AutoBeams {
                 activePair = null;
             }
         }
+    }
+
+    /**
+     * Asks for a teleport back into reach of {@code lantern} (an unanswered hit, or a teleport that never landed), at most
+     * {@link #MELEE_MAX_BACKS} per lantern per room visit. Returns without asking once the cap is reached: the usual spot,
+     * shot and Shoot-mode handling then carries on as it did before.
+     */
+    private static void requestBack(BlockPos lantern) {
+        int n = MELEE_BACKS.getOrDefault(lantern, 0);
+        if (n >= MELEE_MAX_BACKS) {
+            LOGGER.info("[AutoPuzzles] Beams (melee): {} has had {} teleports back - no more, the usual handling takes over",
+                    AutoPuzzleUtil.fmt(lantern), n);
+            return;
+        }
+        MELEE_BACKS.put(lantern, n + 1);
+        meleeBack = lantern;
+        LOGGER.info("[AutoPuzzles] Beams (melee): no answer - teleporting back into reach of {} from where he is ({} of {})",
+                AutoPuzzleUtil.fmt(lantern), n + 1, MELEE_MAX_BACKS);
     }
 
     /** The hit itself, from where he is (standing, or in the air after a teleport). */
@@ -540,6 +573,7 @@ public final class AutoBeams {
         meleeFrom = standing;
         meleeWasShot = false;
         meleeFromPlan = standing == null ? airPlan : null;
+        meleeBack = null;
         meleeHits++;
         lastSaid = null;
         LOGGER.info("[AutoPuzzles] Beams (melee): hit {} (pair stage {}) from {}, eye to box {}{}", AutoPuzzleUtil.fmt(lantern),
@@ -554,9 +588,10 @@ public final class AutoBeams {
      * from here, else from the nearest planned spot, etherwarped to first. Re-checked from his real position before the use
      * (it is the server that moves him, along the look in the use packet), and dropped when it no longer lands in reach.
      */
-    private static void aotvStep(Minecraft client, LocalPlayer player, BlockPos lantern, long now) {
+    private static void aotvStep(Minecraft client, LocalPlayer player, BlockPos lantern, long now, boolean fromAir) {
         List<AotvPlan> plans = aotvPlans(client, player, lantern);
-        AotvPlan here = player.onGround() ? planFrom(client, player, lantern, player.position(), null) : null;
+        // A teleport back (fromAir): planned from wherever he is, in the air too - the landing is checked below as always.
+        AotvPlan here = player.onGround() || fromAir ? planFrom(client, player, lantern, player.position(), null) : null;
         AotvPlan plan = here;
         if (plan == null) {
             for (AotvPlan p : plans) {
@@ -586,6 +621,7 @@ public final class AutoBeams {
                 LOGGER.info("[AutoPuzzles] Beams (melee): none of the {} spot(s) to AOTV up to {} from can be warped to - "
                         + "dropping them", plans.size(), AutoPuzzleUtil.fmt(lantern));
                 AOTV_PLANS.put(lantern, List.of());
+                meleeBack = null;
                 return;
             }
             say("melee: warping to " + AutoPuzzleUtil.fmt(spot) + " to AOTV up to " + AutoPuzzleUtil.fmt(lantern));
@@ -606,6 +642,7 @@ public final class AutoBeams {
             LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} would land at {} from here - out of reach, "
                     + "dropping it", AutoPuzzleUtil.fmt(lantern), land == null ? "nowhere" : fmt(land));
             dropPlan(lantern, plan);
+            meleeBack = null;
             return;
         }
         CAMERA.engage(player);
@@ -1280,6 +1317,8 @@ public final class AutoBeams {
         MELEE_SKIP.clear();
         MELEE_SPOTS.clear();
         MELEE_DONE.clear();
+        MELEE_BACKS.clear();
+        meleeBack = null;
         meleeFallback = false;
         AOTV_PLANS.clear();
         SHOOT_SPOTS.clear();
