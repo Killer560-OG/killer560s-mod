@@ -143,7 +143,9 @@ public final class ClassColors {
      *  entry is a known teammate - then the name text is re-colored with the class color. */
     public static Component recolorTabName(PlayerInfo info, Component original) {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        if (original == null || info == null || !com.killer560.hub.util.SkyblockGate.allows() || !cfg.classColorsEnabled || !cfg.classColorsTab || !DungeonState.isInDungeon()
+        // The two switches before SkyblockGate.allows(), which off Skyblock looks at the open screen's class name, per
+        // tab row per frame even with Class Colors off (fps pass 2026-10-19; every test here only reads).
+        if (original == null || info == null || !cfg.classColorsEnabled || !cfg.classColorsTab || !com.killer560.hub.util.SkyblockGate.allows() || !DungeonState.isInDungeon()
                 || info.getTabListDisplayName() == null) {
             return original;
         }
@@ -231,8 +233,14 @@ public final class ClassColors {
         String selfName = client.player.getGameProfile().name();
         for (Player player : client.level.players()) {
             String name = player.getGameProfile().name();
+            // The two cheap tests first (fps pass 2026-10-19): the class lookup goes through the leap-menu picks and
+            // the name cache, and the local player and every NPC (non-v4 UUID) were paying it each frame only to be
+            // skipped. classOf only reads, so asking it fewer times changes nothing.
+            if (name == null || name.equals(selfName) || player.getUUID().version() != 4) {
+                continue;
+            }
             DungeonClass clazz = ClassOverrides.classOf(name, CLASSES.get(name));
-            if (clazz == null || name.equals(selfName) || player.getUUID().version() != 4) {
+            if (clazz == null) {
                 continue;
             }
             Vec3 pos = player.getPosition(partial);
