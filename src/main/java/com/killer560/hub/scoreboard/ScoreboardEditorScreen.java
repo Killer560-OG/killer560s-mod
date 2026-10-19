@@ -389,6 +389,8 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, x, y, colW));
         out.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, colBX, y, colW));
         y += STEP;
+        out.add(toggle("Hide In Menus", cfg::isHideInMenus, cfg::setHideInMenus, x, y, colW));
+        y += STEP;
         // 6. Number style.
         out.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
                 () -> cfg.setNumberFormat(cfg.getNumberFormat().next()),

@@ -476,6 +476,9 @@ public final class CustomScoreboardFeature {
         if (cfg.isHideWhenChat() && chatOpen) {
             return;
         }
+        if (cfg.isHideInMenus() && McCompat.screen(client) != null) {
+            return;
+        }
         Font font = client.font;
         int[] pos;
         float scale;

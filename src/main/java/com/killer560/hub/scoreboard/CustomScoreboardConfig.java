@@ -309,6 +309,8 @@ public final class CustomScoreboardConfig {
     // general (SkyHanni DisplayConfig / CustomScoreboardConfig + SkyBlock Custom Scoreboard Config)
     private boolean hideWhenTab = false;
     private boolean hideWhenChat = false;
+    /** Hide the board whenever any menu or screen is open (killer560, 2026-10-18): on by default. */
+    private boolean hideInMenus = true;
     private OutsideSkyblockMode outsideSkyblockMode = OutsideSkyblockMode.VANILLA;
     private boolean cacheOnIslandSwitch = false;
     /** Chat note for an unknown sidebar line. Off by default since 2026-10-07 (killer560's dungeon screenshot:
@@ -415,6 +417,7 @@ public final class CustomScoreboardConfig {
                 cfg.showAllActiveEvents = ConfigJson.getBool(obj, "showAllActiveEvents", cfg.showAllActiveEvents);
                 cfg.hideWhenTab = ConfigJson.getBool(obj, "hideWhenTab", cfg.hideWhenTab);
                 cfg.hideWhenChat = ConfigJson.getBool(obj, "hideWhenChat", cfg.hideWhenChat);
+                cfg.hideInMenus = ConfigJson.getBool(obj, "hideInMenus", true);
                 cfg.outsideSkyblockMode = ConfigJson.getEnum(obj, "outsideSkyblockMode", OutsideSkyblockMode.class, cfg.outsideSkyblockMode);
                 cfg.cacheOnIslandSwitch = ConfigJson.getBool(obj, "cacheOnIslandSwitch", cfg.cacheOnIslandSwitch);
                 cfg.unknownLinesWarning = ConfigJson.getBool(obj, "unknownLinesChat", cfg.unknownLinesWarning);
@@ -528,6 +531,7 @@ public final class CustomScoreboardConfig {
             obj.addProperty("showAllActiveEvents", showAllActiveEvents);
             obj.addProperty("hideWhenTab", hideWhenTab);
             obj.addProperty("hideWhenChat", hideWhenChat);
+            obj.addProperty("hideInMenus", hideInMenus);
             obj.addProperty("outsideSkyblockMode", outsideSkyblockMode.name());
             obj.addProperty("cacheOnIslandSwitch", cacheOnIslandSwitch);
             obj.addProperty("unknownLinesChat", unknownLinesWarning);
@@ -893,6 +897,14 @@ public final class CustomScoreboardConfig {
 
     public void setHideWhenTab(boolean v) {
         hideWhenTab = v;
+    }
+
+    public boolean isHideInMenus() {
+        return hideInMenus;
+    }
+
+    public void setHideInMenus(boolean v) {
+        hideInMenus = v;
     }
 
     public boolean isHideWhenChat() {
