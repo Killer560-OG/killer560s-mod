@@ -2328,7 +2328,7 @@ final class SettingTooltipsData {
         d.put("player cosmetics/height", "Stretches your own player model up and down (0.5x-2x), in your own F5 view only.");
         d.put("player cosmetics/thickness", "Stretches your own player model front to back (0.5x-2x), in your own F5 view only.");
         d.put("player cosmetics/play as mob", "Opens Play as Mob: draw your player as any mob, and see the mobs other supporters picked.");
-        d.put("player cosmetics/my mob", "Draws your player as this mob in F5 and on other mod users' screens if you share it; left click forward, right click back. Your size and Width/Height/Thickness still apply. Visual only: your hitbox stays a player.");
+        d.put("player cosmetics/my mob", "Opens a menu to pick the mob your player is drawn as in F5 and on other mod users' screens if you share it. Type in its search box to narrow the list. Your size and Width/Height/Thickness still apply. Visual only: your hitbox stays a player.");
         d.put("player cosmetics/show others' mobs", "Draws other supporters as the mob they share. Never inside a dungeon, where they always show as players. Off shows everyone as a player.");
         d.put("share if supporter", "Automatically shares your display name, your own player size and your Play as Mob choice with other players who have this mod.");
         d.put("share trail", "Shares your Ribbon Trail (colors, height, length, opacity) with other players who have this mod, while Share if Supporter and your Ribbon Trail are on. Only supporters can share it; the squares Trail is never shared.");

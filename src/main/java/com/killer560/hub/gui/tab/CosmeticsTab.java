@@ -1,9 +1,11 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.copychat.CopyChatFeature;
 import com.killer560.hub.gui.SettingTooltips;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.mobskin.MobPickerScreen;
 import com.killer560.hub.namechanger.NameChangerConfig;
 import com.killer560.hub.namechanger.NameColor;
 import com.killer560.hub.notify.ModOverlayMessage;
@@ -277,8 +279,8 @@ public class CosmeticsTab extends BaseTab {
         return y;
     }
 
-    /** My Mob (left click forward through the mobs this version has, right click back, Player first) and Show Others'
-     *  Mobs. Your size sliders apply to your mob too; see {@code com.killer560.hub.mobskin.MobSkinRender}. */
+    /** Play as Mob's on/off switch, then My Mob (a button that opens {@link MobPickerScreen}, its search box and list),
+     *  then the note on sharing. Your size sliders apply to your mob too; see {@code com.killer560.hub.mobskin.MobSkinRender}. */
     private int buildPlayAsMob(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Font font,
                                SupportersConfig cfg) {
         widgets.add(SettingsButtonWidget.builder(onOff("Play as Mob", cfg.isPlayAsMob()), btn -> {
@@ -288,15 +290,15 @@ public class CosmeticsTab extends BaseTab {
                     SupportersAutoShare.shareCurrent(err -> shareError = err);
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
-        widgets.add(SettingsButtonWidget.cycling(myMobLabel(cfg.getOwnMob()), (btn, dir) -> {
-                    List<String> choices = new ArrayList<>();
-                    choices.add("");
-                    choices.addAll(com.killer560.hub.mobskin.MobSkins.available());
-                    int at = Math.max(0, choices.indexOf(cfg.getOwnMob()));
-                    cfg.setOwnMob(choices.get(SettingsButtonWidget.step(at, dir, choices.size())));
-                    cfg.save();
-                    btn.setMessage(myMobLabel(cfg.getOwnMob()));
-                    SupportersAutoShare.shareCurrent(err -> shareError = err);
+        // The picker is its own menu (killer560, 2026-10-18): the search box and the list live there. Picking a mob
+        // saves it, shares it as Share if Supporter does, and returns here, where the rebuilt button shows it.
+        widgets.add(SettingsButtonWidget.builder(myMobLabel(cfg.getOwnMob()), btn -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    mc.setScreenAndShow(new MobPickerScreen(McCompat.screen(mc), cfg.getOwnMob(), id -> {
+                        cfg.setOwnMob(id);
+                        cfg.save();
+                        SupportersAutoShare.shareCurrent(err -> shareError = err);
+                    }));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 20;
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
