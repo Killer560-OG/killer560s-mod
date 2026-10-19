@@ -158,6 +158,26 @@ public final class LfgRequirements {
         return false;
     }
 
+    /** A create-form box's starting value from the player's own stats (killer560, 2026-10-18): Cata Level and Secrets from
+     *  the stats, and the S+ PB on the floor picked from the same stats. Null when the stats do not give it, or the value is
+     *  above what the box holds (a PB slower than the field's maximum is left off). */
+    public static Integer ownValue(String key, PartyFinderStatsApi.PlayerStats s, String activity, int max) {
+        if (s == null) {
+            return null;
+        }
+        int v;
+        if (key.equals("cata")) {
+            v = (int) Math.floor(s.level());
+        } else if (key.equals("secrets")) {
+            v = s.secrets();
+        } else if (key.equals(LfgCategory.PB)) {
+            v = pbSeconds(s, activity);
+        } else {
+            return null;
+        }
+        return v <= 0 || v > max ? null : v;
+    }
+
     /** Parses a PB box: "4:30" or a plain number of seconds; 0 when empty or unreadable. */
     public static int parsePb(String text) {
         if (text == null) {

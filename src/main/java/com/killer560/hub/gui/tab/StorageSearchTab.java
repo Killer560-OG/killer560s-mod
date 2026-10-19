@@ -202,7 +202,27 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
             }
         });
 
+        widgets.add(new ThemedSliderButton(contentX, y + 24, contentWidth, 20, opacityText(), cfg.getSearchBoxOpacity() / 100.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(opacityText());
+            }
+
+            @Override
+            protected void applyValue() {
+                StorageSearchConfig c = StorageSearchConfig.getInstance();
+                int snapped = (int) Math.round(this.value * 100);
+                c.setSearchBoxOpacity(snapped);
+                c.save();
+                this.value = c.getSearchBoxOpacity() / 100.0;
+            }
+        });
+
         return widgets;
+    }
+
+    private static Component opacityText() {
+        return Component.literal("Search Box Opacity: " + StorageSearchConfig.getInstance().getSearchBoxOpacity() + "%");
     }
 
     private String modsSuffix() {

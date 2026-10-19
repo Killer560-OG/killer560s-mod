@@ -79,7 +79,9 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
         boxY = panelY + 36;
         this.boxW = boxW;
         boxH = 18;
-        searchBox = new ThemedEditBox(this.font, boxX, boxY, boxW, boxH, Component.literal("Search")).hint(hint());
+        int boxAlpha = (int) Math.round(StorageSearchConfig.getInstance().getSearchBoxOpacity() * 255 / 100.0);
+        searchBox = new ThemedEditBox(this.font, boxX, boxY, boxW, boxH, Component.literal("Search")).hint(hint())
+                .wellAlpha(boxAlpha);
         searchBox.setMaxLength(100);
         searchBox.setValue(current);
         searchBox.setResponder(text -> refilter());
