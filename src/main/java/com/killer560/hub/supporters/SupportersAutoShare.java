@@ -237,7 +237,7 @@ public final class SupportersAutoShare {
     /** Your Play as Mob choice as it is shared (Share if Supporter covers it, like your name and size), or null for your
      *  normal player. */
     public static String mobToShare() {
-        return com.killer560.hub.mobskin.MobSkins.sanitize(SupportersConfig.getInstance().getOwnMob());
+        return com.killer560.hub.mobskin.MobSkins.sanitize(SupportersConfig.getInstance().getActiveOwnMob());
     }
 
     /** Pushes the current name, colours, animation, size, trail and mob from the settings (no-op unless linked and Share

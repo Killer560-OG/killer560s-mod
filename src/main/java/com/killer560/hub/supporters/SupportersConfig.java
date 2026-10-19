@@ -75,6 +75,8 @@ public final class SupportersConfig {
     /** "My Mob" (Play as Mob, killer560 2026-10-18): the mob your player is drawn as, a {@code MobSkins} id, or "" for
      *  your normal player. Shared while Share if Supporter is on and the account is a linked supporter. */
     private String ownMob = "";
+    /** Play as Mob on/off (killer560, 2026-10-18): off, your normal player is drawn and shared, and your chosen mob is kept. */
+    private boolean playAsMob = true;
     /** "Show Others' Mobs": draw other supporters as the mob they share (never inside a dungeon). ON by default. */
     private boolean showOthersMobs = true;
 
@@ -110,6 +112,7 @@ public final class SupportersConfig {
                 cfg.shareTrail = ConfigJson.getBool(obj, "shareTrail", true);
                 cfg.showOthersTrails = ConfigJson.getBool(obj, "showOthersTrails", true);
                 cfg.ownMob = cleanMob(ConfigJson.getString(obj, "ownMob", ""));
+                cfg.playAsMob = ConfigJson.getBool(obj, "playAsMob", true);
                 cfg.showOthersMobs = ConfigJson.getBool(obj, "showOthersMobs", true);
             } catch (Exception e) {
                 cfg = new SupportersConfig();
@@ -138,6 +141,7 @@ public final class SupportersConfig {
             obj.addProperty("shareTrail", shareTrail);
             obj.addProperty("showOthersTrails", showOthersTrails);
             obj.addProperty("ownMob", ownMob);
+            obj.addProperty("playAsMob", playAsMob);
             obj.addProperty("showOthersMobs", showOthersMobs);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -258,6 +262,20 @@ public final class SupportersConfig {
     /** Your mob ({@code MobSkins} id), or "" for your normal player. */
     public String getOwnMob() {
         return ownMob;
+    }
+
+    /** Your mob as it is drawn and shared: "" while Play as Mob is off, otherwise {@link #getOwnMob()}. */
+    public String getActiveOwnMob() {
+        return playAsMob ? ownMob : "";
+    }
+
+    public boolean isPlayAsMob() {
+        return playAsMob;
+    }
+
+    public void setPlayAsMob(boolean value) {
+        this.playAsMob = value;
+        version++;
     }
 
     /** Anything that is not an allowed mob id (null, "", a boss, a typo) means your normal player. */

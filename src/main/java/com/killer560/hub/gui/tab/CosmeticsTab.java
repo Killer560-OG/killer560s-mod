@@ -281,6 +281,13 @@ public class CosmeticsTab extends BaseTab {
      *  Mobs. Your size sliders apply to your mob too; see {@code com.killer560.hub.mobskin.MobSkinRender}. */
     private int buildPlayAsMob(List<AbstractWidget> widgets, int contentX, int y, int contentWidth, Font font,
                                SupportersConfig cfg) {
+        widgets.add(SettingsButtonWidget.builder(onOff("Play as Mob", cfg.isPlayAsMob()), btn -> {
+                    cfg.setPlayAsMob(!cfg.isPlayAsMob());
+                    cfg.save();
+                    btn.setMessage(onOff("Play as Mob", cfg.isPlayAsMob()));
+                    SupportersAutoShare.shareCurrent(err -> shareError = err);
+                }).bounds(contentX, y, contentWidth, 18).build());
+        y += 20;
         widgets.add(SettingsButtonWidget.cycling(myMobLabel(cfg.getOwnMob()), (btn, dir) -> {
                     List<String> choices = new ArrayList<>();
                     choices.add("");

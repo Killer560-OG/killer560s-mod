@@ -71,7 +71,7 @@ public final class MobSkinRender {
         }
         String id;
         if (player == Minecraft.getInstance().player) {
-            id = SupportersConfig.getInstance().getOwnMob();
+            id = SupportersConfig.getInstance().getActiveOwnMob();
         } else {
             UUID uuid = player.getUUID();
             if (uuid == null || uuid.version() == 2 || !SupportersConfig.getInstance().isShowOthersMobs()
