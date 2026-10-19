@@ -92,7 +92,8 @@ final class RoomAlerts {
             if (!isInRoom(here, idx, LiveMapFeature.roomCellIndices(idx))) {
                 continue;
             }
-            if (clearedAlertDue(idx, LiveMapFeature.isRoomCleared(idx), armedRooms, clearedAlerted)) {
+            if (!LiveMapFeature.isNoClearAlertRoom(idx)
+                    && clearedAlertDue(idx, LiveMapFeature.isRoomCleared(idx), armedRooms, clearedAlerted)) {
                 fireAlert(cfg, CLEARED_TEXT, cfg.roomAlertsClearedColor);
             }
             return;
