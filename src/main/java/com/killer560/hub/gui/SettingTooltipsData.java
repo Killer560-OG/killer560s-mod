@@ -2487,6 +2487,7 @@ final class SettingTooltipsData {
         d.put("hide mouse cursor", "While auto terminal clicks are landing, the real mouse pointer is hidden, so a screen share shows no pointer moving on its own. It comes back as soon as the clicks stop.");
         d.put("fake cursor", "Draws a pointer that travels to each auto click and shows a short click ripple, so the clicks look like a person's.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
+        d.put("zoom", "Hold the zoom key to narrow the view, like OptiFine's zoom. While it is held, the mouse wheel changes the zoom level (scroll up to zoom in) and the hotbar does not change.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");

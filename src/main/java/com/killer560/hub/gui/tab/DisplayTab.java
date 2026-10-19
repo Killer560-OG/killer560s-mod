@@ -12,6 +12,7 @@ public class DisplayTab extends FolderTab {
                 new DisplayOptionsTab(),
                 new PackDisablerTab(),
                 new FreelookTab(),
+                new ZoomTab(),
                 new WindowLayoutTab(),
                 // Moved out of New 2026-09-16 once killer560 confirmed each one in a real run.
                 new ItemRarityTab(),

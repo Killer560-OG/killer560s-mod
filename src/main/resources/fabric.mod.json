@@ -97,6 +97,7 @@
     "killer560smod-roomsim.mixins.json",
     "killer560smod-hud.mixins.json",
     "killer560smod-heldoutline.mixins.json",
+    "killer560smod-zoom.mixins.json",
     "killer560smod-perfprobe.mixins.json"
   ],
   "depends": {
