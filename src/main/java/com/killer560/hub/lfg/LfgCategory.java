@@ -13,13 +13,17 @@ import java.util.Locale;
  */
 public enum LfgCategory {
     DUNGEONS("dungeons", "Dungeons", 5,
-            List.of("Entrance", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7"),
+            List.of("F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7"),
             List.of(new Field("cata", "Cata Level", 50), new Field("secrets", "Secrets", 200000),
                     new Field("pb", "S+ PB", 3599))), // "pb" is PB below (an enum constant cannot name it yet)
     DIANA("diana", "Diana", 5, List.of("Diana"), List.of()),
     FISHING("fishing", "Fishing", 5, List.of("Fishing"), List.of()),
     /** Any party that fits none of the others (killer560, 2026-10-18); its activity is typed, not picked. */
     MISC("misc", "Misc", 5, List.of("Misc"), List.of());
+
+    /** Entrance was a floor choice until 2026-10-18; no new listing may pick it now. Existing listings that say it still
+     *  parse and show (the listing check takes any activity text), they just are not offered in the floor dropdown. */
+    public static final String RETIRED_ENTRANCE = "Entrance";
 
     /** The PB requirement's key: the floor's S+ personal best, in whole seconds, at most this fast (lower is harder). */
     public static final String PB = "pb";

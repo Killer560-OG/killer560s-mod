@@ -2446,6 +2446,14 @@ final class SettingTooltipsData {
     private static void customPartyFinder(Map<String, String> d) {
         d.put("custom party finder", "Our own party finder (/pf or /partyfinder) for Dungeons, Diana, Fishing and Misc, shared by every mod user through the mod's relay.");
         d.put("custom party finder/open party finder", "Opens the Custom Party Finder menu (also /pf or /partyfinder).");
+        d.put("custom party finder/refresh", "Asks for the parties listed here and your own listing's join requests again right away.");
+        d.put("custom party finder/unlist", "Takes your listing down. Create comes back once it is down.");
+        d.put("custom party finder/activity", "The floor your party is for (Entrance is no longer offered). Click to step forward, right click to step back.");
+        d.put("custom party finder/any floor", "Shows only parties for the floor you pick here. Click to step through the floors.");
+        d.put("custom party finder/i meet", "Shows only parties whose checked requirements you meet. Any reqs shows every party.");
+        d.put("custom party finder/any reqs", "Shows every party, whatever your Cata Level, Secrets or S+ PB. I meet hides the ones you are under.");
+        d.put("custom party finder/full", "Hide full: parties at their size limit are left out. Show full lists them too.");
+        d.put("custom party finder/newest", "Sort: the most recently listed parties first. Click to step through the sorts.");
         d.put("custom party finder/dual-list hypixel queues", "When you queue a dungeon in Hypixel's Party Finder, the same party is listed here too.");
         d.put("custom party finder/auto accept requests", "When someone asks to join your listing and meets its Cata Level, Secrets and S+ PB requirements, your client sends them the party invite without waiting for your click. Anyone under them is rejected either way.");
         d.put("custom party finder/auto accept invite", "After a leader accepts your join request, their Hypixel party invite is accepted for you (once, within a minute).");

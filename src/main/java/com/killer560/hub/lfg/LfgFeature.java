@@ -303,6 +303,18 @@ public final class LfgFeature {
         upsertNow();
     }
 
+    /** The menu's Refresh button: the listings and the player's own state are asked for again on the next client tick. */
+    public static void refreshNow() {
+        lastListAt = 0;
+        lastMeAt = 0;
+    }
+
+    /** A party at its size limit comes off the finder rather than staying listed (killer560, 2026-10-18). */
+    private static void takeDownFull() {
+        unlist("full");
+        ModChat.send(CHAT, ModChat.text("Listing taken down: your party is full."));
+    }
+
     public static void unlist(String why) {
         boolean had = wanted != null || myListing != null;
         wanted = null;
@@ -352,6 +364,7 @@ public final class LfgFeature {
             wanted = null;
             myListing = null;
             event("relay removed listing: " + LfgListing.strOr(reply.body(), "removed", "?"));
+            ModChat.send(CHAT, ModChat.text("Listing taken down: your party is full."));
             changed("Party full - listing removed.");
             return;
         }
@@ -708,6 +721,10 @@ public final class LfgFeature {
                 return;
             }
             int size = partySize();
+            if (size >= wanted.get("max").getAsInt()) {
+                takeDownFull();
+                return;
+            }
             if (now - lastUpsertAt >= HEARTBEAT_MS || (size != lastSentSize && now - lastUpsertAt >= UPSERT_GAP_MS)) {
                 upsertNow();
             }
