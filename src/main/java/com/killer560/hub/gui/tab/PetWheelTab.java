@@ -22,7 +22,10 @@ import com.killer560.hub.compat.McCompat;
  */
 public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
-    private boolean capturingKey = false;
+    /** Which bind the next key or mouse press is for; {@link #NONE} when no capture is running. */
+    private enum Capturing { NONE, WHEEL, PREV_PAGE, NEXT_PAGE }
+
+    private Capturing capturing = Capturing.NONE;
 
     public PetWheelTab() {
         super("Pet Wheel");
@@ -30,7 +33,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public boolean isListeningForKey() {
-        return capturingKey;
+        return capturing != Capturing.NONE;
     }
 
     @Override
@@ -40,17 +43,25 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
 
     @Override
     public void onKeyCaptured(int keyCode) {
-        PetWheelConfig cfg = PetWheelConfig.getInstance();
-        cfg.setKeyCode(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
-        capturingKey = false;
-        cfg.save();
+        applyCapture(keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE ? KeyUtil.NONE : keyCode);
     }
 
     @Override
     public void onMouseCaptured(int button) {
+        applyCapture(KeyUtil.codeForMouseButton(button));
+    }
+
+    private void applyCapture(int code) {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
-        cfg.setKeyCode(KeyUtil.codeForMouseButton(button));
-        capturingKey = false;
+        switch (capturing) {
+            case WHEEL -> cfg.setKeyCode(code);
+            case PREV_PAGE -> cfg.setPrevPageKeyCode(code);
+            case NEXT_PAGE -> cfg.setNextPageKeyCode(code);
+            case NONE -> {
+                return;
+            }
+        }
+        capturing = Capturing.NONE;
         cfg.save();
     }
 
@@ -80,7 +91,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
         int col2bX = contentX + col2W + gap;
 
         widgets.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
-                    capturingKey = true;
+                    capturing = Capturing.WHEEL;
                     btn.setMessage(Component.literal("Press any key/button..."));
                 }).bounds(contentX, y, col2W, 18).build());
 
@@ -157,6 +168,18 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+        // killer560, 2026-10-18: custom page keys. Left/Right and scroll always work on the wheel as well.
+        widgets.add(SettingsButtonWidget.builder(pageKeyText("Previous Page", cfg.getPrevPageKeyCode(),
+                        capturing == Capturing.PREV_PAGE), btn -> {
+                    capturing = Capturing.PREV_PAGE;
+                    btn.setMessage(Component.literal("Press any key/button..."));
+                }).bounds(contentX, y, col2W, 18).build());
+        widgets.add(SettingsButtonWidget.builder(pageKeyText("Next Page", cfg.getNextPageKeyCode(),
+                        capturing == Capturing.NEXT_PAGE), btn -> {
+                    capturing = Capturing.NEXT_PAGE;
+                    btn.setMessage(Component.literal("Press any key/button..."));
+                }).bounds(col2bX, y, col2W, 18).build());
+        y += 22;
         net.minecraft.client.gui.components.EditBox pageName = new net.minecraft.client.gui.components.EditBox(font,
                 contentX, y, contentWidth, 18, Component.literal("Page Name"));
         pageName.setMaxLength(PetWheelConfig.MAX_PAGE_NAME);
@@ -203,10 +226,17 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
     }
 
     private Component keyText(PetWheelConfig cfg) {
-        if (capturingKey) {
+        if (capturing == Capturing.WHEEL) {
             return Component.literal("Press any key/button...");
         }
         return Component.literal("Wheel Key: " + KeyUtil.bindDisplayName(cfg.getKeyCode()));
+    }
+
+    private static Component pageKeyText(String label, int code, boolean capturingNow) {
+        if (capturingNow) {
+            return Component.literal("Press any key/button...");
+        }
+        return Component.literal(label + ": " + KeyUtil.bindDisplayName(code));
     }
 
     private static Component modeText(PetWheelConfig cfg) {

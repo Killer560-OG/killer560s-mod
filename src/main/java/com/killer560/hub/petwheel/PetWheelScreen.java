@@ -445,6 +445,14 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         if (super.mouseClicked(event, doubleClick)) {
             return true;
         }
+        // A mouse button bound as a page key changes page before the click can select or swap a slice.
+        PetWheelConfig cfg = PetWheelConfig.getInstance();
+        if (matchesBind(cfg.getPrevPageKeyCode(), true, event.button()) && changePage(-1)) {
+            return true;
+        }
+        if (matchesBind(cfg.getNextPageKeyCode(), true, event.button()) && changePage(1)) {
+            return true;
+        }
         if (editMode) {
             return editModeClick(event);
         }
@@ -496,11 +504,20 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         dragArmed = false;
         dragging = false;
         if (hit >= 0 && hit != pendingSwapIndex && petAt(hit) != null) {
-            PetWheelConfig.getInstance().swapInWheel(pendingSwapIndex, hit);
-            PetWheelConfig.getInstance().save();
+            swapSlots(pendingSwapIndex, hit);
         }
         pendingSwapIndex = null;
         return true;
+    }
+
+    /** Swaps two wheel slots, saves, and re-reads the list this screen draws from. {@code allPets} is a
+     *  {@code List.copyOf} snapshot ({@link PetWheelConfig#getWheelPets}), so without the re-read the config
+     *  swapped but the screen kept drawing the old order (killer560, 2026-10-18: drag and drop "does not move"). */
+    private void swapSlots(int from, int to) {
+        PetWheelConfig cfg = PetWheelConfig.getInstance();
+        cfg.swapInWheel(from, to);
+        cfg.save();
+        allPets = cfg.getWheelPets();
     }
 
     @Override
@@ -553,8 +570,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             if (dragging) {
                 int hit = hitGlobalIndex(event.x(), event.y());
                 if (hit >= 0 && hit != pendingSwapIndex && petAt(hit) != null) {
-                    PetWheelConfig.getInstance().swapInWheel(pendingSwapIndex, hit);
-                    PetWheelConfig.getInstance().save();
+                    swapSlots(pendingSwapIndex, hit);
                 }
                 pendingSwapIndex = null;
                 dragging = false;
@@ -597,6 +613,13 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        PetWheelConfig cfg = PetWheelConfig.getInstance();
+        if (matchesBind(cfg.getPrevPageKeyCode(), false, event.key()) && changePage(-1)) {
+            return true;
+        }
+        if (matchesBind(cfg.getNextPageKeyCode(), false, event.key()) && changePage(1)) {
+            return true;
+        }
         if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT && changePage(1)) {
             return true;
         }
@@ -604,6 +627,14 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
             return true;
         }
         return super.keyPressed(event);
+    }
+
+    /** True when {@code bind} (a key code, or a mouse code from {@link KeyUtil}) is the key or mouse button just pressed. */
+    private static boolean matchesBind(int bind, boolean mouse, int keyOrButton) {
+        if (bind == KeyUtil.NONE || KeyUtil.isMouseCode(bind) != mouse) {
+            return false;
+        }
+        return mouse ? KeyUtil.mouseButton(bind) == keyOrButton : bind == keyOrButton;
     }
 
     @Override

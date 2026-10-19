@@ -77,6 +77,10 @@ public final class PetWheelConfig {
     /** killer560, 2026-10-04: "add an option to hide the pets menu while it is working" - the summon's /pets
      *  menu is opened headless (never shown) and closed again; see {@link PetSummoner}. */
     private boolean hideMenuWhileSummoning = false;
+    /** killer560, 2026-10-18: custom keys (or mouse buttons) for the wheel's page changes, on top of the arrow keys
+     *  and scroll that always work. {@link KeyUtil#NONE} = unbound. */
+    private int prevPageKeyCode = KeyUtil.NONE;
+    private int nextPageKeyCode = KeyUtil.NONE;
 
     /** One wheel page: a name and its ordered pets. */
     private static final class WheelPage {
@@ -151,6 +155,8 @@ public final class PetWheelConfig {
                 cfg.hideLevel = getBool(root, "hideLevel", false);
                 cfg.hideName = getBool(root, "hideName", false);
                 cfg.hideMenuWhileSummoning = getBool(root, "hideMenuWhileSummoning", false);
+                cfg.prevPageKeyCode = KeyUtil.sanitizeBind(getInt(root, "prevPageKeyCode", KeyUtil.NONE));
+                cfg.nextPageKeyCode = KeyUtil.sanitizeBind(getInt(root, "nextPageKeyCode", KeyUtil.NONE));
                 readPages(root, cfg);
                 List<PetEntry> known = new ArrayList<>();
                 readPetList(root, "knownPets", known);
@@ -178,6 +184,8 @@ public final class PetWheelConfig {
             root.addProperty("hideLevel", hideLevel);
             root.addProperty("hideName", hideName);
             root.addProperty("hideMenuWhileSummoning", hideMenuWhileSummoning);
+            root.addProperty("prevPageKeyCode", prevPageKeyCode);
+            root.addProperty("nextPageKeyCode", nextPageKeyCode);
             root.add("wheelPets", petListToJson(wheelPets)); // the current page, for a jar from before pages
             JsonArray pageArr = new JsonArray();
             for (WheelPage p : pages) {
@@ -272,6 +280,22 @@ public final class PetWheelConfig {
 
     public void setKeyCode(int keyCode) {
         this.keyCode = KeyUtil.sanitizeBind(keyCode);
+    }
+
+    public int getPrevPageKeyCode() {
+        return prevPageKeyCode;
+    }
+
+    public void setPrevPageKeyCode(int code) {
+        this.prevPageKeyCode = KeyUtil.sanitizeBind(code);
+    }
+
+    public int getNextPageKeyCode() {
+        return nextPageKeyCode;
+    }
+
+    public void setNextPageKeyCode(int code) {
+        this.nextPageKeyCode = KeyUtil.sanitizeBind(code);
     }
 
     // ------------------------------------------------------------------ pages
