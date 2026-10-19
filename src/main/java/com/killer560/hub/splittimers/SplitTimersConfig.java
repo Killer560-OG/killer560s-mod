@@ -27,7 +27,6 @@ public final class SplitTimersConfig {
     // message... (od has this feature.)" - real reference: Odin's own confirmed TerminalTimes.kt, which
     // rewrites the real "X completed a device!"/"X activated a lever!" chat line in place to append how
     // long the current split segment has been running. Defaults on, matching that being a definite ask.
-    private boolean announceDeviceTimes = true;
     // M7 Phase 5 lines (2026-09-15, killer560's M7 request "split timers lines to the right ... relic stuff"):
     // per-dragon spawn->kill and relic spawn/placed rows from P5Splits. New, so default OFF.
     private boolean p5DragonLines = false;
@@ -75,7 +74,6 @@ public final class SplitTimersConfig {
             SplitTimersConfig cfg = new SplitTimersConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.announceInChat = ConfigJson.getBool(obj, "announceInChat", true);
-            cfg.announceDeviceTimes = ConfigJson.getBool(obj, "announceDeviceTimes", true);
             cfg.p5DragonLines = ConfigJson.getBool(obj, "p5DragonLines", false);
             cfg.p5RelicLines = ConfigJson.getBool(obj, "p5RelicLines", false);
             cfg.p5LinesRight = ConfigJson.getBool(obj, "p5LinesRight", true);
@@ -97,7 +95,6 @@ public final class SplitTimersConfig {
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             obj.addProperty("announceInChat", announceInChat);
-            obj.addProperty("announceDeviceTimes", announceDeviceTimes);
             obj.addProperty("p5DragonLines", p5DragonLines);
             obj.addProperty("p5RelicLines", p5RelicLines);
             obj.addProperty("p5LinesRight", p5LinesRight);
@@ -128,13 +125,6 @@ public final class SplitTimersConfig {
         this.announceInChat = announceInChat;
     }
 
-    public boolean isAnnounceDeviceTimes() {
-        return announceDeviceTimes;
-    }
-
-    public void setAnnounceDeviceTimes(boolean announceDeviceTimes) {
-        this.announceDeviceTimes = announceDeviceTimes;
-    }
 
     public boolean isP5DragonLines() {
         return p5DragonLines;
