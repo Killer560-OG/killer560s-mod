@@ -756,6 +756,9 @@ public final class RouteExecutor {
     /** Chat line + alarm, and the camera check re-based: a position packet may carry a rotation of its own, which must
      *  not read as him turning the camera (the same re-base a confirmed landing does). */
     private static void reportCorrection(String what) {
+        LocalPlayer self = Minecraft.getInstance().player;
+        RouteTrace.correction(traceIndex(activeNode), activeNode == null ? "-" : traceWhat(activeNode),
+                self == null ? null : self.position(), ServerCorrections.lastMoveDistance(), what);
         ServerCorrections.report("Auto Routes", what, ServerCorrections.lastMoveDistance());
         RouteRotation.rebase();
         cameraGraceTicks = Math.max(cameraGraceTicks, 3);
@@ -1179,8 +1182,13 @@ public final class RouteExecutor {
                 return;
             }
             RouteNode node = ordered.get(nextNode);
-            if (node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), player.getBoundingBox())) {
+            Vec3 nodeAt = RouteCoords.toReal(frame, node.relativePos());
+            if (node.contains(nodeAt, cfg.getHeight(), player.getBoundingBox())) {
                 beginStack(node);
+            } else if (++idleTicks == IDLE_SAY_TICKS && walkHoldYaw == null && !idleSaid) {
+                // Normal while he walks to it himself; after a warp it names a landing that missed the next ring.
+                idleSaid = true;
+                RouteTrace.idle(traceIndex(node), node.type, idleTicks, pos, nodeAt, pos.distanceTo(nodeAt));
             }
             return;
         }
@@ -1525,6 +1533,11 @@ public final class RouteExecutor {
         boomBefore.clear();
         cryptSlotBefore = -1;
         releaseUse(Minecraft.getInstance());
+        awaitWaitWarned = false;
+        idleTicks = 0;
+        idleSaid = false;
+        BlockPos traceAt = traceTarget(node);
+        RouteTrace.start(traceIndex(node), node.type, self.position(), traceAt, blockName(traceAt), traceAwait(node));
         // The node acts NOW, on the tick it fired - not on the next tick's pass through tick(). Waiting for that pass
         // was one of the dead ticks in his 2026-10-04 log (an etherwarp took 3-4 ticks from "begins" to the use).
         Minecraft client = Minecraft.getInstance();
@@ -1534,6 +1547,52 @@ public final class RouteExecutor {
             LOGGER.error("[AutoRoutes] Playback error", e);
             stop("internal error (see log)");
         }
+    }
+
+    // ------------------------------------------------------------------------------------------- trace (RouteTrace)
+
+    /** The await-waiting WARN was said for the node acting now (once per node). */
+    private static boolean awaitWaitWarned;
+    /** Ticks a path-less route has stood with no node firing, and whether that gap was said. */
+    private static int idleTicks;
+    private static boolean idleSaid;
+    /** A path-less route idle this long (he stands in no next node's ring) says where the next node is, once. */
+    private static final int IDLE_SAY_TICKS = 60;
+    /** An await waiting this long says what it has counted, once (a WARN: the route has gone nowhere for 10 s). */
+    private static final long AWAIT_WARN_MS = 10_000L;
+
+    private static int traceIndex(RouteNode node) {
+        return route == null || node == null ? 0 : route.indexOf(node) + 1;
+    }
+
+    /** The block a node aims at: the block its recorded landing stands on, else the block under the node itself. */
+    private static BlockPos traceTarget(RouteNode node) {
+        if (frame == null || node == null) {
+            return null;
+        }
+        if (node.hasLanding) {
+            return landingBlock(RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ));
+        }
+        Vec3 at = RouteCoords.toReal(frame, node.relativePos());
+        return BlockPos.containing(at.x, at.y - 0.5, at.z);
+    }
+
+    private static String blockName(BlockPos pos) {
+        Minecraft client = Minecraft.getInstance();
+        if (pos == null || client.level == null || !client.level.isLoaded(pos)) {
+            return null;
+        }
+        return client.level.getBlockState(pos).getBlock().getName().getString();
+    }
+
+    private static String traceAwait(RouteNode node) {
+        if (!node.awaitEnabled) {
+            return "none";
+        }
+        // "1 secret", never "secret 1": AwaitEvents' own count lines read "await secret 1: ..." and log readers (the
+        // testkit included) find them by that text.
+        return Math.max(1, node.awaitAmount) + " "
+                + (node.awaitCondition == null ? "?" : node.awaitCondition.name().toLowerCase(Locale.ROOT));
     }
 
     private static void finishAction() {
@@ -1889,6 +1948,11 @@ public final class RouteExecutor {
         // running an approach - settled() is false forever in that case, so the node used to sit out the
         // whole AIM_TIMEOUT before moving on (2026-09-16 review). It now finishes on the tick it fired.
         if (!RouteRotation.isActive() || RouteRotation.settled(1.5f) || stepTicks > AIM_TIMEOUT) {
+            if (RouteRotation.isActive() && !RouteRotation.settled(1.5f)) {
+                LocalPlayer p = Minecraft.getInstance().player;
+                RouteTrace.timeout(traceIndex(node), node.type.name(), "camera turn never settled within 1.5 degrees - "
+                        + "going on anyway", stepTicks, p == null ? null : p.position());
+            }
             logActed(node, RouteRotation.isActive() ? " (legit camera turn)" : "");
             finishAction();
         }
@@ -1973,11 +2037,18 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Node #{} {}: await {}/{} secrets met{}", route.indexOf(node) + 1, node.type,
                         have, Math.max(1, node.awaitAmount), awaitRemembered.isEmpty() ? ""
                                 : " (" + awaitRemembered.size() + " remembered from earlier this run)");
+                RouteTrace.awaitMet(traceIndex(node), node.type, have, Math.max(1, node.awaitAmount),
+                        awaitRemembered.size(), (int) ((System.currentTimeMillis() - awaitStartMs) / 50L));
                 java.util.Set<String> used = AwaitEvents.windowSecrets();
                 for (RouteRunMemory.Got g : awaitRemembered) {
                     used.add(g.key());
                 }
                 RouteRunMemory.met(awaitNodeKey, used);
+            } else if (!awaitWaitWarned && System.currentTimeMillis() - awaitStartMs >= AWAIT_WARN_MS) {
+                awaitWaitWarned = true;
+                RouteTrace.awaitWaiting(traceIndex(node), node.type, node.awaitCondition == null ? "?"
+                                : node.awaitCondition.name().toLowerCase(Locale.ROOT), have, Math.max(1, node.awaitAmount),
+                        awaitRemembered.size(), (int) ((System.currentTimeMillis() - awaitStartMs) / 1000L), player.position());
             }
         }
         if (done) {
@@ -2081,6 +2152,8 @@ public final class RouteExecutor {
                 String outcome = planOutcome;
                 if (outcome == null) {
                     if (stepTicks > PLAN_TIMEOUT) {
+                        RouteTrace.timeout(traceIndex(node), "PATH", "the path planner never answered", stepTicks,
+                                player.position());
                         stop("the path planner did not answer");
                     }
                     return;
@@ -2225,6 +2298,11 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Etherwarp ({}): {} - firing the saved look from {}", what, settled
                     ? String.format(Locale.US, "back on its spot (%.2f off) after %d tick(s)", h, warpCentreTicks)
                     : String.format(Locale.US, "still %.2f off its spot after %d tick(s)", h, warpCentreTicks), fmt(pos));
+            if (!settled && activeNode != null) {
+                RouteTrace.timeout(traceIndex(activeNode), what, String.format(Locale.US, "never back on its spot %s "
+                        + "(%.2f off) - firing the saved look from here, which may land elsewhere", fmt(warpSpot), h),
+                        warpCentreTicks, pos);
+            }
             warpYaw = warpSavedYaw;
             warpPitch = warpSavedPitch;
             warpAimFrom = pos;
@@ -2318,6 +2396,8 @@ public final class RouteExecutor {
                 if (stepTicks > SNEAK_TIMEOUT) {
                     LOGGER.info("[AutoRoutes] Etherwarp: sneak never reached the server (client shift={}, input mixin={})",
                             player.isShiftKeyDown(), mixinApplied);
+                    RouteTrace.timeout(traceIndex(node), traceWhat(node), "sneak never reached the server (no shift in "
+                            + "the last input packet)", stepTicks, player.position());
                     stop("couldn't start sneaking for the etherwarp");
                 }
                 return false;
@@ -2392,6 +2472,8 @@ public final class RouteExecutor {
             warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             int seqAfter = com.killer560.hub.util.RightClick.lastUseSequence();
             warpUseSeq = seqAfter != seqBefore ? seqAfter : -1;
+            RouteTrace.sent(traceIndex(node), traceWhat(node), actionOrigin, warpTarget, blockName(warpTarget), warpYaw,
+                    warpPitch);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
@@ -2421,7 +2503,9 @@ public final class RouteExecutor {
             if (landed(player, warpLanding)) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
-                checkLandingBlock(client, player, node);
+                boolean onTarget = checkLandingBlock(client, player, node);
+                RouteTrace.landed(traceIndex(node), traceWhat(node), actionOrigin, player.position(), warpTarget, onTarget,
+                        teleportPacketSeen, stepTicks);
                 landingConfirmed = teleportPacketSeen;
                 // Whether the sneak stays held for what comes next is planSneak's call, from finishAction.
                 RouteRotation.rebase();
@@ -2463,6 +2547,9 @@ public final class RouteExecutor {
                         + "recorded landing {}", stepTicks, fmt(player.position()),
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0 : player.position().distanceTo(actionOrigin)),
                         fmt(actionOrigin), fmt(warpLanding));
+                RouteTrace.timeout(traceIndex(node), traceWhat(node), "no landing at the recorded spot (server teleport "
+                        + (teleportPacketSeen ? "came, elsewhere" : "never came") + "; target "
+                        + (warpTarget == null ? "none" : warpTarget.toShortString()) + ")", stepTicks, player.position());
                 // Not a stop (killer560's correction rule, 2026-10-06, applied here at the coordinator's request: the
                 // server not putting him on the landing is treated like a correction): chat line + alarm, the node is
                 // let go uncounted, and the route carries on - in its ring still, it fires again from where he is.
@@ -2492,16 +2579,16 @@ public final class RouteExecutor {
      * (its column, at its standing height). A miss is logged with the planned and the actual block and counted; the route
      * goes on from where he is, as before (the next warp is aimed from here).
      */
-    private static void checkLandingBlock(Minecraft client, LocalPlayer player, RouteNode node) {
+    private static boolean checkLandingBlock(Minecraft client, LocalPlayer player, RouteNode node) {
         if (warpTarget == null || client.level == null) {
-            return;
+            return true;
         }
         Vec3 at = player.position();
         double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(client.level, warpTarget);
         boolean on = Mth.floor(at.x) == warpTarget.getX() && Mth.floor(at.z) == warpTarget.getZ()
                 && Math.abs(at.y - (standY + 0.05)) < 0.3;
         if (on) {
-            return;
+            return true;
         }
         offBlockLandings++;
         if (hopIndex >= 0) {
@@ -2521,6 +2608,15 @@ public final class RouteExecutor {
                 String.format(Locale.US, "%.2f", at.distanceTo(new Vec3(warpTarget.getX() + 0.5, standY + 0.05,
                         warpTarget.getZ() + 0.5))), String.format(Locale.US, "%.4f", Mth.wrapDegrees(warpYaw)),
                 String.format(Locale.US, "%.4f", warpPitch), warpAimFrom == null ? "?" : fmt(warpAimFrom));
+        return false;
+    }
+
+    /** "ETHERWARP", or "PATH hop 2/5" while a path pair flies. */
+    private static String traceWhat(RouteNode node) {
+        if (node.type == RouteNode.Type.PATH && hopIndex >= 0 && node.pathHops != null) {
+            return "PATH hop " + (hopIndex + 1) + "/" + node.pathHops.size();
+        }
+        return node.type.name();
     }
 
     /** Ticks an etherwarp node has waited on a block standing in its line ({@link #newBlockInLine}); 0 when not. */
@@ -2577,6 +2673,12 @@ public final class RouteExecutor {
         }
         lineWaitTicks++;
         lineWaitTicksTotal++;
+        if (lineWaitTicks == IDLE_SAY_TICKS * 4) {
+            // No time limit on this wait (killer560's rule), so it is said once it has held the warp 12 s.
+            RouteTrace.timeout(traceIndex(node), traceWhat(node), "still waiting for " + in.toShortString() + " ("
+                    + client.level.getBlockState(in).getBlock().getName().getString() + ") to leave the line to "
+                    + warpTarget.toShortString() + " - the warp is held, not given up", lineWaitTicks, player.position());
+        }
         if (!in.equals(lineWaitBlock)) {
             lineWaitBlock = in.immutable();
             LOGGER.info("[AutoRoutes] Etherwarp node #{}: {} ({}) stands in the line to {} and was not there when the node "
@@ -2687,6 +2789,10 @@ public final class RouteExecutor {
                     ModChat.text(" - the etherwarp lands there."));
         }
         if (blockWaitTicks > BLOCK_WAIT_TIMEOUT) {
+            RouteNode n = activeNode;
+            RouteTrace.timeout(traceIndex(n), n == null ? "?" : traceWhat(n), "landing block " + target.toShortString()
+                    + " never there to stand on (" + client.level.getBlockState(target) + ")", blockWaitTicks,
+                    client.player == null ? null : client.player.position());
             stop("the etherwarp's landing block at " + target.toShortString() + " never came back");
         }
         return false;
@@ -2740,6 +2846,9 @@ public final class RouteExecutor {
             actionOrigin = player.position();
             teleportPacketSeen = false;
             useHeldItem(client, player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, true);
+            BlockPos useAt = traceTarget(node);
+            RouteTrace.sent(traceIndex(node), "USE_ITEM " + node.item, actionOrigin, node.hasLanding ? useAt : null,
+                    node.hasLanding ? blockName(useAt) : null, RouteCoords.toRealYaw(frame, node.yaw), node.pitch);
             logActed(node, " (" + node.item + ")");
             step = Step.CONFIRM;
             stepTicks = 0;
@@ -2756,6 +2865,12 @@ public final class RouteExecutor {
             if (landed(player, node.hasLanding ? RouteCoords.toReal(frame, node.landingX, node.landingY, node.landingZ)
                     : null)) {
                 LOGGER.info("[AutoRoutes] Use: landed {} tick(s) after the use", stepTicks);
+                BlockPos useAt = traceTarget(node);
+                Vec3 pos = player.position();
+                double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(client.level, useAt);
+                RouteTrace.landed(traceIndex(node), "USE_ITEM " + node.item, actionOrigin, pos, useAt,
+                        Mth.floor(pos.x) == useAt.getX() && Mth.floor(pos.z) == useAt.getZ()
+                                && Math.abs(pos.y - (standY + 0.05)) < 0.3, teleportPacketSeen, stepTicks);
                 landingConfirmed = teleportPacketSeen;
                 RouteRotation.rebase();
                 cameraGraceTicks = 3;
@@ -2763,6 +2878,9 @@ public final class RouteExecutor {
                 finishAction();
                 noteLanding(node);
             } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
+                RouteTrace.timeout(traceIndex(node), "USE_ITEM " + node.item, "no landing at the recorded spot (server "
+                        + "teleport " + (teleportPacketSeen ? "came, elsewhere" : "never came") + ")", stepTicks,
+                        player.position());
                 stop(node.item + " didn't teleport where it was recorded");
             }
         }
@@ -3331,9 +3449,13 @@ public final class RouteExecutor {
     private static void clickBlockByHand(Minecraft client, LocalPlayer player, RouteNode node) {
         BlockHitResult hit = blockInSight(client, player, node, 4.5);
         if (hit == null) {
+            RouteTrace.timeout(traceIndex(node), "USE_ITEM click", "no block in sight within 4.5 along the recorded look",
+                    stepTicks, player.position());
             stop("the empty-hand use node has nothing to click (no block in sight within 4.5)");
             return;
         }
+        RouteTrace.sent(traceIndex(node), "USE_ITEM click", player.position(), hit.getBlockPos(),
+                blockName(hit.getBlockPos()), RouteCoords.toRealYaw(frame, node.yaw), node.pitch);
         if (!AutoRoutesConfig.getInstance().isLegitMode()) {
             // Look along the ray the click is made from first (camera held): a block click reported from another
             // facing is what GrimAC RotationPlace flags.
@@ -3537,6 +3659,8 @@ public final class RouteExecutor {
                             ModChat.text(")."));
                 }
                 if (breakerWaitTicks > BREAKER_WAIT_TIMEOUT) {
+                    RouteTrace.timeout(traceIndex(node), "DUNGEON_BREAKER", "never " + required + " charges (has "
+                            + charges[0] + ")", breakerWaitTicks, player.position());
                     stop("the Dungeon Breaker never had " + required + " charges (has " + charges[0] + " after "
                             + BREAKER_WAIT_TIMEOUT / 20 + " s)");
                 }
@@ -3635,6 +3759,8 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
                 finishAction();
             } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
+                RouteTrace.timeout(traceIndex(node), "DUNGEON_BREAKER", gone + " of " + breakerSent.size()
+                        + " sent block(s) gone", stepTicks, player.position());
                 if (gone == 0) {
                     stop("dungeon breaker didn't break the blocks");
                 } else {
@@ -3700,6 +3826,11 @@ public final class RouteExecutor {
         if (stepTicks > WARP_AIM_GIVE_UP) {
             LOGGER.info("[AutoRoutes] Etherwarp: the legit turn did not settle within {} degrees in {} ticks ({} off) -"
                     + " warping anyway", WARP_AIM_EXACT, stepTicks, RouteRotation.error());
+            if (activeNode != null) {
+                RouteTrace.timeout(traceIndex(activeNode), traceWhat(activeNode), "legit turn never within " + WARP_AIM_EXACT
+                        + " degrees (" + RouteRotation.error() + " off) - warping anyway, may land elsewhere", stepTicks,
+                        player.position());
+            }
             return true;
         }
         return false;

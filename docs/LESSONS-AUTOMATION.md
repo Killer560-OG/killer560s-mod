@@ -654,3 +654,6 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   Melee, 2026-10-18). The exact eye-to-centre ray met the lantern, the turned body's float yaw/pitch met the next block,
   and the auto turned every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks
   0.35 degrees either way meet the block too. Half the room's lanterns are set in walls, so centre-only sight hid most spots.
+- **The testkit finds Auto Routes events by log substrings, so a new log line must not reuse their wording** (2026-10-18).
+  The first `[AutoRoutes] trace` start line said "await secret 1", which is how 96-ar-crypt finds AwaitEvents' count line,
+  and its order check failed on a logging-only change. The trace now writes "1 secret"; grep the testkit before wording a line.
