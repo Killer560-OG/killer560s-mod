@@ -165,6 +165,11 @@ public final class BazaarFlipFeature {
      */
     private static int scanGeneration = 0;
     private static boolean keyWasDown = false;
+    /** When a screen last closed, and whether one was open on the previous tick - the start key waits
+     *  {@link #MENU_CLOSE_DELAY_MS} after a menu closes (killer560, 2026-10-18). */
+    private static boolean screenWasOpen = false;
+    private static long menuClosedAtMs = 0L;
+    static final long MENU_CLOSE_DELAY_MS = 250L;
     /**
      * True from a start until the start bind is seen UP again. Without it, holding the start key for longer
      * than {@link #START_GRACE_MS} makes the session stop itself on the very key that began it, which is
@@ -472,6 +477,13 @@ public final class BazaarFlipFeature {
     }
 
     private static void pollStartKey(Minecraft client, BazaarFlipConfig cfg) {
+        // Remember when the last screen closed (killer560, 2026-10-18: the button only works a quarter of a second after
+        // a menu closes) - the key that closed the menu must not also start the flip.
+        boolean screenOpen = McCompat.screen(client) != null;
+        if (screenWasOpen && !screenOpen) {
+            menuClosedAtMs = System.currentTimeMillis();
+        }
+        screenWasOpen = screenOpen;
         if (!cfg.isEnabled() || client.getWindow() == null) {
             keyWasDown = false;
             return;
@@ -487,7 +499,8 @@ public final class BazaarFlipFeature {
         }
         // Rising edge, and only with no screen open, so the bind can't fire while he is typing in chat or
         // clicking around this mod's own settings.
-        if (down && !keyWasDown && McCompat.screen(client) == null && state == State.IDLE) {
+        boolean afterMenuDelay = System.currentTimeMillis() - menuClosedAtMs >= MENU_CLOSE_DELAY_MS;
+        if (down && !keyWasDown && !screenOpen && afterMenuDelay && state == State.IDLE) {
             String refusal = start();
             if (refusal != null) {
                 ModChat.send("Bazaar Flip", ModChat.bad("Can't start: "), ModChat.text(refusal));
@@ -697,10 +710,15 @@ public final class BazaarFlipFeature {
                         target.productId(), have);
                 boolean wasCustom = custom == Custom.AFTER_SIGN;
                 custom = Custom.NONE;
-                if (wasCustom && !(open instanceof AbstractContainerScreen<?>)) {
+                if (wasCustom && (!(open instanceof AbstractContainerScreen<?>) || isConfirmPage(open))) {
                     // The items can land before the page the sign came from is shown again (testkit 2764 on the
                     // merged jar: 40 of 100 arrived with no menu up, and buying ended there). Wait for the page,
-                    // bounded; only if no menu comes back is this cycle's buying over.
+                    // bounded; only if no menu comes back is this cycle's buying over. A Confirm Instant Buy page left
+                    // up after the buy is not a Bazaar page: it is closed here, and the same bounded wait applies
+                    // (killer560, 2026-10-18: "Unexpected Bazaar page: Confirm Instant Buy" stopped a live run).
+                    if (isConfirmPage(open) && client.player != null) {
+                        client.player.closeContainer();
+                    }
                     awaitingReopenSinceMs = now;
                     return;
                 }
@@ -721,7 +739,7 @@ public final class BazaarFlipFeature {
             }
         }
         if (awaitingReopenSinceMs > 0L) {
-            if (open instanceof AbstractContainerScreen<?>) {
+            if (open instanceof AbstractContainerScreen<?> && !isConfirmPage(open)) {
                 awaitingReopenSinceMs = 0L; // the page is back: carry on buying from it
             } else if (open != null || now - awaitingReopenSinceMs > REOPEN_TIMEOUT_MS) {
                 awaitingReopenSinceMs = 0L;
@@ -1084,6 +1102,11 @@ public final class BazaarFlipFeature {
         nextActionAtMs = now + randomDelay(cfg);
     }
 
+    /** The Confirm Instant Buy page, open at all (it is not a Bazaar page and is never dispatched as one). */
+    private static boolean isConfirmPage(Screen open) {
+        return open instanceof AbstractContainerScreen<?> c && CONFIRM_INSTANT_BUY.equals(BazaarFlipMenus.titleOf(c));
+    }
+
     /** After Done: a Confirm Instant Buy page is confirmed (once, if it states the amount); anything else waits. */
     private static void tickAfterSign(Minecraft client, Screen open, BazaarFlipConfig cfg, long now) {
         if (open instanceof AbstractSignEditScreen) {
@@ -1164,6 +1187,13 @@ public final class BazaarFlipFeature {
         int bought = 0;
         if (target != null && carriedAtStart >= 0) {
             bought = carried(client) - carriedAtStart;
+        }
+        // Diagnostic (2026-10-18: flips ended with purse and inventory room left): the three limits at the moment buying stops.
+        if (target != null && client.player != null) {
+            LOGGER.info("[BazaarFlip] Buying ends ({}): bought {} of {}, purse {}, free room {}, NPC sell room {} coins",
+                    why, bought, target.units(), readPurse(),
+                    BazaarFlipMenus.roomFor(client.player.containerMenu, target.productId(), target.displayName(), Math.max(1, target.stackSize())),
+                    BazaarFlipNpcLimit.remaining());
         }
         custom = Custom.NONE;
         if (bought <= 0) {
