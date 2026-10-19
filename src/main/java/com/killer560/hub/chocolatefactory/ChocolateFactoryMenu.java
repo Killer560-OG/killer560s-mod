@@ -75,7 +75,14 @@ public final class ChocolateFactoryMenu {
         long chocolate = parseLong(name(slots, INFO_SLOT));
         Double cps = firstMatch(lore(slots, INFO_SLOT), CPS);
         int prodSlot = findByName(slots, "Chocolate Production", PRODUCTION_SLOT);
-        Double mult = firstMatch(lore(slots, prodSlot), TOTAL_MULT);
+        List<String> prodLore = lore(slots, prodSlot);
+        Double mult = firstMatch(prodLore, TOTAL_MULT);
+        if (mult == null && firstMatch(prodLore, CPS) != null) {
+            // Hypixel leaves the "Total Multiplier" line off while the factory is at 1x (the 22:49:02 open of
+            // 2026-10-18: production says "1 Chocolate per second" and no multiplier). No line means 1x, not
+            // "unreadable", or every upgrade is dropped and nothing is highlighted.
+            mult = 1.0;
+        }
         int tt = findByName(slots, "Time Tower", TIME_TOWER_SLOT);
         int coach = findByName(slots, "Coach Jackrabbit", COACH_SLOT);
         List<String> ttLore = lore(slots, tt);
