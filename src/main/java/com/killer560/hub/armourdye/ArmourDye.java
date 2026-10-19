@@ -178,7 +178,7 @@ public final class ArmourDye {
                 return trim == null ? original : trim;
             }
             if (type == DataComponents.ITEM_MODEL) {
-                Identifier model = iconModel(entry);
+                Identifier model = iconModel(entry, stack);
                 return model == null ? original : model;
             }
             if (type == DataComponents.PROFILE) {
@@ -217,16 +217,38 @@ public final class ArmourDye {
         return entry.skin.asset();
     }
 
-    /** The Look: the entry's own model, or the player-head model when it carries a head texture. */
-    private static Identifier iconModel(ArmourDyeEntry entry) {
+    /**
+     * The Look: the entry's own model, or the player-head model when it carries a head texture. Failing those, an armour
+     * skin's matching vanilla icon for this slot ({@link ArmourSkin#iconModel}). That last step was missing until
+     * 2026-10-18: the skin only changed the worn texture, so the inventory icon, the menu and the hand never showed it.
+     */
+    private static Identifier iconModel(ArmourDyeEntry entry, ItemStack stack) {
         if (!entry.iconModel.isBlank()) {
             return Identifier.tryParse(entry.iconModel.trim());
         }
         if (!entry.headTexture.isBlank()) {
             return PLAYER_HEAD_MODEL;
         }
+        if (entry.skin != ArmourSkin.NONE && entry.skin != ArmourSkin.CUSTOM) {
+            EquipmentSlot slot = slotOf(stack);
+            return slot == null ? null : entry.skin.iconModel(slot);
+        }
         return null;
     }
+
+    /** Runs {@code action} with every override off on this thread, so the menu can draw the real item. */
+    public static void withoutOverrides(Runnable action) {
+        boolean[] bypass = BYPASS.get();
+        boolean outer = bypass[0];
+        bypass[0] = true;
+        try {
+            action.run();
+        } finally {
+            bypass[0] = outer;
+        }
+    }
+
+    private static final ThreadLocal<boolean[]> BYPASS = ThreadLocal.withInitial(() -> new boolean[1]);
 
     private static final Identifier PLAYER_HEAD_MODEL = Identifier.withDefaultNamespace("player_head");
 
@@ -286,7 +308,7 @@ public final class ArmourDye {
 
     /** @return the entry for this stack (its UUID key first, then its id), or null. */
     public static ArmourDyeEntry entryFor(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || snapshot.isEmpty()) {
+        if (stack == null || stack.isEmpty() || snapshot.isEmpty() || BYPASS.get()[0]) {
             return null;
         }
         // Inside identityOf's display-name read: every component read there sees the real item (see NAMING).
