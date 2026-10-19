@@ -621,7 +621,6 @@ final class SettingTooltipsData {
         d.put("split timers/total without lag", "Adds the run's time without server lag in parentheses after the Total: \"Total: 1m 23.45s (1m 20.10s)\". Also on the chat Total.");
         d.put("split timers/lag lost", "A Lag line under the Total: how much of the run server lag cost (the Total minus the time in parentheses).");
         d.put("announce in chat", "Posts a private chat message only you can see when this happens.");
-        d.put("device/lever times", "Legacy setting that currently does nothing.");
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
         d.put("terminal solve times", "Shows how long you had each terminal open after you finish it.");
         d.put("terminal/device splits", "Adds section and phase times to every terminal, device and lever completion line in P3.");

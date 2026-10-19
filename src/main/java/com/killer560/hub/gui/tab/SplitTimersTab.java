@@ -42,18 +42,6 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 24;
 
-        // NOTHING READS THIS ANY MORE (2026-09-29). It used to gate DeviceTimesFeature's "(Xs since P2
-        // started)" suffix, which TerminalTimersFeature superseded on 2026-09-14; the class was deleted
-        // once the only thing left in it was diagnostic logging. The toggle, the field and its save/load
-        // are still here rather than ripped out, because the sensible fix is probably to make
-        // TerminalTimersFeature honour it for device/lever lines - killer560's call.
-        widgets.add(SettingsButtonWidget.builder(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()), btn -> {
-                    cfg.setAnnounceDeviceTimes(!cfg.isAnnounceDeviceTimes());
-                    cfg.save();
-                    btn.setMessage(onOff("Device/Lever Times", cfg.isAnnounceDeviceTimes()));
-                }).bounds(contentX, y, 220, 18).build());
-        y += 24;
-
         // The layout itself is fixed (killer560, 2026-10-08): Blood Open, Watcher, Portal Entry, Boss Entry, a line, the
         // boss phases and Boss, a line, Total and Lag. Only the "(lagless)" parentheses and the extra rows/blocks toggle.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
