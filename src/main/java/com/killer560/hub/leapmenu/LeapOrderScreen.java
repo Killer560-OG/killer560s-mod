@@ -204,7 +204,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
      *  from edge to edge of the panel (inside its 12 unit margin). */
     private int[] classArea() {
         int x = 18;
-        int y = 46;
+        int y = 76;
         int w = Math.max(50, width - 2 * x);
         int room = Math.max(40, height - 40 - y);
         // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centred.
@@ -451,12 +451,12 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         themedBounds = new int[]{6, 6, width - 12, height - 12};
         ScreenChrome.frame(graphics, 6, 6, width - 12, height - 12);
         GuiRects head = GuiRects.begin(graphics);
-        MenuStyle.bevel(head, 9, 9, width - 18, editing != null && wizard == null ? 40 : 18, MenuStyle.HEADER_TOP,
-                MenuStyle.HEADER_BOTTOM);
+        MenuStyle.bevel(head, 9, 9, width - 18, editing != null && wizard == null ? 40 : editing == null ? 58 : 18,
+                MenuStyle.HEADER_TOP, MenuStyle.HEADER_BOTTOM);
         head.submit();
         if (editing == null) {
             ScreenChrome.titleCentred(graphics, "Leap Order", width / 2, 16, false);
-            ScreenChrome.centered(graphics, "Select the class you are playing", width / 2, 32, MenuStyle.TXT_SOFT);
+            drawLarge(graphics, "Select the class you are playing", width / 2, 34, 2f, MenuStyle.TXT_SOFT);
         } else if (wizard != null) {
             renderWizard(graphics);
         } else {
@@ -569,8 +569,18 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    /** One class on page 1: a tall card with the class name in a band of its colour and, under it, everyone in the party
-     *  who is on that class now (you marked). Its message is the class name, so it is found like the old button. */
+    /** Text drawn {@code scale} times its size, centred on {@code cx} with its top at {@code y}. */
+    private static void drawLarge(GuiGraphicsExtractor g, String s, int cx, int y, float scale, int colour) {
+        int w = MenuStyle.font().width(s);
+        g.pose().pushMatrix();
+        g.pose().translate(cx, y);
+        g.pose().scale(scale, scale);
+        ScreenChrome.text(g, s, -w / 2, 0, colour);
+        g.pose().popMatrix();
+    }
+
+    /** One class on page 1: a tall card showing just the class name, large. Its message is the class name, so it is
+     *  found like the old button. */
     private static final class ClassCard extends AbstractWidget {
         private final DungeonClass cls;
         private final Runnable onClick;
@@ -589,40 +599,14 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             int y = getY();
             int w = getWidth();
             int h = getHeight();
+            // Just the class, large (killer560, 2026-10-18: "select what class you are playing much larger so people
+            // cant mistake what they need to do"). No names: who is on which class is the list on the tab list, not here.
             GuiRects r = GuiRects.begin(graphics);
             ScreenChrome.card(r, x, y, w, h, isHovered, last);
             r.outline(x + 1, y + 1, w - 2, h - 2, c);
-            int band = Math.min(26, Math.max(16, h / 4));
-            r.fill(x + 2, y + 2, x + w - 2, y + 2 + band, MenuStyle.alpha(cls.color(), 0x60));
+            r.fill(x + 2, y + 2, x + w - 2, y + h - 2, MenuStyle.alpha(cls.color(), 0x30));
             r.submit();
-            ScreenChrome.centered(graphics, cls.displayName(), x + w / 2, y + 2 + (band - 8) / 2, c);
-            Minecraft client = Minecraft.getInstance();
-            String self = client.player == null ? null : client.player.getGameProfile().name();
-            int ly = y + band + 8;
-            int lines = Math.max(0, (y + h - 14 - ly) / 11);
-            int shown = 0;
-            int on = 0;
-            for (String name : partyNames()) {
-                if (PartyTracker.classOf(name) != cls) {
-                    continue;
-                }
-                on++;
-                if (shown < lines) {
-                    boolean me = self != null && self.equalsIgnoreCase(name);
-                    String label = me ? name + " (you)" : name;
-                    ScreenChrome.centered(graphics, MenuStyle.ellipsize(label, w - 8), x + w / 2, ly, MenuStyle.TXT);
-                    ly += 11;
-                    shown++;
-                }
-            }
-            if (on > shown) {
-                ScreenChrome.centered(graphics, "+" + (on - shown) + " more", x + w / 2, ly, MenuStyle.DIM);
-            } else if (on == 0) {
-                ScreenChrome.centered(graphics, "nobody yet", x + w / 2, ly, MenuStyle.DIM2);
-            }
-            if (last && h >= 40) {
-                ScreenChrome.centered(graphics, "last used", x + w / 2, y + h - 12, MenuStyle.DIM2);
-            }
+            drawLarge(graphics, cls.displayName(), x + w / 2, y + h / 2 - 12, 3f, c);
         }
 
         @Override
