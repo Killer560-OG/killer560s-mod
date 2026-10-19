@@ -203,12 +203,14 @@ public final class CompactorPreviewFeature {
 
     private static ItemStack iconFor(String skyblockId) {
         try {
-            // The real catalog (skins, models) only when the Item Browser already has it; this never starts a download.
-            if (ItemBrowserConfig.getInstance().isEnabled()) {
-                SkyblockItemEntry entry = SkyblockItemRepository.findById(skyblockId);
-                if (entry != null) {
-                    return SkyblockItemStackFactory.build(entry);
-                }
+            // The real catalog (skins, models): whatever is already on disk, with the Item Browser on or off. The Item Browser
+            // switch only controls downloading it; a missing entry falls back to the offline look-alike below.
+            SkyblockItemEntry entry = SkyblockItemRepository.findOnDisk(skyblockId);
+            if (entry == null && ItemBrowserConfig.getInstance().isEnabled()) {
+                entry = SkyblockItemRepository.findById(skyblockId);
+            }
+            if (entry != null) {
+                return SkyblockItemStackFactory.build(entry);
             }
         } catch (Exception ignored) {
             // fall through to the offline look-alike
