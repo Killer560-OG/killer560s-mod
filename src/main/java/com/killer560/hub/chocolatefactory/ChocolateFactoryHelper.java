@@ -1,5 +1,6 @@
 package com.killer560.hub.chocolatefactory;
 
+import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.dungeonalerts.DungeonAlertsFeature;
 import com.killer560.hub.dungeonalerts.SecretSound;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
@@ -84,6 +85,20 @@ public final class ChocolateFactoryHelper {
         return towerReminders;
     }
 
+    /** Writes every occupied slot of a freshly opened factory to the log: slot number, item name and lore. Once per open,
+     *  so a changed Hypixel layout can be read straight from the log (killer560, 2026-10-18: "make a logger ... you can see it all"). */
+    private static void dumpMenu(List<ItemStack> top) {
+        LOGGER.info("[ChocolateFactory] menu opened, dumping {} slots", top.size());
+        for (int i = 0; i < top.size(); i++) {
+            ItemStack stack = top.get(i);
+            if (stack == null || stack.isEmpty()) {
+                continue;
+            }
+            LOGGER.info("[ChocolateFactory] slot {}: {} :: {}", i, CheatUtils.plainName(stack),
+                    String.join(" | ", CheatUtils.lore(stack)));
+        }
+    }
+
     private static void tick(Minecraft client) {
         try {
             ChocolateFactoryConfig cfg = ChocolateFactoryConfig.getInstance();
@@ -107,6 +122,7 @@ public final class ChocolateFactoryHelper {
                 stateContainer = menu.containerId;
                 strayAlerted.clear();
                 towerReminded = false;
+                dumpMenu(top);
             }
             state = ChocolateFactoryMenu.read(top);
             if (cfg.isStrayAlert()) {
