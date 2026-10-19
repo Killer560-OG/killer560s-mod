@@ -1589,8 +1589,10 @@ public final class RouteExecutor {
         if (!node.awaitEnabled) {
             return "none";
         }
-        return (node.awaitCondition == null ? "?" : node.awaitCondition.name().toLowerCase(Locale.ROOT)) + " "
-                + Math.max(1, node.awaitAmount);
+        // "1 secret", never "secret 1": AwaitEvents' own count lines read "await secret 1: ..." and log readers (the
+        // testkit included) find them by that text.
+        return Math.max(1, node.awaitAmount) + " "
+                + (node.awaitCondition == null ? "?" : node.awaitCondition.name().toLowerCase(Locale.ROOT));
     }
 
     private static void finishAction() {
