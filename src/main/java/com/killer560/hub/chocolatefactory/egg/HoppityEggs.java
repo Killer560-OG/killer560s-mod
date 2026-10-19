@@ -48,7 +48,9 @@ public final class HoppityEggs {
     static final Pattern APPEARED = Pattern.compile("^HOPPITY'S HUNT A Chocolate " + MEALS + " Egg has appeared!$");
     static final Pattern FOUND = Pattern.compile("^HOPPITY'S HUNT You found a Chocolate " + MEALS + " Egg.{0,80}$");
     static final Pattern ALREADY = Pattern.compile("^You have already collected this Chocolate " + MEALS + " Egg!.{0,60}$");
-    static final Pattern NONE_NEARBY = Pattern.compile("^There are no hidden Chocolate Rabbit Eggs nearby! Try again later!$");
+    static final Pattern NONE_NEARBY = Pattern.compile("^There are no (?:hidden )?Chocolate Rabbit Eggs nearby! Try again later!$");
+    /** The Egglocator on an island that spawns no eggs (wiki, Egglocator). */
+    static final Pattern WRONG_ISLAND = Pattern.compile("^This island doesn't spawn Chocolate Rabbit Eggs!$");
     static final Pattern NEW_RABBIT = Pattern.compile("^NEW RABBIT! .{0,120}$");
     static final Pattern DUPLICATE = Pattern.compile("^DUPLICATE RABBIT! \\+([\\d,]{1,20}) Chocolate.{0,80}$");
 
@@ -72,12 +74,21 @@ public final class HoppityEggs {
 
     public static final HudElement HUD = new EggHud();
 
+    /** The Egglocator: a right click starts a 5 s cooldown and draws a particle trail to the closest unfound egg (wiki). */
+    private static final long LOCATOR_COOLDOWN_MS = 5_000L;
+    private static final long LOCATOR_RESULT_MS = 60_000L;
+    private static long locatorUsedMs;
+    private static long locatorResultMs;
+    private static String locatorResult = "";
+    private static boolean useWasDown;
+
     private HoppityEggs() {
     }
 
     public static void register() {
         java.util.Arrays.fill(status, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tickLocator);
         ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tick);
         HudElementRegistry.register(HUD);
         net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry.addLast(
@@ -155,6 +166,11 @@ public final class HoppityEggs {
         if (NONE_NEARBY.matcher(plain).matches()) {
             // The Egglocator's "none left" answer: Skyblocker reads it as every live egg collected, and so do we.
             java.util.Arrays.fill(status, Status.FOUND);
+            setLocatorResult("§cNo eggs left on this island.");
+            return;
+        }
+        if (WRONG_ISLAND.matcher(plain).matches()) {
+            setLocatorResult("§cThis island has no eggs.");
             return;
         }
         if (NEW_RABBIT.matcher(plain).matches()) {
@@ -185,6 +201,29 @@ public final class HoppityEggs {
     }
 
     // ---------------------------------------------------------------------------------------------------- HUD
+
+    /** Egglocator status: cooling down, ready, or the last answer it gave. */
+    static String locatorLine(long now) {
+        long cooling = locatorUsedMs + LOCATOR_COOLDOWN_MS - now;
+        String state = cooling > 0 ? "§7cooling " + ((cooling + 999) / 1000) + "s" : "§aready";
+        String last = locatorResult.isEmpty() || now - locatorResultMs > LOCATOR_RESULT_MS ? "" : " §7| " + locatorResult;
+        return "§dEgglocator: " + state + last;
+    }
+
+    private static void setLocatorResult(String text) {
+        locatorResult = text;
+        locatorResultMs = System.currentTimeMillis();
+    }
+
+    /** Rising edge of the use key while holding an Egglocator starts its cooldown. Read on the client tick only. */
+    private static void tickLocator(Minecraft client) {
+        boolean down = client.player != null && client.options != null && client.options.keyUse.isDown()
+                && client.player.getMainHandItem().getHoverName().getString().contains("Egglocator");
+        if (down && !useWasDown && System.currentTimeMillis() >= locatorUsedMs + LOCATOR_COOLDOWN_MS) {
+            locatorUsedMs = System.currentTimeMillis();
+        }
+        useWasDown = down;
+    }
 
     /** The HUD's lines; empty when there is nothing to show. */
     static List<String> lines(boolean preview) {
@@ -223,6 +262,7 @@ public final class HoppityEggs {
         }
         out.add("§7Next egg in §f" + ChocolateFactoryMenu.duration((soonest - now + 999) / 1000)
                 + (ready > 0 ? " §7| §a" + ready + " to find" : ""));
+        out.add(locatorLine(now));
         int eggs = preview ? 5 : sessionEggs;
         if (eggs > 0 || preview) {
             int dupes = preview ? 3 : sessionDupes;
