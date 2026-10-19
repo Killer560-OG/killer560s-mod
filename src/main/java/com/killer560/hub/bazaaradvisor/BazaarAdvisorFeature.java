@@ -4,34 +4,43 @@ import com.killer560.hub.auction.BazaarApi;
 import com.killer560.hub.auction.BazaarProduct;
 import com.killer560.hub.bazaarflip.BazaarFlipFeature;
 import com.killer560.hub.bazaarflip.BazaarFlipMenus;
+import com.killer560.hub.bazaarflip.BazaarFlipNpcLimit;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import com.killer560.hub.itembrowser.SkyblockItemRepository;
+import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /**
- * Bazaar Advisor: when a Bazaar menu opens, prints what to buy and how much (legit, read-only).
+ * Bazaar Advisor (killer560, 2026-10-19: "use all the info they give to recommend the right item ... make sure to account
+ * for things like amount sold ... Make this highly advanced"). Works from the answers {@code /bzflip} stored in
+ * {@link BazaarAdvisorConfig} and prints one recommendation in chat every time a Bazaar menu opens.
  * <p>
- * Buy price is the cheapest sell offer (what an instant buy costs). Bazaar pick sells into the best buy order after the
- * Bazaar's 1.25% sell tax, ranked by profit per unit times units sold a week. NPC pick sells to the NPC at its listed
- * price, ranked by profit per unit. Quantity is what the purse covers, capped by free inventory room at 64 a stack.
+ * For each product: <b>buy</b> is the cheapest sell offer (Insta Buy) or the best buy order plus 0.1 (Buy Order, a bid that
+ * outbids the current best). <b>sell</b> is the NPC price, or on the Bazaar the best buy order less the 1.25% tax (Insta Sell)
+ * or the cheapest sell offer less 0.1 and the same tax (Sell Offer). <b>How many</b>: an Insta Buy is capped by the free
+ * inventory room, a Buy Order only by the purse (as high as possible); both are capped by the purse, and NPC sales by the
+ * daily NPC limit. <b>How much sells</b>: the Bazaar's weekly volume on the side you sell into, divided by seven, is what
+ * sells in a day, so the expected profit counts only the units that can be sold within one day - a big stack of a product
+ * nobody buys ranks low. The ranking is that expected profit (Total profit per inventory) or the profit percentage (Best
+ * profit percentage).
  */
 public final class BazaarAdvisorFeature {
 
     private static final String CHAT = "Bazaar Advisor";
-    /** Bazaar sell tax taken from the amount a sell offer fills at. */
+    /** Bazaar sell tax taken from the amount a sell fills at. */
     private static final double SELL_TAX = 0.0125;
-    /** Assumed stack size for the inventory-room cap; the advisor line says "up to", so an approximation is fine. */
-    private static final int STACK = 64;
+    /** How far a buy order bids above the best buy order, and an undercut below the cheapest sell offer, in coins. */
+    private static final double TICK = 0.1;
+    /** Days of sales the expected profit is counted over: what sells within one day counts. */
+    private static final double HORIZON_DAYS = 1.0;
 
     /** The screen the advice was last given for: one line per menu open, not one per tick. */
     private static AbstractContainerScreen<?> advisedScreen;
@@ -52,14 +61,15 @@ public final class BazaarAdvisorFeature {
                 return;
             }
             advisedScreen = screen;
-            advise(client, screen.getMenu());
+            advise(screen.getMenu());
         } catch (RuntimeException e) {
             // A bad read must never stop the game's tick; the advisor just says nothing for this menu.
             advisedScreen = null;
         }
     }
 
-    private static void advise(Minecraft client, AbstractContainerMenu menu) {
+    /** Prints the current recommendation for the open Bazaar menu. Also used by the setup screen's summary. */
+    public static void advise(AbstractContainerMenu menu) {
         List<BazaarProduct> products = BazaarApi.getProducts();
         if (products == null || products.isEmpty()) {
             ModChat.send(CHAT, ModChat.dim("No Bazaar prices loaded yet - open the menu again in a moment."));
@@ -67,83 +77,118 @@ public final class BazaarAdvisorFeature {
         }
         BazaarAdvisorConfig cfg = BazaarAdvisorConfig.getInstance();
         Double purse = BazaarFlipFeature.readPurse();
-        if (cfg.isBazaarMode()) {
-            Pick best = bazaarPick(products);
-            report(client, menu, "Bazaar", best, purse);
+        Recommendation r = recommend(products, cfg, menu, purse);
+        if (r == null) {
+            ModChat.send(CHAT, ModChat.text("Nothing is worth buying with your settings right now ("),
+                    ModChat.dim(cfg.summary() + ")."));
+            return;
         }
-        if (cfg.isNpcMode()) {
-            Pick best = npcPick(products);
-            report(client, menu, "NPC", best, purse);
-        }
+        ModChat.send(CHAT, ModChat.text("Buy "), ModChat.value(String.format(Locale.US, "%,d", r.units()) + " " + r.name()),
+                ModChat.text(" - " + r.buyLabel() + " at ~" + money(r.buy()) + " each, " + r.sellLabel() + " at ~" + money(r.sell())
+                        + " for +" + money(r.profitEach()) + " each (" + String.format(Locale.US, "%.1f", r.profitPercent()) + "%)."));
+        ModChat.send(CHAT, ModChat.dim("Spend ~" + money(r.spend()) + ". Expected profit ~" + money(r.expectedProfit())
+                + " from ~" + String.format(Locale.US, "%,d", r.expectedSold()) + " sold in a day. " + r.capNote()
+                + " Settings: " + cfg.summary() + "."));
     }
 
-    /** The product to buy and sell into buy orders, ranked by profit per unit times units sold a week. */
-    static Pick bazaarPick(List<BazaarProduct> products) {
-        Pick best = null;
+    /**
+     * The best product for these answers, or null when nothing is profitable under them. Pure apart from the inventory room
+     * read from {@code menu}, so the setup summary and the menu hook share it.
+     */
+    public static Recommendation recommend(List<BazaarProduct> products, BazaarAdvisorConfig cfg, AbstractContainerMenu menu, Double purse) {
+        boolean insta = cfg.getBuyMethod() == BazaarAdvisorConfig.BuyMethod.INSTA_BUY;
+        boolean npc = cfg.getMode() == BazaarAdvisorConfig.Mode.NPC;
+        Recommendation best = null;
         for (BazaarProduct p : products) {
-            double buy = p.topSellOfferPrice();
-            double sell = p.topBuyOrderPrice();
-            if (buy <= 0 || sell <= 0) {
-                continue;
-            }
-            double profit = sell * (1 - SELL_TAX) - buy;
-            if (profit <= 0 || p.sellMovingWeek() <= 0) {
-                continue;
-            }
-            double score = profit * p.sellMovingWeek();
-            if (best == null || score > best.score()) {
-                best = new Pick(p.productId(), p.displayName(), buy, sell, profit, score, p.sellMovingWeek());
-            }
-        }
-        return best;
-    }
-
-    /** The product whose cheapest sell offer leaves the most profit when the NPC buys it. */
-    static Pick npcPick(List<BazaarProduct> products) {
-        Map<String, BazaarProduct> byId = new HashMap<>();
-        for (BazaarProduct p : products) {
-            byId.put(p.productId(), p);
-        }
-        Pick best = null;
-        for (SkyblockItemEntry entry : SkyblockItemRepository.getItems()) {
-            Double npc = entry.npcSellPrice();
-            BazaarProduct p = byId.get(entry.id());
-            if (npc == null || npc <= 0 || p == null) {
-                continue;
-            }
-            double buy = p.topSellOfferPrice();
+            SkyblockItemEntry entry = SkyblockItemRepository.findById(p.productId());
+            double buy = insta ? p.topSellOfferPrice() : p.topBuyOrderPrice() + TICK;
             if (buy <= 0) {
                 continue;
             }
-            double profit = npc - buy;
-            if (profit <= 0) {
+            double sell;
+            double soldPerDay;
+            String sellLabel;
+            if (npc) {
+                Double npcPrice = entry == null ? null : entry.npcSellPrice();
+                if (npcPrice == null || npcPrice <= 0) {
+                    continue;
+                }
+                sell = npcPrice;
+                soldPerDay = Double.MAX_VALUE; // the NPC takes what it will take; its daily limit caps the count below
+                sellLabel = "sell to the NPC";
+            } else if (cfg.getSellMethod() == BazaarAdvisorConfig.SellMethod.INSTA_SELL) {
+                sell = p.topBuyOrderPrice() * (1 - SELL_TAX);
+                soldPerDay = p.sellMovingWeek() / 7.0;
+                sellLabel = "sell with Insta Sell";
+            } else {
+                sell = (p.topSellOfferPrice() - TICK) * (1 - SELL_TAX);
+                soldPerDay = p.buyMovingWeek() / 7.0;
+                sellLabel = "sell with a Sell Offer";
+            }
+            double profitEach = sell - buy;
+            if (profitEach <= 0 || sell <= 0) {
                 continue;
             }
-            if (best == null || profit > best.score()) {
-                best = new Pick(p.productId(), p.displayName(), buy, npc, profit, profit, 0);
+            if (!npc && soldPerDay < 1) {
+                continue; // nobody is trading it on the Bazaar side we sell into
+            }
+            int stack = entry == null ? 64 : Math.max(1, SkyblockItemStackFactory.materialMaxStackSize(entry.material()));
+            long cap = Long.MAX_VALUE;
+            String capNote = "as many as your purse allows";
+            if (insta && menu != null) {
+                cap = Math.max(0, BazaarFlipMenus.roomFor(menu, p.productId(), p.displayName(), stack));
+                capNote = "capped by your inventory space";
+            }
+            if (purse != null) {
+                cap = Math.min(cap, (long) Math.floor(purse / buy));
+            }
+            if (npc) {
+                cap = Math.min(cap, (long) Math.floor(BazaarFlipNpcLimit.remaining() / sell));
+            }
+            if (cap < 1) {
+                continue;
+            }
+            long units = cap;
+            long sold = npc ? units : (long) Math.min(units, Math.floor(soldPerDay * HORIZON_DAYS));
+            if (sold < 1) {
+                continue;
+            }
+            double expected = profitEach * sold;
+            double percent = profitEach / buy * 100.0;
+            Recommendation r = new Recommendation(p.productId(), p.displayName(), units, buy, sell, profitEach, percent,
+                    expected, sold, insta ? "Insta Buy" : "Buy Order", sellLabel, capNote);
+            if (best == null || beats(cfg, r, best)) {
+                best = r;
             }
         }
         return best;
     }
 
-    private static void report(Minecraft client, AbstractContainerMenu menu, String label, Pick pick, Double purse) {
-        if (pick == null) {
-            ModChat.send(CHAT, ModChat.dim(label + ": nothing is profitable right now."));
-            return;
+    /** Total profit ranks by the expected profit; percentage ranks by the profit per coin spent, then by expected profit. */
+    private static boolean beats(BazaarAdvisorConfig cfg, Recommendation a, Recommendation b) {
+        if (cfg.getGoal() == BazaarAdvisorConfig.Goal.PROFIT_PERCENT) {
+            if (a.profitPercent() != b.profitPercent()) {
+                return a.profitPercent() > b.profitPercent();
+            }
+            return a.expectedProfit() > b.expectedProfit();
         }
-        int room = Math.max(0, BazaarFlipMenus.roomFor(menu, pick.productId(), pick.name(), STACK));
-        long byPurse = purse == null ? Long.MAX_VALUE : (long) Math.floor(purse / pick.buy());
-        long units = Math.min(room, byPurse);
-        String how = units <= 0 ? "no room or purse for one" : String.format(Locale.US, "%,d", units)
-                + (purse == null ? " (purse unknown, room only)" : "");
-        String sold = pick.soldPerWeek() > 0 ? String.format(Locale.US, ", %,d sold a week", pick.soldPerWeek()) : "";
-        ModChat.send(CHAT, ModChat.text(label + ": buy "), ModChat.value(how),
-                ModChat.text(" " + pick.name() + " at ~" + String.format(Locale.US, "%,.1f", pick.buy()) + " each, sell at ~"
-                        + String.format(Locale.US, "%,.1f", pick.sell()) + " for +" + String.format(Locale.US, "%,.1f", pick.profit())
-                        + " each" + sold));
+        if (a.expectedProfit() != b.expectedProfit()) {
+            return a.expectedProfit() > b.expectedProfit();
+        }
+        return a.profitPercent() > b.profitPercent();
     }
 
-    /** One recommendation: what to buy, its buy and sell price per unit, the profit per unit, the ranking score and volume. */
-    record Pick(String productId, String name, double buy, double sell, double profit, double score, long soldPerWeek) {
+    private static String money(double coins) {
+        return String.format(Locale.US, "%,.1f", coins);
+    }
+
+    /** One recommendation: what to buy, how many, both prices, the profit, and what the sales can absorb in a day. */
+    public record Recommendation(String productId, String name, long units, double buy, double sell, double profitEach,
+                                 double profitPercent, double expectedProfit, long expectedSold, String buyLabel,
+                                 String sellLabel, String capNote) {
+
+        public double spend() {
+            return units * buy;
+        }
     }
 }

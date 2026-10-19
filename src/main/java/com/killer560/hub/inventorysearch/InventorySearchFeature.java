@@ -52,6 +52,8 @@ public final class InventorySearchFeature {
     private static final long OVERLAY_HIGHLIGHT_DURATION_MS = 4000L;
 
     private static final StringBuilder QUERY = new StringBuilder();
+    /** Ctrl+A: the whole query is selected; the next typed character or paste replaces it, Backspace clears it. */
+    private static boolean selectedAll = false;
     private static boolean listening = false;
 
     /** Real screen bounds of the standalone floating search box from the most recent render (null
@@ -129,8 +131,36 @@ public final class InventorySearchFeature {
                 listening = false;
                 return false;
             }
+            if (event.hasControlDown() && event.key() == InputConstants.KEY_A) {
+                selectedAll = QUERY.length() > 0;
+                return false;
+            }
+            if (event.hasControlDown() && (event.key() == InputConstants.KEY_C || event.key() == InputConstants.KEY_X)) {
+                if (QUERY.length() > 0) {
+                    net.minecraft.client.Minecraft.getInstance().keyboardHandler.setClipboard(QUERY.toString());
+                    if (event.key() == InputConstants.KEY_X) {
+                        QUERY.setLength(0);
+                        selectedAll = false;
+                    }
+                }
+                return false;
+            }
+            if (event.hasControlDown() && event.key() == InputConstants.KEY_V) {
+                String clip = net.minecraft.client.Minecraft.getInstance().keyboardHandler.getClipboard();
+                if (clip != null) {
+                    if (selectedAll) {
+                        QUERY.setLength(0);
+                        selectedAll = false;
+                    }
+                    QUERY.append(clip.replaceAll("[\\r\\n]", ""));
+                }
+                return false;
+            }
             if (event.key() == InputConstants.KEY_BACKSPACE) {
-                if (event.hasControlDown()) {
+                if (selectedAll) {
+                    QUERY.setLength(0);
+                    selectedAll = false;
+                } else if (event.hasControlDown()) {
                     deletePreviousWord();
                 } else if (QUERY.length() > 0) {
                     QUERY.deleteCharAt(QUERY.length() - 1);
@@ -145,6 +175,11 @@ public final class InventorySearchFeature {
         ScreenKeyboardEvents.allowCharType(screen).register((s, event) -> {
             if (!anyConsumerEnabled() || !listening) {
                 return true;
+            }
+            if (selectedAll) {
+                // Typing over a select-all replaces the whole query, the way any text box does.
+                QUERY.setLength(0);
+                selectedAll = false;
             }
             QUERY.append(event.codepointAsString());
             return false;

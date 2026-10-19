@@ -12,11 +12,56 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Bazaar Advisor settings (killer560, 2026-10-19: "a legit bazaar flipper setting that just tells someone every
- * time they open the menu what to buy and how much"). Legit: it only reads the Bazaar and prints a line in chat, it never
- * clicks anything, so it is not gated on the cheat build. Ships off, like every new feature here.
+ * Persisted Bazaar Advisor answers (killer560, 2026-10-19). {@code /bzflip} asks four questions - where to sell (NPC or
+ * Bazaar), what to optimise (total profit per inventory or best profit percentage), how to buy (Insta Buy or Buy Order) and,
+ * for a Bazaar sale, how to sell (Insta Sell or Sell Offer) - and the answers are what every Bazaar menu's recommendation
+ * is worked out from. Legit: it only reads the Bazaar and prints chat lines, it never clicks anything.
  */
 public final class BazaarAdvisorConfig {
+
+    /** Where the bought items are sold. */
+    public enum Mode {
+        NPC("NPC"), BAZAAR("Bazaar");
+
+        public final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+    }
+
+    /** What the recommendation is ranked by. */
+    public enum Goal {
+        TOTAL_PROFIT("Total profit per inventory"), PROFIT_PERCENT("Best profit percentage");
+
+        public final String label;
+
+        Goal(String label) {
+            this.label = label;
+        }
+    }
+
+    /** How the items are bought: straight from sell offers, or a buy order that waits for a seller. */
+    public enum BuyMethod {
+        INSTA_BUY("Insta Buy"), BUY_ORDER("Buy Order");
+
+        public final String label;
+
+        BuyMethod(String label) {
+            this.label = label;
+        }
+    }
+
+    /** How a Bazaar sale is done: straight into buy orders, or a sell offer that waits for a buyer. */
+    public enum SellMethod {
+        INSTA_SELL("Insta Sell"), SELL_OFFER("Sell Offer");
+
+        public final String label;
+
+        SellMethod(String label) {
+            this.label = label;
+        }
+    }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-bazaaradvisor.json");
@@ -24,10 +69,10 @@ public final class BazaarAdvisorConfig {
     private static BazaarAdvisorConfig instance;
 
     private boolean enabled = false;
-    /** The Bazaar pick: buy at the cheapest sell offer, sell into the best buy order; ranked by profit per unit times units sold per week. */
-    private boolean bazaarMode = true;
-    /** The NPC pick: buy at the cheapest sell offer, sell to the NPC; ranked by profit per unit. */
-    private boolean npcMode = true;
+    private Mode mode = Mode.NPC;
+    private Goal goal = Goal.TOTAL_PROFIT;
+    private BuyMethod buyMethod = BuyMethod.INSTA_BUY;
+    private SellMethod sellMethod = SellMethod.INSTA_SELL;
 
     private BazaarAdvisorConfig() {
     }
@@ -48,8 +93,10 @@ public final class BazaarAdvisorConfig {
             JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             BazaarAdvisorConfig cfg = new BazaarAdvisorConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
-            cfg.bazaarMode = ConfigJson.getBool(obj, "bazaarMode", cfg.bazaarMode);
-            cfg.npcMode = ConfigJson.getBool(obj, "npcMode", cfg.npcMode);
+            cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, cfg.mode);
+            cfg.goal = ConfigJson.getEnum(obj, "goal", Goal.class, cfg.goal);
+            cfg.buyMethod = ConfigJson.getEnum(obj, "buyMethod", BuyMethod.class, cfg.buyMethod);
+            cfg.sellMethod = ConfigJson.getEnum(obj, "sellMethod", SellMethod.class, cfg.sellMethod);
             instance = cfg;
         } catch (Exception e) {
             instance = new BazaarAdvisorConfig();
@@ -61,8 +108,10 @@ public final class BazaarAdvisorConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
-            obj.addProperty("bazaarMode", bazaarMode);
-            obj.addProperty("npcMode", npcMode);
+            obj.addProperty("mode", mode.name());
+            obj.addProperty("goal", goal.name());
+            obj.addProperty("buyMethod", buyMethod.name());
+            obj.addProperty("sellMethod", sellMethod.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -76,19 +125,41 @@ public final class BazaarAdvisorConfig {
         this.enabled = enabled;
     }
 
-    public boolean isBazaarMode() {
-        return bazaarMode;
+    public Mode getMode() {
+        return mode;
     }
 
-    public void setBazaarMode(boolean bazaarMode) {
-        this.bazaarMode = bazaarMode;
+    public void setMode(Mode mode) {
+        this.mode = mode == null ? Mode.NPC : mode;
     }
 
-    public boolean isNpcMode() {
-        return npcMode;
+    public Goal getGoal() {
+        return goal;
     }
 
-    public void setNpcMode(boolean npcMode) {
-        this.npcMode = npcMode;
+    public void setGoal(Goal goal) {
+        this.goal = goal == null ? Goal.TOTAL_PROFIT : goal;
+    }
+
+    public BuyMethod getBuyMethod() {
+        return buyMethod;
+    }
+
+    public void setBuyMethod(BuyMethod buyMethod) {
+        this.buyMethod = buyMethod == null ? BuyMethod.INSTA_BUY : buyMethod;
+    }
+
+    public SellMethod getSellMethod() {
+        return sellMethod;
+    }
+
+    public void setSellMethod(SellMethod sellMethod) {
+        this.sellMethod = sellMethod == null ? SellMethod.INSTA_SELL : sellMethod;
+    }
+
+    /** One line naming the answers, for the tab and the setup summary. */
+    public String summary() {
+        String sell = mode == Mode.NPC ? "sell to NPC" : "sell on Bazaar (" + sellMethod.label + ")";
+        return mode.label + " - " + goal.label + " - " + buyMethod.label + ", " + sell;
     }
 }

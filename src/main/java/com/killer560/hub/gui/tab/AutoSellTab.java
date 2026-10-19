@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autosell.AutoSellConfig;
-import com.killer560.hub.autosell.AutoSellFeature;
 import com.killer560.hub.autosell.AutoSellListScreen;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -111,37 +110,7 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
 
-        boolean running = AutoSellFeature.isRunning();
-        widgets.add(SettingsButtonWidget.builder(
-                        Component.literal(running ? "§cRunning... /autosell stop" : "§7Not running - /autosell start"),
-                        btn -> {
-                            if (AutoSellFeature.isRunning()) {
-                                AutoSellFeature.requestStop();
-                                requestRebuild.run();
-                            }
-                        }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
-
-        widgets.add(inertLabel(contentX, y, contentWidth,
-                "Sell list: " + cfg.getSellIdentities().size() + "   Never-sell: " + cfg.getNeverSellIdentities().size()));
-        y += 22;
-        widgets.add(inertLabel(contentX, y, contentWidth, "Screen title pattern: " + cfg.getScreenTitlePattern()));
-        y += 22;
-
-        widgets.add(inertLabel(contentX, y, contentWidth, "/autosell add held|<item>"));
-        y += 18;
-        widgets.add(inertLabel(contentX, y, contentWidth, "/autosell neversell add held|<item>"));
-        y += 18;
-        widgets.add(inertLabel(contentX, y, contentWidth, "/autosell list   /autosell screentitle <regex>"));
-
         return widgets;
-    }
-
-    private static AbstractWidget inertLabel(int x, int y, int width, String text) {
-        SettingsButtonWidget w = SettingsButtonWidget.builder(Component.literal(text), btn -> {
-                }).bounds(x, y, width, 16).build();
-        w.active = false;
-        return w;
     }
 
     private static Component minTicksText(AutoSellConfig cfg) {

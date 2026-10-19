@@ -69,6 +69,9 @@ public final class AutoSellFeature {
     private static final int MAX_CLICKS_PER_SESSION = 200;
 
     private static boolean running = false;
+    /** The sell screen the current session runs on, and the one the last session ended on (no restart there). */
+    private static AbstractContainerScreen<?> sessionScreen;
+    private static AbstractContainerScreen<?> doneScreen;
     private static long stateSinceMs;
     /** Client ticks left before the next sell click may go out (see {@link #randomTicks}). */
     private static int waitTicks;
@@ -99,36 +102,28 @@ public final class AutoSellFeature {
 
     /** Starts a session against whatever screen is open RIGHT NOW - never opens or navigates to one itself.
      *  @return null on success, else the reason it refused (so the command can print it). */
-    public static String start() {
-        if (running) {
-            return "already running - /autosell stop first.";
-        }
+    private static void autoStart(Minecraft client) {
         AutoSellConfig cfg = AutoSellConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return "Auto Sell is OFF - turn it on in its tab first.";
+        if (!cfg.isEnabled() || cfg.getSellIdentities().isEmpty()) {
+            return;
         }
-        if (cfg.getSellIdentities().isEmpty()) {
-            return "your sell list is empty - /autosell add <item> first.";
+        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || screen == doneScreen) {
+            return;
         }
-        Minecraft client = Minecraft.getInstance();
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            return "no container screen is open.";
-        }
-        String title = titleOf(screen);
-        Pattern pattern = compileOrDefault(cfg.getScreenTitlePattern());
-        if (!pattern.matcher(title).matches()) {
-            return "the open screen (\"" + title + "\") doesn't match the expected sell screen ("
-                    + cfg.getScreenTitlePattern() + ") - /autosell screentitle to change it.";
+        if (!compileOrDefault(cfg.getScreenTitlePattern()).matcher(titleOf(screen)).matches()) {
+            return;
         }
         handled.clear();
         clicksSent = 0;
         attempted = 0;
         running = true;
+        sessionScreen = screen;
         stateSinceMs = System.currentTimeMillis();
         waitTicks = 0;
-        return null;
     }
 
+    /** Auto Sell runs by itself on any sell screen while it is on - there is no start or stop command (killer560,
+     *  2026-10-19). A session that has finished or stopped on a screen does not start again on that same screen. */
     public static void requestStop() {
         if (running) {
             stop("stopped by user");
@@ -148,6 +143,7 @@ public final class AutoSellFeature {
 
     private static void tickUnsafe(Minecraft client) {
         if (!running) {
+            autoStart(client);
             return;
         }
         if (!AutoSellConfig.getInstance().isEnabled()) {
@@ -239,12 +235,14 @@ public final class AutoSellFeature {
     private static void finish() {
         ModChat.send("AutoSell", ModChat.good("Done - "), ModChat.value(attempted + " item stack(s)"),
                 ModChat.text(" clicked."));
+        doneScreen = sessionScreen;
         running = false;
     }
 
     private static void stop(String reason) {
         ModChat.send("AutoSell", ModChat.bad("Stopped: "), ModChat.text(reason),
                 ModChat.dim(" (" + attempted + " item stack(s) clicked)"));
+        doneScreen = sessionScreen;
         running = false;
     }
 }

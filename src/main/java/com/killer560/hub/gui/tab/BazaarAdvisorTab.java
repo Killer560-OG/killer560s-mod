@@ -8,7 +8,8 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Bazaar Advisor settings - legit, read-only: prints what to buy and how much each time a Bazaar menu opens. */
+/** Bazaar Advisor settings - legit, read-only: prints what to buy and how much each time a Bazaar menu opens. The four
+ *  answers are set with {@code /bzflip}; this tab shows what they are and switches the advisor on or off. */
 public class BazaarAdvisorTab extends BaseTab {
 
     public BazaarAdvisorTab() {
@@ -32,17 +33,10 @@ public class BazaarAdvisorTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Bazaar Pick", cfg.isBazaarMode()), btn -> {
-                    cfg.setBazaarMode(!cfg.isBazaarMode());
-                    cfg.save();
-                    btn.setMessage(onOff("Bazaar Pick", cfg.isBazaarMode()));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Setup: " + cfg.summary()), btn -> {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
-
-        widgets.add(SettingsButtonWidget.builder(onOff("NPC Pick", cfg.isNpcMode()), btn -> {
-                    cfg.setNpcMode(!cfg.isNpcMode());
-                    cfg.save();
-                    btn.setMessage(onOff("NPC Pick", cfg.isNpcMode()));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Change the answers with /bzflip"), btn -> {
                 }).bounds(contentX, y, contentWidth, 18).build());
 
         return widgets;

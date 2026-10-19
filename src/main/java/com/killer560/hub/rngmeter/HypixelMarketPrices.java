@@ -1,5 +1,7 @@
 package com.killer560.hub.rngmeter;
 
+import com.killer560.hub.itembrowser.SkyblockItemEntry;
+import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.util.ModNet;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -242,6 +244,11 @@ public final class HypixelMarketPrices {
             }
         }
         wantedIds.addAll(RngItemNames.BY_NAME.values());
+        // Every item the Item Browser and the price tooltip show (killer560, 2026-10-19: "it is missing terminators and there
+        // are tons on the ah"). The catalog is the full Skyblock item list, so its ids are all kept, not just the RNG tables'.
+        for (SkyblockItemEntry entry : SkyblockItemRepository.getItems()) {
+            wantedIds.add(entry.id());
+        }
 
         // A fresh map per scan - see ahScanInFlight.
         ahScanInFlight = new ConcurrentHashMap<>();

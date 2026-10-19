@@ -35,14 +35,6 @@ public final class AutoSellCommands {
                             setEnabled(false);
                             return 1;
                         }))
-                        .then(ClientCommands.literal("start").executes(context -> {
-                            start();
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("stop").executes(context -> {
-                            stop();
-                            return 1;
-                        }))
                         .then(ClientCommands.literal("list").executes(context -> {
                             list();
                             return 1;
@@ -93,8 +85,6 @@ public final class AutoSellCommands {
     private static void help() {
         ModChat.send(FEATURE, ModChat.text("Commands:"));
         ModChat.send(FEATURE, ModChat.value("/autosell on|off"), ModChat.dim(" - master toggle"));
-        ModChat.send(FEATURE, ModChat.value("/autosell start"), ModChat.dim(" - sell from the screen you have open right now"));
-        ModChat.send(FEATURE, ModChat.value("/autosell stop"), ModChat.dim(" - stop a run in progress"));
         ModChat.send(FEATURE, ModChat.value("/autosell add held|<IDENTITY>"), ModChat.dim(" - add to the sell list"));
         ModChat.send(FEATURE, ModChat.value("/autosell remove held|<IDENTITY>"), ModChat.dim(" - remove from the sell list"));
         ModChat.send(FEATURE, ModChat.value("/autosell neversell add|remove held|<IDENTITY>"), ModChat.dim(" - the safety list; always wins"));
@@ -111,27 +101,6 @@ public final class AutoSellCommands {
         cfg.setEnabled(on);
         cfg.save();
         ModChat.send(FEATURE, ModChat.text("Auto Sell "), on ? ModChat.good("ON") : ModChat.bad("OFF"), ModChat.text("."));
-    }
-
-    private static void start() {
-        if (!ready()) {
-            return;
-        }
-        String error = AutoSellFeature.start();
-        if (error != null) {
-            ModChat.send(FEATURE, ModChat.bad("Didn't start"), ModChat.text(" - " + error));
-            return;
-        }
-        ModChat.send(FEATURE, ModChat.good("Started"), ModChat.dim(" - press "), ModChat.value("/autosell stop"),
-                ModChat.dim(" to end it early."));
-    }
-
-    private static void stop() {
-        if (!AutoSellFeature.isRunning()) {
-            ModChat.send(FEATURE, ModChat.text("Nothing to stop."));
-            return;
-        }
-        AutoSellFeature.requestStop();
     }
 
     /** {@code "held"} resolves to the identity of whatever's in the main hand right now; anything else is taken
