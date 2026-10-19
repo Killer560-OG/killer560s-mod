@@ -66,8 +66,8 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
         panelH = Math.min(PANEL_MAX_H, this.height - 8);
         panelX = (this.width - panelW) / 2;
         panelY = Math.max(2, (this.height - panelH) / 2);
-        listY = panelY + 48;
-        rows = Math.max(1, (panelH - 48 - 22) / ROW_H);
+        listY = panelY + 46;
+        rows = Math.max(1, (panelH - 46 - 8) / ROW_H);
 
         all.clear();
         all.add(PLAYER);
@@ -125,10 +125,9 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "My Mob");
-        MenuStyle.text(graphics, shown.size() + " of " + all.size() + " mobs", panelX + 8, panelY + 44, MenuStyle.DIM);
 
         boolean scrollable = shown.size() > rows;
-        int rowW = panelW - 16 - (scrollable ? 8 : 0);
+        int rowW = panelW - 16;
         for (int row = 0; row < rows && scroll + row < shown.size(); row++) {
             String id = shown.get(scroll + row);
             int ry = listY + row * ROW_H;
@@ -139,7 +138,8 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
                     panelX + 12, ry + 6, over || picked ? MenuStyle.OR_HOVER : MenuStyle.TXT);
             if (!id.isEmpty()) {
                 String wire = this.font.plainSubstrByWidth(id, 64);
-                MenuStyle.text(graphics, wire, panelX + 8 + rowW - 6 - this.font.width(wire), ry + 6, MenuStyle.DIM);
+                int wireRight = panelX + 8 + rowW - (scrollable ? 14 : 6);
+                MenuStyle.text(graphics, wire, wireRight - this.font.width(wire), ry + 6, MenuStyle.DIM);
             }
         }
         if (scrollable) {
@@ -159,8 +159,7 @@ public final class MobPickerScreen extends Screen implements MenuThemedScreen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double x = event.x();
         double y = event.y();
-        boolean scrollable = shown.size() > rows;
-        int rowW = panelW - 16 - (scrollable ? 8 : 0);
+        int rowW = panelW - 16;
         if (x >= panelX + 8 && x < panelX + 8 + rowW && y >= listY && y < listY + rows * ROW_H) {
             int idx = scroll + (int) ((y - listY) / ROW_H);
             if (idx >= 0 && idx < shown.size()) {
