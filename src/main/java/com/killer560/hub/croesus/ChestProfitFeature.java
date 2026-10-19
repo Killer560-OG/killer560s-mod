@@ -417,9 +417,17 @@ public final class ChestProfitFeature {
      * changed (a cheap identity fingerprint, so a frame costs 28 comparisons, not 28 lore scans). Empty for anything but
      * the Croesus menu and for a Croesus menu whose items have not arrived - never another screen's or page's states.
      */
+    private static final byte[] NO_STATES = new byte[0];
+
     private static byte[] statesFor(AbstractContainerScreen<?> screen) {
-        if (screen == null || !DungeonChestValuer.CROESUS_MENU_TITLE.matcher(titleOf(screen)).matches()) {
-            return new byte[0];
+        // Called once per drawn slot per frame with Highlight Runs on, in every container: the title test goes through
+        // the per-title cache instead of building, stripping and matching the title for each slot (fps pass 2026-10-19).
+        if (screen == null) {
+            return NO_STATES;
+        }
+        frameTitle(screen);
+        if (!frameTitleIsCroesus) {
+            return NO_STATES;
         }
         List<Slot> slots = screen.getMenu().slots;
         int fp = 31 * CroesusRunMemory.version() + (int) AutoCroesusFeature.keyWorthFloor()
