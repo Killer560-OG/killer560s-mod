@@ -51,7 +51,7 @@ public final class DoorKeysConfig {
     public static final float MAX_CIRCLE_LIFT = 3f;
     /** Colour 0 means "the key's own colour" (near-black for a Wither Key, red for a Blood Key). */
     public static final int COLOR_AUTO = 0;
-    private float circleThickness = 2f;
+    private float circleThickness = 7f;
     private float circleLift = 0.5f;
     private int tracerColor = COLOR_AUTO;
     private int circleColor = COLOR_AUTO;
