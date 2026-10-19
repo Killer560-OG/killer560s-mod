@@ -230,9 +230,6 @@ public final class SupportersAutoShare {
         if (!SupportersConfig.getInstance().isShareIfSupporter()) {
             return "Turn on Share if Supporter to share your trail.";
         }
-        if (!RibbonTrailConfig.getInstance().isEnabledRaw()) {
-            return "Your Ribbon Trail is off - turn it on in Cosmetics > Ribbon Trail to share it.";
-        }
         return null;
     }
 
