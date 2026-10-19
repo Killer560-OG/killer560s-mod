@@ -52,7 +52,7 @@ public final class DoorKeysConfig {
     /** Colour 0 means "the key's own colour" (near-black for a Wither Key, red for a Blood Key). */
     public static final int COLOR_AUTO = 0;
     private float circleThickness = 2f;
-    private float circleLift = 0.5f;
+    private float circleLift = 0.0f;
     private int tracerColor = COLOR_AUTO;
     private int circleColor = COLOR_AUTO;
     private int fillColor = COLOR_AUTO;
@@ -201,7 +201,7 @@ public final class DoorKeysConfig {
     }
 
     public void setCircleLift(float v) {
-        circleLift = Float.isNaN(v) ? 0.5f : Math.max(MIN_CIRCLE_LIFT, Math.min(MAX_CIRCLE_LIFT, v));
+        circleLift = Float.isNaN(v) ? 0.0f : Math.max(MIN_CIRCLE_LIFT, Math.min(MAX_CIRCLE_LIFT, v));
     }
 
     /** ARGB, or {@link #COLOR_AUTO}. */
