@@ -114,8 +114,27 @@ public final class MainMenuTheme {
             return null;
         }
         int rgb = MainMenuChrome.labelColour(active, highlighted);
-        return Component.empty().withColor(rgb).append(message);
+        // The same wrapper for the same message and colour (fps pass 2026-10-19): this runs per button per frame on
+        // every themed screen, the pause menu over the world included, and a fresh Component each frame also threw
+        // away its cached visual order, so every label went through Bidi again every frame. A widget's message is
+        // replaced (setMessage), never edited, so its identity is the key. Render thread only.
+        Label cached = LABELS.get(message);
+        if (cached != null && cached.rgb == rgb) {
+            return cached.out;
+        }
+        if (LABELS.size() > LABEL_LIMIT) {
+            LABELS.clear();
+        }
+        Component out = Component.empty().withColor(rgb).append(message);
+        LABELS.put(message, new Label(rgb, out));
+        return out;
     }
+
+    private record Label(int rgb, Component out) {
+    }
+
+    private static final int LABEL_LIMIT = 512;
+    private static final java.util.Map<Component, Label> LABELS = new java.util.IdentityHashMap<>();
 
     // ---------------------------------------------------------------- footer
 

@@ -504,10 +504,28 @@ public final class WaterSolverFeature {
             return "§a§lCLICK ME!";
         }
         if (openedWaterTick == -1) {
-            return String.format(Locale.US, "§e%.1fs", timeInTicks / 20f);
+            return secondsLabel(timeInTicks);
         }
         long remaining = openedWaterTick + timeInTicks - tickCounter;
-        return String.format(Locale.US, "§e%.1fs", remaining / 20f);
+        return secondsLabel(remaining);
+    }
+
+    // "§eN.Ns" per tick value, memoised (fps pass 2026-10-19): one String.format per pending click per frame before,
+    // though the value changes once a tick. Pure function of the tick count; small direct-mapped table.
+    private static final int LABEL_SLOTS = 32;
+    private static final long[] LABEL_TICKS = new long[LABEL_SLOTS];
+    private static final String[] LABEL_TEXT = new String[LABEL_SLOTS];
+
+    private static String secondsLabel(long ticks) {
+        int slot = (int) (ticks & (LABEL_SLOTS - 1));
+        String known = LABEL_TEXT[slot];
+        if (known != null && LABEL_TICKS[slot] == ticks) {
+            return known;
+        }
+        String text = String.format(Locale.US, "§e%.1fs", ticks / 20f);
+        LABEL_TEXT[slot] = text;
+        LABEL_TICKS[slot] = ticks;
+        return text;
     }
 
     /** Same "is it actually time to click this" check the countdown label uses, shared with the tracer box's

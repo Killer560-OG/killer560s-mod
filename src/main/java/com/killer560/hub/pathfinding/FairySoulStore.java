@@ -66,7 +66,16 @@ public final class FairySoulStore {
     private FairySoulStore() {
     }
 
+    /** Bumped by every load and save. Every change to a found log or a menu count is followed by save(), so a reader
+     *  holding an answer from an older version knows to ask again (PathWorldRenderer's unfound-soul list). */
+    private static volatile int version;
+
+    public static int version() {
+        return version;
+    }
+
     public static synchronized void load() {
+        version++;
         PROFILES.clear();
         PROFILE_NAMES.clear();
         PROFILE_IDS.clear();
@@ -120,6 +129,7 @@ public final class FairySoulStore {
     }
 
     public static synchronized void save() {
+        version++;
         try {
             Files.createDirectories(FILE.getParent());
             JsonObject root = new JsonObject();

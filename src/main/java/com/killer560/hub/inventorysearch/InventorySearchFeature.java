@@ -76,7 +76,7 @@ public final class InventorySearchFeature {
      *  items... then if I type something and do ctrl f it'll highlight items in my inventory" describes
      *  one shared query feeding both, not two separate search boxes. */
     public static String getQuery() {
-        return QUERY.toString();
+        return queryNow();
     }
 
     public static boolean isListening() {
@@ -239,13 +239,38 @@ public final class InventorySearchFeature {
     private static String lastMatchQuery = null;
     private static final java.util.Map<ItemStack, Boolean> MATCH_CACHE = new java.util.IdentityHashMap<>();
 
+    // QUERY as a String and its calculator answer, rebuilt only when the text changes. highlightQuery() runs once per
+    // drawn slot per frame (InventorySearchSlotMixin) and barText() once per frame, and each used to copy the builder
+    // and tokenize the query again: ~90 tokenizations a frame in a double chest with a query typed (fps pass
+    // 2026-10-19). SearchCalculator.resultFor is a pure function of the string, so keying on the text is exact.
+    private static String queryText = "";
+    private static String calcFor = null;
+    private static String calcResult = null;
+
+    /** The live query, the same String object for as long as its text is unchanged. */
+    private static String queryNow() {
+        if (!queryText.contentEquals(QUERY)) {
+            queryText = QUERY.toString();
+        }
+        return queryText;
+    }
+
+    /** {@link SearchCalculator#resultFor} of the live query, worked out once per distinct query. */
+    private static String calcResultNow(String query) {
+        if (query != calcFor) {
+            calcResult = SearchCalculator.resultFor(query);
+            calcFor = query;
+        }
+        return calcResult;
+    }
+
     /** The live query when it should highlight slots (feature on, not blank, not a sum), else null. */
     private static String highlightQuery() {
         if (!InventorySearchConfig.getInstance().isEnabled()) {
             return null;
         }
-        String query = QUERY.toString();
-        if (query.isBlank() || SearchCalculator.resultFor(query) != null) {
+        String query = queryNow();
+        if (query.isBlank() || calcResultNow(query) != null) {
             return null;
         }
         return query;
@@ -285,13 +310,23 @@ public final class InventorySearchFeature {
 
     /** The text shown in the bar: the query, plus " = result" in green when it is a sum. Public for the testkit. */
     public static String barText() {
-        String query = QUERY.toString();
+        String query = queryNow();
         if (query.isEmpty()) {
             return "\u00a78Ctrl+F or click to search...";
         }
-        String result = SearchCalculator.resultFor(query);
-        return result == null ? query : query + " \u00a77= \u00a7a" + result;
+        String result = calcResultNow(query);
+        if (result == null) {
+            return query;
+        }
+        if (query != barFor) {
+            barText = query + " \u00a77= \u00a7a" + result;
+            barFor = query;
+        }
+        return barText;
     }
+
+    private static String barFor = null;
+    private static String barText = null;
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)

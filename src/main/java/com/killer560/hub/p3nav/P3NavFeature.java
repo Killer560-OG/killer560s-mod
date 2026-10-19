@@ -183,12 +183,12 @@ public final class P3NavFeature {
             if (custom == null) {
                 continue;
             }
-            String name = ChatFormatting.stripFormatting(custom.getString());
-            if (name == null) {
+            int kind = standKind(custom);
+            if (kind == KIND_NONE) {
                 continue;
             }
-            boolean terminal = INACTIVE_TERMINAL.equals(name);
-            boolean device = !terminal && NOT_ACTIVATED.equals(name);
+            boolean terminal = kind == KIND_TERMINAL;
+            boolean device = kind == KIND_DEVICE;
             if (terminal ? !wantTerminals : (!device || !wantDevices)) {
                 continue;
             }
@@ -200,6 +200,34 @@ public final class P3NavFeature {
             P3NavRenderer.draw(context, boxOf(stand), color, cfg.getTerminalStyle(), cfg.getTerminalLineWidth(),
                     throughWalls);
         }
+    }
+
+    // What a stand's custom name says, per name Component (fps pass 2026-10-19): this loop runs every frame in P3 over
+    // every entity, and each named stand built its name String and regex-stripped it each frame. A custom name is
+    // replaced, never edited, so the same Component object always gives the same answer (with the same Language,
+    // which getString reads through). Identity-keyed, render thread only, emptied on a Language change or past 4096.
+    private static final byte KIND_NONE = 0;
+    private static final byte KIND_TERMINAL = 1;
+    private static final byte KIND_DEVICE = 2;
+    private static final java.util.Map<Component, Byte> STAND_KINDS = new java.util.IdentityHashMap<>();
+    private static net.minecraft.locale.Language standKindsLanguage;
+
+    private static int standKind(Component custom) {
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (language != standKindsLanguage || STAND_KINDS.size() > 4096) {
+            STAND_KINDS.clear();
+            standKindsLanguage = language;
+        }
+        Byte known = STAND_KINDS.get(custom);
+        if (known != null) {
+            return known;
+        }
+        String name = ChatFormatting.stripFormatting(custom.getString());
+        byte kind = name == null ? KIND_NONE
+                : INACTIVE_TERMINAL.equals(name) ? KIND_TERMINAL
+                : NOT_ACTIVATED.equals(name) ? KIND_DEVICE : KIND_NONE;
+        STAND_KINDS.put(custom, kind);
+        return kind;
     }
 
     /** TerminalESP.kt lines 52-57: a stand within 1.5 (squared) of a listed position belongs to that section. */

@@ -48,6 +48,26 @@ public final class MobSkins {
 
     /** The entity type for an allowed id in THIS Minecraft version, or null (not allowed, or this version lacks it). */
     public static EntityType<?> type(String id) {
+        // Asked per swapped player per frame by the renderer (fps pass 2026-10-19). The built-in entity registry is
+        // frozen before any of this runs, so the answer for an id never changes: remembered per id (bounded).
+        if (id == null) {
+            return typeUncached(null);
+        }
+        Object known = TYPES.get(id);
+        if (known != null) {
+            return known == NO_TYPE ? null : (EntityType<?>) known;
+        }
+        EntityType<?> type = typeUncached(id);
+        if (TYPES.size() < 256) {
+            TYPES.put(id, type == null ? NO_TYPE : type);
+        }
+        return type;
+    }
+
+    private static final Object NO_TYPE = new Object();
+    private static final java.util.Map<String, Object> TYPES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static EntityType<?> typeUncached(String id) {
         String ok = sanitize(id);
         if (ok == null) {
             return null;

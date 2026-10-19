@@ -404,6 +404,29 @@ public final class WitherDragonsFeature {
     /** Odin {@code getDragonTimer}. */
     static String formatTimer(int ticks) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
+        // Memoised (fps pass 2026-10-19): asked per dragon per frame by the world text and the HUD, and the Seconds style
+        // is a String.format. The text is a pure function of the ticks and the two style settings, which form the key.
+        int style = cfg.getTimerStyle().ordinal() * 2 + (cfg.isTimerSymbol() ? 1 : 0);
+        int slot = ticks & (MEMO_SLOTS - 1);
+        String known = TIMER_TEXT[slot];
+        if (known != null && TIMER_TICKS[slot] == ticks && TIMER_STYLE[slot] == style) {
+            return known;
+        }
+        String text = formatTimerUncached(ticks, cfg);
+        TIMER_TEXT[slot] = text;
+        TIMER_TICKS[slot] = ticks;
+        TIMER_STYLE[slot] = style;
+        return text;
+    }
+
+    private static final int MEMO_SLOTS = 16;
+    private static final String[] TIMER_TEXT = new String[MEMO_SLOTS];
+    private static final int[] TIMER_TICKS = new int[MEMO_SLOTS];
+    private static final int[] TIMER_STYLE = new int[MEMO_SLOTS];
+    private static final String[] HEALTH_TEXT = new String[MEMO_SLOTS];
+    private static final int[] HEALTH_BITS = new int[MEMO_SLOTS];
+
+    private static String formatTimerUncached(int ticks, WitherDragonsConfig cfg) {
         String color = ticks <= 20 ? "§c" : ticks <= 60 ? "§e" : "§a";
         return color + switch (cfg.getTimerStyle()) {
             case MILLISECONDS -> (ticks * 50) + (cfg.isTimerSymbol() ? "ms" : "");
@@ -414,6 +437,21 @@ public final class WitherDragonsFeature {
 
     /** Odin {@code colorHealth}/{@code formatHealth}. */
     static String formatHealth(float health) {
+        // Memoised on the exact float (fps pass 2026-10-19): a dragon's health changes on a server update, not per
+        // frame, and this is a String.format per dragon per frame in P5. Pure function of its argument.
+        int bits = Float.floatToRawIntBits(health);
+        int slot = (bits ^ (bits >>> 16)) & (MEMO_SLOTS - 1);
+        String known = HEALTH_TEXT[slot];
+        if (known != null && HEALTH_BITS[slot] == bits) {
+            return known;
+        }
+        String text = formatHealthUncached(health);
+        HEALTH_TEXT[slot] = text;
+        HEALTH_BITS[slot] = bits;
+        return text;
+    }
+
+    private static String formatHealthUncached(float health) {
         String color = health >= 750_000_000f ? "§a" : health >= 500_000_000f ? "§e" : health >= 250_000_000f ? "§6" : "§c";
         String value;
         if (health >= 1_000_000_000f) {
@@ -455,7 +493,7 @@ public final class WitherDragonsFeature {
         }
         for (WitherDragon d : WitherDragon.values()) {
             if (cfg.isDragonTimer() && d.timeToSpawn > 0) {
-                renderWorldText(context, "§" + d.colorCode + d.displayName().charAt(0) + ": " + formatTimer(d.timeToSpawn),
+                renderWorldText(context, spawnLabel(d, formatTimer(d.timeToSpawn)),
                         d.spawnPos.getX() + 0.5, d.spawnPos.getY() + 0.5, d.spawnPos.getZ() + 0.5, 5f);
             }
             if (cfg.isDragonBoxes() && d.state != WitherDragon.State.DEAD) {
@@ -471,6 +509,23 @@ public final class WitherDragonsFeature {
             // bug killer560 reported on doorkeys/wither ESP's tracers (2026-09-27); this one moves the same way.
             WorldRenderUtils.renderLineStrip(context, List.of(WorldRenderUtils.tracerOrigin(context), target), c[0], c[1], c[2], 1f, 2f);
         }
+    }
+
+    // The spawn-timer label per dragon, rebuilt only when its timer text (the memoised String above) or its display name
+    // (one of the dragon's two final names, per the Name Style setting) is a different object.
+    private static final String[] LABEL_TIMER = new String[WitherDragon.values().length];
+    private static final String[] LABEL_NAME = new String[WitherDragon.values().length];
+    private static final String[] LABEL_TEXT = new String[WitherDragon.values().length];
+
+    private static String spawnLabel(WitherDragon d, String timer) {
+        int i = d.ordinal();
+        String name = d.displayName();
+        if (LABEL_TIMER[i] != timer || LABEL_NAME[i] != name) {
+            LABEL_TEXT[i] = "§" + d.colorCode + name.charAt(0) + ": " + timer;
+            LABEL_TIMER[i] = timer;
+            LABEL_NAME[i] = name;
+        }
+        return LABEL_TEXT[i];
     }
 
     /** Billboarded see-through world text - same transform as DungeonAlertsFeature.renderWorldText /

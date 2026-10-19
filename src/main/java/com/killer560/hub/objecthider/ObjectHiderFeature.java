@@ -49,6 +49,7 @@ import net.minecraft.world.item.component.ResolvableProfile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -321,6 +322,8 @@ public final class ObjectHiderFeature {
             // Entity ids restart on every server/world switch, so nothing cached here may survive one.
             lastLevel = client.level;
             deadTags.clear();
+            ORB_NAME_MEMO.clear();
+            SPLASH_NAME_MEMO.clear();
             orbPositions = new double[0][];
             bossDone = false;
             chestsSpawned = false;
@@ -548,7 +551,21 @@ public final class ObjectHiderFeature {
         if (!stand.hasCustomName()) {
             return false;
         }
-        String name = ChatFormatting.stripFormatting(stand.getName().getString());
+        net.minecraft.network.chat.Component custom = stand.getCustomName();
+        Map<net.minecraft.network.chat.Component, Boolean> memo = nameMemo(ORB_NAME_MEMO);
+        Boolean known = custom == null ? null : memo.get(custom);
+        if (known != null) {
+            return known;
+        }
+        boolean orb = orbLabel(stand.getName().getString());
+        if (custom != null) {
+            memo.put(custom, orb);
+        }
+        return orb;
+    }
+
+    private static boolean orbLabel(String raw) {
+        String name = ChatFormatting.stripFormatting(raw);
         if (name == null) {
             return false;
         }
@@ -559,6 +576,30 @@ public final class ObjectHiderFeature {
             }
         }
         return false;
+    }
+
+    // Answers of the two nametag tests per custom-name Component. shouldHideEntity runs for every entity every frame,
+    // so with Hide Healer Orbs or Hide Boss Damage Splash on, each named stand in a dungeon built its name String,
+    // regex-stripped it and upper-cased or matched it every frame (fps pass 2026-10-19). An entity's custom name is
+    // REPLACED, never edited, when the server changes it, and the answer depends only on its text (and the Language,
+    // which getString reads through), so the same Component object always gives the same answer. Identity-keyed;
+    // emptied on a level or Language change and whenever it grows past MEMO_LIMIT.
+    private static final int MEMO_LIMIT = 4096;
+    private static final Map<net.minecraft.network.chat.Component, Boolean> ORB_NAME_MEMO = new java.util.IdentityHashMap<>();
+    private static final Map<net.minecraft.network.chat.Component, Boolean> SPLASH_NAME_MEMO = new java.util.IdentityHashMap<>();
+    private static net.minecraft.locale.Language memoLanguage;
+
+    private static Map<net.minecraft.network.chat.Component, Boolean> nameMemo(Map<net.minecraft.network.chat.Component, Boolean> memo) {
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (language != memoLanguage) {
+            memoLanguage = language;
+            ORB_NAME_MEMO.clear();
+            SPLASH_NAME_MEMO.clear();
+        }
+        if (memo.size() > MEMO_LIMIT) {
+            memo.clear();
+        }
+        return memo;
     }
 
     /** "Keep Nearby Orbs": this mod's stand-in for "keep your own" - see the class doc. */
@@ -583,11 +624,18 @@ public final class ObjectHiderFeature {
         if (stand.tickCount > 300 || !stand.hasCustomName()) {
             return false;
         }
-        String name = ChatFormatting.stripFormatting(stand.getName().getString());
-        if (name == null) {
-            return false;
+        net.minecraft.network.chat.Component custom = stand.getCustomName();
+        Map<net.minecraft.network.chat.Component, Boolean> memo = nameMemo(SPLASH_NAME_MEMO);
+        Boolean known = custom == null ? null : memo.get(custom);
+        if (known != null) {
+            return known;
         }
-        return DAMAGE_SPLASH.matcher(name.replace(",", "")).matches();
+        String name = ChatFormatting.stripFormatting(stand.getName().getString());
+        boolean splash = name != null && DAMAGE_SPLASH.matcher(name.replace(",", "")).matches();
+        if (custom != null) {
+            memo.put(custom, splash);
+        }
+        return splash;
     }
 
     /** Devonian {@code NoDeathAnimation.shouldHide}. */
@@ -631,11 +679,11 @@ public final class ObjectHiderFeature {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
+        // Read-only view, no deep copy: this runs per armour stand per frame with Hide Healer Orbs on (fps pass).
+        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack);
+        if (tag == null) {
             return null;
         }
-        CompoundTag tag = data.copyTag();
         return tag.contains("id") ? tag.getStringOr("id", null) : null;
     }
 }

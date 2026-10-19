@@ -60,6 +60,8 @@ public final class MobSkinRender {
     // Test hooks (read by the testkit): how many player states were swapped, and the last one.
     private static volatile long swaps;
     private static volatile String lastSwap = null;
+    private static java.util.UUID lastSwapOwner;
+    private static String lastSwapId;
 
     private MobSkinRender() {
     }
@@ -112,7 +114,13 @@ public final class MobSkinRender {
             boolean local = entity == Minecraft.getInstance().player;
             dress(ps, ms, local);
             swaps++;
-            lastSwap = entity.getUUID() + " " + id;
+            // The testkit's "who was swapped to what" line, built only when it changes rather than per frame.
+            java.util.UUID owner = entity.getUUID();
+            if (!owner.equals(lastSwapOwner) || !id.equals(lastSwapId)) {
+                lastSwap = owner + " " + id;
+                lastSwapOwner = owner;
+                lastSwapId = id;
+            }
             return ms;
         } catch (Throwable t) {
             if (id != null) {

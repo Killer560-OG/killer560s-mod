@@ -106,10 +106,24 @@ public final class ProfileTracker {
     /** Storage key: "&lt;account uuid&gt;/&lt;profile name&gt;", or ".../?" until the profile is known. */
     public static String key() {
         Minecraft client = Minecraft.getInstance();
-        String account = client.getUser() == null || client.getUser().getProfileId() == null
-                ? "unknown" : client.getUser().getProfileId().toString();
-        return account + "/" + (profileName.isEmpty() ? "?" : profileName.toLowerCase(Locale.ROOT));
+        java.util.UUID id = client.getUser() == null ? null : client.getUser().getProfileId();
+        // Asked every frame by the soul waypoints: built again only when the account or the profile name changes
+        // (profileName is only ever replaced, so identity is exact; fps pass 2026-10-19).
+        String name = profileName;
+        KeyMemo memo = keyMemo;
+        if (memo == null || memo.name != name || !java.util.Objects.equals(id, memo.id)) {
+            String account = id == null ? "unknown" : id.toString();
+            memo = new KeyMemo(name, id, account + "/" + (name.isEmpty() ? "?" : name.toLowerCase(Locale.ROOT)));
+            keyMemo = memo;
+        }
+        return memo.value;
     }
+
+    /** One immutable record, swapped whole, so a reader on another thread never pairs one name with another's key. */
+    private record KeyMemo(String name, java.util.UUID id, String value) {
+    }
+
+    private static volatile KeyMemo keyMemo;
 
     public static String displayName() {
         return profileName.isEmpty() ? "unknown profile" : profileName;

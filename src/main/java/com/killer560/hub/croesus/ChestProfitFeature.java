@@ -417,9 +417,17 @@ public final class ChestProfitFeature {
      * changed (a cheap identity fingerprint, so a frame costs 28 comparisons, not 28 lore scans). Empty for anything but
      * the Croesus menu and for a Croesus menu whose items have not arrived - never another screen's or page's states.
      */
+    private static final byte[] NO_STATES = new byte[0];
+
     private static byte[] statesFor(AbstractContainerScreen<?> screen) {
-        if (screen == null || !DungeonChestValuer.CROESUS_MENU_TITLE.matcher(titleOf(screen)).matches()) {
-            return new byte[0];
+        // Called once per drawn slot per frame with Highlight Runs on, in every container: the title test goes through
+        // the per-title cache instead of building, stripping and matching the title for each slot (fps pass 2026-10-19).
+        if (screen == null) {
+            return NO_STATES;
+        }
+        frameTitle(screen);
+        if (!frameTitleIsCroesus) {
+            return NO_STATES;
         }
         List<Slot> slots = screen.getMenu().slots;
         int fp = 31 * CroesusRunMemory.version() + (int) AutoCroesusFeature.keyWorthFloor()
@@ -988,6 +996,27 @@ public final class ChestProfitFeature {
         return ((r + 96) << 16) | ((g + 96) << 8) | (b + 96);
     }
 
+    // titleOf() and the Croesus title regex for the screen drawn last frame. A Screen's title is a final field and a
+    // Component's text depends only on it and the Language, so keying on the title object (and the Language) is exact:
+    // before, every frame of every container screen built the title String, regex-stripped it and matched it
+    // (Chest Profit is on by default; fps pass 2026-10-19).
+    private static net.minecraft.network.chat.Component frameTitleKey;
+    private static net.minecraft.locale.Language frameTitleLanguage;
+    private static String frameTitle = "";
+    private static boolean frameTitleIsCroesus;
+
+    private static String frameTitle(Screen screen) {
+        net.minecraft.network.chat.Component key = screen.getTitle();
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (key != frameTitleKey || language != frameTitleLanguage) {
+            frameTitle = titleOf(screen);
+            frameTitleIsCroesus = DungeonChestValuer.CROESUS_MENU_TITLE.matcher(frameTitle).matches();
+            frameTitleKey = key;
+            frameTitleLanguage = language;
+        }
+        return frameTitle;
+    }
+
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         if (McCompat.screen(Minecraft.getInstance()) != screen) {
             return;
@@ -998,10 +1027,16 @@ public final class ChestProfitFeature {
         if (!CroesusConfig.getInstance().isChestProfitEnabled()) {
             return;
         }
-        String title = titleOf(screen);
+        String title = frameTitle(screen);
+        boolean croesusMenu = frameTitleIsCroesus;
+        // Every other container (any chest, the inventory, storage) draws nothing below: return before the panel's
+        // position and line list are built, so those cost nothing per frame (fps pass 2026-10-19).
+        if (!croesusMenu && kind != Kind.RUN_VIEW && kind != Kind.CHEST) {
+            return;
+        }
         ContainerPos pos = positions(screen);
         List<Line> lines = new ArrayList<>();
-        if (DungeonChestValuer.CROESUS_MENU_TITLE.matcher(title).matches()) {
+        if (croesusMenu) {
             // The run highlight itself is drawn per slot, behind each item (drawRunSlot). This is only the info box -
             // drawn once THIS screen's items are in, so it never shows the totals of before the page loaded.
             if (!CroesusConfig.getInstance().isHighlightRuns()) {
