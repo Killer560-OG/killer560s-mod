@@ -64,8 +64,7 @@ public class ModChatTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
-        // Live, not built-once: the connection comes and goes while this screen is open.
-        widgets.add(new LiveTextWidget(contentX, y, contentWidth, LINE_HEIGHT * 3, ModChatTab::status));
+        // The live Relay / Room / Mod users lines are no longer drawn on this tab (killer560, 2026-10-18).
 
         return widgets;
     }
