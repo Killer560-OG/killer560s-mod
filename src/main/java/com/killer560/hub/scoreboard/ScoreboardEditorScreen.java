@@ -7,6 +7,8 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.DragListWidget;
 import com.killer560.hub.gui.MenuThemedScreen;
+import com.killer560.hub.gui.OverlayThemes;
+import com.killer560.hub.gui.ScreenThemes;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.gui.SettingTooltips;
@@ -179,9 +181,8 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                         panelScroll = 0;
                         rebuildWidgets();
                     }).bounds(px, boardY, p.ordinal() == pages - 1 ? panelX + panelW - px : pageW, ROW);
-            if (p == page) {
-                b.primary();
-            }
+            // The chosen page is lit in the accent; the other is a dimmer, recessed card (killer560, 2026-10-18).
+            b.toggle(p == page);
             addRenderableWidget(b.build());
         }
         panelTop = boardY + ROW + 8;
@@ -375,13 +376,26 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         int colW = (width - COL_GAP) / 2;
         int colBX = x + colW + COL_GAP;
 
-        out.add(toggle("Background", cfg::isBackgroundEnabled, cfg::setBackgroundEnabled, x, y, colW));
-        out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
-                cfg::setBackgroundColor, colBX, y, colW));
+        // The top of the page, in killer560's order (2026-10-18): 1 to 11. Every row is a setting that already existed;
+        // only its place moved. Two columns, so one row is two settings.
+        // 1. Theme: the board's Menu Theme (its Default is the board's own colours, as the tab had it), then the editor's.
+        out.add(ScreenThemes.overlayButton(OverlayThemes.CUSTOM_SCOREBOARD, "Theme", x, y, colW, ROW));
+        out.add(ScreenThemes.button(ScoreboardEditorScreen.THEME_ID, "Editor Theme", colBX, y, colW, ROW));
         y += STEP;
-        out.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, x, y, colW));
-        out.add(slider(colBX, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing));
+        // 2. Text Align, 3. Reset Position.
+        out.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()),
+                () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), x, y, colW));
+        out.add(SettingsButtonWidget.builder(Component.literal("Reset Position"), btn -> {
+                    cfg.resetAnchor();
+                    cfg.save();
+                }).bounds(colBX, y, colW, ROW).build());
         y += STEP;
+        // 4. Hide when Tab is held, 5. Hide when chat is open.
+        out.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, x, y, colW));
+        out.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, colBX, y, colW));
+        y += STEP;
+        // 6. Number style.
         out.add(cycle(() -> "Numbers: §6" + cfg.getNumberFormat().label,
                 () -> cfg.setNumberFormat(cfg.getNumberFormat().next()),
                 () -> cfg.setNumberFormat(cfg.getNumberFormat().previous()), x, y, colW));
@@ -389,18 +403,39 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().next()),
                 () -> cfg.setNumberDisplayFormat(cfg.getNumberDisplayFormat().previous()), colBX, y, colW));
         y += STEP;
-        out.add(toggle("Hide With Tab List", cfg::isHideWhenTab, cfg::setHideWhenTab, x, y, colW));
-        out.add(toggle("Hide With Chat Open", cfg::isHideWhenChat, cfg::setHideWhenChat, colBX, y, colW));
+        // 7. Line spacing, 8. Text shadow.
+        out.add(slider(x, y, colW, cfg.getLineSpacing(), 0, 10, v -> "Line Spacing: " + v, cfg::setLineSpacing));
+        out.add(toggle("Text Shadow", cfg::isTextShadow, cfg::setTextShadow, colBX, y, colW));
         y += STEP;
+        // 9. Custom image: the background.png in the image folder (there is no file picker; see Open Image Folder).
+        out.add(toggle("Image Background", cfg::isImageBackground, cfg::setImageBackground, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getImageOpacity(), 5, 100, v -> "Image Opacity: " + v + "%",
+                cfg::setImageOpacity));
+        y += STEP;
+        out.add(SettingsButtonWidget.builder(Component.literal(CustomScoreboardFeature.backgroundImageExists()
+                        ? "Reload Image" : "Reload Image §c(none)"), btn -> {
+                    CustomScoreboardFeature.reloadBackgroundImage();
+                    rebuildWidgets();
+                }).bounds(x, y, colW, ROW).build());
+        out.add(SettingsButtonWidget.builder(Component.literal("Open Image Folder"), btn -> {
+                    try {
+                        java.nio.file.Files.createDirectories(CustomScoreboardConfig.DATA_DIR);
+                        ExternalOpen.path(CustomScoreboardConfig.DATA_DIR);
+                    } catch (Exception ignored) {
+                    }
+                }).bounds(colBX, y, colW, ROW).build());
+        y += STEP;
+        // 10. 24-hour clock (the sidebar's time line), 11. Date format (the lobby code's date).
+        out.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, x, y, colW));
+        out.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
+                () -> cfg.setDateFormat(cfg.getDateFormat().next()),
+                () -> cfg.setDateFormat(cfg.getDateFormat().previous()), colBX, y, colW));
+        y += STEP;
+        // Not in the list above, kept on the page: what the board does outside SkyBlock, and clicking lines.
         out.add(cycle(() -> "Outside Skyblock: §6" + cfg.getOutsideSkyblockMode().label,
                 () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().next()),
                 () -> cfg.setOutsideSkyblockMode(cfg.getOutsideSkyblockMode().previous()), x, y, colW));
         out.add(toggle("Clickable Lines", cfg::isLineActions, cfg::setLineActions, colBX, y, colW));
-        y += STEP;
-        out.add(SettingsButtonWidget.builder(Component.literal("Reset Position"), btn -> {
-                    cfg.resetAnchor();
-                    cfg.save();
-                }).bounds(x, y, width, ROW).build());
         y += STEP;
         hint(out, x, y, width, "Move it in Edit HUD. Title and footer text: click them on the Board.");
         y += 14;
@@ -421,73 +456,56 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(toggle("Hide Vanilla Scoreboard", cfg::isHideVanillaScoreboard, cfg::setHideVanillaScoreboard, x, y, colW));
         out.add(toggle("Custom Lines", cfg::isUseCustomLines, cfg::setUseCustomLines, colBX, y, colW));
         y += STEP;
-        out.add(cycle(() -> "Text Align: §6" + cfg.getTextAlignment().label,
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().next()),
-                () -> cfg.setTextAlignment(cfg.getTextAlignment().previous()), x, y, colW));
-        out.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, colBX, y, colW));
+        out.add(toggle("Hide Empty Lines", cfg::isHideEmptyLines, cfg::setHideEmptyLines, x, y, colW));
+        out.add(toggle("Hide Irrelevant Lines", cfg::isHideIrrelevantLines, cfg::setHideIrrelevantLines, colBX, y, colW));
         y += STEP;
-        out.add(toggle("Hide Irrelevant Lines", cfg::isHideIrrelevantLines, cfg::setHideIrrelevantLines, x, y, colW));
         out.add(toggle("Hide Double Separators", cfg::isHideConsecutiveEmptyLines, cfg::setHideConsecutiveEmptyLines,
-                colBX, y, colW));
-        y += STEP;
+                x, y, colW));
         out.add(toggle("Hide Edge Separators", cfg::isHideEmptyLinesAtTopAndBottom,
-                cfg::setHideEmptyLinesAtTopAndBottom, x, y, colW));
-        out.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, colBX, y, colW));
+                cfg::setHideEmptyLinesAtTopAndBottom, colBX, y, colW));
         y += STEP;
-        out.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, x, y, colW));
-        out.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, colBX, y, colW));
+        out.add(toggle("Cache On Island Switch", cfg::isCacheOnIslandSwitch, cfg::setCacheOnIslandSwitch, x, y, colW));
+        out.add(toggle("Show Number Changes", cfg::isShowNumberDifference, cfg::setShowNumberDifference, colBX, y, colW));
         y += STEP;
-        out.add(toggle("24h SkyBlock Time", cfg::isTime24h, cfg::setTime24h, x, y, colW));
-        out.add(cycle(() -> "Date Format: §6" + cfg.getDateFormat().pattern,
-                () -> cfg.setDateFormat(cfg.getDateFormat().next()),
-                () -> cfg.setDateFormat(cfg.getDateFormat().previous()), colBX, y, colW));
+        out.add(toggle("Unknown Line Warning", cfg::isUnknownLinesWarning, cfg::setUnknownLinesWarning, x, y, colW));
         y += STEP;
 
-        // ---- box ----
+        // ---- box: grouped by what each row changes; the image rows moved to the top of this page ----
         out.add(label(x, y + 2, width, 12, heading("Box")));
         y += 16;
+        y = subHeading(out, x, y, width, "Background");
+        out.add(toggle("Background", cfg::isBackgroundEnabled, cfg::setBackgroundEnabled, x, y, colW));
+        out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
+                cfg::setBackgroundColor, colBX, y, colW));
+        y += STEP;
         out.add(slider(x, y, colW, cfg.getPadding(), 0, 20, v -> "Padding: " + v, cfg::setPadding));
-        out.add(toggle("Rounded Corners", cfg::isRoundedCorners, cfg::setRoundedCorners, colBX, y, colW));
-        y += STEP;
-        out.add(slider(x, y, colW, cfg.getCornerRadius(), 1, 20, v -> "Corner Radius: " + v, cfg::setCornerRadius));
-        out.add(toggle("Border", cfg::isBorderEnabled, cfg::setBorderEnabled, colBX, y, colW));
-        y += STEP;
-        out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
-                cfg::setBorderColor, x, y, colW));
-        out.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
-                cfg::setBorderThickness));
-        y += STEP;
-        out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, x, y, colW));
-        out.add(colorButton("Border Bottom Color", cfg::getBorderColorBottom,
-                CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, colBX, y, colW));
-        y += STEP;
-        out.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, x, y, colW));
-        out.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed));
-        y += STEP;
-        out.add(slider(x, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
-        out.add(toggle("Background Blur (restart)", cfg::isBackgroundBlur, cfg::setBackgroundBlur, colBX, y, colW));
-        y += STEP;
-        out.add(slider(x, y, colW, cfg.getBlurStrength(), 1, 20, v -> "Blur Strength: " + v, cfg::setBlurStrength));
         out.add(slider(colBX, y, colW, cfg.getMinWidth(), 0, 400, v -> "Min Width: " + v, cfg::setMinWidth));
         y += STEP;
         out.add(slider(x, y, colW, cfg.getMinHeight(), 0, 400, v -> "Min Height: " + v, cfg::setMinHeight));
-        out.add(toggle("Image Background", cfg::isImageBackground, cfg::setImageBackground, colBX, y, colW));
         y += STEP;
-        out.add(slider(x, y, colW, cfg.getImageOpacity(), 5, 100, v -> "Image Opacity: " + v + "%",
-                cfg::setImageOpacity));
-        out.add(SettingsButtonWidget.builder(Component.literal(CustomScoreboardFeature.backgroundImageExists()
-                        ? "Reload Image" : "Reload Image §c(no background.png)"), btn -> {
-                    CustomScoreboardFeature.reloadBackgroundImage();
-                    rebuildWidgets();
-                }).bounds(colBX, y, colW, ROW).build());
+        y = subHeading(out, x, y, width, "Blur");
+        out.add(toggle("Blur (restart)", cfg::isBackgroundBlur, cfg::setBackgroundBlur, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getBlurStrength(), 1, 20, v -> "Blur Strength: " + v, cfg::setBlurStrength));
         y += STEP;
-        out.add(SettingsButtonWidget.builder(Component.literal("Open Image Folder"), btn -> {
-                    try {
-                        java.nio.file.Files.createDirectories(CustomScoreboardConfig.DATA_DIR);
-                        ExternalOpen.path(CustomScoreboardConfig.DATA_DIR);
-                    } catch (Exception ignored) {
-                    }
-                }).bounds(x, y, colW, ROW).build());
+        y = subHeading(out, x, y, width, "Corners");
+        out.add(toggle("Rounded Corners", cfg::isRoundedCorners, cfg::setRoundedCorners, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getCornerRadius(), 1, 20, v -> "Corner Radius: " + v, cfg::setCornerRadius));
+        y += STEP;
+        y = subHeading(out, x, y, width, "Border");
+        out.add(toggle("Border", cfg::isBorderEnabled, cfg::setBorderEnabled, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getBorderThickness(), 1, 5, v -> "Border Thickness: " + v,
+                cfg::setBorderThickness));
+        y += STEP;
+        out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
+                cfg::setBorderColor, x, y, colW));
+        out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, colBX, y, colW));
+        y += STEP;
+        out.add(colorButton("Bottom Color", cfg::getBorderColorBottom,
+                CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
+        y += STEP;
+        out.add(toggle("Chroma Border", cfg::isChromaBorder, cfg::setChromaBorder, x, y, colW));
+        out.add(slider(colBX, y, colW, cfg.getChromaSpeed(), 1, 20, v -> "Chroma Speed: " + v, cfg::setChromaSpeed));
         y += STEP;
         return y;
     }
@@ -941,6 +959,12 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
 
     private static void hint(List<AbstractWidget> out, int x, int y, int w, String text) {
         out.add(label(x, y, w, 10, Component.literal(text).withColor(MenuStyle.DIM & 0xFFFFFF)));
+    }
+
+    /** A small sub-heading inside a section (a 12px row); returns the y of the row beneath it. */
+    private static int subHeading(List<AbstractWidget> out, int x, int y, int w, String title) {
+        hint(out, x, y, w, title);
+        return y + 12;
     }
 
     /** A text line as a StringWidget (the tooltip and layout code treat it as one) drawn the theme's way: a vanilla

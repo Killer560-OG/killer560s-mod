@@ -46,15 +46,7 @@ public class CustomScoreboardTab extends BaseTab {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ScoreboardEditorScreen(McCompat.screen(client)));
                 }).primary().bounds(contentX, y, contentWidth, 20).build());
-        com.killer560.hub.gui.ScreenThemes.append(widgets, ScoreboardEditorScreen.THEME_ID, contentX, contentWidth, y);
-        // The board itself in game (killer560, 2026-10-18): its background, title band and border follow this theme. Default keeps
-        // the colours on this tab. The Visual Editor's own theme above is separate and only changes that editor screen.
-        int boardY = y;
-        for (AbstractWidget w : widgets) {
-            boardY = Math.max(boardY, w.getY() + w.getHeight() + 6);
-        }
-        widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.CUSTOM_SCOREBOARD,
-                contentX, boardY, 220, 20));
+        // The themes (the board's and the editor's) moved into the Visual Editor's Settings page (killer560, 2026-10-18).
         return widgets;
     }
 

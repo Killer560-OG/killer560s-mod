@@ -1247,7 +1247,14 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/remove", "Takes this line off the board (it moves to Not Active).");
         d.put("custom scoreboard/board", "The board's lines: the selected line's settings and the lines not on the board.");
         d.put("custom scoreboard/settings", "The board's look and when it hides; everything else is under Advanced.");
-        d.put("custom scoreboard/advanced", "Every other Custom Scoreboard setting: line rules, alignment, time and date, and the box (padding, corners, border, blur, image).");
+        d.put("custom scoreboard/advanced", "Every other Custom Scoreboard setting: the line rules, and the box (background, padding, corners, border, blur).");
+        d.put("custom scoreboard/theme", "The board's own colors: Default keeps the colors in the Background and Border settings; Amber, Dark, Light, Ocean, Viridian, Custom or a saved theme draw the background, title band and border in that theme. Left click goes forward, right click back.");
+        d.put("custom scoreboard/editor theme", "This editor screen's own colors only. Default follows the mod menu's theme; the other choices apply to this screen alone.");
+        d.put("custom scoreboard/date format", "The date on the Lobby Code line (today's real date). The SkyBlock date line is Hypixel's own text, so it is shown as it is.");
+        d.put("custom scoreboard/image opacity", "How solid the background image is, 5-100%. Only used with Image Background on.");
+        d.put("custom scoreboard/bottom color", "Bottom color of the border gradient (used with Gradient Border).");
+        d.put("custom scoreboard/blur (restart)", "Blurs the game behind the scoreboard box (restart Minecraft to apply).");
+        d.put("custom scoreboard/reload image (none)", "No background.png yet - use Open Image Folder and drop one in first.");
         d.put("custom scoreboard/reset position", "Puts the board back against the right edge of the screen, vertically centered, where the vanilla scoreboard sits. Drag it anywhere in Edit HUD; it never goes off screen.");
         d.put("custom scoreboard/done", "Closes the editor. Every change is already saved.");
         d.put("custom scoreboard/edit events", "Opens the Events page, where you choose which events the Events line shows and in what order.");
