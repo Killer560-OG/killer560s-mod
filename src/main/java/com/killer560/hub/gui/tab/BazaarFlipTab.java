@@ -103,13 +103,57 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.cycling(
-                Component.literal("Rank By: §6" + cfg.getRankingMode().display), (btn, dir) -> {
-                    cfg.cycleRankingMode(dir);
+        // Autopilot (2026-10-19): buy orders, sell offers, relists and collecting, decided from the Bazaar Advisor's
+        // /bzflip answers, instead of the Insta Buy to /trades cycle. Off by default; switching it stops a running session.
+        widgets.add(SettingsButtonWidget.builder(onOff("Autopilot", cfg.isAutopilot()), btn -> {
+                    cfg.setAutopilot(!cfg.isAutopilot());
                     cfg.save();
-                    btn.setMessage(Component.literal("Rank By: §6" + cfg.getRankingMode().display));
+                    BazaarFlipFeature.requestStop();
+                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+
+        if (cfg.isAutopilot()) {
+            widgets.add(inertLabel(contentX, y, contentWidth, "Uses /bzflip: " + com.killer560.hub.bazaaradvisor
+                    .BazaarAdvisorConfig.getInstance().summary()));
+            y += 20;
+            SettingsButtonWidget reserveLabel = SettingsButtonWidget.builder(reserveText(cfg.getAutopilotReserve()), btn -> {
+            }).bounds(contentX, y, col2W, 18).build();
+            reserveLabel.active = false;
+            widgets.add(reserveLabel);
+            EditBox reserveBox = new EditBox(Minecraft.getInstance().font, col2bX, y, col2W, 18,
+                    Component.literal("Reserve"));
+            reserveBox.setMaxLength(24);
+            reserveBox.setValue(cfg.getAutopilotReserve() > 0 ? String.format(Locale.US, "%,d", cfg.getAutopilotReserve()) : "");
+            reserveBox.setResponder(text -> {
+                Long coins = BazaarFlipConfig.parseCoins(text);
+                if (coins == null) {
+                    reserveLabel.setMessage(Component.literal("Reserve: §cnot a number"));
+                    return;
+                }
+                if (cfg.getAutopilotReserve() != coins) {
+                    cfg.setAutopilotReserve(coins);
+                    cfg.save();
+                }
+                reserveLabel.setMessage(reserveText(cfg.getAutopilotReserve()));
+            });
+            widgets.add(reserveBox);
+            y += 22;
+            widgets.add(SettingsButtonWidget.cycling(orderCapText(cfg), (btn, dir) -> {
+                cfg.stepAutopilotMaxOrders(dir);
+                cfg.save();
+                btn.setMessage(orderCapText(cfg));
+            }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+        } else {
+            widgets.add(SettingsButtonWidget.cycling(
+                    Component.literal("Rank By: §6" + cfg.getRankingMode().display), (btn, dir) -> {
+                        cfg.cycleRankingMode(dir);
+                        cfg.save();
+                        btn.setMessage(Component.literal("Rank By: §6" + cfg.getRankingMode().display));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+        }
 
         // Min Profit Per Run was removed on 2026-10-16 (killer560: "I want it to always choose the best"): the best
         // flip by Rank By is taken whenever its profit after fees is above 0.
@@ -187,6 +231,16 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(coins <= 0
                 ? "Target Purse: §6Off"
                 : String.format(Locale.US, "Target Purse: §6%,d", coins));
+    }
+
+    private static Component reserveText(long coins) {
+        return Component.literal(coins <= 0
+                ? "Reserve: §6a tenth of the purse"
+                : String.format(Locale.US, "Reserve: §6%,d", coins));
+    }
+
+    private static Component orderCapText(BazaarFlipConfig cfg) {
+        return Component.literal("Max New Orders Per Session: §6" + cfg.getAutopilotMaxOrders());
     }
 
     private static Component speedText(BazaarFlipConfig cfg) {
