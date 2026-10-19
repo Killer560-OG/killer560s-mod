@@ -280,3 +280,58 @@ java {
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
+// Release jar size (2026-10-19): the bundled JNA jar carries 189 files, almost all of them jnidispatch natives for
+// platforms Minecraft cannot run on (AIX, Solaris, the BSDs, ppc, mips, s390x, riscv, loongarch, armel). A release
+// build drops those natives from the nested JNA jar after the jar task has packed it, and rewrites the whole jar at
+// deflate level 9. Windows, macOS and the four Linux families Minecraft supports (x86, x86-64, arm, aarch64) stay.
+// Non-release builds are left exactly as they were.
+if (releaseBuild) {
+	def keepNativeDirs = ['win32-x86', 'win32-x86-64', 'win32-aarch64', 'darwin-x86-64', 'darwin-aarch64',
+			'linux-x86', 'linux-x86-64', 'linux-arm', 'linux-aarch64'] as Set
+	tasks.named('jar') {
+		doLast {
+			def outFile = archiveFile.get().asFile
+			def tmp = new File(outFile.parentFile, outFile.name + ".trim")
+			def dropped = 0
+			new java.util.zip.ZipFile(outFile).withCloseable { zin ->
+				new java.util.zip.ZipOutputStream(new FileOutputStream(tmp)).withCloseable { zout ->
+					zout.setLevel(9)
+					zin.entries().each { e ->
+						byte[] data = zin.getInputStream(e).bytes
+						if (!e.isDirectory() && e.name ==~ /META-INF\/jars\/jna-[^\/]+\.jar/) {
+							def bos = new ByteArrayOutputStream()
+							new java.util.zip.ZipInputStream(new ByteArrayInputStream(data)).withCloseable { jin ->
+								new java.util.zip.ZipOutputStream(bos).withCloseable { jout ->
+									jout.setLevel(9)
+									def je
+									while ((je = jin.nextEntry) != null) {
+										// com/sun/jna/<platform>/ directories have a dash; the Java packages do not
+										def m = je.name =~ /^com\/sun\/jna\/([^\/]*-[^\/]*)\/.*$/
+										if (m.matches() && !keepNativeDirs.contains(m.group(1))) {
+											dropped++
+											continue
+										}
+										def ne = new java.util.zip.ZipEntry(je.name)
+										ne.time = je.time
+										jout.putNextEntry(ne)
+										jin.transferTo(jout)
+										jout.closeEntry()
+									}
+								}
+							}
+							data = bos.toByteArray()
+						}
+						def ne = new java.util.zip.ZipEntry(e.name)
+						ne.time = e.time
+						zout.putNextEntry(ne)
+						zout.write(data)
+						zout.closeEntry()
+					}
+				}
+			}
+			java.nio.file.Files.move(tmp.toPath(), outFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+			logger.lifecycle("Release size trim: dropped ${dropped} JNA entries, jar rewritten at deflate level 9")
+		}
+	}
+}
+
