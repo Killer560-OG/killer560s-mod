@@ -61,7 +61,10 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(backgroundText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(opacitySlider(colBX, y, colW, cfg));
+        widgets.add(backgroundOpacitySlider(colBX, y, colW, cfg));
+        y += 22;
+
+        widgets.add(itemOpacitySlider(contentX, y, contentWidth, cfg));
         y += 22;
 
         widgets.add(com.killer560.hub.gui.OverlayThemes.button(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD,
@@ -119,11 +122,12 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         return widgets;
     }
 
-    private static ThemedSliderButton opacitySlider(int x, int y, int width, InventoryHudConfig cfg) {
-        return new ThemedSliderButton(x, y, width, 18, opacityText(cfg), cfg.getBackgroundOpacity() / 100.0) {
+    /** The panel's fill, outline and slot backdrops (killer560, 2026-10-18: split from Item Opacity). */
+    private static ThemedSliderButton backgroundOpacitySlider(int x, int y, int width, InventoryHudConfig cfg) {
+        return new ThemedSliderButton(x, y, width, 18, backgroundOpacityText(cfg), cfg.getBackgroundOpacity() / 100.0) {
             @Override
             protected void updateMessage() {
-                setMessage(opacityText(cfg));
+                setMessage(backgroundOpacityText(cfg));
             }
 
             @Override
@@ -134,8 +138,28 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
         };
     }
 
-    private static Component opacityText(InventoryHudConfig cfg) {
-        return Component.literal("Opacity: " + cfg.getBackgroundOpacity() + "%");
+    /** The veil over each item (see InventoryHudFeature#itemVeil). 100% draws no veil. */
+    private static ThemedSliderButton itemOpacitySlider(int x, int y, int width, InventoryHudConfig cfg) {
+        return new ThemedSliderButton(x, y, width, 18, itemOpacityText(cfg), cfg.getItemOpacity() / 100.0) {
+            @Override
+            protected void updateMessage() {
+                setMessage(itemOpacityText(cfg));
+            }
+
+            @Override
+            protected void applyValue() {
+                cfg.setItemOpacity((int) Math.round(this.value * 100));
+                cfg.save();
+            }
+        };
+    }
+
+    private static Component backgroundOpacityText(InventoryHudConfig cfg) {
+        return Component.literal("Background Opacity: " + cfg.getBackgroundOpacity() + "%");
+    }
+
+    private static Component itemOpacityText(InventoryHudConfig cfg) {
+        return Component.literal("Item Opacity: " + cfg.getItemOpacity() + "%");
     }
 
     private static Component backgroundText(InventoryHudConfig cfg) {

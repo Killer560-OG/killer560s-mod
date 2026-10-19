@@ -30,9 +30,10 @@ import com.killer560.hub.compat.McCompat;
  * which this one can't do because "Hide in Screens" is optional). {@link InventoryHudElement#render} is
  * therefore the HUD-editor preview path only.
  * <p>
- * The Opacity setting fades the panel, its outline, the slots and the items. The items are not tinted (item textures
- * cannot be on 26.1.2, see {@link #drawStack}): each occupied cell gets a veil in the slot colour at (100 - opacity)%
- * drawn over its item, so an item fades toward the slot colour rather than the world. Not a true per-item alpha.
+ * Background Opacity fades the panel, its outline and the slots. Item Opacity fades the items: they are not tinted (item
+ * textures cannot be on 26.1.2, see {@link #drawStack}), so each occupied cell gets a veil in the slot colour at
+ * (100 - item opacity)% drawn over its item, and an item fades toward the slot colour rather than the world. Not a true
+ * per-item alpha.
  * Where it sits when never moved: centred above the hotbar, a little way up ({@link InventoryHudElement#defaultX}).
  */
 public final class InventoryHudFeature {
@@ -163,7 +164,7 @@ public final class InventoryHudFeature {
         int opacity = cfg.getBackgroundOpacity();
         InventoryHudConfig.Background bg = cfg.getBackground();
 
-        // Opacity 0 hides the panel entirely, items included.
+        // Background Opacity 0 hides the panel entirely, items included (item opacity does not override it).
         //
         // Without this the dimming overlay at the bottom of this method is fully opaque at 0, so dragging the
         // slider to the bottom produced a SOLID BLACK BOX over the world - the exact opposite of what a 0%
@@ -208,7 +209,7 @@ public final class InventoryHudFeature {
         }
         Font font = Minecraft.getInstance().font;
         Inventory inventory = player.getInventory();
-        int veil = itemVeil(bg, opacity);
+        int veil = itemVeil(bg, cfg.getItemOpacity());
         // One batch for every occupied cell's veil, submitted after the items so each veil sits over its item and count.
         GuiRects veils = veil == 0 ? null : GuiRects.begin(graphics);
         for (int row = 0; row < ROWS; row++) {
@@ -244,13 +245,14 @@ public final class InventoryHudFeature {
     }
 
     /**
-     * The veil drawn over each occupied cell after its item, as ARGB at (100 - opacity)%: the colour the panel is drawn
+     * The veil drawn over each occupied cell after its item, as ARGB at (100 - itemOpacity)%: the colour the panel is drawn
      * behind the items with (the slot backdrop, or the panel fill when there are no slot backdrops), so the item fades
-     * toward that colour. Returns 0 (no veil, no extra draw) at 100% opacity, and with no panel under the items (None),
-     * where there is no colour to fade toward.
+     * toward that colour. Returns 0 (no veil, no extra draw) at 100% item opacity, and with no panel under the items (None),
+     * where there is no colour to fade toward. At 0% the veil is opaque, so every item is hidden behind the colour; the
+     * panel itself still follows the background opacity (0 there hides the whole panel, see drawPanel).
      */
-    private static int itemVeil(InventoryHudConfig.Background bg, int opacity) {
-        if (opacity >= 100 || bg == InventoryHudConfig.Background.NONE) {
+    private static int itemVeil(InventoryHudConfig.Background bg, int itemOpacity) {
+        if (itemOpacity >= 100 || bg == InventoryHudConfig.Background.NONE) {
             return 0;
         }
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
@@ -260,7 +262,7 @@ public final class InventoryHudFeature {
         } else {
             rgb = menu == null ? PANEL_BG : menu.panel();
         }
-        return withAlpha(rgb, 100 - opacity);
+        return withAlpha(rgb, 100 - itemOpacity);
     }
 
     /**
