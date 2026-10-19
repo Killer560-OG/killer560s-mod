@@ -710,10 +710,15 @@ public final class BazaarFlipFeature {
                         target.productId(), have);
                 boolean wasCustom = custom == Custom.AFTER_SIGN;
                 custom = Custom.NONE;
-                if (wasCustom && !(open instanceof AbstractContainerScreen<?>)) {
+                if (wasCustom && (!(open instanceof AbstractContainerScreen<?>) || isConfirmPage(open))) {
                     // The items can land before the page the sign came from is shown again (testkit 2764 on the
                     // merged jar: 40 of 100 arrived with no menu up, and buying ended there). Wait for the page,
-                    // bounded; only if no menu comes back is this cycle's buying over.
+                    // bounded; only if no menu comes back is this cycle's buying over. A Confirm Instant Buy page left
+                    // up after the buy is not a Bazaar page: it is closed here, and the same bounded wait applies
+                    // (killer560, 2026-10-18: "Unexpected Bazaar page: Confirm Instant Buy" stopped a live run).
+                    if (isConfirmPage(open) && client.player != null) {
+                        client.player.closeContainer();
+                    }
                     awaitingReopenSinceMs = now;
                     return;
                 }
@@ -734,7 +739,7 @@ public final class BazaarFlipFeature {
             }
         }
         if (awaitingReopenSinceMs > 0L) {
-            if (open instanceof AbstractContainerScreen<?>) {
+            if (open instanceof AbstractContainerScreen<?> && !isConfirmPage(open)) {
                 awaitingReopenSinceMs = 0L; // the page is back: carry on buying from it
             } else if (open != null || now - awaitingReopenSinceMs > REOPEN_TIMEOUT_MS) {
                 awaitingReopenSinceMs = 0L;
@@ -1095,6 +1100,11 @@ public final class BazaarFlipFeature {
         stateSinceMs = now;
         clicks++;
         nextActionAtMs = now + randomDelay(cfg);
+    }
+
+    /** The Confirm Instant Buy page, open at all (it is not a Bazaar page and is never dispatched as one). */
+    private static boolean isConfirmPage(Screen open) {
+        return open instanceof AbstractContainerScreen<?> c && CONFIRM_INSTANT_BUY.equals(BazaarFlipMenus.titleOf(c));
     }
 
     /** After Done: a Confirm Instant Buy page is confirmed (once, if it states the amount); anything else waits. */
