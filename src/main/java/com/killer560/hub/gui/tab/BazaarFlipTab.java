@@ -114,8 +114,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         if (cfg.isAutopilot()) {
-            widgets.add(inertLabel(contentX, y, contentWidth, "Uses /bzflip: " + com.killer560.hub.bazaaradvisor
-                    .BazaarAdvisorConfig.getInstance().summary()));
+            widgets.add(inertLabel(contentX, y, contentWidth, "Uses /bzflip: " + shortAdvisor()));
             y += 20;
             SettingsButtonWidget reserveLabel = SettingsButtonWidget.builder(reserveText(cfg.getAutopilotReserve()), btn -> {
             }).bounds(contentX, y, col2W, 18).build();
@@ -219,7 +218,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
         });
         y += 22;
 
-        widgets.add(inertLabel(contentX, y, contentWidth, "/bazaarflip scan - price the market now, no clicks"));
+        widgets.add(inertLabel(contentX, y, contentWidth, "/bzscan - price the market now, no clicks"));
         // The "Last scan" / "Best" lines under this were removed on 2026-10-16 (killer560: "remove those lines at the
         // bottom about last s... and best"); /bazaarflip scan still prints its result in chat, and /profit bazaarflip
         // has every finished cycle.
@@ -235,7 +234,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
 
     private static Component reserveText(long coins) {
         return Component.literal(coins <= 0
-                ? "Reserve: §6a tenth of the purse"
+                ? "Reserve: §610% of purse"
                 : String.format(Locale.US, "Reserve: §6%,d", coins));
     }
 
@@ -251,6 +250,17 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
     private static Component sellSpeedText(BazaarFlipConfig cfg) {
         return Component.literal(String.format(Locale.US, "Sell Speed: §6%d §7(%d-%d ms between sells)",
                 cfg.getSellSpeed(), cfg.getSellDelayMinMs(), cfg.getSellDelayMaxMs()));
+    }
+
+    /** The advisor's answers in as few characters as possible, so the row is never cut off. */
+    private static String shortAdvisor() {
+        com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig a = com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.getInstance();
+        String mode = a.getMode() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Mode.NPC ? "NPC" : "Bazaar";
+        String goal = a.getGoal() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Goal.TOTAL_PROFIT ? "total" : "%";
+        String buy = a.getBuyMethod() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.BuyMethod.INSTA_BUY ? "insta buy" : "buy order";
+        String sell = a.getMode() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Mode.NPC ? "NPC sell"
+                : a.getSellMethod() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.SellMethod.INSTA_SELL ? "insta sell" : "sell offer";
+        return mode + " / " + goal + " / " + buy + " / " + sell;
     }
 
     private static AbstractWidget inertLabel(int x, int y, int width, String text) {
