@@ -203,6 +203,9 @@ public final class ItemCraftView {
 
         List<String> descriptionLines = wrap(font, entry.description(), contentWidth);
         List<String> obtainLines = entry.obtainLines();
+        // The placeholder wraps to the popup width like every other line (it used to run past the right edge).
+        List<String> noObtainLines = obtainLines.isEmpty()
+                ? wrap(font, "§8No obtain information available from Hypixel's API.", contentWidth) : List.of();
 
         int y = 0;
         y += font.lineHeight + 4; // title
@@ -213,7 +216,7 @@ public final class ItemCraftView {
         y += 6; // divider gap before Obtain
         y += font.lineHeight; // "Obtain:" header
         int shownObtain = Math.min(obtainLines.size(), MAX_OBTAIN_LINES);
-        y += Math.max(1, shownObtain) * font.lineHeight;
+        y += (obtainLines.isEmpty() ? noObtainLines.size() : Math.max(1, shownObtain)) * font.lineHeight;
         if (obtainLines.size() > MAX_OBTAIN_LINES) {
             y += font.lineHeight;
         }
@@ -260,8 +263,10 @@ public final class ItemCraftView {
         graphics.text(font, "§6Obtain:", lx, ly, menu == null ? 0xFFFFAA00 : menu.accentHover(), false);
         ly += font.lineHeight;
         if (obtainLines.isEmpty()) {
-            graphics.text(font, "§8No obtain information available from Hypixel's API.", lx, ly, 0xFF888888, false);
-            ly += font.lineHeight;
+            for (String wrapped : noObtainLines) {
+                graphics.text(font, wrapped, lx, ly, 0xFF888888, false);
+                ly += font.lineHeight;
+            }
         } else {
             for (int i = 0; i < shownObtain; i++) {
                 for (String wrapped : wrap(font, "- " + obtainLines.get(i), contentWidth)) {
