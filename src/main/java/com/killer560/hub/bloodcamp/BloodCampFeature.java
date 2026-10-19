@@ -421,6 +421,7 @@ public final class BloodCampFeature {
             // a new level's game time can be behind the old one's; never let that hold a sound off
             lastStartSoundTick = Long.MIN_VALUE / 2;
             lastKillSoundTick = Long.MIN_VALUE / 2;
+            lastLineOfFireLogTick = Long.MIN_VALUE / 2;
         }
         if (!isActive()) {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
@@ -705,6 +706,12 @@ public final class BloodCampFeature {
         if ((fillerNow || triggerTarget != null || auraMob != null || triggerFloor != null)
                 && !lineOfFireClear(client, firing)) {
             lineOfFireBlocks++;
+            // Said in his log (at most once a second): a held click left no trace at all, so "it never clicked" could not
+            // be told from "something stood in the way" (2026-10-19).
+            if (!fillerNow && now - lastLineOfFireLogTick >= 20) {
+                lastLineOfFireLogTick = now;
+                LOGGER.info("[BloodCamp] Click held: {} in the line of fire", lastLineOfFireBlocker);
+            }
             return;
         }
         if (fillerNow && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
@@ -868,6 +875,9 @@ public final class BloodCampFeature {
     /** A trip's mob is taken when it is due within this many ticks (or later): the moment it lands. */
     private static final double TAG_WITHIN_TICKS = 10.0;
     private static int lineOfFireBlocks;
+    /** What last stood in the line of fire, and the tick that was last logged. */
+    private static String lastLineOfFireBlocker = "none";
+    private static long lastLineOfFireLogTick = Long.MIN_VALUE / 2;
 
     public static Set<Integer> bloodMobIds() {
         return Set.copyOf(BLOOD_IDS);
@@ -962,7 +972,7 @@ public final class BloodCampFeature {
      * Whether a click aimed along his body's look would only meet {@code target}: no other living thing that is not a
      * blood mob inside the Blood Room within 0.6 blocks of the line, from his eye out to the first block (or 48 blocks)
      * - past the target too, because a beam or an arrow carries on. Real players are not in the way (nothing of his
-     * hits them). The Watcher is in the way.
+     * hits them), and neither is what players fire into the room ({@link #isPlayerSummon}). The Watcher is in the way.
      */
     static boolean lineOfFireClear(Minecraft client, Entity target) {
         Vec3 eye = client.player.getEyePosition();
@@ -971,7 +981,7 @@ public final class BloodCampFeature {
         Vec3 end = eye.add(dir.scale(len));
         for (Entity e : client.level.getEntities(client.player, new AABB(eye, end).inflate(1.0),
                 x -> x instanceof LivingEntity && !(x instanceof ArmorStand) && x.isAlive()
-                        && !(x instanceof Player && x.getUUID().version() == 4))) {
+                        && !(x instanceof Player && x.getUUID().version() == 4) && !isPlayerSummon(x))) {
             if (e == target) {
                 continue;
             }
@@ -979,6 +989,7 @@ public final class BloodCampFeature {
                 continue;
             }
             if (!isBloodMob(e) || !inRoomTile(client, e.position())) {
+                lastLineOfFireBlocker = e.getType().toShortString() + " #" + e.getId();
                 return false;
             }
         }
@@ -1336,7 +1347,7 @@ public final class BloodCampFeature {
             AABB search = new AABB(data.endVector, data.endVector).inflate(TARGET_SEARCH_RADIUS);
             for (Entity candidate : client.level.getEntities(client.player, search,
                     e -> e instanceof LivingEntity && !(e instanceof ArmorStand)
-                            && !(e instanceof Player && e.getUUID().version() == 4))) {
+                            && !(e instanceof Player && e.getUUID().version() == 4) && !isPlayerSummon(e))) {
                 LivingEntity living = (LivingEntity) candidate;
                 if (living.hurtTime > 0 || !living.isAlive()) {
                     data.confirmed = true;
@@ -1612,7 +1623,21 @@ public final class BloodCampFeature {
         return entity instanceof LivingEntity && entity.isAlive() && !entity.isRemoved()
                 && !(entity instanceof ArmorStand)
                 && !(entity instanceof Player && entity.getUUID().version() == 4)
+                && !isPlayerSummon(entity)
                 && entity != Minecraft.getInstance().player;
+    }
+
+    /**
+     * What players fire into the Blood Room themselves: Spirit Sceptre's bats (a real {@code Bat}, as roomsim's
+     * SimSpiritSceptre spawns it) and the Guided Sheep. No blood mob is either. killer560, 2026-10-19: "Blood camp is still
+     * missing for triggerbot" with Auto Detect Lag and Never Miss on - his run spammed the Spirit Sceptre through the whole
+     * camp, and every bat flying down his look counted as "a plain mob in the line of fire" (lineOfFireClear held the
+     * click, silently), a bat dying on a landing spot marked that trip hit (confirmHits), and a bat beside a landing spot
+     * could be tagged as the blood mob itself (tagBloodMobs) and become what Never Miss waited to see under his look.
+     */
+    static boolean isPlayerSummon(Entity entity) {
+        return entity instanceof net.minecraft.world.entity.ambient.Bat
+                || entity instanceof net.minecraft.world.entity.animal.sheep.Sheep;
     }
 
     /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc

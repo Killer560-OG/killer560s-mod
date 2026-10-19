@@ -230,6 +230,26 @@ public final class RouteExecutor {
 
     /** The warp under way was already aimed again once after no landing came (see {@link #retryAim}). */
     private static boolean warpRetried;
+    /** His left click released a hold on the warp under way (landing block missing, a breaker pick or a new block in its
+     *  line): those checks are skipped until the next warp's PREP. */
+    private static boolean warpForced;
+    /** The "still no landing" line went out for the warp under way. */
+    private static boolean warpSlowSaid;
+    /**
+     * Hypixel acks block clicks but not a bare item use (his Mod Only Test log, 2026-10-19 15:06-15:08: the refused-warp
+     * retry below fired only 44-58 ticks on, right after one of HIS block clicks brought an ack past the warp's sequence,
+     * and never in the six Slime #9 refusals, each of which sat out the whole 60-tick timeout). So a use with no ack after
+     * this many round trips counts as handled - the same rule as {@code RewardChest.NO_ACK_ROUND_TRIPS}.
+     */
+    private static final int NO_ACK_ROUND_TRIPS = 3;
+    /**
+     * Where he stood when a warp from there never landed (the server sent no teleport and he had not moved). The node he
+     * stands in is NOT fired again by itself from here: on 2026-10-19 Slime #5's stack (two booms, a crypt, then path #9)
+     * re-fired from the same spot after every timeout, five times in 35 s, each warp refused the same way - the "freeze".
+     * The route keeps running; a left click (or moving off the spot) fires it again. Null when nothing is held.
+     */
+    private static Vec3 refireHoldAt;
+    private static boolean refireHoldSaid;
     /** The prediction sequence of the warp's use, or -1: a refused warp is only called refused once the server has
      *  acked it (handled it) with no teleport before the ack. */
     private static int warpUseSeq = -1;
@@ -505,6 +525,7 @@ public final class RouteExecutor {
         stackTrigger = null;
         activeNode = null;
         step = null;
+        refireHoldAt = null;
         landedFrom = null;
         arrivalChain = false;
         chainAfterLanding = false;
@@ -585,6 +606,7 @@ public final class RouteExecutor {
         carryFrom = Integer.MAX_VALUE;
         nodeCarry = Integer.MAX_VALUE;
         earlySkipClickAt = Long.MIN_VALUE / 2;
+        refireHoldAt = null;
         AwaitEvents.begin(client);
         landedFrom = null;
         arrivalChain = false;
@@ -1068,7 +1090,9 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] {}{}", line, waiting == null ? ""
                     : " - node #" + (route.indexOf(waiting) + 1) + " waits for " + Math.max(1, waiting.awaitAmount));
         }
-        if (teleportingBetweenAwaits() && takeSkipClick(client)) {
+        // A warp that is WAITING (held before its use, or a round trip on with no landing) takes the click itself in
+        // tickWarp and goes off with it; only a click while one is really in flight is held for the next await.
+        if (teleportingBetweenAwaits() && !warpClickReleases() && takeSkipClick(client)) {
             // killer560, 2026-10-14: "Left clicking for auto routes does not always skip the node." A click he makes
             // while the warp that lands him on the waiting node is still in flight (or the stack settles) reached
             // vanilla as a swing a tick or two BEFORE the node began waiting, and was gone by then: the node sat at
@@ -1184,6 +1208,9 @@ public final class RouteExecutor {
             RouteNode node = ordered.get(nextNode);
             Vec3 nodeAt = RouteCoords.toReal(frame, node.relativePos());
             if (node.contains(nodeAt, cfg.getHeight(), player.getBoundingBox())) {
+                if (refireHeld(client, player, node)) {
+                    return;
+                }
                 beginStack(node);
             } else if (++idleTicks == IDLE_SAY_TICKS && walkHoldYaw == null && !idleSaid) {
                 // Normal while he walks to it himself; after a warp it names a landing that missed the next ring.
@@ -1210,6 +1237,9 @@ public final class RouteExecutor {
         }
         if (nextNode < ordered.size() && cursor >= ordered.get(nextNode).pathIndex) {
             clearMovement();
+            if (refireHeld(client, player, ordered.get(nextNode))) {
+                return;
+            }
             beginStack(ordered.get(nextNode));
             return;
         }
@@ -1382,6 +1412,7 @@ public final class RouteExecutor {
      * {@link #finishAction} moves the route on from the trigger's place once the last is done.
      */
     private static void beginStack(RouteNode trigger) {
+        refireHoldAt = null; // any stack firing (a landing elsewhere, his click) ends the hold
         List<RouteNode> stack = route.stackOf(trigger);
         stackQueue.clear();
         stackQueue.addAll(stack);
@@ -2011,6 +2042,73 @@ public final class RouteExecutor {
         return settleTicks > 0 || !stackQueue.isEmpty() || chainAfterLanding;
     }
 
+    /**
+     * The warp under way is waiting rather than in flight, so his left click is its trigger, taken by {@link #tickWarp}
+     * (killer560, 2026-10-19: "left-clicking a node that is waiting for something does not make it go off" - his clicks
+     * while Slime #9's warp sat 60 ticks with no landing were all held for an await that never came). Waiting = held
+     * before the use (landing block missing, a breaker pick or a new block in its line), or the use went out a round
+     * trip ago and no teleport has come.
+     */
+    private static boolean warpClickReleases() {
+        RouteNode n = activeNode;
+        if (!running || n == null || !awaitPhaseDone
+                || (n.type != RouteNode.Type.ETHERWARP && n.type != RouteNode.Type.PATH)) {
+            return false;
+        }
+        if (step == Step.AIM) {
+            return blockWaitTicks > 0 || pickWaitBlock != null || lineWaitTicks > 0;
+        }
+        return step == Step.CONFIRM && !teleportPacketSeen && stepTicks > warpRoundTripTicks();
+    }
+
+    /** A round trip for a warp's use, in ticks: the eaten-use retry wait plus any server stall. */
+    private static int warpRoundTripTicks() {
+        return com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks();
+    }
+
+    /** His left click let the warp under way past what held it; logged at INFO so he can find it in latest.log. */
+    private static void forceWarpPastHold(RouteNode node, String held, int heldTicks) {
+        warpForced = true;
+        LOGGER.info("[AutoRoutes] Left click on node #{} {}: released its wait ({}, {} tick(s)) - warping now",
+                route.indexOf(node) + 1, node.type, held, heldTicks);
+        blockWaitTicks = 0;
+        blockWaitSaid = false;
+        pickWaitBlock = null;
+        lineWaitTicks = 0;
+        lineWaitBlock = null;
+    }
+
+    /**
+     * {@link #refireHoldAt}: true while the node he stands in is held after a warp from here never landed. Moving off the
+     * spot or a left click lets it fire again (both logged at INFO).
+     */
+    private static boolean refireHeld(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (refireHoldAt == null) {
+            return false;
+        }
+        double moved = player.position().distanceTo(refireHoldAt);
+        if (moved > 0.5) {
+            LOGGER.info("[AutoRoutes] Node #{} {}: hold after the unlanded warp cleared - you moved {} blocks",
+                    route.indexOf(node) + 1, node.type, String.format(Locale.US, "%.2f", moved));
+            refireHoldAt = null;
+            return false;
+        }
+        if (takeSkipClick(client)) {
+            LOGGER.info("[AutoRoutes] Left click on node #{} {}: released the hold after the unlanded warp - firing it "
+                    + "again", route.indexOf(node) + 1, node.type);
+            refireHoldAt = null;
+            return false;
+        }
+        if (!refireHoldSaid) {
+            refireHoldSaid = true;
+            LOGGER.info("[AutoRoutes] Node #{} {}: held - its warp from here never landed; left click fires it again, "
+                    + "or move off the spot", route.indexOf(node) + 1, node.type);
+            AutoRoutesFeature.note(ModChat.text("Node #" + (route.indexOf(node) + 1)),
+                    ModChat.dim(" held: its etherwarp never landed. Left click to fire it again."));
+        }
+        return true;
+    }
+
     /** A left click held by {@link #tick} while the route warped him here, at most {@link #EARLY_SKIP_TICKS} old:
      *  true once, and it is used up. */
     private static boolean takeEarlySkip() {
@@ -2360,6 +2458,7 @@ public final class RouteExecutor {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
             warpRetried = false;
+            warpForced = false;
             int slot = ItemIdentity.findEtherwarpSlot(player);
             if (slot < 0) {
                 LOGGER.info("[AutoRoutes] Etherwarp: no hotbar item with ethermerge / ETHERWARP_CONDUIT");
@@ -2382,6 +2481,16 @@ public final class RouteExecutor {
                 // goes back in hand now, and the use below goes with it in this same tick.
                 select(client, player, warpSpentFromSlot);
                 warpSpentFromSlot = -1;
+            } else if (!ItemIdentity.isEtherwarpItem(player.getMainHandItem())) {
+                // Back in AIM for a second send (refused, eaten, or his click) after he changed slots while it waited:
+                // PREP's select is behind it, so the resend went out with whatever he held - BAT_WAND and
+                // ITEM_SPIRIT_BOW on 2026-10-19 15:07:37 / 15:08:30, "sending it once more" with no warp at all.
+                int slot = ItemIdentity.findEtherwarpSlot(player);
+                if (slot >= 0) {
+                    LOGGER.info("[AutoRoutes] Etherwarp: {} in hand at the send - selecting the etherwarp item (slot {})",
+                            ItemIdentity.skyblockId(player.getMainHandItem()), slot + 1);
+                    select(client, player, slot);
+                }
             }
             // A right click on a block may be waiting on the server for its second half (util/RightClick): the server
             // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.
@@ -2408,11 +2517,14 @@ public final class RouteExecutor {
             if (sneakReadyAge < 0) {
                 sneakReadyAge = actionAge;
             }
-            if (!landingBlockThere(client)) {
-                return false;
-            }
-            if (pickStillStanding(client, player, node)) {
-                return false;
+            if (!warpForced && (!landingBlockThere(client) || pickStillStanding(client, player, node))) {
+                // Held with no time limit of its own (a pick, up to 60 s for a missing block): his left click goes off.
+                if (!running || activeNode != node || !takeSkipClick(client)) {
+                    return false;
+                }
+                forceWarpPastHold(node, blockWaitTicks > 0 ? "landing block " + warpTarget.toShortString() + " missing"
+                        : "breaker block " + (pickWaitBlock == null ? "?" : pickWaitBlock.toShortString())
+                        + " in the way", blockWaitTicks > 0 ? blockWaitTicks : stepTicks);
             }
             if (!warpAimReady(player)) {
                 return false;
@@ -2459,8 +2571,12 @@ public final class RouteExecutor {
                 warpTurnFirstTicks++;
                 return false;
             }
-            if (hopIndex < 0 && newBlockInLine(client, player, node)) {
-                return false;
+            if (hopIndex < 0 && !warpForced && newBlockInLine(client, player, node)) {
+                if (!takeSkipClick(client)) {
+                    return false; // no time limit (his rule): only his click sends it past the block
+                }
+                forceWarpPastHold(node, "block " + (lineWaitBlock == null ? "?" : lineWaitBlock.toShortString())
+                        + " in its line", lineWaitTicks);
             }
             if (spendStaleClickFirst(client, player)) {
                 warpTurnFirstTicks++;
@@ -2486,6 +2602,7 @@ public final class RouteExecutor {
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
             step = Step.CONFIRM;
             stepTicks = 0;
+            warpSlowSaid = false;
             cameraGraceTicks = LANDING_TIMEOUT + 5;
             return false;
         }
@@ -2515,6 +2632,17 @@ public final class RouteExecutor {
                 cameraGraceTicks = 3;
                 rejoinPathAfterTeleport(player, node);
                 return true;
+            } else if (!teleportPacketSeen && stepTicks > warpRoundTripTicks() && takeSkipClick(client)) {
+                // killer560, 2026-10-19: a left click on a node that is waiting makes it go off. A round trip on with no
+                // teleport this warp is waiting, not flying: his click sends it again now, as his own second right
+                // click would, instead of sitting out the 60-tick timeout below.
+                LOGGER.info("[AutoRoutes] Left click on node #{} {}: released its wait for the landing ({} tick(s), no "
+                        + "teleport, ack {}) - sending the warp again", route.indexOf(node) + 1, node.type, stepTicks,
+                        com.killer560.hub.util.ChestWindows.acked(warpUseSeq) ? "in" : "not in");
+                warpEaten = false;
+                step = Step.AIM;
+                stepTicks = 0;
+                return false;
             } else if (warpEaten && !teleportPacketSeen
                     && stepTicks > com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks()) {
                 // The use went out as the second half of an unpaired block click (util/RightClick: the server's ray met a
@@ -2535,7 +2663,10 @@ public final class RouteExecutor {
                     // The server has HANDLED the use (its ack is in) and no teleport came before the ack: refused, not
                     // slow. Without it a landing 5 ticks late was taken for a refusal and the warp went twice, 8 blocks
                     // past the node (testkit 96-ar-1015-earlyskip, failing since f1226757).
-                    && com.killer560.hub.util.ChestWindows.acked(warpUseSeq)
+                    && (com.killer560.hub.util.ChestWindows.acked(warpUseSeq)
+                    // Hypixel never acks a bare use (see NO_ACK_ROUND_TRIPS): without this the retry waited for one of
+                    // his own block clicks to bring an ack in, and otherwise never came.
+                    || stepTicks > warpRoundTripTicks() * NO_ACK_ROUND_TRIPS)
                     && retryAim(player)) {
                 // No landing a round trip on, and he has not moved: the server refused the warp (its ray stopped short -
                 // his Doors #13 hop 3 on a jungle log, fullclear-1016 run 019). Aimed again from where he stands with a
@@ -2560,7 +2691,22 @@ public final class RouteExecutor {
                         + " it was recorded (%.1f blocks from the landing after %d ticks) - carrying on from here",
                         route.indexOf(node) + 1, warpLanding == null ? 0.0 : player.position().distanceTo(warpLanding),
                         stepTicks));
+                boolean unmoved = !teleportPacketSeen && actionOrigin != null
+                        && player.position().distanceTo(actionOrigin) < 0.3;
                 letGoAfterCorrection(client, player);
+                if (unmoved) {
+                    // The server never moved him: firing the same stack again from the same spot re-ran its booms and
+                    // crypt and sent the same refused warp, every 6 s (Slime #5, 2026-10-19). The node waits for him.
+                    refireHoldAt = player.position();
+                    refireHoldSaid = false;
+                }
+            } else if (!warpSlowSaid && !teleportPacketSeen && stepTicks > warpRoundTripTicks() * NO_ACK_ROUND_TRIPS) {
+                warpSlowSaid = true;
+                LOGGER.info("[AutoRoutes] Node #{} {}: still no landing {} tick(s) after the use (ack {}, moved {}) - "
+                                + "waiting; a left click sends it again", route.indexOf(node) + 1, node.type, stepTicks,
+                        com.killer560.hub.util.ChestWindows.acked(warpUseSeq) ? "in" : "not in",
+                        String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0
+                                : player.position().distanceTo(actionOrigin)));
             }
         }
         return false;

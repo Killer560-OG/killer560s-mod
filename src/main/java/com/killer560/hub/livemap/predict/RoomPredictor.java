@@ -68,7 +68,14 @@ public final class RoomPredictor {
     private static boolean lastSweepProductive = false;
     static final int RAYS_X = 24;
     static final int RAYS_Y = 14;
-    static final double RAY_RANGE = 48.0;
+    /**
+     * How far a ray reaches. It was 48 until 2026-10-19, and that was why the SECOND room through a doorway never got a
+     * name (killer560, 14:46:59: "I can see not just 1 room ahead but 2. They should both be filled"): from inside his
+     * room the next one spans about 5-36 blocks ahead and the one after it about 37-68, so a 48-block ray stopped in the
+     * air short of nearly all of it and the tile never reached {@link #MIN_EVIDENCE}. 96 covers two whole tiles ahead
+     * from anywhere in the tile he stands in (31 + 2 x 32). A ray still records only the first block it meets.
+     */
+    static final double RAY_RANGE = 96.0;
     /**
      * Seen blocks a tile needs before anything is said about it. It was 120 until 2026-10-18, and that was why Predictive
      * Rooms "doesnt work" on Hypixel (to-do item 22): a player glancing through a doorway as he passes gives a tile 50-120
@@ -265,19 +272,34 @@ public final class RoomPredictor {
         if (!anyTarget) {
             return; // every hit would be thrown away (all opened, or only the tile he stands in)
         }
-        int productive = 0;
+        int hits = 0;
         for (int i = 0; i < RAYS_X; i++) {
             for (int j = 0; j < RAYS_Y; j++) {
                 double u = ((i + jx) / RAYS_X) * 2 - 1;
                 double v = ((j + jy) / RAYS_Y) * 2 - 1;
-                if (castRay(client, eye, f, right, up, tanH, tanV, u, v, floor) && productive < FOCUS_SEEDS.length / 2) {
-                    FOCUS_SEEDS[productive * 2] = u;
-                    FOCUS_SEEDS[productive * 2 + 1] = v;
-                    productive++;
+                int t = castRay(client, eye, f, right, up, tanH, tanV, u, v, floor);
+                if (t >= 0) {
+                    HIT_U[hits] = u;
+                    HIT_V[hits] = v;
+                    HIT_TILE[hits] = t;
+                    hits++;
                 }
             }
         }
-        lastSweepProductive = productive > 0;
+        lastSweepProductive = hits > 0;
+        // Which of those rays get the extra rays round them: the ones into the tile that has the least to go on, first.
+        // Until 2026-10-19 it was the first 42 in grid order, so with the room ahead filling the doorway every extra ray
+        // went to it (already named, often) and the room beyond it, a few rays deep in the same slot, got none.
+        int productive = Math.min(hits, FOCUS_SEEDS.length / 2);
+        Integer[] order = new Integer[hits];
+        for (int k = 0; k < hits; k++) {
+            order[k] = k;
+        }
+        Arrays.sort(order, (a, b) -> Integer.compare(focusNeed(HIT_TILE[a]), focusNeed(HIT_TILE[b])));
+        for (int k = 0; k < productive; k++) {
+            FOCUS_SEEDS[k * 2] = HIT_U[order[k]];
+            FOCUS_SEEDS[k * 2 + 1] = HIT_V[order[k]];
+        }
         // Where the grid found a room he can see into - in a corridor, through a doorway that is a narrow slot in his
         // view, a handful of its 336 rays - the gaps round each of those rays are filled in, eight more rays a third of
         // the grid's spacing apart. Until 2026-10-18 the slot got only its handful a sweep, and the 40 blocks a name
@@ -304,12 +326,25 @@ public final class RoomPredictor {
     /** Extra rays a sweep may cast round the grid rays that met an unopened room ({@link #sample}). */
     static final int FOCUS_MAX_RAYS = 336;
     private static final double[] FOCUS_SEEDS = new double[2 * (FOCUS_MAX_RAYS / 8)];
+    /** This sweep's grid rays that met a tile being looked into: screen position and tile. */
+    private static final double[] HIT_U = new double[RAYS_X * RAYS_Y];
+    private static final double[] HIT_V = new double[RAYS_X * RAYS_Y];
+    private static final int[] HIT_TILE = new int[RAYS_X * RAYS_Y];
 
     /**
-     * Casts one ray at screen position {@code u, v} (each -1..1 across the view) and records what it meets. Returns whether
-     * it met a block inside a tile being looked into (seen before or not): where the room shows.
+     * How little a tile has to go on, lowest first: a tile with no name yet before one that has one, and among those the
+     * one with the fewest blocks seen. Orders which rays get the extra rays ({@link #sample}).
      */
-    private static boolean castRay(Minecraft client, Vec3 eye, Vec3 f, Vec3 right, Vec3 up, double tanH, double tanV,
+    private static int focusNeed(int t) {
+        boolean named = PREDICTIONS.containsKey((t / TILES) * 2 * DungeonLayout.GRID + (t % TILES) * 2);
+        return (named ? MAX_OBSERVATIONS : 0) + EVIDENCE[t];
+    }
+
+    /**
+     * Casts one ray at screen position {@code u, v} (each -1..1 across the view) and records what it meets. Returns the
+     * tile (tz * TILES + tx) when it met a block inside a tile being looked into (seen before or not), else -1.
+     */
+    private static int castRay(Minecraft client, Vec3 eye, Vec3 f, Vec3 right, Vec3 up, double tanH, double tanV,
                                    double u, double v, int[] floor) {
         // The same arithmetic as f.add(right.scale(u * tanH)).add(up.scale(v * tanV)).normalize() and
         // eye.add(dir.scale(RAY_RANGE)), operation for operation, without the five Vec3 between them.
@@ -334,12 +369,12 @@ public final class RoomPredictor {
         // A ray whose whole reach (plus the block a hit can round to) lies over tiles none of which is a
         // target can only meet blocks record() throws away: not cast. Exact, never skips a ray that could count.
         if (!reachesTarget(Math.min(eye.x, ex), Math.min(eye.z, ez), Math.max(eye.x, ex), Math.max(eye.z, ez))) {
-            return false;
+            return -1;
         }
         HitResult hit = client.level.clip(new ClipContext(eye, new Vec3(ex, ey, ez), ClipContext.Block.VISUAL,
                 ClipContext.Fluid.NONE, client.player));
         if (!(hit instanceof BlockHitResult bhr) || hit.getType() != HitResult.Type.BLOCK) {
-            return false;
+            return -1;
         }
         return record(client, bhr.getBlockPos(), eye, bhr.getLocation(), floor);
     }
@@ -404,24 +439,25 @@ public final class RoomPredictor {
         return false;
     }
 
-    /** Records the block a ray met; returns whether it lies inside a tile being looked into (seen before or not). */
-    private static boolean record(Minecraft client, BlockPos pos, Vec3 eye, Vec3 hitAt, int[] floor) {
+    /** Records the block a ray met; returns its tile when it lies inside a tile being looked into (seen before or not),
+     *  else -1. */
+    private static int record(Minecraft client, BlockPos pos, Vec3 eye, Vec3 hitAt, int[] floor) {
         int tx = Math.floorDiv(pos.getX() - ORIGIN, TILE_PITCH);
         int tz = Math.floorDiv(pos.getZ() - ORIGIN, TILE_PITCH);
         if (tx < 0 || tz < 0 || tx >= floor[0] || tz >= floor[1]) {
-            return false;
+            return -1;
         }
         int lx = pos.getX() - ORIGIN - tx * TILE_PITCH;
         int lz = pos.getZ() - ORIGIN - tz * TILE_PITCH;
         if (lx < EDGE || lz < EDGE || lx > RoomLibrary.TILE - 1 - EDGE || lz > RoomLibrary.TILE - 1 - EDGE) {
-            return false;
+            return -1;
         }
         if (!SWEEP_TARGET[tz * TILES + tx]) {
-            return false; // isTarget, worked out once for the sweep
+            return -1; // isTarget, worked out once for the sweep
         }
         long key = pos.asLong();
         if (OBS_INDEX.containsKey(key) || obsCount >= MAX_OBSERVATIONS) {
-            return true;
+            return tz * TILES + tx;
         }
         String id = BuiltInRegistries.BLOCK.getKey(client.level.getBlockState(pos).getBlock()).toString();
         int block = blockId(id);
@@ -452,7 +488,7 @@ public final class RoomPredictor {
             buildCandidates(client, tx, tz, floor);
         }
         dirty = true;
-        return true;
+        return t;
     }
 
     /** A tile is worth looking at when the held map does not show it opened and he is not standing in it. */

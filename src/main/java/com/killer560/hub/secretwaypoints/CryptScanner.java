@@ -36,14 +36,17 @@ import java.util.Set;
  * staircase used to match too; since 2026-10-19 a crown needs air above it ({@link #isPrinceCrown}) and a slab
  * staircase is not a lid ({@link #isStaircase}), which brings the census to 118 of 134 rooms exact. Also since
  * 2026-10-19, a run with full blocks on top is a wall panel ({@link #isCovered}) and a run with no floor within two
- * blocks beside it is a wall ledge ({@link #isLedge}): 121 of 134 (Banners, Doors and Hallway now exact). The census is
+ * blocks beside it is a wall ledge ({@link #isLedge}): 121 of 134 (Banners, Doors and Hallway now exact). Later on
+ * 2026-10-19, a run set flush into a walkway is not a lid ({@link #isWalkway}) and a lid between two braziers on
+ * anvils is a prince ({@link #brazierPrince}): 122 of 134 (Flags now exact). The census is
  * {@code killer560s-mod-logs/crypt-census/crypt_scan_port.py}, a port of this class.
  *
  * <p><b>A prince</b> is the golden crypt: a gold block with a smooth stone slab beside it, a sea lantern walled
  * in by polished andesite on all four sides, or a lid of full smooth stone ringed by bottom smooth stone slabs
  * ({@link #lidPrince}, Big Red Flag, 2026-10-09) - the three shapes {@code roomsim.SimPrince} was given by him - or an
  * obsidian top with a bottom smooth stone slab rim ({@link #obsidianPrince}, Supertall, 2026-10-16), or a line of bottom
- * slabs on a polished andesite tomb with a head beside it ({@link #sarcophagusPrince}, Sarcophagus, 2026-10-18). A slab run that
+ * slabs on a polished andesite tomb with a head beside it ({@link #sarcophagusPrince}, Sarcophagus, 2026-10-18), or a lid
+ * between two braziers standing on anvils ({@link #brazierPrince}, Flags, 2026-10-19). A slab run that
  * touches a prince's blocks is the prince, not an ordinary crypt as well.
  *
  * <p>One answer for the sim and for Hypixel: {@code SimPrince} asks {@link #isPrinceCrown} too, and this reads the
@@ -331,6 +334,93 @@ public final class CryptScanner {
         return crowns;
     }
 
+    /** How far (across and up or down) from a lid a brazier may stand for {@link #brazierPrince}. */
+    static final int BRAZIER_REACH = 3;
+
+    /**
+     * The prince BRAZIER rule from one smooth stone slab: its horizontal run of smooth stone slabs (members go into
+     * {@code checked}, capped at {@value #MAX_LID} + 1), which is a prince when it has the shape of an ordinary crypt lid
+     * ({@link #lidShaped}) and two or more braziers on pedestals - a hopper standing on an anvil - within
+     * {@value #BRAZIER_REACH} blocks of it. Returns the run, or nothing. The fire on the hopper is NOT asked for: it is the
+     * one block a player knocks out by hitting it, and captures hold it or not at random ({@code roomsim.RoomBraziers}).
+     *
+     * <p>killer560, 2026-10-19, of the tomb at the end of Flags' cobblestone corridor (screenshots 14:49:57 and 14:53:11, "A
+     * Prince falls" in chat after it was opened): the mod marks it a crypt and it is a prince. It is a plain 3x4 lid of bottom smooth stone
+     * slabs on stone brick stair legs (capture x 5..7, y 70, z 27..30), the same as Flags' other crypts, with nothing gold
+     * and no lantern, so no older rule could see it. What it alone has is the pair of braziers flanking it on anvil
+     * pedestals (hoppers at (3, 70, 31) and (9, 70, 31), fire on each, anvils under). The wiki's rooms table gives Flags 8
+     * crypts and 1 prince. Census over all 135 captures: braziers beside a lid are common (Dip, Steps, Red Green, Purple
+     * Flags, Banners, Rail Track and Flags' own crypts); a pair of hoppers on anvils beside one is found only here and in
+     * Skull, whose tomb is the same design (3x4 lid against the back wall, x 53..55, y 63, z 20..23, pedestals at x 50 and
+     * 58). The room database gives Skull 0 crypts, so its run was a wrong crypt before this and is a wrong-or-unconfirmed
+     * prince now; its count does not move. Not checked in game.
+     */
+    public static List<BlockPos> brazierPrince(Level level, BlockPos start, Set<BlockPos> checked) {
+        List<BlockPos> run = new ArrayList<>();
+        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
+        Set<BlockPos> seen = new HashSet<>();
+        queue.add(start);
+        seen.add(start);
+        while (!queue.isEmpty()) {
+            BlockPos here = queue.poll();
+            run.add(here);
+            checked.add(here);
+            if (run.size() > MAX_LID) {
+                return new ArrayList<>();
+            }
+            for (Direction dir : Direction.Plane.HORIZONTAL) {
+                BlockPos next = here.relative(dir).immutable();
+                if (level.getBlockState(next).is(Blocks.SMOOTH_STONE_SLAB) && seen.add(next)) {
+                    queue.add(next);
+                }
+            }
+        }
+        if (!lidShaped(level, run)) {
+            return new ArrayList<>();
+        }
+        int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
+        for (BlockPos p : run) {
+            x0 = Math.min(x0, p.getX());
+            x1 = Math.max(x1, p.getX());
+            z0 = Math.min(z0, p.getZ());
+            z1 = Math.max(z1, p.getZ());
+        }
+        int y = start.getY();
+        int braziers = 0;
+        for (int x = x0 - BRAZIER_REACH; x <= x1 + BRAZIER_REACH; x++) {
+            for (int z = z0 - BRAZIER_REACH; z <= z1 + BRAZIER_REACH; z++) {
+                for (int yy = y - BRAZIER_REACH; yy <= y + BRAZIER_REACH; yy++) {
+                    BlockPos p = new BlockPos(x, yy, z);
+                    if (level.getBlockState(p).is(Blocks.HOPPER)
+                            && level.getBlockState(p.below()).is(net.minecraft.tags.BlockTags.ANVIL)) {
+                        braziers++;
+                    }
+                }
+            }
+        }
+        return braziers >= 2 ? run : new ArrayList<>();
+    }
+
+    /** Whether a horizontal slab run has an ordinary crypt lid's shape: mostly bottom slabs, {@value #MIN_LID} to
+     *  {@value #MAX_LID} of them, at least two wide both ways, filling three quarters of its bounding box. */
+    private static boolean lidShaped(Level level, List<BlockPos> run) {
+        int n = run.size();
+        int bottom = 0;
+        int x0 = Integer.MAX_VALUE, x1 = Integer.MIN_VALUE, z0 = Integer.MAX_VALUE, z1 = Integer.MIN_VALUE;
+        for (BlockPos p : run) {
+            if (isLidSlab(level.getBlockState(p))) {
+                bottom++;
+            }
+            x0 = Math.min(x0, p.getX());
+            x1 = Math.max(x1, p.getX());
+            z0 = Math.min(z0, p.getZ());
+            z1 = Math.max(z1, p.getZ());
+        }
+        int w = x1 - x0 + 1;
+        int d = z1 - z0 + 1;
+        return bottom * 2 > n && n >= MIN_LID && n <= MAX_LID && Math.min(w, d) >= 2 && n * 4 >= w * d * 3;
+    }
+
 
     /**
      * Every crypt and prince inside {@code [minX, minZ, maxX, maxZ]}, at any height.
@@ -348,6 +438,7 @@ public final class CryptScanner {
         Set<BlockPos> bottoms = new HashSet<>();
         List<BlockPos> crowns = new ArrayList<>();
         Set<BlockPos> lidChecked = new HashSet<>();
+        Set<BlockPos> brazierChecked = new HashSet<>();
         List<BlockPos> lidPrinces = new ArrayList<>();
         for (int cx = bounds[0] >> 4; cx <= (bounds[2] >> 4); cx++) {
             for (int cz = bounds[1] >> 4; cz <= (bounds[3] >> 4); cz++) {
@@ -380,6 +471,9 @@ public final class CryptScanner {
                                     }
                                     if (lidChecked.add(at)) {
                                         lidPrinces.addAll(sarcophagusPrince(level, at, lidChecked));
+                                    }
+                                    if (brazierChecked.add(at)) {
+                                        lidPrinces.addAll(brazierPrince(level, at, brazierChecked));
                                     }
                                 } else if (state.is(Blocks.SMOOTH_STONE)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
@@ -447,7 +541,7 @@ public final class CryptScanner {
             if (touchesAny(run, princeBlocks)) {
                 continue;
             }
-            if (isStaircase(level, run) || isCovered(level, run) || isLedge(level, run)) {
+            if (isStaircase(level, run) || isCovered(level, run) || isLedge(level, run) || isWalkway(level, run)) {
                 continue;
             }
             if (!whole(level, f)) {
@@ -546,6 +640,36 @@ public final class CryptScanner {
             }
         }
         return nearest != Integer.MAX_VALUE && nearest >= LEDGE_DROP;
+    }
+
+    /**
+     * Whether a slab run is a stretch of WALKWAY rather than a tomb's lid: a third or more of the cells round it (its
+     * horizontal neighbours on its own layer) are full blocks with air on top - floor flush with the slabs that leads on
+     * across them. A lid is the top of a tomb standing proud of the floor, so what touches it is air, its walls, or a wall
+     * behind it with more wall above. killer560, 2026-10-19, of the slab platform between Flags' two lavafalls (screenshot
+     * 14:50:27): this is not a crypt. It is a 3x5 of bottom slabs on a polished andesite pier (capture x 31..33, y 86,
+     * z 53..57), and the polished andesite causeway at z 52 and z 58 runs straight on at its own height: 6 of its 16
+     * neighbours are such floor. Census over all 135 captures: the next most is 3 of 14 (Skull's slab run, which the
+     * database does not count either); no lid the database confirms has more than a fifth (Diagonal's 2 of 10). Dropping it makes Flags match
+     * its count of 8 (seven crypts and the {@link #brazierPrince}), and no other room's count moves.
+     */
+    private static boolean isWalkway(Level level, List<BlockPos> run) {
+        Set<BlockPos> cells = new HashSet<>(run);
+        Set<BlockPos> around = new HashSet<>();
+        int flush = 0;
+        for (BlockPos p : run) {
+            for (Direction dir : HORIZONTAL) {
+                BlockPos side = p.relative(dir);
+                if (cells.contains(side) || !around.add(side)) {
+                    continue;
+                }
+                if (level.getBlockState(side).isCollisionShapeFullBlock(level, side)
+                        && level.getBlockState(side.above()).isAir()) {
+                    flush++;
+                }
+            }
+        }
+        return !around.isEmpty() && flush * 3 >= around.size();
     }
 
     private static boolean touchesAny(List<BlockPos> run, Set<BlockPos> others) {

@@ -24,7 +24,7 @@ public final class CapeConfig {
 
     /** Layouts for the Make Your Own cape. */
     public enum Pattern {
-        SOLID("Solid"), STRIPES("Stripes"), GRADIENT("Gradient"), CENTRE_BAND("Centre Band");
+        SOLID("Solid"), STRIPES("Stripes"), GRADIENT("Gradient"), CENTRE_BAND("Center Band");
 
         public final String label;
 
@@ -33,9 +33,8 @@ public final class CapeConfig {
         }
     }
 
-    /** Built-in designs, in the order the cape button cycles through them. */
-    public static final List<String> DESIGNS = List.of(
-            "ember", "ocean", "forest", "royal", "midnight", "sunset", "monochrome", "gold");
+    /** Built-in designs: one per menu theme (killer560, 2026-10-19), in the order the cape button cycles through them. */
+    public static final List<String> DESIGNS = List.of("amber", "dark", "light", "ocean", "green");
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-cape.json");
@@ -82,6 +81,32 @@ public final class CapeConfig {
         return revision;
     }
 
+    /** A named design saved from Make Your Own (killer560, 2026-10-19: "an option to name it and save it"). */
+    public record SavedDesign(String name, int[] pixels) {
+    }
+
+    private final List<SavedDesign> saved = new java.util.ArrayList<>();
+
+    public List<SavedDesign> getSaved() {
+        return java.util.Collections.unmodifiableList(saved);
+    }
+
+    /** Saves the current panel under {@code name}, replacing a saved design with the same name. */
+    public void saveDesign(String name) {
+        SavedDesign d = new SavedDesign(name, pixels.clone());
+        saved.removeIf(s -> s.name().equals(name));
+        saved.add(d);
+    }
+
+    /** Puts saved design {@code index} on the panel. */
+    public void loadDesign(int index) {
+        if (index < 0 || index >= saved.size()) {
+            return;
+        }
+        System.arraycopy(saved.get(index).pixels(), 0, pixels, 0, pixels.length);
+        revision++;
+    }
+
     public static CapeConfig getInstance() {
         if (instance == null) {
             load();
@@ -103,6 +128,18 @@ public final class CapeConfig {
             try {
                 cfg.customPattern = Pattern.valueOf(ConfigJson.getString(obj, "customPattern", cfg.customPattern.name()));
             } catch (IllegalArgumentException ignored) {
+            }
+            if (obj.has("saved") && obj.get("saved").isJsonArray()) {
+                for (var el : obj.getAsJsonArray("saved")) {
+                    var o = el.getAsJsonObject();
+                    int[] p = new int[PANEL_W * PANEL_H];
+                    java.util.Arrays.fill(p, UNSET);
+                    var arr = o.getAsJsonArray("panel");
+                    for (int i = 0; i < Math.min(arr.size(), p.length); i++) {
+                        p[i] = arr.get(i).getAsInt();
+                    }
+                    cfg.saved.add(new SavedDesign(o.get("name").getAsString(), p));
+                }
             }
             if (obj.has("panel") && obj.get("panel").isJsonArray()) {
                 var arr = obj.getAsJsonArray("panel");
@@ -129,6 +166,18 @@ public final class CapeConfig {
                 panel.add(p);
             }
             obj.add("panel", panel);
+            com.google.gson.JsonArray savedArr = new com.google.gson.JsonArray();
+            for (SavedDesign s : saved) {
+                JsonObject o = new JsonObject();
+                o.addProperty("name", s.name());
+                com.google.gson.JsonArray sp = new com.google.gson.JsonArray();
+                for (int p : s.pixels()) {
+                    sp.add(p);
+                }
+                o.add("panel", sp);
+                savedArr.add(o);
+            }
+            obj.add("saved", savedArr);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }

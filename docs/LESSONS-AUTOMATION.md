@@ -205,6 +205,12 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   vanilla as a swing a tick before the await opened, and one while Kill Mimic held the hands was never read (that branch
   of `tick` returned before `tickAction`). Both are taken now: held `EARLY_SKIP_TICKS` (10) for the next await, and Kill
   Mimic is stopped by the skip (96-ar-1015-earlyskip, -mimicskip, 2026-10-15).
+- **Hypixel acks block clicks but not a bare item use** (Mod Only Test log 2026-10-19 15:06-15:08): the refused-warp retry
+  gated on `ChestWindows.acked(warpUseSeq)` fired only when one of HIS later block clicks brought an ack in, and never in
+  six Slime #9 refusals, each of which sat the 60-tick timeout and then re-fired #5's whole stack from the same spot. The
+  retry now also counts a use as handled after `NO_ACK_ROUND_TRIPS`; an unlanded warp from an unmoved spot holds its node
+  (`refireHoldAt`) until he left-clicks or moves; and a resend re-selects the etherwarp item (two resends went out with
+  BAT_WAND / ITEM_SPIRIT_BOW after he changed slots while it waited).
 - **Hypixel's 1.8 server pairs a bare item use with the last unpaired right click on a block** (CraftBukkit 1.8
   `PlayerInteractManager.firedInteract/interactResult`, face-255 branch of `PlayerConnection.a(PacketPlayInBlockPlace)`). A
   block click stores its verdict; a use traces 4.5 blocks along the look the server LAST HEARD in a movement packet (a 1.8

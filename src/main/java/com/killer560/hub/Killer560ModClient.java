@@ -471,16 +471,25 @@ public class Killer560ModClient implements ClientModInitializer {
                                     ModOverlayMessage.show(EtherwarpFeature.removeClosest(), 3000);
                                     return 1;
                                 }))
-                                .then(ClientCommands.literal("undo").executes(context -> {
-                                    ModOverlayMessage.show(EtherwarpFeature.undo(), 3000);
-                                    return 1;
-                                }))
-                                .then(ClientCommands.literal("clear").executes(context -> {
-                                    // killer560, 2026-09-27: "If i do clear it should only clear the ones in
-                                    // the room I am in" - clearCurrentRoom() both does that and says how many.
-                                    ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
-                                    return 1;
-                                })))));
+                                .then(ClientCommands.literal("undo")
+                                        .executes(context -> EtherwarpFeature.undo() ? 1 : 0))
+                                .then(ClientCommands.literal("redo")
+                                        .executes(context -> EtherwarpFeature.redo() ? 1 : 0))
+                                // killer560, 2026-09-27: "If i do clear it should only clear the ones in the room I
+                                // am in" - clearCurrentRoom() both does that and says how many.
+                                .then(ClientCommands.literal("clear")
+                                        .executes(context -> EtherwarpFeature.clearCurrentRoom() ? 1 : 0)))
+                        // killer560, 2026-10-19: "/ew clear to clear the room /ew undo and redo", plus /ew delete and
+                        // /ew remove as AP3 has them (no number = the one you clearly stand on). One history covers
+                        // every add, delete and clear, so all of these are undoable (EtherwarpWaypointsStore).
+                        .then(ClientCommands.literal("clear")
+                                .executes(context -> EtherwarpFeature.clearCurrentRoom() ? 1 : 0))
+                        .then(ClientCommands.literal("undo")
+                                .executes(context -> EtherwarpFeature.undo() ? 1 : 0))
+                        .then(ClientCommands.literal("redo")
+                                .executes(context -> EtherwarpFeature.redo() ? 1 : 0))
+                        .then(ewDeleteBranch("delete"))
+                        .then(ewDeleteBranch("remove"))));
         // killer560, 2026-10-15: "have it use the /leaporder process. Also have /class which opens the same menu to edit the
         // same things" - both bare commands open the Leap Order editor, the one place a player's class is set.
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
@@ -540,12 +549,9 @@ public class Killer560ModClient implements ClientModInitializer {
                                                     return 1;
                                                 })))
                                 .then(ClientCommands.literal("clear")
-                                        .executes(context -> {
-                                            // killer560, 2026-09-27: "If i do clear it should only clear the
-                                            // ones in the room I am in."
-                                            ModOverlayMessage.show(EtherwarpFeature.clearCurrentRoom(), 2500);
-                                            return 1;
-                                        })))
+                                        // killer560, 2026-09-27: "If i do clear it should only clear the ones in
+                                        // the room I am in." Says how many in chat.
+                                        .executes(context -> EtherwarpFeature.clearCurrentRoom() ? 1 : 0)))
                         // "/killer560 chat" was removed 2026-10-08 (killer560: "Remove the /killer560 chat
                         // command"); Mod Chat is sent with /kc and /chat k - see modchat/ModChatChannel.
                         // "/killer560 sim" (2026-09-14) - killer560's own request: p3sim.net's real
@@ -791,6 +797,16 @@ public class Killer560ModClient implements ClientModInitializer {
             ModOverlayMessage.show("§c[Posmsg] The last 4 words must be numbers: x y z radius", 4000);
             return 0;
         }
+    }
+
+    /** {@code /ew delete|remove [n]}, the shape of {@code Ap3Commands.deleteBranch}: no number deletes the waypoint
+     *  you clearly stand nearest, {@code n} deletes waypoint #n of the room you stand in. */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> ewDeleteBranch(String word) {
+        return ClientCommands.literal(word)
+                .executes(context -> EtherwarpFeature.deleteNearest() ? 1 : 0)
+                .then(ClientCommands.argument("n", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                        .executes(context -> EtherwarpFeature.deleteNumber(
+                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "n")) ? 1 : 0));
     }
 
     /** Skyblock Only: feature commands (cringe, posmsg, mod chat, etherwarp add, termism) do nothing outside

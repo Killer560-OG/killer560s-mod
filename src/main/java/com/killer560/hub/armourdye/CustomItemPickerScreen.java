@@ -76,7 +76,8 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
                 .bounds(panelX + panelW - 7 - 48, panelY + 3, 48, 14).build());
-        // Clear: empties the search box and the list goes back to the full catalogue.
+        // Clear: empties the search box and the list goes back to the full catalogue. It sits under Apply to Selected
+        // (killer560: "the clear button should be at the bottom below apply to selected").
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
                     query = "";
                     scroll = 0;
@@ -84,7 +85,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
                         search.setValue("");
                     }
                     applyFilter();
-                }).bounds(panelX + panelW - 126, panelY + 4, 56, 16).build());
+                }).bounds(rightX, panelY + panelH - 24, rightW, 20).build());
 
         search = new ThemedEditBox(this.font, panelX + 8, panelY + 24, leftW, 18, Component.literal("Search"))
                 .hint("search Minecraft and Hypixel items");

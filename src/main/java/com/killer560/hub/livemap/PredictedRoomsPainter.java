@@ -32,17 +32,39 @@ public final class PredictedRoomsPainter {
         Set<Integer> drawn = new HashSet<>();
         if (pc.isEnabled()) {
             Set<String> seen = new HashSet<>();
+            List<RoomPredictor.Prediction> shown = new ArrayList<>();
+            Set<Integer> certainAnywhere = new HashSet<>();
             for (RoomPredictor.Prediction p : RoomPredictor.predictions()) {
                 if (!seen.add(p.name() + java.util.Arrays.toString(p.certainTiles())) || alreadyNamed(p.certainTiles())) {
                     continue;
                 }
-                drawPrediction(graphics, font, cfg, p, ox, oy, ppu);
+                shown.add(p);
                 for (int t : p.certainTiles()) {
+                    certainAnywhere.add(t);
                     drawn.add(t);
                 }
                 for (int t : p.uncertainTiles()) {
                     drawn.add(t);
                 }
+            }
+            // Every "?" first, then every named room over them (2026-10-19): the room ahead's unsure tiles can lie on the
+            // room beyond it, and drawn in map order they painted grey over that room's name - plan() already let a name win.
+            for (RoomPredictor.Prediction p : shown) {
+                for (int t : p.uncertainTiles()) {
+                    if (!certainAnywhere.contains(t)) {
+                        int gx = t % DungeonLayout.GRID;
+                        int gz = t / DungeonLayout.GRID;
+                        // The grey MapPainter.roomColor gives every unopened room, Darken Unexplored included: it was
+                        // the plain Unopened colour, so with his saved 0.4 an unsure tile read lighter than every
+                        // other "?" room (killer560's 14:47:48 screenshot, 2026-10-19).
+                        fill(graphics, ox, oy, ppu, gx, gz,
+                                MapPainter.multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened()));
+                        question(graphics, font, cfg, gx, gz, ox, oy, ppu);
+                    }
+                }
+            }
+            for (RoomPredictor.Prediction p : shown) {
+                drawPrediction(graphics, font, cfg, p, ox, oy, ppu);
             }
         }
         if (pc.isSpecialGuess() && MapPainter.hideUnrevealed()) {
@@ -100,12 +122,6 @@ public final class PredictedRoomsPainter {
             minZ = Math.min(minZ, gz);
             maxX = Math.max(maxX, gx);
             maxZ = Math.max(maxZ, gz);
-        }
-        for (int t : p.uncertainTiles()) {
-            int gx = t % DungeonLayout.GRID;
-            int gz = t / DungeonLayout.GRID;
-            fill(graphics, ox, oy, ppu, gx, gz, cfg.getColorUnopened());
-            question(graphics, font, cfg, gx, gz, ox, oy, ppu);
         }
         if (minX == Integer.MAX_VALUE) {
             return;

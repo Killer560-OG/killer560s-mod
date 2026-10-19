@@ -12,6 +12,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
+import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 
 import java.util.ArrayList;
@@ -328,20 +329,135 @@ public final class EtherwarpFeature {
         return "[Etherwarp] Removed \"" + best.name + "\"";
     }
 
-    /** {@code /ew waypoint undo} - the last one added to the room you're currently in. */
-    public static String undo() {
+    private static final String CHAT = "Etherwarp";
+    /** {@code /ew delete} with no number takes the waypoint within this many blocks of your feet... */
+    private static final double NEAREST_MAX = 3.0;
+    /** ... and only when every other one in the room is at least this much further, as {@code /ap3 delete} does. */
+    private static final double NEAREST_MARGIN = 1.0;
+
+    private static String label(EtherwarpWaypoint w) {
+        return "#" + w.order + " " + w.name;
+    }
+
+    /**
+     * {@code /ew undo} (killer560, 2026-10-19): reverts the most recent add, delete or clear, whichever room it was
+     * in ({@link EtherwarpWaypointsStore#undo}). With nothing left to undo it does what {@code /ew waypoint undo}
+     * always did, as {@code /ap3 undo} does: deletes the last waypoint of the room you stand in (redo puts it back).
+     */
+    public static boolean undo() {
+        EtherwarpWaypointsStore.Change c = EtherwarpWaypointsStore.undo();
+        if (c != null) {
+            EtherwarpWaypointsStore.save();
+            sayHistory("Undid ", c);
+            return true;
+        }
+        RoomContext ctx = currentRoomContext();
+        List<EtherwarpWaypoint> saved = ctx == null ? List.of() : EtherwarpWaypointsStore.forRoom(ctx.room().name);
+        if (saved.isEmpty()) {
+            ModChat.send(CHAT, ModChat.bad("Nothing to undo."));
+            return false;
+        }
+        EtherwarpWaypoint last = saved.get(saved.size() - 1);
+        EtherwarpWaypointsStore.fallbackRemoved(last);
+        EtherwarpWaypointsStore.save();
+        LOGGER.info("[Etherwarp] Undo with no history removed \"{}\" in room \"{}\"", last.name, last.roomName);
+        ModChat.send(CHAT, ModChat.text("Deleted "), ModChat.value(label(last)), ModChat.dim(" from " + last.roomName));
+        return true;
+    }
+
+    /** {@code /ew redo}: re-applies the change the last undo reverted. Any new change empties the redo history. */
+    public static boolean redo() {
+        EtherwarpWaypointsStore.Change c = EtherwarpWaypointsStore.redo();
+        if (c == null) {
+            ModChat.send(CHAT, ModChat.bad("Nothing to redo."));
+            return false;
+        }
+        EtherwarpWaypointsStore.save();
+        sayHistory("Redid ", c);
+        return true;
+    }
+
+    private static void sayHistory(String verb, EtherwarpWaypointsStore.Change c) {
+        String what = switch (c.kind()) {
+            case ADD -> "add " + label(c.added().get(0));
+            case DELETE -> "delete " + label(c.removed().get(0));
+            case CLEAR -> {
+                int n = c.removed().size();
+                yield "clear (" + n + " waypoint" + (n == 1 ? "" : "s") + ")";
+            }
+        };
+        LOGGER.info("[Etherwarp] {}{} in room \"{}\"", verb, what, c.roomName());
+        ModChat.send(CHAT, ModChat.text(verb), ModChat.value(what), ModChat.dim(" in " + c.roomName()));
+    }
+
+    /** {@code /ew delete|remove <n>}: the waypoint numbered {@code n} (its on-screen #) in the room you stand in. */
+    public static boolean deleteNumber(int number) {
         RoomContext ctx = currentRoomContext();
         if (ctx == null) {
-            return "§c[Etherwarp] Stand in an identified dungeon room first.";
+            ModChat.send(CHAT, ModChat.bad("Stand in an identified dungeon room first."));
+            return false;
+        }
+        for (EtherwarpWaypoint w : EtherwarpWaypointsStore.forRoom(ctx.room().name)) {
+            if (w.order == number) {
+                return deleteAndSay(w);
+            }
+        }
+        ModChat.send(CHAT, ModChat.bad("No waypoint #" + number + " in " + ctx.room().name + "."));
+        return false;
+    }
+
+    /**
+     * {@code /ew delete|remove} with no number - the same rule as {@code /ap3 delete}: the waypoint you clearly stand
+     * nearest, within {@value #NEAREST_MAX} blocks and every other one at least {@value #NEAREST_MARGIN} further,
+     * else it says so and deletes nothing. Distance is from your feet to the top centre of the waypoint's block.
+     */
+    public static boolean deleteNearest() {
+        Minecraft client = Minecraft.getInstance();
+        RoomContext ctx = currentRoomContext();
+        if (client.player == null || ctx == null) {
+            ModChat.send(CHAT, ModChat.bad("Stand in an identified dungeon room first."));
+            return false;
         }
         List<EtherwarpWaypoint> saved = EtherwarpWaypointsStore.forRoom(ctx.room().name);
         if (saved.isEmpty()) {
-            return "§c[Etherwarp] Nothing to undo in this room.";
+            ModChat.send(CHAT, ModChat.bad("No waypoints in " + ctx.room().name + "."));
+            return false;
         }
-        EtherwarpWaypoint last = saved.get(saved.size() - 1);
-        EtherwarpWaypointsStore.remove(last.id);
+        Vec3 feet = client.player.position();
+        EtherwarpWaypoint best = null;
+        double bestDist = Double.MAX_VALUE;
+        double second = Double.MAX_VALUE;
+        for (EtherwarpWaypoint w : saved) {
+            BlockPos real = com.killer560.hub.puzzlesolvers.PuzzleCoords.real(toPos(w),
+                    new int[]{ctx.clayX(), ctx.clayZ(), ctx.rotation()});
+            double d = feet.distanceTo(new Vec3(real.getX() + 0.5, real.getY() + 1.0, real.getZ() + 0.5));
+            if (d < bestDist) {
+                second = bestDist;
+                bestDist = d;
+                best = w;
+            } else if (d < second) {
+                second = d;
+            }
+        }
+        if (best == null || bestDist > NEAREST_MAX) {
+            ModChat.send(CHAT, ModChat.bad(String.format(Locale.US,
+                    "No waypoint within %.0f blocks - stand next to one or give its number.", NEAREST_MAX)));
+            return false;
+        }
+        if (second < bestDist + NEAREST_MARGIN) {
+            ModChat.send(CHAT, ModChat.bad(String.format(Locale.US,
+                    "Two waypoints are about as close (#%d and one %.1f blocks off) - give the number.", best.order, second)));
+            return false;
+        }
+        return deleteAndSay(best);
+    }
+
+    private static boolean deleteAndSay(EtherwarpWaypoint w) {
+        EtherwarpWaypointsStore.remove(w.id);
         EtherwarpWaypointsStore.save();
-        return "[Etherwarp] Undid \"" + last.name + "\"";
+        LOGGER.info("[Etherwarp] Deleted \"{}\" (#{}) in room \"{}\"", w.name, w.order, w.roomName);
+        ModChat.send(CHAT, ModChat.text("Deleted "), ModChat.value(label(w)), ModChat.dim(" from " + w.roomName));
+        return true;
     }
 
     /** Prefers whatever block/entity is actually under your crosshair right now (vanilla's own real-time
@@ -379,16 +495,23 @@ public final class EtherwarpFeature {
         LOGGER.info("[Etherwarp] Removed waypoint id={}", id);
     }
 
-    /** killer560, 2026-09-27: "If i do clear it should only clear the ones in the room I am in." @return a
-     *  status line, same as every other command in this class. */
-    public static String clearCurrentRoom() {
+    /** {@code /ew clear} - killer560, 2026-09-27: "If i do clear it should only clear the ones in the room I am in."
+     *  Says in chat how many went; {@code /ew undo} puts them all back. */
+    public static boolean clearCurrentRoom() {
         RoomContext ctx = currentRoomContext();
         if (ctx == null) {
-            return "§c[Etherwarp] Stand in an identified dungeon room first.";
+            ModChat.send(CHAT, ModChat.bad("Stand in an identified dungeon room first."));
+            return false;
         }
         int removed = EtherwarpWaypointsStore.clearRoom(ctx.room().name);
+        if (removed == 0) {
+            ModChat.send(CHAT, ModChat.bad("No waypoints in " + ctx.room().name + " to clear."));
+            return false;
+        }
         EtherwarpWaypointsStore.save();
         LOGGER.info("[Etherwarp] Cleared {} waypoint(s) in room \"{}\"", removed, ctx.room().name);
-        return "[Etherwarp] Cleared " + removed + " waypoint(s) in " + ctx.room().name + ".";
+        ModChat.send(CHAT, ModChat.text("Cleared "), ModChat.value(removed + " waypoint" + (removed == 1 ? "" : "s")),
+                ModChat.dim(" in " + ctx.room().name));
+        return true;
     }
 }

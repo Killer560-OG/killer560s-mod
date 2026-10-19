@@ -68,7 +68,7 @@ public class EtherwarpTab extends BaseTab {
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7/ew waypoint add [name] | remove | undo | clear"), Minecraft.getInstance().font));
+                Component.literal("§7/ew waypoint add [name] | /ew delete [n] | clear | undo | redo"), Minecraft.getInstance().font));
         y += 16;
 
         // killer560, 2026-09-27: "Make sure they dont save based off of location but off of location in a

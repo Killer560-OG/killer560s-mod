@@ -447,6 +447,7 @@ public final class SimPrince {
         reset();
         List<BlockPos> crowns = new ArrayList<>();
         Set<BlockPos> lidChecked = new HashSet<>();
+        Set<BlockPos> brazierChecked = new HashSet<>();
         BlockPos min = DungeonLayout.cellCenter(0);
         BlockPos max = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
         int x0 = Math.min(min.getX(), max.getX()) - RoomLibrary.TILE;
@@ -491,6 +492,9 @@ public final class SimPrince {
                                 } else if (state.is(PLINTH)) {
                                     if (lidChecked.add(at)) {
                                         sarcophagus(level, at, lidChecked, crowns);
+                                    }
+                                    if (brazierChecked.add(at)) {
+                                        braziers(level, at, brazierChecked, crowns);
                                     }
                                 } else if (state.is(LANTERN) && walledIn(level, at)) {
                                     // The lantern AND its ring, so a superboom aimed at any face of the
@@ -563,6 +567,7 @@ public final class SimPrince {
         int before = PRINCES.size();
         List<BlockPos> crowns = new ArrayList<>();
         Set<BlockPos> lidChecked = new HashSet<>();
+        Set<BlockPos> brazierChecked = new HashSet<>();
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         for (int dx = -NEAR_SCAN; dx <= NEAR_SCAN; dx++) {
             for (int dy = -NEAR_SCAN; dy <= NEAR_SCAN; dy++) {
@@ -588,6 +593,9 @@ public final class SimPrince {
                     } else if (state.is(PLINTH)) {
                         if (lidChecked.add(p)) {
                             sarcophagus(level, p, lidChecked, crowns);
+                        }
+                        if (brazierChecked.add(p)) {
+                            braziers(level, p, brazierChecked, crowns);
                         }
                     } else if (state.is(LANTERN) && walledIn(level, p)) {
                         crowns.add(p);
@@ -627,6 +635,12 @@ public final class SimPrince {
     /** The {@link #SARCOPHAGUS} rule, asked of {@code CryptScanner} for the same reason as {@link #ringedLid}. */
     private static void sarcophagus(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
         crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.sarcophagusPrince(level, start, checked));
+    }
+
+    /** The brazier rule (Flags, 2026-10-19: a crypt lid between two braziers on anvils), asked of
+     *  {@code CryptScanner.brazierPrince} for the same reason as {@link #ringedLid}. */
+    private static void braziers(ServerLevel level, BlockPos start, Set<BlockPos> checked, List<BlockPos> crowns) {
+        crowns.addAll(com.killer560.hub.secretwaypoints.CryptScanner.brazierPrince(level, start, checked));
     }
 
     /** Whether a sea lantern is walled in by polished andesite on all four sides - see {@link #LANTERN}.

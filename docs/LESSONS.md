@@ -478,3 +478,6 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke, as SkyHanni does.
 - The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
   is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
+- **Hypixel's public item list has no dyes.** `/v2/resources/skyblock/items` (the item browser cache, 5,680 items on 2026-10-19)
+  has no `DYE_*` id, and its `color` field is only on leather armor, so a dye list built from it is empty. `armourdye/HypixelDyes`
+  holds the 69 dyes with the hex each one's lore prints, copied from the NotEnoughUpdates-REPO `items/DYE_*.json` files.

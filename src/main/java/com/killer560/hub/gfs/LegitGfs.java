@@ -94,6 +94,19 @@ public final class LegitGfs {
     }
 
     /** Asks for one item by its chat name ({@code pearl}, {@code boom}, {@code leap}, {@code jerry}). */
+    /** How many of {@code item} the player carries, counted by the name each stack shows. */
+    private static int carriedCount(Minecraft client, Item item) {
+        int total = 0;
+        var inv = client.player.getInventory();
+        for (int i = 0; i < inv.getContainerSize(); i++) {
+            var stack = inv.getItem(i);
+            if (!stack.isEmpty() && stack.getHoverName().getString().contains(item.label)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
     static void request(String word) {
         if (!isEnabled()) {
             return;
@@ -107,7 +120,13 @@ public final class LegitGfs {
         if (client.player == null) {
             return;
         }
-        if (!SackCommands.send(client, item.sack + " " + item.stack)) {
+        // Only what it takes to top the stack off (killer560, 2026-10-19: "it should only get enough to top off the stack").
+        int missing = Math.max(0, item.stack - carriedCount(client, item));
+        if (missing == 0) {
+            ModChat.send(FEATURE, ModChat.text(item.label + " is already full"));
+            return;
+        }
+        if (!SackCommands.send(client, item.sack + " " + missing)) {
             ModChat.send(FEATURE, ModChat.bad("Can't refill " + item.label + " here - it needs Skyblock and no request in flight."));
             return;
         }

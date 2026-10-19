@@ -14,7 +14,14 @@ public final class ModUsers {
 
     private static final Map<String, String> SHOWN = new ConcurrentHashMap<>();
 
+    /** Bumped on every change to {@link #SHOWN}, so per-row caches (the tab list) know to look again. */
+    private static volatile int version = 0;
+
     private ModUsers() {
+    }
+
+    public static int version() {
+        return version;
     }
 
     /** The variant a player shows as ("legit" or "cheat"), or null when they show nothing. */
@@ -33,6 +40,7 @@ public final class ModUsers {
                 SHOWN.put(e.getKey(), e.getValue().getAsString());
             }
         }
+        version++;
     }
 
     /** A presence event: {@code shareAs} null means that player stopped showing (or left). */
@@ -45,6 +53,7 @@ public final class ModUsers {
         } else {
             SHOWN.put(name, shareAs);
         }
+        version++;
     }
 
     /** Tells the relay this build's variant and the player's sharing choice. Safe to call when not connected. */

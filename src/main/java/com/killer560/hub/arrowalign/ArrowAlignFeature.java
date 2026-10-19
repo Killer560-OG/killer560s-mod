@@ -484,7 +484,7 @@ public final class ArrowAlignFeature {
             return;
         }
         lastAuraIndex = target;
-        for (int extra = 1; extra < cfg.getAuraClicksPerTick() && clicksNeeded(target) > 0; extra++) {
+        for (int extra = 1; extra < cfg.getAuraClicksPerTick() && auraClicksLeft(target) > 0; extra++) {
             if (!sendClick(client, target, now, false)) {
                 break;
             }
@@ -586,8 +586,18 @@ public final class ArrowAlignFeature {
         // To the frame's BOX, not its centre. A frame is about 0.75 wide and 1/16 deep, so the centre reads up
         // to ~0.53 further and the effective aura range was nearer 2.5 than the 3.0 the config clamps to -
         // frames the server would have accepted looked out of range.
-        return frame != null && !frame.isRemoved() && clicksNeeded(index) > 0 && index != heldIndexNow()
+        return frame != null && !frame.isRemoved() && auraClicksLeft(index) > 0
                 && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, frame.getBoundingBox()) <= rangeSq;
+    }
+
+    /**
+     * Clicks the Aura may still send to a frame: all it needs, except the Leave Last Arrow frame, which is taken to ONE
+     * click from done and left there (killer560, 2026-10-19: "leave the last arrow one click from being done"), so the
+     * device completes on a single click once S3 starts. Until 2026-10-19 that frame got no clicks at all.
+     */
+    private static int auraClicksLeft(int index) {
+        int needed = clicksNeeded(index);
+        return index == heldIndexNow() ? Math.max(0, needed - 1) : needed;
     }
 
     // ------------------------------------------------------------------

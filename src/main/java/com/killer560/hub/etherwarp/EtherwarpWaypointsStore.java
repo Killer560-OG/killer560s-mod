@@ -81,14 +81,105 @@ public final class EtherwarpWaypointsStore {
         return version;
     }
 
-    public static void add(EtherwarpWaypoint waypoint) {
-        all().add(waypoint);
+    // ---- undo / redo (killer560, 2026-10-19: "/ew undo and redo") ----
+    // add, remove and clearRoom are the only three ways the list changes, and each records itself here, so every
+    // caller (commands, the tab's X and Clear buttons) is undoable without doing anything. In memory only, never saved.
+
+    /** How many changes {@code /ew undo} can walk back. */
+    static final int HISTORY_MAX = 50;
+
+    public enum Kind { ADD, DELETE, CLEAR }
+
+    /** One change: applying it forward removes {@code removed} and puts {@code added} back; undo does the opposite.
+     *  The waypoint objects themselves are kept, so an undone delete returns with its id, name and number intact. */
+    public record Change(Kind kind, String roomName, List<EtherwarpWaypoint> added, List<EtherwarpWaypoint> removed) {
+    }
+
+    private static final java.util.ArrayDeque<Change> UNDO = new java.util.ArrayDeque<>();
+    private static final java.util.ArrayDeque<Change> REDO = new java.util.ArrayDeque<>();
+
+    private static void record(Change change) {
+        UNDO.push(change);
+        while (UNDO.size() > HISTORY_MAX) {
+            UNDO.removeLast();
+        }
+        REDO.clear();
+    }
+
+    private static void applyForward(Change c) {
+        for (EtherwarpWaypoint w : c.removed()) {
+            all().removeIf(x -> x.id.equals(w.id));
+        }
+        for (EtherwarpWaypoint w : c.added()) {
+            all().removeIf(x -> x.id.equals(w.id));
+            all().add(w);
+        }
         version++;
     }
 
+    private static void applyBackward(Change c) {
+        for (EtherwarpWaypoint w : c.added()) {
+            all().removeIf(x -> x.id.equals(w.id));
+        }
+        for (EtherwarpWaypoint w : c.removed()) {
+            all().removeIf(x -> x.id.equals(w.id));
+            all().add(w);
+        }
+        version++;
+    }
+
+    /** Reverts the most recent change and moves it to the redo history. Caller saves. @return it, or null if none. */
+    public static Change undo() {
+        Change c = UNDO.poll();
+        if (c == null) {
+            return null;
+        }
+        applyBackward(c);
+        REDO.push(c);
+        return c;
+    }
+
+    /** Re-applies the most recently undone change. Caller saves. @return it, or null if none. */
+    public static Change redo() {
+        Change c = REDO.poll();
+        if (c == null) {
+            return null;
+        }
+        applyForward(c);
+        UNDO.push(c);
+        while (UNDO.size() > HISTORY_MAX) {
+            UNDO.removeLast();
+        }
+        return c;
+    }
+
+    /** Undo's fallback with no history left (AP3's rule): {@code waypoint} was just removed by undo itself, so redo
+     *  puts it back rather than undo putting it back. Caller removes and saves. */
+    static void fallbackRemoved(EtherwarpWaypoint waypoint) {
+        all().removeIf(x -> x.id.equals(waypoint.id));
+        version++;
+        REDO.push(new Change(Kind.ADD, waypoint.roomName, List.of(waypoint), List.of()));
+    }
+
+    public static void add(EtherwarpWaypoint waypoint) {
+        all().add(waypoint);
+        version++;
+        record(new Change(Kind.ADD, waypoint.roomName, List.of(waypoint), List.of()));
+    }
+
     public static void remove(String id) {
+        EtherwarpWaypoint found = null;
+        for (EtherwarpWaypoint w : all()) {
+            if (w.id.equals(id)) {
+                found = w;
+                break;
+            }
+        }
         all().removeIf(w -> w.id.equals(id));
         version++;
+        if (found != null) {
+            record(new Change(Kind.DELETE, found.roomName, List.of(), List.of(found)));
+        }
     }
 
     /** killer560, 2026-09-27: "If i do clear it should only clear the ones in the room I am in." @return how
@@ -97,14 +188,20 @@ public final class EtherwarpWaypointsStore {
         if (roomName == null) {
             return 0;
         }
-        int before = all().size();
+        List<EtherwarpWaypoint> gone = forRoom(roomName);
         all().removeIf(w -> roomName.equals(w.roomName));
         version++;
-        return before - all().size();
+        if (!gone.isEmpty()) {
+            record(new Change(Kind.CLEAR, roomName, List.of(), List.copyOf(gone)));
+        }
+        return gone.size();
     }
 
     public static void load() {
         version++;
+        // A reload (profile apply) replaces the list, so the old history no longer describes it.
+        UNDO.clear();
+        REDO.clear();
         waypoints = new ArrayList<>();
         if (!Files.exists(PATH)) {
             return;

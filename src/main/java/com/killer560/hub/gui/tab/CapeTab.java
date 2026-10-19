@@ -36,32 +36,8 @@ public class CapeTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Design Make Your Own..."), btn ->
                         McCompat.setScreen(Minecraft.getInstance(), new CapeDesignerScreen(McCompat.screen(Minecraft.getInstance()))))
                 .bounds(contentX, contentY + 22, contentWidth, 18).build());
-        if (cfg.isCustom()) {
-            int y = contentY + 44;
-            widgets.add(SettingsButtonWidget.cycling(patternText(cfg), (btn, dir) -> {
-                        CapeConfig.Pattern[] all = CapeConfig.Pattern.values();
-                        cfg.setCustomPattern(all[SettingsButtonWidget.step(cfg.getCustomPattern().ordinal(), dir, all.length)]);
-                        cfg.save();
-                        btn.setMessage(patternText(cfg));
-                    }).bounds(contentX, y, contentWidth, 18).build());
-            y += 22;
-            widgets.add(colourRow("Colour A", cfg.getCustomColourA(), 0x2D6CDF, cfg::setCustomColourA, cfg, contentX, y, contentWidth));
-            y += 22;
-            widgets.add(colourRow("Colour B", cfg.getCustomColourB(), 0xF2B134, cfg::setCustomColourB, cfg, contentX, y, contentWidth));
-        }
+        // The pattern lives inside Make Your Own (the designer), with the grid it fills.
         return widgets;
-    }
-
-    private static AbstractWidget colourRow(String label, int rgb, int defaultRgb, IntConsumer set, CapeConfig cfg,
-                                            int x, int y, int w) {
-        return SettingsButtonWidget.builder(ColorSwatch.label(label, 0xFF000000 | rgb), btn -> {
-                    Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), label,
-                            0xFF000000 | rgb, 0xFF000000 | defaultRgb, argb -> {
-                        set.accept(argb & 0xFFFFFF);
-                        cfg.save();
-                    }));
-                }).bounds(x, y, w, 18).build();
     }
 
     private static Component patternText(CapeConfig cfg) {

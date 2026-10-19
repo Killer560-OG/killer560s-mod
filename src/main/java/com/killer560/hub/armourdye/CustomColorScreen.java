@@ -121,7 +121,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         pattern.active = has && armour;
         addRenderableWidget(pattern);
 
-        // Row 4: every Hypixel dye (from Hypixel's item list); picking one sets the colour.
+        // Row 4: every Hypixel dye (HypixelDyes, the hex each dye's lore prints); picking one sets the colour.
         SettingsButtonWidget dye = SettingsButtonWidget.builder(Component.literal("Dye..."),
                         b -> minecraft.setScreenAndShow(new DyePickerScreen(this, main::setColour)))
                 .bounds(controlX, row(4), controlW, 20).build();

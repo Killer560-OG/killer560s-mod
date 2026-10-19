@@ -1362,7 +1362,7 @@ final class SettingTooltipsData {
         d.put("auto blaze", "Cheat build: shoots the Higher/Lower blazes in order with your shortbow.");
         d.put("auto secret", "Cheat build: once every blaze is dead, walks to the nearest secret and auras it if it's a chest.");
         d.put("auto creeper beams", "Cheat build: shoots the two matching creeper-beam lanterns with your shortbow.");
-        d.put("creeper beams mode", "Cheat build: Shoot fires your shortbow from the centre platform. Melee etherwarps to a spot within reach of each lantern and hits it, which can be faster; a lantern too high for that is reached with an Aspect of the Void teleport and hit in the air, and one it still cannot reach is shot. Melee needs Etherwarp Reposition and an Aspect of the Void.");
+        d.put("creeper beams mode", "Cheat build: Shoot fires your shortbow from the center platform. Melee etherwarps to a spot within reach of each lantern and hits it, which can be faster; a lantern too high for that is reached with an Aspect of the Void teleport and hit in the air, and one it still cannot reach is shot. Melee needs Etherwarp Reposition and an Aspect of the Void.");
         d.put("auto ice path", "Cheat build: shoots the silverfish along the solved ice path with your shortbow.");
         d.put("auto boulder", "Cheat build: with Secret Aura (and its Chests option) on, runs along the roof to the bars and lets the aura take the chest; otherwise walks down the stairs, presses only the solver's buttons and opens the chest. Then walks back out so you can etherwarp.");
         d.put("auto water board", "Cheat build: etherwarps to the puzzle start, then flips the levers in the solved order.");
@@ -1886,7 +1886,7 @@ final class SettingTooltipsData {
         d.put("custom checkmark sprite", "Off: the map's checks, crosses and question marks are Hypixel's own, copied off your hotbar map. On: the mod's outlined marks, or your own pictures.");
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
-        d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the grey question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
+        d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the gray question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
         d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");
@@ -1920,9 +1920,9 @@ final class SettingTooltipsData {
         d.put("solver highlight", "Whether this solver draws its boxes, waypoints and lines in the world. Off, it still solves (and its chat and HUD lines stay); only the world drawing stops.");
         d.put("solver highlight through walls", "Draws this solver's highlights through blocks so you can see answers early.");
         d.put("solver highlight style", "Draws this solver's waypoints as an outline or a see-through full block.");
-        d.put("livid colour", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool colour. Custom uses the Highlight Colour and Tracer Colour you set below.");
-        d.put("highlight colour", "Livid Solver, Custom colour mode: the colour of the box drawn round Livid.");
-        d.put("tracer colour", "Livid Solver, Custom colour mode: the colour of the line from you to Livid.");
+        d.put("livid color", "Livid Solver: Match Livid draws the highlight and the tracer in the Livid's own wool color. Custom uses the Highlight Color and Tracer Color you set below.");
+        d.put("highlight color", "Livid Solver, Custom color mode: the color of the box drawn round Livid.");
+        d.put("tracer color", "Livid Solver, Custom color mode: the color of the line from you to Livid.");
         d.put("tracer thickness", "How thick the line from you to Livid is drawn, in units from 1 to 10.");
         d.put("livid solver/draw line to livid", "Draws a line from you to whichever Livid the wool clue says is real.");
         // Chat Keybinds holds Command Shortcuts too since 2026-10-08 (one tab, sub-tab "Chat Keybinds"): every entry for
@@ -2011,7 +2011,7 @@ final class SettingTooltipsData {
         d.put("arrow align/disable trigger bot while crouching", "Cheat build only. On: Trigger Bot sends no click while you hold the crouch key. Off: it keeps clicking while you crouch.");
         d.put("arrow align/disable aura while crouching", "Cheat build only. On: the Aura sends no click while you hold the crouch key. Off: it keeps clicking while you crouch.");
         d.put("arrow align/aura clicks per tick", "Cheat build only. How many clicks the Aura sends on one frame within a single game tick, 1-4. 1 is the normal one click per tick. Tested against GrimAC with no flags, but a different server may not like it.");
-        d.put("arrow align/leave last arrow", "Cheat build only. Until stage S3 starts (the Predev stretch) the Aura never completes the lowest, leftmost arrow that still needs clicks, so the last arrow is only done once S3 begins.");
+        d.put("arrow align/leave last arrow", "Cheat build only. Until stage S3 starts (the Predev stretch) the Aura takes the lowest, leftmost arrow that still needs clicks to one click from done and stops there, so a single click finishes the device once S3 begins.");
         d.put("arrow align/disable leave last arrow while crouching", "Cheat build only. On: Leave Last Arrow is suspended while you hold the crouch key, so the Aura may click that arrow (if the Aura itself is not disabled by crouching). Off: it keeps holding the arrow back.");
         d.put("arrow align/trigger bot cps", "Cheat build only. Trigger Bot clicks per second, 1-20 (20 is one a game tick), a fresh random value between the two ends for every click, so the beat is never fixed. It also waits one such gap after your crosshair lands on a frame, and does nothing while you hold crouch.");
         d.put("croesus/highlight runs", "In the Croesus menu, marks each run by what is left in it. Runs that need you stand out: unclaimed (solid orange) and worth going back to with a Dungeon Chest Key (solid magenta with a key mark). Runs with nothing to do are outlines or a light tint, no fill: not looked at yet (a muted teal outline), opened with nothing worth a key (a muted blue outline) and done with a key (a light dark tint). Drawn behind the items, under their tooltips; the key mark sits over the item.");
@@ -2371,7 +2371,7 @@ final class SettingTooltipsData {
         d.put("thorn (f4)/overkill to party", "Also sends each Spirit Bear's overkill count to party chat (/pc).");
         d.put("thorn (f4)/spirit bear hud", "Shows Spirit Bear kills and a spawn countdown in F4/M4.");
         d.put("blood camp/timer text scale", "Size of the countdown text on each blood mob's box, 1x-4x.");
-        d.put("blood camp/timer text color", "Colour of the countdown text on each blood mob's box. White by default; the picker has a reset.");
+        d.put("blood camp/timer text color", "Color of the countdown text on each blood mob's box. White by default; the picker has a reset.");
         d.put("blood camp/spawn line", "Draws a cyan line from each blood mob's skull in the wall to the spot it will land, through walls.");
         d.put("blood camp/spawn line width", "Line thickness for Spawn Line, 1-10.");
         d.put("blood camp/countdown start sound", "Plays a sound when a blood mob's countdown starts (its landing box appears). Mobs starting together make one sound.");
@@ -2442,8 +2442,8 @@ final class SettingTooltipsData {
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its color, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
         d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
-        d.put("show with look", "Previews the item with its saved skin, colour, trim and look drawn on it.");
-        d.put("show clear item", "Previews the item as it really is, with no custom skin, colour, trim or look drawn on it.");
+        d.put("show with look", "Previews the item with its saved skin, color, trim and look drawn on it.");
+        d.put("show clear item", "Previews the item as it really is, with no custom skin, color, trim or look drawn on it.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
         d.put("auto sell", "Sells items on your sell list automatically while a sell screen is open; start it with /autosell start.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
@@ -2496,10 +2496,10 @@ final class SettingTooltipsData {
         d.put("fake cursor", "Draws a pointer that travels to each auto click and shows a short click ripple, so the clicks look like a person's.");
         d.put("streamer mode", "Run /streamer to turn it on, and again to turn it off. The option below says what it does while it is on: Disable cheats stops every automated action, and either option hides the cheat parts of the menu.");
         d.put("zoom", "Hold the zoom key to narrow the view, like OptiFine's zoom. While it is held, the mouse wheel changes the zoom level (scroll up to zoom in) and the hotbar does not change.");
-        d.put("see other mod users", "Shows a coloured diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
+        d.put("see other mod users", "Shows a colored diamond before the name of every player who shows as a mod user: green for legit, red for cheat. Off by default.");
         d.put("show me as a mod user", "Lets other mod users see that you run the mod. Off by default; nobody sees your variant until you turn this on.");
         d.put("show as", "Which variant you show to others: legit (green) or cheat (red). Only the cheat build can show cheat.");
-        d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colours), or pick Make Your Own to choose a pattern and two colours. Only your own player shows it; other players see their own cape.");
+        d.put("cape", "Wear one of the built-in capes (each carries the mod logo in its colors), or pick Make Your Own to choose a pattern and two colors. Only your own player shows it; other players see their own cape.");
         d.put("bazaar advisor", "Legit, read-only: when a Bazaar menu opens, prints what to buy, how much, and the expected profit in chat. It never clicks anything.");
         d.put("bazaar pick", "Ranks by profit per unit times units sold a week: buy at the cheapest sell offer, sell into the best buy order.");
         d.put("npc pick", "Ranks by profit per unit: buy at the cheapest sell offer, sell to the NPC at its listed price.");

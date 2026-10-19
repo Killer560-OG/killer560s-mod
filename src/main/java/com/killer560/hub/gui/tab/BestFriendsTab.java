@@ -49,11 +49,6 @@ public class BestFriendsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(sortText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(onOff("Dungeon Only Filter", cfg.isDungeonOnlyFilter()), btn -> {
-                    cfg.setDungeonOnlyFilter(!cfg.isDungeonOnlyFilter());
-                    cfg.save();
-                    btn.setMessage(onOff("Dungeon Only Filter", cfg.isDungeonOnlyFilter()));
-                }).bounds(col2X, y, colW, 18).build());
         y += 24;
 
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.social.BestFriendsScreen.THEME_ID, contentX, y, colW, 18));
@@ -63,12 +58,6 @@ public class BestFriendsTab extends BaseTab {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new BestFriendsScreen(McCompat.screen(client)));
                 }).bounds(contentX, y, contentWidth, 20).build());
-        y += 26;
-
-        int tracked = BestFriendsStore.records().size();
-        widgets.add(new net.minecraft.client.gui.components.StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("§7" + tracked + " player" + (tracked == 1 ? "" : "s") + " tracked so far."),
-                Minecraft.getInstance().font));
         return widgets;
     }
 
