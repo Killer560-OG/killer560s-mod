@@ -13,7 +13,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import com.killer560.hub.compat.McCompat;
 
-/** Custom Party Finder ({@link com.killer560.hub.lfg.LfgFeature}): the switch, the menu (/cpf) and its four options. */
+/** Custom Party Finder ({@link com.killer560.hub.lfg.LfgFeature}): the switch, the menu (/pf or /partyfinder) and its four options. */
 public class CustomPartyFinderTab extends BaseTab {
 
     public CustomPartyFinderTab() {

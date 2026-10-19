@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
 
-/** {@code /cpf} opens the Custom Party Finder; {@code /cpf unlist} takes the player's own listing down. */
+/** {@code /pf} (or {@code /partyfinder}) opens the Custom Party Finder; {@code /pf unlist} takes the player's own listing down. */
 public final class LfgCommands {
 
     private LfgCommands() {
@@ -13,8 +13,9 @@ public final class LfgCommands {
 
     /** Call once from {@code Killer560ModClient#onInitializeClient}, alongside {@link LfgFeature#register()}. */
     public static void register() {
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommands.literal("cpf")
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            for (String name : new String[] {"pf", "partyfinder"}) {
+                dispatcher.register(ClientCommands.literal(name)
                         .executes(context -> open())
                         .then(ClientCommands.literal("unlist").executes(context -> {
                             if (!LfgFeature.isListed()) {
@@ -24,7 +25,9 @@ public final class LfgCommands {
                             LfgFeature.unlist("unlisted");
                             ModChat.send(LfgFeature.CHAT, ModChat.text("Listing removed."));
                             return 1;
-                        }))));
+                        })));
+            }
+        });
     }
 
     private static int open() {

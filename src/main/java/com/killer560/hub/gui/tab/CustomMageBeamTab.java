@@ -45,11 +45,6 @@ public class CustomMageBeamTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Hide Particles", cfg.isMageBeamHideParticles()), btn -> {
-                    cfg.setMageBeamHideParticles(!cfg.isMageBeamHideParticles());
-                    cfg.save();
-                    btn.setMessage(onOff("Hide Particles", cfg.isMageBeamHideParticles()));
-                }).bounds(contentX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(onOff("Fade", cfg.isMageBeamFade()), btn -> {
                     cfg.setMageBeamFade(!cfg.isMageBeamFade());
                     cfg.save();

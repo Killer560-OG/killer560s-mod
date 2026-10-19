@@ -95,7 +95,8 @@ public final class MageBeamFeature {
             return false;
         }
         onPoint(new Vec3(packet.getX(), packet.getY(), packet.getZ()));
-        return cfg.isMageBeamHideParticles();
+        // Custom Mage Beam on means the vanilla firework particles are always hidden (killer560, 2026-10-18).
+        return true;
     }
 
     private static void onPoint(Vec3 point) {

@@ -367,7 +367,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // "/autokick populate [player]" - killer560's own request (2026-09-27): populate the per-floor
         // target times from a real Hypixel clear time instead of guessing. See AutoKickCommands' own doc.
         com.killer560.hub.autokick.AutoKickCommands.register();
-        // Custom Party Finder (/cpf), killer560's to-do item 1 (2026-10-18).
+        // Custom Party Finder (/pf), killer560's to-do item 1 (2026-10-18).
         com.killer560.hub.lfg.LfgFeature.register();
         com.killer560.hub.lfg.LfgCommands.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();

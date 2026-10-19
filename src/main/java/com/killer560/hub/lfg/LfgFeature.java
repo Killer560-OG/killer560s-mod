@@ -517,7 +517,7 @@ public final class LfgFeature {
             for (String name : fresh) {
                 event("request from " + name);
                 ModChat.send(CHAT, ModChat.value(name), ModChat.text(" wants to join - "),
-                        ModChat.dim(auto ? "inviting if they meet your requirements." : "open /cpf to accept."));
+                        ModChat.dim(auto ? "inviting if they meet your requirements." : "open /pf to accept."));
             }
         }
 

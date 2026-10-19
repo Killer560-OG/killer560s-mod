@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The Custom Party Finder menu ({@code /cpf}). It opens on a start screen where he picks the activity to look at
+ * The Custom Party Finder menu ({@code /pf}). It opens on a start screen where he picks the activity to look at
  * (Dungeons, Diana, Fishing, Misc - killer560, 2026-10-18); inside an activity only its listings show, with a search box,
  * filters and a sort (kept in {@link LfgConfig}), a Join button each, a Back button to the start screen and a Create page
  * whose activity, party size, requirements and note start from what he last used there. The player's own listing's join
@@ -437,7 +437,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.header(graphics, panelX, panelY, panelW, tab == null ? "Custom Party Finder" : "Custom Party Finder - " + tab.label);
         LfgListing mine = LfgFeature.myListing();
         String right = mine != null ? "Listed: " + mine.category().label + " " + mine.activity() + " " + mine.size() + "/" + mine.max()
-                : LfgFeature.isListed() ? "Listing..." : "/cpf";
+                : LfgFeature.isListed() ? "Listing..." : "/pf";
         ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
 
         if (tab == null) {
