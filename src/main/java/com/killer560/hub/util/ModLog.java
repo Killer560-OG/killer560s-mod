@@ -41,7 +41,84 @@ public final class ModLog {
     /** The mod's logger for {@code name}: the real one in dev and cheat builds, an error-only one in a release. */
     public static Logger get(String name) {
         Logger real = LoggerFactory.getLogger(name);
-        return BuildVariant.DEV_TOOLS ? real : new ReleaseLogger(real);
+        Logger base = BuildVariant.DEV_TOOLS ? real : new ReleaseLogger(real);
+        // The Session Recorder (2026-10-19) copies the INFO/WARN/ERROR lines of a few feature loggers into its own file
+        // while it is switched on. What reaches the game log is unchanged either way.
+        String recorded = SessionRecorderSink.featureFor(name);
+        return recorded == null ? base : new RecordingLogger(base, recorded);
+    }
+
+    /**
+     * Passes every call to {@code delegate} unchanged, and while {@link SessionRecorderSink#active()} also hands the
+     * INFO, WARN and ERROR lines to the recorder. INFO counts as enabled while recording even where the delegate drops
+     * it (a release jar), so those lines still reach the session file without reaching the log.
+     */
+    private static final class RecordingLogger extends LegacyAbstractLogger {
+
+        private final transient Logger delegate;
+        private final String feature;
+
+        RecordingLogger(Logger delegate, String feature) {
+            this.delegate = delegate;
+            this.feature = feature;
+            this.name = delegate.getName();
+        }
+
+        @Override
+        protected String getFullyQualifiedCallerName() {
+            return RecordingLogger.class.getName();
+        }
+
+        @Override
+        protected void handleNormalizedLoggingCall(Level level, Marker marker, String pattern,
+                                                   Object[] arguments, Throwable throwable) {
+            Object[] args = arguments == null ? new Object[0] : arguments;
+            if (SessionRecorderSink.active() && (level == Level.INFO || level == Level.WARN || level == Level.ERROR)) {
+                try {
+                    String message = org.slf4j.helpers.MessageFormatter.arrayFormat(pattern, args).getMessage();
+                    SessionRecorderSink.record(feature, level.name(), message, throwable);
+                } catch (RuntimeException ignored) {
+                    // A recorder fault must never break the feature that logged.
+                }
+            }
+            Object[] forward = args;
+            if (throwable != null) {
+                forward = Arrays.copyOf(args, args.length + 1);
+                forward[forward.length - 1] = throwable;
+            }
+            switch (level) {
+                case ERROR -> delegate.error(pattern, forward);
+                case WARN -> delegate.warn(pattern, forward);
+                case INFO -> delegate.info(pattern, forward);
+                case DEBUG -> delegate.debug(pattern, forward);
+                default -> delegate.trace(pattern, forward);
+            }
+        }
+
+        @Override
+        public boolean isTraceEnabled() {
+            return delegate.isTraceEnabled();
+        }
+
+        @Override
+        public boolean isDebugEnabled() {
+            return delegate.isDebugEnabled();
+        }
+
+        @Override
+        public boolean isInfoEnabled() {
+            return delegate.isInfoEnabled() || SessionRecorderSink.active();
+        }
+
+        @Override
+        public boolean isWarnEnabled() {
+            return delegate.isWarnEnabled() || SessionRecorderSink.active();
+        }
+
+        @Override
+        public boolean isErrorEnabled() {
+            return delegate.isErrorEnabled() || SessionRecorderSink.active();
+        }
     }
 
     /**

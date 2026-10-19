@@ -239,6 +239,11 @@ public final class ModPaths {
         t.put("correctionalarm", "system/correctionalarm");
         t.put("bugreport", "system/bugreport");
         t.put("bug-reports", "system/bugreport");
+        // Session Recorder (2026-10-19): its switch, and its per-session files plus the "disabled here" marker, which
+        // live in killer560/diagnostics/ (the marker is normally written straight into killer560/ by the deploy script).
+        t.put("sessionrecorder", "system/sessionrecorder");
+        t.put("sessionlog-", "diagnostics");
+        t.put("session-recorder", "diagnostics");
         t.put("profiles", "system/profiles");
         t.put("active-profile", "system/profiles");
         t.put("session-login", "system/accounts");

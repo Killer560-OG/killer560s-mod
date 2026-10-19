@@ -27,6 +27,9 @@ Rules it will not break:
     Auto Update off there for good (2026-10-11): these instances take killer560's own builds, and a release must
     never replace one. Written even into a running or skipped instance (it is not a jar; nothing loads it).
 
+  * The Dungeons instance (and only it) gets minecraft/config/killer560/killer560smod-session-recorder-disabled on
+    every deploy (2026-10-19), which stops the mod's Session Recorder from ever starting there.
+
 Usage:  python deploy-to-instances.py [--dry-run] [--jars-dir DIR]
                                       [--testing-instance-cheat NAME] [--testing-instance-legit NAME]
 
@@ -50,6 +53,11 @@ BUILD_VARIANT_CLASS = "com/killer560/hub/BuildVariant.class"
 TESTING_CLASS = "com/killer560/hub/testing/TestingBuild.class"
 # AutoUpdater.MARKER_FILE in the mod: its presence in the game folder means "never auto-update this instance".
 NO_AUTO_UPDATE_MARKER = "killer560smod-no-auto-update"
+# SessionRecorder.DISABLED_MARKER in the mod: its presence in config/killer560/ means the Session Recorder refuses to
+# start. killer560 (2026-10-19): "It should only be on my instance. Do not put it in my dungeon instance. The rest can
+# have it." So it is written into his play instance on every deploy, and into no other instance.
+SESSION_RECORDER_OFF_MARKER = "killer560smod-session-recorder-disabled"
+RECORDER_OFF_INSTANCE = "26.1.2 (Dungeons)"
 
 # First 8 hex of md5(BuildVariant.class), per CLAUDE.md's Quirks and lessons.
 # BuildVariant gained TESTING on 2026-10-07, which changed every hash; the old three are kept so an instance still on
@@ -215,6 +223,18 @@ def main():
         mods = os.path.join(folder, "minecraft", "mods")
         if not os.path.isdir(mods):
             continue
+        if name == RECORDER_OFF_INSTANCE:
+            # Every deploy, even when the marker is already there, and before any skip below, so the output always
+            # shows it was written.
+            rec_dir = os.path.join(folder, "minecraft", "config", "killer560")
+            rec_marker = os.path.join(rec_dir, SESSION_RECORDER_OFF_MARKER)
+            if not dry:
+                os.makedirs(rec_dir, exist_ok=True)
+                with open(rec_marker, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write("Written by killer560s-mod's deploy-to-instances.py: the Session Recorder never runs "
+                             "in this instance.\n")
+            lines.append(("%s [MC %s]" % (name, mc_version(folder)), "marker", "config/killer560/"
+                          + SESSION_RECORDER_OFF_MARKER + " (Session Recorder off here)"))
         marker = os.path.join(folder, "minecraft", NO_AUTO_UPDATE_MARKER)
         if name in args.auto_update_instance:
             if os.path.exists(marker) and not dry:

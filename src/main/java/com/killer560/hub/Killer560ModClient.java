@@ -288,6 +288,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance().isEnabledRaw());
         // Seven always-on overlays, formerly Gui mixins that crashed 26.2 at startup (see GuiOverlays).
         com.killer560.hub.hud.GuiOverlays.register();
+        // Session Recorder (2026-10-19): records feature log lines to a file while switched on; never acts on the game.
+        com.killer560.hub.sessionrecorder.SessionRecorder.register();
         com.killer560.hub.gui.MenuCloseFade.register();
         // Custom Crosshair wraps vanilla's crosshair HUD layer (no Gui mixin, so nothing to break on 26.2).
         com.killer560.hub.crosshair.CustomCrosshairFeature.register();

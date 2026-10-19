@@ -1590,7 +1590,7 @@ public final class LiveMapFeature {
             for (int c : cfg.palette()) {
                 k.add(c);
             }
-            k.add(cfg.getDarkenUnopened()).add(cfg.isHatchUnexplored()).add(MapPainter.standingTile())
+            k.add(cfg.getDarkenUnopened()).add(MapPainter.standingTile())
                     .add(cfg.getMapBackground()).add(cfg.getMapBorderColor())
                     .add(cfg.isCustomCheckmarks()).add(cfg.getCheckmarkSource()).add(cfg.isFunnyMap())
                     .add(cfg.isMimicScan()).add(cfg.getMimicColor()).add(cfg.isColourByType()).add(cfg.getRoomLabels())

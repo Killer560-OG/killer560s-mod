@@ -65,14 +65,6 @@ public final class LiveMapConfig {
     private boolean colourByType = true;
     /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read. */
     private float darkenUnopened = 0.05f;
-    /**
-     * killer560, 2026-10-19: "now I cant tell for the map which rooms have been entered or not" - with Darken Unexplored
-     * at 0.05 (so the doorways stay bright) a room he has not been in looked exactly like one he has, and a Predictive
-     * Rooms name filled its room in its real color too. On: every room drawn in its color that he has not been in
-     * (Funny Map's unopened rooms, the Blood Room's greyed brown, Predictive Rooms' named rooms) carries diagonal
-     * stripes, so entered rooms are the solid ones. Doors are never striped.
-     */
-    private boolean hatchUnexplored = true;
     /** NoammAddons' look (killer560, 2026-10-19): a faint white wash, {@code MapConfig.kt} "Map Background Color"
      *  (255, 255, 255, 50), with a 1px white border ("Map Border Color", "Border Thickness" 1). Until then 60% black with
      *  the mod's orange border; {@link #migrateNoammLook} moves a file still holding those defaults. */
@@ -213,7 +205,8 @@ public final class LiveMapConfig {
                         && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f || Math.abs(cfg.darkenUnopened - 0.15f) < 1e-4f)) {
                     cfg.darkenUnopened = 0.05f;
                 }
-                cfg.hatchUnexplored = ConfigJson.getBool(obj, "hatchUnexplored", true);
+                // "hatchUnexplored" (Stripe Unexplored) is gone and a saved value is ignored: killer560, 2026-10-19, "That
+                // stripe should never exist no matter what setting." An old file still holding the key loads fine.
                 cfg.mapBackground = ConfigJson.getInt(obj, "mapBackground", DEFAULT_MAP_BACKGROUND);
                 cfg.mapBorderColor = ConfigJson.getInt(obj, "mapBorderColor", DEFAULT_MAP_BORDER);
                 // "checkmarkSprites" (sprites vs font glyphs) is gone: the marks are Hypixel's unless he picks his own.
@@ -331,7 +324,6 @@ public final class LiveMapConfig {
             obj.addProperty("colourByType", colourByType);
             obj.addProperty("darkenUnopened", darkenUnopened);
             obj.addProperty("darkenUnopenedDefault1019", true);
-            obj.addProperty("hatchUnexplored", hatchUnexplored);
             obj.addProperty("mapBackground", mapBackground);
             obj.addProperty("mapBorderColor", mapBorderColor);
             obj.addProperty("customCheckmarks", customCheckmarks);
@@ -559,14 +551,6 @@ public final class LiveMapConfig {
 
     public void setDarkenUnopened(float v) {
         this.darkenUnopened = clamp(v, 0f, 0.9f);
-    }
-
-    public boolean isHatchUnexplored() {
-        return hatchUnexplored;
-    }
-
-    public void setHatchUnexplored(boolean v) {
-        this.hatchUnexplored = v;
     }
 
     public int getMapBackground() {

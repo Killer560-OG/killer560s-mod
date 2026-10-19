@@ -17,7 +17,9 @@ public class GeneralTab extends FolderTab {
                 new SmoothTeleportTab(),
                 // Was its own top-level tab; killer560, 2026-10-07: "Crosshair should not be its own tab, put it in
                 // General."
-                new CrosshairTab()
+                new CrosshairTab(),
+                // Writes what the dungeon features log to a per-session file (2026-10-19). Recorder only.
+                new SessionRecorderTab()
         ));
         pinFirstSection();
     }

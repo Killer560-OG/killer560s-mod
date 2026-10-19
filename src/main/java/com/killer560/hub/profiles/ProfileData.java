@@ -72,11 +72,14 @@ public final class ProfileData {
             // The Map Designer's list of floors he played (sim-designer-1015): history like the runs.
             "sim-map-history.json",
             // The Price Tooltip's downloaded prices and item facts (re-fetched every few minutes).
-            "pricetooltip-cache"
+            "pricetooltip-cache",
+            // The Session Recorder's "never record here" marker: it belongs to one instance (his dungeon instance) and
+            // must not travel to, or be dropped from, another by a profile.
+            "session-recorder-disabled"
     );
 
     /** Name prefixes (after {@link ModPaths#PREFIX}) that never go in: bug report zips, route-file broken backups. */
-    private static final String[] EXCLUDED_NAME_PREFIXES = {"bugreport-", "autoroutes.broken"};
+    private static final String[] EXCLUDED_NAME_PREFIXES = {"bugreport-", "autoroutes.broken", "sessionlog-"};
 
     /** Paths inside an included folder that are left out: the custom scoreboard's scraped bits/powder cache. */
     private static final Set<String> EXCLUDED_INNER = Set.of("killer560smod-customscoreboard/data.json");

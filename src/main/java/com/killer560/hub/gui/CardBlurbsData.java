@@ -174,6 +174,7 @@ final class CardBlurbsData {
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("SmoothTeleportTab", "Glides the camera.");
+        d.put("SessionRecorderTab", "Records what features do to a file.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
         d.put("ShortsTab", "Shorts in a window.");
         d.put("WaypointRoutesTab", "Ordered area waypoints.");

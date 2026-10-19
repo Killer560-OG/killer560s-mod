@@ -996,6 +996,8 @@ final class SettingTooltipsData {
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position while an automation (AP3, Auto Routes, the Interactive Map, the auto puzzles...) is moving you. A correction never stops anything: the feature posts a chat line and carries on from where the server put you. At most once every 3 s.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
+        d.put("session recorder", "Records what the dungeon features do (Auto Routes, Auto Puzzles, Breaker Aura, the auras, Arrow Align, Blood Camp, the map) to one file per session in config/killer560/diagnostics, so you can send it for analysis. It only writes a file: it never clicks, moves or plays anything. Off by default; a file stops at 20 MB. It will not start in an instance that has the killer560smod-session-recorder-disabled file.");
+        d.put("open diagnostics folder", "Opens the folder the session files are saved in.");
         d.put("hud scale","Scales everything this mod draws at once, 5% to 300%: every HUD element (multiplying its own size, so per-element sizes are kept), this menu and the mod's other screens, its reskinned menus and its popups. Menus follow it between 50% and 300% and never grow past what fits the window. Saved with profiles.");
         d.put("edit bars", "Opens the bar editor: drag, resize and scale Health and Mana Bars' bars and texts (and in the Predefined layout, drop them on the areas round the hotbar). Edit HUD Positions does not show them.");
         d.put("mod & hud/snapping", "While dragging in Edit HUD or Edit Bars, boxes snap to line up with the things switched on below. Hold Alt while dragging to place freely.");
@@ -1887,7 +1889,6 @@ final class SettingTooltipsData {
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
         d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the gray question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
-        d.put("stripe unexplored", "Draws diagonal stripes over every room shown in its color that you have not been in yet (Funny Map's unopened rooms, the unopened Blood Room, and rooms Predictive Rooms has named), so the rooms you have entered are the solid ones. Doorways are never striped.");
         d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");

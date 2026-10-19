@@ -171,23 +171,6 @@ public final class PredictedRoomsPainter {
         if (minX == Integer.MAX_VALUE) {
             return;
         }
-        if (cfg.isHatchUnexplored()) {
-            // Named, not entered: striped like every other room he has not been in (Stripe Unexplored). It used to be
-            // filled exactly like an opened room, and with Darken Unexplored at 0.05 nothing told the two apart.
-            com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
-            for (int t : p.certainTiles()) {
-                int gx = t % DungeonLayout.GRID;
-                int gz = t / DungeonLayout.GRID;
-                hatchCell(rects, ox, oy, ppu, gx, gz);
-                if (certain.contains(t + 2)) {
-                    hatchCell(rects, ox, oy, ppu, gx + 1, gz);
-                }
-                if (certain.contains(t + 2 * DungeonLayout.GRID)) {
-                    hatchCell(rects, ox, oy, ppu, gx, gz + 1);
-                }
-            }
-            rects.submit();
-        }
         float cxUnits = (MapPainter.cellPos(minX) + MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS) / 2f;
         float czUnits = (MapPainter.cellPos(minZ) + MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS) / 2f;
         float boxW = (MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minX)) * ppu;
@@ -216,11 +199,6 @@ public final class PredictedRoomsPainter {
         return lines.isEmpty() ? name : lines.toArray(new String[0]);
     }
 
-    private static void hatchCell(com.killer560.hub.hud.GuiRects rects, float ox, float oy, float ppu, int gx, int gz) {
-        MapPainter.hatchUnits(rects, ox, oy, ppu, MapPainter.cellPos(gx), MapPainter.cellPos(gz),
-                MapPainter.cellPos(gx) + MapPainter.cellSize(gx), MapPainter.cellPos(gz) + MapPainter.cellSize(gz));
-    }
-
     private static void drawGuess(GuiGraphicsExtractor graphics, Font font, LiveMapConfig cfg, int tile,
                                   List<String> types, float ox, float oy, float ppu) {
         int gx = tile % DungeonLayout.GRID;
@@ -232,14 +210,9 @@ public final class PredictedRoomsPainter {
         int n = types.size();
         if (n == 1) {
             // Only one thing it can be (the Blood Room behind its blood door, or the miniboss room once the trap and every
-            // puzzle are accounted for): filled in that room's own color like any named room, striped as not entered.
+            // puzzle are accounted for): filled in that room's own color like any named room.
             // killer560, 2026-10-19: "it still isnt auto filling yellow room ever", and the blood-door room stayed a "?".
             graphics.fill(x0, y0, x1, y1, MapPainter.typeColor(types.get(0), cfg));
-            if (cfg.isHatchUnexplored()) {
-                com.killer560.hub.hud.GuiRects rects = com.killer560.hub.hud.GuiRects.begin(graphics);
-                hatchCell(rects, ox, oy, ppu, gx, gz);
-                rects.submit();
-            }
             if ("BLOOD".equals(types.get(0)) && cfg.getRoomLabels() >= 3) {
                 // Labelled like MapPainter labels it (killer560, 2026-10-19: "the map is not labeling blood").
                 MapPainter.drawFittedLines(graphics, font, new String[]{"Blood"},

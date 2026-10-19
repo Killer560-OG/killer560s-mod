@@ -983,17 +983,8 @@ public final class MapPainter {
             n++;
         }
         fillMerged(graphics, ROOM_RECTS, n, color);
-        if (hatched(group, LiveMapConfig.getInstance())) {
-            for (int c : group.cells) {
-                int gx = c % LiveMapFeature.GRID;
-                int gz = c / LiveMapFeature.GRID;
-                if (!drawnCell(gid, gx, gz) || !cellRevealed(c)) {
-                    continue;
-                }
-                hatchUnits(graphics, ox, oy, ppu, cellPos(gx), cellPos(gz), cellPos(gx) + cellSize(gx),
-                        cellPos(gz) + cellSize(gz));
-            }
-        }
+        // No diagonal stripes over unexplored rooms, whatever any setting says (killer560, 2026-10-19: "That stripe should
+        // never exist no matter what setting"). Stripe Unexplored and its hatch were removed.
     }
 
     /**
@@ -1019,46 +1010,6 @@ public final class MapPainter {
         int bz = oddX ? gz : gz + 1;
         return ax >= 0 && az >= 0 && bx < g && bz < g
                 && LiveMapFeature.groupIdAt(ax + az * g) == gid && LiveMapFeature.groupIdAt(bx + bz * g) == gid;
-    }
-
-    /** Stripe spacing, in map units along x + z: a one-unit stripe every this many units. */
-    private static final int HATCH_PERIOD = 4;
-    /** The stripes' colour: 45% black over the room's own colour. */
-    static final int HATCH_COLOR = 0x73000000;
-
-    /**
-     * Whether Stripe Unexplored stripes this room: a room he has not been in that is drawn in a room colour (Funny Map's
-     * unopened rooms, the unopened Blood Room's red, the Interactive Map's scanned rooms). The map item's grey "?" rooms
-     * already read as unopened and are left plain.
-     */
-    static boolean hatched(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
-        if (!cfg.isHatchUnexplored() || !unexplored(group)) {
-            return false;
-        }
-        int state = visibleState(group);
-        if (state != DungeonMapScanner.STATE_UNDISCOVERED && unopenedBloodRoom(group)) {
-            return true;
-        }
-        return !(state == DungeonMapScanner.STATE_UNDISCOVERED
-                || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap()));
-    }
-
-    /**
-     * Diagonal stripes over the map-unit box [ux0, ux1) x [uz0, uz1): every unit square with (x + z) a multiple of
-     * {@link #HATCH_PERIOD}. Anchored to the map's own unit grid, so the stripes run on unbroken across a room's tiles and
-     * the gaps between them. Sixteen rows of four squares a tile.
-     */
-    static void hatchUnits(com.killer560.hub.hud.GuiRects graphics, float ox, float oy, float ppu, int ux0, int uz0,
-                           int ux1, int uz1) {
-        for (int uz = uz0; uz < uz1; uz++) {
-            int y0 = px(oy, uz, ppu);
-            int y1 = Math.max(y0 + 1, px(oy, uz + 1, ppu));
-            int first = ux0 + Math.floorMod(-uz - ux0, HATCH_PERIOD);
-            for (int ux = first; ux < ux1; ux += HATCH_PERIOD) {
-                int x0 = px(ox, ux, ppu);
-                graphics.fill(x0, y0, Math.max(x0 + 1, px(ox, ux + 1, ppu)), y1, HATCH_COLOR);
-            }
-        }
     }
 
     /** Scratch for {@link #drawRoom}'s cell rectangles (render thread only): x0, y0, x1, y1 per cell. */

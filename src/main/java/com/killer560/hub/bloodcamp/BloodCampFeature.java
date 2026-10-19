@@ -712,9 +712,9 @@ public final class BloodCampFeature {
             lineOfFireBlocks++;
             // Said in his log (at most once a second): a held click left no trace at all, so "it never clicked" could not
             // be told from "something stood in the way" (2026-10-19).
-            if (!fillerNow && now - lastLineOfFireLogTick >= 20) {
-                lastLineOfFireLogTick = now;
-                LOGGER.info("[BloodCamp] Click held: {} in the line of fire", lastLineOfFireBlocker);
+            if (!fillerNow) {
+                logRefusal(now, "line of fire", lastLineOfFireBlocker + " in the line of fire, target "
+                        + describe(client, firing));
             }
             return;
         }
@@ -730,8 +730,18 @@ public final class BloodCampFeature {
             lastTrigger = "human " + kind.name().toLowerCase(Locale.ROOT) + " between hits";
             return;
         }
-        if ((triggerTarget != null || auraMob != null || triggerFloor != null)
-                && com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
+        boolean anyTarget = triggerTarget != null || auraMob != null || triggerFloor != null;
+        if (!anyTarget && cfg.isTriggerBotEnabled()) {
+            // Nothing chosen: if his look is on a blood mob anyway, say why it was not clicked (2026-10-19).
+            explainTriggerIdle(client, now, inRoom, cooldownReady, cooldown, killTimerOpen, clickBelow, neverMiss, pingMs);
+        }
+        if (anyTarget && !com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.BLOOD_CAMP)) {
+            logRefusal(now, "action gate", "another automation has this tick's one interaction (ActionGate), target "
+                    + describe(client, firing));
+            return;
+        }
+        if (anyTarget) {
+            lastRefusalKey = null; // the next refusal after a click is logged at once
             lastClickTick = now;
             HUMAN.clicked(now);
             ALL_CLICKS.addLast(now);
@@ -811,6 +821,144 @@ public final class BloodCampFeature {
                     + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
             LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
+        }
+    }
+
+    // ---- Why the Trigger Bot did not click (killer560, 2026-10-19: "watcher triggerbot still almost never fires") -----
+    // Every click already says "Trigger Bot clicked"; a click that did not go said nothing unless something stood in the
+    // line of fire, so his log could not tell "never aimed" from "aimed and held". These lines are logging only: they read
+    // the same state the decision above read and never change it.
+
+    /** The last refusal logged (its kind) and when; a new kind is logged at once, the same kind once a second. */
+    private static String lastRefusalKey;
+    private static long lastRefusalLogTick = Long.MIN_VALUE / 2;
+    /** The idle check below runs every this many ticks, not every tick (it ray-traces each tracked mob). */
+    private static final int REFUSAL_CHECK_TICKS = 4;
+
+    private static void logRefusal(long now, String key, String detail) {
+        if (key.equals(lastRefusalKey) && now - lastRefusalLogTick < 20) {
+            return;
+        }
+        lastRefusalKey = key;
+        lastRefusalLogTick = now;
+        lastLineOfFireLogTick = now;
+        LOGGER.info("[BloodCamp] Trigger Bot held: {}", detail);
+    }
+
+    private static String describe(Minecraft client, Entity e) {
+        if (e == null) {
+            return "the empty landing spot";
+        }
+        return e.getType().toShortString() + " #" + e.getId() + String.format(Locale.US, " at %.1f blocks",
+                client.player.getEyePosition().distanceTo(e.getBoundingBox().getCenter()));
+    }
+
+    /**
+     * Nothing was chosen this tick. If his look is roughly on a blood mob (a trip's landing spot, its mob, or a blood mob
+     * on the floor) or on an untagged mob in the Blood Room, logs the first gate that stopped it.
+     */
+    private static void explainTriggerIdle(Minecraft client, long now, boolean inRoom, boolean cooldownReady, int cooldown,
+                                           boolean killTimerOpen, double clickBelow, boolean neverMiss, int pingMs) {
+        if (now % REFUSAL_CHECK_TICKS != 0 || watcherEntityId == null) {
+            return;
+        }
+        // The thing he is aimed at, and the trip-level reason it was skipped (null when only a room gate is left).
+        String target = null;
+        String key = null;
+        String reason = null;
+        for (Map.Entry<ArmorStand, BloodMobState> entry : bloodMobs.entrySet()) {
+            ArmorStand stand = entry.getKey();
+            BloodMobState data = entry.getValue();
+            if (data.endVector == null || stand.isRemoved()) {
+                continue;
+            }
+            double remaining = remainingTicks(data, now);
+            if (remaining <= -RETRY_STALE_TICKS || remaining > AURA_START_TICKS + 40) {
+                continue;
+            }
+            Entity mob = nearestMob(client, data.endVector);
+            if (!aimedAtRoughly(client, aimBox(data.endVector)) && !aimedAtRoughly(client, stand.getBoundingBox())
+                    && (mob == null || !aimedAtRoughly(client, mob.getBoundingBox()))) {
+                continue;
+            }
+            target = String.format(Locale.US, "trip #%d (%s, %.1f ticks left)", stand.getId(),
+                    mob == null ? "no mob on the spot yet" : describe(client, mob), remaining);
+            if (data.confirmed) {
+                key = "trip hit";
+                reason = "its mob was already hit";
+            } else if (data.gaveUp) {
+                key = "trip gave up";
+                reason = "gave up after " + MAX_RETRIES + " retries";
+            } else if (data.clicks == 0 && neverMiss && mob == null) {
+                key = "never miss";
+                reason = "Never Miss waits for a mob on the landing spot";
+            } else if (data.clicks == 0 && !neverMiss && remaining >= clickBelow) {
+                key = "not due";
+                reason = String.format(Locale.US, "not due yet (clicks below %.1f ticks left)", clickBelow);
+            } else if (data.clicks == 0 && !neverMiss && remaining < clickBelow - TRIGGER_WINDOW_TICKS && mob == null) {
+                key = "stale";
+                reason = "past its window with no mob on the spot";
+            } else if (data.clicks > 0 && mob == null) {
+                key = "clicked";
+                reason = "already clicked, no mob on the spot to retry on";
+            } else if (data.clicks > 0) {
+                key = "confirm";
+                reason = "clicked " + data.clicks + "x, waiting " + hitConfirmTicks(pingMs) + " ticks to see a hit";
+            }
+            break;
+        }
+        if (target == null) {
+            int confirm = hitConfirmTicks(pingMs);
+            for (Entity mob : floorMobs(client, now)) {
+                if (!aimedAtRoughly(client, mob.getBoundingBox())) {
+                    continue;
+                }
+                target = "blood mob " + describe(client, mob);
+                FloorClick fc = FLOOR_CLICKS.get(mob.getId());
+                if (fc != null && fc.hit) {
+                    key = "floor hit";
+                    reason = "already hit";
+                } else if (fc != null && fc.clicks > MAX_RETRIES) {
+                    key = "floor gave up";
+                    reason = "gave up after " + MAX_RETRIES + " retries";
+                } else if (fc != null && now - fc.lastTick <= confirm) {
+                    key = "confirm";
+                    reason = "clicked, waiting " + confirm + " ticks to see a hit";
+                }
+                break;
+            }
+        }
+        if (target == null) {
+            // A mob in the Blood Room under his look that is not tagged as a blood mob: the bot never targets it.
+            Entity watcher = client.level.getEntity(watcherEntityId);
+            if (watcher != null) {
+                for (Entity e : client.level.getEntities(client.player, client.player.getBoundingBox().inflate(AIM_RANGE),
+                        x -> isAttackableMob(x) && !isBloodMob(x) && x.getId() != watcherEntityId)) {
+                    if (inRoomTile(client, e.position()) && aimedAtRoughly(client, e.getBoundingBox())) {
+                        logRefusal(now, "untagged", "aimed at " + describe(client, e)
+                                + ", which is not tracked as a blood mob (no blood name tag, no trip landed on it)");
+                        return;
+                    }
+                }
+            }
+            return; // not aimed at anything of the Watcher's: nothing to explain
+        }
+        if (!inRoom) {
+            logRefusal(now, "room", "not in the Blood Room (" + target + ")");
+        } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
+            logRefusal(now, "screen", "a container screen is open (" + target + ")");
+        } else if (!killTimerOpen) {
+            long kill = BloodCampMoveTimer.killShownTick();
+            logRefusal(now, "kill timer", (kill < 0 ? "kill timer not up: waiting for the Watcher's last-wave line"
+                    : "kill timer not up: KILL in " + (kill - now) + " ticks, Trigger Offset "
+                    + BloodCampConfig.getInstance().getTriggerOffsetTicks()) + " (" + target + ")");
+        } else if (!cooldownReady) {
+            logRefusal(now, "cooldown", "attack cooldown, " + (now - lastClickTick) + " of " + cooldown + " ticks ("
+                    + target + ")");
+        } else if (reason != null) {
+            logRefusal(now, key, reason + " (" + target + ")");
+        } else {
+            logRefusal(now, "other", "aimed but no gate explains it (" + target + ")");
         }
     }
 
@@ -940,6 +1088,14 @@ public final class BloodCampFeature {
                     }
                 } else if (BloodMobNames.isNamedNpc(client, e)) {
                     BLOOD_IDS.add(e.getId());
+                } else if (isRoomNpc(client, e)) {
+                    // killer560, 2026-10-19: "watcher triggerbot still almost never fires." His run's log: the click was
+                    // held for "player #1158128 in the line of fire" - a player-model NPC (not a real player: those are
+                    // version 4) standing in the Blood Room that neither its name tag nor a trip's landing had tagged.
+                    // Untagged, it was not a target (nearestMob, the next-mob pass and Never Miss all read BLOOD_IDS) and
+                    // it blocked the click on every mob behind it. Nothing but the Watcher's summons is a player-model
+                    // NPC inside the Blood Room, so one there is a blood mob.
+                    BLOOD_IDS.add(e.getId());
                 }
             }
         }
@@ -972,17 +1128,29 @@ public final class BloodCampFeature {
         }
     }
 
+    /** A player-model NPC (version-2 UUID) alive inside the Blood Room tile, the Watcher excluded - see tagBloodMobs. */
+    private static boolean isRoomNpc(Minecraft client, Entity e) {
+        return e instanceof Player p && p != client.player && p.getUUID().version() == 2 && p.isAlive() && !p.isRemoved()
+                && (watcherEntityId == null || p.getId() != watcherEntityId) && inRoomTile(client, p.position());
+    }
+
     /**
      * Whether a click aimed along his body's look would only meet {@code target}: no other living thing that is not a
      * blood mob inside the Blood Room within 0.6 blocks of the line, from his eye out to the first block (or 48 blocks)
      * - past the target too, because a beam or an arrow carries on. Real players are not in the way (nothing of his
-     * hits them), and neither is what players fire into the room ({@link #isPlayerSummon}). The Watcher is in the way.
+     * hits them), and neither is what players fire into the room ({@link #isPlayerSummon}). The Watcher is in the way
+     * only in FRONT of the target: behind it he is what every hand's beam already flies at (he cannot be hurt and never
+     * leaves the Blood Room), and holding the click for him there held most of a camp's clicks (2026-10-19 log, "zombie
+     * #1158052 in the line of fire").
      */
     static boolean lineOfFireClear(Minecraft client, Entity target) {
         Vec3 eye = client.player.getEyePosition();
         Vec3 dir = Vec3.directionFromRotation(client.player.getXRot(), client.player.getYRot());
         double len = blockDistance(client, eye, dir, AIM_RANGE);
         Vec3 end = eye.add(dir.scale(len));
+        double targetFar = target == null ? -1.0
+                : target.getBoundingBox().clip(eye, end).map(h -> h.distanceTo(eye))
+                        .orElse(target.getBoundingBox().getCenter().distanceTo(eye));
         for (Entity e : client.level.getEntities(client.player, new AABB(eye, end).inflate(1.0),
                 x -> x instanceof LivingEntity && !(x instanceof ArmorStand) && x.isAlive()
                         && !(x instanceof Player && x.getUUID().version() == 4) && !isPlayerSummon(x))) {
@@ -991,6 +1159,13 @@ public final class BloodCampFeature {
             }
             if (!e.getBoundingBox().inflate(0.6).clip(eye, end).isPresent() && !e.getBoundingBox().inflate(0.6).contains(eye)) {
                 continue;
+            }
+            if (watcherEntityId != null && e.getId() == watcherEntityId && targetFar >= 0.0) {
+                double watcherNear = e.getBoundingBox().inflate(0.6).contains(eye) ? 0.0
+                        : e.getBoundingBox().inflate(0.6).clip(eye, end).map(h -> h.distanceTo(eye)).orElse(0.0);
+                if (watcherNear > targetFar) {
+                    continue; // behind the target
+                }
             }
             if (!isBloodMob(e) || !inRoomTile(client, e.position())) {
                 lastLineOfFireBlocker = e.getType().toShortString() + " #" + e.getId();
