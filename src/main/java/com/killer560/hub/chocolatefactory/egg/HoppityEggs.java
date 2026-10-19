@@ -88,13 +88,32 @@ public final class HoppityEggs {
     public static void register() {
         java.util.Arrays.fill(status, Status.UNKNOWN);
         ChatObserver.subscribe(HoppityEggs::onChat);
+        LocatorGuessRenderer.register();
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> {
-            net.minecraft.world.phys.Vec3 g = LocatorTrail.guess(System.currentTimeMillis());
-            if (g != null) {
-                EggEsp.drawGuess(ctx, g);
+            try {
+                net.minecraft.world.phys.Vec3 g = LocatorTrail.guess(System.currentTimeMillis());
+                if (g != null) {
+                    LocatorGuessRenderer.draw(ctx, g);
+                }
+            } catch (RuntimeException e) {
+                LOGGER.error("[Egglocator] draw failed", e);
             }
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tickLocator);
+        // The use itself, as SkyHanni's ItemClickEvent: a tap shorter than a tick is down and up again between two client
+        // ticks, so the key-state edge in tickLocator alone missed it, and the trail that followed was ignored.
+        net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (level.isClientSide() && player == Minecraft.getInstance().player) {
+                locatorClicked(player.getItemInHand(hand));
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
+        net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (level.isClientSide() && player == Minecraft.getInstance().player) {
+                locatorClicked(player.getItemInHand(hand));
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
                 client -> EggTracker.tick(System.currentTimeMillis()));
         ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tick);
@@ -163,7 +182,7 @@ public final class HoppityEggs {
         }
         m = FOUND.matcher(plain);
         if (m.matches()) {
-            LocatorTrail.clearGuess();
+            LocatorTrail.clearGuess("egg found");
             set(m.group(1), Status.FOUND);
             sessionEggs++;
             EggTracker.eggFound();
@@ -177,7 +196,7 @@ public final class HoppityEggs {
         if (NONE_NEARBY.matcher(plain).matches()) {
             // The Egglocator's "none left" answer: Skyblocker reads it as every live egg collected, and so do we.
             java.util.Arrays.fill(status, Status.FOUND);
-            LocatorTrail.clearGuess();
+            LocatorTrail.clearGuess("none nearby");
             setLocatorResult("§cNo eggs left on this island.");
             return;
         }
@@ -221,7 +240,7 @@ public final class HoppityEggs {
         long cooling = locatorUsedMs + LOCATOR_COOLDOWN_MS - now;
         String state = cooling > 0 ? "§7cooling " + ((cooling + 999) / 1000) + "s" : "§aready";
         String last = locatorResult.isEmpty() || now - locatorResultMs > LOCATOR_RESULT_MS ? "" : " §7| " + locatorResult;
-        String note = LocatorTrail.unmatched(now) ? " §7| §cno known egg there yet" : "";
+        String note = LocatorTrail.unmatched(now) ? " §7| §cunreliable, use it again" : "";
         return "§dEgglocator: " + state + last + note;
     }
 
@@ -230,15 +249,33 @@ public final class HoppityEggs {
         locatorResultMs = System.currentTimeMillis();
     }
 
-    /** Rising edge of the use key while holding an Egglocator starts its cooldown. Read on the client tick only. */
+    /**
+     * Client tick: the rising edge of the use key while holding an Egglocator (a backstop for the use callbacks), and the
+     * trail's own tick.
+     */
     private static void tickLocator(Minecraft client) {
+        long now = System.currentTimeMillis();
         boolean down = client.player != null && client.options != null && client.options.keyUse.isDown()
-                && client.player.getMainHandItem().getHoverName().getString().contains("Egglocator");
-        if (down && !useWasDown && System.currentTimeMillis() >= locatorUsedMs + LOCATOR_COOLDOWN_MS) {
-            locatorUsedMs = System.currentTimeMillis();
-            LocatorTrail.onUse(locatorUsedMs);
+                && isLocator(client.player.getMainHandItem());
+        if (down && !useWasDown) {
+            locatorClicked(client.player.getMainHandItem());
         }
         useWasDown = down;
+        LocatorTrail.tick(client, now);
+    }
+
+    private static boolean isLocator(net.minecraft.world.item.ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.getHoverName().getString().contains("Egglocator");
+    }
+
+    /** A use of {@code stack}: when it is the Egglocator and off cooldown (SkyHanni: 5 s since the last), a trail begins. */
+    private static void locatorClicked(net.minecraft.world.item.ItemStack stack) {
+        long now = System.currentTimeMillis();
+        if (!isLocator(stack) || !SkyblockGate.allows() || now < locatorUsedMs + LOCATOR_COOLDOWN_MS) {
+            return;
+        }
+        locatorUsedMs = now;
+        LocatorTrail.onUse(now);
     }
 
     /** The HUD's lines; empty when there is nothing to show. */

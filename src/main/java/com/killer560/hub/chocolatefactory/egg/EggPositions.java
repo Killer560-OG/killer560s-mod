@@ -70,14 +70,26 @@ public final class EggPositions {
     private EggPositions() {
     }
 
-    /** The island the player is on, or null when unknown. */
-    private static String island() {
+    /**
+     * The island the player is on, as the egg table names it, or null when unknown. The Glacite Tunnels are their own path
+     * graph but one island to Hypixel, and the egg table files their eggs under DWARVEN_MINES, so the graph name is folded
+     * back (standing in Dwarven Base Camp used to look the eggs up under a key the table does not have). A tab name with no
+     * graph is turned into the table's key shape ("Spider's Den" -> SPIDERS_DEN) rather than used as written ("Hub"), which
+     * no table key ever matched.
+     */
+    static String island() {
         String graph = IslandDetector.graphIsland();
-        if (graph != null && !graph.isEmpty()) {
-            return graph;
+        if (graph == null || graph.isEmpty()) {
+            String name = IslandDetector.islandName();
+            if (name == null || name.isEmpty()) {
+                return null;
+            }
+            graph = IslandDetector.byDisplayName(name);
+            if (graph == null) {
+                graph = name.trim().toUpperCase(java.util.Locale.ROOT).replace("'", "").replaceAll("[^A-Z0-9]+", "_");
+            }
         }
-        String name = IslandDetector.islandName();
-        return name == null || name.isEmpty() ? null : name;
+        return "GLACITE_TUNNELS".equals(graph) ? "DWARVEN_MINES" : graph;
     }
 
     /** Client tick: every few ticks, records each egg stand loaded near the player. */
@@ -152,6 +164,24 @@ public final class EggPositions {
             }
         }
         return best;
+    }
+
+    /** One line for the Egglocator log: the island, how many spots it has, and the nearest one's distance to {@code p}. */
+    static synchronized String debugState(Vec3 p) {
+        String isl = island();
+        ensureLoaded();
+        List<Spot> list = isl == null ? null : ISLANDS.get(isl);
+        int n = list == null ? 0 : list.size();
+        double best = Double.NaN;
+        if (list != null) {
+            for (Spot s : list) {
+                double d = s.point().distanceTo(p);
+                if (Double.isNaN(best) || d < best) {
+                    best = d;
+                }
+            }
+        }
+        return "island=" + isl + " spots=" + n + " nearest=" + (Double.isNaN(best) ? "none" : String.format("%.1f", best));
     }
 
     private static synchronized void ensureLoaded() {

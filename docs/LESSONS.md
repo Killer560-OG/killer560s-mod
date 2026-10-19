@@ -472,3 +472,8 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
   mirrors the board planes first (main: 0 placements standing, as on Hypixel; `RoomPredictor.disagreements` lists what a
   placement disagreed on).
+- A `@Inject` at HEAD of a `ClientPacketListener.handleX` runs TWICE per packet: first on the Netty thread, where
+  `PacketUtils.ensureRunningOnSameThread` re-queues the packet and throws, then on the render thread (javap, 26.1.2 and 26.2).
+  The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke, as SkyHanni does.
+- The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
+  is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
