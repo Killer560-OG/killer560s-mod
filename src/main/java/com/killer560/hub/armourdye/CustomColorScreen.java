@@ -100,7 +100,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
         skin.active = has && armour;
         addRenderableWidget(skin);
         SettingsButtonWidget hypixelSkin = SettingsButtonWidget.builder(Component.literal("Hypixel Skin..."),
-                        b -> minecraft.setScreenAndShow(new HypixelSkinScreen(this, item -> {
+                        b -> minecraft.setScreenAndShow(new HypixelSkinScreen(this, main.selectedLabel(), item -> {
                             main.applyHypixelSkin(item);
                         })))
                 .bounds(x2, row(2), rest, 20).build();

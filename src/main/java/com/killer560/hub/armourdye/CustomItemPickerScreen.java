@@ -76,6 +76,15 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
 
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Back"), b -> onClose())
                 .bounds(panelX + panelW - 64, panelY + 4, 56, 16).build());
+        // Clear: empties the search box and the list goes back to the full catalogue.
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Clear"), b -> {
+                    query = "";
+                    scroll = 0;
+                    if (search != null) {
+                        search.setValue("");
+                    }
+                    applyFilter();
+                }).bounds(panelX + panelW - 126, panelY + 4, 56, 16).build());
 
         search = new ThemedEditBox(this.font, panelX + 8, panelY + 24, leftW, 18, Component.literal("Search"))
                 .hint("search Minecraft and Hypixel items");
@@ -143,9 +152,7 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Custom Item");
 
-        if (query.isBlank()) {
-            MenuStyle.text(graphics, "Type a name to search.", panelX + 8, listY + 4, MenuStyle.DIM);
-        } else if (shown.isEmpty()) {
+        if (shown.isEmpty()) {
             MenuStyle.text(graphics, "No item matches that search.", panelX + 8, listY + 4, MenuStyle.DIM);
         }
         for (int row = 0; row < rows && scroll + row < shown.size(); row++) {
@@ -178,10 +185,6 @@ public final class CustomItemPickerScreen extends Screen implements MenuThemedSc
         }
 
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
-
-        MenuStyle.text(graphics, this.font.plainSubstrByWidth(
-                        main.selectedKey() == null ? "" : "Applies to " + main.selectedLabel(), panelW - 24),
-                panelX + 12, panelY + panelH - 14, MenuStyle.DIM);
     }
 
     @Override

@@ -267,7 +267,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         cfg().remove(selectedKey);
         cfg().save();
-        say("Cleared every change from " + selectedLabel + ".", false);
     }
 
     /** Gives {@code target} every change the selected item has (the Copy Look button). */
@@ -493,10 +492,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                 graphics.item(selectedStack, 0, 0);
             }
             graphics.pose().popMatrix();
-        }
-        if (selectedKey != null) {
-            MenuStyle.text(graphics, clearShown() ? "Showing the clear item" : "Showing the look",
-                    rightX + 60, panelY + 48, MenuStyle.DIM);
         }
 
         // Left column under the grid: the status line.

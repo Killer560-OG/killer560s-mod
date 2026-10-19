@@ -31,6 +31,8 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
 
     private final Screen parent;
     private final Consumer<SkyblockItemEntry> onPick;
+    /** The item being edited; only skins whose name contains it are listed. */
+    private final String targetLabel;
     private final List<SkyblockItemEntry> all = new ArrayList<>();
     private final List<SkyblockItemEntry> shown = new ArrayList<>();
     private String query = "";
@@ -43,9 +45,10 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
     private int rows;
     private EditBox search;
 
-    public HypixelSkinScreen(Screen parent, Consumer<SkyblockItemEntry> onPick) {
+    public HypixelSkinScreen(Screen parent, String targetLabel, Consumer<SkyblockItemEntry> onPick) {
         super(Component.literal("Hypixel Skins"));
         this.parent = parent;
+        this.targetLabel = targetLabel == null ? "" : targetLabel.trim();
         this.onPick = onPick;
     }
 
@@ -60,7 +63,8 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
 
         all.clear();
         for (SkyblockItemEntry item : SkyblockItemRepository.getItems()) {
-            if (item.skinValue() != null && !item.skinValue().isBlank()) {
+            if (item.skinValue() != null && !item.skinValue().isBlank() && !targetLabel.isEmpty()
+                    && item.name().toLowerCase(java.util.Locale.ROOT).contains(targetLabel.toLowerCase(java.util.Locale.ROOT))) {
                 all.add(item);
             }
         }
@@ -96,7 +100,9 @@ public final class HypixelSkinScreen extends Screen implements MenuThemedScreen 
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Hypixel Skins");
-        MenuStyle.text(graphics, shown.size() + " of " + all.size() + " skins", panelX + 8, panelY + 44, MenuStyle.DIM);
+        if (all.isEmpty()) {
+            MenuStyle.text(graphics, "No skins for this item.", panelX + 8, panelY + 44, MenuStyle.DIM);
+        }
 
         for (int row = 0; row < rows && scroll + row < shown.size(); row++) {
             SkyblockItemEntry item = shown.get(scroll + row);
