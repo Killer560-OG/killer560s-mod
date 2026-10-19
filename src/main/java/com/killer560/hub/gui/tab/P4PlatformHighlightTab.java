@@ -40,7 +40,8 @@ public class P4PlatformHighlightTab extends BaseTab {
                     btn.setMessage(onOff("Filled Box", cfg.isFilled()));
                 }).bounds(contentX, y, contentWidth, 18).build());
 
-        SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, contentX, contentWidth, y, false);
+        // No shared Solver Highlight section here (killer560, 2026-10-18): the 3x3 highlight is the only thing this tab draws,
+        // and its own switch and Filled Box are the rows above.
 
         return widgets;
     }
