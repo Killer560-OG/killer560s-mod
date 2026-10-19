@@ -24,15 +24,24 @@ public abstract class ModUserNameTagMixin {
     @Inject(method = "getNameTag(Lnet/minecraft/world/entity/Entity;)Lnet/minecraft/network/chat/Component;",
             at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$modUserTag(Entity entity, CallbackInfoReturnable<Component> cir) {
-        if (!(entity instanceof Player) || !ModUserConfig.getInstance().isSeeOthers()) {
+        if (!(entity instanceof Player)) {
             return;
         }
         String name = entity.getName().getString();
         Minecraft client = Minecraft.getInstance();
+        String variant;
         if (client.player != null && name.equals(client.player.getGameProfile().name())) {
-            return;
+            // Your own name tag (My Name in F5): your symbol shows there only while you show yourself as a mod user.
+            if (!ModUserConfig.getInstance().isShare()) {
+                return;
+            }
+            variant = ModUserConfig.getInstance().getShareAs();
+        } else {
+            if (!ModUserConfig.getInstance().isSeeOthers()) {
+                return;
+            }
+            variant = ModUsers.variantOf(name);
         }
-        String variant = ModUsers.variantOf(name);
         if (variant == null) {
             return;
         }
