@@ -3,9 +3,9 @@ package com.killer560.hub.armourdye;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.MenuStyle;
+import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.itembrowser.SkyblockItemEntry;
 import net.minecraft.client.Minecraft;
@@ -14,35 +14,37 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The Custom Items menu (killer560, 2026-10-08): select an item in your inventory and change its colour, skin, trim,
- * pattern or look. Nothing is ever sent to the server.
- * <p>
- * Left: a search box (2026-10-18: filters the item grid by name, any word typed matches), then his armour, inventory
- * and hotbar (the real stacks, drawn through the overrides). Right: the preview and the controls. Selecting an item
- * shows its CLEAR look (no override drawn) until the Preview button switches to the look it has. The saved-looks list
- * was removed from the menu on 2026-10-18 (killer560: "remove the saved looks"); a look already saved still applies
- * to its item, and it can still be removed from the item's controls.
+ * The Custom Items menu (killer560, 2026-10-08; main page redesigned 2026-10-18). Left: a search box and the grid of
+ * the player's own items (armour, inventory, hotbar). Right: the selected item's preview and four buttons:
+ * <ul>
+ *   <li><b>Custom Item</b> - {@link CustomItemPickerScreen}: search Minecraft and Hypixel items and apply one's look.</li>
+ *   <li><b>Custom Color</b> - {@link CustomColorScreen}: a large preview with the colour, skin, trim and pattern controls.</li>
+ *   <li><b>Clear Changes</b> - removes every change from the selected item.</li>
+ *   <li><b>Copy Look</b> - click Copy Look, then an item in the grid: that item takes the selected item's changes.</li>
+ * </ul>
+ * The child pages share this screen's selection through the public methods below, and every change they make is saved
+ * at once. Nothing is ever sent to the server.
  */
 public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
-    private static final int SLOT = 22;
-    private static final int GRID_W = 9 * SLOT;
-    private static final int MAX_W = 460;
-    private static final int MAX_H = 300;
+    static final int SLOT = 22;
+    static final int GRID_W = 9 * SLOT;
+    static final int MAX_W = 460;
+    static final int MAX_H = 300;
+    static final int BTN_H = 20;
     private static final int LEFT_PAD = 8;
     private static final int COL_GAP = 12;
-    private static final int ROW_H = 24;
+    private static final int BTN_STEP = 26;
     private static final EquipmentSlot[] ARMOUR = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
             EquipmentSlot.FEET};
 
@@ -54,9 +56,9 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     private String selectedKey;
     private String selectedLabel = "";
     private boolean copyingLook;
-    /** True: the preview draws the clear item (no override). Reset to true on every new selection. */
+    /** True: the preview draws the clear item. Reset on every new selection. Any change turns it off. */
     private boolean showClear = true;
-    /** The search text, kept across rebuilds. Any word typed matches an item whose name contains it. */
+    /** The search text, kept across rebuilds. */
     private String query = "";
     private String status = "";
     private boolean statusBad;
@@ -70,7 +72,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     private int rightX;
     private int rightW;
 
-    private EditBox lookBox;
     private EditBox searchBox;
 
     public CustomItemsScreen(Screen parent) {
@@ -80,19 +81,8 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     // ------------------------------------------------------------------------------------------- model
 
-    private static ArmourDyeConfig cfg() {
+    static ArmourDyeConfig cfg() {
         return ArmourDyeConfig.getInstance();
-    }
-
-    /** The preview switches to showing the look whenever a setting changes. */
-    private void showLook() {
-        showClear = false;
-    }
-
-    /** True when the preview draws the item clear: Show Clear chosen, or nothing applied to the selection. */
-    private boolean clearShown() {
-        ArmourDyeEntry e = entry();
-        return showClear || e == null || e.isEmpty() || !e.enabled;
     }
 
     /** The entry the selection has now, or null (nothing set yet). */
@@ -101,15 +91,38 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The entry, created on first change. */
-    private ArmourDyeEntry editable() {
+    ArmourDyeEntry editable() {
         if (selectedKey == null) {
             return null;
         }
         return cfg().getOrCreate(selectedKey, selectedLabel);
     }
 
-    /** Selects a real item. Its existing look is found by UUID first, then by id; a new look defaults to every copy.
-     *  The preview starts on the clear item. Public for tests. */
+    /** The live stack the selection is on, or EMPTY. */
+    public ItemStack selectedStack() {
+        return selectedStack;
+    }
+
+    public String selectedKey() {
+        return selectedKey;
+    }
+
+    public String selectedLabel() {
+        return selectedLabel;
+    }
+
+    /** True when the preview draws the clear item: Show Clear chosen, or nothing applied to the selection. */
+    boolean clearShown() {
+        ArmourDyeEntry e = entry();
+        return showClear || e == null || e.isEmpty() || !e.enabled;
+    }
+
+    /** Any change to the look switches the preview to showing it. */
+    void showLook() {
+        showClear = false;
+    }
+
+    /** Selects a real item. Its existing look is found by UUID first, then by id; a new look defaults to every copy. */
     public void select(ItemStack stack) {
         copyingLook = false;
         if (stack == null || stack.isEmpty()) {
@@ -118,23 +131,33 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         selectedStack = stack;
         selectedLabel = stack.getHoverName().getString();
         showClear = true;
+        String key = keyFor(stack);
+        if (key == null) {
+            selectedKey = null;
+            say("That item can't be identified, so a look can't be kept for it.", true);
+            return;
+        }
+        selectedKey = key;
+    }
+
+    /** The key a stack's look is kept under: its UUID when that has a look, else its Skyblock id, else its UUID. */
+    static String keyFor(ItemStack stack) {
         String uuid = ArmourDye.uuidOf(stack);
         String id = ArmourDye.identityOf(stack);
         if (uuid != null && cfg().get(ArmourDyeConfig.uuidKey(uuid)) != null) {
-            selectedKey = ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid));
-        } else if (id != null) {
-            selectedKey = ArmourDyeConfig.normaliseId(id);
-        } else if (uuid != null) {
-            selectedKey = ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid));
-        } else {
-            selectedKey = null;
-            say("That item can't be identified, so a look can't be kept for it.", true);
+            return ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid));
         }
-        refresh();
+        if (id != null) {
+            return ArmourDyeConfig.normaliseId(id);
+        }
+        if (uuid != null) {
+            return ArmourDyeConfig.normaliseId(ArmourDyeConfig.uuidKey(uuid));
+        }
+        return null;
     }
 
-    /** Switches between this item (UUID) and every copy (id). Public for tests. */
-    public void toggleAppliesTo() {
+    /** Switches between this item (UUID) and every copy (id). */
+    void toggleAppliesTo() {
         if (selectedStack.isEmpty() || selectedKey == null) {
             return;
         }
@@ -153,11 +176,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         }
         selectedKey = to;
         say(perItem ? "Now every copy of this item." : "Now only this exact item.", false);
-        refresh();
     }
 
-    /** Sets and arms the colour. Public for tests. */
-    public void setColour(int argb) {
+    /** Sets and arms the colour. */
+    void setColour(int argb) {
         ArmourDyeEntry e = editable();
         if (e == null) {
             return;
@@ -168,7 +190,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         showLook();
     }
 
-    public void toggleUseColour() {
+    void toggleUseColour() {
         ArmourDyeEntry e = editable();
         if (e == null) {
             return;
@@ -176,11 +198,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.colorEnabled = !e.colorEnabled;
         cfg().save();
         showLook();
-        refresh();
     }
 
-    /** Cycles the armour skin; {@code forward} false goes back one. Public for tests. */
-    public void cycleSkin(boolean forward) {
+    /** Cycles the armour skin; {@code forward} false goes back one. */
+    void cycleSkin(boolean forward) {
         ArmourDyeEntry e = editable();
         if (e == null) {
             return;
@@ -192,22 +213,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         e.skin = next;
         cfg().save();
         showLook();
-        refresh();
     }
 
-    /** Opens the list of trim materials or patterns; the current one is marked. */
-    private void openChoices(boolean material) {
-        ArmourDyeEntry e = entry();
-        List<String> options = new ArrayList<>();
-        options.add("");
-        options.addAll(material ? ArmourTrims.materials() : ArmourTrims.patterns());
-        String cur = e == null ? "" : (material ? e.trimMaterial : e.trimPattern);
-        minecraft.setScreenAndShow(new ChoiceListScreen(this, material ? "Trim" : "Pattern", options, cur,
-                value -> setTrimChoice(material, value)));
-    }
-
-    /** Sets the trim material or pattern picked from the list (blank = none). */
-    private void setTrimChoice(boolean material, String value) {
+    /** Sets the trim material or pattern picked from a list (blank = none). */
+    void setTrimChoice(boolean material, String value) {
         ArmourDyeEntry e = editable();
         if (e == null) {
             return;
@@ -222,37 +231,6 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         say((material ? "Trim" : "Pattern") + " set to " + (value.isEmpty() ? "none" : value) + ".", false);
     }
 
-    /** Sets the Look from text: an item model id ({@code diamond_sword}, {@code minecraft:diamond_sword}) or, if it
-     *  is long and not an id, a head texture. Blank clears it. Public for tests. */
-    public void setLook(String raw) {
-        ArmourDyeEntry e = editable();
-        if (e == null) {
-            return;
-        }
-        String text = raw == null ? "" : raw.trim();
-        if (text.isEmpty()) {
-            e.iconModel = "";
-            e.headTexture = "";
-            say("Look cleared.", false);
-        } else if (text.length() > 60 && !text.contains(":")) {
-            e.iconModel = "";
-            e.headTexture = text;
-            say("Look set to a head texture.", false);
-        } else {
-            Identifier id = Identifier.tryParse(text.contains(":") ? text : "minecraft:" + text);
-            if (id == null) {
-                say("Not an item id: " + text, true);
-                return;
-            }
-            e.iconModel = id.toString();
-            e.headTexture = "";
-            say("Look set to " + id + ".", false);
-        }
-        cfg().save();
-        showLook();
-        refresh();
-    }
-
     /** Sets a head texture from the Hypixel item catalog (its real item skin) as the Look. */
     void applyHypixelSkin(SkyblockItemEntry item) {
         ArmourDyeEntry e = editable();
@@ -264,12 +242,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         cfg().save();
         showLook();
         say("Skin set to " + item.name() + ".", false);
-        refresh();
     }
 
-    /** Copies another item's real model (and head texture) onto the selection. Public for tests. */
-    public void copyLookFrom(ItemStack source) {
-        copyingLook = false;
+    /** Applies another item's model and head texture as the selection's Look (the Custom Item page). */
+    void copyLookFrom(ItemStack source) {
         ArmourDyeEntry e = editable();
         if (e == null || source == null || source.isEmpty()) {
             return;
@@ -281,55 +257,55 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         cfg().save();
         showLook();
         say("Look copied from " + source.getHoverName().getString() + ".", false);
-        refresh();
     }
 
-    /** Removes the selection's look entirely. Public for tests. */
-    public void removeSelected() {
+    /** Removes every change from the selected item (its whole saved entry). */
+    void clearChanges() {
         if (selectedKey == null || cfg().get(selectedKey) == null) {
-            say("Nothing to remove.", true);
+            say("Nothing to clear.", true);
             return;
         }
         cfg().remove(selectedKey);
         cfg().save();
-        say("Removed the look from " + selectedLabel + ".", false);
-        refresh();
+        say("Cleared every change from " + selectedLabel + ".", false);
     }
 
-    public String selectedKey() {
-        return selectedKey;
+    /** Gives {@code target} every change the selected item has (the Copy Look button). */
+    void copyChangesTo(ItemStack target) {
+        ArmourDyeEntry src = entry();
+        if (src == null) {
+            say("The selected item has no changes to copy.", true);
+            return;
+        }
+        String key = keyFor(target);
+        if (key == null) {
+            say("That item can't be identified, so it can't take a look.", true);
+            return;
+        }
+        cfg().rekey(key, src.copyAs(key));
+        cfg().save();
+        say("Changes copied to " + target.getHoverName().getString() + ".", false);
     }
 
-    public String status() {
-        return status;
-    }
-
-    private void say(String text, boolean bad) {
+    void say(String text, boolean bad) {
         status = text;
         statusBad = bad;
     }
 
-    private void refresh() {
-        if (this.minecraft != null) {
-            String typed = lookBox == null ? "" : lookBox.getValue();
-            rebuildWidgets();
-            if (lookBox != null) {
-                lookBox.setValue(typed);
-            }
-        }
+    String status() {
+        return status;
     }
 
-    private static String shortId(String id) {
-        if (id == null || id.isBlank()) {
-            return "§8Off";
+    /** Rebuilds this screen's widgets, keeping the search text. */
+    void refresh() {
+        if (this.minecraft != null) {
+            rebuildWidgets();
         }
-        int colon = id.indexOf(':');
-        return colon < 0 ? id : id.substring(colon + 1);
     }
 
     /**
      * Search: true when the item name contains ANY word of the query, case-insensitive. A blank query matches all.
-     * Package-visible for the item-grid filter and its tests.
+     * Shared by the grid filter and the Custom Item page.
      */
     static boolean matchesQuery(String name, String query) {
         if (query == null || query.isBlank()) {
@@ -342,6 +318,14 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             }
         }
         return false;
+    }
+
+    private static String shortId(String id) {
+        if (id == null || id.isBlank()) {
+            return "§8Off";
+        }
+        int colon = id.indexOf(':');
+        return colon < 0 ? id : id.substring(colon + 1);
     }
 
     // ------------------------------------------------------------------------------------------- layout
@@ -367,107 +351,53 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         searchBox.setValue(query);
         addRenderableWidget(searchBox);
 
-        ArmourDyeEntry e = entry();
         boolean has = selectedKey != null;
-        boolean armour = ArmourDye.isArmour(selectedStack);
-        int half = (rightW - 4) / 2;
-        int rest = rightW - half - 4;
-        int x2 = rightX + half + 4;
+        ArmourDyeEntry e = entry();
 
-        boolean canSwitch = !selectedStack.isEmpty() && ArmourDye.uuidOf(selectedStack) != null
-                && ArmourDye.identityOf(selectedStack) != null;
-        SettingsButtonWidget applies = SettingsButtonWidget.builder(Component.literal("Applies To: "
-                        + (selectedKey != null && selectedKey.startsWith(ArmourDyeEntry.UUID_PREFIX) ? "This Item" : "Every Copy")),
-                b -> toggleAppliesTo()).bounds(rightX, row(0), rightW, BTN_H).build();
-        applies.active = canSwitch;
-        addRenderableWidget(applies);
-
-        // Row 1: colour picker and the on/off for it.
-        SettingsButtonWidget colour = SettingsButtonWidget.builder(ColorSwatch.label("Color", e == null ? 0xFFFFFFFF : e.color), b -> {
-                    ArmourDyeEntry cur = entry();
-                    McOpen.colourPicker(this, selectedLabel, cur == null ? 0xFFFFFFFF : cur.color, this::setColour);
-                }).bounds(rightX, row(1), half, BTN_H).build();
-        colour.active = has;
-        addRenderableWidget(colour);
-        SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Color: "
-                        + (e != null && e.colorEnabled ? "§aON" : "§cOFF")), b -> toggleUseColour())
-                .bounds(x2, row(1), rest, BTN_H).build();
-        use.active = has;
-        addRenderableWidget(use);
-
-        // Row 3: armour skin dropdown, and the Hypixel item skin picker.
-        SettingsButtonWidget skin = SettingsButtonWidget.cycling(
-                        Component.literal("Skin: " + (e == null ? "None" : e.skin.label)),
-                        (b, dir) -> cycleSkin(dir > 0))
-                .bounds(rightX, row(2), half, BTN_H).build();
-        skin.active = has && armour;
-        addRenderableWidget(skin);
-        SettingsButtonWidget hypixelSkin = SettingsButtonWidget.builder(Component.literal("Hypixel Skin..."),
-                        b -> minecraft.setScreenAndShow(new HypixelSkinScreen(this, this::applyHypixelSkin)))
-                .bounds(x2, row(2), rest, BTN_H).build();
-        hypixelSkin.active = has;
-        addRenderableWidget(hypixelSkin);
-
-        // Row 3: trim and pattern. Each opens a list of its choices, the current one marked.
-        SettingsButtonWidget trim = SettingsButtonWidget.builder(
-                        Component.literal("Trim: " + shortId(e == null ? "" : e.trimMaterial)),
-                        b -> openChoices(true))
-                .bounds(rightX, row(3), half, BTN_H).build();
-        trim.active = has && armour;
-        addRenderableWidget(trim);
-        SettingsButtonWidget pattern = SettingsButtonWidget.builder(
-                        Component.literal("Pattern: " + shortId(e == null ? "" : e.trimPattern)),
-                        b -> openChoices(false))
-                .bounds(x2, row(3), rest, BTN_H).build();
-        pattern.active = has && armour;
-        addRenderableWidget(pattern);
-
-        // Row 4: free-text Look        // Row 5: free-text Look and its Set button.
-        lookBox = new ThemedEditBox(this.font, rightX, row(4) + 2, rightW - 40, 16, Component.literal("Look"))
-                .hint(e != null && !e.iconModel.isBlank() ? shortId(e.iconModel)
-                        : e != null && !e.headTexture.isBlank() ? "(head texture)" : "item id, e.g. diamond_sword");
-        lookBox.setMaxLength(4096);
-        lookBox.active = has;
-        addRenderableWidget(lookBox);
-        SettingsButtonWidget set = SettingsButtonWidget.builder(Component.literal("Set"), b -> setLook(lookBox.getValue()))
-                .bounds(rightX + rightW - 36, row(4), 36, BTN_H).build();
-        set.active = has;
-        addRenderableWidget(set);
-
-        // Row 6: copy or clear a Look.
-        SettingsButtonWidget copy = SettingsButtonWidget.builder(Component.literal(copyingLook ? "Pick item..." : "Copy Look"),
-                b -> {
-                    copyingLook = !copyingLook;
-                    b.setMessage(Component.literal(copyingLook ? "Pick item..." : "Copy Look"));
-                }).bounds(rightX, row(5), half, BTN_H).build();
-        copy.active = has;
-        addRenderableWidget(copy);
-        SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear Look"), b -> setLook(""))
-                .bounds(x2, row(5), rest, BTN_H).build();
-        clear.active = e != null && (!e.iconModel.isBlank() || !e.headTexture.isBlank());
-        addRenderableWidget(clear);
-
-        // Row 7: preview switch, and removing the look.
+        // Preview switch, under the preview.
         SettingsButtonWidget preview = SettingsButtonWidget.builder(
                         Component.literal(showClear ? "Show With Look" : "Show Clear Item"),
                         b -> {
                             showClear = !showClear;
                             refresh();
-                        }).bounds(rightX, row(6), half, BTN_H).build();
+                        }).bounds(rightX, row(0), rightW, BTN_H).build();
         preview.active = !selectedStack.isEmpty();
         addRenderableWidget(preview);
-        SettingsButtonWidget remove = SettingsButtonWidget.builder(Component.literal("§cRemove Look"), b -> removeSelected())
-                .bounds(x2, row(6), rest, BTN_H).build();
-        remove.active = e != null;
-        addRenderableWidget(remove);
+
+        // The four buttons.
+        SettingsButtonWidget customItem = SettingsButtonWidget.builder(Component.literal("Custom Item"),
+                        b -> minecraft.setScreenAndShow(new CustomItemPickerScreen(this)))
+                .bounds(rightX, row(1), rightW, BTN_H).build();
+        customItem.active = has;
+        addRenderableWidget(customItem);
+
+        SettingsButtonWidget customColor = SettingsButtonWidget.builder(Component.literal("Custom Color"),
+                        b -> minecraft.setScreenAndShow(new CustomColorScreen(this)))
+                .bounds(rightX, row(2), rightW, BTN_H).build();
+        customColor.active = has;
+        addRenderableWidget(customColor);
+
+        SettingsButtonWidget clear = SettingsButtonWidget.builder(Component.literal("Clear Changes"), b -> {
+                    clearChanges();
+                    refresh();
+                }).bounds(rightX, row(3), rightW, BTN_H).build();
+        clear.active = e != null;
+        addRenderableWidget(clear);
+
+        SettingsButtonWidget copy = SettingsButtonWidget.builder(
+                        Component.literal(copyingLook ? "Pick item to copy to..." : "Copy Look"),
+                        b -> {
+                            copyingLook = !copyingLook;
+                            refresh();
+                        }).bounds(rightX, row(4), rightW, BTN_H).build();
+        copy.active = has;
+        addRenderableWidget(copy);
     }
 
-    /** Y of right-column control {@code k}. */
+    /** Y of right-column button {@code k}. Row 0 is the preview switch. */
     private int row(int k) {
-        return panelY + 100 + k * ROW_H;
+        return panelY + 100 + k * BTN_STEP;
     }
-
-    private static final int BTN_H = 20;
 
     /** Top-left of grid cell {@code index}: 0-3 armour (head first), 4-30 main storage (inventory 9-35), 31-39 hotbar. */
     public int[] cellPos(int index) {
@@ -496,7 +426,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return p.getInventory().getItem(index - 31);
     }
 
-    /** The stack in a cell when it passes the search, else EMPTY (a non-matching cell is drawn and clicked as empty). */
+    /** The stack in a cell when it passes the search, else EMPTY. */
     private ItemStack shownStack(int index) {
         ItemStack stack = cellStack(index);
         if (stack.isEmpty() || !matchesQuery(stack.getHoverName().getString(), query)) {
@@ -548,18 +478,14 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
             }
         }
 
-        // Right side: title, preview (clear or with the look), then the controls.
+        // Right side: title, the preview, and its state.
         String title = selectedKey == null ? "Click an item to change its look" : selectedLabel;
         MenuStyle.text(graphics, ScreenChrome.readable(this.font.plainSubstrByWidth(title, rightW)), rightX, panelY + 24,
                 selectedKey == null ? MenuStyle.DIM : MenuStyle.TXT);
-        if (selectedKey != null) {
-            MenuStyle.text(graphics, clearShown() ? "Showing the clear item" : "Showing the look",
-                    rightX, panelY + 34, MenuStyle.DIM);
-        }
-        ScreenChrome.well(graphics, rightX, panelY + 44, 52, 52);
+        ScreenChrome.well(graphics, rightX, panelY + 40, 52, 52);
         if (!selectedStack.isEmpty()) {
             graphics.pose().pushMatrix();
-            graphics.pose().translate(rightX + 6, panelY + 50);
+            graphics.pose().translate(rightX + 6, panelY + 46);
             graphics.pose().scale(2.75f, 2.75f);
             if (clearShown()) {
                 ArmourDye.withoutOverrides(() -> graphics.item(selectedStack, 0, 0));
@@ -567,6 +493,10 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                 graphics.item(selectedStack, 0, 0);
             }
             graphics.pose().popMatrix();
+        }
+        if (selectedKey != null) {
+            MenuStyle.text(graphics, clearShown() ? "Showing the clear item" : "Showing the look",
+                    rightX + 60, panelY + 48, MenuStyle.DIM);
         }
 
         // Left column under the grid: the status line.
@@ -592,10 +522,12 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
                 return true;
             }
             if (copyingLook && selectedKey != null) {
-                copyLookFrom(stack);
+                copyingLook = false;
+                copyChangesTo(stack);
             } else {
                 select(stack);
             }
+            refresh();
             return true;
         }
         return super.mouseClicked(event, doubleClick);
@@ -611,12 +543,9 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         return false;
     }
 
-    /** Opens the shared colour wheel with this menu as its parent. */
-    private static final class McOpen {
-        static void colourPicker(Screen back, String label, int current, java.util.function.IntConsumer onChange) {
-            Minecraft mc = Minecraft.getInstance();
-            mc.setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
-        }
+    /** Opens the shared colour wheel; the choice is applied to the selection and the wheel returns to {@code back}. */
+    static void colourPicker(Screen back, String label, int current, java.util.function.IntConsumer onChange) {
+        Minecraft.getInstance().setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
     }
 
     @Override
