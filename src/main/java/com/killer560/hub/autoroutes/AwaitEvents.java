@@ -148,22 +148,26 @@ public final class AwaitEvents {
      */
     static final int START_LOOKBACK = 10;
 
-    /**
-     * How far before a node's window opened (ticks) a secret of his, taken while the node before it was ACTING (its
-     * await met or skipped, or it had none), still counts for this node's await - see {@code RouteExecutor.beginAction}.
-     * <p>
-     * killer560, 2026-10-14, on Hypixel: "it never detects secrets. I think it picks them up faster than it knows it
-     * grabs them". His Mod Only Test log of a real Red Blue run (17:22:43) has it exactly: #3's etherwarp lands on
-     * the item #4 waits for, and Hypixel's {@code ClientboundTakeItemEntityPacket} arrives in the same batch as the
-     * teleport, so it is handled before the route's next tick sees the landing - "await secret 1: item picked up by
-     * you" is logged while #3 is still the active node, then #3 finishes, the window is reset, and #4 sat at 0/1 until
-     * he left clicked. Secret Aura's click on the landing tick (it ticks before Auto Routes) is the same race. Ten
-     * ticks is the start lookback's span; the secret must also be within {@link RouteRunMemory#NEAR_NODE} of the node.
-     */
-    static final int CARRY_TICKS = 10;
-
     /** The tick the running route started: a remembered secret from before it can meet a node's first await. */
     private static int beganAt;
+
+    /**
+     * The tick the open window began (the last {@link #window} call, or the route's start). A node that finishes hands
+     * everything got since this tick that no met await has used on to the next node's await (see
+     * {@code RouteExecutor.finishAction}): his secrets taken while a node was ACTING, not only in its last few ticks.
+     * <p>
+     * killer560, 2026-10-14, on Hypixel: "it never detects secrets. I think it picks them up faster than it knows it
+     * grabs them". The first form of this carry looked back only {@code CARRY_TICKS} (10) from the node's finish. A
+     * node that acts longer than that (a PATH that waits out a 67-tick landing, a breaker waiting for charges) let a
+     * secret taken early in its action fall out of the carry, and the next await then sat at 0/1 for a secret he had
+     * already got (2026-10-18). Claimed secrets are never carried twice, so the window start is the only bound needed.
+     */
+    private static int windowStart;
+
+    /** The tick the open window began - read before {@link #window} resets it, as the finishing node's carry bound. */
+    static int windowStart() {
+        return windowStart;
+    }
 
     static int beganAt() {
         return beganAt;
@@ -195,6 +199,7 @@ public final class AwaitEvents {
 
     /** A node finished: what is counted from here on belongs to the next node's await. */
     static void window(Minecraft client) {
+        windowStart = ticks;
         secrets = 0;
         crypts = 0;
         bats = 0;
