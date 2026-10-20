@@ -1852,8 +1852,13 @@ public final class RouteExecutor {
     private static void beginAction(RouteNode node) {
         actionsBegun++;
         endSecretGap("node #" + (route == null ? "?" : String.valueOf(route.indexOf(node) + 1)) + " " + node.type + " fired");
-        // Another node fired: a breaker node still mining what was out of reach stops here (see tickBreakerLinger).
-        clearBreakerLinger(node.type == RouteNode.Type.DUNGEON_BREAKER ? "the breaker fired again" : "another node fired");
+        // Another node fired: a breaker node still mining what was out of reach stops here (see tickBreakerLinger). A path
+        // arrival sends nothing (tickPath finishes it at once), so it leaves the linger running - killer560, 2026-10-19:
+        // a zero-hop arrival ended the linger and the column below a shaft was never dug as he fell.
+        boolean sendsNothing = node.type == RouteNode.Type.PATH && (route == null || !route.isPathSource(node));
+        if (!sendsNothing) {
+            clearBreakerLinger(node.type == RouteNode.Type.DUNGEON_BREAKER ? "the breaker fired again" : "another node fired");
+        }
         LocalPlayer self = Minecraft.getInstance().player;
         if (node.type == RouteNode.Type.ETHERWARP) {
             Vec3 at = RouteCoords.toReal(frame, node.relativePos());
