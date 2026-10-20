@@ -540,8 +540,6 @@ public final class AutoAnvilFeature {
     private static void finish(Minecraft client) {
         int id = containerId;
         if (combined > 0) {
-            ModChat.send("AutoAnvil", ModChat.good("Done - "), ModChat.value(combined + " combined"),
-                    ModChat.dim(" (" + String.join(", ", made) + ")"));
             if (AutoAnvilConfig.getInstance().isCloseWhenDone() && client.player != null) {
                 client.player.closeContainer();
             }
