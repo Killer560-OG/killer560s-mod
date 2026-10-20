@@ -1805,11 +1805,20 @@ public final class AutoSecretFeature {
                 && !r.isType("FAIRY") && AutoClearFeature.isMobRoom(layout, r.room());
     }
 
-    /** A mob room the map shows uncleared that Auto Clear has not been sent to yet (anywhere on the map). */
+    /**
+     * A clear is under way (the trip to it or Auto Clear itself), or a mob room the map shows uncleared is left that Auto
+     * Clear has not given up on. One it was already sent to counts: the trip to the last room is when every secret tends
+     * to be found, and stopping then left that room uncleared (8 sim floors, 2026-10-20: 7 of them).
+     */
     private static boolean unclearedMobRoomLeft() {
+        if (phase == Phase.AUTO_CLEAR || phase == Phase.TRAVEL && trip == Trip.CLEAR) {
+            return true;
+        }
         DungeonLayout layout = DungeonLayout.capture();
         for (RoomStatus.Room r : RoomStatus.rooms()) {
-            if (needsClear(layout, r)) {
+            if (!r.cleared() && !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP")
+                    && !r.isType("BLOOD") && !r.isType("ENTRANCE") && !r.isType("FAIRY")
+                    && AutoClearFeature.isMobRoom(layout, r.room()) && !clearsDone.contains(r.name())) {
                 return true;
             }
         }
