@@ -102,6 +102,8 @@ public final class AutoSellFeature {
 
     /** Starts a session against whatever screen is open RIGHT NOW - never opens or navigates to one itself.
      *  @return null on success, else the reason it refused (so the command can print it). */
+    /** The last screen Auto Sell logged as open, so the log names each one once. */
+    private static String lastSeenScreen = "";
     /** The last container title Auto Sell refused, so the log names it once. */
     private static String lastRefusedTitle = "";
 
@@ -110,7 +112,18 @@ public final class AutoSellFeature {
         if (!cfg.isEnabled() || cfg.getSellIdentities().isEmpty()) {
             return;
         }
-        if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || screen == doneScreen) {
+        // killer560, 2026-10-19: /trades still never sold. Say what screen is open, once per class and title, so the log
+        // shows whether it is a container at all and what it is called.
+        Object open = McCompat.screen(client);
+        if (open != null) {
+            String shown = open.getClass().getName() + " \"" + (open instanceof net.minecraft.client.gui.screens.Screen sc
+                    ? ChatFormatting.stripFormatting(sc.getTitle().getString()).trim() : "") + "\"";
+            if (!shown.equals(lastSeenScreen)) {
+                lastSeenScreen = shown;
+                LOGGER.info("[AutoSell] screen open: {} (container={})", shown, open instanceof AbstractContainerScreen<?>);
+            }
+        }
+        if (!(open instanceof AbstractContainerScreen<?> screen) || screen == doneScreen) {
             return;
         }
         String title = titleOf(screen);
