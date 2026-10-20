@@ -4732,6 +4732,16 @@ public final class RouteExecutor {
     }
 
     private static void tickBoom(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (step == Step.PREP && RouteRunMemory.boomedThisRun(RouteRunMemory.boomKey(route, node))) {
+            // It blew its wall earlier this run, and a blown crypt or wall stays open: sending it again only waited a
+            // round trip (and, on a landing tick, a second one) to read "nothing changed" (his Mod Only Test 2026-10-20
+            // 09:56:46 and 09:56:51: Slime's stack run twice more, 14-15 ticks for #6 each time).
+            logActed(node, " (it blew its wall earlier this run - nothing left to blow, moving on)");
+            step = Step.CONFIRM;
+            stepTicks = 0;
+            finishAction();
+            return;
+        }
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
             if (slot < 0) {
@@ -4828,6 +4838,7 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Boom ({}): {} of {} watched block(s) changed around {} (settle limit {} + lag {})",
                         nodeTag(node), changedCount, boomBefore.size(),
                         boomTarget == null ? "?" : boomTarget.toShortString(), boomSettleTicks(), serverLagTicks());
+                RouteRunMemory.boomed(RouteRunMemory.boomKey(route, node));
                 finishAction();
             } else if (stepTicks >= boomSettleTicks() + serverLagTicks() && !boomRetried
                     && boomSentAt - lastLandingAt <= BOOM_LANDING_TICKS) {

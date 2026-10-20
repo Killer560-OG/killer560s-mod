@@ -50,6 +50,8 @@ public final class RouteRunMemory {
     /** Nodes whose await (or bat node's kill) was met this run, by {@link #nodeKey}. */
     private static final Set<String> metNodes = new HashSet<>();
     private static final Set<String> routedRooms = new HashSet<>();
+    /** Boom nodes that blew blocks this run, by {@link #boomKey}. */
+    private static final Set<String> boomedNodes = new HashSet<>();
     /** How far each room's route got this run: {nodes done, nodes in the route}, kept after a stop (the HUD's percent). */
     private static final Map<String, int[]> progress = new LinkedHashMap<>();
 
@@ -87,6 +89,7 @@ public final class RouteRunMemory {
         metNodes.clear();
         routedRooms.clear();
         progress.clear();
+        boomedNodes.clear();
     }
 
     /** For the testkit: forget the run, as a new run would. */
@@ -253,6 +256,25 @@ public final class RouteRunMemory {
             }
         }
         return out;
+    }
+
+    /** A boom node's key: {@link #nodeKey} plus its look, since the booms of one stack share a tile. */
+    static String boomKey(Route route, RouteNode node) {
+        return nodeKey(route, node) + String.format(Locale.US, "|%.2f/%.2f", node.yaw, node.pitch);
+    }
+
+    /** A boom node blew blocks this run ({@link #boomKey}): what it opens stays open for the rest of the run. */
+    static void boomed(String key) {
+        check();
+        if (boomedNodes.add(key)) {
+            LOGGER.info("[RouteMemory] boom {} blew its wall this run - not sent again this run", key);
+        }
+    }
+
+    /** Whether this boom node already blew blocks this run. */
+    static boolean boomedThisRun(String key) {
+        check();
+        return boomedNodes.contains(key);
     }
 
     /** A node's await was met by {@code keys} (its window's secrets plus any remembered ones). */
