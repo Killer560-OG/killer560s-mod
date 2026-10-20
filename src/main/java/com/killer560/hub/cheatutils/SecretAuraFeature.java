@@ -58,6 +58,8 @@ import com.killer560.hub.compat.McCompat;
  * holding a configured item.
  * <li>While an Auto Routes route runs, only on a node waiting for secrets ({@code RouteExecutor.secretAuraMayClick},
  * killer560 2026-10-16); with no route running it works as above.
+ * <li>Never while Auto Clear is killing with no route running ({@code AutoClearFeature.holdsSecretClicks}, killer560
+ * 2026-10-20): a secret it took then was one the room's route later waited for.
  * </ul>
  * Click is the {@code SimonSaysFeature#sendNoRotateInteract} precedent: {@code gameMode.useItemOn} with a
  * synthetic {@link BlockHitResult}.
@@ -471,6 +473,12 @@ public final class SecretAuraFeature {
             logHeld("route", "Auto Routes running and not on a secret-await node target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
+        // Nor while Auto Clear kills (killer560, 2026-10-20): a secret it took then is one the route through that room
+        // later found gone and waited for. Secret clicks are for a route (the gate above) or Auto Secret's routes.
+        if (com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks()) {
+            logHeld("autoClear", "Auto Clear is killing mobs (no route running) target=" + bestKind + "@" + xyz(bestPos));
+            return;
+        }
         // A Shadow Assassin leaping at him (util/ShadowAssassinLeap): the client's world border leaves the secret outside
         // it, so vanilla would refuse the click before sending it - and booked as an attempt, two refusals a second apart
         // used to give the chest up for the run while an Auto Routes await waited for it forever (killer560, 2026-10-20).
@@ -791,8 +799,9 @@ public final class SecretAuraFeature {
                 || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || !CheatUtils.isOnDungeonServer(client) && !inSim(client)
                 || heldItemPaused(cfg, client.player.getMainHandItem())
-                || !com.killer560.hub.autoroutes.RouteExecutor.secretAuraMayClick()) {
-            return null;   // the last: a route's non-await node, where the aura takes nothing (tick's same gate)
+                || !com.killer560.hub.autoroutes.RouteExecutor.secretAuraMayClick()
+                || com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks()) {
+            return null;   // the last two: a route's non-await node, or Auto Clear killing (tick's same gates)
         }
         RoomEntry room = LiveMapFeature.currentRoomEntry();
         String roomName = room == null ? null : room.name;

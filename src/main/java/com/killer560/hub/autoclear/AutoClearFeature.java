@@ -2676,16 +2676,57 @@ public final class AutoClearFeature {
     /**
      * While the use key is held with the body turned and the camera held, the block vanilla's held use acts on: the one
      * along the BODY's look - {@code RouteExecutor.heldUsePick}'s rule, from {@code autoroutes/mixin/HeldUsePickMixin}.
+     * A secret block (chest, trapped chest, lever, skull) on that look - or under the crosshair while the body is not
+     * held - is never the use's block: the pick becomes a miss there, so the weapon is used in the air as it would be
+     * with nothing in the way, and the secret is left for the route (killer560, 2026-10-20: Auto Clear's held Hyperion
+     * opened a chest beside a mob, and Auto Routes then waited for it in that room).
      */
     public static HitResult heldUsePick(Minecraft client) {
-        if (!useHeld || !running || client.player == null || client.level == null || !BODY.isHeld()) {
+        if (!useHeld || !running || client.player == null || client.level == null) {
             return null;
         }
         LocalPlayer player = client.player;
-        Vec3 eye = player.getEyePosition();
-        Vec3 look = TeleportUtils.getLook(player.getYRot(), player.getXRot()).scale(player.blockInteractionRange());
-        return client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
-                player));
+        HitResult hit;
+        if (BODY.isHeld()) {
+            Vec3 eye = player.getEyePosition();
+            Vec3 look = TeleportUtils.getLook(player.getYRot(), player.getXRot()).scale(player.blockInteractionRange());
+            hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+                    player));
+        } else {
+            hit = client.hitResult;
+        }
+        if (hit instanceof net.minecraft.world.phys.BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK
+                && isSecretBlock(client.level.getBlockState(bh.getBlockPos()).getBlock())) {
+            if (!bh.getBlockPos().equals(lastSecretMissed)) {
+                lastSecretMissed = bh.getBlockPos().immutable();
+                LOGGER.info("[AutoClear] held use: the look meets the secret {} at {} - used in the air instead, the "
+                                + "secret is left for the route", client.level.getBlockState(bh.getBlockPos()).getBlock(),
+                        bh.getBlockPos().toShortString());
+            }
+            return net.minecraft.world.phys.BlockHitResult.miss(hit.getLocation(), bh.getDirection(), bh.getBlockPos());
+        }
+        return BODY.isHeld() ? hit : null;
+    }
+
+    /** The last secret block a held use was turned away from (logged once per block). */
+    private static BlockPos lastSecretMissed = null;
+
+    /** A block a right click would take as a secret: chest, trapped chest (the mimic's), lever, skull. */
+    static boolean isSecretBlock(net.minecraft.world.level.block.Block b) {
+        return b == net.minecraft.world.level.block.Blocks.CHEST || b == net.minecraft.world.level.block.Blocks.TRAPPED_CHEST
+                || b == net.minecraft.world.level.block.Blocks.LEVER
+                || b == net.minecraft.world.level.block.Blocks.PLAYER_HEAD
+                || b == net.minecraft.world.level.block.Blocks.PLAYER_WALL_HEAD;
+    }
+
+    /**
+     * Whether a run of Auto Clear holds back every automatic secret click (Secret Aura, the Secret Triggerbot): a run is
+     * going and no Auto Routes route is running (killer560, 2026-10-20: "Secret clicks are for Auto Routes running a
+     * route, or for Auto Secret"). A secret taken while it kills is one the route through that room then has to find
+     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always.
+     */
+    public static boolean holdsSecretClicks() {
+        return running && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
     }
 
     // =========================================================================================== corrections

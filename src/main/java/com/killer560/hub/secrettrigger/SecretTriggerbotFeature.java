@@ -177,7 +177,10 @@ public final class SecretTriggerbotFeature {
         // Placed here rather than at the top of the tick so the bookkeeping above still runs and nothing is
         // mis-remembered as attempted while it is held back.
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
-                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
+                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()
+                // Nor while Auto Clear kills (killer560, 2026-10-20): its held use sets the crosshair's block to the body's
+                // look, and a secret taken then is one the route through the room later waits for.
+                || com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks()) {
             return;
         }
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_TRIGGER)) {

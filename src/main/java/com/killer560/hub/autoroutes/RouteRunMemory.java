@@ -40,8 +40,12 @@ public final class RouteRunMemory {
      *  4.5 from the eye, so a secret taken from the node's own spot is well inside; the next node's spot rarely is. */
     public static final double NEAR_NODE = 6.0;
 
-    /** One secret of his this run. {@code tick} is {@link AwaitEvents#now()} when it was got. */
-    record Got(String key, Vec3 pos, int tick, String what) {
+    /** One secret of his this run. {@code tick} is {@link AwaitEvents#now()} when it was got; {@code room} is the
+     *  identified room it was got in ({@link LiveMapFeature#roomNameAt}), or null when the map did not know. */
+    record Got(String key, Vec3 pos, int tick, String what, String room) {
+        Got(String key, Vec3 pos, int tick, String what) {
+            this(key, pos, tick, what, pos == null ? null : LiveMapFeature.roomNameAt(pos.x, pos.z));
+        }
     }
 
     private static final Map<String, Got> got = new LinkedHashMap<>();
@@ -107,10 +111,16 @@ public final class RouteRunMemory {
     static void gotSecret(String key, Vec3 pos, String what) {
         check();
         if (pos != null && !got.containsKey(key)) {
-            got.put(key, new Got(key, pos, AwaitEvents.now(), what));
+            // Whoever took it - a route node, Secret Aura, Auto Clear's run, his own hand, a walk over an item - it is
+            // remembered here, so a route that reaches this room later counts it instead of waiting for it.
+            Got g = new Got(key, pos, AwaitEvents.now(), what);
+            got.put(key, g);
             LiveMapFeature.noteSecretTakenAt(pos.x, pos.z);
-            LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} tick {} ({} this run)", what, key,
-                    String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), AwaitEvents.now(), got.size());
+            LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} in room {} tick {} ({} this run; route running={},"
+                            + " Auto Clear running={})", what, key,
+                    String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), g.room() == null ? "?" : g.room(),
+                    AwaitEvents.now(), got.size(), RouteExecutor.isRunning(),
+                    com.killer560.hub.autoclear.AutoClearFeature.isBusy());
             if (what != null && what.startsWith("chest")) {
                 // killer560's rule: a mob room whose secret chest Auto Clear or Auto Secret grabbed counts as cleared a few
                 // seconds later (and may be come back to once if the map still disagrees 30 s on).
@@ -341,10 +351,26 @@ public final class RouteRunMemory {
         return new HashSet<>(routedRooms);
     }
 
+    /** What was got this run in {@code room} (by {@link Got#room}), one entry per secret, for log lines and the testkit. */
+    public static List<String> gotInRoom(String room) {
+        check();
+        List<String> out = new ArrayList<>();
+        for (Got g : got.values()) {
+            if (room != null && room.equals(g.room())) {
+                out.add(g.what());
+            }
+        }
+        return out;
+    }
+
     /** For the testkit: what is remembered, in one line. */
     public static String describe() {
         check();
-        return "secrets " + got.keySet() + ", claimed " + claimed + ", met nodes " + metNodes + ", routed rooms "
+        List<String> secrets = new ArrayList<>();
+        for (Got g : got.values()) {
+            secrets.add(g.key() + " @" + (g.room() == null ? "?" : g.room()));
+        }
+        return "secrets " + secrets + ", claimed " + claimed + ", met nodes " + metNodes + ", routed rooms "
                 + routedRooms;
     }
 

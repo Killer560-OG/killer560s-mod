@@ -1214,6 +1214,17 @@ public final class LiveMapFeature {
         return roomTypeOfIndex(cell[0] + cell[1] * GRID);
     }
 
+    /** The identified room's name over world (x, z), or null (boss, outside the grid, not identified). Auto Routes'
+     *  run memory names the room each secret was got in. */
+    public static String roomNameAt(double x, double z) {
+        if (Minecraft.getInstance().player == null || isInBoss() || !insideGridFootprint(x, z)) {
+            return null;
+        }
+        int[] cell = gridCellFor(new Vec3(x, 0.0, z));
+        RoomEntry e = roomEntryAt(cell[0] + cell[1] * GRID);
+        return e == null ? null : e.name;
+    }
+
     /** Fairy and Entrance rooms (the green one on the map) never get a Room Cleared alert: there is nothing to clear in
      *  them, so the map's cleared state is not a fight he finished (killer560, 2026-10-18). */
     public static boolean isNoClearAlertRoom(int idx) {
