@@ -31,6 +31,10 @@ final class AutoGuard {
     /** Call every tick, before any gating. */
     void observe(boolean solverEmpty) {
         if (solverEmpty) {
+            if (!clearedThisLevel) {
+                LOGGER.info("[AutoGuard] {}: {} seen empty in this world - its data is safe to act on from now, tick={}",
+                        autoName, solverName, com.killer560.hub.util.SessionRecorderSink.tick());
+            }
             clearedThisLevel = true;
             staleLogged = false;
         }
@@ -46,6 +50,8 @@ final class AutoGuard {
     }
 
     void levelChanged() {
+        LOGGER.debug("[AutoGuard] {}: world changed - waiting to see {} empty again (was cleared={})", autoName,
+                solverName, clearedThisLevel);
         clearedThisLevel = false;
         solverOffWarned = false;
         staleLogged = false;
@@ -62,6 +68,8 @@ final class AutoGuard {
         }
         if (!solverOffWarned) {
             solverOffWarned = true;
+            LOGGER.info("[AutoGuard] {}: not acting - {} is off (warned in chat once this room visit) tick={}", autoName,
+                    solverName, com.killer560.hub.util.SessionRecorderSink.tick());
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text(autoName + " needs "), ModChat.value(solverName),
                     ModChat.text(" turned on."));
         }

@@ -53,6 +53,20 @@ public final class BlazeSolverFeature {
     private static int tickCounter = 0;
     private static RoomEntry lastRoomEntry = null;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
+    /** Logging only: last room state and last kill order logged, so lines are written on CHANGE, never per tick. */
+    private static String roomLogKey = "none";
+    private static String scanLogKey = null;
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        scanLogKey = null;
+        LOGGER.info("[BlazeSolver] {}", detail);
+    }
+
     private BlazeSolverFeature() {
     }
 
@@ -80,6 +94,11 @@ public final class BlazeSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "solver idle: enabled=" + BlazeSolverConfig.getInstance().isEnabled()
+                        + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                        + " - kill order cleared");
+            }
             orderedBlazes = new ArrayList<>();
             lastRoomEntry = null;
             return;
@@ -93,7 +112,14 @@ public final class BlazeSolverFeature {
         boolean isLower = "Lower Blaze".equals(roomName);
         boolean isHigher = "Higher Blaze".equals(roomName);
         if (!isLower && !isHigher) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "left the blaze room: now in " + (roomName == null ? "no known room" : roomName));
+            }
             return;
+        }
+        if (!roomName.equals(roomLogKey)) {
+            logRoomState(roomName, roomName + " detected: kill order is " + (isLower ? "highest" : "lowest")
+                    + " max HP first");
         }
         tickCounter++;
         if (tickCounter % 5 != 0) {
@@ -120,6 +146,33 @@ public final class BlazeSolverFeature {
         Comparator<Entity> byMaxHp = Comparator.comparingLong(BlazeSolverFeature::maxHp);
         found.sort(lowerRoom ? byMaxHp.reversed() : byMaxHp);
         orderedBlazes = found;
+        logScan(found);
+    }
+
+    /** Logging only: one line when the kill order (entity ids in order) changes - a kill, a new blaze loaded. */
+    private static void logScan(List<Entity> found) {
+        StringBuilder key = new StringBuilder();
+        for (Entity e : found) {
+            key.append(e.getId()).append(',');
+        }
+        String k = key.toString();
+        if (k.equals(scanLogKey)) {
+            return;
+        }
+        String previous = scanLogKey;
+        scanLogKey = k;
+        StringBuilder order = new StringBuilder();
+        for (int i = 0; i < found.size() && i < 12; i++) {
+            Entity e = found.get(i);
+            order.append(' ').append(i + 1).append(":id").append(e.getId()).append(" maxHp=").append(maxHp(e))
+                    .append(" at ").append(e.blockPosition().toShortString());
+        }
+        if (found.size() > 12) {
+            order.append(" ...");
+        }
+        String event = previous == null ? "scan" : found.isEmpty() ? "all blazes gone (puzzle done or out of range)"
+                : "kill order changed";
+        LOGGER.info("[BlazeSolver] {}: blazes={} order:{}", event, found.size(), order.length() == 0 ? " none" : order);
     }
 
     /** Colour codes stripped before matching, the same way {@code AutoPuzzlesFeature} reads entity names -

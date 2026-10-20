@@ -32,6 +32,10 @@ public abstract class AwaitEventsGameModeMixin {
         try {
             if (cir.getReturnValue() != InteractionResult.FAIL && hit != null) {
                 AwaitEvents.onLocalBlockClick(hit);
+            } else if (hit != null) {
+                com.killer560.hub.util.ModLog.get("killer560smod-autoroutes").info(
+                        "[AwaitEvents] block click at {} refused client-side (FAIL) - no packet, not counted",
+                        hit.getBlockPos() == null ? "?" : hit.getBlockPos().toShortString());
             }
         } catch (RuntimeException ignored) {
             // never breaks a click

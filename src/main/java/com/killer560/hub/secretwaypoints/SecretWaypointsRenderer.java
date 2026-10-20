@@ -104,6 +104,17 @@ final class SecretWaypointsRenderer {
                 vis[drawn++] = i;
             }
         }
+        // Per frame: logged only when the draw decision changes (style, through-walls, list size, or none/some visible).
+        if (style != lastStyle || throughWalls != lastThroughWalls || waypoints.size() != lastSize
+                || (drawn == 0) != lastNone) {
+            lastStyle = style;
+            lastThroughWalls = throughWalls;
+            lastSize = waypoints.size();
+            lastNone = drawn == 0;
+            LOGGER.info("[SecretWaypoints] drawing: waypoints={} visible={} style={} throughWalls={} maxDistance={}{}",
+                    waypoints.size(), drawn, style, throughWalls, maxDistance,
+                    drawn == 0 ? " - every waypoint is beyond the render distance" : "");
+        }
         if (drawn == 0) {
             return 0;
         }
@@ -173,6 +184,12 @@ final class SecretWaypointsRenderer {
 
     /** One report per session - a broken frame repeats at the frame rate, and the stack is identical. */
     private static boolean renderFailureLogged = false;
+
+    /** The draw decision last logged (logging only). */
+    private static SecretWaypointsConfig.Style lastStyle;
+    private static boolean lastThroughWalls;
+    private static int lastSize = -1;
+    private static boolean lastNone;
 
     private static final int[] EDGES = {
             0, 1, 1, 5, 5, 4, 4, 0,

@@ -110,10 +110,27 @@ public final class WeirdosSolverFeature {
             // the name, because a floor can hold two rooms of the same name.
             com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
             if (room != lastRoomEntry) {
+                if (hasState()) {
+                    LOGGER.info("[WeirdosSolver] room changed to {}: dropping answer {} wrong={} heard={} refusals={}",
+                            room == null ? "no known room" : room.name,
+                            correctPos == null ? "none" : correctPos.toShortString(), wrongPositions.size(),
+                            heardNpcs.size(), refusals);
+                }
+                if (room != null && "Three Weirdos".equals(room.name)) {
+                    int[] cr = LiveMapFeature.currentRoomClayAndRotation();
+                    LOGGER.info("[WeirdosSolver] Three Weirdos entered: clay/rotation {}",
+                            cr == null ? "not known yet" : cr[0] + "," + cr[1] + " rot " + cr[2]);
+                } else if (lastRoomEntry != null && "Three Weirdos".equals(lastRoomEntry.name)) {
+                    LOGGER.info("[WeirdosSolver] left Three Weirdos: now in {}", room == null ? "no known room" : room.name);
+                }
                 lastRoomEntry = room;
                 reset();
             }
             if (!WeirdosSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || inBoss) {
+                if (hasState()) {
+                    LOGGER.info("[WeirdosSolver] solver idle: enabled={} inDungeon={} inBoss={} - answer cleared",
+                            WeirdosSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), inBoss);
+                }
                 reset();
             }
         }));
@@ -133,6 +150,17 @@ public final class WeirdosSolverFeature {
         // Same room gate the render uses: an "[NPC] ..." line heard anywhere else must not mark chests here.
         com.killer560.hub.roomdatabase.RoomEntry room = LiveMapFeature.currentRoomEntry();
         if (room == null || !"Three Weirdos".equals(room.name)) {
+            // Logging only: say so when a weirdo-shaped line is dropped because the map does not put him in the room.
+            String p = ChatFormatting.stripFormatting(message.getString());
+            var m = NPC_LINE.matcher((p != null ? p : message.getString()).trim());
+            if (m.matches()) {
+                String d = m.group(2);
+                if (SOLUTIONS.stream().anyMatch(s -> s.matcher(d).matches())
+                        || WRONG.stream().anyMatch(s -> s.matcher(d).matches())) {
+                    LOGGER.info("[WeirdosSolver] weirdo line from \"{}\" ignored: the current room is {}, not Three Weirdos",
+                            m.group(1), room == null ? "not known" : room.name);
+                }
+            }
             return;
         }
         String plain = ChatFormatting.stripFormatting(message.getString());
@@ -154,7 +182,9 @@ public final class WeirdosSolverFeature {
                     heardNpcs.size());
             return;
         }
-        heardNpcs.add(stripName(npc));
+        if (heardNpcs.add(stripName(npc))) {
+            LOGGER.info("[WeirdosSolver] heard \"{}\" ({} of 3 weirdos)", npc, heardNpcs.size());
+        }
 
         boolean isSolution = SOLUTIONS.stream().anyMatch(p -> p.matcher(dialogue).matches());
         boolean isWrong = !isSolution && WRONG.stream().anyMatch(p -> p.matcher(dialogue).matches());
@@ -179,6 +209,9 @@ public final class WeirdosSolverFeature {
         } else {
             if (!chestPos.equals(correctPos)) {
                 wrongPositions.add(chestPos);
+            } else {
+                LOGGER.info("[WeirdosSolver] wrong line names the chest already marked correct at {} - kept as correct",
+                        chestPos.toShortString());
             }
             LOGGER.info("[WeirdosSolver] Wrong: \"{}\" said \"{}\" - {}'s chest at {} is not it ({} wrong known)",
                     npc, dialogue, npc, chestPos.toShortString(), wrongPositions.size());
@@ -200,6 +233,8 @@ public final class WeirdosSolverFeature {
         Minecraft client = Minecraft.getInstance();
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (client.level == null || cr == null) {
+            LOGGER.info("[WeirdosSolver] cannot deduce the third chest: level={} clay/rotation known={}",
+                    client.level != null, cr != null);
             return;
         }
         Set<BlockPos> candidates = new java.util.HashSet<>();
@@ -355,7 +390,14 @@ public final class WeirdosSolverFeature {
      * round's correct chest and both its wrong chests were still highlighted alongside the new ones.
      */
     public static void clearForNewRound() {
+        LOGGER.info("[WeirdosSolver] new round requested (sim): dropping answer {} wrong={} heard={} refusals={}",
+                correctPos == null ? "none" : correctPos.toShortString(), wrongPositions.size(), heardNpcs.size(), refusals);
         reset();
+    }
+
+    /** Logging only: whether there is anything for a reset to drop. */
+    private static boolean hasState() {
+        return correctPos != null || !wrongPositions.isEmpty() || !heardNpcs.isEmpty() || refusals != 0;
     }
 
     private static void reset() {

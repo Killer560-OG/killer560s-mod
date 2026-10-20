@@ -51,6 +51,20 @@ public final class BoulderSolverFeature {
     private static boolean scannedThisRoom = false;
     private static long lastScanAttemptMs = 0;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
+    /** Logging only: last room state and last unmatched floor pattern logged, so lines are written on CHANGE. */
+    private static String roomLogKey = "none";
+    private static String missLogKey = null;
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        missLogKey = null;
+        LOGGER.info("[BoulderSolver] {}", detail);
+    }
+
     private BoulderSolverFeature() {
     }
 
@@ -78,6 +92,9 @@ public final class BoulderSolverFeature {
         try (InputStream stream = BoulderSolverFeature.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
             if (stream == null) {
+                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
+                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
+                        "[BoulderSolver] solutions resource missing - no floor pattern will ever match");
                 return Map.of();
             }
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
@@ -99,6 +116,11 @@ public final class BoulderSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
+                        + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                        + " - solution cleared");
+            }
             reset();
             return;
         }
@@ -109,12 +131,23 @@ public final class BoulderSolverFeature {
             lastScanAttemptMs = 0;
             currentPositions = new ArrayList<>();
         }
+        if (current == null || !"Boulder".equals(current.name)) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "left Boulder: now in " + (current == null ? "no known room" : current.name));
+            }
+        }
         if (current == null || !"Boulder".equals(current.name) || scannedThisRoom) {
             return;
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
+            logRoomState("wait", "in Boulder but not scanning: clay/rotation not known yet - waiting for the map");
             return;
+        }
+        String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        if (!roomKey.equals(roomLogKey)) {
+            logRoomState(roomKey, "Boulder detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+                    + " rotation=" + clayAndRotation[2] + " knownPatterns=" + SOLUTIONS.size());
         }
         // Real bug found and fixed (2026-09-14, code review): scannedThisRoom used to be set true even
         // when the floor pattern matched NO known solution (e.g. scanned before the boulders' chunk
@@ -152,6 +185,20 @@ public final class BoulderSolverFeature {
         }
         List<List<Integer>> solution = SOLUTIONS.get(key.toString());
         if (solution == null) {
+            String pattern = key.toString();
+            if (!pattern.equals(missLogKey)) {
+                missLogKey = pattern;
+                int solid = 0;
+                for (int i = 0; i < pattern.length(); i++) {
+                    if (pattern.charAt(i) == '1') {
+                        solid++;
+                    }
+                }
+                LOGGER.info("[BoulderSolver] scan failed: floor grid (6 rows x 7, z24..9 / x24..6) {} has {} solid of {}"
+                                + " and matches none of {} known patterns (chunk not loaded, or wrong clay/rotation)"
+                                + " - retrying every second; first tile at {}",
+                        pattern, solid, pattern.length(), SOLUTIONS.size(), PuzzleCoords.real(24, 66, 24, cr).toShortString());
+            }
             currentPositions = new ArrayList<>();
             return false;
         }
@@ -162,6 +209,12 @@ public final class BoulderSolverFeature {
             positions.add(new BoxPosition(new AABB(render), click));
         }
         currentPositions = positions;
+        StringBuilder clicks = new StringBuilder();
+        for (BoxPosition p : positions) {
+            clicks.append(' ').append(p.click().toShortString());
+        }
+        LOGGER.info("[BoulderSolver] solution computed: floor pattern {} -> {} button click(s):{}",
+                key, positions.size(), clicks.length() == 0 ? " none" : clicks);
         return true;
     }
 
@@ -169,7 +222,17 @@ public final class BoulderSolverFeature {
         if (!BoulderSolverConfig.getInstance().isEnabled() || currentPositions.isEmpty()) {
             return;
         }
+        int before = currentPositions.size();
         currentPositions.removeIf(pos -> pos.click().equals(clicked));
+        int after = currentPositions.size();
+        if (after != before) {
+            LOGGER.info("[BoulderSolver] step advanced: clicked {} - {} click(s) left, next {}",
+                    clicked == null ? "null" : clicked.toShortString(), after,
+                    after == 0 ? "none (solved)" : currentPositions.get(0).click().toShortString());
+        } else if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[BoulderSolver] click at {} is not a remaining solution button ({} left, next {})",
+                    clicked == null ? "null" : clicked.toShortString(), after, currentPositions.get(0).click().toShortString());
+        }
     }
 
     private static void onWorldRender(LevelRenderContext context) {

@@ -44,6 +44,22 @@ public final class QuizSolverFeature {
     private static List<String> triviaAnswers = null;
     private static RoomEntry lastRoomEntry = null;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
+    /** Logging only: last room state logged ("none" outside the Quiz room), so lines are written on CHANGE. */
+    private static String roomLogKey = "none";
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        LOGGER.info("[QuizSolver] {}", detail);
+    }
+
+    private static String letterOf(int index) {
+        return index == 0 ? "a" : index == 1 ? "b" : index == 2 ? "c" : "?";
+    }
+
     private QuizSolverFeature() {
     }
 
@@ -68,6 +84,9 @@ public final class QuizSolverFeature {
         try (InputStream stream = QuizSolverFeature.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
             if (stream == null) {
+                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
+                com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn(
+                        "[QuizSolver] answers resource missing - no question will ever be recognized");
                 return Map.of();
             }
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
@@ -77,6 +96,7 @@ public final class QuizSolverFeature {
                 return parsed != null ? parsed : Map.of();
             }
         } catch (Exception e) {
+            com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers").warn("[QuizSolver] Failed to load answers", e);
             return Map.of();
         }
     }
@@ -85,6 +105,9 @@ public final class QuizSolverFeature {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (lastRoomEntry != null || triviaAnswers != null || options[0].blockPos != null) {
+                LOGGER.info("[QuizSolver] solver idle: enabled={} inDungeon={} inBoss={} - question and positions cleared",
+                        QuizSolverConfig.getInstance().isEnabled(), DungeonState.isInDungeon(), LiveMapFeature.isInBoss());
+                roomLogKey = "none";
                 lastRoomEntry = null;
                 reset();
             }
@@ -100,20 +123,34 @@ public final class QuizSolverFeature {
                 for (TriviaOption option : options) {
                     option.blockPos = null;
                 }
+                if (!"none".equals(roomLogKey) || (current != null && "Quiz".equals(current.name))) {
+                    LOGGER.info("[QuizSolver] room changed to {} while the quiz is in progress ({}): keeping the question"
+                                    + " (answers known={}), recomputing pillar positions",
+                            current == null ? "no known room" : current.name, QuizState.describe(), triviaAnswers != null);
+                }
             } else {
                 reset();
             }
+        }
+        if ((current == null || !"Quiz".equals(current.name)) && !"none".equals(roomLogKey)) {
+            logRoomState("none", "left Quiz: now in " + (current == null ? "no known room" : current.name));
         }
         if (current == null || !"Quiz".equals(current.name) || options[0].blockPos != null) {
             return;
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (clayAndRotation == null) {
+            logRoomState("wait", "in Quiz but clay/rotation not known yet - answer pillars not placed, waiting for the map");
             return;
         }
         options[0].blockPos = realPos(20, 70, 6, clayAndRotation);
         options[1].blockPos = realPos(15, 70, 9, clayAndRotation);
         options[2].blockPos = realPos(10, 70, 6, clayAndRotation);
+        roomLogKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        LOGGER.info("[QuizSolver] Quiz detected: clay={},{} rotation={} pillars a={} b={} c={} ({}, answers known={})",
+                clayAndRotation[0], clayAndRotation[1], clayAndRotation[2], options[0].blockPos.toShortString(),
+                options[1].blockPos.toShortString(), options[2].blockPos.toShortString(), QuizState.describe(),
+                triviaAnswers != null);
     }
 
     /** Its own copy of {@link PuzzleCoords#real}, now delegating: the shared one carries the sim's floor
@@ -132,16 +169,20 @@ public final class QuizSolverFeature {
         // known about the last one applies to the next.
         String whole = msg.trim();
         if (whole.equals(QuizState.INTRO) || whole.equals(QuizState.SECOND) || whole.equals(QuizState.THIRD)) {
+            LOGGER.info("[QuizSolver] new question line from Oruo - previous answers and highlight cleared ({})",
+                    whole.equals(QuizState.INTRO) ? "intro" : whole.equals(QuizState.SECOND) ? "question 2" : "question 3");
             clearForNewQuestion();
             return;
         }
 
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")) {
             if (msg.contains("answered the final question")) {
+                LOGGER.info("[QuizSolver] final question answered - solver reset, puzzle done");
                 reset();
                 return;
             }
             if (msg.contains("answered Question #")) {
+                LOGGER.info("[QuizSolver] question answered - highlight and answers cleared until the next question");
                 for (TriviaOption option : options) {
                     option.correct = false;
                 }
@@ -162,12 +203,21 @@ public final class QuizSolverFeature {
             };
             if (index >= 0) {
                 options[index].correct = true;
+                BlockPos pillar = options[index].blockPos;
+                LOGGER.info("[QuizSolver] solution: option {} \"{}\" is correct - pillar {}", letterOf(index), trimmed,
+                        pillar == null ? "not placed yet (not in the Quiz room / clay unknown)" : pillar.toShortString());
+            } else {
+                LOGGER.info("[QuizSolver] answer line \"{}\" matched an answer but its letter is not a/b/c - not marked",
+                        trimmed);
             }
+        } else if (startsWithAnswerLetter(trimmed)) {
+            LOGGER.info("[QuizSolver] option line \"{}\" is not correct (answers known={})", trimmed, triviaAnswers != null);
         }
 
         if (trimmed.equals("What SkyBlock year is it?")) {
             long skyblockYear = ((System.currentTimeMillis() / 1000L) - 1560276000L) / 446400L + 1;
             triviaAnswers = List.of("Year " + skyblockYear);
+            LOGGER.info("[QuizSolver] question recognized: SkyBlock year -> answer \"Year {}\"", skyblockYear);
             return;
         }
         // Oruo's question is a server line of its own - centring spaces and the question, nothing in front -
@@ -178,6 +228,8 @@ public final class QuizSolverFeature {
         for (Map.Entry<String, List<String>> entry : ANSWERS.entrySet()) {
             if (trimmed.startsWith(entry.getKey())) {
                 triviaAnswers = entry.getValue();
+                LOGGER.info("[QuizSolver] question recognized: \"{}\" -> {} accepted answer(s) {}", entry.getKey(),
+                        entry.getValue() == null ? 0 : entry.getValue().size(), entry.getValue());
                 return;
             }
         }

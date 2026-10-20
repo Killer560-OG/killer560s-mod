@@ -89,6 +89,50 @@ public final class AutoPuzzleUtil {
 
     private static long lastSwapTick = Long.MIN_VALUE;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
+
+    /** Logging only: when each refusal key last logged, so a refusal repeated every tick logs once per 20 ticks. */
+    private static final java.util.Map<String, Long> REFUSAL_LOGGED = new java.util.HashMap<>();
+
+    private static long logTick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
+    /** Whether a line for {@code key} may go out now (on its first occurrence, then at most once per 20 ticks). */
+    private static boolean mayLog(String key) {
+        long now = logTick();
+        Long last = REFUSAL_LOGGED.get(key);
+        if (last != null && now - last < 20 && now >= last) {
+            return false;
+        }
+        if (REFUSAL_LOGGED.size() > 64) {
+            REFUSAL_LOGGED.clear();
+        }
+        REFUSAL_LOGGED.put(key, now);
+        return true;
+    }
+
+    private static String fmt3(Vec3 v) {
+        return v == null ? "null" : String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", v.x, v.y, v.z);
+    }
+
+    private static String fmt2(double d) {
+        return String.format(java.util.Locale.ROOT, "%.2f", d);
+    }
+
+    /** The held item's Skyblock id, or its vanilla item when it has none - for log lines. */
+    private static String heldName(LocalPlayer player) {
+        if (player == null) {
+            return "null";
+        }
+        ItemStack held = player.getMainHandItem();
+        if (held == null || held.isEmpty()) {
+            return "empty";
+        }
+        String id = skyblockId(held);
+        return id != null ? id : String.valueOf(held.getItem());
+    }
+
     private AutoPuzzleUtil() {
     }
 
@@ -121,6 +165,11 @@ public final class AutoPuzzleUtil {
         // (util/RightClick): a use now would be taken as that click's end. The body turns to the use's look now (camera
         // held), nothing is sent or claimed - the caller sees the same false as a gate-denied tick - and it goes next tick.
         if (com.killer560.hub.util.RightClick.mustTurnFirst(player, targetYaw, targetPitch, "[AutoPuzzles] Use")) {
+            if (mayLog("use-turnfirst")) {
+                LOGGER.info("[PuzzleUtil] use held: the server must hear the look first - body turned to yaw={} pitch={}"
+                        + " (from {}/{}), item={} tick={}", fmt2(targetYaw), fmt2(targetPitch), fmt2(player.getYRot()),
+                        fmt2(player.getXRot()), heldName(player), logTick());
+            }
             ViewFreeze.hold(player.getYRot(), player.getXRot());
             float turnYaw = player.getYRot() + Mth.wrapDegrees(targetYaw - player.getYRot());
             player.setYRot(turnYaw);
@@ -129,6 +178,10 @@ public final class AutoPuzzleUtil {
             return false;
         }
         if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
+            if (mayLog("use-gate")) {
+                LOGGER.info("[PuzzleUtil] use held: ActionGate denied this tick (another action or a teleport settle)"
+                        + " - item={} tick={}", heldName(player), logTick());
+            }
             return false;
         }
         float realYaw = player.getYRot();
@@ -162,6 +215,9 @@ public final class AutoPuzzleUtil {
         // above holds the view - but his body does, so a walk started right after a shot sets off in the new
         // direction. That is the same trade rotateCamera already makes.
         com.killer560.hub.util.RightClick.beforeUse(client, player, yaw, pitch, "[AutoPuzzles] Use");
+        LOGGER.info("[PuzzleUtil] use sent: item={} yaw={} pitch={} (was {}/{}) from {} sneaking={} tick={}",
+                heldName(player), fmt2(yaw), fmt2(pitch), fmt2(realYaw), fmt2(realPitch), fmt3(player.position()),
+                player.isShiftKeyDown(), logTick());
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         return true;
     }
@@ -291,6 +347,9 @@ public final class AutoPuzzleUtil {
                 return BowState.SWAPPING;
             }
         }
+        if (mayLog("bow-none")) {
+            LOGGER.info("[PuzzleUtil] no shortbow in the hotbar - held={} tick={}", heldName(player), logTick());
+        }
         return BowState.NONE;
     }
 
@@ -322,11 +381,21 @@ public final class AutoPuzzleUtil {
             }
             long tick = client.level == null ? 0 : client.level.getGameTime();
             if (tick == lastSwapTick) {
+                if (mayLog("swap-same-tick")) {
+                    LOGGER.info("[PuzzleUtil] swap held: already swapped this tick - slot {} ({}) waits, tick={}", i,
+                            skyblockId(stack), logTick());
+                }
                 return false;
             }
             lastSwapTick = tick;
+            LOGGER.info("[PuzzleUtil] swap sent: slot {} -> {} (item {}) tick={}", inv.getSelectedSlot(), i,
+                    skyblockId(stack) != null ? skyblockId(stack) : String.valueOf(stack.getItem()), logTick());
             com.killer560.hub.util.HotbarSelect.select(client, player, i);
             return true;
+        }
+        if (mayLog("swap-none")) {
+            LOGGER.info("[PuzzleUtil] swap refused: no hotbar slot holds the wanted item - held={} tick={}",
+                    heldName(player), logTick());
         }
         return false;
     }
@@ -536,14 +605,29 @@ public final class AutoPuzzleUtil {
         // The one place the section-wide walking toggle is enforced. Every auto-puzzle walk comes through here,
         // so there is exactly one check rather than one per puzzle - and no way to add a new walk that forgets it.
         if (!AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) {
+            if (mayLog("path-off")) {
+                LOGGER.info("[PuzzleUtil] map walk refused: Auto Puzzle pathing is off - target {} tick={}", fmt(target),
+                        logTick());
+            }
             return false;
         }
         if (!com.killer560.hub.livemap.LiveMapConfig.getInstance().isInteractiveMapEnabled()) {
+            if (mayLog("path-map-off")) {
+                LOGGER.info("[PuzzleUtil] map walk refused: Interactive Map is off - target {} tick={}", fmt(target),
+                        logTick());
+            }
             return false;
         }
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            if (mayLog("path-busy")) {
+                LOGGER.info("[PuzzleUtil] map walk held: the Interactive Map is already moving him - target {} tick={}",
+                        fmt(target), logTick());
+            }
             return false;
         }
+        LOGGER.info("[PuzzleUtil] map walk queued: target {} exact={} from {} tick={}", fmt(target), exact,
+                Minecraft.getInstance().player == null ? "null" : fmt3(Minecraft.getInstance().player.position()),
+                logTick());
         AutoPuzzleActivity.note(AutoPuzzleActivity.GENERIC);
         if (exact) {
             com.killer560.hub.livemap.autoclear.ClearExecutor.etherPathExact(target, onArrive);
@@ -628,6 +712,10 @@ public final class AutoPuzzleUtil {
         int minZ = Math.min(a.getZ(), b.getZ());
         int maxZ = Math.max(a.getZ(), b.getZ());
         if (!com.killer560.hub.util.ClientChunks.allLoaded(level, minX, minZ, maxX, maxZ)) {
+            if (mayLog("chests-unloaded")) {
+                LOGGER.info("[PuzzleUtil] chest scan not answered: a chunk under {},{}..{},{} is not loaded yet tick={}",
+                        minX, minZ, maxX, maxZ, logTick());
+            }
             return null;
         }
         java.util.List<BlockPos> found = new java.util.ArrayList<>();
@@ -809,6 +897,10 @@ public final class AutoPuzzleUtil {
      *  @return true at most once per client tick, mod-wide */
     public static boolean gateWorldClick() {
         if (!ActionGate.tryAct(ActionGate.Actor.PUZZLE_WORLD)) {
+            if (mayLog("click-gate")) {
+                LOGGER.info("[PuzzleUtil] click held: ActionGate denied this tick (another action or a teleport settle)"
+                        + " tick={}", logTick());
+            }
             return false;
         }
         // Every puzzle click claims this gate, so the click-only autos (Quiz, Three Weirdos) read as working too;
@@ -855,6 +947,13 @@ public final class AutoPuzzleUtil {
         }
         if (!TURN.readyBlock(client.player, client.level, pos, aim.getLocation(),
                 client.player.getEyePosition().distanceTo(aim.getLocation()) + 1.0)) {
+            if (mayLog("click-turn " + pos.asLong())) {
+                LOGGER.info("[PuzzleUtil] click held: the reported look does not reach {} - body turned, click next tick:"
+                                + " eye={} aimPoint={} boxDist={} reach={} tick={}", fmt(pos),
+                        fmt3(client.player.getEyePosition()), fmt3(aim.getLocation()),
+                        fmt2(Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos))),
+                        fmt2(Math.sqrt(BLOCK_REACH_SQ)), logTick());
+            }
             return false;
         }
         // The body meets it, but the server judges the click by the look it last HEARD. An auto that turned the body
@@ -862,7 +961,15 @@ public final class AutoPuzzleUtil {
         // movement packet that reports the turn: killer560's Hypixel run 2026-10-18 19:25:17 and :19 clicked two wall levers
         // with the heard look 0.00/14.57 and -180.00/14.57, three blocks off the lever, and the puzzle failed. Held back a
         // tick; the turn is heard in this tick's movement packet and the click goes the next.
-        return heardLookMeets(client.player, client.player.getEyePosition(), pos);
+        boolean heard = heardLookMeets(client.player, client.player.getEyePosition(), pos);
+        if (!heard && mayLog("click-heard " + pos.asLong())) {
+            float[] h = com.killer560.hub.util.RightClick.heardLook();
+            LOGGER.info("[PuzzleUtil] click held: the look the server last heard ({}) misses {} - waits a tick for the"
+                            + " turn's movement packet: body={}/{} tick={}",
+                    h == null ? "none sent" : fmt2(h[0]) + "/" + fmt2(h[1]), fmt(pos), fmt2(client.player.getYRot()),
+                    fmt2(client.player.getXRot()), logTick());
+        }
+        return heard;
     }
 
     /**
@@ -944,6 +1051,11 @@ public final class AutoPuzzleUtil {
             camera.engage(player);
         }
         float[] dir = direction(eye, aim.getLocation());
+        if (mayLog("aim " + pos.asLong())) {
+            LOGGER.info("[PuzzleUtil] body turned onto {} ahead of its click: yaw={} pitch={} (was {}/{}) eye={} tick={}",
+                    fmt(pos), fmt2(dir[0]), fmt2(dir[1]), fmt2(player.getYRot()), fmt2(player.getXRot()), fmt3(eye),
+                    logTick());
+        }
         rotateCamera(player, dir[0], dir[1]);
         return true;
     }
@@ -971,6 +1083,11 @@ public final class AutoPuzzleUtil {
             camera.engage(player);
         }
         float[] dir = direction(eye, box.getCenter());
+        if (mayLog("aim-box")) {
+            LOGGER.info("[PuzzleUtil] body turned onto an entity box at {} ahead of its interact: yaw={} pitch={}"
+                            + " (was {}/{}) tick={}", fmt3(box.getCenter()), fmt2(dir[0]), fmt2(dir[1]),
+                    fmt2(player.getYRot()), fmt2(player.getXRot()), logTick());
+        }
         rotateCamera(player, dir[0], dir[1]);
         return true;
     }
@@ -999,11 +1116,21 @@ public final class AutoPuzzleUtil {
         net.minecraft.world.phys.AABB box = entity.getBoundingBox();
         Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
         if (!TURN.readyBox(client.player, box, aim, eye.distanceTo(aim) + 1.0)) {
+            if (mayLog("entity-turn " + entity.getId())) {
+                LOGGER.info("[PuzzleUtil] interact held: the reported look does not reach entity {} at {} - body turned,"
+                                + " interact next tick: eye={} aimPoint={} dist={} tick={}", entity.getId(),
+                        fmt3(entity.position()), fmt3(eye), fmt3(aim), fmt2(eye.distanceTo(aim)), logTick());
+            }
             return false;
         }
         // As for a block: an interact is judged by the heard look, and a body turned this tick is not heard yet.
-        return box.contains(eye) || box.clip(eye, eye.add(heardLook(client.player).scale(eye.distanceTo(aim) + 1.0)))
+        boolean heard = box.contains(eye) || box.clip(eye, eye.add(heardLook(client.player).scale(eye.distanceTo(aim) + 1.0)))
                 .isPresent();
+        if (!heard && mayLog("entity-heard " + entity.getId())) {
+            LOGGER.info("[PuzzleUtil] interact held: the look the server last heard misses entity {} at {} - waits a tick"
+                    + " dist={} tick={}", entity.getId(), fmt3(entity.position()), fmt2(eye.distanceTo(aim)), logTick());
+        }
+        return heard;
     }
 
     /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
@@ -1015,6 +1142,8 @@ public final class AutoPuzzleUtil {
         BlockState state = client.level.getBlockState(pos);
         VoxelShape shape = state.getShape(client.level, pos);
         if (shape.isEmpty()) {
+            LOGGER.info("[PuzzleUtil] block click refused: {} at {} has no shape - nothing sent tick={}", state.getBlock(),
+                    fmt(pos), logTick());
             return false;
         }
         Vec3 eyes = client.player.getEyePosition();
@@ -1028,6 +1157,12 @@ public final class AutoPuzzleUtil {
             // 2026-09-28) - so this last-resort centre is fine where it is and was deliberately left alone.
             hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
         }
+        double boxDistSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eyes, pos);
+        LOGGER.info("[PuzzleUtil] block click sent: {} at {} face={} hit={} eye={} boxDist={} reach={}{} item={}"
+                        + " sneaking={} tick={}", state.getBlock(), fmt(pos), hit.getDirection(), fmt3(hit.getLocation()),
+                fmt3(eyes), fmt2(Math.sqrt(boxDistSq)), fmt2(Math.sqrt(BLOCK_REACH_SQ)),
+                boxDistSq > BLOCK_REACH_SQ ? " OUT OF REACH" : "", heldName(client.player),
+                client.player.isShiftKeyDown(), logTick());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         client.player.swing(InteractionHand.MAIN_HAND);
         return true;

@@ -65,12 +65,19 @@ public final class RouteRunMemory {
         int gen = LiveMapFeature.resetGeneration();
         if (client.level != level || gen != generation) {
             boolean had = !got.isEmpty() || !metNodes.isEmpty() || !routedRooms.isEmpty();
+            boolean levelChanged = client.level != level;
+            int oldGen = generation;
+            int gotCount = got.size();
+            int metCount = metNodes.size();
+            int roomCount = routedRooms.size();
             level = client.level;
             generation = gen;
             clearAll();
             if (had) {
                 LOGGER.info("[AutoRoutes] run memory cleared (new run)");
             }
+            LOGGER.info("[RouteMemory] new run: generation {} -> {}, level changed={}, dropped {} secret(s), {} met node(s),"
+                    + " {} routed room(s)", oldGen, gen, levelChanged, gotCount, metCount, roomCount);
         }
     }
 
@@ -84,6 +91,7 @@ public final class RouteRunMemory {
 
     /** For the testkit: forget the run, as a new run would. */
     public static void reset() {
+        LOGGER.info("[RouteMemory] reset by the testkit");
         clearAll();
         Minecraft client = Minecraft.getInstance();
         level = client.level;
@@ -97,6 +105,11 @@ public final class RouteRunMemory {
         check();
         if (pos != null && !got.containsKey(key)) {
             got.put(key, new Got(key, pos, AwaitEvents.now(), what));
+            LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} tick {} ({} this run)", what, key,
+                    String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), AwaitEvents.now(), got.size());
+        } else {
+            LOGGER.info("[RouteMemory] secret {} [{}] not remembered again: {}", what, key,
+                    pos == null ? "no position" : "already remembered this run");
         }
     }
 
@@ -239,8 +252,10 @@ public final class RouteRunMemory {
     /** A node's await was met by {@code keys} (its window's secrets plus any remembered ones). */
     static void met(String nodeKey, java.util.Collection<String> keys) {
         check();
-        metNodes.add(nodeKey);
+        boolean newNode = metNodes.add(nodeKey);
         claimed.addAll(keys);
+        LOGGER.info("[RouteMemory] await met for {} ({}) with {} - {} secret(s) claimed this run", nodeKey,
+                newNode ? "first time" : "again", keys, claimed.size());
     }
 
     // ------------------------------------------------------------------------------------------- rooms

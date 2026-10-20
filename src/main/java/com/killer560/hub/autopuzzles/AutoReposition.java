@@ -118,9 +118,15 @@ final class AutoReposition {
             return true;
         }
         if (player == null || client.level == null) {
+            LOGGER.debug("[AutoPuzzles] {}: reposition not started - no player or world", tag);
             return false;
         }
         if (stand && AutoPuzzleUtil.isMoving(player)) {
+            String why = "waiting to stand still before warping onto " + AutoPuzzleUtil.fmt(target);
+            if (!why.equals(lastRefusal)) {
+                lastRefusal = why;
+                LOGGER.info("[AutoPuzzles] {}: reposition not started - {}", tag, why);
+            }
             return false;
         }
         if (AutoPuzzleUtil.etherwarpAim(client.level, player, target) == null) {
@@ -192,6 +198,7 @@ final class AutoReposition {
     void tick(Minecraft client) {
         LocalPlayer player = client.player;
         if (player == null || client.level == null || client.gameMode == null) {
+            LOGGER.info("[AutoPuzzles] {}: reposition canceled - no player, world or game mode (stage {})", tag, stage);
             cancel(client);
             return;
         }
@@ -244,8 +251,10 @@ final class AutoReposition {
             case AWAIT_ARRIVE -> {
                 if (AutoPuzzleUtil.at(player, spot)) {
                     lastTravelTicks = (int) Math.max(0, com.killer560.hub.util.ActionGate.currentTick() - useTick);
-                    LOGGER.info("[AutoPuzzles] {}: arrived on {} ({} tick(s) after the use)", tag,
-                            AutoPuzzleUtil.fmt(spot), lastTravelTicks);
+                    LOGGER.info("[AutoPuzzles] {}: arrived on {} ({} tick(s) after the use, resent={}) at {} tick={}", tag,
+                            AutoPuzzleUtil.fmt(spot), lastTravelTicks, resent,
+                            String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", player.getX(), player.getY(),
+                                    player.getZ()), com.killer560.hub.util.ActionGate.currentTick());
                     landingTick = com.killer560.hub.util.ActionGate.currentTick();
                     if (nextTick) {
                         // The landing is our own: the gate's teleport settle must not hold the next action for 6 ticks
@@ -286,7 +295,10 @@ final class AutoReposition {
                     stage = Stage.USE;
                     tick(client);
                 } else if (--wait + com.killer560.hub.util.ServerLag.ticksSince(warpLag) <= 0) {
-                    LOGGER.info("[AutoPuzzles] {}: reposition to {} timed out", tag, spot);
+                    LOGGER.info("[AutoPuzzles] {}: reposition to {} timed out - {} tick(s) after the use (resent={}),"
+                                    + " still at {}", tag, spot, com.killer560.hub.util.ActionGate.currentTick() - useTick,
+                            resent, String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", player.getX(), player.getY(),
+                                    player.getZ()));
                     cancel(client);
                 }
             }
@@ -306,6 +318,10 @@ final class AutoReposition {
     }
 
     void cancel(Minecraft client) {
+        if (stage != Stage.IDLE) {
+            LOGGER.info("[AutoPuzzles] {}: reposition onto {} ended at stage {} (canceled)", tag, AutoPuzzleUtil.fmt(spot),
+                    stage);
+        }
         if (stage != Stage.IDLE && sneakHeldByUs) {
             releaseSneak(client);
         }
@@ -315,6 +331,7 @@ final class AutoReposition {
     /** Releases sneak only if an auto pressed it (QUOI {@code mc.options.keyShift.isDown = false} on finish). */
     static void releaseSneak(Minecraft client) {
         if (sneakHeldByUs) {
+            LOGGER.debug("[AutoPuzzles] Reposition: sneak key let go (it was held by an auto)");
             sneakHeldByUs = false;
             client.options.keyShift.setDown(false);
         }

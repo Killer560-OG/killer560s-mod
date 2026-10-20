@@ -119,11 +119,21 @@ final class AutoTicTacToe {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoTicTacToeEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
+                LOGGER.info("[AutoPuzzles] TicTacToe: visit over ({}) after {} tick(s): {} placed, chest stage {},"
+                                + " game over sent={}", !cfg.isAutoTicTacToeEnabled() ? "switched off" : "left the room",
+                        sinceVisit(), totalPlaced, chestStage, endedSent);
                 reset();
                 GUARD.leftRoom();
             }
             wasInRoom = false;
             return;
+        }
+        if (!wasInRoom) {
+            visitStartTick = com.killer560.hub.util.SessionRecorderSink.tick();
+            LOGGER.info("[AutoPuzzles] TicTacToe: entered the room with the auto on - solver move {}, grab secret {},"
+                            + " walk out {}, reposition {} (tick {})", best == null ? "none" : AutoPuzzleUtil.fmt(best),
+                    cfg.isTicTacToeAuraChestEnabled(), cfg.isTicTacToeWalkOutEnabled(), cfg.isEtherwarpReposition(),
+                    visitStartTick);
         }
         wasInRoom = true;
         if (approaching || chestStage != ChestStage.NONE && chestStage != ChestStage.DONE) {
@@ -145,8 +155,14 @@ final class AutoTicTacToe {
                     || chestStage == ChestStage.WALK_BACK;
             if (onBoard && best != null && com.killer560.hub.util.BlockHits.boxDistanceSq(new Vec3(client.player.getX(),
                     client.player.getY() + AutoPuzzleUtil.EYE_STANDING, client.player.getZ()), best) <= REACH_SQ) {
+                LOGGER.info("[AutoPuzzles] TicTacToe: warp landed at {} (stage {}) - turning the body onto move {}, click"
+                                + " next tick (tick {})", AutoPuzzleUtil.fmt(client.player.blockPosition()), chestStage,
+                        AutoPuzzleUtil.fmt(best), com.killer560.hub.util.SessionRecorderSink.tick());
                 AutoPuzzleUtil.aimBodyAt(client.player, best, CAMERA);
             } else {
+                LOGGER.info("[AutoPuzzles] TicTacToe: warp landed at {} (stage {}, move {}) - camera released (tick {})",
+                        AutoPuzzleUtil.fmt(client.player.blockPosition()), chestStage,
+                        best == null ? "none" : AutoPuzzleUtil.fmt(best), com.killer560.hub.util.SessionRecorderSink.tick());
                 CAMERA.release(client.player);
             }
         }
@@ -157,10 +173,14 @@ final class AutoTicTacToe {
             // Map, asked for that exact block. Tried once per visit, whatever the solver says.
             if (allSquaresInReach(client.player.getEyePosition(), cr)) {
                 roomSpotAttempted = true;
+                LOGGER.info("[AutoPuzzles] TicTacToe: board spot not needed - every square already within {} of {}",
+                        BOARD_REACH, AutoPuzzleUtil.fmt(client.player.blockPosition()));
             } else {
                 BlockPos spot = boardSpot(client, cr);
                 if (spot == null || AutoPuzzleUtil.at(client.player, spot)) {
                     roomSpotAttempted = true;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: board spot {} - {}", spot == null ? "none" : AutoPuzzleUtil.fmt(spot),
+                            spot == null ? "no standable block has every square in reach" : "already standing on it");
                 } else if (AutoPuzzlesConfig.getInstance().isEtherwarpReposition()
                         && AutoPuzzleUtil.etherwarpAim(client.level, client.player, spot) != null
                         && WARP.start(client, spot, false, false, false)) {
@@ -174,6 +194,11 @@ final class AutoTicTacToe {
                     if (AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
                         LOGGER.info("[AutoPuzzles] TicTacToe: Interactive Map to {} in front of the board",
                                 AutoPuzzleUtil.fmt(spot));
+                    } else {
+                        LOGGER.info("[AutoPuzzles] TicTacToe: no way to the board spot {} - reposition {}, and pathing /"
+                                        + " the Interactive Map refused; staying at {}", AutoPuzzleUtil.fmt(spot),
+                                AutoPuzzlesConfig.getInstance().isEtherwarpReposition() ? "had no line or did not start"
+                                        : "is off", AutoPuzzleUtil.fmt(client.player.blockPosition()));
                     }
                 }
             }
@@ -210,6 +235,16 @@ final class AutoTicTacToe {
                 BlockPos exit = DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door);
                 if (exit != null && AutoPuzzleUtil.pathIfMapOn(exit, null)) {
                     walkOutAttempted = true;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: game over - walking out through door {} at {} (tick {})", door,
+                            AutoPuzzleUtil.fmt(exit), com.killer560.hub.util.SessionRecorderSink.tick());
+                } else {
+                    String why = exit == null ? "door " + door + " has no position"
+                            : "the Interactive Map refused a path to " + AutoPuzzleUtil.fmt(exit);
+                    if (!why.equals(loggedWalkOut)) {
+                        loggedWalkOut = why;
+                        LOGGER.info("[AutoPuzzles] TicTacToe: walk out held - {} (tick {})", why,
+                                com.killer560.hub.util.SessionRecorderSink.tick());
+                    }
                 }
             } else if (layout != null) {
                 // Said once, not every tick: no layout means the map has nothing to path with.
@@ -224,17 +259,23 @@ final class AutoTicTacToe {
             endedSent = true;
             CAMERA.release(client.player);
             AutoPuzzleActivity.ended();
-            LOGGER.info("[AutoPuzzles] TicTacToe: game over ({}) - done", tab == '✔' || tab == '✖' ? "tab list" : "board");
+            LOGGER.info("[AutoPuzzles] TicTacToe: game over ({}, tab '{}') - done after {} tick(s), {} placed",
+                    tab == '✔' || tab == '✖' ? "tab list" : "board", tab, sinceVisit(), totalPlaced);
         }
         if (approaching && best == null) {
             stopApproach(client, "no move left");
         }
         if (!GUARD.solverOn(TicTacToeSolverConfig.getInstance().isEnabled()) || best == null || !GUARD.fresh()) {
+            hold(!TicTacToeSolverConfig.getInstance().isEnabled() ? "Tic Tac Toe Solver is off"
+                    : best == null ? (gameOver ? "game over, no move" : "no move from the solver (computer's turn or no board)")
+                    : "the guard holds it (solver data predates this world, or not trusted yet)");
             return;
         }
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
         if (McCompat.screen(client) != null || player.isShiftKeyDown()) {
+            hold((McCompat.screen(client) != null ? "a screen is open" : "sneaking") + " - move " + AutoPuzzleUtil.fmt(best)
+                    + " waits");
             if (approaching) {
                 stopApproach(client, McCompat.screen(client) != null ? "a screen opened" : "sneaking");
             }
@@ -242,6 +283,11 @@ final class AutoTicTacToe {
         }
         if (!java.util.Objects.equals(best, seenBest)) {
             // A new move (the computer replied, or a new round): a fresh problem - no retry gap, a fresh set of attempts.
+            LOGGER.info("[AutoPuzzles] TicTacToe: solver move {} -> {} ({} placed so far, {} tick(s) into the visit)",
+                    seenBest == null ? "none" : AutoPuzzleUtil.fmt(seenBest), AutoPuzzleUtil.fmt(best), totalPlaced,
+                    sinceVisit());
+            loggedHold = null;
+            loggedWait = null;
             seenBest = best;
             lastClickedPos = null;
             attemptPos = best;
@@ -252,6 +298,7 @@ final class AutoTicTacToe {
         // second or two later) was mostly hidden and in the sim (a reply 5 ticks later) never was.
         boolean retry = best.equals(lastClickedPos);
         if (retry && now - lastClickMs < CLICK_GAP_MS && !approaching) {
+            LOGGER.debug("[AutoPuzzles] TicTacToe: retry gap on {}: {} of {} ms", best, now - lastClickMs, CLICK_GAP_MS);
             return;
         }
         // To the BOX, matching the limit - see the note in AutoWater.
@@ -259,7 +306,8 @@ final class AutoTicTacToe {
             if (approach(client, player, best)) {
                 return; // walking closer
             }
-            waitFor("next move " + AutoPuzzleUtil.fmt(best) + " is out of reach from "
+            // approach() already named "pathing is off"; a second waitFor here would alternate with it every tick.
+            if (AutoPuzzlesConfig.getInstance().isAutoPuzzlePathingEnabled()) waitFor("next move " + AutoPuzzleUtil.fmt(best) + " is out of reach from "
                     + AutoPuzzleUtil.fmt(player.blockPosition()) + String.format(java.util.Locale.US, " (%.2f blocks)",
                     Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best))));
             return;
@@ -268,6 +316,8 @@ final class AutoTicTacToe {
             stopApproach(client, "the move at " + AutoPuzzleUtil.fmt(best) + " is in reach");
         }
         if (retry && now - lastClickMs < CLICK_GAP_MS) {
+            LOGGER.debug("[AutoPuzzles] TicTacToe: retry gap on {} after the approach: {} of {} ms", best,
+                    now - lastClickMs, CLICK_GAP_MS);
             return;
         }
         // Attempts reset on a new ROUND as well as a new cell: the move changing at all (above, through "no move" while
@@ -278,8 +328,10 @@ final class AutoTicTacToe {
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, best)) {
+            hold("the action gate held the click on " + AutoPuzzleUtil.fmt(best) + " (or the body turned to it first)");
             return; // gate held this tick back (or the body was turned to it) - nothing burnt, gap untouched
         }
+        loggedHold = null;
         attempts++;
         lastClickMs = now;
         lastClickedPos = best;
@@ -289,9 +341,13 @@ final class AutoTicTacToe {
             return;
         }
         totalPlaced++;
-        LOGGER.info("[AutoPuzzles] TicTacToe: clicked {} ({}) holding {}, attempt {}/{}", best,
+        LOGGER.info("[AutoPuzzles] TicTacToe: clicked {} ({}) holding {}, attempt {}/{}{}, {} placed, box distance {}"
+                        + " from {} (tick {}, {} tick(s) into the visit)", best,
                 client.level.getBlockState(best),
-                player.getMainHandItem().getHoverName().getString(), attempts, MAX_ATTEMPTS);
+                player.getMainHandItem().getHoverName().getString(), attempts, MAX_ATTEMPTS, retry ? " (retry)" : "",
+                totalPlaced, String.format(java.util.Locale.ROOT, "%.2f",
+                        Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), best))),
+                AutoPuzzleUtil.fmt(player.blockPosition()), com.killer560.hub.util.SessionRecorderSink.tick(), sinceVisit());
         if (totalPlaced == 1 && cfg.isTicTacToeAuraChestEnabled()) {
             advanceChest(ChestStage.WALK_TO_CHEST, "first move placed");
             chestAuraAttempts = 0;
@@ -399,8 +455,27 @@ final class AutoTicTacToe {
     private static void waitFor(String why) {
         if (!why.equals(loggedWait)) {
             loggedWait = why;
-            LOGGER.info("[AutoPuzzles] TicTacToe: waiting - {}", why);
+            LOGGER.info("[AutoPuzzles] TicTacToe: waiting - {} (tick {})", why, com.killer560.hub.util.SessionRecorderSink.tick());
         }
+    }
+
+    /** The walk-out refusal last logged, kept apart from {@link #loggedWait} so the two never alternate. */
+    private static String loggedWalkOut = null;
+    /** The click-logic hold last logged (screen, sneak, gate), apart from {@link #loggedWait} for the same reason. */
+    private static String loggedHold = null;
+
+    private static void hold(String why) {
+        if (!why.equals(loggedHold)) {
+            loggedHold = why;
+            LOGGER.info("[AutoPuzzles] TicTacToe: held - {} (tick {})", why, com.killer560.hub.util.SessionRecorderSink.tick());
+        }
+    }
+
+    /** Tick this room visit began (first tick in the room with the auto on); -1 outside. */
+    private static long visitStartTick = -1L;
+
+    private static long sinceVisit() {
+        return visitStartTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - visitStartTick;
     }
 
     // ------------------------------------------------------------------ the board spot
@@ -458,11 +533,24 @@ final class AutoTicTacToe {
      *  or not (Auto Close Chest cancels the screen, so the window check below never saw it). */
     private static int chestStageWindows = 0;
 
+    /** The grab-secret hold last logged; reset on every stage change so each stage's first hold logs at once. */
+    private static String loggedChestHold = null;
+
+    private static void chestHold(String why) {
+        if (!why.equals(loggedChestHold)) {
+            loggedChestHold = why;
+            LOGGER.info("[AutoPuzzles] TicTacToe: grab secret {} held - {} (tick {})", chestStage, why,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+        }
+    }
+
     private static void tickChest(Minecraft client, LocalPlayer player, int[] cr) {
         AutoPuzzleActivity.note("Tic Tac Toe");
         if (McCompat.screen(client) != null) {
             if (chestStage == ChestStage.AURA) {
                 advanceChest(ChestStage.WALK_BACK, "the chest's window opened");
+            } else {
+                chestHold("a screen is open");
             }
             return;
         }
@@ -472,7 +560,10 @@ final class AutoTicTacToe {
             return;
         }
         if (System.currentTimeMillis() - chestLegStartMs > WALK_TIMEOUT_MS) {
-            LOGGER.warn("[AutoPuzzles] TicTacToe: grab secret {} timed out - carrying on", chestStage);
+            LOGGER.warn("[AutoPuzzles] TicTacToe: grab secret {} timed out after {} ms - carrying on (chest {}, {} click(s),"
+                            + " {} path(s), {} hop(s), player at {})", chestStage, WALK_TIMEOUT_MS,
+                    chestReal == null ? "unknown" : AutoPuzzleUtil.fmt(chestReal), chestAuraAttempts, legPaths, hops,
+                    AutoPuzzleUtil.fmt(player.blockPosition()));
             if (ClearExecutor.isBusy()) {
                 ClearExecutor.cancel();
             }
@@ -482,6 +573,10 @@ final class AutoTicTacToe {
         switch (chestStage) {
             case WALK_TO_CHEST -> {
                 if (chestReal == null && !findChest(cr)) {
+                    if (chestStage == ChestStage.WALK_TO_CHEST) {
+                        chestHold(cr == null ? "the live map has no clay corner/rotation for this room"
+                                : "the room has no database entry yet");
+                    }
                     return;
                 }
                 if (chestStage != ChestStage.WALK_TO_CHEST) {
@@ -492,13 +587,20 @@ final class AutoTicTacToe {
                             > chestSpotReach() * chestSpotReach() && APPROACH.tick(client)) {
                         return;
                     }
+                    LOGGER.info("[AutoPuzzles] TicTacToe: walk to the secret ended at {} ({} from the chest's box)",
+                            AutoPuzzleUtil.fmt(player.blockPosition()), String.format(java.util.Locale.ROOT, "%.2f",
+                                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(),
+                                            chestReal))));
                     chestWalking = false;
                     client.options.keyUp.setDown(false);
                 }
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)
                         <= chestSpotReach() * chestSpotReach() && player.onGround()) {
                     auraTicks = 0;
-                    advanceChest(ChestStage.AURA, "the secret is in reach");
+                    advanceChest(ChestStage.AURA, "the secret is in reach ("
+                            + String.format(java.util.Locale.ROOT, "%.2f of %.2f from %s",
+                            Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal)),
+                            chestSpotReach(), AutoPuzzleUtil.fmt(player.blockPosition())) + ")");
                     return;
                 }
                 warpNear(client, player, chestReal, "the secret");
@@ -515,6 +617,7 @@ final class AutoTicTacToe {
                     return;
                 }
                 if (ClearExecutor.isBusy()) {
+                    chestHold("the Interactive Map is walking him back to " + AutoPuzzleUtil.fmt(spot));
                     return;
                 }
                 if (AutoPuzzleUtil.etherwarpAim(client.level, player, spot) != null
@@ -525,6 +628,11 @@ final class AutoTicTacToe {
                 }
                 if (legPaths < MAX_LEG_PATHS && AutoPuzzleUtil.pathIfMapOn(spot, null, true)) {
                     legPaths++;
+                    LOGGER.info("[AutoPuzzles] TicTacToe: no warp line back - Interactive Map path {}/{} to {}", legPaths,
+                            MAX_LEG_PATHS, AutoPuzzleUtil.fmt(spot));
+                } else if (legPaths < MAX_LEG_PATHS) {
+                    chestHold("no warp line back onto " + AutoPuzzleUtil.fmt(spot)
+                            + " and pathing / the Interactive Map refused");
                 } else if (legPaths >= MAX_LEG_PATHS) {
                     advanceChest(ChestStage.DONE, "cannot get back to the board spot");
                 }
@@ -538,6 +646,7 @@ final class AutoTicTacToe {
      *  has a line from here. */
     private static void warpNear(Minecraft client, LocalPlayer player, BlockPos target, String label) {
         if (ClearExecutor.isBusy()) {
+            chestHold("the Interactive Map is walking him toward " + label);
             return;
         }
         // Every block his STANDING eye has it within Secret Aura's reach from, walls or not, nearest the chest first.
@@ -553,10 +662,14 @@ final class AutoTicTacToe {
             }
             chestSpotsTried.add(spot);
             if (WARP.start(client, spot, false, false, false)) {
-                LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping onto {} for {} at {} ({} spot(s) in reach of it)",
-                        AutoPuzzleUtil.fmt(spot), label, AutoPuzzleUtil.fmt(target), spots.size());
+                LOGGER.info("[AutoPuzzles] TicTacToe: etherwarping onto {} for {} at {} ({} spot(s) in reach of it,"
+                                + " reach {}, tick {})", AutoPuzzleUtil.fmt(spot), label, AutoPuzzleUtil.fmt(target),
+                        spots.size(), String.format(java.util.Locale.ROOT, "%.2f", chestSpotReach()),
+                        com.killer560.hub.util.SessionRecorderSink.tick());
                 return;
             }
+            LOGGER.info("[AutoPuzzles] TicTacToe: warp onto {} for {} refused by the reposition - trying the next spot",
+                    AutoPuzzleUtil.fmt(spot), label);
         }
         // No warp line onto a spot in reach of it (a covered alcove): the last few blocks on foot, on his own floor,
         // before any detour - as close as a warp gets is where he already stands.
@@ -602,7 +715,11 @@ final class AutoTicTacToe {
         }
         if (AutoPuzzleUtil.pathIfMapOn(spots.get(0), null, true)) {
             legPaths++;
+            LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} - Interactive Map path {}/{} to {}", label,
+                    legPaths, MAX_LEG_PATHS, AutoPuzzleUtil.fmt(spots.get(0)));
         } else if (!chestMapOffWarned) {
+            LOGGER.info("[AutoPuzzles] TicTacToe: no warp line in reach of {} and pathing / the Interactive Map refused"
+                    + " the walk to {} - waiting", label, AutoPuzzleUtil.fmt(spots.get(0)));
             chestMapOffWarned = true;
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Tic Tac Toe has no warp line to " + label
                     + " and needs "), ModChat.value("Interactive Map"), ModChat.text(" on to walk there."));
@@ -638,7 +755,10 @@ final class AutoTicTacToe {
     private static final int MAX_LEG_PATHS = 3;
 
     private static void advanceChest(ChestStage next, String why) {
-        LOGGER.info("[AutoPuzzles] TicTacToe: grab secret {} -> {} ({})", chestStage, next, why);
+        LOGGER.info("[AutoPuzzles] TicTacToe: grab secret {} -> {} ({}) after {} ms in {} (tick {})", chestStage, next, why,
+                chestLegStartMs == 0L ? 0 : System.currentTimeMillis() - chestLegStartMs, chestStage,
+                com.killer560.hub.util.SessionRecorderSink.tick());
+        loggedChestHold = null;
         chestStage = next;
         chestStageWindows = com.killer560.hub.util.ChestWindows.count();
         chestLegStartMs = System.currentTimeMillis();
@@ -672,8 +792,11 @@ final class AutoTicTacToe {
             return;
         }
         double dist = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), chestReal));
-        boolean aura = com.killer560.hub.cheatutils.SecretAuraFeature.chestRefusal(client, dist) == null;
+        String refusal = com.killer560.hub.cheatutils.SecretAuraFeature.chestRefusal(client, dist);
+        boolean aura = refusal == null;
         if (aura && auraTicks++ < AURA_TICKS) {
+            chestHold("leaving the chest at " + AutoPuzzleUtil.fmt(chestReal) + " to Secret Aura for up to " + AURA_TICKS
+                    + " tick(s) (" + String.format(java.util.Locale.ROOT, "%.2f", dist) + " from his eye)");
             return; // Secret Aura clicks a chest in reach on its next tick
         }
         if (chestAuraAttempts >= MAX_AURA_ATTEMPTS) {
@@ -681,10 +804,14 @@ final class AutoTicTacToe {
             return;
         }
         if (player.isShiftKeyDown() || dist > Math.sqrt(AURA_REACH_SQ)) {
+            chestHold(player.isShiftKeyDown() ? "sneaking - letting go of sneak before the click"
+                    : "the chest is " + String.format(java.util.Locale.ROOT, "%.2f", dist) + " away, past "
+                    + String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(AURA_REACH_SQ)));
             AutoReposition.releaseSneak(client);
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, chestReal)) {
+            chestHold("the action gate held the chest click");
             return;
         }
         chestAuraAttempts++;
@@ -694,9 +821,12 @@ final class AutoTicTacToe {
             advanceChest(ChestStage.WALK_BACK, "no clickable chest");
             return;
         }
-        LOGGER.info("[AutoPuzzles] TicTacToe: clicked the secret chest at {} ({} from his eye{})",
+        LOGGER.info("[AutoPuzzles] TicTacToe: clicked the secret chest at {} ({} from his eye{}), click {}/{}, holding {}"
+                        + " (tick {})",
                 AutoPuzzleUtil.fmt(chestReal), String.format(java.util.Locale.ROOT, "%.2f", dist),
-                aura ? ", Secret Aura had not" : ", Secret Aura will not take it");
+                aura ? ", Secret Aura had not" : ", Secret Aura will not take it: " + refusal, chestAuraAttempts,
+                MAX_AURA_ATTEMPTS, player.getMainHandItem().getHoverName().getString(),
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     private static void reset() {
@@ -724,5 +854,9 @@ final class AutoTicTacToe {
         WARP.cancel(Minecraft.getInstance());
         CAMERA.release(Minecraft.getInstance().player);
         loggedWait = null;
+        loggedHold = null;
+        loggedWalkOut = null;
+        loggedChestHold = null;
+        visitStartTick = -1L;
     }
 }

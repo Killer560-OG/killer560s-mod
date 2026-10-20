@@ -71,6 +71,37 @@ public final class LeverAuraFeature {
     private LeverAuraFeature() {
     }
 
+    // ---- logging only ----
+    private static String lastGateLogged = "init";
+    /** Per lever, the last state code logged (logged again only on change). */
+    private static final Map<Long, String> leverStateLogged = new HashMap<>();
+    private static String lastHeldKey;
+    private static long lastHeldTick;
+
+    private static String reasonFor(boolean s2Open) {
+        return s2Open ? "S2 section lever" : "S2 section lever (early)";
+    }
+
+    private static void logLever(BlockPos pos, String code, String detail, double distSq) {
+        if (code.equals(leverStateLogged.get(pos.asLong()))) {
+            return;
+        }
+        leverStateLogged.put(pos.asLong(), code);
+        LOGGER.info("[LeverAura] lever {}: {} distToBox={} tick={}", pos.toShortString(), detail,
+                distSq < 0 ? "n/a" : String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), ActionGate.currentTick());
+    }
+
+    /** A chosen lever held back, once per key per 20 ticks (BloodCampFeature.logRefusal model). */
+    private static void logHeld(String key, String detail) {
+        long now = ActionGate.currentTick();
+        if (key.equals(lastHeldKey) && now - lastHeldTick < 20) {
+            return;
+        }
+        lastHeldKey = key;
+        lastHeldTick = now;
+        LOGGER.info("[LeverAura] flick held: {} tick={}", detail, now);
+    }
+
     public static void register() {
         P3SectionTracker.register();
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("LeverAuraFeature.tick", LeverAuraFeature::tick));
@@ -94,6 +125,7 @@ public final class LeverAuraFeature {
         }
         int section = P3SectionTracker.section();
         if (section != lastSection) {
+            LOGGER.info("[LeverAura] section {} -> {}: dwell timers cleared", lastSection, section);
             lastSection = section;
             inRangeSince.clear();
             requiredDwell.clear();
@@ -115,6 +147,11 @@ public final class LeverAuraFeature {
         } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             gate = "a container screen is open";
         }
+        if (!java.util.Objects.equals(gate, lastGateLogged)) {
+            LOGGER.info("[LeverAura] gate: {} -> {} (section {}) tick={}", lastGateLogged == null ? "running" : lastGateLogged,
+                    gate == null ? "running" : gate, section, ActionGate.currentTick());
+            lastGateLogged = gate;
+        }
         if (gate != null) {
             return;
         }
@@ -135,19 +172,32 @@ public final class LeverAuraFeature {
             for (BlockPos pos : S2_SECTION_LEVERS) {
                 BlockState st = client.level.getBlockState(pos);
                 if (st.getBlock() != Blocks.LEVER) {
+                    logLever(pos, "notLever", "no lever block there (chunk not loaded or replaced)", -1);
                     continue;
                 }
                 // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
                 double d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
                 if (d > rangeSq) {
+                    logLever(pos, "outOfRange", "out of range " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getRange()), d);
                     continue;
                 }
                 long key = pos.asLong();
                 inRangeNow.add(key);
                 if (!dwellPassed(cfg, key, now) || (s2Open ? clickedS2 : clickedEarly).contains(key)
                         || !hasNotActivatedStand(client, pos)) {
+                    // Read back what dwellPassed just stored (no second call: it rolls the dwell on first sight).
+                    Long since = inRangeSince.get(key);
+                    Long need = requiredDwell.get(key);
+                    if (since != null && need != null && now - since < need) {
+                        logLever(pos, "dwell", "in range, waiting the dwell (" + need + " ms)", d);
+                    } else if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
+                        logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
+                    } else {
+                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
+                    }
                     continue;
                 }
+                logLever(pos, "eligible", reasonFor(s2Open), d);
                 if (d < best) {
                     best = d;
                     target = pos;
@@ -165,12 +215,15 @@ public final class LeverAuraFeature {
             return;
         }
         if (tick < nextClickDueTick) {
+            logHeld("cps", "CPS gap: next flick due at tick " + String.format(java.util.Locale.ROOT, "%.2f", nextClickDueTick)
+                    + " (now " + tick + ") lever " + target.toShortString());
             return;
         }
         // killer560 (2026-09-20): "make sure that stuff like breaker aura, and flicking levers aren't gonna go off in
         // the same packet". Last check before anything is mutated - a refusal must cost nothing, the same lever is
         // simply re-picked next tick. Target selection above is already nearest-first, one lever per tick.
         if (!ActionGate.tryAct(ActionGate.Actor.LEVER_AURA)) {
+            logHeld("gate", "ActionGate refused LEVER_AURA, lever " + target.toShortString());
             return;
         }
         if (!click(client, cfg, target, reason, s2Open)) {
@@ -199,16 +252,25 @@ public final class LeverAuraFeature {
         if (hit == null) {
             // Skip the tick rather than send a hit no ray could produce; the lever is not marked done, so the next
             // tick tries again once the geometry allows a real hit.
+            logHeld("noHit", "no surface hit on lever " + pos.toShortString() + " from here");
             return false;
         }
         // A lever the look the server was told about does not reach (behind him) gets the BODY turned to it first,
         // the camera held: Secret Aura's identical click drew GrimAC RotationPlace from behind (testkit 419).
         if (!TURN.readyBlock(client.player, client.level, pos, hit.getLocation(),
                 client.player.getEyePosition().distanceTo(hit.getLocation()) + 1.0)) {
+            LOGGER.info("[LeverAura] turning body to lever {} first (reported look does not reach it) tick={}",
+                    pos.toShortString(), ActionGate.currentTick());
             return false;
         }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
+        LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} powered={} swing={} tick={}", pos.toShortString(),
+                reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.2f",
+                        client.player.getEyePosition().distanceTo(hit.getLocation())),
+                client.level.getBlockState(pos).getBlock() == Blocks.LEVER
+                        ? client.level.getBlockState(pos).getValue(net.minecraft.world.level.block.LeverBlock.POWERED) : null,
+                cfg.isSwingHand(), ActionGate.currentTick());
         if (cfg.isSwingHand()) {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
@@ -239,6 +301,10 @@ public final class LeverAuraFeature {
     }
 
     private static void resetRun() {
+        LOGGER.info("[LeverAura] new run (generation {}): clickedEarly={} clickedS2={} cleared", P3SectionTracker.generation(),
+                clickedEarly.size(), clickedS2.size());
+        leverStateLogged.clear();
+        lastHeldKey = null;
         clickedEarly.clear();
         clickedS2.clear();
         inRangeSince.clear();

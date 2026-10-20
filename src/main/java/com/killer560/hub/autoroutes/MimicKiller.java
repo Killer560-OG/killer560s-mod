@@ -77,10 +77,14 @@ public final class MimicKiller {
         LocalPlayer player = client.player;
         if (m == AutoRoutesConfig.KillMimic.OFF || state != State.IDLE || player == null || !cfg.isEnabled()
                 || !com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+            LOGGER.info("[Mimic] trapped chest at {} not acted on: mode={} state={} player null={} enabled={} inDungeon={}",
+                    chest.toShortString(), m, state, player == null, cfg.isEnabled(),
+                    com.killer560.hub.secrets.DungeonState.isInDungeon());
             return;
         }
         int slot = ItemIdentity.findHotbarSlot(player, m.itemId());
         if (slot < 0) {
+            LOGGER.info("[Mimic] trapped chest at {} not acted on: no {} in the hotbar", chest.toShortString(), m.label());
             AutoRoutesFeature.chatBad("Kill Mimic: no " + (m == AutoRoutesConfig.KillMimic.HYPERION ? "wither blade"
                     : "Spirit Sceptre") + " in the hotbar.");
             return;
@@ -118,11 +122,18 @@ public final class MimicKiller {
                 // Also wait out an aura's body turn (Secret Aura clicking the chest turns him to it and gives the view
                 // back a tick later): that hand-back writes the rotation, and landing on top of the aim it undid it.
                 if (!RouteExecutor.mayYieldToMimic() || com.killer560.hub.util.TurnFirst.anyTurnOut()) {
+                    boolean nodeBusy = !RouteExecutor.mayYieldToMimic();
+                    logWait(AwaitEvents.now(), nodeBusy ? "pending-node" : "pending-turn", "pending " + stateTicks + "/"
+                            + PENDING_TIMEOUT + " tick(s): " + (nodeBusy ? "a route node is acting"
+                            : "an aura's body turn is still out"));
                     if (stateTicks > PENDING_TIMEOUT) {
                         finish(client, player, "the route's node never finished");
                     }
                     return;
                 }
+                LOGGER.info("[Mimic] start: selecting slot {} ({}) from slot {}, {} aim, waited {} tick(s), tick={}",
+                        itemSlot + 1, mode.label(), slotBefore + 1, legit ? "camera" : "packet", stateTicks,
+                        AwaitEvents.now());
                 RouteExecutor.select(client, player, itemSlot);
                 keysAtStart = movementKeys(client);
                 if (legit) {
@@ -149,12 +160,17 @@ public final class MimicKiller {
                                 stateTicks, mode.label()));
                         return;
                     }
+                    logWait(AwaitEvents.now(), "aim-pitch", "aiming down: camera pitch " + player.getXRot() + " after "
+                            + stateTicks + " tick(s) (gives up at " + AIM_GIVE_UP + ")");
                     if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
                         RouteRotation.beginApproach(player.getYRot(), STRAIGHT_DOWN, false, 0f, 0f);
                     }
                     return;
                 }
                 if (sneakDown || turning) {
+                    logWait(AwaitEvents.now(), sneakDown ? "aim-sneak" : "aim-turn", sneakDown
+                            ? "use held: the server still has sneak down (tick " + stateTicks + " of " + AIM_TIMEOUT + ")"
+                            : "use held: camera still turning (tick " + stateTicks + " of " + AIM_TIMEOUT + ")");
                     return;
                 }
                 // The trapped chest click that armed this is unpaired on the server, and the server's look still points at
@@ -294,8 +310,26 @@ public final class MimicKiller {
                         ? Float.toString(player.getXRot()) : "90.0");
     }
 
+    private static String lastWaitKey;
+    private static long lastWaitTick;
+
+    /** A per-tick wait, once per reason per 20 ticks. */
+    private static void logWait(long now, String key, String detail) {
+        if (key.equals(lastWaitKey) && now - lastWaitTick < 20) {
+            return;
+        }
+        lastWaitKey = key;
+        lastWaitTick = now;
+        LOGGER.info("[Mimic] held: {} (tick {})", detail, now);
+    }
+
     private static void finish(Minecraft client, LocalPlayer player, String why) {
         LOGGER.info("[AutoRoutes] Kill Mimic done: {}", why);
+        LOGGER.info("[Mimic] finished in state {} after {} tick(s) since the chest click, {} use(s), restoring slot {}: {}",
+                state, AwaitEvents.now() - armedAt, uses,
+                player != null && state != State.PENDING && slotBefore >= 0 && slotBefore <= 8 ? slotBefore + 1 : "none",
+                why);
+        lastWaitKey = null;
         if (player != null && state != State.PENDING && slotBefore >= 0 && slotBefore <= 8) {
             RouteExecutor.select(client, player, slotBefore);
         }

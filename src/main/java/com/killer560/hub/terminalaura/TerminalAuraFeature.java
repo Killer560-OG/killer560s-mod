@@ -90,6 +90,10 @@ public final class TerminalAuraFeature {
         AIM.tick(player, pendingStand != null);
         TerminalAuraConfig cfg = TerminalAuraConfig.getInstance();
         if (!cfg.isEnabled() || player == null || client.level == null || client.gameMode == null) {
+            logGate(!cfg.isEnabled() ? "disabled" : "no player");
+            if (pendingStand != null) {
+                LOGGER.info("[TerminalAura] pending click on {} dropped: aura off or no player", TerminalStands.describe(pendingStand));
+            }
             pendingStand = null;
             return;
         }
@@ -100,62 +104,109 @@ public final class TerminalAuraFeature {
         // Any open screen means a terminal (or anything else) is already up - clicking another one
         // underneath it would queue a second GUI on top of the one being solved.
         if (McCompat.screen(client) != null || player.isDeadOrDying()) {
+            logGate(player.isDeadOrDying() ? "dead" : "a screen is open");
             return;
         }
         if (!Floor7Tracker.inF7Boss() || !Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)) {
+            logGate("not in F7 P3");
             return;
         }
         long now = System.currentTimeMillis();
         if (now - lastClickMs < cfg.getDelayMs()) {
+            logGate("click delay");
             return;
         }
         if (cfg.isGroundOnly() && !player.onGround()) {
+            logGate("Ground Only: in the air");
             return;
         }
         if (cfg.isPauseOnMovementKeys() && movementKeyHeld(client)) {
+            logGate("movement key held");
             return;
         }
         if (cfg.isLeapDelayEnabled()
                 && now - LeapManager.lastLeapMs() < (long) (cfg.getLeapDelaySeconds() * 1000.0)) {
             // Just landed from a leap: the terminals around the landing spot usually belong to whoever
             // you leapt to, so hold off rather than stealing the one they were walking into.
+            logGate("leap delay");
             return;
         }
 
         Target t = pick(client, player, cfg.getRange(), cfg.getFovDegrees());
         if (t == null) {
+            logGate("no terminal in range/FOV");
             return;
         }
+        logGate(null);
         if (!t.lookHits() && cfg.isTurnToTerminal()) {
             // Turn this tick, click next tick, once this tick's movement packet has reported the turned look.
             float[] aim = aimAt(player, t.stand());
             AIM.turnTo(player, aim[0], aim[1]);
             pendingStand = t.stand();
             pendingTicks = 0;
+            LOGGER.info("[TerminalAura] turning body to {} (look misses it): yaw {} -> {} pitch {} -> {} dist={} tick={}",
+                    TerminalStands.describe(t.stand()), fmt(player.getYRot()), fmt(aim[0]), fmt(player.getXRot()), fmt(aim[1]),
+                    fmt(player.getEyePosition().distanceTo(t.hit())), ActionGate.currentTick());
             return;
         }
         if (ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
             interact(client, player, t.stand(), t.hit());
+            LOGGER.info("[TerminalAura] click sent: {} lookHits={} dist={} onGround={} tick={}", TerminalStands.describe(t.stand()),
+                    t.lookHits(), fmt(player.getEyePosition().distanceTo(t.hit())), player.onGround(), ActionGate.currentTick());
             lastClickMs = now;
+        } else {
+            logGate("ActionGate refused (target " + TerminalStands.describe(t.stand()) + ")");
         }
+    }
+
+    // ---- logging only ----
+    private static String lastGateLogged = "init";
+
+    /** One line when the reason the aura is holding changes (null = it has a target). */
+    private static void logGate(String gate) {
+        String g = gate == null ? "" : gate;
+        if (g.equals(lastGateLogged)) {
+            return;
+        }
+        lastGateLogged = g;
+        if (gate == null) {
+            LOGGER.info("[TerminalAura] target in range tick={}", ActionGate.currentTick());
+        } else {
+            LOGGER.info("[TerminalAura] held: {} tick={}", gate, ActionGate.currentTick());
+        }
+    }
+
+    private static String fmt(double d) {
+        return String.format(java.util.Locale.ROOT, "%.2f", d);
     }
 
     /** The click a body turn was made for, one tick later; retried for a few ticks if the ActionGate is busy. */
     private static void clickPending(Minecraft client, LocalPlayer player) {
         ArmorStand stand = pendingStand;
         if (McCompat.screen(client) != null || ++pendingTicks > 5) {
+            LOGGER.info("[TerminalAura] pending click on {} dropped: {} (pendingTicks={}) tick={}", TerminalStands.describe(stand),
+                    McCompat.screen(client) != null ? "a screen opened" : "ActionGate busy for 5 ticks", pendingTicks,
+                    ActionGate.currentTick());
             pendingStand = null;
             return;
         }
         Vec3 hit = hitFromEye(player, stand, TerminalAuraConfig.getInstance().getRange());
         if (hit == null) {
+            LOGGER.info("[TerminalAura] pending click on {} dropped: stand gone or out of range {} after the turn tick={}",
+                    TerminalStands.describe(stand), fmt(TerminalAuraConfig.getInstance().getRange()), ActionGate.currentTick());
             pendingStand = null;
             return;
         }
         if (ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
             interact(client, player, stand, hit);
+            LOGGER.info("[TerminalAura] click sent after body turn: {} dist={} waitedTicks={} yaw={} pitch={} tick={}",
+                    TerminalStands.describe(stand), fmt(player.getEyePosition().distanceTo(hit)), pendingTicks,
+                    fmt(player.getYRot()), fmt(player.getXRot()), ActionGate.currentTick());
             lastClickMs = System.currentTimeMillis();
             pendingStand = null;
+        } else {
+            LOGGER.info("[TerminalAura] pending click on {} held: ActionGate refused (try {}/5) tick={}",
+                    TerminalStands.describe(stand), pendingTicks, ActionGate.currentTick());
         }
     }
 
@@ -195,9 +246,13 @@ public final class TerminalAuraFeature {
         }
         Vec3 hit = hitFromEye(player, stand, range);
         if (hit == null) {
+            LOGGER.info("[TerminalAura] AP3 term click refused: {} gone or out of range {}", TerminalStands.describe(stand),
+                    fmt(range));
             return false;
         }
         interact(client, player, stand, hit);
+        LOGGER.info("[TerminalAura] AP3 term click sent: {} dist={} tick={}", TerminalStands.describe(stand),
+                fmt(player.getEyePosition().distanceTo(hit)), ActionGate.currentTick());
         return true;
     }
 

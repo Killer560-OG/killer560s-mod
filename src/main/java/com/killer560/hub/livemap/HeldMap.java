@@ -64,8 +64,21 @@ public final class HeldMap {
 
     /** The sim's stand-in is answering (sim active and no real map item read). */
     public static boolean emulated() {
-        return com.killer560.hub.roomsim.SimState.isActive() && !DungeonMapScanner.isCalibrated();
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        boolean calibrated = DungeonMapScanner.isCalibrated();
+        boolean emulated = sim && !calibrated;
+        // Asked every frame: logged only when the source of the map's answers changes.
+        int source = emulated ? 1 : calibrated ? 2 : 0;
+        if (source != lastSource) {
+            lastSource = source;
+            LOGGER.info("[HeldMap] map answers now come from {} (sim={} mapCalibrated={})",
+                    source == 1 ? "the sim stand-in" : source == 2 ? "the map item" : "nothing (no map)", sim, calibrated);
+        }
+        return emulated;
     }
+
+    /** The answer source last logged (logging only): -1 none yet, 0 no map, 1 sim stand-in, 2 map item. */
+    private static int lastSource = -1;
 
     /** A room tile's state as the map shows it: {@link #STATE_OPENED} or lower (green, cleared, failed counted as
      *  opened: anything below {@link #STATE_UNOPENED}), {@link #STATE_UNOPENED}, or {@link #STATE_NOT_SHOWN}. */
@@ -177,6 +190,7 @@ public final class HeldMap {
         int tick = LiveMapFeature.tickCount();
         int gen = LiveMapFeature.resetGeneration();
         if (gen != simGeneration) {
+            LOGGER.info("[HeldMap] sim: new floor generation {} - forgetting {} opened room(s)", gen, SIM_VISITED.size());
             simGeneration = gen;
             SIM_VISITED.clear();
             simVersion++;
@@ -191,7 +205,9 @@ public final class HeldMap {
             RoomEntry e = layout.entry(r);
             String n = layout.name(r);
             if ((e != null && "ENTRANCE".equalsIgnoreCase(e.type)) || "Entrance".equalsIgnoreCase(n)) {
-                simAdd(r);
+                if (simAdd(r)) {
+                    LOGGER.info("[HeldMap] sim: {} (room {}) opened as the Entrance", n, r);
+                }
             }
         }
         if (client.player != null && layout.currentRoom() >= 0 && insideRoom(layout, layout.currentRoom(),

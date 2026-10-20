@@ -52,6 +52,14 @@ final class BloodMobState {
         restart(startVec, startedAtTick, firstSpawn);
     }
 
+    /** One-line summary for the log (pure read). */
+    String brief() {
+        return String.format(java.util.Locale.ROOT, "start=%.2f,%.2f,%.2f end=%s firstSpawn=%b startedAt=%d clicks=%d "
+                        + "confirmed=%b gaveUp=%b mob=%d", startVec.x, startVec.y, startVec.z,
+                endVector == null ? "none" : String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", endVector.x,
+                        endVector.y, endVector.z), firstSpawn, startedAtTick, clicks, confirmed, gaveUp, mobId);
+    }
+
     /** Same entity, new trip - see {@link BloodCampFeature#onMoveEntity}. Everything derived from the previous
      *  trip has to go, including the "already clicked" debounce, or the mob is only ever hit once per run. */
     void restart(Vec3 startVec, long startedAtTick, boolean firstSpawn) {

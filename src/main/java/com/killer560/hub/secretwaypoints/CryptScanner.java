@@ -78,6 +78,33 @@ public final class CryptScanner {
     private CryptScanner() {
     }
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretwaypoints");
+
+    /** Last decision logged per candidate anchor (logging only): the scan runs once a second, so a run is logged only
+     *  when its verdict changes. Cleared when it grows past {@link #NOTED_CAP} (a new dungeon is a new set anyway). */
+    private static final java.util.Map<String, String> NOTED = new java.util.HashMap<>();
+    private static final int NOTED_CAP = 4096;
+    private static String lastScanSummary;
+
+    /** Logs {@code detail} for a candidate at {@code anchor} when its {@code verdict} differs from the last one logged. */
+    private static void note(BlockPos anchor, String verdict, String detail) {
+        note(anchor, "", verdict, detail);
+    }
+
+    /** As {@link #note(BlockPos, String, String)}, with {@code slot} keeping two rules on one anchor apart. */
+    private static void note(BlockPos anchor, String slot, String verdict, String detail) {
+        if (anchor == null) {
+            return;
+        }
+        if (NOTED.size() > NOTED_CAP) {
+            NOTED.clear();
+        }
+        if (verdict.equals(NOTED.put(slot + anchor.toShortString(), verdict))) {
+            return;
+        }
+        LOGGER.info("[CryptScan] {} at {}: {}", verdict, anchor.toShortString(), detail);
+    }
+
     /** A bottom smooth stone slab - what a crypt lid is made of. */
     static boolean isLidSlab(BlockState state) {
         return state.is(Blocks.SMOOTH_STONE_SLAB) && state.hasProperty(SlabBlock.TYPE)
@@ -470,25 +497,53 @@ public final class CryptScanner {
                                         bottoms.add(at);
                                     }
                                     if (lidChecked.add(at)) {
-                                        lidPrinces.addAll(sarcophagusPrince(level, at, lidChecked));
+                                        List<BlockPos> hit = sarcophagusPrince(level, at, lidChecked);
+                                        if (!hit.isEmpty()) {
+                                            note(at, "prince rule sarcophagus matched",
+                                                    "blocks=" + hit.size() + " (bottom slabs on polished andesite with a head beside)");
+                                        }
+                                        lidPrinces.addAll(hit);
                                     }
                                     if (brazierChecked.add(at)) {
-                                        lidPrinces.addAll(brazierPrince(level, at, brazierChecked));
+                                        List<BlockPos> hit = brazierPrince(level, at, brazierChecked);
+                                        if (!hit.isEmpty()) {
+                                            note(at, "brazier:", "prince rule brazier matched",
+                                                    "lid slabs=" + hit.size() + " (lid shape with 2+ hopper-on-anvil braziers within "
+                                                            + BRAZIER_REACH + ")");
+                                        }
+                                        lidPrinces.addAll(hit);
                                     }
                                 } else if (state.is(Blocks.SMOOTH_STONE)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
                                     if (lidChecked.add(at)) {
-                                        lidPrinces.addAll(lidPrince(level, at, lidChecked));
+                                        List<BlockPos> hit = lidPrince(level, at, lidChecked);
+                                        if (!hit.isEmpty()) {
+                                            note(at, "prince rule smooth-stone lid matched",
+                                                    "blocks=" + hit.size() + " (open smooth stone lid ringed by bottom slabs)");
+                                        }
+                                        lidPrinces.addAll(hit);
                                     }
                                 } else if (state.is(Blocks.OBSIDIAN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
                                     if (lidChecked.add(at)) {
-                                        lidPrinces.addAll(obsidianPrince(level, at, lidChecked));
+                                        List<BlockPos> hit = obsidianPrince(level, at, lidChecked);
+                                        if (!hit.isEmpty()) {
+                                            note(at, "prince rule obsidian matched",
+                                                    "blocks=" + hit.size() + " (obsidian run with an open top beside a bottom slab)");
+                                        }
+                                        lidPrinces.addAll(hit);
                                     }
                                 } else if (state.is(Blocks.GOLD_BLOCK) || state.is(Blocks.SEA_LANTERN)) {
                                     BlockPos at = new BlockPos(x, baseY + ly, z);
                                     if (isPrinceCrown(level, at)) {
                                         crowns.add(at);
+                                        note(at, "prince crown found", state.is(Blocks.GOLD_BLOCK)
+                                                ? "gold block with a smooth stone slab beside, air above"
+                                                : "sea lantern walled by polished andesite, air above");
+                                    } else if (state.is(Blocks.GOLD_BLOCK)) {
+                                        // Sea lanterns are room lighting, dozens a room: only a rejected gold block is logged.
+                                        note(at, "prince crown rejected",
+                                                "gold block: covered above or no smooth stone slab beside");
                                     }
                                 }
                             }
@@ -513,15 +568,25 @@ public final class CryptScanner {
                 }
             }
         }
+        int princeCount = 0;
         for (List<BlockPos> group : groups(princeBlocks, false)) {
             Found f = found(Type.PRINCE, group);
             if (whole(level, f)) {
                 out.add(f);
+                princeCount++;
+                note(f.anchor(), "PRINCE found", "blocks=" + group.size() + " box=" + f.minX() + "," + f.minY() + ","
+                        + f.minZ() + ".." + f.maxX() + "," + f.maxY() + "," + f.maxZ());
+            } else {
+                note(f.anchor(), "prince held", "blocks=" + group.size()
+                        + " reaches into an unloaded chunk - judged when the whole tomb can be read");
             }
         }
 
         // Crypts: lid-shaped slab runs that do not belong to a prince.
+        int runCount = 0;
+        int cryptCount = 0;
         for (List<BlockPos> run : groups(slabs, true)) {
+            runCount++;
             Found f = found(Type.CRYPT, run);
             int w = f.maxX() - f.minX() + 1;
             int d = f.maxZ() - f.minZ() + 1;
@@ -532,22 +597,49 @@ public final class CryptScanner {
                     bottom++;
                 }
             }
+            // Runs under four slabs are steps and trims, far too many to log one by one.
+            boolean loggable = n >= 4;
+            String counts = "slabs=" + n + " bottom=" + bottom + " size=" + w + "x" + d + " y=" + f.minY();
             if (bottom * 2 <= n) {
+                if (loggable) {
+                    note(f.anchor(), "crypt rejected (mostly top/double slabs)", counts);
+                }
                 continue; // mostly top or double slabs: a ledge or a ceiling, not a lid
             }
             if (n < MIN_LID || n > MAX_LID || Math.min(w, d) < 2 || n * 4 < w * d * 3) {
+                if (loggable) {
+                    note(f.anchor(), "crypt rejected (shape)", counts + " needs " + MIN_LID + ".." + MAX_LID
+                            + " slabs, 2+ wide both ways, 3/4 of its box filled");
+                }
                 continue;
             }
             if (touchesAny(run, princeBlocks)) {
+                note(f.anchor(), "crypt rejected (part of a prince)", counts);
                 continue;
             }
-            if (isStaircase(level, run) || isCovered(level, run) || isLedge(level, run) || isWalkway(level, run)) {
+            String why = isStaircase(level, run) ? "staircase"
+                    : isCovered(level, run) ? "covered (wall panel)"
+                    : isLedge(level, run) ? "ledge (no floor within " + LEDGE_DROP + " beside it)"
+                    : isWalkway(level, run) ? "walkway (flush floor around it)"
+                    : null;
+            if (why != null) {
+                note(f.anchor(), "crypt rejected (" + why + ")", counts);
                 continue;
             }
             if (!whole(level, f)) {
+                note(f.anchor(), "crypt held", counts + " reaches into an unloaded chunk");
                 continue;
             }
+            note(f.anchor(), "CRYPT found", counts);
+            cryptCount++;
             out.add(f);
+        }
+        String summary = "bounds=" + bounds[0] + "," + bounds[1] + ".." + bounds[2] + "," + bounds[3]
+                + " slabRuns=" + runCount + " crowns=" + crowns.size() + " rulePrinceBlocks=" + lidPrinces.size()
+                + " princes=" + princeCount + " crypts=" + cryptCount;
+        if (!summary.equals(lastScanSummary)) {
+            lastScanSummary = summary;
+            LOGGER.info("[CryptScan] scan result changed: {}", summary);
         }
         return out;
     }

@@ -94,6 +94,15 @@ final class AutoWeirdos {
     private static int retries = 0;
     private static final int MAX_REFUSED_RETRIES = 2;
 
+    // Logging only: when this room (or round) began, and the last answer state logged.
+    private static long roomStartTick = 0L;
+    private static long walkStartTick = 0L;
+    private static String loggedAnswer = null;
+
+    private static long nowTick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
     private AutoWeirdos() {
     }
 
@@ -102,6 +111,8 @@ final class AutoWeirdos {
         // A latch: once set it stays set until the next world, so the solver is only asked while it is not (fps-auto-1015).
         if (!solverClearedThisLevel && WeirdosSolverFeature.getCorrectChestPos() == null
                 && WeirdosSolverFeature.getWrongChestCount() == 0) {
+            LOGGER.info("[AutoPuzzles] Weirdos: solver seen empty in this world - its answers are safe to act on, tick={}",
+                    nowTick());
             solverClearedThisLevel = true;
         }
     }
@@ -130,6 +141,7 @@ final class AutoWeirdos {
         if (!WeirdosSolverConfig.getInstance().isEnabled()) {
             if (!solverOffWarned) {
                 solverOffWarned = true;
+                LOGGER.info("[AutoPuzzles] Weirdos: not acting - Weirdos Solver is off (warned once) tick={}", nowTick());
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Three Weirdos needs "),
                         ModChat.value("Weirdos Solver"), ModChat.text(" turned on."));
             }
@@ -139,6 +151,10 @@ final class AutoWeirdos {
         if (room != lastRoom) {
             // The weirdos talked to belong to ONE room: entity ids are not reused across rooms, and a set kept from the
             // first Three Weirdos of a run left the second with nobody to talk to.
+            LOGGER.info("[AutoPuzzles] Weirdos: room changed to {} - talked set ({}) cleared, tick={}",
+                    room == null ? "none" : room.name, talked.size(), nowTick());
+            roomStartTick = nowTick();
+            loggedAnswer = null;
             lastRoom = room;
             talked.clear();
             moveFor = null;
@@ -152,6 +168,10 @@ final class AutoWeirdos {
         if (solverEmpty && solverHadAnswer) {
             // The solver forgot this room's answer: a new round (the sim deals one after a wrong chest, or a rebuilt
             // room). The weirdos speak again, so they are talked to again.
+            LOGGER.info("[AutoPuzzles] Weirdos: the solver forgot its answer - new round, talking to all three again"
+                    + " ({} were talked to) elapsedTicks={}", talked.size(), nowTick() - roomStartTick);
+            roomStartTick = nowTick();
+            loggedAnswer = null;
             talked.clear();
             moveFor = null;
             moves = 0;
@@ -159,6 +179,15 @@ final class AutoWeirdos {
         solverHadAnswer = !solverEmpty;
         // A weirdo that is no longer in the world (the room was rebuilt, or he walked out of its range) is not one
         // talked to: the stands there now are new ones.
+        if (LOGGER.isInfoEnabled()) {
+            int before = talked.size();
+            for (int id : talked) {
+                if (client.level.getEntity(id) == null) {
+                    LOGGER.info("[AutoPuzzles] Weirdos: weirdo entity {} left the world - no longer counted as talked to"
+                            + " ({} talked before)", id, before);
+                }
+            }
+        }
         talked.removeIf(id -> client.level.getEntity(id) == null);
         if (chest == null) {
             // Solver reset (dungeon left / boss / world change) - a later correct chest is a new room.
@@ -184,7 +213,14 @@ final class AutoWeirdos {
                     talked.clear();
                     moveFor = null;
                     moves = 0;
+                } else {
+                    LOGGER.info("[AutoPuzzles] Weirdos: refused {} times - giving up on this room (chest {} stays marked"
+                                    + " acted) elapsedTicks={}", retries, AutoPuzzleUtil.fmt(actedPos),
+                            nowTick() - roomStartTick);
                 }
+            } else {
+                LOGGER.info("[AutoPuzzles] Weirdos: a 'talk to all of us first' refusal came with no click of ours"
+                        + " pending (refusals {}) - ignored", refusalCount);
             }
         }
         if (actedPos != null) {
@@ -210,6 +246,18 @@ final class AutoWeirdos {
         // to, and Hypixel answered "Talk to all of us first!" (Mod Only Test log, 2026-10-19 16:13:52); the auto had
         // marked the room done and never clicked again. So it keeps talking until all three have spoken.
         boolean solved = chest != null && allSpoken();
+        {
+            String answer = "chest=" + AutoPuzzleUtil.fmt(chest) + " wrong=" + WeirdosSolverFeature.getWrongChestCount()
+                    + " heard=" + WeirdosSolverFeature.getHeardCount() + " talked=" + talked.size() + " solved=" + solved;
+            if (!answer.equals(loggedAnswer)) {
+                loggedAnswer = answer;
+                LOGGER.info("[AutoPuzzles] Weirdos: answer state: {} - {} elapsedTicks={}", answer, solved
+                        ? "the solver has the correct chest and all three have spoken: opening it"
+                        : chest == null ? "no correct chest from the solver yet: keep talking"
+                        : "correct chest known but not all three have spoken (Hypixel refuses before): keep talking",
+                        nowTick() - roomStartTick);
+            }
+        }
         if (!solved) {
             if (!cfg.isWeirdosTalkToNpcs()) {
                 stopWalking(client, "talk to NPCs is off");
@@ -222,6 +270,7 @@ final class AutoWeirdos {
             }
             if (McCompat.screen(client) != null) {
                 stopWalking(client, "a screen opened");
+                waitFor("a screen is open - not talking");
                 return;
             }
             talk(client, player);
@@ -289,20 +338,35 @@ final class AutoWeirdos {
             player.swing(InteractionHand.MAIN_HAND);
             talked.add(best.getId());
             loggedWait = null;
-            LOGGER.info("[AutoPuzzles] Weirdos: talked to '{}' at {} ({} of 3, {} blocks eye to box)",
-                    ChatFormatting.stripFormatting(best.getName().getString()), best.blockPosition().toShortString(),
-                    talked.size(), String.format(java.util.Locale.ROOT, "%.2f",
-                            Math.sqrt(BlockHits.boxDistanceSq(eye, box))));
+            LOGGER.info("[AutoPuzzles] Weirdos: talked to '{}' (entity {}) at {} ({} of 3, {} blocks eye to box, reach {};"
+                            + " nearest of {} in reach, {} un-talked in the room) aim={} elapsedTicks={} tick={}",
+                    ChatFormatting.stripFormatting(best.getName().getString()), best.getId(),
+                    best.blockPosition().toShortString(), talked.size(), String.format(java.util.Locale.ROOT, "%.2f",
+                            Math.sqrt(BlockHits.boxDistanceSq(eye, box))), NPC_REACH, inReach.size(), left.size(),
+                    String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", aim.x, aim.y, aim.z),
+                    nowTick() - roomStartTick, nowTick());
             // No gap: in this same tick the body turns onto the next weirdo in reach (its talk goes next tick with no
             // turn of its own), or the move toward the ones out of reach starts (sneak and look now, the use next tick).
             inReach.remove(best);
             left.remove(best);
             if (!inReach.isEmpty()) {
+                LOGGER.info("[AutoPuzzles] Weirdos: next talk: entity {} in reach - body turned onto it now",
+                        nearest(eye, inReach).getId());
                 AutoPuzzleUtil.aimBodyAt(player, nearest(eye, inReach).getBoundingBox(), CAMERA);
             } else if (!left.isEmpty()) {
+                LOGGER.info("[AutoPuzzles] Weirdos: next talk: {} weirdo(s) left, none in reach - moving toward them",
+                        left.size());
                 moveToWeirdos(client, player, left);
             }
             return;
+        }
+        if (LOGGER.isDebugEnabled()) {
+            StringBuilder far = new StringBuilder();
+            for (Entity e : left) {
+                far.append(' ').append(e.getId()).append('@').append(String.format(java.util.Locale.ROOT, "%.2f",
+                        Math.sqrt(BlockHits.boxDistanceSq(eye, e.getBoundingBox()))));
+            }
+            LOGGER.debug("[AutoPuzzles] Weirdos: none in reach ({}):{}", NPC_REACH, far);
         }
         moveToWeirdos(client, player, left);
     }
@@ -587,6 +651,7 @@ final class AutoWeirdos {
         }
         moves++;
         walking = true;
+        walkStartTick = nowTick();
         walkStartMs = System.currentTimeMillis();
         walkTimeoutMs = 2000L + (long) (WALK.length(player.position()) / 3.5 * 1000.0);
         loggedWait = null;
@@ -635,7 +700,9 @@ final class AutoWeirdos {
         walking = false;
         walkGoal = 0;
         client.options.keyUp.setDown(false);
-        LOGGER.info("[AutoPuzzles] Weirdos: stopped walking - {}", why);
+        LOGGER.info("[AutoPuzzles] Weirdos: stopped walking - {} (at {}, elapsedTicks={})", why,
+                client.player == null ? "null" : client.player.blockPosition().toShortString(),
+                nowTick() - walkStartTick);
     }
 
     /** On a landing: the body onto the next weirdo in reach, or onto the chest once all three have spoken. */
@@ -705,6 +772,7 @@ final class AutoWeirdos {
             return;
         }
         if (now - pendingSinceMs < cfg.getWeirdosDelayMs()) {
+            waitFor("Chest Open Delay of " + cfg.getWeirdosDelayMs() + " ms before clicking " + AutoPuzzleUtil.fmt(chest));
             // His own Chest Open Delay. The body goes onto the chest meanwhile, so the click needs no turn tick after it.
             AutoPuzzleUtil.aimBodyAt(player, chest, CAMERA);
             return;
@@ -718,7 +786,11 @@ final class AutoWeirdos {
             CAMERA.release(player);
             return;
         }
-        LOGGER.info("[AutoPuzzles] Weirdos: click sent - opened the correct chest {}", AutoPuzzleUtil.fmt(chest));
+        LOGGER.info("[AutoPuzzles] Weirdos: click sent - opened the correct chest {} (chosen by the solver; {} wrong"
+                        + " known, heard {} of 3, talked {} of 3) boxDist={} waitedMs={} elapsedTicks={} tick={}",
+                AutoPuzzleUtil.fmt(chest), WeirdosSolverFeature.getWrongChestCount(), WeirdosSolverFeature.getHeardCount(),
+                talked.size(), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), now - pendingSinceMs,
+                nowTick() - roomStartTick, nowTick());
         CAMERA.release(player);
         AutoPuzzleActivity.ended(); // the right chest is the solve: nothing follows
     }
@@ -734,6 +806,8 @@ final class AutoWeirdos {
     }
 
     private static void stopEverything(Minecraft client, String why) {
+        LOGGER.info("[AutoPuzzles] Weirdos: stopped - {} (warpActive={} walking={} camera={} talked={}) elapsedTicks={}",
+                why, WARP.isActive(), walking, CAMERA.isEngaged(), talked.size(), nowTick() - roomStartTick);
         stopWalking(client, why);
         WARP.cancel(client);
         AutoReposition.releaseSneak(client);

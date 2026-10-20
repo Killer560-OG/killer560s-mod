@@ -129,14 +129,24 @@ public final class ForeignBreakerProbe {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.level == null) {
+            LOGGER.info("[ForeignBreaker] START_DESTROY_BLOCK sent with no player/level, not attributed: pos={} seq={}",
+                    pos == null ? "null" : pos.toShortString(), sequence);
             return;
         }
         if (oursOnTick == tick) {
             ourSends++;
+            LOGGER.info("[ForeignBreaker] START_DESTROY_BLOCK sent by=ours (Breaker Aura) pos={} face={} seq={} probeTick={}"
+                            + " tick={} boxDist={}", pos.toShortString(), face, sequence, tick,
+                    com.killer560.hub.util.SessionRecorderSink.tick(),
+                    fmt(Math.sqrt(boxDistSq(p.getEyePosition(), pos))));
             return;
         }
         if (mc.options != null && mc.options.keyAttack.isDown()) {
             handSends++;
+            LOGGER.info("[ForeignBreaker] START_DESTROY_BLOCK sent by=hand (attack key down) pos={} face={} seq={}"
+                            + " probeTick={} tick={} boxDist={}", pos.toShortString(), face, sequence, tick,
+                    com.killer560.hub.util.SessionRecorderSink.tick(),
+                    fmt(Math.sqrt(boxDistSq(p.getEyePosition(), pos))));
             return;
         }
         // Our aura did not ask for this and he is not holding the button: another mod is driving.
@@ -175,10 +185,33 @@ public final class ForeignBreakerProbe {
         }
     }
 
+    /** An ABORT_DESTROY_BLOCK left the client: counted as {@link #onAbortDestroy()}, plus one log line. */
+    public static void onAbortDestroy(BlockPos pos, int sequence) {
+        onAbortDestroy();
+        logDig("ABORT_DESTROY_BLOCK", pos, sequence);
+    }
+
     public static void onStopDestroy() {
         if (oursOnTick != tick) {
             stops++;
         }
+    }
+
+    /** A STOP_DESTROY_BLOCK left the client: counted as {@link #onStopDestroy()}, plus one log line. */
+    public static void onStopDestroy(BlockPos pos, int sequence) {
+        onStopDestroy();
+        logDig("STOP_DESTROY_BLOCK", pos, sequence);
+    }
+
+    /** Read-only: who most likely sent this dig packet, where, and when. */
+    private static void logDig(String what, BlockPos pos, int sequence) {
+        Minecraft mc = Minecraft.getInstance();
+        String by = oursOnTick == tick ? "ours (Breaker Aura this tick)"
+                : mc.options != null && mc.options.keyAttack.isDown() ? "hand (attack key down)"
+                : "not Breaker Aura, attack key up (Auto Routes / obsidian dig / another mod)";
+        LOGGER.info("[ForeignBreaker] {} sent by={} pos={} seq={} probeTick={} tick={}", what, by,
+                pos == null ? "null" : pos.toShortString(), sequence, tick,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     public static void onSwing() {

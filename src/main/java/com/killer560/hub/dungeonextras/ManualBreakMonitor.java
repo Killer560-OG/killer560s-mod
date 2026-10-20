@@ -53,6 +53,12 @@ public final class ManualBreakMonitor {
         } else {
             refused++;
         }
+        Minecraft mc = Minecraft.getInstance();
+        LOGGER.info("[ManualBreak] startDestroyBlock pos={} blockAfter={} took={} attackHeld={} tick={} window: {} call(s),"
+                        + " {} broken, {} refused", pos.toShortString(),
+                mc.level != null ? mc.level.getBlockState(pos).getBlock().getName().getString() : "?", took,
+                mc.options != null && mc.options.keyAttack.isDown(), com.killer560.hub.util.SessionRecorderSink.tick(),
+                startCalls, broken.size(), refused);
     }
 
     private static boolean counting() {

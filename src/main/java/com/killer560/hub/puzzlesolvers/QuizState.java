@@ -87,6 +87,9 @@ public final class QuizState {
         } else if (msg.equals(THIRD)) {
             set(3, now + LATER_LOCK_TICKS, now, "question 3");
         } else if (WRONG.matcher(msg).matches()) {
+            Matcher w = WRONG.matcher(msg);
+            LOGGER.info("[QuizState] wrong answer by {} at question {} (server tick {}) - the puzzle fails",
+                    w.matches() ? w.group(1) : "?", question, now);
             reset("a wrong answer");
         } else {
             Matcher m = ANSWERED.matcher(msg);

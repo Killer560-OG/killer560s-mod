@@ -26,6 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 final class HumanLook {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
     private static final float YAW_CAP = 28f;
     private static final float PITCH_CAP = 14f;
 
@@ -48,6 +49,12 @@ final class HumanLook {
         } else {
             overYaw = 0f;
             overPitch = 0f;
+        }
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AutoPuzzles] HumanLook: new approach to {} - ease {} overshoot {}/{}", key,
+                    String.format(java.util.Locale.ROOT, "%.2f", k),
+                    String.format(java.util.Locale.ROOT, "%.2f", overYaw),
+                    String.format(java.util.Locale.ROOT, "%.2f", overPitch));
         }
     }
 

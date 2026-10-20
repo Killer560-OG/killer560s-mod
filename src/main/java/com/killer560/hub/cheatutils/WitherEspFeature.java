@@ -40,11 +40,16 @@ public final class WitherEspFeature {
     static void onChat(String plain) {
         if (plain.startsWith("[BOSS] Wither King:") && !witherKingPhase) {
             witherKingPhase = true;
+            CheatUtils.LOGGER.info("[WitherEsp] Wither King phase started (P5): boss Wither detection off tick={}",
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         }
     }
 
     static void tick(Minecraft client) {
         if (client.level != lastLevel) {
+            if (witherKingPhase) {
+                CheatUtils.LOGGER.info("[WitherEsp] world change: Wither King phase cleared");
+            }
             lastLevel = client.level;
             witherKingPhase = false;
         }

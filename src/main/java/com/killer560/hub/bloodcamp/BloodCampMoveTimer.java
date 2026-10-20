@@ -95,6 +95,10 @@ public final class BloodCampMoveTimer {
     }
 
     static void reset() {
+        if (bloodOpenTick >= 0 || moveAtTick >= 0 || !firstSpawns) {
+            LOGGER.info("[BloodCamp] move timer reset (greeting tick {}, move tick {}, firstSpawns {})", bloodOpenTick,
+                    moveAtTick, firstSpawns);
+        }
         bloodOpenTick = -1L;
         moveAtTick = -1L;
         firstSpawns = true;
@@ -107,6 +111,7 @@ public final class BloodCampMoveTimer {
         }
         long now = nowTick();
         if (now < 0) {
+            LOGGER.info("[BloodCamp] Watcher line ignored: no level loaded");
             return;
         }
         if (BLOOD_MOVE.matcher(plain).matches()) {
@@ -126,14 +131,17 @@ public final class BloodCampMoveTimer {
             }
             double moveAtSeconds = moveAtSeconds(gapSeconds);
             moveAtTick = bloodOpenTick + Math.round(moveAtSeconds * 20.0);
-            LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away).",
-                    String.format(Locale.US, "%.2f", gapSeconds),
-                    String.format(Locale.US, "%.0f", moveAtSeconds), moveAtTick - now);
+            LOGGER.info("[BloodCamp] Last wave out {} s after the greeting -> Watcher moves at {} s ({} ticks away, KILL shown "
+                            + "at tick {}).", String.format(Locale.US, "%.2f", gapSeconds),
+                    String.format(Locale.US, "%.0f", moveAtSeconds), moveAtTick - now, killShownTick());
         } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
             bloodOpenTick = now;
             moveAtTick = -1L;
             firstSpawns = true;
             LOGGER.info("[BloodCamp] Watcher greeting seen at tick {} - move prediction armed.", now);
+        } else {
+            LOGGER.debug("[BloodCamp] other Watcher line at tick {} (greeting tick {}, move tick {})", now, bloodOpenTick,
+                    moveAtTick);
         }
     }
 

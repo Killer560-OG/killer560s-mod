@@ -192,8 +192,23 @@ public final class SecretWaypointsFeature {
             }
         }
         if (best != null && COLLECTED.add(best.pos())) {
+            LOGGER.info("[SecretWaypoints] collected: {} at {} by {} (event at {}, radius {})", best.label(),
+                    best.pos().toShortString(), kind == null ? "block click" : kind.name().toLowerCase(java.util.Locale.ROOT),
+                    pos.toShortString(), maxDist);
             invalidateCache();
         }
+    }
+
+    /** Last value logged per key (logging only): rebuilds run once a second, so a decision logs only when it changes.
+     *  Cleared on a new run. */
+    private static final java.util.Map<String, String> NOTED = new java.util.HashMap<>();
+
+    /** Whether {@code value} differs from what was last logged under {@code key} (and records it). */
+    private static boolean changed(String key, String value) {
+        if (NOTED.size() > 2048) {
+            NOTED.clear();
+        }
+        return !value.equals(NOTED.put(key, value));
     }
 
     /**
@@ -275,6 +290,9 @@ public final class SecretWaypointsFeature {
             if (entity instanceof net.minecraft.world.entity.item.ItemEntity && !entity.isRemoved()) {
                 next.put(watched.getKey(), new WatchedItem(w.waypoint(), entity.position()));
             } else if (player.position().distanceToSqr(w.lastPos()) <= goneSq && COLLECTED.add(w.waypoint())) {
+                LOGGER.info("[SecretWaypoints] collected: item at {} - item entity {} removed {} blocks from you",
+                        w.waypoint().toShortString(), watched.getKey(),
+                        String.format(java.util.Locale.ROOT, "%.1f", Math.sqrt(player.position().distanceToSqr(w.lastPos()))));
                 changed = true;
             }
         }
@@ -305,6 +323,11 @@ public final class SecretWaypointsFeature {
         boolean newRun = generation != lastGeneration;
         lastGeneration = generation;
         if ((!inDungeon && wasInDungeon) || newRun) {
+            LOGGER.info("[SecretWaypoints] run state cleared: reason={} collected={} crypts={} leverChunks={} generation={}",
+                    newRun ? "new run (map reset generation)" : "left the dungeon", COLLECTED.size(), CRYPTS.size(),
+                    LEVERS_BY_CHUNK.size(), generation);
+            NOTED.clear();
+            lastLoggedFrame = null;
             COLLECTED.clear();
             CRYPTS.clear();
             LEVERS_BY_CHUNK.clear();
@@ -322,6 +345,10 @@ public final class SecretWaypointsFeature {
         // isRoomShown. Off now simply means off.
         Minecraft client = Minecraft.getInstance();
         if (!cfg.isEnabled() || !inDungeon || client.player == null) {
+            String why = !cfg.isEnabled() ? "feature off" : !inDungeon ? "not in a dungeon" : "no player";
+            if (changed("idle", why)) {
+                LOGGER.info("[SecretWaypoints] no waypoints: {}", why);
+            }
             CACHED.clear();
             cacheStampMs = 0L;
             return;
@@ -334,10 +361,25 @@ public final class SecretWaypointsFeature {
         if (cacheStampMs != 0L && now - cacheStampMs < CACHE_TTL_MS && movedSq < CACHE_MOVE_SQ) {
             return;
         }
+        if (changed("idle", "active")) {
+            LOGGER.info("[SecretWaypoints] active: in a dungeon with the feature on");
+        }
         cacheStampMs = now;
         cacheX = px;
         cacheZ = pz;
         rebuild(cfg, px, pz);
+        int[] byKind = new int[Kind.values().length];
+        for (Waypoint w : CACHED) {
+            byKind[w.kind().ordinal()]++;
+        }
+        String counts = "room=" + LiveMapFeature.currentRoomIndex() + " chest=" + byKind[Kind.CHEST.ordinal()]
+                + " item=" + byKind[Kind.ITEM.ordinal()] + " bat=" + byKind[Kind.BAT.ordinal()]
+                + " wither=" + byKind[Kind.WITHER.ordinal()] + " lever=" + byKind[Kind.LEVER.ordinal()]
+                + " crypt=" + byKind[Kind.CRYPT.ordinal()] + " prince=" + byKind[Kind.PRINCE.ordinal()]
+                + " collected=" + COLLECTED.size();
+        if (changed("rebuild", counts)) {
+            LOGGER.info("[SecretWaypoints] waypoints changed: {}", counts);
+        }
     }
 
     /**
@@ -366,6 +408,10 @@ public final class SecretWaypointsFeature {
         // name decides and duplicate positions are skipped.
         // The exact room INSTANCE you stand in, not its name - a run can hold two rooms of the same template.
         int currentIdx = LiveMapFeature.currentRoomIndex();
+        if (changed("currentRoom", String.valueOf(currentIdx))) {
+            LOGGER.info("[SecretWaypoints] current room index now {}{}", currentIdx,
+                    currentIdx < 0 ? " - not in a known room (boss, corridor or unmapped cell): no waypoints" : "");
+        }
         if (currentIdx < 0) {
             return;
         }
@@ -381,6 +427,7 @@ public final class SecretWaypointsFeature {
         java.util.List<int[]> rooms = sim
                 ? com.killer560.hub.roomsim.SimRoomIndex.identifiedRoomsWithRotation()
                 : LiveMapFeature.identifiedRoomsWithRotation();
+        boolean anyCell = false;
         for (int[] room : rooms) {
             RoomEntry entry = sim
                     ? com.killer560.hub.roomsim.SimRoomIndex.roomEntryAt(room[0])
@@ -388,18 +435,41 @@ public final class SecretWaypointsFeature {
             boolean hasCell = sim
                     ? com.killer560.hub.roomsim.SimRoomIndex.roomHasCell(room[0], currentIdx)
                     : roomHasCell(room[0], currentIdx);
+            anyCell |= hasCell;
             if (entry == null || entry.secretCoords == null || !isRoomShown(entry.name) || !hasCell) {
+                // Only the room he stands in is interesting: every other room fails hasCell on every rebuild.
+                if (hasCell) {
+                    String why = entry == null ? "no room database entry" : entry.secretCoords == null
+                            ? "entry " + entry.name + " has no secret coords" : "room not shown";
+                    if (changed("skip:" + room[0], why)) {
+                        LOGGER.info("[SecretWaypoints] current room main={} skipped: {} (sim={} clay={},{} rotation={})",
+                                room[0], why, sim, room[1], room[2], room[3]);
+                    }
+                }
                 continue;
             }
             int clayX = room[1];
             int clayZ = room[2];
             int rotation = room[3];
             logRoomFrame(entry.name, clayX, clayZ, rotation);
+            if (changed("frameSrc:" + room[0], entry.name + "|" + clayX + "|" + clayZ + "|" + rotation)) {
+                LOGGER.info("[SecretWaypoints] room matched: {} main={} current={} source={} secrets chest={} item={} wither={} bat={} key={}",
+                        entry.name, room[0], currentIdx, sim ? "sim room index" : "live map (identified + rotation found)",
+                        sizeOf(entry.secretCoords.chest), sizeOf(entry.secretCoords.item),
+                        sizeOf(entry.secretCoords.wither), sizeOf(entry.secretCoords.bat),
+                        sizeOf(entry.secretCoords.redstoneKey));
+            }
             addGroup(entry.secretCoords.chest, clayX, clayZ, rotation, cfg.getChestColor(), Kind.CHEST, "chest", cfg, seen);
             addGroup(entry.secretCoords.item, clayX, clayZ, rotation, cfg.getItemColor(), Kind.ITEM, "item", cfg, seen);
             addGroup(entry.secretCoords.wither, clayX, clayZ, rotation, cfg.getWitherColor(), Kind.WITHER, "wither", cfg, seen);
             addGroup(entry.secretCoords.bat, clayX, clayZ, rotation, cfg.getBatColor(), Kind.BAT, "bat", cfg, seen);
             addGroup(entry.secretCoords.redstoneKey, clayX, clayZ, rotation, cfg.getRedstoneKeyColor(), Kind.ITEM, "key", cfg, seen);
+        }
+        if (changed("anyCell:" + currentIdx, anyCell + "|" + rooms.size())) {
+            if (!anyCell) {
+                LOGGER.info("[SecretWaypoints] current room {} is not among the {} identified rooms with a rotation (sim={})"
+                        + " - no database waypoints until it is identified and its corner found", currentIdx, rooms.size(), sim);
+            }
         }
         // killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
         // clear." Not in the room database, so scanned live - see scanLevers' own doc. "Only during clear" needs
@@ -410,6 +480,10 @@ public final class SecretWaypointsFeature {
     }
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-secretwaypoints");
+
+    private static int sizeOf(List<?> list) {
+        return list == null ? 0 : list.size();
+    }
 
     /** The room frame last logged, so the line is written once per room entry (and again if the frame changes). */
     private static String lastLoggedFrame;
@@ -458,14 +532,29 @@ public final class SecretWaypointsFeature {
         boolean princes = cfg.isShowPrinces();
         Minecraft client = Minecraft.getInstance();
         if ((!crypts && !princes) || client.level == null) {
+            if (changed("crypts", "off")) {
+                LOGGER.info("[SecretWaypoints] crypt scan skipped: showCrypts={} showPrinces={} level={}", crypts, princes,
+                        client.level != null);
+            }
             return;
         }
         int[] bounds = LiveMapFeature.roomWorldBounds(currentIdx);
         if (bounds == null) {
+            if (changed("crypts", "nobounds:" + currentIdx)) {
+                LOGGER.info("[SecretWaypoints] crypt scan skipped: room {} has no world bounds yet", currentIdx);
+            }
             return;
         }
+        if (changed("crypts", "scan:" + currentIdx)) {
+            LOGGER.info("[SecretWaypoints] crypt scan on room {} bounds={},{}..{},{} showCrypts={} showPrinces={}",
+                    currentIdx, bounds[0], bounds[1], bounds[2], bounds[3], crypts, princes);
+        }
         for (CryptScanner.Found f : CryptScanner.scan(client.level, bounds)) {
-            CRYPTS.putIfAbsent(f.anchor(), new CryptState(f));
+            if (CRYPTS.putIfAbsent(f.anchor(), new CryptState(f)) == null) {
+                LOGGER.info("[SecretWaypoints] {} added for the run: anchor={} blocks={} box={},{},{}..{},{},{}", f.type(),
+                        f.anchor().toShortString(), f.blocks().size(), f.minX(), f.minY(), f.minZ(), f.maxX(), f.maxY(),
+                        f.maxZ());
+            }
         }
         for (CryptState s : CRYPTS.values()) {
             CryptScanner.Found f = s.found;
@@ -493,7 +582,15 @@ public final class SecretWaypointsFeature {
             // Blown open: gone for the run, at once. killer560, 2026-10-19: when he blows up a crypt or a prince with
             // a Superboom it should disappear - he does not kill what comes out, he only opens it. It used to stay up
             // for as long as a living mob stood within five blocks of the hole, which with nothing killed was forever.
+            if (!readable && changed("unreadable:" + f.anchor().toShortString(), "y")) {
+                LOGGER.info("[SecretWaypoints] {} at {} not judged: part of it is in an unloaded chunk, keeps its last state",
+                        f.type(), f.anchor().toShortString());
+            } else if (readable) {
+                NOTED.remove("unreadable:" + f.anchor().toShortString());
+            }
             if (readable && standing * 2 < f.blocks().size()) {
+                LOGGER.info("[SecretWaypoints] {} at {} opened: standing={} of {} blocks - hidden for the run", f.type(),
+                        f.anchor().toShortString(), standing, f.blocks().size());
                 s.done = true;
                 continue;
             }
@@ -653,10 +750,16 @@ public final class SecretWaypointsFeature {
                 if (!com.killer560.hub.util.ClientChunks.isLoaded(client.level, cx, cz)) {
                     // Not loaded: unknown, not empty. Show what it held when it was last read.
                     levers = LEVERS_BY_CHUNK.get(key);
+                    if (changed("leverChunk:" + cx + "," + cz, "unloaded:" + (levers == null ? -1 : levers.size()))) {
+                        LOGGER.info("[SecretWaypoints] lever scan chunk {},{} not loaded: {}", cx, cz, levers == null
+                                ? "never read, no levers known" : "showing " + levers.size() + " remembered lever(s)");
+                    }
                     if (levers == null) {
                         continue;
                     }
                 } else {
+                    int sectionCount = 0;
+                    int leverSections = 0;
                     levers = new ArrayList<>();
                     net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(cx, cz);
                     int x0 = Math.max(bounds[0], cx << 4);
@@ -671,10 +774,12 @@ public final class SecretWaypointsFeature {
                             continue;
                         }
                         var section = sections[i];
+                        sectionCount++;
                         if (section == null || section.hasOnlyAir()
                                 || !section.maybeHas(state -> state.is(Blocks.LEVER))) {
                             continue;
                         }
+                        leverSections++;
                         int y0 = Math.max(leverMinY, sectionMinY);
                         int y1 = Math.min(leverMaxY, sectionMaxY);
                         for (int x = x0; x <= x1; x++) {
@@ -686,6 +791,10 @@ public final class SecretWaypointsFeature {
                                 }
                             }
                         }
+                    }
+                    if (changed("leverChunk:" + cx + "," + cz, "read:" + leverSections + ":" + levers.size())) {
+                        LOGGER.info("[SecretWaypoints] lever scan chunk {},{}: sections in band={} with a lever in the palette={} levers={} band y={}..{}",
+                                cx, cz, sectionCount, leverSections, levers.size(), leverMinY, leverMaxY);
                     }
                     if (levers.isEmpty()) {
                         LEVERS_BY_CHUNK.remove(key);
@@ -707,6 +816,9 @@ public final class SecretWaypointsFeature {
                     }
                     // A dummy lever is no secret and opens nothing (Red Blue's cage nook, killer560 2026-10-17).
                     if (com.killer560.hub.secrets.DummyLevers.isDummy(real)) {
+                        if (changed("dummy:" + real.toShortString(), "y")) {
+                            LOGGER.info("[SecretWaypoints] lever at {} skipped: dummy lever", real.toShortString());
+                        }
                         continue;
                     }
                     AABB box = boxFor(real, Kind.LEVER, cfg.getBoxSize());
@@ -773,6 +885,9 @@ public final class SecretWaypointsFeature {
             // mod. Cheat-only: knowing a chest is a monster before it attacks you is exactly the kind of
             // information advantage the rest of this mod's cheat features are already gated on.
             if (kind == Kind.CHEST && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && isMimic(real)) {
+                if (changed("mimic:" + real.toShortString(), "y")) {
+                    LOGGER.info("[SecretWaypoints] chest at {} is a trapped chest: drawn red as a mimic", real.toShortString());
+                }
                 wr = 1f;
                 wg = 0f;
                 wb = 0f;

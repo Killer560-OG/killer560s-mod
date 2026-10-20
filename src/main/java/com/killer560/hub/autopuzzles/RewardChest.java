@@ -81,6 +81,14 @@ final class RewardChest {
     private String lastNote = "";
     /** The last {@link #pick} could not see the whole chest box: part of it is not loaded on the client. */
     private boolean unloaded = false;
+    /** Logging only: the tick claiming began. */
+    private long startTick = 0L;
+    /** Logging only: the click count whose "clicking again" line went out. */
+    private int retryLoggedFor = -1;
+
+    private long elapsed() {
+        return com.killer560.hub.util.SessionRecorderSink.tick() - startTick;
+    }
 
     /**
      * @param anchorRel room-relative {x, y, z} of where the reward chest is (the nearest chest to it is taken first)
@@ -129,7 +137,9 @@ final class RewardChest {
         }
         active = true;
         ticks = 0;
-        LOGGER.info("[AutoPuzzles] {}: solved - claiming the reward chest", tag);
+        startTick = com.killer560.hub.util.SessionRecorderSink.tick();
+        LOGGER.info("[AutoPuzzles] {}: solved - claiming the reward chest (max {} chest(s), retryEvery={}) tick={}", tag,
+                maxChests, retryEvery, startTick);
     }
 
     void reset(Minecraft client) {
@@ -151,6 +161,7 @@ final class RewardChest {
         hops = 0;
         lastNote = "";
         unloaded = false;
+        retryLoggedFor = -1;
     }
 
     private void note(String what) {
@@ -176,6 +187,8 @@ final class RewardChest {
         if (McCompat.screen(client) != null) {
             if (clickedAwaitingScreen && target != null) {
                 done(target, "its window opened");
+            } else {
+                note("a screen is open - waiting");
             }
             return;
         }
@@ -196,6 +209,7 @@ final class RewardChest {
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null || client.level == null) {
+            note("the room's rotation is not known - waiting");
             return;
         }
         if (target == null) {
@@ -215,12 +229,17 @@ final class RewardChest {
                 return;
             }
             everFound = true;
+            retryLoggedFor = -1;
             clicks = 0;
             hops = 0;
             sinceClick = Integer.MAX_VALUE / 2;
             warpTried.clear();
-            LOGGER.info("[AutoPuzzles] {}: reward chest at {} (relative {})", tag, AutoPuzzleUtil.fmt(target),
-                    AutoPuzzleUtil.fmt(PuzzleCoords.relative(target, cr)));
+            LOGGER.info("[AutoPuzzles] {}: reward chest at {} (relative {}) - the unopened chest nearest the anchor"
+                            + " (relative {}); {} already dealt with; boxDist={} elapsedTicks={}", tag,
+                    AutoPuzzleUtil.fmt(target), AutoPuzzleUtil.fmt(PuzzleCoords.relative(target, cr)),
+                    anchorRel[0] + ", " + anchorRel[1] + ", " + anchorRel[2], opened.size(),
+                    String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits
+                            .boxDistanceSq(player.getEyePosition(), target))), elapsed());
         }
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (distSq > AutoPuzzleUtil.BLOCK_REACH_SQ) {
@@ -259,10 +278,21 @@ final class RewardChest {
         }
         if (retryEvery > 0) {
             if (clicks > 0 && sinceClick < retryEvery) {
+                LOGGER.debug("[AutoPuzzles] {}: next click in {} tick(s)", tag, retryEvery - sinceClick);
                 return; // the next click goes exactly retryEvery ticks after the last; the window or the lid ends it
             }
         } else if (clicks > 0 && !unanswered()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoPuzzles] {}: click {} answer not due yet ({} tick(s) since, due after {})", tag,
+                        clicks, sinceClick, answerTicks());
+            }
             return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
+        }
+        if (clicks > 0 && retryLoggedFor != clicks) {
+            retryLoggedFor = clicks;
+            LOGGER.info("[AutoPuzzles] {}: click {} on {} unanswered after {} tick(s) (answer due {}, acked={}) -"
+                            + " clicking again", tag, clicks, AutoPuzzleUtil.fmt(target), sinceClick, answerTicks(),
+                    com.killer560.hub.util.ChestWindows.acked(clickSeq));
         }
         // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
         // onto the chest in the tick it becomes clickable - the landing, or the first tick it is in reach - under this
@@ -277,8 +307,8 @@ final class RewardChest {
             }
         }
         if (retryEvery <= 0 && clicks >= MAX_CLICKS) {
-            LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s)", tag,
-                    AutoPuzzleUtil.fmt(target), clicks);
+            LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s) - giving up on it"
+                    + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target), clicks, elapsed());
             opened.add(target); // not again
             target = null;
             return;
@@ -287,6 +317,8 @@ final class RewardChest {
             AutoReposition.releaseSneak(client);
             if (client.options.keyShift.isDown()) {
                 note("sneaking - a sneak-click would use the held item, not open the chest");
+            } else {
+                note("sneak let go before the click (click next tick)");
             }
             return;
         }
@@ -296,6 +328,8 @@ final class RewardChest {
         // Marked BEFORE the click goes: the integrated server can answer on its own thread before the next line runs.
         int mark = com.killer560.hub.util.ChestWindows.count();
         if (!AutoPuzzleUtil.interactBlock(client, target)) {
+            LOGGER.info("[AutoPuzzles] {}: the reward chest at {} has no clickable shape - skipped elapsedTicks={}", tag,
+                    AutoPuzzleUtil.fmt(target), elapsed());
             opened.add(target);
             target = null;
             return;
@@ -305,9 +339,10 @@ final class RewardChest {
         clickedAwaitingScreen = true;
         windowMark = mark;
         clickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
-        LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {}{})", tag,
-                AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks,
-                retryEvery > 0 ? ", next in " + retryEvery + " tick(s) until it opens" : "");
+        LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {}{}) seq={}"
+                        + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target),
+                String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks,
+                retryEvery > 0 ? ", next in " + retryEvery + " tick(s) until it opens" : "", clickSeq, elapsed());
     }
 
     /**
@@ -335,7 +370,9 @@ final class RewardChest {
         camera.release(Minecraft.getInstance().player);
         opened.add(chest);
         clickedAwaitingScreen = false;
-        LOGGER.info("[AutoPuzzles] {}: reward chest at {} opened ({})", tag, AutoPuzzleUtil.fmt(chest), why);
+        LOGGER.info("[AutoPuzzles] {}: reward chest at {} opened ({}) after {} click(s), {} tick(s) since the last;"
+                        + " {} of {} done elapsedTicks={}", tag, AutoPuzzleUtil.fmt(chest), why, clicks, sinceClick,
+                opened.size(), maxChests, elapsed());
         target = null;
         if (opened.size() >= maxChests) {
             finish("done");
@@ -347,7 +384,8 @@ final class RewardChest {
         Minecraft client = Minecraft.getInstance();
         camera.release(client.player);
         AutoPuzzleActivity.ended();
-        LOGGER.info("[AutoPuzzles] {}: reward chest step over - {}", tag, why);
+        LOGGER.info("[AutoPuzzles] {}: reward chest step over - {} ({} opened) elapsedTicks={}", tag, why,
+                opened.size(), elapsed());
     }
 
     private static boolean isOpen(Minecraft client, BlockPos pos) {

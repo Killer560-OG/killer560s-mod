@@ -53,6 +53,8 @@ public final class P3SectionTracker {
     private static Object lastLevel = null;
     private static boolean registered = false;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-leveraura");
+
     private P3SectionTracker() {
     }
 
@@ -99,15 +101,18 @@ public final class P3SectionTracker {
         }
         plain = plain.trim();
         if (GOLDOR_START.equals(plain)) {
+            LOGGER.info("[LeverAura] P3 sections: Goldor's opening line - new run");
             resetRun();
             sawGoldorStart = true;
             return;
         }
         if (CORE_OPENING.equals(plain)) {
+            LOGGER.info("[LeverAura] P3 sections: core entrance opening (from section {})", section);
             setSection(5);
             return;
         }
         if (GATE_DESTROYED.equals(plain)) {
+            LOGGER.info("[LeverAura] P3 sections: gate destroyed in section {} ({}/{})", section, sectionCurrent, sectionTotal);
             sectionGate = true;
             checkSectionAdvance();
             return;
@@ -125,22 +130,28 @@ public final class P3SectionTracker {
         if (!sawGoldorStart && section == 1 && sectionTotal == 0) {
             Floor7Tracker.Stage at = Floor7Tracker.getStageAt();
             if (at.number >= 2 && at.number <= 4) {
+                LOGGER.info("[LeverAura] P3 sections: no Goldor line seen, section taken from position: S{}", at.number);
                 setSection(at.number);
             }
         }
         // Missed gate line fallback: this section was already complete and a line from a different count arrives.
         if (sectionTotal > 0 && sectionCurrent == sectionTotal && (tot != sectionTotal || cur < sectionCurrent)) {
+            LOGGER.info("[LeverAura] P3 sections: missed gate line - section {} was {}/{}, new line {}/{}", section,
+                    sectionCurrent, sectionTotal, cur, tot);
             setSection(section + 1);
         }
         sectionCurrent = cur;
         sectionTotal = tot;
+        LOGGER.info("[LeverAura] P3 sections: {} {} ({}/{}) in section {}", m.group(2), m.group(3), cur, tot, section);
         if (section == 2 && "device".equals(m.group(3)) && !lightsCompleted) {
             // S2 has exactly one device - the Lights device.
             lightsCompleted = true;
+            LOGGER.info("[LeverAura] P3 sections: Lights device completed");
         }
         if (section == 1 && "device".equals(m.group(3)) && !ssCompleted) {
             // S1 has exactly one device - Simon Says. AP3's "ss" modifier waits on this (killer560, 2026-10-18).
             ssCompleted = true;
+            LOGGER.info("[LeverAura] P3 sections: Simon Says device completed");
         }
         checkSectionAdvance();
     }
@@ -155,6 +166,7 @@ public final class P3SectionTracker {
         if (s == section) {
             return;
         }
+        LOGGER.info("[LeverAura] P3 sections: section {} -> {}", section, s);
         section = s;
         sectionCurrent = 0;
         sectionTotal = 0;
@@ -162,6 +174,10 @@ public final class P3SectionTracker {
     }
 
     private static void resetRun() {
+        if (section != 1 || sectionTotal != 0 || lightsCompleted || ssCompleted) {
+            LOGGER.info("[LeverAura] P3 sections: run reset (was section {} {}/{} lights={} ss={}), generation {}",
+                    section, sectionCurrent, sectionTotal, lightsCompleted, ssCompleted, generation + 1);
+        }
         section = 1;
         sectionCurrent = 0;
         sectionTotal = 0;

@@ -34,6 +34,8 @@ import java.util.Set;
  */
 public final class KeySpots {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoroutes");
+
     /** Spots a key head was seen at this run. */
     private static final Set<Long> SEEN = new HashSet<>();
     private static Object level;
@@ -45,6 +47,10 @@ public final class KeySpots {
     private static void check(Minecraft client) {
         int gen = LiveMapFeature.resetGeneration();
         if (client.level != level || gen != generation) {
+            if (!SEEN.isEmpty()) {
+                LOGGER.info("[AutoRoutes] key spots: new run (generation {}) - forgetting {} seen key spot(s)", gen,
+                        SEEN.size());
+            }
             level = client.level;
             generation = gen;
             SEEN.clear();
@@ -79,7 +85,10 @@ public final class KeySpots {
         }
         for (BlockPos s : spots(frame)) {
             if (client.level.isLoaded(s) && com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(client.level, s)) {
-                SEEN.add(s.asLong());
+                if (SEEN.add(s.asLong())) {
+                    LOGGER.info("[AutoRoutes] key spots: key head seen at {} in {} - marked for this run", s.toShortString(),
+                            frame.roomName());
+                }
             }
         }
     }
@@ -87,7 +96,9 @@ public final class KeySpots {
     /** His click on a key skull: the key was there. */
     static void noteKeyAt(Minecraft client, BlockPos pos) {
         check(client);
-        SEEN.add(pos.asLong());
+        if (SEEN.add(pos.asLong())) {
+            LOGGER.info("[AutoRoutes] key spots: your click on the key at {} marks it for this run", pos.toShortString());
+        }
     }
 
     /**
@@ -106,16 +117,25 @@ public final class KeySpots {
         }
         Vec3 eye = feet.add(0, 1.62, 0);
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
+        StringBuilder why = new StringBuilder();
         for (BlockPos s : spots) {
             if (SEEN.contains(s.asLong()) || !client.level.isLoaded(s) || boxDistance(eye, s) > reach) {
+                why.append(' ').append(s.toShortString()).append(SEEN.contains(s.asLong()) ? "=key seen"
+                        : !client.level.isLoaded(s) ? "=not loaded" : "=out of reach");
                 continue;
             }
             BlockState there = client.level.getBlockState(s);
             if (there.is(Blocks.PLAYER_HEAD) || there.is(Blocks.PLAYER_WALL_HEAD)) {
+                why.append(' ').append(s.toShortString()).append("=head there");
                 continue;
             }
+            why.append(' ').append(s.toShortString()).append("=empty, prefills 1");
             out.add(s);
         }
+        LOGGER.info("[AutoRoutes] key spots in {} from {}: {} of {} empty in reach -{}",
+                frame == null ? "?" : frame.roomName(),
+                String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", feet.x, feet.y, feet.z), out.size(), spots.size(),
+                why);
         return out;
     }
 

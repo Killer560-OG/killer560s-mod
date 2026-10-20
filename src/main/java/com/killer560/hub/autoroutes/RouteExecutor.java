@@ -343,6 +343,44 @@ public final class RouteExecutor {
         mimicGapSaid = false;
     }
 
+    // ---- logging only (no behavior reads these) ----
+    /** The last "held:" reason logged and the {@link #execTicks} it went out, for {@link #logHold}'s rate limit. */
+    private static String lastHoldKey;
+    private static long lastHoldTick;
+
+    /** A wait that can repeat every tick: logged when its key changes, else at most once per 20 route ticks. */
+    private static void logHold(String key, String format, Object... args) {
+        if (key.equals(lastHoldKey) && execTicks - lastHoldTick < 20 && execTicks >= lastHoldTick) {
+            return;
+        }
+        lastHoldKey = key;
+        lastHoldTick = execTicks;
+        LOGGER.info("[AutoRoutes] held: " + format, args);
+    }
+
+    /** "#5 ETHERWARP" for a log line, or "-" with no node. */
+    private static String nodeTag(RouteNode node) {
+        if (node == null) {
+            return "-";
+        }
+        return "#" + (route == null ? "?" : String.valueOf(route.indexOf(node) + 1)) + " " + node.type;
+    }
+
+    /** Who called {@link #stop}: the first frame outside it, as Class.method:line (pure, logging only). */
+    private static String stopCaller() {
+        try {
+            return StackWalker.getInstance().walk(frames -> frames
+                    .filter(f -> !(f.getClassName().equals(RouteExecutor.class.getName())
+                            && (f.getMethodName().equals("stop") || f.getMethodName().equals("stopCaller"))))
+                    .findFirst()
+                    .map(f -> f.getClassName().substring(f.getClassName().lastIndexOf('.') + 1) + "."
+                            + f.getMethodName() + ":" + f.getLineNumber())
+                    .orElse("?"));
+        } catch (Throwable t) {
+            return "?";
+        }
+    }
+
     /** A look onto {@link #warpTarget} from his eye that holds within the planner's margin (it may be the look already
      *  sent, if what stopped the first went away). When there is none the look already sent goes again: until
      *  2026-10-19 this returned false and nothing was sent, so the warp sat out the 61-tick landing timeout or his left
@@ -611,6 +649,7 @@ public final class RouteExecutor {
      *  latched until he steps off it. @return false when nothing was running. */
     public static boolean stopByUser() {
         if (!running) {
+            LOGGER.info("[AutoRoutes] /ar stop: nothing running - nothing to stop");
             return false;
         }
         stop(STOPPED_BY_COMMAND);
@@ -620,7 +659,14 @@ public final class RouteExecutor {
     public static void stop(String reason) {
         boolean wasRunning = running;
         if (wasRunning) {
+            LOGGER.info("[AutoRoutes] stop called: reason={} by={} room={} node={} step={} stepTicks={} sinceFiring={} "
+                            + "awaitDone={} run={} tick(s) next={}/{} stackLeft={} settle={} sneakHeld={} useHeld={} user={}",
+                    reason, stopCaller(), route == null ? "?" : route.roomName(), nodeTag(activeNode), step, stepTicks,
+                    actionAge, awaitPhaseDone, execTicks, nextNode, ordered.size(), stackQueue.size(), settleTicks,
+                    forceSneak, useHeld, reason != null && USER_STOP_REASONS.contains(reason));
             endSecretGap("the route stopped (" + reason + ")");
+        } else if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AutoRoutes] stop({}) while idle - nothing to do (by {})", reason, stopCaller());
         }
         if (wasRunning && reason != null && USER_STOP_REASONS.contains(reason)) {
             stoppedByUser = true;
@@ -696,9 +742,13 @@ public final class RouteExecutor {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || r == null || f == null || startNode == null) {
+            LOGGER.info("[AutoRoutes] start refused: player={} route={} frame={} startNode={} - something it needs is missing",
+                    player != null, r == null ? "null" : r.roomName(), f != null, startNode == null ? "null" : startNode.type);
             return false;
         }
         if (running) {
+            LOGGER.info("[AutoRoutes] start: \"{}\" still running ({}) - stopping it to start \"{}\"",
+                    route == null ? "?" : route.roomName(), nodeTag(activeNode), r.roomName());
             stop("restarted");
         }
         route = r;
@@ -744,6 +794,14 @@ public final class RouteExecutor {
         RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
+        lastHoldKey = null;
+        lastHoldTick = 0;
+        AutoRoutesConfig startCfg = AutoRoutesConfig.getInstance();
+        LOGGER.info("[AutoRoutes] start state: player {} | {} node(s) in order, first #{} | {} | {} mode | etherwarps/s {} "
+                        + "| interact delay {} | input mixin {} | refused retry after {} tick(s)", fmt(player.position()),
+                ordered.size(), r.indexOf(startNode) + 1, r.path().isEmpty() ? "path-less" : "recorded path",
+                startCfg.isLegitMode() ? "legit" : "obvious", startCfg.getEtherwarpsPerSecond(),
+                startCfg.getInteractDelayTicks(), mixinApplied, refusedRetryTicks());
         // No chat line: one route per room is progress, not a start he made (killer560, 2026-10-16).
         // The node he stepped onto goes off NOW (killer560, 2026-10-04: "If I do /ar add ew start, that means that
         // the second I hit that node it should go off"). This used to wait for the next tick's walk step to find
@@ -827,6 +885,10 @@ public final class RouteExecutor {
     public static void onServerPositionPacket() {
         teleportPacketSeen = true;
         positionPackets++;
+        if (running && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AutoRoutes] server position packet #{} at route tick {} (step {})", positionPackets,
+                    execTicks, step);
+        }
     }
 
     /** {@link #execTicks} of the last use packet HIS right click sent while a route ran (see {@link #onUseSent}). */
@@ -847,6 +909,11 @@ public final class RouteExecutor {
         }
         Minecraft mc = Minecraft.getInstance();
         if (useButtonPhysicallyDown(mc)) {
+            if (execTicks - manualUseAt > 4) {
+                LOGGER.info("[AutoRoutes] your own right click went out mid-route at tick {} (node {}) - a teleport in the "
+                        + "next {} tick(s) is yours, not a correction", execTicks, nodeTag(activeNode),
+                        warpRoundTripTicks() * NO_ACK_ROUND_TRIPS);
+            }
             manualUseAt = execTicks;
         }
     }
@@ -899,6 +966,8 @@ public final class RouteExecutor {
         }
         positionPacketsHandled = packets;
         if (ServerCorrections.lastMoveDistance() < ServerCorrections.MIN_MOVE_BLOCKS) {
+            LOGGER.debug("[AutoRoutes] position packet moved {} (< {}) - rotation-only, not a correction",
+                    ServerCorrections.lastMoveDistance(), ServerCorrections.MIN_MOVE_BLOCKS);
             return; // rotation-only: he is where he was
         }
         RouteNode node = activeNode;
@@ -910,6 +979,11 @@ public final class RouteExecutor {
                 && (node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH);
         if (warping) {
             if (warpLanding == null || player.position().distanceTo(warpLanding) <= LANDING_TOLERANCE) {
+                LOGGER.info("[AutoRoutes] position packet during {}'s warp{}: {} - its own landing, not a correction "
+                                + "(moved {}, {} tick(s) after the use)", nodeTag(node),
+                        hopIndex >= 0 ? " hop " + (hopIndex + 1) : "", warpLanding == null ? "no landing recorded"
+                                : String.format(Locale.US, "%.2f from the landing", player.position().distanceTo(warpLanding)),
+                        String.format(Locale.US, "%.2f", ServerCorrections.lastMoveDistance()), stepTicks);
                 return; // the warp's own landing (tickWarp confirms it this tick)
             }
             double off = player.position().distanceTo(warpLanding);
@@ -936,9 +1010,15 @@ public final class RouteExecutor {
         }
         if (node != null && (node.type == RouteNode.Type.USE_ITEM || node.type == RouteNode.Type.COMMAND
                 || node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH)) {
+            LOGGER.info("[AutoRoutes] position packet during node {} (step {}, await done {}) moved {} - presumed the "
+                            + "node's own teleport, not a correction", nodeTag(node), step, awaitPhaseDone,
+                    String.format(Locale.US, "%.2f", ServerCorrections.lastMoveDistance()));
             return; // the node's own teleport, or a warp not yet sent / already confirmed
         }
         if (execTicks <= ownTeleportUntil) {
+            LOGGER.info("[AutoRoutes] position packet moved {} within the last node's teleport grace ({} tick(s) left) - "
+                            + "presumed its own teleport, not a correction",
+                    String.format(Locale.US, "%.2f", ServerCorrections.lastMoveDistance()), ownTeleportUntil - execTicks);
             return;
         }
         reportCorrection((node != null ? "during node #" + (route.indexOf(node) + 1) + " "
@@ -992,7 +1072,10 @@ public final class RouteExecutor {
             return;
         }
         Vec3 rel = RouteCoords.toRelative(frame, player.position());
+        int before = cursor;
         cursor = path.nearest(0, cursor + SEEK_WINDOW, rel.x, rel.y, rel.z);
+        LOGGER.info("[AutoRoutes] path cursor relocated after a move: sample {} -> {} of {} (player {})", before, cursor,
+                path.size(), fmt(player.position()));
         bestTargetDistance = Double.MAX_VALUE;
         noProgressTicks = 0;
     }
@@ -1003,6 +1086,9 @@ public final class RouteExecutor {
      * cursor rejoins the path where he is. The rest of the stack goes with it; nothing stops.
      */
     private static void letGoAfterCorrection(Minecraft client, LocalPlayer player) {
+        LOGGER.info("[AutoRoutes] node {} let go uncounted after {} tick(s) in step {}: {} stacked node(s) dropped, settle "
+                        + "{} tick(s), player {} - the route carries on from here", nodeTag(activeNode), stepTicks, step,
+                stackQueue.size(), AutoRoutesConfig.getInstance().getInteractDelayTicks(), fmt(player.position()));
         RouteRotation.clear();
         activeNode = null;
         step = null;
@@ -1018,6 +1104,9 @@ public final class RouteExecutor {
     }
 
     public static void onMixinApplied() {
+        if (!mixinApplied) {
+            LOGGER.info("[AutoRoutes] input mixin applied - the route drives through the Input record");
+        }
         mixinApplied = true;
     }
 
@@ -1088,23 +1177,35 @@ public final class RouteExecutor {
         }
         boolean driven = route != null && !route.path().isEmpty();
         if (!userKeys) {
+            if (handsLatched) {
+                LOGGER.info("[AutoRoutes] your movement keys are all up at tick {} - a fresh press from now counts as "
+                        + "taking over", execTicks);
+            }
             handsLatched = false;
             return isDriving();
         }
         // Between two nodes of one stack the route still owns the input: the stack is one unit.
         boolean acting = activeNode != null || !stackQueue.isEmpty();
         if (handsLatched) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoRoutes] movement key held since the route took the input - overridden (driven {}, "
+                        + "acting {}, walk hold {})", driven, acting, walkHoldYaw != null);
+            }
             return driven || acting || walkHoldYaw != null;
         }
         if (arrivalChain) {
+            LOGGER.info("[AutoRoutes] fresh movement key during a landing loop (node {}) - stopping", nodeTag(activeNode));
             stop("you moved");
             return false;
         }
         if (driven) {
+            LOGGER.info("[AutoRoutes] fresh movement key on a recorded route (node {}, sample {}) - stopping",
+                    nodeTag(activeNode), cursor);
             stop("you moved");
             return false;
         }
         if (walkHoldYaw != null) {
+            LOGGER.info("[AutoRoutes] fresh movement key - the held walk sprint is handed back to you (route keeps running)");
             endWalkHold();
             RouteRotation.clear();
             return false;
@@ -1112,8 +1213,14 @@ public final class RouteExecutor {
         if (breakerWaiting()) {
             // A breaker node waiting for charges can wait up to 30 s: a fresh movement key is him taking over, on a
             // path-less route too (a node's own few ticks of action override it; this is not a few ticks).
+            LOGGER.info("[AutoRoutes] fresh movement key while breaker node {} waited {} tick(s) for charges - stopping",
+                    nodeTag(activeNode), breakerWaitTicks);
             stop("you moved");
             return false;
+        }
+        if (acting) {
+            logHold("keys-override", "fresh movement key during node {} (path-less) - overridden for its action",
+                    nodeTag(activeNode));
         }
         return acting;
     }
@@ -1145,7 +1252,33 @@ public final class RouteExecutor {
 
     /** The {@code Input} record the mixin installs for this tick. */
     public static Input drivenInput() {
+        int bits = (wantForward ? 1 : 0) | (wantBackward ? 2 : 0) | (wantLeft ? 4 : 0) | (wantRight ? 8 : 0)
+                | (wantJump ? 16 : 0) | (wantSneak ? 32 : 0) | (wantSprint ? 64 : 0);
+        if (bits != lastInputBits) {
+            boolean sneakChanged = ((bits ^ lastInputBits) & 32) != 0 || lastInputBits < 0;
+            lastInputBits = bits;
+            if (sneakChanged) {
+                LOGGER.info("[AutoRoutes] input installed at tick {}: {} (node {})", execTicks, inputString(bits),
+                        nodeTag(activeNode));
+            } else if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoRoutes] input installed at tick {}: {}", execTicks, inputString(bits));
+            }
+        }
         return new Input(wantForward, wantBackward, wantLeft, wantRight, wantJump, wantSneak, wantSprint);
+    }
+
+    /** The last input {@link #drivenInput} installed (logging only), -1 before any. */
+    private static int lastInputBits = -1;
+
+    private static String inputString(int bits) {
+        StringBuilder sb = new StringBuilder();
+        String[] names = {"W", "S", "A", "D", "jump", "sneak", "sprint"};
+        for (int i = 0; i < names.length; i++) {
+            if ((bits & (1 << i)) != 0) {
+                sb.append(sb.length() == 0 ? "" : "+").append(names[i]);
+            }
+        }
+        return sb.length() == 0 ? "no keys" : sb.toString();
     }
 
     public static float moveVectorX() {
@@ -1177,6 +1310,8 @@ public final class RouteExecutor {
         execTicks++;
         LocalPlayer player = client.player;
         if (player == null || client.level == null || client.level != lastLevel) {
+            LOGGER.info("[AutoRoutes] world change at tick {}: player {} level {} same level as the start {}", execTicks,
+                    player != null, client.level != null, client.level == lastLevel);
             stop("world change");
             return;
         }
@@ -1190,6 +1325,10 @@ public final class RouteExecutor {
                 clearMovement();
                 wantSneak = false;
                 applyFallbackKeys(client);
+                logHold("screen-await:" + traceIndex(activeNode), "node {} waits under a screen ({}) - await done {}, "
+                                + "{} tick(s) since firing; keys off", nodeTag(activeNode),
+                        McCompat.screen(client) == null ? "none" : McCompat.screen(client).getClass().getSimpleName(),
+                        awaitPhaseDone, actionAge);
                 if (awaitPhaseDone) {
                     // The await was met a tick before the chest's window arrived (the secret count and the window
                     // come in either order): the action had started but sent nothing, so it starts over, cleanly,
@@ -1233,8 +1372,15 @@ public final class RouteExecutor {
                 applyFallbackKeys(client);
                 return;
             }
+            LOGGER.info("[AutoRoutes] screen {} opened during node {} (step {}, await held {}) - not a chest window of a "
+                            + "click in the last {} tick(s), so the route stops",
+                    screen == null ? "null" : screen.getClass().getSimpleName(), nodeTag(activeNode), step, awaitHeld,
+                    LATE_CHEST_WINDOW_TICKS);
             stop("a screen opened");
             return;
+        }
+        if (lateChestWindow != null) {
+            LOGGER.info("[AutoRoutes] the late chest window closed - carrying on (tick {})", execTicks);
         }
         lateChestWindow = null;
         // Without the input mixin the same hand-over rules run off the physical keys (onInputTick). The fallback
@@ -1254,12 +1400,19 @@ public final class RouteExecutor {
             if (activeNode != null && awaitHeld) {
                 // Waiting on its await, the node is waiting for HIM: turning to click the chest it waits for is not
                 // taking the route back (found 2026-10-05, 62-argrim: the await stopped as "you moved the camera").
+                logHold("camera-await", "you turned the camera while node {} waits on its await - not a takeover, "
+                        + "the camera ease is dropped", nodeTag(activeNode));
                 RouteRotation.clear();
             } else if (!route.path().isEmpty() || activeNode != null || !stackQueue.isEmpty()) {
+                LOGGER.info("[AutoRoutes] camera moved by you during node {} (step {}, {} stacked, recorded path {}) - "
+                        + "stopping", nodeTag(activeNode), step, stackQueue.size(), !route.path().isEmpty());
                 stop("you moved the camera");
                 return;
             }
             // A path-less route between nodes: only a held walk was turning the camera - hand it back.
+            if (walkHoldYaw != null) {
+                LOGGER.info("[AutoRoutes] camera moved by you between nodes - the held walk is handed back to you");
+            }
             endWalkHold();
             RouteRotation.clear();
         }
@@ -1268,6 +1421,8 @@ public final class RouteExecutor {
         // fired the node early.
         RouteCoords.Frame now = RouteCoords.Frame.current();
         if (now == null || !now.sameRoom(frame)) {
+            LOGGER.info("[AutoRoutes] room check failed at tick {}: now {} vs the route's {} (player {})", execTicks,
+                    now == null ? "no room" : now.roomName(), frame.roomName(), fmt(player.position()));
             stop("left the room");
             return;
         }
@@ -1303,6 +1458,8 @@ public final class RouteExecutor {
         if (MimicKiller.isBusy() && mayYieldToMimic()) {
             // Kill Mimic has the hands: no node starts and nothing moves until it is done. A node already waiting on
             // its await keeps counting - the mimic's death may be the very secret it waits for.
+            logHold("mimic", "Kill Mimic has the hands - route paused at node {} (await done {}), sneak let go",
+                    nodeTag(activeNode), awaitPhaseDone);
             clearMovement();
             forceSneak = false;
             wantSneak = false;
@@ -1324,6 +1481,10 @@ public final class RouteExecutor {
         }
         if (settleTicks > 0) {
             settleTicks--;
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoRoutes] settle: {} tick(s) left before the next node ({} stacked)", settleTicks,
+                        stackQueue.size());
+            }
             clearMovement();
             applyFallbackKeys(client);
             return;
@@ -1339,6 +1500,8 @@ public final class RouteExecutor {
                     // the next node he stands in. One warp per tick at zero ping, instead of landing + settle + a tick.
                     chainAfterLanding = false;
                     clearMovement();
+                    LOGGER.info("[AutoRoutes] server-confirmed landing - the next node goes this same tick ({}) at tick {}",
+                            !stackQueue.isEmpty() ? "stacked " + nodeTag(stackQueue.peek()) : "walk step", execTicks);
                     if (!stackQueue.isEmpty()) {
                         beginAction(stackQueue.poll());
                     } else {
@@ -1353,7 +1516,8 @@ public final class RouteExecutor {
                 tickWalk(client, player);
             }
         } catch (Exception e) {
-            LOGGER.error("[AutoRoutes] Playback error", e);
+            LOGGER.error("[AutoRoutes] Playback error at tick {} in node {} step {} ({} tick(s) in step)", execTicks,
+                    nodeTag(activeNode), step, stepTicks, e);
             stop("internal error (see log)");
             return;
         }
@@ -1389,10 +1553,16 @@ public final class RouteExecutor {
                     beginStack(arrived);
                     return;
                 }
+                LOGGER.info("[AutoRoutes] landed from node #{} at {} - inside no other node, the walk step goes on",
+                        route.indexOf(from) + 1, fmt(pos));
             }
             if (nextNode >= ordered.size()) {
                 if (walkHoldYaw == null) {
+                    LOGGER.info("[AutoRoutes] walk step: every node in order has fired ({} of {}) - completing",
+                            nextNode, ordered.size());
                     complete(); // a walk node at the end keeps going until it runs into something
+                } else {
+                    logHold("walk-end", "last node was a walk - sprinting on until it runs into something");
                 }
                 return;
             }
@@ -1421,6 +1591,8 @@ public final class RouteExecutor {
             // straight toward a carrot that may now be through a wall (the spec's "re-converges on the same sample").
             int back = path.nearest(Math.max(0, cursor - SEEK_WINDOW), cursor, rel.x, rel.y, rel.z);
             if (back < cursor && path.reached(back, rel.x, rel.y, rel.z, REACH_XZ + 0.2, REACH_Y)) {
+                LOGGER.info("[AutoRoutes] path: rubber-banded back from sample {} to {} (player {}) - resuming from there",
+                        cursor, back, fmt(pos));
                 cursor = back;
                 noProgressTicks = 0;
                 bestTargetDistance = Double.MAX_VALUE;
@@ -1431,14 +1603,20 @@ public final class RouteExecutor {
             if (refireHeld(client, player, ordered.get(nextNode))) {
                 return;
             }
+            LOGGER.info("[AutoRoutes] path: reached sample {} (node {} anchored at {}) - firing it", cursor,
+                    nodeTag(ordered.get(nextNode)), ordered.get(nextNode).pathIndex);
             beginStack(ordered.get(nextNode));
             return;
         }
         if (cursor >= path.size() - 1) {
             if (nextNode >= ordered.size()) {
+                LOGGER.info("[AutoRoutes] path: end of the recorded path (sample {}) with every node fired - completing",
+                        cursor);
                 complete();
             } else {
                 // Nodes anchored past the end of the path (hand-edited file) - run them where we stand.
+                LOGGER.info("[AutoRoutes] path: end of the recorded path, node {} anchored past it ({}) - firing it here",
+                        nodeTag(ordered.get(nextNode)), ordered.get(nextNode).pathIndex);
                 clearMovement();
                 beginStack(ordered.get(nextNode));
             }
@@ -1448,6 +1626,8 @@ public final class RouteExecutor {
         RoutePath.Sample at = path.get(cursor);
         double drift = at.distance(rel.x, rel.y, rel.z);
         if (drift > cfg.getMaxDriftDistance()) {
+            LOGGER.info("[AutoRoutes] path: {} blocks off sample {} (max drift {}) - player {} - stopping",
+                    String.format(Locale.US, "%.2f", drift), cursor, cfg.getMaxDriftDistance(), fmt(pos));
             stop(String.format(Locale.US, "%.1f blocks off the recorded path", drift));
             return;
         }
@@ -1458,6 +1638,10 @@ public final class RouteExecutor {
             bestTargetDistance = targetDistance;
             noProgressTicks = 0;
         } else if (++noProgressTicks > cfg.getReachTimeoutTicks()) {
+            LOGGER.info("[AutoRoutes] path: no progress toward sample {} for {} tick(s) (limit {}, {} blocks off, best {}) - "
+                            + "player {} - stopping", targetIdx, noProgressTicks, cfg.getReachTimeoutTicks(),
+                    String.format(Locale.US, "%.2f", targetDistance), String.format(Locale.US, "%.2f", bestTargetDistance),
+                    fmt(pos));
             stop("couldn't reach the next point in time");
             return;
         }
@@ -1513,6 +1697,8 @@ public final class RouteExecutor {
         }
         walkHoldLastPos = pos;
         if (walkHoldStallTicks > WALK_HOLD_STALL_TICKS) {
+            LOGGER.info("[AutoRoutes] walk hold: no movement for {} tick(s) at {} - it hit something, letting go",
+                    walkHoldStallTicks, fmt(pos));
             endWalkHold();
             RouteRotation.clear();
             clearMovement();
@@ -1584,6 +1770,7 @@ public final class RouteExecutor {
         if (!fallbackKeysHeld) {
             return;
         }
+        LOGGER.info("[AutoRoutes] fallback key mappings released (input mixin not applied)");
         fallbackKeysHeld = false;
         Minecraft client = Minecraft.getInstance();
         client.options.keyUp.setDown(false);
@@ -1603,6 +1790,9 @@ public final class RouteExecutor {
      * {@link #finishAction} moves the route on from the trigger's place once the last is done.
      */
     private static void beginStack(RouteNode trigger) {
+        if (refireHoldAt != null) {
+            LOGGER.info("[AutoRoutes] the hold after an unlanded warp ends - node {} fires", nodeTag(trigger));
+        }
         refireHoldAt = null; // any stack firing (a landing elsewhere, his click) ends the hold
         List<RouteNode> stack = route.stackOf(trigger);
         stackQueue.clear();
@@ -1651,7 +1841,13 @@ public final class RouteExecutor {
                             : "not recorded",
                     frame.roomName(), com.killer560.hub.roomsim.SimState.canAct(Minecraft.getInstance()),
                     AutoRoutesConfig.getInstance().isLegitMode() ? "legit" : "obvious");
+        } else {
+            LOGGER.info("[AutoRoutes] Node #{} {} begins: player {} node {} | await {} | {} stacked after it | sneak held {} "
+                            + "| run tick {}", route.indexOf(node) + 1, node.type, fmt(self.position()),
+                    fmt(RouteCoords.toReal(frame, node.relativePos())), traceAwait(node), stackQueue.size(), forceSneak,
+                    execTicks);
         }
+        lastHoldKey = null; // a new node: its first wait logs at once
         activeNode = node;
         step = Step.PREP;
         stepTicks = 0;
@@ -1777,7 +1973,7 @@ public final class RouteExecutor {
         try {
             tickAction(client, self);
         } catch (Exception e) {
-            LOGGER.error("[AutoRoutes] Playback error", e);
+            LOGGER.error("[AutoRoutes] Playback error on node {}'s firing tick (step {})", nodeTag(node), step, e);
             stop("internal error (see log)");
         }
     }
@@ -1857,6 +2053,7 @@ public final class RouteExecutor {
         if (!stackQueue.isEmpty()) {
             planSneak(finished);
             settleAfter(landed, cfg);
+            logFinished(finished, landed);
             return; // the rest of the stack first - tick() begins the next node after the settle
         }
         // The stack is done: the route moves on from the trigger's place, past anything already fired this run.
@@ -1868,7 +2065,10 @@ public final class RouteExecutor {
         stackTrigger = null;
         planSneak(finished);
         settleAfter(landed, cfg);
+        logFinished(finished, landed);
         if (nothingFollows()) {
+            LOGGER.info("[AutoRoutes] nothing follows node {} - the route completes now (no interact delay)",
+                    nodeTag(finished));
             // killer560, 2026-10-15: "it needs to predict when it is going to finish auto routing a room that way the very
             // next tick it starts etherwarping to the next room". The interact delay is the wait before the NEXT node; with
             // none, the route is over now - it used to complete only after that delay and a tick of walk step, and Auto
@@ -1877,6 +2077,18 @@ public final class RouteExecutor {
             chainAfterLanding = false;
             complete();
         }
+    }
+
+    /** One line per finished node: how long it took, what comes next, and the wait before it (logging only). */
+    private static void logFinished(RouteNode finished, boolean landed) {
+        if (finished == null) {
+            return;
+        }
+        LOGGER.info("[AutoRoutes] Node {} finished {} tick(s) after firing ({} after its await) | server-confirmed landing "
+                        + "{} | next {}{} | settle {} tick(s) | chain same tick {} | {} stacked left | next in order {}/{}",
+                nodeTag(finished), actionAge, actionAge - awaitDoneAge, landed, nodeTag(plannedNext),
+                plannedNext == null ? "" : plannedInPlace ? " (fires where you stand)" : " (walk to it)", settleTicks,
+                chainAfterLanding, stackQueue.size(), nextNode, ordered.size());
     }
 
     /**
@@ -2068,11 +2280,18 @@ public final class RouteExecutor {
                 // cannot make a command node, so one only arrives by hand-editing or receiving the file.
                 if (node.command != null && !node.command.isBlank()) {
                     String cmd = node.command.trim();
+                    // The first word only: the rest of a hand-written command is his and may be anything.
+                    int sp = cmd.indexOf(' ');
+                    LOGGER.info("[AutoRoutes] Node #{} COMMAND: sending {} \"{}\" ({} chars) at tick {}",
+                            route.indexOf(node) + 1, cmd.startsWith("/") ? "command" : "chat line",
+                            sp < 0 ? cmd : cmd.substring(0, sp) + " ...", cmd.length(), execTicks);
                     if (cmd.startsWith("/")) {
                         player.connection.sendCommand(cmd.substring(1));
                     } else {
                         player.connection.sendChat(cmd);
                     }
+                } else {
+                    LOGGER.info("[AutoRoutes] Node #{} COMMAND: no command text - nothing sent", route.indexOf(node) + 1);
                 }
                 logActed(node, "");
                 finishAction();
@@ -2112,6 +2331,8 @@ public final class RouteExecutor {
         int want = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, node.jumpCount));
         if (step == Step.PREP) {
             if (!player.onGround() && stepTicks <= JUMP_GROUND_TIMEOUT) {
+                logHold("jump-ground:" + traceIndex(node), "node {} JUMP: jump {} of {} waits for the ground ({} of {} "
+                        + "tick(s))", nodeTag(node), jumpsDone + 1, want, stepTicks, JUMP_GROUND_TIMEOUT);
                 return;
             }
             wantJump = true;
@@ -2136,6 +2357,8 @@ public final class RouteExecutor {
             return;
         }
         jumpCooldownUntil.put(node, System.currentTimeMillis() + JUMP_COOLDOWN_MS);
+        LOGGER.info("[AutoRoutes] Node #{} JUMP: all {} jump(s) done {} tick(s) after firing - its tile will not arm for {} ms",
+                route.indexOf(node) + 1, jumpsDone, actionAge, JUMP_COOLDOWN_MS);
         finishAction();
     }
 
@@ -2176,6 +2399,10 @@ public final class RouteExecutor {
 
     private static void tickRotate(RouteNode node) {
         if (step == Step.PREP) {
+            LOGGER.info("[AutoRoutes] Node #{} ROTATE: turning to yaw {} pitch {} ({})", route.indexOf(node) + 1,
+                    String.format(Locale.ROOT, "%.2f", RouteCoords.toRealYaw(frame, node.yaw)),
+                    String.format(Locale.ROOT, "%.2f", node.pitch),
+                    AutoRoutesConfig.getInstance().isLegitMode() ? "legit camera turn" : "obvious - nothing to turn");
             aimAt(node);
             step = Step.AIM;
             stepTicks = 0;
@@ -2224,6 +2451,8 @@ public final class RouteExecutor {
         }
         if (clicked) {
             client.options.keyAttack.setDown(false);
+            LOGGER.info("[AutoRoutes] your left click taken from vanilla at tick {} (node {}, step {}, {} tick(s) in step)",
+                    execTicks, nodeTag(activeNode), step, stepTicks);
         }
         return clicked;
     }
@@ -2317,6 +2546,8 @@ public final class RouteExecutor {
         if (execTicks - earlySkipClickAt > EARLY_SKIP_TICKS) {
             return false;
         }
+        LOGGER.info("[AutoRoutes] the left click held {} tick(s) ago is used now (node {})", execTicks - earlySkipClickAt,
+                nodeTag(activeNode));
         earlySkipClickAt = Long.MIN_VALUE / 2;
         return true;
     }
@@ -2378,6 +2609,10 @@ public final class RouteExecutor {
             }
         }
         if (done) {
+            if (delay) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: await delay of {} ms over ({} ms waited) - acting now",
+                        route.indexOf(node) + 1, node.type, node.awaitAmount, System.currentTimeMillis() - awaitStartMs);
+            }
             awaitPhaseDone = true;
             actionFromTick = AwaitEvents.now();
             step = Step.PREP;
@@ -2421,6 +2656,10 @@ public final class RouteExecutor {
         if (tickWarp(client, player, node)) {
             finishAction();
             noteLanding(node);
+            if (landedFrom != null) {
+                LOGGER.info("[AutoRoutes] Node #{} ETHERWARP: landing re-fire armed (path-less, server teleport seen)",
+                        route.indexOf(node) + 1);
+            }
         }
     }
 
@@ -2481,9 +2720,14 @@ public final class RouteExecutor {
                         RouteTrace.timeout(traceIndex(node), "PATH", "the path planner never answered", stepTicks,
                                 player.position());
                         stop("the path planner did not answer");
+                    } else {
+                        logHold("plan:" + traceIndex(node), "node {} PATH: waiting for the planner ({} of {} tick(s))",
+                                nodeTag(node), stepTicks, PLAN_TIMEOUT);
                     }
                     return;
                 }
+                LOGGER.info("[AutoRoutes] Node #{} PATH: planner answered \"{}\" after {} tick(s), saved warps valid {}",
+                        route.indexOf(node) + 1, outcome, stepTicks, RoutePathPlanner.valid(route, node));
                 if (!"ok".equals(outcome) || !RoutePathPlanner.valid(route, node)) {
                     stop("no etherwarp path from #" + (route.indexOf(node) + 1) + " to #" + (route.indexOf(dest) + 1)
                             + " (" + outcome + ")");
@@ -2493,6 +2737,9 @@ public final class RouteExecutor {
             if (node.planBreakers != RoutePathPlanner.breakerStamp(route, node) && staleSaid != node) {
                 // His choice (2026-10-11): re-planning after pick changes is manual. Say so, once a pair.
                 staleSaid = node;
+                LOGGER.info("[AutoRoutes] Node #{} PATH: planned before its breaker blocks changed (stamp {} vs {}) - flying "
+                                + "the old plan; /ar replan to plan again", route.indexOf(node) + 1, node.planBreakers,
+                        RoutePathPlanner.breakerStamp(route, node));
                 AutoRoutesFeature.chatBad("Path #" + (route.indexOf(node) + 1) + " -> #" + (route.indexOf(dest) + 1)
                         + " was planned before its breaker blocks changed - /ar replan to plan it with them.");
             }
@@ -2588,6 +2835,11 @@ public final class RouteExecutor {
             rot = TeleportUtils.exactEtherwarpDirection(eye, warpTarget, range);
         }
         if (rot == null) {
+            logHold("noray:" + what, "Etherwarp ({}): no ray from {} ({} off the look's spot {}) lands on {} - the look "
+                            + "is left as it was (yaw {} pitch {})", what, fmt(at),
+                    String.format(Locale.ROOT, "%.2f", at.distanceTo(warpAimFrom)), fmt(warpAimFrom),
+                    warpTarget.toShortString(), String.format(Locale.ROOT, "%.2f", warpYaw),
+                    String.format(Locale.ROOT, "%.2f", warpPitch));
             return AIM_NO_RAY;
         }
         LOGGER.info("[AutoRoutes] Etherwarp ({}): re-aimed from {} ({} off {}) at {}: yaw {} pitch {}", what, fmt(at),
@@ -2692,6 +2944,14 @@ public final class RouteExecutor {
             }
             select(client, player, slot);
             warpSpentFromSlot = -1;
+            LOGGER.info("[AutoRoutes] Etherwarp PREP ({}{}): slot {} {}, sneak {} at the server, look {} / {}, target {}, "
+                            + "landing {}, pace next at {} (now {})", nodeTag(node),
+                    hopIndex >= 0 ? " hop " + (hopIndex + 1) + "/" + node.pathHops.size() : "", slot + 1,
+                    ItemIdentity.skyblockId(player.getInventory().getItem(slot)),
+                    player.getLastSentInput().shift() ? "already" : "not yet",
+                    String.format(Locale.ROOT, "%.2f", warpYaw), String.format(Locale.ROOT, "%.2f", warpPitch),
+                    warpTarget == null ? "none" : warpTarget.toShortString(), fmt(warpLanding),
+                    nextWarpAt == Double.NEGATIVE_INFINITY ? "-" : String.format(Locale.ROOT, "%.1f", nextWarpAt), execTicks);
             forceSneak = true;
             unsneakOverride = false;
             wantSneak = true;
@@ -2702,6 +2962,8 @@ public final class RouteExecutor {
         if (step == Step.AIM) {
             wantSneak = true;
             if (warpSpentFromSlot >= 0) {
+                LOGGER.info("[AutoRoutes] Etherwarp: the breaker use paired the stored click - etherwarp item back (slot {})",
+                        warpSpentFromSlot + 1);
                 // Last tick a Dungeon Breaker use paired the stored block click (spendStaleClickFirst): the etherwarp item
                 // goes back in hand now, and the use below goes with it in this same tick.
                 select(client, player, warpSpentFromSlot);
@@ -2715,6 +2977,9 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Etherwarp: {} in hand at the send - selecting the etherwarp item (slot {})",
                             ItemIdentity.skyblockId(player.getMainHandItem()), slot + 1);
                     select(client, player, slot);
+                } else {
+                    logHold("noether:" + traceIndex(node), "Etherwarp: {} in hand at the send and no etherwarp item in "
+                            + "the hotbar now", ItemIdentity.skyblockId(player.getMainHandItem()));
                 }
             }
             // A right click on a block may be waiting on the server for its second half (util/RightClick): the server
@@ -2722,6 +2987,8 @@ public final class RouteExecutor {
             // Turned here, while the sneak is still on its way to the server, it costs no tick.
             if (!AutoRoutesConfig.getInstance().isLegitMode()
                     && com.killer560.hub.util.RightClick.mustTurnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
+                logHold("turnearly:" + traceIndex(node), "Etherwarp ({}): a block click is unpaired - turning the body to "
+                        + "the warp's look while the sneak is on its way ({} tick(s) in AIM)", nodeTag(node), stepTicks);
                 turnBody(player, player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()),
                         Mth.clamp(warpPitch, -90f, 90f));
             }
@@ -2736,11 +3003,16 @@ public final class RouteExecutor {
                     RouteTrace.timeout(traceIndex(node), traceWhat(node), "sneak never reached the server (no shift in "
                             + "the last input packet)", stepTicks, player.position());
                     stop("couldn't start sneaking for the etherwarp");
+                } else {
+                    logHold("sneak:" + traceIndex(node), "Etherwarp ({}): waiting for the sneak to reach the server ({} of "
+                            + "{} tick(s), client shift {})", nodeTag(node), stepTicks, SNEAK_TIMEOUT,
+                            player.isShiftKeyDown());
                 }
                 return false;
             }
             if (sneakReadyAge < 0) {
                 sneakReadyAge = actionAge;
+                LOGGER.debug("[AutoRoutes] Etherwarp: the server has the sneak {} tick(s) after firing", actionAge);
             }
             if (!warpForced && (!landingBlockThere(client) || pickStillStanding(client, player, node))) {
                 // Held with no time limit of its own (a pick, up to 60 s for a missing block): his left click goes off.
@@ -2752,11 +3024,15 @@ public final class RouteExecutor {
                         + " in the way", blockWaitTicks > 0 ? blockWaitTicks : stepTicks);
             }
             if (!warpAimReady(player)) {
+                logHold("legitaim:" + traceIndex(node), "Etherwarp ({}): legit camera turn still settling ({} off, {} "
+                        + "tick(s), gives up past {})", nodeTag(node), RouteRotation.error(), stepTicks, WARP_AIM_GIVE_UP);
                 return false;
             }
             // Etherwarps Per Second: not before the pace allows. Sneak stays held while it waits.
             if (execTicks < Math.ceil(nextWarpAt - 1e-9)) {
                 warpPacedTicks++;
+                logHold("pace:" + traceIndex(node), "Etherwarp ({}): paced by Etherwarps Per Second - next warp at tick {}, "
+                        + "now {}", nodeTag(node), String.format(Locale.ROOT, "%.1f", nextWarpAt), execTicks);
                 return false;
             }
             // The use goes out now, from where the server has him now: aim from here if he moved since the aim was
@@ -2768,6 +3044,8 @@ public final class RouteExecutor {
                 return false;
             }
             if (aim != AIM_OK && AutoRoutesConfig.getInstance().isLegitMode()) {
+                logHold("legitreaim:" + traceIndex(node), "Etherwarp ({}): look changed at the send ({}) - legit camera "
+                        + "turns to it first", what, aim == AIM_CHANGED ? "re-aimed from here" : "no ray from here");
                 aimAt(warpYaw, warpPitch, node);
                 return false;
             }
@@ -2787,6 +3065,10 @@ public final class RouteExecutor {
                         player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()), Mth.clamp(warpPitch, -90f, 90f),
                         "[AutoRoutes] Etherwarp");
                 if (re != null) {
+                    LOGGER.info("[AutoRoutes] Etherwarp ({}): server and client rays disagree - re-aimed at {}: {} / {} -> "
+                                    + "{} / {}", what, warpTarget.toShortString(),
+                            String.format(Locale.ROOT, "%.2f", warpYaw), String.format(Locale.ROOT, "%.2f", warpPitch),
+                            String.format(Locale.ROOT, "%.2f", re[0]), String.format(Locale.ROOT, "%.2f", re[1]));
                     warpYaw = re[0];
                     warpPitch = re[1];
                     warpAimFrom = at;
@@ -2794,6 +3076,8 @@ public final class RouteExecutor {
             }
             if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
                 warpTurnFirstTicks++;
+                logHold("turnfirst:" + traceIndex(node), "Etherwarp ({}): waiting for the server to hear the look first "
+                        + "(a block click is unpaired), {} tick(s) so far", what, warpTurnFirstTicks);
                 return false;
             }
             if (hopIndex < 0 && !warpForced && newBlockInLine(client, player, node)) {
@@ -2816,6 +3100,11 @@ public final class RouteExecutor {
             warpEaten = com.killer560.hub.util.RightClick.barePairedUses() > eatenBefore;
             int seqAfter = com.killer560.hub.util.RightClick.lastUseSequence();
             warpUseSeq = seqAfter != seqBefore ? seqAfter : -1;
+            LOGGER.info("[AutoRoutes] Etherwarp use sent ({}{}) at tick {}: from {} look {} / {} | seq {} | taken as a click's "
+                            + "second half {} | retry {} of {} | refusal called past {} tick(s) | server lag {}",
+                    nodeTag(node), hopIndex >= 0 ? " hop " + (hopIndex + 1) : "", execTicks, fmt(actionOrigin),
+                    String.format(Locale.ROOT, "%.2f", warpYaw), String.format(Locale.ROOT, "%.2f", warpPitch), warpUseSeq,
+                    warpEaten, warpRetries, MAX_REFUSED_RETRIES, refusedRetryTicks(), serverLagTicks());
             RouteTrace.sent(traceIndex(node), traceWhat(node), actionOrigin, warpTarget, blockName(warpTarget), warpYaw,
                     warpPitch);
             logActed(node, (hopIndex >= 0 ? " (path warp " + (hopIndex + 1) + "/" + node.pathHops.size() + ")" : "")
@@ -2841,6 +3130,8 @@ public final class RouteExecutor {
                 RouteNode.PathHop next = node.pathHops.get(hopIndex + 1);
                 float nextYaw = RouteCoords.toRealYaw(frame, next.yaw());
                 if (!com.killer560.hub.util.RightClick.heard(player, nextYaw, next.pitch())) {
+                    logHold("prehop:" + traceIndex(node), "path hop {} in flight - body turned to hop {}'s look early "
+                            + "(a block click is unpaired)", hopIndex + 1, hopIndex + 2);
                     turnBody(player, player.getYRot() + Mth.wrapDegrees(nextYaw - player.getYRot()),
                             Mth.clamp(next.pitch(), -90f, 90f));
                 }
@@ -2934,6 +3225,9 @@ public final class RouteExecutor {
                     // crypt and sent the same refused warp, every 6 s (Slime #5, 2026-10-19). The node waits for him.
                     refireHoldAt = player.position();
                     refireHoldSaid = false;
+                    LOGGER.info("[AutoRoutes] Etherwarp ({}): never moved after {} retry(ies) - the node he stands in is "
+                            + "held at {} until a left click or he moves off it", nodeTag(node), warpRetries,
+                            fmt(refireHoldAt));
                 }
             } else if (!warpSlowSaid && !teleportPacketSeen && stepTicks > warpRoundTripTicks() * NO_ACK_ROUND_TRIPS) {
                 warpSlowSaid = true;
@@ -2943,6 +3237,11 @@ public final class RouteExecutor {
                         com.killer560.hub.util.ChestWindows.acked(warpUseSeq) ? "in" : "not in",
                         String.format(Locale.US, "%.2f", actionOrigin == null ? 0.0
                                 : player.position().distanceTo(actionOrigin)));
+            } else if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoRoutes] Etherwarp ({}): in flight {} tick(s) after the use, teleport seen {}, {} from the "
+                                + "landing", nodeTag(node), stepTicks, teleportPacketSeen,
+                        warpLanding == null ? "?" : String.format(Locale.ROOT, "%.2f",
+                                player.position().distanceTo(warpLanding)));
             }
         }
         return false;
@@ -3215,9 +3514,13 @@ public final class RouteExecutor {
             // The mirror of the etherwarp's rule: the use goes out once the last input packet said shift UP. planSneak
             // releases before a use node, so this only waits when one was reached still sneaking (no settle ticks).
             if (player.getLastSentInput().shift() && stepTicks <= SNEAK_TIMEOUT) {
+                logHold("unsneak:" + traceIndex(node), "node {} USE_ITEM: waiting for the server to have shift up ({} of {} "
+                        + "tick(s))", nodeTag(node), stepTicks, SNEAK_TIMEOUT);
                 return;
             }
             if (!aimReady()) {
+                logHold("aim:" + traceIndex(node), "node {} USE_ITEM: legit camera turn settling ({} tick(s))",
+                        nodeTag(node), stepTicks);
                 return;
             }
             if (node.item == null) {
@@ -3226,6 +3529,8 @@ public final class RouteExecutor {
             }
             // A block click may be unpaired on the server (util/RightClick): the use's look reaches it first.
             if (turnFirst(player, RouteCoords.toRealYaw(frame, node.yaw), node.pitch, "[AutoRoutes] Use node")) {
+                logHold("useturn:" + traceIndex(node), "node {} USE_ITEM: waiting for the server to hear the look first "
+                        + "(a block click is unpaired)", nodeTag(node));
                 return;
             }
             actionOrigin = player.position();
@@ -3263,6 +3568,10 @@ public final class RouteExecutor {
                 finishAction();
                 noteLanding(node);
             } else if (stepTicks > LANDING_TIMEOUT + serverLagTicks()) {
+                LOGGER.info("[AutoRoutes] Use ({}): no landing after {} tick(s) (limit {} + lag {}) - player {} moved {} from {}",
+                        node.item, stepTicks, LANDING_TIMEOUT, serverLagTicks(), fmt(player.position()),
+                        String.format(Locale.ROOT, "%.2f", actionOrigin == null ? 0.0
+                                : player.position().distanceTo(actionOrigin)), fmt(actionOrigin));
                 RouteTrace.timeout(traceIndex(node), "USE_ITEM " + node.item, "no landing at the recorded spot (server "
                         + "teleport " + (teleportPacketSeen ? "came, elsewhere" : "never came") + ")", stepTicks,
                         player.position());
@@ -3336,9 +3645,13 @@ public final class RouteExecutor {
         int ether = player.getInventory().getSelectedSlot();
         select(client, player, breaker);
         if (!com.killer560.hub.util.RightClick.spendStoredClick(client, player, "[AutoRoutes] Etherwarp")) {
+            LOGGER.info("[AutoRoutes] secret click unpaired: the Dungeon Breaker use to pair it was not sent - etherwarp "
+                    + "item back (slot {}), the warp goes as it is", ether + 1);
             select(client, player, ether);
             return false;
         }
+        LOGGER.info("[AutoRoutes] secret click unpaired: paired it with a Dungeon Breaker use (slot {}) at tick {} - the "
+                + "warp goes next tick from slot {}", breaker + 1, execTicks, ether + 1);
         warpSpentFromSlot = ether;
         return true;
     }
@@ -3375,11 +3688,18 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlot(player, weapon.itemId());
             if (slot < 0) {
+                LOGGER.info("[AutoRoutes] Node #{} {}: no {} ({}) in the hotbar - stopping", route.indexOf(node) + 1, KIND,
+                        weapon.label(), weapon.itemId());
                 stop("the " + kind + " node has no " + weapon.label() + " in the hotbar (" + (bat ? "Bat" : "Crypt")
                         + " Weapon setting)");
                 return;
             }
             cryptSlotBefore = player.getInventory().getSelectedSlot();
+            LOGGER.info("[AutoRoutes] Node #{} {} PREP: {} in slot {} (was slot {}), goal {} kill(s), {} kill(s) counted so "
+                            + "far, aiming straight down, attack time {} tick(s)", route.indexOf(node) + 1, KIND,
+                    weapon.label(), slot + 1, cryptSlotBefore + 1, goal, kills(bat),
+                    bat ? AutoRoutesConfig.getInstance().getBatAttackTicks()
+                            : AutoRoutesConfig.getInstance().getCryptAttackTicks());
             select(client, player, slot);
             forceSneak = false;
             wantSneak = false;
@@ -3400,9 +3720,13 @@ public final class RouteExecutor {
         }
         if (step == Step.AIM) {
             if (player.getLastSentInput().shift() && stepTicks <= SNEAK_TIMEOUT) {
+                logHold("cryptunsneak:" + traceIndex(node), "node {}: waiting for the server to have shift up ({} of {} "
+                        + "tick(s))", nodeTag(node), stepTicks, SNEAK_TIMEOUT);
                 return;
             }
             if (AutoRoutesConfig.getInstance().isLegitMode() && player.getXRot() != MimicKiller.STRAIGHT_DOWN) {
+                logHold("cryptlegitaim:" + traceIndex(node), "node {}: legit camera turning straight down (pitch {}, {} of "
+                        + "{} tick(s))", nodeTag(node), player.getXRot(), stepTicks, CRYPT_AIM_GIVE_UP);
                 // Legit: the camera must read exactly 90.0 before the first use - aimReady's timeout would fire it at
                 // whatever it reads. Past CRYPT_AIM_GIVE_UP it moves on with nothing used.
                 if (stepTicks > CRYPT_AIM_GIVE_UP) {
@@ -3419,6 +3743,8 @@ public final class RouteExecutor {
                 return;
             }
             if (!aimReady()) {
+                logHold("cryptaim:" + traceIndex(node), "node {}: legit aim settling ({} tick(s))", nodeTag(node),
+                        stepTicks);
                 return;
             }
             // THE SERVER MUST ALREADY HAVE 90.0. A held use on the floor is a use-on-block packet, which carries no
@@ -3435,6 +3761,8 @@ public final class RouteExecutor {
                 cryptDownTicks = 0;
             }
             if (cryptDownTicks < 2) {
+                logHold("cryptdown:" + traceIndex(node), "node {}: look at pitch 90.0 for {} of 2 tick(s) before holding "
+                        + "use (pitch now {})", nodeTag(node), cryptDownTicks, player.getXRot());
                 return;
             }
             // HOLD the use key, as a player holding right click does (killer560, 2026-10-06: "only have the crypt node
@@ -3525,6 +3853,11 @@ public final class RouteExecutor {
             if (seek == CryptSeek.PENDING && AwaitEvents.weaponUses() - batUseBase >= BAT_DOWN_USES
                     && tickCryptSeek(client, player, node)) {
                 return;
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[AutoRoutes] Node #{} {}: holding use {} of {} tick(s), {} of {} kill(s), {} weapon use(s), "
+                                + "seek {}", route.indexOf(node) + 1, KIND, stepTicks, attackTicks, kills(bat), goal,
+                        AwaitEvents.weaponUses() - batUseBase, seek);
             }
             holdUse(client, player, node);
         }
@@ -3651,6 +3984,8 @@ public final class RouteExecutor {
                 }
             }
             if (target == null) {
+                logHold("cryptbats:" + traceIndex(node), "node {} CRYPT: no crypt mob owed a use - waiting for {} bat(s) "
+                        + "in flight to land ({} mob(s) seen)", nodeTag(node), cryptBats.size(), cryptShots.size());
                 return true; // its last bats are still flying
             }
         }
@@ -3736,6 +4071,10 @@ public final class RouteExecutor {
     private static boolean tickBatSeek(Minecraft client, LocalPlayer player, RouteNode node) {
         net.minecraft.world.entity.ambient.Bat target = nearestSecretBat(client, player);
         if (target == null) {
+            if (batSeeking) {
+                LOGGER.info("[AutoRoutes] Node #{} BAT: no secret bat in sight any more - back to holding use straight "
+                        + "down ({} tick(s) in)", route.indexOf(node) + 1, stepTicks);
+            }
             batSeeking = false;
             return false;
         }
@@ -3772,12 +4111,18 @@ public final class RouteExecutor {
         } else if (player.getXRot() != MimicKiller.STRAIGHT_DOWN) {
             // Legit: the key is only down while the camera reads exactly 90.0 - vanilla's held use fires at the
             // camera's rotation, so a drifted camera gets the key up and the aim back, never a use at another pitch.
+            logHold("usedrift:" + traceIndex(node), "node {}: legit camera drifted off pitch 90.0 ({}) - use key up "
+                    + "while it turns back", nodeTag(node), player.getXRot());
             client.options.keyUse.setDown(false);
             if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)) {
                 RouteRotation.beginApproach(player.getYRot(), MimicKiller.STRAIGHT_DOWN, false, 0f, 0f);
             }
             useHeld = true;
             return;
+        }
+        if (!useHeld || !client.options.keyUse.isDown()) {
+            LOGGER.info("[AutoRoutes] node {}: use key held down at tick {} (slot {}, pitch {})", nodeTag(node), execTicks,
+                    player.getInventory().getSelectedSlot() + 1, player.getXRot());
         }
         client.options.keyUse.setDown(true);
         useHeld = true;
@@ -3789,6 +4134,8 @@ public final class RouteExecutor {
         if (!useHeld) {
             return;
         }
+        LOGGER.info("[AutoRoutes] use key released at tick {} (node {}, step {}, {} tick(s) in step)", execTicks,
+                nodeTag(activeNode), step, stepTicks);
         useHeld = false;
         if (client != null) {
             client.options.keyUse.setDown(false);
@@ -3872,9 +4219,16 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             int slot = ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
             if (slot < 0) {
+                LOGGER.info("[AutoRoutes] Node #{} BOOM: no INFINITE_SUPERBOOM_TNT / SUPERBOOM_TNT in the hotbar - stopping",
+                        route.indexOf(node) + 1);
                 stop("no Superboom in the hotbar");
                 return;
             }
+            LOGGER.info("[AutoRoutes] Node #{} BOOM PREP: {} in slot {}, look {} / {} ({} mode)", route.indexOf(node) + 1,
+                    ItemIdentity.skyblockId(player.getInventory().getItem(slot)), slot + 1,
+                    String.format(Locale.ROOT, "%.2f", RouteCoords.toRealYaw(frame, node.yaw)),
+                    String.format(Locale.ROOT, "%.2f", node.pitch),
+                    AutoRoutesConfig.getInstance().isLegitMode() ? "legit" : "obvious");
             select(client, player, slot);
             aimAt(node);
             step = Step.AIM;
@@ -3882,6 +4236,8 @@ public final class RouteExecutor {
         }
         if (step == Step.AIM) {
             if (!aimReady()) {
+                logHold("boomaim:" + traceIndex(node), "node {} BOOM: legit camera turn settling ({} tick(s))",
+                        nodeTag(node), stepTicks);
                 return;
             }
             BlockHitResult hit = blockInSight(client, player, node, 4.5);
@@ -3931,6 +4287,10 @@ public final class RouteExecutor {
                         ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, target, Direction.DOWN));
             }
             player.swing(InteractionHand.MAIN_HAND);
+            LOGGER.info("[AutoRoutes] Node #{} BOOM: START+ABORT dig sent at {} ({}) face {} from {} at tick {} - watching "
+                            + "{} block(s) within {} for a change", route.indexOf(node) + 1, boomTarget.toShortString(),
+                    client.level.getBlockState(boomTarget).getBlock().getName().getString(), hit.getDirection(),
+                    fmt(player.getEyePosition()), execTicks, boomBefore.size(), BOOM_WATCH_RADIUS);
             logActed(node, "");
             step = Step.CONFIRM;
             stepTicks = 0;
@@ -3945,7 +4305,16 @@ public final class RouteExecutor {
                 }
             }
             if (changed) {
+                int changedCount = 0;
+                for (Map.Entry<BlockPos, BlockState> e : boomBefore.entrySet()) {
+                    if (client.level.getBlockState(e.getKey()) != e.getValue()) {
+                        changedCount++;
+                    }
+                }
                 LOGGER.info("[AutoRoutes] Boom: blocks changed {} tick(s) after the click", stepTicks);
+                LOGGER.info("[AutoRoutes] Boom ({}): {} of {} watched block(s) changed around {} (settle limit {} + lag {})",
+                        nodeTag(node), changedCount, boomBefore.size(),
+                        boomTarget == null ? "?" : boomTarget.toShortString(), boomSettleTicks(), serverLagTicks());
                 finishAction();
             } else if (stepTicks >= boomSettleTicks() + serverLagTicks()) {
                 // Nothing within reach of the hit changed once the server had a round trip to answer: the crypt or
@@ -3998,6 +4367,8 @@ public final class RouteExecutor {
             lingerSaid = false;
             int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
             if (slot < 0) {
+                LOGGER.info("[AutoRoutes] Node #{} DUNGEON_BREAKER: no Dungeon Breaker in the hotbar - stopping ({} block(s) "
+                        + "queued)", route.indexOf(node) + 1, breakerQueue.size());
                 stop("no Dungeon Breaker in the hotbar");
                 return;
             }
@@ -4046,6 +4417,9 @@ public final class RouteExecutor {
             }
             int required = Math.min(needed, charges[1]);
             if (charges[0] < required) {
+                logHold("charges:" + traceIndex(node), "node {} DUNGEON_BREAKER: {} of {} charge(s) needed ({} standing in "
+                                + "reach, max {}), waited {} of {} tick(s)", nodeTag(node), charges[0], required, needed,
+                        charges[1], breakerWaitTicks, BREAKER_WAIT_TIMEOUT);
                 breakerWaitTicks++;
                 if (!breakerWaitSaid) {
                     breakerWaitSaid = true;
@@ -4070,6 +4444,9 @@ public final class RouteExecutor {
             breakerWaitTicks = 0;
             breakerReady = true;
             breakerChargesLeft = charges[0];
+            LOGGER.info("[AutoRoutes] Node #{} DUNGEON_BREAKER: ready - {} charge(s) of {}, {} block(s) standing in reach of "
+                            + "{} queued, slot {}", route.indexOf(node) + 1, charges[0], charges[1], needed,
+                    breakerQueue.size(), slot + 1);
             select(client, player, slot);
             stepTicks = 0; // the first block goes now, on the tick the charges are there
         }
@@ -4092,10 +4469,14 @@ public final class RouteExecutor {
             while (!breakerQueue.isEmpty()) {
                 BlockPos pos = breakerQueue.get(0);
                 if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()) {
+                    LOGGER.info("[AutoRoutes] Breaker block {} skipped: {}", pos.toShortString(),
+                            client.level.isLoaded(pos) ? "already air" : "chunk not loaded");
                     breakerQueue.remove(0); // air needs no charge, so it never counts as "not sent"
                     continue;
                 }
                 if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
+                    LOGGER.info("[AutoRoutes] Breaker block {} skipped: protected (Fairy room or a guarded secret)",
+                            pos.toShortString());
                     breakerQueue.remove(0); // a Fairy room, or a secret with "Don't break secrets" on: never dug
                     continue;
                 }
@@ -4109,7 +4490,10 @@ public final class RouteExecutor {
                 // measure was left on distToCenterSqr, which reads up to sqrt(0.75) further - so the gate
                 // its own javadoc describes was still off by that much, refusing blocks well inside reach.
                 if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
-                    LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped", pos);
+                    LOGGER.info("[AutoRoutes] Breaker block {} out of range - skipped ({} to the box, reach {}; left to the "
+                                    + "linger)", pos,
+                            String.format(Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos))),
+                            String.format(Locale.ROOT, "%.2f", Math.sqrt(BREAKER_RANGE_SQ)));
                     continue;
                 }
                 if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
@@ -4157,8 +4541,13 @@ public final class RouteExecutor {
                 com.killer560.hub.dungeonbreaker.ObsidianDig.Result r = OBSIDIAN.tick(client, player, BREAKER_RANGE_SQ,
                         () -> true, obsidianAim(player));
                 if (r == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
+                    logHold("obsidian:" + traceIndex(node), "node {} DUNGEON_BREAKER: obsidian dig at {} running ({} tick(s) "
+                                    + "in CONFIRM)", nodeTag(node),
+                            obsidianDigPos == null ? "?" : obsidianDigPos.toShortString(), stepTicks);
                     return;
                 }
+                LOGGER.info("[AutoRoutes] Node #{} DUNGEON_BREAKER: obsidian dig at {} ended: {} ({} tick(s))",
+                        route.indexOf(node) + 1, obsidianDigPos == null ? "?" : obsidianDigPos.toShortString(), r, stepTicks);
                 if (r == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.ABANDONED && obsidianDigPos != null) {
                     // Left to the linger (still one of this node's blocks), which digs it again once it is in reach.
                     breakerSent.remove(obsidianDigPos);
@@ -4187,6 +4576,9 @@ public final class RouteExecutor {
                 select(client, player, slot);
                 Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos,
                         player.getEyePosition()).getDirection();
+                LOGGER.info("[AutoRoutes] Node #{} DUNGEON_BREAKER: obsidian dig starts at {} face {} at tick {} ({} more "
+                        + "obsidian queued)", route.indexOf(node) + 1, pos.toShortString(), face, execTicks,
+                        breakerObsidian.size());
                 OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
                 player.swing(InteractionHand.MAIN_HAND);
                 if (breakerSent.isEmpty()) {
@@ -4211,6 +4603,14 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
                 finishAction();
             } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
+                StringBuilder standing = new StringBuilder();
+                for (BlockPos pos : breakerSent) {
+                    if (!client.level.getBlockState(pos).isAir()) {
+                        standing.append(standing.length() == 0 ? "" : ", ").append(pos.toShortString());
+                    }
+                }
+                LOGGER.info("[AutoRoutes] Breaker: {} of {} sent block(s) gone after {} tick(s) (limit {} + lag {}); still "
+                        + "standing: {}", gone, breakerSent.size(), stepTicks, BREAKER_TIMEOUT, serverLagTicks(), standing);
                 RouteTrace.timeout(traceIndex(node), "DUNGEON_BREAKER", gone + " of " + breakerSent.size()
                         + " sent block(s) gone", stepTicks, player.position());
                 if (gone == 0) {
@@ -4219,6 +4619,9 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Breaker: {} of {} blocks broke - continuing", gone, breakerSent.size());
                     finishAction();
                 }
+            } else {
+                logHold("breakconfirm:" + traceIndex(node), "node {} DUNGEON_BREAKER: {} of {} sent block(s) gone, {} of {} "
+                        + "tick(s)", nodeTag(node), gone, breakerSent.size(), stepTicks, BREAKER_TIMEOUT);
             }
         }
     }
@@ -4240,6 +4643,16 @@ public final class RouteExecutor {
         RouteNode next = !stackQueue.isEmpty() ? stackQueue.peek()
                 : nextNode + 1 < ordered.size() ? ordered.get(nextNode + 1) : null;
         boolean hasNext = next != null && next.isDiscreteAction();
+        if (!RouteRotation.isActive()) {
+            LOGGER.info("[AutoRoutes] legit camera turn starts for node {}: to {} / {} from {} / {} (feint toward {})",
+                    nodeTag(node), String.format(Locale.ROOT, "%.2f", yaw), String.format(Locale.ROOT, "%.2f", pitch),
+                    String.format(Locale.ROOT, "%.2f", Minecraft.getInstance().player == null ? 0f
+                            : Minecraft.getInstance().player.getYRot()),
+                    String.format(Locale.ROOT, "%.2f", Minecraft.getInstance().player == null ? 0f
+                            : Minecraft.getInstance().player.getXRot()), hasNext ? nodeTag(next) : "nothing");
+        } else if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AutoRoutes] legit camera turn re-targeted for node {}: {} / {}", nodeTag(node), yaw, pitch);
+        }
         RouteRotation.beginApproach(yaw, pitch, hasNext, hasNext ? RouteCoords.toRealYaw(frame, next.yaw) : 0f,
                 hasNext ? next.pitch : 0f);
     }
@@ -4301,6 +4714,10 @@ public final class RouteExecutor {
         if (player.getInventory().getSelectedSlot() == slot) {
             return;
         }
+        LOGGER.info("[AutoRoutes] hotbar swap: slot {} ({}) -> {} ({}) at tick {} (node {})",
+                player.getInventory().getSelectedSlot() + 1, ItemIdentity.skyblockId(player.getMainHandItem()), slot + 1,
+                slot >= 0 && slot <= 8 ? ItemIdentity.skyblockId(player.getInventory().getItem(slot)) : "?", execTicks,
+                nodeTag(activeNode));
         nodeSwapped = true;
         com.killer560.hub.util.HotbarSelect.select(client, player, slot);
     }
@@ -4379,10 +4796,13 @@ public final class RouteExecutor {
         }
         // A running obsidian dig is let finish on the server's answer; the linger's own limit applies between digs.
         if (++lingerTicks > LINGER_MAX_TICKS && !OBSIDIAN.active()) {
+            LOGGER.info("[AutoRoutes] Breaker linger: {} tick(s) up with {} block(s) still standing", LINGER_MAX_TICKS,
+                    lingerBlocks.size());
             clearBreakerLinger("timed out");
             return;
         }
         if (AutoRoutesFeature.screenBlocks(client)) {
+            LOGGER.debug("[AutoRoutes] Breaker linger: a screen holds it ({} tick(s) in)", lingerTicks);
             return;
         }
         if (OBSIDIAN.active()) {
@@ -4409,11 +4829,17 @@ public final class RouteExecutor {
             }
         }
         if (inReach.isEmpty()) {
+            LOGGER.debug("[AutoRoutes] Breaker linger: none of {} block(s) in reach yet ({} tick(s) in)",
+                    lingerBlocks.size(), lingerTicks);
             return;
         }
         int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
         int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
         if (charges == null || charges[0] <= 0) {
+            if (lingerTicks % 20 == 0) {
+                LOGGER.info("[AutoRoutes] Breaker linger: {} block(s) in reach but {} - waiting ({} tick(s) in)",
+                        inReach.size(), slot < 0 ? "no Dungeon Breaker in the hotbar" : "no charges", lingerTicks);
+            }
             return; // no breaker, or no charges yet: the blocks wait (Hypixel gives two back a second)
         }
         select(client, player, slot);
@@ -4429,6 +4855,8 @@ public final class RouteExecutor {
                     continue;
                 }
                 Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos, eye).getDirection();
+                LOGGER.info("[AutoRoutes] Breaker linger: obsidian dig starts at {} face {} ({} tick(s) after the node)",
+                        pos.toShortString(), face, lingerTicks);
                 OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
                 lingerSentAt.put(pos, lingerTicks);
                 lingerBroken++;
@@ -4457,6 +4885,8 @@ public final class RouteExecutor {
      */
     private static void sendBreak(Minecraft client, LocalPlayer player, BlockPos pos) {
         if (com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
+            LOGGER.info("[AutoRoutes] Breaker dig refused at {}: protected (Fairy room or a guarded secret)",
+                    pos.toShortString());
             return; // the one place a breaker node's dig goes out: never a Fairy room or a guarded secret
         }
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
@@ -4464,6 +4894,9 @@ public final class RouteExecutor {
         // (2026-10-05, 62-argrim), so those blocks never broke.
         Direction face = com.killer560.hub.util.BlockHits.surfaceOrCentre(client.level, pos, player.getEyePosition())
                 .getDirection();
+        LOGGER.info("[AutoRoutes] Breaker dig sent: START_DESTROY_BLOCK {} ({}) face {} at tick {}, {} charge(s) left",
+                pos.toShortString(), client.level.getBlockState(pos).getBlock().getName().getString(), face, execTicks,
+                breakerChargesLeft);
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
             invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence));
@@ -4522,6 +4955,11 @@ public final class RouteExecutor {
                 client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
             }
             player.swing(InteractionHand.MAIN_HAND);
+            LOGGER.info("[AutoRoutes] use sent (legit) at tick {}: {} at the live look {} / {} (target {} / {}), block click "
+                            + "{} -> {}, item use {}", execTicks, ItemIdentity.skyblockId(player.getMainHandItem()),
+                    String.format(Locale.ROOT, "%.2f", player.getYRot()), String.format(Locale.ROOT, "%.2f", player.getXRot()),
+                    String.format(Locale.ROOT, "%.2f", targetYaw), String.format(Locale.ROOT, "%.2f", targetPitch),
+                    blockInteraction, result, !result.consumesAction());
             return;
         }
         // Same direction as the target, expressed relative to the running (unwrapped) yaw - never a wrapped absolute.
@@ -4544,6 +4982,10 @@ public final class RouteExecutor {
             client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         }
         player.swing(InteractionHand.MAIN_HAND);
+        LOGGER.info("[AutoRoutes] use sent (obvious) at tick {}: {} with body look {} / {} from {}, prediction {}", execTicks,
+                ItemIdentity.skyblockId(player.getMainHandItem()), String.format(Locale.ROOT, "%.2f", yaw),
+                String.format(Locale.ROOT, "%.2f", pitch), fmt(player.position()),
+                client.gameMode instanceof MultiPlayerGameModeInvoker ? "sequenced" : "vanilla useItem");
     }
 
     /**
@@ -4578,6 +5020,10 @@ public final class RouteExecutor {
      * the rotation the action used, as it would after a real flick.
      */
     private static void turnBody(LocalPlayer player, float yaw, float pitch) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[AutoRoutes] body turn to {} / {} (from {} / {}), camera held", yaw, pitch, player.getYRot(),
+                    player.getXRot());
+        }
         BODY.turn(player, yaw, pitch);
     }
 

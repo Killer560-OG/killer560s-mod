@@ -25,6 +25,10 @@ public final class AutoPuzzleActivity {
     private static long markLag;
     private static Object level;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
+    /** Logging only: the tick the current working spell began. */
+    private static int spellStart = 0;
+
     private AutoPuzzleActivity() {
     }
 
@@ -58,11 +62,16 @@ public final class AutoPuzzleActivity {
         java.util.regex.Matcher m = SOLVED.matcher(text.trim());
         Minecraft client = Minecraft.getInstance();
         if (!m.matches() || client.player == null || !m.group(1).equals(client.player.getGameProfile().name())) {
+            LOGGER.info("[AutoPuzzles] Activity: a PUZZLE SOLVED line not filed - {}", !m.matches()
+                    ? "not the server's line shape" : client.player == null ? "no player" : "solved by another player");
             return;
         }
         com.killer560.hub.roomdatabase.RoomEntry room = com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
         if (room != null && room.name != null) {
             solvedRooms.put(room.name, ticks);
+            LOGGER.info("[AutoPuzzles] Activity: Hypixel says he solved '{}' (tick {})", room.name, ticks);
+        } else {
+            LOGGER.info("[AutoPuzzles] Activity: his PUZZLE SOLVED line came with no room under him - not filed");
         }
     }
 
@@ -85,6 +94,14 @@ public final class AutoPuzzleActivity {
      */
     public static void note(String tag) {
         String t = tag == null ? "" : tag;
+        boolean wasWorking = isWorking();
+        if (!wasWorking) {
+            spellStart = ticks;
+            LOGGER.info("[AutoPuzzles] Activity: an auto puzzle is working ({}) - other automation holds, tick={}", t,
+                    ticks);
+        } else if (GENERIC.equals(what) && !t.isEmpty() && !GENERIC.equals(t)) {
+            LOGGER.debug("[AutoPuzzles] Activity: working spell named {} (was {})", t, what);
+        }
         if (!isWorking() || what.isEmpty() || (GENERIC.equals(what) && !t.isEmpty() && !GENERIC.equals(t))) {
             what = t;
         }
@@ -99,6 +116,10 @@ public final class AutoPuzzleActivity {
      * a new spell.
      */
     static void ended() {
+        if (isWorking()) {
+            LOGGER.info("[AutoPuzzles] Activity: {} ended its last step - other automation may carry on now"
+                    + " (spell of {} tick(s))", what(), ticks - spellStart);
+        }
         lastMark = Integer.MIN_VALUE / 2;
     }
 

@@ -63,6 +63,20 @@ public final class BeamsSolverFeature {
     private static List<ActivePair> activePairs = new ArrayList<>();
     private static RoomEntry lastRoomEntry = null;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
+    /** Logging only: last room state and last scan result logged, so a line is written on CHANGE, never per tick. */
+    private static String roomLogKey = "none";
+    private static String scanLogKey = null;
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        scanLogKey = null;
+        LOGGER.info("[BeamsSolver] {}", detail);
+    }
+
     private BeamsSolverFeature() {
     }
 
@@ -91,6 +105,9 @@ public final class BeamsSolverFeature {
         try (InputStream stream = BeamsSolverFeature.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/creeper-beams-solutions.json")) {
             if (stream == null) {
+                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
+                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
+                        "[BeamsSolver] candidate list resource missing - the solver will never highlight anything");
                 return List.of();
             }
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
@@ -106,6 +123,8 @@ public final class BeamsSolverFeature {
                         pairs.add(new CandidatePair(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]));
                     }
                 }
+                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                        "[BeamsSolver] loaded {} candidate pairs ({} raw entries)", pairs.size(), raw.size());
                 return pairs;
             }
         } catch (Exception e) {
@@ -121,6 +140,11 @@ public final class BeamsSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()
+                        + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                        + " - highlights cleared");
+            }
             activePairs = new ArrayList<>();
             lastRoomEntry = null;
             return;
@@ -131,12 +155,22 @@ public final class BeamsSolverFeature {
             activePairs = new ArrayList<>();
         }
         if (current == null || !"Creeper Beams".equals(current.name)) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "left Creeper Beams: now in " + (current == null ? "no known room" : current.name));
+            }
             return;
         }
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         Level level = client.level;
         if (clayAndRotation == null || level == null) {
+            logRoomState("wait", "in Creeper Beams but not solving: clay/rotation known=" + (clayAndRotation != null)
+                    + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
+        }
+        String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        if (!roomKey.equals(roomLogKey)) {
+            logRoomState(roomKey, "Creeper Beams detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+                    + " rotation=" + clayAndRotation[2] + " candidatePairs=" + CANDIDATES.size());
         }
         rescan(level, clayAndRotation);
     }
@@ -160,6 +194,31 @@ public final class BeamsSolverFeature {
             }
         }
         activePairs = found;
+        logScan(found);
+    }
+
+    /** Logging only: one line when the set of lit / misaligned pairs changes. */
+    private static void logScan(List<ActivePair> found) {
+        StringBuilder key = new StringBuilder();
+        int lit = 0;
+        int misaligned = 0;
+        for (ActivePair pair : found) {
+            if (pair.misaligned()) {
+                misaligned++;
+            } else {
+                lit++;
+            }
+            key.append(pair.misaligned() ? " RED " : " ").append(pair.a().toShortString()).append("<->")
+                    .append(pair.b().toShortString()).append(';');
+        }
+        String k = key.toString();
+        if (k.equals(scanLogKey)) {
+            return;
+        }
+        boolean first = scanLogKey == null;
+        scanLogKey = k;
+        LOGGER.info("[BeamsSolver] {}: litPairs={} misalignedPairs={} of {} candidates:{}",
+                first ? "scan" : "solution changed", lit, misaligned, CANDIDATES.size(), k.isEmpty() ? " none" : k);
     }
 
     /** A lantern that has been connected already turns into prismarine. */

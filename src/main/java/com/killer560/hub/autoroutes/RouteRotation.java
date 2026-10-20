@@ -22,6 +22,13 @@ import net.minecraft.util.Mth;
  */
 public final class RouteRotation {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoroutes");
+    /** Whether this approach's landing (settled within 1 degree) was already logged. */
+    private static boolean settleLogged;
+    private static float lastBeginYaw = Float.NaN;
+    private static float lastBeginPitch = Float.NaN;
+    private static int lastBeginTick = Integer.MIN_VALUE / 2;
+
     private static boolean active;
     /** Latched in {@link #frame()} the moment the live rotation differs from what was last written. */
     private static boolean userMoved;
@@ -71,11 +78,31 @@ public final class RouteRotation {
             feintYaw = Mth.wrapDegrees(nextYaw - yaw) * 0.85f;
             feintPitch = Mth.wrapDegrees(nextPitch - pitch) * 0.85f;
         }
+        // Callers re-issue the same approach every tick once settled ("!isActive() || settled(1) -> beginApproach"), so
+        // the same target logs at most once per 20 ticks; a new target logs at once.
+        int nowTick = AwaitEvents.now();
+        boolean sameTarget = Math.abs(Mth.wrapDegrees(yaw - lastBeginYaw)) < 0.5f && Math.abs(pitch - lastBeginPitch) < 0.5f;
+        if (sameTarget && nowTick - lastBeginTick < 20) {
+            return;
+        }
+        lastBeginYaw = yaw;
+        lastBeginPitch = pitch;
+        lastBeginTick = nowTick;
+        settleLogged = false;
+        LocalPlayer p = Minecraft.getInstance().player;
+        LOGGER.info("[RouteRotation] approach start: target yaw {} pitch {} from yaw {} pitch {}, smoothing {}, overshoot {},"
+                        + " curve {}, feint {}, tick {}", Float.toString(yaw), Float.toString(pitch),
+                p == null ? "?" : Float.toString(p.getYRot()), p == null ? "?" : Float.toString(p.getXRot()),
+                String.format(java.util.Locale.ROOT, "%.2f", smoothing), overshootYaw != 0f || overshootPitch != 0f,
+                curve, feintYaw != 0f || feintPitch != 0f, AwaitEvents.now());
     }
 
     /** Continuous ease toward a (possibly moving) target with no rolled randomness - SimonSays' pre-drift. */
     public static void follow(float yaw, float pitch) {
         if (!active || humanized) {
+            LOGGER.info("[RouteRotation] follow start: target yaw {} pitch {} ({}), tick {}", Float.toString(yaw),
+                    Float.toString(pitch), active ? "replacing a humanized approach" : "from idle", AwaitEvents.now());
+            settleLogged = false;
             overshootYaw = 0f;
             overshootPitch = 0f;
             curve = false;
@@ -91,6 +118,12 @@ public final class RouteRotation {
     }
 
     public static void clear() {
+        if (active) {
+            LOGGER.info("[RouteRotation] released: {} toward yaw {} pitch {}, error {} deg, settled={}, user moved={},"
+                            + " {} tick(s) in, tick {}", humanized ? "approach" : "follow", Float.toString(targetYaw),
+                    Float.toString(targetPitch), String.format(java.util.Locale.ROOT, "%.2f", error()), settleLogged,
+                    userMoved, String.format(java.util.Locale.ROOT, "%.1f", elapsedTicks), AwaitEvents.now());
+        }
         active = false;
         humanized = false;
         userMoved = false;
@@ -172,6 +205,11 @@ public final class RouteRotation {
         if (!Float.isNaN(lastAppliedYaw)
                 && (Math.abs(Mth.wrapDegrees(currentYaw - lastAppliedYaw)) > 0.05f
                     || Math.abs(currentPitch - lastAppliedPitch) > 0.05f)) {
+            if (!userMoved) {
+                LOGGER.info("[RouteRotation] user moved the camera: yaw {} -> {}, pitch {} -> {}, tick {}",
+                        Float.toString(lastAppliedYaw), Float.toString(currentYaw), Float.toString(lastAppliedPitch),
+                        Float.toString(currentPitch), AwaitEvents.now());
+            }
             userMoved = true;
         }
         float rawYaw = targetYaw;
@@ -238,5 +276,12 @@ public final class RouteRotation {
         player.setXRot(newPitch);
         lastAppliedYaw = player.getYRot();
         lastAppliedPitch = player.getXRot();
+        if (!settleLogged && settled(1.0f)) {
+            settleLogged = true;
+            LOGGER.info("[RouteRotation] settled within 1 deg of yaw {} pitch {} at yaw {} pitch {} after {} tick(s), tick {}",
+                    Float.toString(targetYaw), Float.toString(targetPitch), Float.toString(lastAppliedYaw),
+                    Float.toString(lastAppliedPitch), String.format(java.util.Locale.ROOT, "%.1f", elapsedTicks),
+                    AwaitEvents.now());
+        }
     }
 }

@@ -26,6 +26,12 @@ public abstract class WaterSolverMixin {
                                             CallbackInfoReturnable<InteractionResult> cir) {
         if (cir.getReturnValue() == InteractionResult.SUCCESS) {
             WaterSolverFeature.onLeverClick(hitResult.getBlockPos());
+        } else {
+            try {
+                WaterSolverFeature.onLeverClickNotCounted(hitResult.getBlockPos(), String.valueOf(cir.getReturnValue()));
+            } catch (RuntimeException ignored) {
+                // logging only - never let it break the click
+            }
         }
     }
 }

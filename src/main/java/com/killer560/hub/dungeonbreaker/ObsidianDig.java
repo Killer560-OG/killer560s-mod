@@ -69,6 +69,8 @@ public final class ObsidianDig {
     private int restarts;
     private String tool;
     private int lastStageLogged = -2;
+    /** Dig tick of the last "held by the gate" line, so a held STOP/restart logs at most once per 20 ticks. */
+    private int lastGateHoldLogTick = -100;
 
     // The server's own break-progress packets for the block being dug (ClientboundBlockDestructionPacket), written by
     // dungeonbreaker.mixin.ObsidianDigPacketMixin on the render thread. One dig is watched at a time.
@@ -121,6 +123,7 @@ public final class ObsidianDig {
         startAckLogged = false;
         stopSeq = -1;
         lastStageLogged = -2;
+        lastGateHoldLogTick = -100;
         watched = pos;
         serverStage = -1;
         stagePackets = 0;
@@ -129,8 +132,11 @@ public final class ObsidianDig {
         tool = (id != null ? id : held.getItem().toString()) + " in slot " + player.getInventory().getSelectedSlot();
         perTick = level.getBlockState(pos).getDestroyProgress(player, level, pos);
         sendStart(client, player, aim);
-        log.info("{} Obsidian dig START {} face {} at game tick {} | tool {} | client destroy progress {} a tick ({})",
-                tag, pos.toShortString(), face, startGameTime, tool, fmt(perTick),
+        log.info("{} Obsidian dig START {} face {} at game tick {} (session tick {}, seq {}, box distance {}) | tool {}"
+                        + " | client destroy progress {} a tick ({})",
+                tag, pos.toShortString(), face, startGameTime, com.killer560.hub.util.SessionRecorderSink.tick(),
+                startSeq, fmt((float) Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(),
+                        pos))), tool, fmt(perTick),
                 perTick >= 1f ? "instant by the client's count: no STOP, waiting for the server"
                         : perTick <= 0f ? "never by the client's count: holding until the server breaks it"
                         : "STOP due after ~" + (int) Math.ceil(1f / perTick) + " tick(s)");
@@ -207,6 +213,7 @@ public final class ObsidianDig {
                     return Result.ABANDONED;
                 }
                 if (!mayAct.getAsBoolean()) {
+                    logGateHold("restart START");
                     return Result.RUNNING;
                 }
                 restarts++;
@@ -217,6 +224,8 @@ public final class ObsidianDig {
                 refusedAtTick = -1;
                 startAckLogged = false;
                 sendStart(client, player, aim);
+                log.info("{} [ObsidianDig] restart START_DESTROY_BLOCK sent: pos={} seq={} digTick={} tick={}", tag,
+                        pos.toShortString(), startSeq, ticks, com.killer560.hub.util.SessionRecorderSink.tick());
             }
             return Result.RUNNING;
         }
@@ -226,6 +235,7 @@ public final class ObsidianDig {
         }
         if (progress >= 1f && perTick < 1f) {
             if (!mayAct.getAsBoolean()) {
+                logGateHold("STOP_DESTROY_BLOCK");
                 return Result.RUNNING;
             }
             if (aim != null) {
@@ -307,6 +317,18 @@ public final class ObsidianDig {
         } else {
             player.connection.send(new ServerboundPlayerActionPacket(action, at, f));
         }
+    }
+
+    /** The owner's gate (ActionGate) refused this tick, so the STOP or restart waits a tick. Rate-limited. */
+    private void logGateHold(String what) {
+        if (ticks - lastGateHoldLogTick < 20) {
+            return;
+        }
+        lastGateHoldLogTick = ticks;
+        log.info("{} [ObsidianDig] {} held: pos={} digTick={} progress={} restarts={} tick={} - the action gate gave"
+                        + " this tick to something else, trying next tick", tag, what,
+                pos == null ? "null" : pos.toShortString(), ticks, fmt(progress), restarts,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     private void logStage() {

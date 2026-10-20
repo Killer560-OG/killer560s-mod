@@ -89,16 +89,29 @@ public final class AutoBeams {
         }
         BlockPos pos = pair.stage == 0 ? pair.first : pair.second;
         if (pos.getX() != packet.getX() || pos.getY() != packet.getY() || pos.getZ() != packet.getZ()) {
+            LOGGER.info("[AutoPuzzles] Beams: guardian hurt sound at {}, {}, {} (pitch {}) is not at the expected lantern {}"
+                            + " (stage {}) - ignored (tick {})", packet.getX(), packet.getY(), packet.getZ(), packet.getPitch(),
+                    AutoPuzzleUtil.fmt(pos), pair.stage, com.killer560.hub.util.SessionRecorderSink.tick());
             return;
         }
         if (pair.stage == 0 && packet.getPitch() == 1.3968254f) {
             pair.stage = 1;
+            LOGGER.info("[AutoPuzzles] Beams: first lantern {} hit (hurt sound pitch {}) - next {} (tick {})",
+                    AutoPuzzleUtil.fmt(pair.first), packet.getPitch(), AutoPuzzleUtil.fmt(pair.second),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         } else if (pair.stage == 1 && packet.getPitch() == 2.0f) {
             pair.stage = 2;
             activePair = null;
             // Melee picks its next pair at once, before the solver's list (from block updates) drops this one.
             MELEE_DONE.add(pair.first);
             MELEE_DONE.add(pair.second);
+            LOGGER.info("[AutoPuzzles] Beams: pair {} - {} joined (hurt sound pitch 2.0), {} lantern(s) done (tick {})",
+                    AutoPuzzleUtil.fmt(pair.first), AutoPuzzleUtil.fmt(pair.second), MELEE_DONE.size(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+        } else {
+            LOGGER.info("[AutoPuzzles] Beams: guardian hurt sound at the expected lantern {} with pitch {} at stage {} - not"
+                    + " a stage change (tick {})", AutoPuzzleUtil.fmt(pos), packet.getPitch(), pair.stage,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         }
     }
 
@@ -111,6 +124,10 @@ public final class AutoBeams {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoBeamsEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
+                LOGGER.info("[AutoPuzzles] Beams: visit over ({}) after {} tick(s): {} pair(s) solved, melee hits {}, warps"
+                                + " {}, AOTV teleports {}, shots {}, fallback to Shoot {}",
+                        !cfg.isAutoBeamsEnabled() ? "switched off" : "left the room", sinceVisit(), solvedPairs, meleeHits,
+                        meleeWarps, meleeDashes, meleeShots, meleeFallback);
                 reset(client);
                 GUARD.leftRoom();
             }
@@ -121,9 +138,16 @@ public final class AutoBeams {
         if (pairs == null) {
             pairs = BeamsSolverFeature.getActivePairs();
         }
+        if (!wasInRoom) {
+            visitStartTick = com.killer560.hub.util.SessionRecorderSink.tick();
+            LOGGER.info("[AutoPuzzles] Beams: entered with the auto on - mode {}, {} lit pair(s) listed, reposition {},"
+                            + " shoot cooldown {} ms (tick {})", cfg.isAutoBeamsMelee() ? "melee" : "shoot", pairs.size(),
+                    cfg.isEtherwarpReposition(), cfg.getShootCooldownMs(), visitStartTick);
+        }
         wasInRoom = true;
         CAMERA.keep(client.player);
         if (!GUARD.solverOn(BeamsSolverConfig.getInstance().isEnabled())) {
+            say("waiting: Creeper Beams Solver is off (or the guard has not trusted it yet)");
             active = false;
             CAMERA.release(client.player);
             return;
@@ -133,9 +157,19 @@ public final class AutoBeams {
         // QUOI recalculateLanternPairs: drop the active pair once its first lantern is no longer lit. Melee hits the nearer
         // end first, which may be the solver's second, so it asks whether the pair itself is still listed.
         if (activePair != null && !(melee ? containsPair(pairs, activePair) : containsFirst(pairs, activePair.first))) {
+            LOGGER.info("[AutoPuzzles] Beams: active pair {} - {} (stage {}) no longer listed by the solver - dropped"
+                            + " ({} pair(s) listed, tick {})", AutoPuzzleUtil.fmt(activePair.first),
+                    AutoPuzzleUtil.fmt(activePair.second), activePair.stage, pairs.size(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             activePair = null;
         }
+        if (lastPairCount >= 0 && pairs.size() < lastPairCount) {
+            LOGGER.info("[AutoPuzzles] Beams: the solver's list fell {} -> {} - pair {} of 4 solved ({} tick(s) into the"
+                    + " visit)", lastPairCount, pairs.size(), solvedPairs + 1, sinceVisit());
+        }
         if (lastPairCount >= 0 && pairs.size() < lastPairCount && ++solvedPairs == 4) {
+            LOGGER.info("[AutoPuzzles] Beams: done - four pairs joined after {} tick(s) (melee hits {}, warps {}, AOTV {},"
+                    + " shots {})", sinceVisit(), meleeHits, meleeWarps, meleeDashes, meleeShots);
             ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Creeper Beams: "), ModChat.good("done"), ModChat.text("."));
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
@@ -172,6 +206,7 @@ public final class AutoBeams {
         }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
+            LOGGER.debug("[AutoPuzzles] Beams: reposition under way");
             return;
         }
         boolean reposition = cfg.isEtherwarpReposition();
@@ -195,13 +230,23 @@ public final class AutoBeams {
         // straight after the first had landed.
         if (Math.abs(player.getY() - platformY) > 0.5) {
             if (reposition) {
-                say("off the center platform - repositioning onto " + AutoPuzzleUtil.fmt(start));
-                if (!REPOSITION.start(client, start, true, false, false) && melee) {
+                say("off the center platform (platform feet y " + platformY + ") - repositioning onto "
+                        + AutoPuzzleUtil.fmt(start));
+                boolean started = REPOSITION.start(client, start, true, false, false);
+                if (!started) {
+                    held("platform", "no etherwarp line onto the center platform " + AutoPuzzleUtil.fmt(start) + " from "
+                            + fmt(player.position()) + (melee ? " - trying a hop toward it" : " - waiting"));
+                }
+                if (!started && melee) {
                     // Melee's last resort only (Shoot mode is unchanged): no line onto the platform from wherever melee left
                     // him, so a hop toward it first - waiting here was the in-game stall of 2026-10-18.
                     BlockPos hop = AutoPuzzleUtil.hopToward(client, player, List.of(start));
                     if (hop != null) {
-                        REPOSITION.start(client, hop, true, false, false);
+                        boolean hopped = REPOSITION.start(client, hop, true, false, false);
+                        held("platformhop" + hop, "hop toward the platform via " + AutoPuzzleUtil.fmt(hop) + " "
+                                + (hopped ? "started" : "refused"));
+                    } else {
+                        held("platformhop", "no hop toward the center platform either");
                     }
                 }
             } else {
@@ -212,6 +257,9 @@ public final class AutoBeams {
         if (activePair == null) {
             BlockPos[] first = pairs.get(0);
             activePair = new LanternPair(first[0], first[1]);
+            LOGGER.info("[AutoPuzzles] Beams: next pair {} - {} (first of {} listed, {} solved, tick {})",
+                    AutoPuzzleUtil.fmt(first[0]), AutoPuzzleUtil.fmt(first[1]), pairs.size(), solvedPairs,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         }
         LanternPair pair = activePair;
         BlockPos lantern = pair.stage == 0 ? pair.first : pair.second;
@@ -236,6 +284,8 @@ public final class AutoBeams {
                 say("the creeper is between him and " + AutoPuzzleUtil.fmt(lantern) + " - moving to "
                         + AutoPuzzleUtil.fmt(spot));
                 if (!REPOSITION.start(client, spot, true, false, false)) {
+                    LOGGER.info("[AutoPuzzles] Beams: no etherwarp aim onto platform spot {} - skipping it next tick",
+                            AutoPuzzleUtil.fmt(spot));
                     failedSpot = spot; // no aim onto it: the next spot next tick, not this one forever
                 }
                 return;
@@ -257,6 +307,8 @@ public final class AutoBeams {
             }
         }
         if (bow != AutoPuzzleUtil.BowState.HELD || now - lastShotTime < cfg.getShootCooldownMs()) {
+            LOGGER.debug("[AutoPuzzles] Beams: no shot this tick - bow {}, cooldown {} of {} ms", bow, now - lastShotTime,
+                    cfg.getShootCooldownMs());
             return;
         }
         Vec3 eye = player.getEyePosition();
@@ -267,14 +319,19 @@ public final class AutoBeams {
         }
         CAMERA.engage(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            held("gate" + lantern, "the action gate held the shot at " + AutoPuzzleUtil.fmt(lantern));
             return; // gate held this tick back - no shot, so lastShotTime must not move
         }
+        long sinceLast = lastShotTime <= 0L ? -1L : now - lastShotTime;
         lastShotTime = now;
         lastSaid = null;
-        LOGGER.info("[AutoPuzzles] Beams: shot at {} (pair stage {}) from {}, yaw {} pitch {}{}", AutoPuzzleUtil.fmt(lantern),
+        LOGGER.info("[AutoPuzzles] Beams: shot at {} (pair stage {}) from {}, yaw {} pitch {}{}, holding {}, {} ms since"
+                        + " the last shot, {} solved (tick {})", AutoPuzzleUtil.fmt(lantern),
                 pair.stage, String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", eye.x, eye.y, eye.z),
                 String.format(java.util.Locale.ROOT, "%.1f", dir[0]), String.format(java.util.Locale.ROOT, "%.1f", dir[1]),
-                seen ? "" : " - no clear line to any face, aimed at the center");
+                seen ? "" : " - no clear line to any face, aimed at the center",
+                player.getMainHandItem().getHoverName().getString(), sinceLast, solvedPairs,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /**
@@ -453,9 +510,12 @@ public final class AutoBeams {
             }
         }
         LOGGER.info("[AutoPuzzles] Beams: \"There are blocks in the way!\" for {} | from {} yaw {} pitch {} | eye ray meets "
-                        + "{} | body column meets {}", what, fmt(player.position()),
+                        + "{} | body column meets {} | holding {}, {} refused look(s) so far (tick {})", what,
+                fmt(player.position()),
                 String.format(java.util.Locale.ROOT, "%.1f", yaw), String.format(java.util.Locale.ROOT, "%.1f", pitch),
-                eyeBlock, column.isEmpty() ? "nothing within 1.5" : column);
+                eyeBlock, column.isEmpty() ? "nothing within 1.5" : column,
+                player.getMainHandItem().getHoverName().getString(), REFUSED_LOOKS.size(),
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /**
@@ -500,6 +560,10 @@ public final class AutoBeams {
                 // waiting out the timeout, and the look is never planned again from that block.
                 if (dashFeet != null) {
                     REFUSED_LOOKS.add(lookKey(dashFeet, plan.yaw(), plan.pitch()));
+                    LOGGER.info("[AutoPuzzles] Beams (melee): look {} / {} from block {} marked refused ({} refused look(s))",
+                            String.format(java.util.Locale.ROOT, "%.1f", plan.yaw()),
+                            String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()),
+                            AutoPuzzleUtil.fmt(BlockPos.containing(dashFeet)), REFUSED_LOOKS.size());
                 }
                 LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} {} (planned landing {}, he is at {}) - "
                                 + "dropping that teleport and its look", AutoPuzzleUtil.fmt(dashLantern),
@@ -509,6 +573,9 @@ public final class AutoBeams {
                 dropPlan(dashLantern, plan);
                 requestBack(dashLantern);
                 dashTick = -1L;
+            } else {
+                LOGGER.debug("[AutoPuzzles] Beams (melee): AOTV teleport in flight, {} tick(s), {} from the landing", now - dashTick,
+                        Math.sqrt(player.position().distanceToSqr(plan.land())));
             }
             return;
         }
@@ -522,6 +589,9 @@ public final class AutoBeams {
                 meleeClickTick = -1L;
                 meleeTries = 0;
             } else if (now - meleeClickTick < (meleeWasShot ? SHOT_CONFIRM_TICKS : MELEE_CONFIRM_TICKS)) {
+                LOGGER.debug("[AutoPuzzles] Beams (melee): waiting for the answer to the {} on {}, {} of {} tick(s)",
+                        meleeWasShot ? "shot" : "hit", meleeTarget(), now - meleeClickTick,
+                        meleeWasShot ? SHOT_CONFIRM_TICKS : MELEE_CONFIRM_TICKS);
                 return; // the server's answer is on its way
             } else {
                 BlockPos lantern = meleeTarget();
@@ -541,8 +611,10 @@ public final class AutoBeams {
                     activePair = null;
                     meleeTries = 0;
                 } else {
-                    LOGGER.info("[AutoPuzzles] Beams (melee): no answer to the {} on {} - trying again another way",
-                            meleeWasShot ? "shot" : "hit", AutoPuzzleUtil.fmt(lantern));
+                    LOGGER.info("[AutoPuzzles] Beams (melee): no answer to the {} on {} from {} within {} tick(s) - trying"
+                                    + " again another way (try {}/{})", meleeWasShot ? "shot" : "hit", AutoPuzzleUtil.fmt(lantern),
+                            meleeFrom == null ? "the air" : AutoPuzzleUtil.fmt(meleeFrom),
+                            meleeWasShot ? SHOT_CONFIRM_TICKS : MELEE_CONFIRM_TICKS, meleeTries, MELEE_MAX_TRIES);
                 }
             }
         }
@@ -576,7 +648,10 @@ public final class AutoBeams {
         if (AutoReposition.landedThisTick()) {
             // The landing tick only gets ready: the body onto a point of the lantern he sees from where he will stand, so the
             // hit next tick needs no turn of its own.
-            aimAtVisible(client, player, lantern, AutoPuzzleUtil.settledEye(player));
+            boolean turned = aimAtVisible(client, player, lantern, AutoPuzzleUtil.settledEye(player));
+            LOGGER.info("[AutoPuzzles] Beams (melee): warp landed at {} - {} for {} (tick {})", fmt(player.position()),
+                    turned ? "body turned onto it" : "no turn needed (or no visible point)", AutoPuzzleUtil.fmt(lantern),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             return;
         }
         BlockPos standing = standingOn(client, player);
@@ -616,7 +691,12 @@ public final class AutoBeams {
                 if (REPOSITION.start(client, spot, false, false, false)) {
                     meleeWarps++;
                     lastSaid = null;
+                    LOGGER.info("[AutoPuzzles] Beams (melee): etherwarp {} onto {} for {} (stage {}, tick {})", meleeWarps,
+                            AutoPuzzleUtil.fmt(spot), AutoPuzzleUtil.fmt(lantern), pair.stage,
+                            com.killer560.hub.util.SessionRecorderSink.tick());
                 } else {
+                    LOGGER.info("[AutoPuzzles] Beams (melee): etherwarp onto {} for {} refused to start - spot marked failed",
+                            AutoPuzzleUtil.fmt(spot), AutoPuzzleUtil.fmt(lantern));
                     MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
                 }
             }
@@ -670,10 +750,13 @@ public final class AutoBeams {
         meleeBack = null;
         meleeHits++;
         lastSaid = null;
-        LOGGER.info("[AutoPuzzles] Beams (melee): hit {} (pair stage {}) from {}, eye to box {}{}", AutoPuzzleUtil.fmt(lantern),
+        LOGGER.info("[AutoPuzzles] Beams (melee): hit {} (pair stage {}) from {}, eye to box {}{}, holding {}, hit {}, try {}"
+                        + " (tick {})", AutoPuzzleUtil.fmt(lantern),
                 pair.stage, standing == null ? "the air at " + fmt(player.position()) : AutoPuzzleUtil.fmt(standing),
                 String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye,
-                        lantern))), meleeFromPlan != null ? " via aotv" : "");
+                        lantern))), meleeFromPlan != null ? " via aotv" : "",
+                player.getMainHandItem().getHoverName().getString(), meleeHits, meleeTries + 1,
+                com.killer560.hub.util.SessionRecorderSink.tick());
         airPlan = null;
     }
 
@@ -722,6 +805,10 @@ public final class AutoBeams {
             if (REPOSITION.start(client, spot, false, false, false)) {
                 meleeWarps++;
                 lastSaid = null;
+                LOGGER.info("[AutoPuzzles] Beams (melee): etherwarp {} onto {} to AOTV from ({} plan(s), tick {})", meleeWarps,
+                        AutoPuzzleUtil.fmt(spot), plans.size(), com.killer560.hub.util.SessionRecorderSink.tick());
+            } else {
+                held("aotvwarp" + spot, "etherwarp onto AOTV spot " + AutoPuzzleUtil.fmt(spot) + " refused to start");
             }
             return;
         }
@@ -741,6 +828,8 @@ public final class AutoBeams {
         }
         CAMERA.engage(player);
         if (!AutoPuzzleUtil.useItemRotated(client, player, plan.yaw(), plan.pitch())) {
+            held("aotvgate" + lantern, "AOTV teleport toward " + AutoPuzzleUtil.fmt(lantern)
+                    + " held (action gate, or the look goes out first)");
             return; // gate held, or the look must be heard first: next tick
         }
         com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
@@ -751,9 +840,13 @@ public final class AutoBeams {
         dashLantern = lantern;
         meleeDashes++;
         lastSaid = null;
-        LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport toward {} from {} (yaw {} pitch {}), landing planned at {}",
+        LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport toward {} from {} (yaw {} pitch {}), landing planned at {},"
+                        + " holding {}, {} plan, teleport {} (tick {})",
                 AutoPuzzleUtil.fmt(lantern), fmt(player.position()), String.format(java.util.Locale.ROOT, "%.1f", plan.yaw()),
-                String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()), fmt(land));
+                String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()), fmt(land),
+                player.getMainHandItem().getHoverName().getString(),
+                plan == here ? (fromAir ? "from-here (back)" : "from-here") : "listed", meleeDashes,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /**
@@ -792,7 +885,11 @@ public final class AutoBeams {
             if (REPOSITION.start(client, spot, true, false, false)) {
                 meleeWarps++;
                 lastSaid = null;
+                LOGGER.info("[AutoPuzzles] Beams (melee): etherwarp {} onto {} to shoot {} (tick {})", meleeWarps,
+                        AutoPuzzleUtil.fmt(spot), AutoPuzzleUtil.fmt(lantern), com.killer560.hub.util.SessionRecorderSink.tick());
             } else {
+                LOGGER.info("[AutoPuzzles] Beams (melee): etherwarp onto shoot spot {} refused to start - spot marked failed",
+                        AutoPuzzleUtil.fmt(spot));
                 MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(spot);
             }
             return;
@@ -805,10 +902,13 @@ public final class AutoBeams {
         }
         long ms = System.currentTimeMillis();
         if (bow != AutoPuzzleUtil.BowState.HELD || ms - lastShotTime < AutoPuzzlesConfig.getInstance().getShootCooldownMs()) {
+            LOGGER.debug("[AutoPuzzles] Beams (melee): no shot this tick - bow {}, cooldown {} of {} ms", bow, ms - lastShotTime,
+                    AutoPuzzlesConfig.getInstance().getShootCooldownMs());
             return;
         }
         CAMERA.engage(player);
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            held("meleeshotgate" + lantern, "melee-mode shot at " + AutoPuzzleUtil.fmt(lantern) + " held by the action gate");
             return;
         }
         lastShotTime = ms;
@@ -820,8 +920,11 @@ public final class AutoBeams {
         meleeFromPlan = null;
         meleeShots++;
         lastSaid = null;
-        LOGGER.info("[AutoPuzzles] Beams (melee): shot {} (pair stage {}) from {} - nothing in reach of it on foot or by AOTV",
-                AutoPuzzleUtil.fmt(lantern), pair.stage, fmt(eye));
+        LOGGER.info("[AutoPuzzles] Beams (melee): shot {} (pair stage {}) from {} yaw {} pitch {}, holding {} - nothing in"
+                        + " reach of it on foot or by AOTV (shot {}, tick {})",
+                AutoPuzzleUtil.fmt(lantern), pair.stage, fmt(eye), String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
+                String.format(java.util.Locale.ROOT, "%.1f", dir[1]), player.getMainHandItem().getHoverName().getString(),
+                meleeShots, com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /** {@link #shotAim} from {@code eye}, unless the line passes the creeper (the lantern under its feet excepted). */
@@ -1371,7 +1474,32 @@ public final class AutoBeams {
             return;
         }
         lastSaid = what;
-        LOGGER.info("[AutoPuzzles] Beams: {}", what);
+        LOGGER.info("[AutoPuzzles] Beams: {} (tick {})", what, com.killer560.hub.util.SessionRecorderSink.tick());
+    }
+
+    /** When {@link #held} last logged each key: a repeat of the same key logs at most once a second, even when two
+     *  keys take turns in one tick. Cleared on reset, and whenever it grows past a few hundred keys. */
+    private static final java.util.Map<String, Long> HELD_AT = new java.util.HashMap<>();
+
+    /** For refusals that can repeat every tick beside a {@link #say} line (kept apart so the two never alternate). */
+    private static void held(String key, String detail) {
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        Long last = HELD_AT.get(key);
+        if (last != null && now - last < 20) {
+            return;
+        }
+        if (HELD_AT.size() > 256) {
+            HELD_AT.clear();
+        }
+        HELD_AT.put(key, now);
+        LOGGER.info("[AutoPuzzles] Beams: held: {} (tick {})", detail, now);
+    }
+
+    /** Tick this room visit began with the auto on; -1 outside. */
+    private static long visitStartTick = -1L;
+
+    private static long sinceVisit() {
+        return visitStartTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - visitStartTick;
     }
 
     private static boolean containsFirst(List<BlockPos[]> pairs, BlockPos first) {
@@ -1401,6 +1529,8 @@ public final class AutoBeams {
     }
 
     private static void reset(Minecraft client) {
+        HELD_AT.clear();
+        visitStartTick = -1L;
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         CAMERA.release(client.player);

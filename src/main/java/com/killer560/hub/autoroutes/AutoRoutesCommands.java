@@ -69,7 +69,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public final class AutoRoutesCommands {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod/autoroutes");
+    private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
 
     /** Chat prefix - "[Auto Routes]" in the mod's orange. */
     public static final String FEATURE = "Auto Routes";
@@ -351,6 +351,8 @@ public final class AutoRoutesCommands {
     }
 
     private static void dispatch(Action action) {
+        LOGGER.info("[AutoRoutes] command {}: room {}, running={} recording={} editMode={}", action, roomName(),
+                RouteExecutor.isRunning(), RouteRecorder.isRecording(), AutoRoutesFeature.isEditMode());
         switch (action) {
             case START_RECORD -> startRecord();
             case STOP_RECORD -> stopRecord();
@@ -384,18 +386,22 @@ public final class AutoRoutesCommands {
      */
     private static boolean ready() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            LOGGER.info("[AutoRoutes] command refused: not a cheat build");
             ModChat.send(FEATURE, ModChat.bad("Not available in this build."));
             return false;
         }
         if (!com.killer560.hub.util.SkyblockGate.allows()) {
+            LOGGER.info("[AutoRoutes] command refused: Skyblock gate closed");
             ModChat.send(FEATURE, ModChat.bad("Mods are paused outside Skyblock / p3sim."));
             return false;
         }
         if (!AutoRoutesConfig.getInstance().isEnabledRaw()) {
+            LOGGER.info("[AutoRoutes] command refused: Auto Routes is off");
             ModChat.send(FEATURE, ModChat.bad("Auto Routes is OFF - turn it on in the Dungeon tab first."));
             return false;
         }
         if (Minecraft.getInstance().player == null) {
+            LOGGER.info("[AutoRoutes] command refused: no player yet");
             // Only reachable while the world isn't fully loaded (a command typed at the "Joining world" screen,
             // or right as it disconnects) - every other refusal above already prints a reason, and a command
             // that silently does nothing is indistinguishable from a broken one (2026-09-2x review: this was
@@ -512,6 +518,7 @@ public final class AutoRoutesCommands {
         guarded(() -> {
             String key = typeWord.trim().toLowerCase(Locale.ROOT);
             RouteNode.Type type = ADD_TYPES.get(key);
+            LOGGER.info("[AutoRoutes] command /ar add {} {}: type {}", typeWord, mods == null ? "" : mods, type);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
                         ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path, crypt or jump <number>. start and await:<number> go after it, e.g. "),
@@ -524,6 +531,7 @@ public final class AutoRoutesCommands {
                 // "/ar add jump <n> [start] [await:<n>]": the count comes first and is required (killer560, 2026-10-12).
                 String[] parts = mods == null ? new String[0] : mods.trim().split("\\s+", 2);
                 if (parts.length == 0 || RouteNode.parseJumps(parts[0]) < 0) {
+                    LOGGER.info("[AutoRoutes] /ar add jump refused: no valid jump count");
                     ModChat.send(FEATURE, ModChat.bad("Please add a number of jumps: /ar add jump <number>"),
                             ModChat.dim(" (" + RouteNode.MIN_JUMPS + "-" + RouteNode.MAX_JUMPS + "). Nothing was added."));
                     return;
@@ -564,6 +572,7 @@ public final class AutoRoutesCommands {
                     int n = t.equals("await") || t.equals("await:") ? 1
                             : m.matches() ? Integer.parseInt(m.group(1)) : 0;
                     if (n < 1) {
+                        LOGGER.info("[AutoRoutes] /ar add refused: modifier \"{}\" needs a number", raw);
                         ModChat.send(FEATURE, ModChat.bad("\"" + raw + "\" needs a number of secrets"),
                                 ModChat.dim(" - e.g. "), ModChat.value("await:2"), ModChat.dim(". Nothing was added."));
                         return null;
@@ -572,6 +581,7 @@ public final class AutoRoutesCommands {
                     amount = n;
                     continue;
                 }
+                LOGGER.info("[AutoRoutes] /ar add refused: unknown modifier \"{}\"", raw);
                 ModChat.send(FEATURE, ModChat.bad("Unknown modifier \"" + raw + "\""),
                         ModChat.dim(" - only start and await:<number>. Nothing was added."));
                 return null;
@@ -642,7 +652,9 @@ public final class AutoRoutesCommands {
     }
 
     private static void stopRoute() {
-        if (!RouteExecutor.stopByUser()) {
+        boolean stopped = RouteExecutor.stopByUser();
+        LOGGER.info("[AutoRoutes] /ar stop: {}", stopped ? "route stopped by you" : "no route was running");
+        if (!stopped) {
             ModChat.send(FEATURE, ModChat.text("No route is running."));
         }
     }
@@ -651,6 +663,7 @@ public final class AutoRoutesCommands {
     public static void delete(int index) {
         List<RouteNode> nodes = AutoRoutesFeature.currentRouteNodes();
         if (index < 0 || index >= nodes.size()) {
+            LOGGER.info("[AutoRoutes] /ar delete {} refused: route has {} node(s)", index + 1, nodes.size());
             ModChat.send(FEATURE, ModChat.bad("No node #" + (index + 1)),
                     ModChat.text(nodes.isEmpty() ? " - the route is empty." : " - there are " + nodes.size() + "."));
             return;
@@ -690,6 +703,8 @@ public final class AutoRoutesCommands {
         }
         RouteStore.reload();
         int loaded = RouteStore.getInstance().routes().size();
+        LOGGER.info("[AutoRoutes] /ar reload: file exists={}, parse error={}, {} route(s) loaded", exists, parseError,
+                loaded);
         if (parseError != null) {
             ModChat.send(FEATURE, ModChat.bad("Failed to parse "), ModChat.value(file.getFileName().toString()),
                     ModChat.bad(": " + parseError));

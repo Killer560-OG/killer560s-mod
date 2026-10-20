@@ -26,15 +26,52 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class BreakerGuard {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-dungeonbreaker");
+    /** Positions currently reported as protected, with the reason - logged on change only, since Breaker Aura asks about
+     *  every pick every tick. Bounded; cleared when it grows past the cap (the next verdicts simply log again). */
+    private static final java.util.Map<BlockPos, String> PROTECTED_LOGGED =
+            new java.util.concurrent.ConcurrentHashMap<>(); // AP3's planner may ask from another thread
+    private static final int PROTECTED_LOG_CAP = 4096;
+
     private BreakerGuard() {
     }
 
     /** True when the breaker must leave this block alone. */
     public static boolean protects(BlockGetter level, BlockPos pos) {
         if (inFairyRoom(pos)) {
+            logVerdict(pos, "inside a Fairy room");
             return true;
         }
-        return DungeonBreakerConfig.getInstance().isNoBreakSecrets() && isSecretBlock(level, pos);
+        boolean secret = DungeonBreakerConfig.getInstance().isNoBreakSecrets() && isSecretBlock(level, pos);
+        if (secret) {
+            logVerdict(pos, "secret block (" + level.getBlockState(pos).getBlock().getName().getString()
+                    + ") with Don't break secrets on");
+        } else if (!PROTECTED_LOGGED.isEmpty() && pos != null) {
+            String was = PROTECTED_LOGGED.remove(pos);
+            if (was != null) {
+                LOGGER.info("[BreakerGuard] no longer protected: pos={} was={} tick={}", pos.toShortString(), was,
+                        com.killer560.hub.util.SessionRecorderSink.tick());
+            }
+        }
+        return secret;
+    }
+
+    /** Logs a refusal the first time a position is refused for a reason; side-effect free apart from the log map. */
+    private static void logVerdict(BlockPos pos, String reason) {
+        try {
+            if (pos == null || reason.equals(PROTECTED_LOGGED.get(pos))) {
+                return;
+            }
+            if (PROTECTED_LOGGED.size() >= PROTECTED_LOG_CAP) {
+                PROTECTED_LOGGED.clear();
+            }
+            PROTECTED_LOGGED.put(pos.immutable(), reason);
+            LOGGER.info("[BreakerGuard] refused: pos={} reason={} noBreakSecrets={} tick={}", pos.toShortString(),
+                    reason, DungeonBreakerConfig.getInstance().isNoBreakSecrets(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+        } catch (RuntimeException ignored) {
+            // logging only - never let it change the guard's answer
+        }
     }
 
     public static boolean inFairyRoom(BlockPos pos) {

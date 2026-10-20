@@ -75,6 +75,10 @@ final class PartyMapIntel {
      *  {@link LiveMapFeature#resetGrid}, not only from a generation-mismatch inside {@link #mergeIfNeeded},
      *  so a stale {@link PartyRoomIntel} snapshot can never briefly outlive the map's own reset. */
     static void reset() {
+        if (!ROOMS.isEmpty() || !DOORS.isEmpty()) {
+            LOGGER.info("[MapLayout] party reports cleared: {} room(s), {} door(s)", ROOMS.size(), DOORS.size());
+        }
+        LOGGED.clear();
         ROOMS.clear();
         DOORS.clear();
         mergedTick = Integer.MIN_VALUE;
@@ -121,20 +125,35 @@ final class PartyMapIntel {
                 continue; // out of range for the 11x11 grid at all - ignore rather than guess
             }
             if (localRoomKnown.test(idx)) {
-                ROOMS.remove(idx); // local scan has settled this cell since
+                ReportedRoom dropped = ROOMS.remove(idx); // local scan has settled this cell since
+                if (dropped != null) {
+                    LOGGER.info("[MapLayout] party report for {},{} ({}) dropped: the local scan has the cell now",
+                            idx % DungeonLayout.GRID, idx / DungeonLayout.GRID, clip(dropped.reportedName()));
+                }
                 continue;
             }
             ReportedRoom existing = ROOMS.get(idx);
             if (existing == null) {
-                ROOMS.put(idx, new ReportedRoom(idx, r.name(), resolveEntry(r.name()), r.reporter()));
+                ReportedRoom added = new ReportedRoom(idx, r.name(), resolveEntry(r.name()), r.reporter());
+                ROOMS.put(idx, added);
+                LOGGER.info("[MapLayout] party report accepted: room {} at {},{} from {} (database match={})",
+                        clip(r.name()), idx % DungeonLayout.GRID, idx / DungeonLayout.GRID, clip(r.reporter()),
+                        added.entry() != null);
             } else if (existing.entry() == null && java.util.Objects.equals(existing.reportedName(), r.name())) {
                 // Same report as before ("keep first" - a different name for this cell is still ignored
                 // below), just retried against the room database - it may have finished downloading since
                 // the first report came in (RoomDatabase.ensureLoading runs on its own schedule, not ours).
                 RoomEntry resolved = resolveEntry(r.name());
                 if (resolved != null) {
+                    LOGGER.info("[MapLayout] party report {} at {},{} now matches the room database",
+                            clip(r.name()), idx % DungeonLayout.GRID, idx / DungeonLayout.GRID);
                     ROOMS.put(idx, new ReportedRoom(idx, existing.reportedName(), resolved, existing.reporter()));
                 }
+            } else if (!java.util.Objects.equals(existing.reportedName(), r.name()) && LOGGED.size() < 256
+                    && LOGGED.add("room " + idx + " " + r.name())) {
+                LOGGER.info("[MapLayout] party report conflict at {},{}: kept {} (first), ignored {} from {}",
+                        idx % DungeonLayout.GRID, idx / DungeonLayout.GRID, clip(existing.reportedName()), clip(r.name()),
+                        clip(r.reporter()));
             }
             // else: a different name reported for a cell we already have one for - keep the first (existing).
         }
@@ -145,15 +164,38 @@ final class PartyMapIntel {
             }
             int idx = d.row() * DungeonLayout.GRID + d.col();
             if (localDoorKnown.test(idx)) {
-                DOORS.remove(idx);
+                if (DOORS.remove(idx) != null) {
+                    LOGGER.info("[MapLayout] party door report at {},{} dropped: resolved locally", d.col(), d.row());
+                }
                 continue;
             }
             int type = doorTypeFromWire(d.type());
             if (type == DungeonLayout.DOOR_NONE) {
+                if (LOGGED.size() < 256 && LOGGED.add("door " + idx + " none")) {
+                    LOGGER.info("[MapLayout] party door report at {},{} ignored: unknown type {}", d.col(), d.row(),
+                            clip(d.type()));
+                }
                 continue;
+            }
+            if (!DOORS.containsKey(idx)) {
+                LOGGER.info("[MapLayout] party door report accepted: type {} at {},{} from {}", type, d.col(), d.row(),
+                        clip(d.reporter()));
             }
             DOORS.computeIfAbsent(idx, k -> new ReportedDoor(idx, type, d.reporter()));
         }
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+
+    /** Logging only: conflicts and ignored reports already logged this run. */
+    private static final java.util.Set<String> LOGGED = new java.util.HashSet<>();
+
+    /** Network text in a log line: bounded, and never null. */
+    private static String clip(String s) {
+        if (s == null) {
+            return "null";
+        }
+        return s.length() > 40 ? s.substring(0, 40) + "..." : s;
     }
 
     /** Snaps a wire (col,row) tile index to the nearest of the 6 even (room) slots per axis - the dungeon's

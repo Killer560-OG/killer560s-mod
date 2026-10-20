@@ -311,6 +311,8 @@ public final class AutoBoulder {
         }
         if (stage == Stage.DONE) {
             if (!inRoom && !nearDoor(player)) {
+                LOGGER.info("[AutoPuzzles] Boulder: done and away from the doorway - idle again ({} s after the start,"
+                        + " tick {})", fmt((System.currentTimeMillis() - engagedMs) / 1000.0), tick());
                 disengage(client, null);
             }
             return false;
@@ -336,6 +338,7 @@ public final class AutoBoulder {
                 sawContainer = true;
             }
             releaseKeys(client);
+            waitFor("a screen is open (stage " + stage + (sawContainer ? ", counted as the chest's window" : "") + ")");
             return true;
         }
         if (ClearExecutor.isBusy()) {
@@ -349,6 +352,8 @@ public final class AutoBoulder {
             return false;
         }
         if (correction && ServerCorrections.lastMoveDistance() < ServerCorrections.MIN_MOVE_BLOCKS) {
+            LOGGER.debug("[AutoPuzzles] Boulder: position packet moved him {} - rotation only, ignored",
+                    ServerCorrections.lastMoveDistance());
             correction = false; // rotation-only packet: nothing moved
         }
         if (correction) {
@@ -358,10 +363,16 @@ public final class AutoBoulder {
             // the bars steers from the live position every tick anyway.
             ServerCorrections.report("Auto Boulder", (walking ? "walking to " + walkLabel : "on the run to the bars")
                     + " - planning again from here", ServerCorrections.lastMoveDistance());
+            LOGGER.info("[AutoPuzzles] Boulder: server correction of {} blocks in stage {} - now at {} (tick {})",
+                    fmt(ServerCorrections.lastMoveDistance()), stage, fmt(player.position()), tick());
             if (walking) {
+                String label = walkLabel;
                 stopWalk(client, "server correction - planning again from here");
                 if (walkGoal != null && player.onGround()) {
                     startWalk(client, player, walkGoal, walkAvoidBarrier, walkLabel);
+                } else {
+                    LOGGER.info("[AutoPuzzles] Boulder: not re-planning to {} this tick - {}", label,
+                            walkGoal == null ? "no goal" : "not on the ground");
                 }
             }
         }
@@ -392,7 +403,12 @@ public final class AutoBoulder {
         for (int i = 0; i < keys.length; i++) {
             keyArmed[i] = !keys[i].isDown();
         }
-        LOGGER.info("[AutoPuzzles] Boulder: started - {}", why);
+        LOGGER.info("[AutoPuzzles] Boulder: started - {} (at {}, relative {}, rotation clay {}, keys already held"
+                        + " back/left/right/jump {}/{}/{}/{}, chest wait slider {} ms, tick {})", why,
+                fmt(client.player == null ? null : client.player.position()),
+                client.player == null ? "-" : AutoPuzzleUtil.fmt(PuzzleCoords.relative(client.player.blockPosition(), c)),
+                java.util.Arrays.toString(c), !keyArmed[0], !keyArmed[1], !keyArmed[2], !keyArmed[3],
+                AutoPuzzlesConfig.getInstance().getBoulderDelayMs(), tick());
     }
 
     /**
@@ -418,23 +434,34 @@ public final class AutoBoulder {
         if (packets != seenPackets) {
             seenPackets = packets;
             doorCheckUntilMs = Math.max(doorCheckUntilMs, now + 3000L);
+            loggedDoor = null;
         }
         if (now > doorCheckUntilMs) {
             return null;
         }
         if (ClearExecutor.isBusy() || !player.onGround()) {
+            LOGGER.debug("[AutoPuzzles] Boulder: door check - not settled yet (map busy {}, on ground {})",
+                    ClearExecutor.isBusy(), player.onGround());
             return null; // not settled yet - the 3 s window allows for it
         }
         int[] c = boulderClayRotation();
         if (c == null) {
+            LOGGER.debug("[AutoPuzzles] Boulder: door check - the layout has no Boulder room with a rotation");
             return null;
         }
         BlockPos door = PuzzleCoords.real(15, ROOF_FEET_REL, -1, c);
         BlockPos feet = player.blockPosition();
         if (Math.abs(feet.getX() - door.getX()) > 4 || Math.abs(feet.getZ() - door.getZ()) > 4
                 || Math.abs(feet.getY() - door.getY()) > 2) {
+            if (Math.abs(feet.getX() - door.getX()) <= 10 && Math.abs(feet.getZ() - door.getZ()) <= 10) {
+                // Only near Boulder's doorway: every teleport anywhere opens this window, and those say nothing.
+                doorNote("feet " + AutoPuzzleUtil.fmt(feet) + " are outside the 4/4/2 box round the doorway "
+                        + AutoPuzzleUtil.fmt(door));
+            }
             return null;
         }
+        LOGGER.info("[AutoPuzzles] Boulder: a teleport left him at {} by the doorway {} - starting (tick {})",
+                AutoPuzzleUtil.fmt(feet), AutoPuzzleUtil.fmt(door), tick());
         doorCheckUntilMs = 0L;
         return c;
     }
@@ -488,10 +515,14 @@ public final class AutoBoulder {
             source = "room database";
         } else {
             if (scanCooldown > 0) {
+                LOGGER.debug("[AutoPuzzles] Boulder: no database chest - next room scan in {} tick(s)", scanCooldown);
                 scanCooldown--;
                 return;
             }
             scanCooldown = 20;
+            LOGGER.info("[AutoPuzzles] Boulder: no chest in the room database ({}) - scanning the room for chest blocks"
+                    + " (tick {})", entry == null ? "no entry" : !ROOM.equals(entry.name) ? "entry is '" + entry.name + "'"
+                    : "entry has no chest", tick());
             BlockPos bestRel = null;
             java.util.List<BlockPos> found = AutoPuzzleUtil.chestsInRoom(client.level, cr, -1, 60, -1, 31, 75, 31);
             if (found == null) {
@@ -509,6 +540,10 @@ public final class AutoBoulder {
                 if (bestRel == null || r.getZ() > bestRel.getZ()) {
                     bestRel = r;
                 }
+            }
+            if (!found.isEmpty()) {
+                LOGGER.info("[AutoPuzzles] Boulder: room scan found {} chest block(s); furthest back at relative {}",
+                        found.size(), AutoPuzzleUtil.fmt(bestRel));
             }
             if (bestRel == null) {
                 // Boulder has one layout and its chest is always in the back alcove, relative (15, 66, 29) - read off his
@@ -540,8 +575,12 @@ public final class AutoBoulder {
         double roofY = PuzzleCoords.real(15, ROOF_FEET_REL, 0, cr).getY();
         boolean onRoof = player.getY() > roofY - 0.6;
         LOGGER.info("[AutoPuzzles] Boulder: chest at {} (relative {}, {}, {}) from the {}; Secret Aura {}; feet y {} "
-                        + "(roof {})", AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source,
-                aura ? "will take chests" : "will not take it (" + refusal + ")", fmt(player.getY()), (int) roofY);
+                        + "(roof {}, on roof {}); block there now {}; eye to chest box {}; aura range {} (tick {})",
+                AutoPuzzleUtil.fmt(chestReal), chestRel.x, chestRel.y, chestRel.z, source,
+                aura ? "will take chests" : "will not take it (" + refusal + ")", fmt(player.getY()), (int) roofY,
+                onRoof, client.level.getBlockState(chestReal).getBlock(),
+                fmt(Math.sqrt(BlockHits.boxDistanceSq(player.getEyePosition(), chestReal))),
+                fmt(CheatUtilsConfig.getInstance().getAuraRange()), tick());
         realCamera = !(aura && onRoof);
         if (aura && onRoof) {
             mode = Mode.AURA;
@@ -568,6 +607,10 @@ public final class AutoBoulder {
 
     /** RUN_TO_BARS holds forward only while his yaw is within this many degrees of the run's direction. */
     private static final float FACING_TOLERANCE = 45f;
+    /** The bars run's forward state as last logged (null: not logged in this run). */
+    private static Boolean loggedBarsForward = null;
+    /** The solver's next button as last logged. */
+    private static BlockPos loggedNextButton = null;
 
     private static void runToBars(Minecraft client, LocalPlayer player) {
         double reach = Math.min(CheatUtilsConfig.getInstance().getAuraRange(), CheatUtilsConfig.MEASURED_MAX_REACH)
@@ -609,9 +652,18 @@ public final class AutoBoulder {
         // he came in by, and forward held through the turn ran him 4 blocks the wrong way into a wall outside the room,
         // and Auto Boulder gave up (fullclear-1016 runs 055 and 057, both at the north door of a rotation-0 Boulder).
         boolean forward = Math.abs(net.minecraft.util.Mth.wrapDegrees(yaw - player.getYRot())) <= FACING_TOLERANCE;
+        if (!Boolean.valueOf(forward).equals(loggedBarsForward)) {
+            loggedBarsForward = forward;
+            LOGGER.info("[AutoPuzzles] Boulder: run to the bars - forward and sprint {} (yaw error {}, chest {} away, at {},"
+                            + " tick {})", forward ? "down" : "up, turning first",
+                    fmt(Math.abs(net.minecraft.util.Mth.wrapDegrees(yaw - player.getYRot()))), fmt(dist),
+                    fmt(player.position()), tick());
+        }
         client.options.keyUp.setDown(forward);
         client.options.keySprint.setDown(forward);
         double speed = Math.hypot(player.getDeltaMovement().x, player.getDeltaMovement().z);
+        LOGGER.debug("[AutoPuzzles] Boulder: bars run tick - chest {} away (reach {}), speed {}, stalled {}", dist, reach,
+                speed, stalledTicks);
         if (forward && player.onGround() && speed < 0.02 && System.currentTimeMillis() - stageStartMs > 600L) {
             if (++stalledTicks >= 10) {
                 releaseKeys(client);
@@ -644,9 +696,13 @@ public final class AutoBoulder {
             turnToward(client, player, dir[0], dir[1]);
         }
         long wait = AURA_WAIT_BASE_MS + AutoPuzzlesConfig.getInstance().getBoulderDelayMs();
+        waitFor("Secret Aura to take the chest at " + AutoPuzzleUtil.fmt(chestReal) + " (up to " + wait + " ms)");
         if (com.killer560.hub.util.ServerLag.serverMsSince(stageStartMs, stageLag) > wait) {
-            LOGGER.info("[AutoPuzzles] Boulder: Secret Aura has not taken the chest in {} ms - opening it by looking at it",
-                    wait);
+            LOGGER.info("[AutoPuzzles] Boulder: Secret Aura has not taken the chest in {} ms - opening it by looking at it"
+                            + " (eye to box {}, Secret Aura says {}, tick {})", wait,
+                    fmt(Math.sqrt(BlockHits.boxDistanceSq(player.getEyePosition(), chestReal))),
+                    SecretAuraFeature.chestRefusal(client, AURA_CHEST_REACH) == null ? "it would take it"
+                            : SecretAuraFeature.chestRefusal(client, AURA_CHEST_REACH), tick());
             advance(Stage.TO_CHEST, "opening it himself");
         }
     }
@@ -692,8 +748,12 @@ public final class AutoBoulder {
                 }
                 if (!player.onGround()) {
                     releaseKeys(client);
+                    waitFor("in the air at the doorway - walking in once he lands");
                     return;
                 }
+                LOGGER.info("[AutoPuzzles] Boulder: at the doorway (relative z {}), the live map files him under '{}' -"
+                                + " walking in so the solver reads the boxes (tick {})", rel(player).getZ(),
+                        here == null ? "nothing" : here.name, tick());
                 BoulderPath.GoalTest inside = (feet, s) -> PuzzleCoords.relative(feet, cr).getZ() >= 1;
                 String label = "into the room (the solver reads the boxes from inside)";
                 if (!startWalk(client, player, inside, true, label) && !startWalk(client, player, inside, false, label)) {
@@ -737,13 +797,20 @@ public final class AutoBoulder {
             }
             boxHashAtPress = 0;
         }
+        if (!next.equals(loggedNextButton)) {
+            loggedNextButton = next;
+            LOGGER.info("[AutoPuzzles] Boulder: solver's next button {} ({} left, {} pressed, {} ms after the last press,"
+                            + " tick {})", AutoPuzzleUtil.fmt(next), BoulderSolverFeature.getRemainingClicks(), presses,
+                    lastPressMs == 0L ? -1 : System.currentTimeMillis() - lastPressMs, tick());
+        }
         if (approachAndClick(client, player, next, "button " + AutoPuzzleUtil.fmt(next))) {
             // Read in the click's own tick: the server's answer (the box moving) comes ticks later.
             boxHashAtPress = boxHash(client);
             pressLag = com.killer560.hub.util.ServerLag.mark();
             presses++;
-            LOGGER.info("[AutoPuzzles] Boulder: pressed {} ({} left)", AutoPuzzleUtil.fmt(next),
-                    BoulderSolverFeature.getRemainingClicks());
+            LOGGER.info("[AutoPuzzles] Boulder: pressed {} ({} left), press {}, from {}, holding {} (tick {})",
+                    AutoPuzzleUtil.fmt(next), BoulderSolverFeature.getRemainingClicks(), presses, fmt(player.position()),
+                    player.getMainHandItem().getHoverName().getString(), tick());
         }
     }
 
@@ -785,16 +852,22 @@ public final class AutoBoulder {
             } else {
                 if (!player.onGround()) {
                     releaseKeys(client);
+                    waitFor("in the air - planning the walk to " + label + " once he lands");
                     return false;
                 }
                 aimFor = target;
                 long now = System.currentTimeMillis();
                 if (now - lastPlanFailMs < PLAN_RETRY_MS) {
+                    LOGGER.debug("[AutoPuzzles] Boulder: plan to {} failed {} ms ago - retrying after {} ms", label,
+                            now - lastPlanFailMs, PLAN_RETRY_MS);
                     return false; // the world may still be catching up with a box that moved
                 }
                 if (!startWalk(client, player, spotGoal(client, target, REACH_SNUG), mode == Mode.BUTTONS, label)
                         && !startWalk(client, player, spotGoal(client, target, REACH_LOOSE), mode == Mode.BUTTONS,
                         label)) {
+                    LOGGER.info("[AutoPuzzles] Boulder: no spot within {} or {} has {} in reach and sight from {} -"
+                                    + " retrying, {} ms of {} used", REACH_SNUG, REACH_LOOSE, label, fmt(player.position()),
+                            planFailSinceMs == 0L ? 0 : now - planFailSinceMs, PLAN_GIVE_UP_MS);
                     lastPlanFailMs = now;
                     if (planFailSinceMs == 0L) {
                         planFailSinceMs = now;
@@ -829,6 +902,7 @@ public final class AutoBoulder {
                 return false;
             }
             if (!AutoPuzzleUtil.gateWorldClick()) {
+                waitFor("the action gate held the click on " + label);
                 return false;
             }
             long sincePrev = lastPressMs == 0L ? now - engagedMs : now - lastPressMs;
@@ -836,9 +910,12 @@ public final class AutoBoulder {
             client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
             player.swing(InteractionHand.MAIN_HAND);
             LOGGER.info("[AutoPuzzles] Boulder: click on {} - crosshair on it: yes ({} hit {} face {}), turn {} tick(s) "
-                            + "/ {} ms after the walk, {} ms since the previous click", label,
+                            + "/ {} ms after the walk, {} ms since the previous click; eye {} to box {}, yaw {} pitch {},"
+                            + " holding {} (tick {})", label,
                     realCamera ? "camera and last-sent rotation" : "body ray", AutoPuzzleUtil.fmt(hit.getBlockPos()),
-                    hit.getDirection().getName(), aimTicks, now - aimStartMs, sincePrev);
+                    hit.getDirection().getName(), aimTicks, now - aimStartMs, sincePrev, fmt(eye),
+                    fmt(Math.sqrt(BlockHits.boxDistanceSq(eye, target))), fmt(sentYaw), fmt(sentPitch),
+                    player.getMainHandItem().getHoverName().getString(), tick());
             aimFor = null;
             aimTicks = 0;
             aimStartMs = 0L;
@@ -853,7 +930,11 @@ public final class AutoBoulder {
             // Ten ticks on and the crosshair is still not on it: the point picked was hidden (a box still settling
             // in front of a button that has just been laid) - pick again from where he stands now.
             aimPt = humanAimPoint(client, target);
+            LOGGER.info("[AutoPuzzles] Boulder: crosshair still not on {} after {} tick(s) - new aim point {} (yaw {} pitch"
+                            + " {}, from {})", label, aimTicks, fmt(aimPt), fmt(player.getYRot()), fmt(player.getXRot()),
+                    fmt(player.getEyePosition()));
         }
+        LOGGER.debug("[AutoPuzzles] Boulder: turning onto {} - tick {} of the aim", label, aimTicks);
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), aimPt);
         turnToward(client, player, dir[0], dir[1]);
         return false;
@@ -983,6 +1064,7 @@ public final class AutoBoulder {
         }
         if (!player.onGround()) {
             releaseKeys(client);
+            LOGGER.debug("[AutoPuzzles] Boulder: way out - in the air, planning once he lands");
             return;
         }
         if (replans > MAX_REPLANS) {
@@ -1105,12 +1187,18 @@ public final class AutoBoulder {
         if (!runStarted && err > RUN_START_ERR) {
             releaseKeys(client);
             runBestMs = now;
+            LOGGER.debug("[AutoPuzzles] Boulder: run out - turning first, yaw error {}", err);
             return;
+        }
+        if (!runStarted) {
+            LOGGER.info("[AutoPuzzles] Boulder: run out - facing it (yaw error {}), forward and sprint down, {} to go (tick {})",
+                    fmt(err), fmt(d), tick());
         }
         runStarted = true;
         if (d < 0.6) {
             // On the aim point and the live map still says Boulder: stand, the finish comes with the map.
             releaseKeys(client);
+            waitFor("on the run-out point " + fmt(out) + " - the live map still files him under Boulder");
             return;
         }
         client.options.keyUp.setDown(true);
@@ -1137,8 +1225,8 @@ public final class AutoBoulder {
         BlockPos b = PuzzleCoords.real(33, ROOF_FEET_REL + 5, 33, cr);
         BoulderPath p = new BoulderPath(client.level, a, b, avoidBarrier);
         if (!p.plan(player.position(), goal)) {
-            LOGGER.info("[AutoPuzzles] Boulder: no walk to {} ({} nodes searched{})", label, p.expanded(),
-                    avoidBarrier ? ", barrier roof excluded" : "");
+            LOGGER.info("[AutoPuzzles] Boulder: no walk to {} ({} nodes searched{}) from {} - {} (tick {})", label,
+                    p.expanded(), avoidBarrier ? ", barrier roof excluded" : "", fmt(player.position()), p.failure(), tick());
             return false;
         }
         path = p;
@@ -1170,8 +1258,10 @@ public final class AutoBoulder {
             corners.append(i == 0 ? "" : " ").append(String.format(Locale.US, "%.1f/%.1f/%.1f", v.x, v.y, v.z));
         }
         LOGGER.info("[AutoPuzzles] Boulder: walking to {} at {} - {} step(s), {} blocks, {} step(s) down, lowest feet y {}"
-                        + " ({} point(s) once pulled tight: {})", label, AutoPuzzleUtil.fmt(p.goal()), p.points().size(),
-                fmt(len), drops, pts.isEmpty() ? "-" : fmt(lowest), pts.size(), corners);
+                        + " ({} point(s) once pulled tight: {}); from {}, timeout {} ms, re-plan {}/{}, barrier {} (tick {})",
+                label, AutoPuzzleUtil.fmt(p.goal()), p.points().size(),
+                fmt(len), drops, pts.isEmpty() ? "-" : fmt(lowest), pts.size(), corners, fmt(player.position()),
+                walkTimeoutMs, replans, MAX_REPLANS, avoidBarrier ? "avoided" : "allowed", tick());
         return true;
     }
 
@@ -1277,7 +1367,12 @@ public final class AutoBoulder {
             if (!sprintStarted && err > 20f) {
                 releaseKeys(client);
                 bestAtMs = now;
+                LOGGER.debug("[AutoPuzzles] Boulder: aura run back - turning round first, yaw error {}", err);
                 return;
+            }
+            if (!sprintStarted) {
+                LOGGER.info("[AutoPuzzles] Boulder: walk to {} - facing it (yaw error {}), forward and sprint every tick"
+                        + " (tick {})", walkLabel, fmt(err), tick());
             }
             sprintStarted = true;
             client.options.keyUp.setDown(true);
@@ -1312,6 +1407,8 @@ public final class AutoBoulder {
             // him a block and a half past a corner (2026-10-16, the first corner off the doorway, 1.7 off the line).
             forward = err < 25f || err < 55f && speed < 0.15;
         }
+        LOGGER.debug("[AutoPuzzles] Boulder: walk tick - point {} of {}, {} left, speed {}, yaw error {}, forward {},"
+                + " coast {}, creep {}", ptIdx, pts.size(), remaining, speed, err, forward, coast, creeping);
         creep(client, creeping || fast && sneakByUs && !player.onGround());
         client.options.keyUp.setDown(forward);
         // Sprinting whenever he walks (killer560, 2026-10-15: "make sure that it is sprinting not walking"); it was
@@ -1324,6 +1421,9 @@ public final class AutoBoulder {
             giveUp(client, "could not walk to " + walkLabel + " after " + MAX_REPLANS + " re-plan(s)");
             return;
         }
+        LOGGER.info("[AutoPuzzles] Boulder: re-plan {}/{} to {} from {}{}", replans, MAX_REPLANS, walkLabel,
+                fmt(player.position()), walkGoal != null && player.onGround() ? "" : " - not now ("
+                        + (walkGoal == null ? "no goal" : "in the air") + "), the stage plans again");
         if (walkGoal != null && player.onGround()) {
             startWalk(client, player, walkGoal, walkAvoidBarrier, walkLabel);
         }
@@ -1336,7 +1436,10 @@ public final class AutoBoulder {
         walking = false;
         releaseKeys(client);
         if (why != null) {
-            LOGGER.info("[AutoPuzzles] Boulder: stopped walking to {} - {}", walkLabel, why);
+            LOGGER.info("[AutoPuzzles] Boulder: stopped walking to {} - {} (at {}, point {} of {}, {} ms into the walk,"
+                            + " tick {})", walkLabel, why, Minecraft.getInstance().player == null ? "-"
+                            : fmt(Minecraft.getInstance().player.position()), ptIdx, pts.size(),
+                    System.currentTimeMillis() - walkStartMs, tick());
         }
         if ("arrived".equals(why) || (why != null && why.endsWith("in reach"))) {
             replans = 0;
@@ -1674,7 +1777,8 @@ public final class AutoBoulder {
     private static void finish(Minecraft client, String why) {
         stopWalk(client, null);
         releaseKeys(client);
-        LOGGER.info("[AutoPuzzles] Boulder: finished - {}", why);
+        LOGGER.info("[AutoPuzzles] Boulder: finished - {} ({} s after the start, {} press(es), mode {}, tick {})", why,
+                fmt((System.currentTimeMillis() - engagedMs) / 1000.0), presses, mode, tick());
         stage = Stage.DONE;
         // Its last step is over: Auto Secret, Autopilot and Auto Routes carry on now, not AutoPuzzleActivity's 40-tick
         // grace later (his 2026-10-16 log: "Auto Boulder is done - carrying on" 2 s after "finished").
@@ -1682,7 +1786,10 @@ public final class AutoBoulder {
     }
 
     private static void advance(Stage next, String why) {
-        LOGGER.info("[AutoPuzzles] Boulder: {} -> {} ({})", stage, next, why);
+        LOGGER.info("[AutoPuzzles] Boulder: {} -> {} ({}) after {} ms in {}, {} s since the start (tick {})", stage, next, why,
+                stageStartMs == 0L ? 0 : System.currentTimeMillis() - stageStartMs, stage,
+                fmt((System.currentTimeMillis() - engagedMs) / 1000.0), tick());
+        loggedBarsForward = null;
         stage = next;
         stageWindows = com.killer560.hub.util.ChestWindows.count();
         stageStartMs = System.currentTimeMillis();
@@ -1697,7 +1804,9 @@ public final class AutoBoulder {
     private static void giveUp(Minecraft client, String why) {
         stopWalk(client, null);
         releaseKeys(client);
-        LOGGER.info("[AutoPuzzles] Boulder: stopped for this room - {}", why);
+        LOGGER.info("[AutoPuzzles] Boulder: stopped for this room - {} (stage {}, mode {}, {} s after the start, {} press(es),"
+                        + " at {}, tick {})", why, stage, mode, fmt((System.currentTimeMillis() - engagedMs) / 1000.0), presses,
+                Minecraft.getInstance().player == null ? "-" : fmt(Minecraft.getInstance().player.position()), tick());
         AutoPuzzleActivity.ended();
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Boulder: "), ModChat.bad(why), ModChat.text("."));
         stage = Stage.DONE;
@@ -1706,15 +1815,18 @@ public final class AutoBoulder {
     private static void waitFor(String why) {
         if (!why.equals(loggedWait)) {
             loggedWait = why;
-            LOGGER.info("[AutoPuzzles] Boulder: waiting - {}", why);
+            LOGGER.info("[AutoPuzzles] Boulder: waiting - {} (stage {}, tick {})", why, stage, tick());
         }
     }
 
     /** Back to idle. {@code why} null: silently. */
     private static void disengage(Minecraft client, String why) {
         if (engaged && why != null) {
-            LOGGER.info("[AutoPuzzles] Boulder: stopped - {}", why);
+            LOGGER.info("[AutoPuzzles] Boulder: stopped - {} (stage {}, {} s after the start, tick {})", why, stage,
+                    fmt((System.currentTimeMillis() - engagedMs) / 1000.0), tick());
         }
+        loggedBarsForward = null;
+        loggedNextButton = null;
         if (walking || engaged) {
             walking = false;
             running = false;
@@ -1761,5 +1873,24 @@ public final class AutoBoulder {
 
     private static String fmt(double v) {
         return String.format(Locale.US, "%.2f", v);
+    }
+
+    private static String fmt(Vec3 v) {
+        return v == null ? "null" : String.format(Locale.US, "%.2f,%.2f,%.2f", v.x, v.y, v.z);
+    }
+
+    /** The session tick, for log lines. */
+    private static long tick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
+    /** What {@link #mapArrivalAtDoor} last logged for a landing it did not start on; reset when the window opens. */
+    private static String loggedDoor = null;
+
+    private static void doorNote(String why) {
+        if (!why.equals(loggedDoor)) {
+            loggedDoor = why;
+            LOGGER.info("[AutoPuzzles] Boulder: landing not started on - {} (tick {})", why, tick());
+        }
     }
 }

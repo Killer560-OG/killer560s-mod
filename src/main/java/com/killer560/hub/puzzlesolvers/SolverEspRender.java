@@ -71,7 +71,34 @@ public final class SolverEspRender {
 
     /** The solver's own Highlight switch: off, the methods below draw nothing for it. */
     private static boolean off(SolverEspConfig.Solver solver) {
-        return !SolverEspConfig.getInstance().isEnabled(solver);
+        boolean off = !SolverEspConfig.getInstance().isEnabled(solver);
+        noteMode(solver, off);
+        return off;
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
+    /** Logging only: the draw mode last logged per solver (by ordinal; -1 never logged), so a line is written when it
+     *  CHANGES. Kept as ints so the per-frame check allocates nothing. */
+    private static final int[] lastMode = new int[SolverEspConfig.Solver.values().length];
+
+    static {
+        java.util.Arrays.fill(lastMode, -1);
+    }
+
+    private static void noteMode(SolverEspConfig.Solver solver, boolean off) {
+        if (solver == null) {
+            return;
+        }
+        boolean through = !off && throughWalls(solver);
+        SolverEspConfig.WaypointStyle style = off ? null : SolverEspConfig.getInstance().getWaypointStyle(solver);
+        int code = off ? 0 : 1 + (through ? 1 : 0) + 2 * (style == null ? 0 : style.ordinal() + 1);
+        int i = solver.ordinal();
+        if (lastMode[i] == code) {
+            return;
+        }
+        lastMode[i] = code;
+        LOGGER.info("[SolverEsp] {} draws: {}", solver, off ? "highlight off - nothing drawn"
+                : (through ? "through walls" : "depth-tested") + ", waypoint style " + style);
     }
 
     private static boolean throughWalls(SolverEspConfig.Solver solver) {

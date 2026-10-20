@@ -99,6 +99,9 @@ public final class ChocolateFactoryFeature {
             sessionActive = true;
             nextActionMs = now + cfg.rollCfDelayMs();
             nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
+            CheatUtils.LOGGER.info("[ChocoFactory] session start: chocolate={} towerReady={} strays={} firstActionInMs={} "
+                    + "upgradeInMs={} tick={}", state.chocolate(), state.timeTowerReady(), state.strays().size(),
+                    nextActionMs - now, nextUpgradeMs - now, ticks);
         }
 
         // Both timers claim the tick through the gate, so a cookie click and a purchase never share a tick, and a
@@ -109,17 +112,24 @@ public final class ChocolateFactoryFeature {
                 sent = click(client, screen, menu, state.timeTowerSlot(), 1, ContainerInput.PICKUP);
                 if (sent) {
                     towerClicks++;
+                    CheatUtils.LOGGER.info("[ChocoFactory] Time Tower activated: slot={} tick={}", state.timeTowerSlot(), ticks);
                 }
             } else if (cfg.isCfClaimStrays() && !state.strays().isEmpty()) {
                 sent = click(client, screen, menu, state.strays().get(0), 0, ContainerInput.PICKUP);
                 if (sent) {
                     strayClicks++;
+                    CheatUtils.LOGGER.info("[ChocoFactory] stray claimed: slot={} straysLeft={} tick={}", state.strays().get(0),
+                            state.strays().size() - 1, ticks);
                 }
             } else if (cfg.isCfClickCookie()) {
                 sent = click(client, screen, menu, ChocolateFactoryMenu.INFO_SLOT, 1, ContainerInput.PICKUP);
                 if (sent) {
                     cookieClicks++;
+                    CheatUtils.LOGGER.debug("[ChocoFactory] cookie click #{} tick={}", cookieClicks, ticks);
                 }
+            }
+            if (sent != null && !sent) {
+                CheatUtils.LOGGER.debug("[ChocoFactory] action click held (gap tick or ActionGate) tick={}", ticks);
             }
             if (sent == null || sent) {
                 nextActionMs = now + cfg.rollCfDelayMs();
@@ -129,6 +139,8 @@ public final class ChocolateFactoryFeature {
         if (cfg.isCfAutoUpgrade() && now >= nextUpgradeMs) {
             ChocolateFactoryMenu.Upgrade best = state.best();
             if (best == null || state.chocolate() < best.cost()) {
+                CheatUtils.LOGGER.info("[ChocoFactory] no upgrade: best={} cost={} chocolate={} tick={}",
+                        best == null ? "none" : best.name(), best == null ? 0 : best.cost(), state.chocolate(), ticks);
                 nextUpgradeMs = now + cfg.getCfUpgradeDelayMs();
             } else if (click(client, screen, menu, best.slot(), 2, ContainerInput.CLONE)) {
                 upgradeClicks++;
@@ -160,6 +172,10 @@ public final class ChocolateFactoryFeature {
     }
 
     private static void endSession() {
+        if (sessionActive) {
+            CheatUtils.LOGGER.info("[ChocoFactory] session end: clicks cookie={} stray={} tower={} upgrade={} tick={}",
+                    cookieClicks, strayClicks, towerClicks, upgradeClicks, ticks);
+        }
         sessionActive = false;
     }
 }

@@ -149,6 +149,7 @@ final class BloodCampAim {
         }
         if (yielded) {
             yielded = false;
+            BloodCampFeature.LOGGER.info("[BloodCampAim] mouse still for {} ticks: aura may take over again", MOUSE_YIELD_TICKS);
         }
 
         if (newPoint == null) {
@@ -170,12 +171,17 @@ final class BloodCampAim {
         handingBack = false;
         // Another owner (an auto puzzle, AP3) holds the camera and is turning him: never turn the body under it.
         if (ViewFreeze.isHeld() && !ownsHold) {
+            if (key != null) {
+                BloodCampFeature.LOGGER.info("[BloodCampAim] another feature holds the camera: aura not turning (target {})", key);
+            }
             point = null;
             key = null;
             planned = false;
             return;
         }
         if (freecam && !ownsHold) {
+            BloodCampFeature.LOGGER.info("[BloodCampAim] Freecam Mode: camera held at yaw={} pitch={}",
+                    String.format(java.util.Locale.ROOT, "%.2f", bodyYaw), String.format(java.util.Locale.ROOT, "%.2f", bodyPitch));
             ViewFreeze.hold(bodyYaw, bodyPitch);
             ownsHold = true;
             lastViewYaw = ViewFreeze.viewYaw();
@@ -195,10 +201,15 @@ final class BloodCampAim {
             pickedAtTick = ticks;
             fromIdle = !straightOn;
             wroteThisApproach = false;
+            BloodCampFeature.LOGGER.info("[BloodCampAim] new target {}: reaction={} ticks ({}) point={} body yaw={} pitch={}",
+                    newKey, (long) (reactionEnd - ticks), straightOn ? "straight on" : "from rest", fmtVec(newPoint),
+                    fmt(bodyYaw), fmt(bodyPitch));
         } else if (planned && now(client) >= t2) {
             float[] tgt = angles(player.getEyePosition(), point);
             float off = Math.max(Math.abs(Mth.wrapDegrees(bodyYaw - tgt[0])), Math.abs(bodyPitch - tgt[1]));
             if (off > RETARGET_DEGREES) {
+                BloodCampFeature.LOGGER.info("[BloodCampAim] target {} moved {} deg while resting: fresh short approach",
+                        key, fmt(off));
                 planned = false;
                 reactionEnd = ticks + 1 + ThreadLocalRandom.current().nextInt(2);
                 pickedAtTick = ticks;
@@ -232,6 +243,10 @@ final class BloodCampAim {
 
     /** World change, feature off, or he left the Blood Room: let go of everything (camera given back under the view). */
     void reset(LocalPlayer player) {
+        if (point != null || ownsHold || handingBack) {
+            BloodCampFeature.LOGGER.info("[BloodCampAim] reset: target={} ownsCamera={} handingBack={}", key, ownsHold,
+                    handingBack);
+        }
         if (ownsHold) {
             if (player != null) {
                 giveBackCamera(player);
@@ -318,6 +333,16 @@ final class BloodCampAim {
         ViewFreeze.release();
         lastViewYaw = Float.NaN;
         lastViewPitch = Float.NaN;
+        BloodCampFeature.LOGGER.info("[BloodCampAim] camera given back: body yaw={} pitch={}", fmt(player.getYRot()),
+                fmt(player.getXRot()));
+    }
+
+    private static String fmt(float f) {
+        return String.format(java.util.Locale.ROOT, "%.2f", f);
+    }
+
+    private static String fmtVec(Vec3 v) {
+        return v == null ? "none" : String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", v.x, v.y, v.z);
     }
 
     /** Nothing left to aim at in Freecam Mode: turn the body back toward the camera like a hand would, then release. */
@@ -339,6 +364,8 @@ final class BloodCampAim {
         if (!handingBack) {
             handingBack = true;
             planned = false;
+            BloodCampFeature.LOGGER.info("[BloodCampAim] hand-back: turning body {} / {} deg back under the camera",
+                    fmt(dy), fmt(dp));
         }
         // Aim at a point straight down the view direction; the same human movement turns the body there.
         Vec3 eye = player.getEyePosition();
@@ -419,6 +446,10 @@ final class BloodCampAim {
         tremorAmp = 0.06f + 0.1f * r.nextFloat();
         planned = true;
         approaches++;
+        BloodCampFeature.LOGGER.info("[BloodCampAim] approach #{}{}: error yaw={} pitch={} dist={} deg, duration={} ticks, "
+                        + "end={} ({}), arc={} target={}", approaches, quick ? " (hand-back)" : "", fmt(e0Yaw), fmt(e0Pitch),
+                fmt(d), String.format(java.util.Locale.ROOT, "%.1f", dur), String.format(java.util.Locale.ROOT, "%.3f", endFrac),
+                endFrac > 0 ? "short" : endFrac < 0 ? "past" : "exact", fmt(arc), fmtVec(target));
         if (!quick && fromIdle) {
             lastReactionTicks = (int) (ticks - pickedAtTick); // a turn started from rest (the testkit reads it)
         }

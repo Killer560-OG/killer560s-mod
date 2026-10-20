@@ -98,10 +98,21 @@ public final class DungeonLayout {
             PartyMapIntel.mergeIfNeeded(tick, generation, idx -> keep.roomOf[idx] >= 0,
                     idx -> keep.doorType[idx] != DOOR_NONE);
             int current = client.player == null ? -1 : keep.roomAtWorld(client.player.getX(), client.player.getZ());
+            if (current != keep.currentRoom) {
+                LOGGER.info("[MapLayout] current room {} -> {} ({}) at {},{}", keep.currentRoom, current,
+                        current >= 0 ? keep.names[current] : "none", client.player == null ? "?" : (int) Math.floor(client.player.getX()),
+                        client.player == null ? "?" : (int) Math.floor(client.player.getZ()));
+            }
             cached = current == keep.currentRoom ? keep : new DungeonLayout(keep, current);
             cachedTick = tick;
             return cached;
         }
+        String why = keep == null ? "first capture" : generation != cachedGeneration ? "new generation"
+                : LiveMapFeature.mapVersion() != cachedMapVersion ? "map version"
+                : LiveMapFeature.rotationVersion() != cachedRotationVersion ? "rotation version"
+                : DungeonMapScanner.version() != cachedScannerVersion ? "map item reading"
+                : simYOffset() != cachedYOffset ? "sim height shift"
+                : client.level != cachedLevel ? "world changed" : "door lock changed";
         cachedMapVersion = LiveMapFeature.mapVersion();
         cachedRotationVersion = LiveMapFeature.rotationVersion();
         cachedScannerVersion = DungeonMapScanner.version();
@@ -110,7 +121,54 @@ public final class DungeonLayout {
         cached = capture();
         cachedTick = tick;
         cachedGeneration = generation;
+        logLayoutChange(keep, cached, why);
         return cached;
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+
+    private static String lastLayoutSummary;
+
+    /** Logging only: what a fresh capture changed against the previous snapshot - rooms, doors and locks. */
+    private static void logLayoutChange(DungeonLayout prev, DungeonLayout now, String why) {
+        int[] doors = new int[5];
+        int locked = 0;
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            doors[now.doorType[idx]]++;
+            if (now.doorLocked[idx]) {
+                locked++;
+            }
+        }
+        StringBuilder diff = new StringBuilder();
+        int diffs = 0;
+        if (prev != null) {
+            for (int idx = 0; idx < GRID * GRID; idx++) {
+                boolean roomChanged = prev.roomOf[idx] != now.roomOf[idx]
+                        && !(prev.roomOf[idx] >= 0 && now.roomOf[idx] >= 0
+                        && java.util.Objects.equals(prev.names[prev.roomOf[idx]], now.names[now.roomOf[idx]]));
+                if (roomChanged || prev.doorType[idx] != now.doorType[idx] || prev.doorLocked[idx] != now.doorLocked[idx]) {
+                    if (++diffs <= 30) {
+                        diff.append(' ').append(idx % GRID).append(',').append(idx / GRID).append(':');
+                        if (roomChanged) {
+                            diff.append("room ").append(prev.roomOf[idx] >= 0 ? prev.names[prev.roomOf[idx]] : "-")
+                                    .append("->").append(now.roomOf[idx] >= 0 ? now.names[now.roomOf[idx]] : "-");
+                        } else {
+                            diff.append("door ").append(prev.doorType[idx]).append(prev.doorLocked[idx] ? "L" : "")
+                                    .append("->").append(now.doorType[idx]).append(now.doorLocked[idx] ? "L" : "");
+                        }
+                    }
+                }
+            }
+        }
+        String summary = "rooms=" + now.names.length + " doors normal=" + doors[DOOR_NORMAL] + " wither=" + doors[DOOR_WITHER]
+                + " blood=" + doors[DOOR_BLOOD] + " entrance=" + doors[DOOR_ENTRANCE] + " locked=" + locked
+                + " current=" + now.currentRoom;
+        if (diffs == 0 && summary.equals(lastLayoutSummary)) {
+            return;
+        }
+        lastLayoutSummary = summary;
+        LOGGER.info("[MapLayout] snapshot retaken ({}): {} changedCells={}{}{}", why, summary, diffs, diff,
+                diffs > 30 ? " ..." : "");
     }
 
     private static DungeonLayout cached = null;

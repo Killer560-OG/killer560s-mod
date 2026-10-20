@@ -66,6 +66,7 @@ public final class RunPlan {
     }
 
     private static final Snapshot[] LIVE = new Snapshot[Source.values().length];
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoroutes");
 
     private RunPlan() {
     }
@@ -87,6 +88,11 @@ public final class RunPlan {
             t.add(tags != null && i < tags.size() && tags.get(i) != null ? tags.get(i) : "");
         }
         double eta = Double.isFinite(etaSeconds) && etaSeconds >= 0 ? etaSeconds : Double.NaN;
+        Snapshot before = LIVE[source.ordinal()];
+        if (before == null || before.done() != Math.max(0, done) || !before.rooms().equals(rooms)) {
+            LOGGER.info("[AutoRoutes] run plan from {}: {} done, {} left {}{}", source.label(), Math.max(0, done),
+                    rooms.size(), rooms, Double.isNaN(eta) ? "" : String.format(java.util.Locale.ROOT, ", eta %.0fs", eta));
+        }
         LIVE[source.ordinal()] = new Snapshot(source, List.copyOf(rooms), List.copyOf(t), Math.max(0, done), eta,
                 System.currentTimeMillis());
     }
@@ -112,6 +118,9 @@ public final class RunPlan {
 
     /** The run ended (or never began): nothing of {@code source}'s is planned. */
     public static void clear(Source source) {
+        if (LIVE[source.ordinal()] != null) {
+            LOGGER.info("[AutoRoutes] run plan from {} withdrawn ({} done)", source.label(), LIVE[source.ordinal()].done());
+        }
         LIVE[source.ordinal()] = null;
     }
 

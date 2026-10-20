@@ -120,6 +120,94 @@ public final class SecretAuraFeature {
     private SecretAuraFeature() {
     }
 
+    // ---- logging only (no behaviour reads these) ----
+    private static final org.slf4j.Logger LOGGER = CheatUtils.LOGGER;
+    /** The gate that held the whole aura last tick ("" = running), logged on change only. */
+    private static String lastGateLogged = null;
+    /** Per candidate block, the last reason code logged for it (logged again only when it changes). */
+    private static final Map<Long, String> candReasonLogged = new HashMap<>();
+    /** The last chosen target logged (logged again only when it changes). */
+    private static long lastChosenLogged = Long.MIN_VALUE;
+    private static String lastHeldKey;
+    private static long lastHeldTick;
+    private static String lastRoomLogged;
+    private static boolean lastBossLogged;
+
+    private static long tickNow() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
+    private static String fmt(double d) {
+        return String.format(Locale.ROOT, "%.2f", d);
+    }
+
+    private static String xyz(BlockPos p) {
+        return p.getX() + "," + p.getY() + "," + p.getZ();
+    }
+
+    /** One line when the gate holding the whole aura changes (never per tick). */
+    private static void logGate(String gate, String detail) {
+        String g = gate == null ? "" : gate;
+        if (g.equals(lastGateLogged)) {
+            return;
+        }
+        lastGateLogged = g;
+        if (gate == null) {
+            LOGGER.info("[SecretAura] active: {} tick={}", detail, tickNow());
+        } else {
+            LOGGER.info("[SecretAura] held: gate={} {} tick={}", gate, detail == null ? "" : detail, tickNow());
+        }
+    }
+
+    /** A chosen target held back before its click; once per key per 20 ticks (BloodCampFeature.logRefusal model). */
+    private static void logHeld(String key, String detail) {
+        long now = tickNow();
+        if (key.equals(lastHeldKey) && now - lastHeldTick < 20) {
+            return;
+        }
+        lastHeldKey = key;
+        lastHeldTick = now;
+        LOGGER.info("[SecretAura] click held: {} tick={}", detail, now);
+    }
+
+    /** A candidate's state, logged when its reason code changes. */
+    private static void logCand(long key, String code, String kind, BlockPos pos, double distSq, String extra) {
+        if (code.equals(candReasonLogged.get(key))) {
+            return;
+        }
+        candReasonLogged.put(key, code);
+        LOGGER.info("[SecretAura] candidate {}: kind={} pos={} distToBox={} {} tick={}", code, kind, xyz(pos),
+                fmt(Math.sqrt(distSq)), extra, tickNow());
+    }
+
+    private static String blockLabel(Block block) {
+        if (block == Blocks.CHEST) {
+            return "chest";
+        }
+        if (block == Blocks.TRAPPED_CHEST) {
+            return "trappedChest";
+        }
+        if (block == Blocks.LEVER) {
+            return "lever";
+        }
+        return block instanceof AbstractSkullBlock ? "skull" : "block";
+    }
+
+    /** Why classify() answered null for a chest, lever or skull (pure; for the log only). */
+    private static String nullReason(Block block, boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
+        if (inBoss) {
+            return block == Blocks.LEVER ? "boss lever not clickable (not a P3 lever, owned by Lever Aura, lights lever, or no Not Activated stand)"
+                    : "in boss: only P3 levers";
+        }
+        if (block == Blocks.CHEST || block == Blocks.TRAPPED_CHEST) {
+            return chestsAllowed ? "chest refused" : "chests not allowed (option off or puzzle still open)";
+        }
+        if (block == Blocks.LEVER) {
+            return leversAllowed ? "lights device or dummy lever" : "levers not allowed (option off or no-lever room)";
+        }
+        return "skull is not essence or a loose Redstone Key (or that option is off)";
+    }
+
     /** The body turn for a secret the reported look does not reach (see util/TurnFirst); the camera never moves. */
     private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
 
@@ -191,11 +279,20 @@ public final class SecretAuraFeature {
         }
         if (gate != null) {
             // Review fix (2026-09-15): skip the room/boss lookups entirely while gated (incl. disabled).
+            if (!gate.equals(lastGateLogged)) {
+                logGate(gate, "holding paused item".equals(gate) && client.player != null
+                        ? "held=" + CheatUtils.plainName(client.player.getMainHandItem()) : "");
+            }
             return;
         }
         boolean inBoss = LiveMapFeature.isInBoss();
         RoomEntry room = inBoss ? null : LiveMapFeature.currentRoomEntry();
         String roomName = room == null ? null : room.name;
+        if (!java.util.Objects.equals(roomName, lastRoomLogged) || inBoss != lastBossLogged) {
+            LOGGER.info("[SecretAura] room: {} -> {} inBoss={} tick={}", lastRoomLogged, roomName, inBoss, tickNow());
+            lastRoomLogged = roomName;
+            lastBossLogged = inBoss;
+        }
         if (gate == null && inBoss && !cfg.isAuraBossLevers()) {
             gate = "in boss (boss levers off)";
         }
@@ -208,6 +305,9 @@ public final class SecretAuraFeature {
             gate = "Water Board mid-solve";
         }
         if (gate != null) {
+            if (!gate.equals(lastGateLogged)) {
+                logGate(gate, "room=" + roomName + " inBoss=" + inBoss + " puzzleOpen=" + puzzleOpen);
+            }
             return;
         }
 
@@ -222,6 +322,12 @@ public final class SecretAuraFeature {
         double maxRange = Math.max(range, cfg.getAuraSkullRange());
         BlockPos min = BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange);
         BlockPos max = BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange);
+        if (!"".equals(lastGateLogged)) {
+            logGate(null, "room=" + roomName + " inBoss=" + inBoss + " levers=" + leversAllowed + " chests=" + chestsAllowed
+                    + " essence=" + cfg.isAuraEssence() + " key=" + cfg.isAuraRedstoneKey() + " range=" + fmt(range)
+                    + " skullRange=" + fmt(cfg.getAuraSkullRange()) + " cap=" + fmt(CheatUtilsConfig.MEASURED_MAX_REACH)
+                    + " cooldownMs=" + cfg.getAuraCooldownMs() + " keyFound=" + keyFound);
+        }
 
         BlockPos bestPos = null;
         String bestKind = null;
@@ -255,6 +361,13 @@ public final class SecretAuraFeature {
             }
             String kind = classify(client, cfg, pos, state, inBoss, leversAllowed, chestsAllowed);
             if (kind == null) {
+                if (state.getBlock() != Blocks.REDSTONE_BLOCK) {
+                    double d2 = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
+                    if (d2 <= capSq) { // only ones near enough to matter
+                        logCand(key, "skipped", blockLabel(state.getBlock()), pos, d2,
+                                nullReason(state.getBlock(), inBoss, leversAllowed, chestsAllowed));
+                    }
+                }
                 continue;
             }
             if (state.getBlock() == Blocks.LEVER && !inBoss) {
@@ -268,20 +381,33 @@ public final class SecretAuraFeature {
                 // A skull goes by its CENTRE, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
+                    if (distSq <= capSq * 2.0) {
+                        logCand(key, "outOfRange", kind, pos, distSq, "skull centre limit=" + fmt(cfg.getAuraSkullRange())
+                                + " boxCap=" + fmt(CheatUtilsConfig.MEASURED_MAX_REACH));
+                    }
                     continue;
                 }
             } else if (distSq > rangeSq) {
+                if (distSq <= capSq * 2.0) {
+                    logCand(key, "outOfRange", kind, pos, distSq, "range=" + fmt(range));
+                }
                 continue;
             }
             seenNow.add(key);
             long first = firstSeenMs.computeIfAbsent(key, k -> now);
             if (now - first < cfg.getAuraCooldownMs()) {
+                logCand(key, "inRangeWaitingClickDelay", kind, pos, distSq, "inRangeMs=" + (now - first)
+                        + " needMs=" + cfg.getAuraCooldownMs());
                 continue;
             }
             Attempt a = attempts.get(key);
             if (a != null && now - a.lastMs() < RETRY_AFTER_MS) {
+                logCand(key, "retryWait" + a.count(), kind, pos, distSq, "attempts=" + a.count() + " sinceClickMs="
+                        + (now - a.lastMs()) + " retryAfterMs=" + RETRY_AFTER_MS);
                 continue;
             }
+            logCand(key, a == null ? "eligible" : "eligibleRetry" + a.count(), kind, pos, distSq,
+                    a == null ? "attempts=0" : "attempts=" + a.count());
             if (distSq < bestDist) {
                 bestDist = distSq;
                 bestPos = pos.immutable();
@@ -290,7 +416,22 @@ public final class SecretAuraFeature {
         }
         firstSeenMs.keySet().retainAll(seenNow);
 
-        if (bestPos == null || now - lastClickMs < cfg.getAuraCooldownMs()) {
+        if (bestPos == null) {
+            if (lastChosenLogged != Long.MIN_VALUE) {
+                lastChosenLogged = Long.MIN_VALUE;
+                LOGGER.info("[SecretAura] no target: nothing eligible in reach tick={}", tickNow());
+            }
+            return;
+        }
+        if (bestPos.asLong() != lastChosenLogged) {
+            lastChosenLogged = bestPos.asLong();
+            Attempt pa = attempts.get(lastChosenLogged);
+            LOGGER.info("[SecretAura] chosen: kind={} pos={} distToBox={} attempts={} room={} tick={}", bestKind,
+                    xyz(bestPos), fmt(Math.sqrt(bestDist)), pa == null ? 0 : pa.count(), roomName, tickNow());
+        }
+        if (now - lastClickMs < cfg.getAuraCooldownMs()) {
+            logHeld("cooldown", "global click cooldown: sinceLastClickMs=" + (now - lastClickMs) + " cooldownMs="
+                    + cfg.getAuraCooldownMs() + " target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
         // STANDS DOWN WHILE THE INTERACTIVE MAP IS TRAVELLING. killer560 (2026-09-27): "For the aura make those
@@ -309,12 +450,16 @@ public final class SecretAuraFeature {
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
                 && !com.killer560.hub.livemap.autoclear.ClearExecutor.heldAtStart()
                 || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
+            logHeld("mapTravel", "interactive map trip or Blood Rush running (clearBusy="
+                    + com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy() + " bloodRush="
+                    + com.killer560.hub.livemap.autoclear.BloodRush.isRunning() + ") target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
         // Nor while Auto Routes' Kill Mimic is at work: it aims the camera straight down, and the aura's own turn (and
         // its hand-back) moved that aim - in legit mode the Hyperion then went off at pitch 50.9 and teleported him at
         // the mimic (2026-10-11, testkit 96-ar-644/651).
         if (com.killer560.hub.autoroutes.MimicKiller.isBusy()) {
+            logHeld("mimic", "Kill Mimic is busy target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
         // Nor while Auto Routes runs, except on a node waiting for secrets (killer560, 2026-10-16: "If it is not on an
@@ -323,11 +468,14 @@ public final class SecretAuraFeature {
         // nothing is turned or booked as attempted before it, so a held-back secret is simply picked again on the await
         // node. Item pickups are walking, not this aura.
         if (!com.killer560.hub.autoroutes.RouteExecutor.secretAuraMayClick()) {
+            logHeld("route", "Auto Routes running and not on a secret-await node target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
         // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
+            logHeld("actionGate", "ActionGate refused SECRET_AURA (another actor this tick or world-change settle) target="
+                    + bestKind + "@" + xyz(bestPos));
             return;
         }
         // A secret the look the server was told about does not reach - one behind him - is clicked with the BODY
@@ -340,10 +488,13 @@ public final class SecretAuraFeature {
                 ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
                 : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
         if (node && aimHit == null) {
+            logHeld("noFace", "Redstone block has no face open to air from here pos=" + xyz(bestPos));
             return; // no exposed face from here: never click a face against another block
         }
         if (aimHit != null && !TURN.readyBlock(client.player, client.level, bestPos, aimHit.getLocation(),
                 Math.sqrt(bestDist) + 2.0)) {
+            logHeld("turn", "body turning first (reported look does not reach) target=" + bestKind + "@" + xyz(bestPos)
+                    + " yaw=" + fmt(client.player.getYRot()) + " pitch=" + fmt(client.player.getXRot()));
             return;
         }
         long key = bestPos.asLong();
@@ -367,11 +518,18 @@ public final class SecretAuraFeature {
                 ? com.killer560.hub.util.BlockHits.exposedSurface(client.level, bestPos, client.player.getEyePosition())
                 : com.killer560.hub.util.BlockHits.surface(client.level, bestPos, client.player.getEyePosition());
         if (hit == null) {
+            LOGGER.info("[SecretAura] click skipped: no outline to strike kind={} pos={} attempt={} tick={}", bestKind,
+                    xyz(bestPos), count, tickNow());
             return; // no outline to strike; skipping beats sending an impossible hit
         }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
+        LOGGER.info("[SecretAura] click sent: kind={} pos={} face={} hit={},{},{} distToBox={} attempt={}/{} lever={} held={} swing={} tick={}",
+                bestKind, xyz(bestPos), hit.getDirection(), fmt(hit.getLocation().x), fmt(hit.getLocation().y),
+                fmt(hit.getLocation().z), fmt(Math.sqrt(bestDist)), count, MAX_ATTEMPTS, powered,
+                CheatUtils.plainName(client.player.getMainHandItem()), cfg.isAuraSwing(), tickNow());
         if ("redstoneNode".equals(bestKind)) {
             keyFound = false; // one key, one redstone block
+            LOGGER.info("[SecretAura] Redstone Key placing click sent on {} (keyFound cleared) tick={}", xyz(bestPos), tickNow());
         }
         if (cfg.isAuraSwing()) {
             client.player.swing(InteractionHand.MAIN_HAND);
@@ -484,9 +642,13 @@ public final class SecretAuraFeature {
             BlockPos p = BlockPos.of(it.next());
             if (centreDistSq(p, eye) > r2) {
                 it.remove();
+                LOGGER.info("[SecretAura] Redstone Key skull left watch range (forgotten): pos={} dist={} tick={}", xyz(p),
+                        fmt(Math.sqrt(centreDistSq(p, eye))), tickNow());
             } else if (client.level.isLoaded(p) && !SecretsFeature.isRedstoneKey(client.level, p)) {
                 it.remove();
                 keyFound = true; // the skull went: the key was picked up
+                LOGGER.info("[SecretAura] Redstone Key found: skull at {} gone (picked up) dist={} tick={}", xyz(p),
+                        fmt(Math.sqrt(centreDistSq(p, eye))), tickNow());
             }
         }
         int r = (int) Math.ceil(KEY_WATCH_RANGE);
@@ -503,7 +665,10 @@ public final class SecretAuraFeature {
                 }
                 for (BlockPos p : lc.getBlockEntities().keySet()) {
                     if (centreDistSq(p, eye) <= r2 && isLooseKey(client, p)) {
-                        keySkullsSeen.add(p.asLong());
+                        if (keySkullsSeen.add(p.asLong())) {
+                            LOGGER.info("[SecretAura] Redstone Key skull watched: pos={} dist={} tick={}", xyz(p),
+                                    fmt(Math.sqrt(centreDistSq(p, eye))), tickNow());
+                        }
                     }
                 }
             }
@@ -681,6 +846,7 @@ public final class SecretAuraFeature {
      */
     public static void noteWindowOpened() {
         windowOpenedAtMs = System.currentTimeMillis();
+        LOGGER.debug("[SecretAura] container window opened (shown or not) sinceLastClickMs={}", windowOpenedAtMs - lastClickMs);
     }
 
     /**
@@ -693,6 +859,10 @@ public final class SecretAuraFeature {
 
     /** He put the found key in himself (Auto Routes' await saw his click): nothing is left for this aura to place. */
     public static void noteKeyPlaced() {
+        if (keyFound) {
+            LOGGER.info("[SecretAura] Redstone Key placed by the player (Auto Routes await saw it): nothing left to place tick={}",
+                    tickNow());
+        }
         keyFound = false;
     }
 
@@ -707,7 +877,16 @@ public final class SecretAuraFeature {
     }
 
     private static void markDone(long key, String why) {
-        done.add(key);
+        if (done.add(key)) {
+            Attempt a = attempts.get(key);
+            if (a == null) {
+                LOGGER.info("[SecretAura] done: pos={} why={} (never clicked by the aura) tick={}", xyz(BlockPos.of(key)), why,
+                        tickNow());
+            } else {
+                LOGGER.info("[SecretAura] done: pos={} why={} attempts={} sinceLastClickMs={} tick={}", xyz(BlockPos.of(key)),
+                        why, a.count(), System.currentTimeMillis() - a.lastMs(), tickNow());
+            }
+        }
     }
 
     /** The dungeon sim: a local singleplayer world, never a remote server (see {@code SimState.canAct}). */
@@ -758,6 +937,11 @@ public final class SecretAuraFeature {
     }
 
     private static void reset(String why) {
+        LOGGER.info("[SecretAura] reset: why={} done={} attempts={} levers={} keySkulls={} keyFound={} tick={}", why,
+                done.size(), attempts.size(), leverInitialState.size(), keySkullsSeen.size(), keyFound, tickNow());
+        candReasonLogged.clear();
+        lastChosenLogged = Long.MIN_VALUE;
+        lastHeldKey = null;
         done.clear();
         firstSeenMs.clear();
         attempts.clear();

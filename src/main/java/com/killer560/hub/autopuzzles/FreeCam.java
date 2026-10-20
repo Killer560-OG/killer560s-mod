@@ -71,7 +71,11 @@ final class FreeCam {
         engagedCount++;
         AutoPuzzleActivity.note(tag);
         ViewFreeze.hold(viewYaw, Mth.clamp(viewPitch, -90f, 90f));
-        LOGGER.info("[AutoPuzzles] {}: free camera held", tag);
+        LOGGER.info("[AutoPuzzles] {}: free camera held (view {}/{}, body {}/{}, {} engaged) tick={}", tag,
+                String.format(java.util.Locale.ROOT, "%.1f", viewYaw), String.format(java.util.Locale.ROOT, "%.1f", viewPitch),
+                String.format(java.util.Locale.ROOT, "%.1f", player.getYRot()),
+                String.format(java.util.Locale.ROOT, "%.1f", player.getXRot()), engagedCount,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /** Every tick of the run: renews the lease. Does nothing when not engaged. */
@@ -109,7 +113,10 @@ final class FreeCam {
             player.yBobO += shift;
         }
         ViewFreeze.release();
-        LOGGER.info("[AutoPuzzles] {}: free camera released", tag);
+        LOGGER.info("[AutoPuzzles] {}: free camera released (body turned back under view {}/{}, {} still engaged) tick={}",
+                tag, String.format(java.util.Locale.ROOT, "%.1f", viewYaw),
+                String.format(java.util.Locale.ROOT, "%.1f", viewPitch), engagedCount,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /**
@@ -133,6 +140,7 @@ final class FreeCam {
             engaged = false;
             engagedCount = Math.max(0, engagedCount - 1);
             ViewFreeze.release();
+            LOGGER.info("[AutoPuzzles] {}: free camera dropped on a world change", tag);
         }
     }
 }

@@ -122,9 +122,12 @@ public final class AutoRoutesFeature {
             if (on) {
                 pickEditBreakerNode();
             }
+            LOGGER.info("[AutoRoutes] Edit mode already {}: breaker node {}", on ? "on" : "off", breakerIndex());
             return;
         }
         editMode = on;
+        LOGGER.info("[AutoRoutes] Edit mode {}: running={} tick={}", on ? "ON" : "OFF", RouteExecutor.isRunning(),
+                AwaitEvents.now());
         if (on) {
             if (RouteExecutor.isRunning()) {
                 RouteExecutor.stop("edit mode");
@@ -152,6 +155,8 @@ public final class AutoRoutesFeature {
                     }
                 }
             }
+            LOGGER.info("[AutoRoutes] Edit mode closed: {} breaker node(s) marked already re-fired so picks do not break",
+                    refired.size());
         }
     }
 
@@ -170,6 +175,7 @@ public final class AutoRoutesFeature {
         }
         RouteCoords.Frame frame = RouteCoords.Frame.current();
         if (frame == null) {
+            LOGGER.info("[AutoRoutes] Edit click at {} swallowed: room not identified", pos.toShortString());
             return true;
         }
         if (editBreakerNode == null) {
@@ -187,6 +193,10 @@ public final class AutoRoutesFeature {
         // range of its own). Any block his crosshair picks is inside it.
         LocalPlayer me = Minecraft.getInstance().player;
         if (me != null && com.killer560.hub.util.BlockHits.boxDistanceSq(me.getEyePosition(), pos) > EDIT_MAX_DIST_SQ) {
+            LOGGER.info("[AutoRoutes] Edit click at {} refused: out of reach (distSq={} > {})", pos.toShortString(),
+                    String.format(java.util.Locale.ROOT, "%.2f",
+                            com.killer560.hub.util.BlockHits.boxDistanceSq(me.getEyePosition(), pos)),
+                    String.format(java.util.Locale.ROOT, "%.2f", EDIT_MAX_DIST_SQ));
             chatBad("Block is out of your reach (" + com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
                     + " blocks).");
             return true;
@@ -200,7 +210,10 @@ public final class AutoRoutesFeature {
             if (editBreakerNode.breakerBlocks.contains(rel)) {
                 RouteHistory.edited(editRoute, editBreakerNode);
             }
-            if (editBreakerNode.breakerBlocks.remove(rel)) {
+            boolean removedBlock = editBreakerNode.breakerBlocks.remove(rel);
+            LOGGER.info("[AutoRoutes] Edit shift-click at {} (rel {}) on breaker #{}: {}", pos.toShortString(),
+                    rel.toShortString(), breakerIndex(), removedBlock ? "removed" : "not in the node, nothing removed");
+            if (removedBlock) {
                 RouteStore.getInstance().save();
                 chat(ModChat.text("Removed "), ModChat.value(pos.toShortString()),
                         ModChat.dim(" from breaker #" + breakerIndex()));
@@ -208,14 +221,20 @@ public final class AutoRoutesFeature {
             return true;
         }
         if (editBreakerNode.breakerBlocks.contains(rel)) {
+            LOGGER.info("[AutoRoutes] Edit click at {} (rel {}): already in breaker #{}", pos.toShortString(),
+                    rel.toShortString(), breakerIndex());
             return true;
         }
         if (editBreakerNode.breakerBlocks.size() >= RouteStore.MAX_BREAKER_BLOCKS) {
+            LOGGER.info("[AutoRoutes] Edit click at {} refused: breaker #{} full ({} blocks)", pos.toShortString(),
+                    breakerIndex(), RouteStore.MAX_BREAKER_BLOCKS);
             chatBad("Breaker #" + breakerIndex() + " already has " + RouteStore.MAX_BREAKER_BLOCKS + " blocks.");
             return true;
         }
         RouteHistory.edited(editRoute, editBreakerNode);
         editBreakerNode.breakerBlocks.add(rel);
+        LOGGER.info("[AutoRoutes] Edit click at {} (rel {}): added to breaker #{} ({} blocks, farFromNode={})",
+                pos.toShortString(), rel.toShortString(), breakerIndex(), editBreakerNode.breakerBlocks.size(), farFromNode);
         RouteStore.getInstance().save();
         chat(ModChat.text("Added "), ModChat.value(pos.toShortString()),
                 ModChat.dim(" to breaker #" + breakerIndex() + " (" + editBreakerNode.breakerBlocks.size() + ")"
@@ -244,6 +263,8 @@ public final class AutoRoutesFeature {
             return false;
         }
         RouteNode removed = route.nodes().remove(index);
+        LOGGER.info("[AutoRoutes] Deleted node #{} ({}) from {}: {} node(s) left, undoable={}, routeWasRunning={}",
+                index + 1, removed.type, route.roomName(), route.nodes().size(), remember, RouteExecutor.isRunning());
         if (remember) {
             RouteHistory.removed(route, removed, index);
         }
@@ -401,12 +422,17 @@ public final class AutoRoutesFeature {
      */
     static boolean applyNodeEdit(Route route, RouteNode node, RouteNode edited) {
         if (route == null || route.indexOf(node) < 0 || (route != currentRoute())) {
+            LOGGER.info("[AutoRoutes] Node edit refused: route null={} nodeInRoute={} sameAsCurrent={}", route == null,
+                    route != null && route.indexOf(node) >= 0, route == currentRoute());
             chatBad("That node is gone - the route changed or you left the room. Nothing was saved.");
             return false;
         }
         if (node.sameData(edited)) {
+            LOGGER.info("[AutoRoutes] Node edit #{} saved nothing: no field changed", route.indexOf(node) + 1);
             return true;
         }
+        LOGGER.info("[AutoRoutes] Node edit #{} in {}: {} -> {}", route.indexOf(node) + 1, route.roomName(),
+                node.type, edited.type);
         RouteNode before = node.copy();
         RouteNode previousStart = null;
         if (edited.start) {
@@ -484,15 +510,20 @@ public final class AutoRoutesFeature {
         RouteCoords.Frame frame = editableFrame();
         Minecraft client = Minecraft.getInstance();
         if (route == null || node == null || route.indexOf(node) < 0 || frame == null || client.player == null) {
+            LOGGER.info("[AutoRoutes] Go To refused: route null={} node null={} frame null={} - node gone or room unknown",
+                    route == null, node == null, frame == null);
             chatBad("That node is gone - the route changed or you left the room.");
             return false;
         }
         int number = route.indexOf(node) + 1;
         if (RouteRecorder.isRecording()) {
+            LOGGER.info("[AutoRoutes] Go To #{} refused: recording", number);
             chatBad("Stop recording first (/ar stop record) - a warp would be recorded into the route.");
             return false;
         }
         if (ClearExecutor.isBusy() || BloodRush.isRunning()) {
+            LOGGER.info("[AutoRoutes] Go To #{} refused: map warp busy={} bloodRush={}", number, ClearExecutor.isBusy(),
+                    BloodRush.isRunning());
             chatBad("An Interactive Map warp is already running - let it finish, then press Go To again.");
             return false;
         }
@@ -500,9 +531,13 @@ public final class AutoRoutesFeature {
         BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
         BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
         if (goal == null) {
+            LOGGER.info("[AutoRoutes] Go To #{} refused: no etherwarpable block at or near {}", number, below.toShortString());
             chatBad("No etherwarpable block at or near node #" + number + " - no path to it.");
             return false;
         }
+        LOGGER.info("[AutoRoutes] Go To #{} ({}) in {}: goal {} (node block {}), stopping running route={} tick={}", number,
+                node.type, route.roomName(), goal.toShortString(), below.toShortString(), RouteExecutor.isRunning(),
+                AwaitEvents.now());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("Go To node");
         }
@@ -537,9 +572,11 @@ public final class AutoRoutesFeature {
         gotoNode = null;
         gotoRoute = null;
         if (node == null) {
+            LOGGER.info("[AutoRoutes] Go To arrival with no target node pending - ignored");
             return;
         }
         if (route == null || route.indexOf(node) < 0 || route != currentRoute()) {
+            LOGGER.info("[AutoRoutes] Go To arrived but node is no longer in this room's route - edit mode left off");
             chatBad("Arrived, but that node is no longer in this room's route - edit mode left off.");
             return;
         }
@@ -547,6 +584,8 @@ public final class AutoRoutesFeature {
         RouteCoords.Frame frame = editableFrame();
         if (client.player != null && frame != null) {
             double off = RouteCoords.toReal(frame, node.relativePos()).distanceTo(client.player.position());
+            LOGGER.info("[AutoRoutes] Go To arrived at #{}: {} blocks off the node, tick={}", route.indexOf(node) + 1,
+                    String.format(java.util.Locale.ROOT, "%.2f", off), AwaitEvents.now());
             if (off > 1.5) {
                 chat(ModChat.dim(String.format(java.util.Locale.US,
                         "Landed %.1f blocks from #%d (nearest etherwarpable block to it).", off, route.indexOf(node) + 1)));
@@ -565,6 +604,8 @@ public final class AutoRoutesFeature {
             return;
         }
         int number = route == null ? -1 : route.indexOf(node) + 1;
+        LOGGER.info("[AutoRoutes] Go To #{} ended without arrival: lastPathFailed={} tick={}", number,
+                ClearExecutor.lastPathFailed(), AwaitEvents.now());
         chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To canceled before reaching node ")
                 + (number > 0 ? "#" + number : "") + " - edit mode not turned on.");
     }
@@ -575,6 +616,8 @@ public final class AutoRoutesFeature {
     private static boolean suppressArm;
 
     private static void suppressAutoArm() {
+        LOGGER.info("[AutoRoutes] Route edited: node underfoot will be latched on the next arm check, map-arrival start-only"
+                + " hold dropped (was {})", mapArrivalGuard);
         suppressArm = true;
         // An edit means he is building this room's route where he stands, so a map arrival's "start node only" is
         // over: it outlived a map warp into a route with no start node and silently skipped every node he then added
@@ -604,6 +647,8 @@ public final class AutoRoutesFeature {
         if (removed) {
             RouteHistory.cleared(saved); // /ar undo puts the whole route back
         }
+        LOGGER.info("[AutoRoutes] Clear route for {}: removed={} ({} node(s))", frame.roomName(), removed,
+                saved == null ? 0 : saved.nodes().size());
         suppressAutoArm();
         RouteStore.getInstance().save();
         if (!removed) {
@@ -621,6 +666,8 @@ public final class AutoRoutesFeature {
      */
     public static boolean onMapRoomClicked(DungeonLayout layout, int room) {
         if (layout == null || room < 0 || room != layout.currentRoom()) {
+            LOGGER.info("[AutoRoutes] Map click on room {}: not the room you are in (current {}) - map handles it", room,
+                    layout == null ? -1 : layout.currentRoom());
             return false;
         }
         return warpToStartNode(layout, room);
@@ -677,23 +724,31 @@ public final class AutoRoutesFeature {
         RouteExecutor.clearStoppedByUser();
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         if (!cfg.isEnabled() || layout == null || room < 0) {
+            LOGGER.info("[AutoRoutes] Start-node warp to room {} not taken: enabled={} layout null={}", room,
+                    cfg.isEnabled(), layout == null);
             return false;
         }
         String name = layout.name(room);
         int[] clayRotation = layout.clayRotation(room);
         if (name == null || name.isBlank() || "Unknown".equals(name) || clayRotation == null) {
+            LOGGER.info("[AutoRoutes] Start-node warp to room {} not taken: room \"{}\" not identified or no rotation"
+                    + " (rotation known={})", room, name, clayRotation != null);
             return false;
         }
         RouteCoords.Frame frame = new RouteCoords.Frame(name, clayRotation[0], clayRotation[1], clayRotation[2]);
         Route route = RouteStore.getInstance().forRoom(frame.roomName());
         RouteNode start = route == null ? null : route.startNode();
         if (start == null) {
+            LOGGER.info("[AutoRoutes] Start-node warp to {} not taken: {} - map falls back to its own spot",
+                    frame.roomName(), route == null ? "no route saved" : "route has no start node");
             return false;
         }
         Vec3 real = RouteCoords.toReal(frame, start.relativePos());
         BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
         BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
         if (goal == null) {
+            LOGGER.info("[AutoRoutes] Start-node warp to {} refused: nothing etherwarpable at or near {}",
+                    frame.roomName(), below.toShortString());
             chatBad("No etherwarpable block under the start node.");
             return false;
         }
@@ -719,11 +774,17 @@ public final class AutoRoutesFeature {
             case ETHERWARP, PATH, ROTATE, WALK, JUMP, UNSNEAK -> true;
             default -> false;
         };
+        LOGGER.info("[AutoRoutes] Start-node warp to {} (rotation {}, clay {},{}): start #{} ({}), goal {} (node block {}),"
+                        + " first action {} so hold after landing={} tick={}", frame.roomName(), frame.rotation(),
+                frame.clayX(), frame.clayZ(), route.indexOf(start) + 1, start.type, goal.toShortString(),
+                below.toShortString(), first.type, warpFirst ? "none" : "interact delay", AwaitEvents.now());
         ClearExecutor.etherPathArrive(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
             latchedNode = null; // landing ON the start node must arm it
             arrivalHoldTicks = warpFirst ? 0 : AutoRoutesConfig.getInstance().getInteractDelayTicks();
+            LOGGER.info("[AutoRoutes] Start-node warp landed: latch cleared, arrival hold {} tick(s), tick={}",
+                    arrivalHoldTicks, AwaitEvents.now());
         });
         note(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
         return true;
@@ -755,6 +816,9 @@ public final class AutoRoutesFeature {
         if (!AutoRoutesConfig.getInstance().isEnabled()) {
             return;
         }
+        LOGGER.info("[AutoRoutes] Interactive Map press ({}): stopping route={}, clearing stoppedByUser={} justFinished={},"
+                        + " start-only hold on, tick={}", why, RouteExecutor.isRunning(), RouteExecutor.wasStoppedByUser(),
+                RouteExecutor.justFinished(), AwaitEvents.now());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop(why);
         }
@@ -789,10 +853,15 @@ public final class AutoRoutesFeature {
         latchedNode = node;
         mapArrivalGuard = false; // see suppressAutoArm: adding a node ends a map arrival's start-only hold
         if (RouteExecutor.isRunning() || RouteRecorder.isRecording()) {
+            LOGGER.info("[AutoRoutes] Added node #{} ({}) latched, not fired: running={} recording={}",
+                    route == null ? -1 : route.indexOf(node) + 1, node == null ? null : node.type,
+                    RouteExecutor.isRunning(), RouteRecorder.isRecording());
             addedToFire = null;
             addedToFireRoute = null;
             return false;
         }
+        LOGGER.info("[AutoRoutes] Added node #{} ({}) queued to fire once the screen closes, tick={}",
+                route == null ? -1 : route.indexOf(node) + 1, node == null ? null : node.type, AwaitEvents.now());
         addedToFire = node;
         addedToFireRoute = route;
         return true;
@@ -831,6 +900,8 @@ public final class AutoRoutesFeature {
 
     /** {@link RouteStore#reload()} swapped the routes: drop anything pointing at the old objects. */
     static void onRoutesReloaded() {
+        LOGGER.info("[AutoRoutes] Routes reloaded: latch, queued added node and undo history dropped, tick={}",
+                AwaitEvents.now());
         editBreakerNode = null;
         latchedNode = null;
         addedToFire = null;
@@ -870,6 +941,8 @@ public final class AutoRoutesFeature {
         }
         int mapGeneration = LiveMapFeature.resetGeneration();
         if (mapGeneration != lastMapGeneration) {
+            LOGGER.info("[AutoRoutes] Live map reset (generation {} -> {}): new run, latches cleared", lastMapGeneration,
+                    mapGeneration);
             lastMapGeneration = mapGeneration;
             resetForRun();
         }
@@ -906,6 +979,7 @@ public final class AutoRoutesFeature {
         }
         if (mapWasOpen) {
             // Interlock 3 + 4: closing the map re-arms from the START node only, and only the START node.
+            LOGGER.info("[AutoRoutes] Interactive Map closed: start-only hold on, latch cleared, tick={}", AwaitEvents.now());
             mapWasOpen = false;
             mapArrivalGuard = true;
             // The map is only closed by its key, so in Repress mode the whole warp can happen while it is
@@ -957,6 +1031,8 @@ public final class AutoRoutesFeature {
             // change, so the flag had nothing to clear it and start-only stayed enforced for one extra room
             // afterwards. Clear it once the teleport has settled instead (2026-09-16 review).
             arrivedByTeleport = false;
+            LOGGER.info("[AutoRoutes] Map teleport settled: arrivedByTeleport cleared, start-only hold still {}, tick={}",
+                    mapArrivalGuard, AwaitEvents.now());
         }
         if (arrivalHoldTicks > 0) {
             arrivalHoldTicks--;
@@ -965,6 +1041,8 @@ public final class AutoRoutesFeature {
         }
         if (externalTeleport) {
             // Our start-node / Go-to warp ended without its completion callback (no path found): release the queue.
+            LOGGER.info("[AutoRoutes] Start-node / Go To warp ended without its arrival callback: lastPathFailed={} tick={}",
+                    ClearExecutor.lastPathFailed(), AwaitEvents.now());
             externalTeleport = false;
             ClearExecutor.setExternalOwner(false);
             reportGotoFailed();
@@ -1005,15 +1083,23 @@ public final class AutoRoutesFeature {
             Route entered = RouteStore.getInstance().forRoom(frame.roomName());
             LOGGER.info("[AutoRoutes] Route lookup on entry: room \"{}\", key \"{}\" - {}", frame.roomName(),
                     frame.roomName(), entered == null || entered.nodes().isEmpty() ? "no route saved"
-                            : "route found (" + entered.nodes().size() + " node(s))");
+                            : "route found (" + entered.nodes().size() + " node(s), start node "
+                            + (entered.startNode() == null ? "none" : "#" + (entered.indexOf(entered.startNode()) + 1))
+                            + ")");
             latchedNode = null;
             addedToFire = null;
             addedToFireRoute = null;
             // New room, clean slate - see resetForWorld.
+            boolean wasStopped = RouteExecutor.wasStoppedByUser();
             RouteExecutor.clearStoppedByUser();
+            boolean guardBefore = mapArrivalGuard;
             if (!externalTeleport && !arrivedByTeleport) {
                 mapArrivalGuard = false; // walked in through a door: mid-route entry is the toggle's call again
             }
+            LOGGER.info("[AutoRoutes] Room entry {} by {}: start-only hold {} -> {}, stoppedByUser {} -> false,"
+                            + " justFinished={}, tick={}", frame.roomName(),
+                    externalTeleport || arrivedByTeleport ? "teleport (map / Blood Rush)" : "walking in",
+                    guardBefore, mapArrivalGuard, wasStopped, RouteExecutor.justFinished(), AwaitEvents.now());
             arrivedByTeleport = false;
             if (editMode) {
                 pickEditBreakerNode();
@@ -1103,6 +1189,8 @@ public final class AutoRoutesFeature {
                 continue;   // the normal arming fires it, or it already fired for these blocks
             }
             if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ROUTE)) {
+                logRefireHeld(AwaitEvents.now(), "gate#" + (route.indexOf(n) + 1), "breaker node #" + (route.indexOf(n) + 1)
+                        + " re-fire waits: another feature has this tick's action (" + standing + " block(s) standing)");
                 return true;   // someone else has this tick; try again next one
             }
             refired.add(n);
@@ -1205,7 +1293,9 @@ public final class AutoRoutesFeature {
         // the second one there, and comparing nodes fired the whole tile under him the moment chat closed.
         if (inside == latchedNode || inside.sameTile(latchedNode)) {
             gate("in node #" + (route.indexOf(inside) + 1) + " but latched (just placed it, or the last run "
-                    + "started / ended here) - step off and back on");
+                    + "started / ended here) - step off and back on [latched #" + (route.indexOf(latchedNode) + 1)
+                    + ", justFinished=" + RouteExecutor.justFinished() + ", stoppedByUser="
+                    + RouteExecutor.wasStoppedByUser() + ", startOnly=" + startOnly + "]");
             return; // still standing where the last run started / ended
         }
         if (RouteExecutor.justFinished()) {
@@ -1223,13 +1313,25 @@ public final class AutoRoutesFeature {
             latchedNode = inside;
             return;
         }
+        RouteNode previousLatch = latchedNode;
         latchedNode = inside;
+        boolean guardBefore = mapArrivalGuard;
         if (inside.start || !hasStartNode) {
             mapArrivalGuard = false;
         }
         gate("armed node #" + (route.indexOf(inside) + 1) + " (" + inside.type + (inside.start ? ", start" : "") + ")");
         LOGGER.info("[AutoRoutes] Node #{} armed {} tick(s) after you entered its ring", route.indexOf(inside) + 1,
                 AwaitEvents.now() - ringEnteredAt);
+        Vec3 armedAt = RouteCoords.toReal(frame, inside.relativePos());
+        LOGGER.info("[AutoRoutes] Fire: room {} rotation {} clay {},{} node #{} ({}{}) at {} stack={} player {}"
+                        + " startOnly={} (toggle={} mapHold {} -> {}) hasStartNode={} previousLatch={} tick={}",
+                frame.roomName(), frame.rotation(), frame.clayX(), frame.clayZ(), route.indexOf(inside) + 1, inside.type,
+                inside.start ? ", start" : "",
+                String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", armedAt.x, armedAt.y, armedAt.z),
+                route.stackOf(inside).size(),
+                String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", player.getX(), player.getY(), player.getZ()),
+                startOnly, cfg.isStartFromStartNodeOnly(), guardBefore, mapArrivalGuard, hasStartNode,
+                previousLatch == null ? "none" : "#" + (route.indexOf(previousLatch) + 1), AwaitEvents.now());
         RouteExecutor.start(route, frame, inside);
     }
 
@@ -1270,8 +1372,21 @@ public final class AutoRoutesFeature {
     private static void gate(String state) {
         if (!state.equals(lastGate)) {
             lastGate = state;
-            LOGGER.info("[AutoRoutes] Arming: {}", state);
+            LOGGER.info("[AutoRoutes] Arming: {} (tick {})", state, AwaitEvents.now());
         }
+    }
+
+    private static String lastRefireKey;
+    private static long lastRefireTick;
+
+    /** A breaker re-fire held back by another feature's tick: once per key per 20 ticks. */
+    private static void logRefireHeld(long now, String key, String detail) {
+        if (key.equals(lastRefireKey) && now - lastRefireTick < 20) {
+            return;
+        }
+        lastRefireKey = key;
+        lastRefireTick = now;
+        LOGGER.info("[AutoRoutes] Re-fire held: {} (tick {})", detail, now);
     }
 
     /** Standing in no node: name the start node and where it really is, so a coordinate mismatch shows. Built only
@@ -1351,6 +1466,9 @@ public final class AutoRoutesFeature {
      * and stay; a world change ({@link #resetForWorld}) still drops those.
      */
     private static void resetForRun() {
+        LOGGER.info("[AutoRoutes] Reset for new run: running={} stoppedByUser={} justFinished={} lastRoom={} tick={}",
+                RouteExecutor.isRunning(), RouteExecutor.wasStoppedByUser(), RouteExecutor.justFinished(), lastRoom,
+                AwaitEvents.now());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("new run");
         }
@@ -1365,6 +1483,9 @@ public final class AutoRoutesFeature {
     }
 
     private static void resetForWorld(String reason) {
+        LOGGER.info("[AutoRoutes] Reset ({}): running={} recording={} editMode={} mapHold={} lastRoom={} tick={}", reason,
+                RouteExecutor.isRunning(), RouteRecorder.isRecording(), editMode, mapArrivalGuard, lastRoom,
+                AwaitEvents.now());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop(reason);
         }

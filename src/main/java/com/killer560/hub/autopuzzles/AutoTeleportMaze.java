@@ -127,6 +127,37 @@ final class AutoTeleportMaze {
     private static long finishStageLag = 0L;
     private static long walkLag = 0L;
 
+    // Logging only: tick stamps for elapsed-tick values, and the last reason a held state was logged.
+    private static long walkStartTick = 0L;
+    private static long finishStageStartTick = 0L;
+    private static String lastHeldKey = null;
+    private static long lastHeldTick = 0L;
+
+    private static long nowTick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
+    /** One line per change of reason, or at most once per 20 ticks for the same one. */
+    private static void logHeld(String key, String detail) {
+        long now = nowTick();
+        if (key.equals(lastHeldKey) && now - lastHeldTick < 20) {
+            return;
+        }
+        lastHeldKey = key;
+        lastHeldTick = now;
+        LOGGER.info("[AutoPuzzles] TeleportMaze: held: {} tick={}", detail, now);
+    }
+
+    /** One line per change of reason only - for guards that stay true for many ticks. */
+    private static void logChange(String key, String detail) {
+        if (key.equals(lastHeldKey)) {
+            return;
+        }
+        lastHeldKey = key;
+        lastHeldTick = nowTick();
+        LOGGER.info("[AutoPuzzles] TeleportMaze: held: {} tick={}", detail, lastHeldTick);
+    }
+
     private AutoTeleportMaze() {
     }
 
@@ -153,6 +184,10 @@ final class AutoTeleportMaze {
                 && McCompat.screen(client) == null && client.player != null) {
             tickStartWalk(client, client.player);
         } else if (startWalking) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: start-pad walk stopped: enabled={} finishStage={} screen={}"
+                            + " visitedEmpty={} elapsedTicks={}", cfg.isAutoTeleportMazeEnabled(), finishStage,
+                    McCompat.screen(client) != null, visited == null ? "n/a" : visited.isEmpty(),
+                    nowTick() - walkStartTick);
             stop(client);
             if (visited.isEmpty()) {
                 disengage(); // a screen opened; with a teleport in, the maze walk below keeps the camera
@@ -164,6 +199,9 @@ final class AutoTeleportMaze {
         }
         if (!cfg.isAutoTeleportMazeEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: left the maze (room={} enabled={}) - reset: hops={}"
+                                + " finishStage={} walking={} tick={}", roomName, cfg.isAutoTeleportMazeEnabled(), hops,
+                        finishStage, walking, nowTick());
                 reset(client);
                 GUARD.leftRoom();
             }
@@ -174,6 +212,8 @@ final class AutoTeleportMaze {
             // Only react to teleports made while in the room - or, after a start-pad walk, from when that walk
             // began, so the start pad's own teleport counts even if the room only read as the maze afterwards.
             lastSeq = startSeq >= 0 ? startSeq : TeleportMazeSolverFeature.getTeleportSeq();
+            LOGGER.info("[AutoPuzzles] TeleportMaze: entered the maze: baseSeq={} (from {}) tick={}", lastSeq,
+                    startSeq >= 0 ? "the start-pad walk" : "the solver now", nowTick());
             startSeq = -1;
         }
         wasInRoom = true;
@@ -191,28 +231,51 @@ final class AutoTeleportMaze {
 
         boolean ready = GUARD.solverOn(TeleportMazeSolverConfig.getInstance().isEnabled()) && GUARD.fresh();
         if (!ready || visited.isEmpty()) {
+            if (!ready) {
+                logChange("notReady", "solver not ready (solver off or its data predates this world) - not moving");
+            } else if (walking || pendingTicks > 0) {
+                logHeld("noVisited", "the solver's visited set emptied while walking - stopped");
+            }
             stop(client);
             disengage();
             rememberView(client);
             return;
         }
         if (McCompat.screen(client) != null) {
+            if (walking || pendingTicks > 0) {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: a screen opened ({}) - walk stopped, pending hop dropped:"
+                                + " walking={} pendingTicks={} elapsedTicks={}", McCompat.screen(client).getClass().getSimpleName(),
+                        walking, pendingTicks, nowTick() - walkStartTick);
+            }
             stop(client);
             pendingTicks = -1;
             disengage();
             rememberView(client);
             return;
         }
+        lastHeldKey = null;
         int seq = TeleportMazeSolverFeature.getTeleportSeq();
         if (seq != lastSeq) {
+            if (client.player != null) {
+                Vec3 landed = client.player.position();
+                LOGGER.info("[AutoPuzzles] TeleportMaze: teleport landed: seq={} (was {}) hop={} at {} nearestPad={}"
+                                + " target={} wasWalking={} elapsedTicks={}", seq, lastSeq, hops + 1,
+                        String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", landed.x, landed.y, landed.z),
+                        AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.nearestPad(landed)),
+                        walkTarget == null ? "none" : AutoPuzzleUtil.fmt(walkTarget), walking,
+                        nowTick() - walkStartTick);
+            }
             lastSeq = seq;
             if (++hops > MAX_HOPS) {
-                LOGGER.info("[AutoPuzzles] TeleportMaze: {} teleports without reaching the end - stopped", MAX_HOPS);
+                LOGGER.info("[AutoPuzzles] TeleportMaze: {} teleports without reaching the end - stopped: visited={}"
+                                + " knownPads={} tick={}", MAX_HOPS, TeleportMazeSolverFeature.getVisited().size(),
+                        TeleportMazeSolverFeature.getTpPads().size(), nowTick());
                 stop(client);
                 disengage();
                 finishStage = FinishStage.DONE;
                 return;
             }
+            LOGGER.info("[AutoPuzzles] TeleportMaze: next pad picked in 1 tick (hop {}) tick={}", hops, nowTick());
             stop(client);
             pendingTicks = 1; // QUOI: Scheduler.scheduleTask { nextMove = true }
             engage(client);
@@ -228,9 +291,11 @@ final class AutoTeleportMaze {
             } else {
                 stop(client);
                 if (isAtEndPad(player.position())) {
-                    LOGGER.info("[AutoPuzzles] TeleportMaze: final step reached - on the end pad at {} after {} hop(s)",
-                            AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.nearestPad(player.position())), hops);
+                    LOGGER.info("[AutoPuzzles] TeleportMaze: final step reached - on the end pad at {} after {} hop(s)"
+                                    + " tick={}", AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.nearestPad(player.position())),
+                            hops, nowTick());
                     finishStage = FinishStage.CHEST;
+                    finishStageStartTick = nowTick();
                     finishStageStartMs = System.currentTimeMillis();
                     finishStageLag = com.killer560.hub.util.ServerLag.mark();
                     finishChest = null;
@@ -239,7 +304,14 @@ final class AutoTeleportMaze {
                     chestClicks = 0;
                     chestMissingLogged = false;
                 } else {
-                    LOGGER.info("[AutoPuzzles] TeleportMaze: no pad to walk to - stopped");
+                    LOGGER.info("[AutoPuzzles] TeleportMaze: no pad to walk to - stopped: at {} nearestPad={} hops={}"
+                                    + " knownPads={} visited={} exitCandidates={} best={} lastReason='{}' tick={}",
+                            AutoPuzzleUtil.fmt(player.blockPosition()),
+                            AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.nearestPad(player.position())), hops,
+                            TeleportMazeSolverFeature.getTpPads().size(), TeleportMazeSolverFeature.getVisited().size(),
+                            TeleportMazeSolverFeature.getCorrectPortals().size(),
+                            TeleportMazeSolverFeature.getBest() == null ? "none"
+                                    : AutoPuzzleUtil.fmt(TeleportMazeSolverFeature.getBest()), padReason, nowTick());
                     disengage();
                 }
             }
@@ -264,16 +336,22 @@ final class AutoTeleportMaze {
                 ? Math.max(WALK_TIMEOUT_MS, (long) (WALK.length(player.position()) / WALK_SPEED * 1000.0) + 1500L)
                 : WALK_TIMEOUT_MS;
         walking = true;
-        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to {} - {}", label, planned
+        walkStartTick = nowTick();
+        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to {} - {} (from {} timeout={}ms tick={})", label, planned
                 ? WALK.legs() + " straight leg(s), " + String.format(java.util.Locale.US, "%.1f",
                 WALK.length(player.position())) + " blocks"
-                : "no way round found, straight at it");
+                : "no way round found, straight at it", AutoPuzzleUtil.fmt(player.blockPosition()), walkTimeoutMs,
+                walkStartTick);
         tickWalk(client, player);
     }
 
     private static void tickWalk(Minecraft client, LocalPlayer player) {
         if (com.killer560.hub.util.ServerLag.serverMsSince(walkStartMs, walkLag) > walkTimeoutMs) {
-            LOGGER.info("[AutoPuzzles] TeleportMaze: no teleport after {}ms of walking - stopped", walkTimeoutMs);
+            LOGGER.info("[AutoPuzzles] TeleportMaze: no teleport after {}ms of walking - stopped: target={} at {}"
+                            + " straight={} startWalk={} hops={} elapsedTicks={}", walkTimeoutMs,
+                    AutoPuzzleUtil.fmt(walkTarget), String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f",
+                            player.getX(), player.getY(), player.getZ()), walkStraight, startWalking, hops,
+                    nowTick() - walkStartTick);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
                     ModChat.bad("could not reach the pad"), ModChat.text(" - stopped."));
             startSeq = -1;
@@ -304,16 +382,30 @@ final class AutoTeleportMaze {
         int arrival = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalSeq();
         if (arrival != consumedArrival && !startWalking) {
             if (System.currentTimeMillis() - com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalMs() > 3000L) {
+                LOGGER.debug("[AutoPuzzles] TeleportMaze: map arrival {} ignored - more than 3000ms old", arrival);
                 consumedArrival = arrival; // too old to act on
                 return;
             }
             if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy() || !player.onGround()) {
+                logHeld("arrivalSettle", "map arrival " + arrival + " not settled yet (mapBusy="
+                        + com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy() + " onGround=" + player.onGround()
+                        + ")");
                 return; // not settled yet - the 3 s window allows for it
             }
             consumedArrival = arrival;
             Vec3 arrivedAt = com.killer560.hub.livemap.autoclear.ClearExecutor.arrivalPos();
             int[] cr = mazeClayRotation();
             if (cr == null || arrivedAt == null || arrivedAt.distanceToSqr(player.position()) > 9.0) {
+                if (cr == null) {
+                    LOGGER.debug("[AutoPuzzles] TeleportMaze: map arrival {} ignored - no maze on this floor's layout",
+                            arrival);
+                } else {
+                    LOGGER.info("[AutoPuzzles] TeleportMaze: map arrival {} ignored - {} tick={}", arrival,
+                            arrivedAt == null ? "no arrival position" : "he moved "
+                                    + String.format(java.util.Locale.ROOT, "%.2f",
+                                    Math.sqrt(arrivedAt.distanceToSqr(player.position())))
+                                    + " blocks since (over 3)", nowTick());
+                }
                 return; // no maze on this floor, or he has moved since - his walk, not ours
             }
             BlockPos startPad = roomBlock(START_PAD_RELATIVE, cr);
@@ -323,9 +415,14 @@ final class AutoTeleportMaze {
             boolean inMaze = ROOM.equals(LiveMapFeature.currentRoomEntry() == null ? null
                     : LiveMapFeature.currentRoomEntry().name);
             if (!atDoor && !inMaze) {
+                LOGGER.debug("[AutoPuzzles] TeleportMaze: map arrival {} elsewhere - feet {} door {}", arrival,
+                        AutoPuzzleUtil.fmt(feet), AutoPuzzleUtil.fmt(door));
                 return; // the map took him somewhere else
             }
             if (!TeleportMazeSolverConfig.getInstance().isEnabled() || !GUARD.fresh()) {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: map arrival at the maze but not walking onto the start pad -"
+                                + " solverOn={} fresh={} tick={}", TeleportMazeSolverConfig.getInstance().isEnabled(),
+                        !GUARD.observing(), nowTick());
                 GUARD.solverOn(TeleportMazeSolverConfig.getInstance().isEnabled());
                 return;
             }
@@ -497,6 +594,8 @@ final class AutoTeleportMaze {
             }
         }
         if (McCompat.screen(client) != null) {
+            logHeld("finishScreen", "finish stage " + finishStage + " waits - a screen is open ("
+                    + McCompat.screen(client).getClass().getSimpleName() + ")");
             return;
         }
         LocalPlayer player = client.player;
@@ -546,7 +645,10 @@ final class AutoTeleportMaze {
 
     /** The click is in: stop at the chest and start the walk to the only pad in the cell. */
     private static void chestConfirmed(Minecraft client, String how) {
-        LOGGER.info("[AutoPuzzles] TeleportMaze: chest click confirmed - {} ({} click(s) of ours)", how, chestClicks);
+        LOGGER.info("[AutoPuzzles] TeleportMaze: chest click confirmed - {} ({} click(s) of ours) chest={}"
+                        + " elapsedTicks={} sinceLastClickMs={}", how, chestClicks, AutoPuzzleUtil.fmt(finishChest),
+                nowTick() - finishStageStartTick,
+                lastChestClickMs == 0L ? "none" : String.valueOf(System.currentTimeMillis() - lastChestClickMs));
         ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: opened the "), ModChat.good("secret chest"),
                 ModChat.text("."));
         client.options.keyUp.setDown(false);
@@ -557,6 +659,7 @@ final class AutoTeleportMaze {
         LOGGER.info("[AutoPuzzles] TeleportMaze: walking to the only pad in the centre cell, the end pad at {}",
                 pad == null ? "(room rotation not known)" : AutoPuzzleUtil.fmt(pad));
         finishStage = FinishStage.STEP_ON_END_PAD;
+        finishStageStartTick = nowTick();
         finishStageStartMs = System.currentTimeMillis();
         finishStageLag = com.killer560.hub.util.ServerLag.mark();
     }
@@ -580,8 +683,9 @@ final class AutoTeleportMaze {
                     : chestClicks == 0 ? "the chest at " + AutoPuzzleUtil.fmt(finishChest) + " never came in reach"
                     : "the server never answered " + chestClicks + " click(s) on the chest at "
                     + AutoPuzzleUtil.fmt(finishChest);
-            LOGGER.info("[AutoPuzzles] TeleportMaze: chest click not confirmed after {}ms - {} - stopped",
-                    CHEST_TIMEOUT_MS, why);
+            LOGGER.info("[AutoPuzzles] TeleportMaze: chest click not confirmed after {}ms - {} - stopped:"
+                            + " at {} elapsedTicks={}", CHEST_TIMEOUT_MS, why,
+                    AutoPuzzleUtil.fmt(player.blockPosition()), nowTick() - finishStageStartTick);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
                     ModChat.bad("the chest click was never confirmed"), ModChat.text(" - stopped."));
             client.options.keyUp.setDown(false);
@@ -604,14 +708,17 @@ final class AutoTeleportMaze {
                     }
                 }
                 finishChest = nearest;
-                LOGGER.info("[AutoPuzzles] TeleportMaze: walking toward the chest at {} until a click is confirmed",
-                        AutoPuzzleUtil.fmt(finishChest));
+                LOGGER.info("[AutoPuzzles] TeleportMaze: walking toward the chest at {} until a click is confirmed"
+                                + " ({} chest(s) in the centre cell, nearest picked) from {} tick={}",
+                        AutoPuzzleUtil.fmt(finishChest), chests.size(), AutoPuzzleUtil.fmt(player.blockPosition()),
+                        nowTick());
             }
         }
         if (finishChest == null) {
             if (!chestMissingLogged) {
                 chestMissingLogged = true;
-                LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the centre cell yet - waiting");
+                LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the centre cell yet - waiting ({}) tick={}",
+                        cr == null ? "room rotation not known" : "scan found none or chunks not loaded", nowTick());
             }
             client.options.keyUp.setDown(false);
             walking = false;
@@ -620,6 +727,26 @@ final class AutoTeleportMaze {
         // Reach to the box, as everywhere else: the server's 4.5 is measured to it.
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), finishChest);
         long now = System.currentTimeMillis();
+        {
+            // Logging only: why no click goes this tick (the gate's own refusal is logged by AutoPuzzleUtil).
+            String holdKey = cr == null ? "rotation" : !inCentreCell(player, cr) ? "outsideCell"
+                    : distSq > AURA_REACH_SQ ? "reach" : player.isShiftKeyDown() ? "sneaking"
+                    : chestClicks >= MAX_CHEST_CLICKS ? "clicksUsed" : null;
+            String hold = holdKey == null ? null : switch (holdKey) {
+                case "rotation" -> "room rotation not known";
+                case "outsideCell" -> "not inside the centre cell yet (rel "
+                        + AutoPuzzleUtil.fmt(PuzzleCoords.relative(player.blockPosition(), cr)) + ")";
+                case "reach" -> "out of reach";
+                case "sneaking" -> "sneaking";
+                default -> "all " + MAX_CHEST_CLICKS + " clicks used, waiting for the answer";
+            };
+            if (hold != null) {
+                logHeld("chest:" + holdKey, "no chest click: " + hold + " - boxDist="
+                        + String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)) + " reach="
+                        + String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(AURA_REACH_SQ)) + " clicks="
+                        + chestClicks + " elapsedTicks=" + (nowTick() - finishStageStartTick));
+            }
+        }
         if (cr != null && inCentreCell(player, cr) && distSq <= AURA_REACH_SQ && !player.isShiftKeyDown()
                 && chestClicks < MAX_CHEST_CLICKS && now - lastChestClickMs >= CHEST_RECLICK_MS
                 && AutoPuzzleUtil.gateWorldClick(client, finishChest)) {
@@ -655,10 +782,19 @@ final class AutoTeleportMaze {
         boolean timedOut = com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > FINISH_WALK_TIMEOUT_MS;
         if (sentOut || timedOut) {
             if (timedOut && !sentOut) {
-                LOGGER.warn("[AutoPuzzles] TeleportMaze: the end pad did not send me out - continuing anyway");
+                LOGGER.warn("[AutoPuzzles] TeleportMaze: the end pad did not send me out - continuing anyway: pad={}"
+                                + " dist={} elapsedTicks={}", AutoPuzzleUtil.fmt(pad),
+                        String.format(java.util.Locale.ROOT, "%.2f",
+                                Math.sqrt(player.position().distanceToSqr(Vec3.atCenterOf(pad)))),
+                        nowTick() - finishStageStartTick);
+            } else {
+                LOGGER.info("[AutoPuzzles] TeleportMaze: the end pad sent me out ({}) - now at {}, walking out"
+                                + " elapsedTicks={}", pad == null ? "room rotation not known, assumed" : "teleported",
+                        AutoPuzzleUtil.fmt(player.blockPosition()), nowTick() - finishStageStartTick);
             }
             client.options.keyUp.setDown(false);
             walking = false;
+            finishStageStartTick = nowTick();
             finishStage = FinishStage.WALK_OUT;
             finishStageStartMs = System.currentTimeMillis();
             finishStageLag = com.killer560.hub.util.ServerLag.mark();
@@ -675,7 +811,10 @@ final class AutoTeleportMaze {
      *  callers must check {@code finishStage} afterward since a timeout still advances it. */
     private static boolean walkFinishLeg(Minecraft client, LocalPlayer player, BlockPos target, FinishStage nextStage, String label) {
         if (target == null) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: walk to {} skipped - its spot is not known (room rotation or"
+                    + " override missing), next stage {} tick={}", label, nextStage, nowTick());
             finishStage = nextStage;
+            finishStageStartTick = nowTick();
             finishStageStartMs = System.currentTimeMillis();
             finishStageLag = com.killer560.hub.util.ServerLag.mark();
             client.options.keyUp.setDown(false);
@@ -684,17 +823,24 @@ final class AutoTeleportMaze {
         }
         double distSq = player.position().distanceToSqr(Vec3.atCenterOf(target));
         if (distSq < ARRIVE_SQ) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: reached {} at {} (dist {}) - next stage {} elapsedTicks={}", label,
+                    AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
+                    nextStage, nowTick() - finishStageStartTick);
             client.options.keyUp.setDown(false);
             walking = false;
+            finishStageStartTick = nowTick();
             finishStage = nextStage;
             finishStageStartMs = System.currentTimeMillis();
             finishStageLag = com.killer560.hub.util.ServerLag.mark();
             return true;
         }
         if (com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > FINISH_WALK_TIMEOUT_MS) {
-            LOGGER.warn("[AutoPuzzles] TeleportMaze: walk to {} timed out - continuing anyway", label);
+            LOGGER.warn("[AutoPuzzles] TeleportMaze: walk to {} timed out - continuing anyway: target={} dist={}"
+                            + " elapsedTicks={}", label, AutoPuzzleUtil.fmt(target),
+                    String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), nowTick() - finishStageStartTick);
             client.options.keyUp.setDown(false);
             walking = false;
+            finishStageStartTick = nowTick();
             finishStage = nextStage;
             finishStageStartMs = System.currentTimeMillis();
             finishStageLag = com.killer560.hub.util.ServerLag.mark();
@@ -721,6 +867,8 @@ final class AutoTeleportMaze {
         BlockPos currentPad = TeleportMazeSolverFeature.nearestPad(pos);
         int current = pads.indexOf(currentPad);
         if (current < 0) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: pad pick: not standing on a known pad (nearest {} of {} known) -"
+                    + " no pick", AutoPuzzleUtil.fmt(currentPad), pads.size());
             return null;
         }
         int[][] xz = new int[pads.size()][];
@@ -767,8 +915,15 @@ final class AutoTeleportMaze {
         MazeRoute.Choice choice = MazeRoute.choose(current, xz, cellOf, links, visited, candidates,
                 best == null ? -1 : best);
         if (choice == null) {
+            LOGGER.info("[AutoPuzzles] TeleportMaze: pad pick: none from {} (cell {}) - pads={} visited={} links={}"
+                            + " exitCandidates={} best={}", AutoPuzzleUtil.fmt(currentPad), cellOf[current], pads.size(),
+                    visited.size(), links.size(), candidates.size(), best == null ? "none" : AutoPuzzleUtil.fmt(bestPos));
             return null;
         }
+        LOGGER.info("[AutoPuzzles] TeleportMaze: pad pick: {} from {} (cell {} -> {}) - {}; visited={} links={}"
+                        + " exitCandidates={} best={}", AutoPuzzleUtil.fmt(pads.get(choice.pad())),
+                AutoPuzzleUtil.fmt(currentPad), cellOf[current], cellOf[choice.pad()], choice.reason(), visited.size(),
+                links.size(), candidates.size(), best == null ? "none" : AutoPuzzleUtil.fmt(bestPos));
         padReason = choice.reason();
         return pads.get(choice.pad());
     }

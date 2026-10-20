@@ -115,7 +115,17 @@ final class AutoIceFill {
             return;
         }
         lastNote = key;
-        LOGGER.info("[AutoIceFill] " + message, args);
+        LOGGER.info("[AutoIceFill] " + message + " (tick " + com.killer560.hub.util.SessionRecorderSink.tick() + ")",
+                args);
+    }
+
+    /** Tick of the first hop in this room, for elapsed-tick lines; -1 before it. */
+    private static long firstHopTick = -1L;
+    /** Hops sent in this room. */
+    private static int hopsSent = 0;
+
+    private static long sinceFirstHop() {
+        return firstHopTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - firstHopTick;
     }
 
     private AutoIceFill() {
@@ -163,6 +173,16 @@ final class AutoIceFill {
         }
         if (!GUARD.solverOn(IceFillSolverConfig.getInstance().isEnabled()) || raw.isEmpty() || !GUARD.fresh()
                 || McCompat.screen(client) != null) {
+            // Pure reads only, to name which of the four held it (the guard calls above have already run).
+            if (!IceFillSolverConfig.getInstance().isEnabled()) {
+                note("g-solver", "waiting: Ice Fill Solver is off");
+            } else if (raw.isEmpty()) {
+                note("g-empty", "waiting: the solver has no path yet");
+            } else if (McCompat.screen(client) != null) {
+                note("g-screen", "waiting: a screen is open");
+            } else {
+                note("g-guard", "waiting: the guard holds it (solver data predates this world, or it is not trusted yet)");
+            }
             return;
         }
         if (IceFillSolverConfig.getInstance().isOptimizedPath()) {
@@ -171,6 +191,7 @@ final class AutoIceFill {
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Ice Fill needs the solver's "),
                         ModChat.value("Optimized Path"), ModChat.text(" turned off."));
             }
+            note("optimized", "refused: the solver's Optimized Path is on - Auto Ice Fill needs it off");
             return;
         }
         if (!raw.equals(sourcePath)) {
@@ -191,7 +212,8 @@ final class AutoIceFill {
             return;
         }
         if (client.level.getBlockState(PuzzleCoords.real(15, 71, 26, cr)).is(Blocks.PACKED_ICE)) {
-            note("done", "done: the finish tile {} is packed ice", PuzzleCoords.real(15, 71, 26, cr));
+            note("done", "done: the finish tile {} is packed ice - {} hop(s) sent, {} tick(s) since the first hop,"
+                    + " {} break recovery(ies)", PuzzleCoords.real(15, 71, 26, cr), hopsSent, sinceFirstHop(), recoveries);
             done = true;
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
@@ -219,6 +241,7 @@ final class AutoIceFill {
         }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
+            note("reposactive", "waiting: etherwarp reposition under way");
             return;
         }
         // 69.5..72.5 is the ROOM-RELATIVE band of this room's three ice levels, and the sim shifts every room
@@ -230,6 +253,8 @@ final class AutoIceFill {
         double floor = com.killer560.hub.livemap.DungeonLayout.simYOffset();
         if (cfg.isEtherwarpReposition() && (player.getY() < 69.5 + floor || player.getY() > 72.5 + floor)) {
             if (AutoPuzzleUtil.isMoving(player)) {
+                note("reposmoving", "off the ice band at y {} - waiting for him to stop moving before a reposition",
+                        player.getY());
                 return;
             }
             for (Vec3 vec : path) {
@@ -237,7 +262,10 @@ final class AutoIceFill {
                 if (client.level.getBlockState(below).is(Blocks.ICE)) {
                     note("repos" + below, "off the ice band at y {} (band {}..{}) - etherwarp reposition onto {}",
                             player.getY(), 69.5 + floor, 72.5 + floor, below);
-                    REPOSITION.start(client, below, false, true, true);
+                    boolean started = REPOSITION.start(client, below, false, true, true);
+                    if (!started) {
+                        note("reposno" + below, "reposition onto {} refused (no etherwarp line from here)", below);
+                    }
                     return;
                 }
             }
@@ -327,15 +355,24 @@ final class AutoIceFill {
             }
             // "standing on" is the path point he is really on this tick. It differs from the hop's own start
             // only when the last hop has not landed yet, and then this hop is aimed from a point he is not at.
-            note("hop" + lastIndex, "hop {} -> {}: from {} to {} (yaw {}, pitch {}), standing on point {}",
+            if (firstHopTick < 0) {
+                firstHopTick = com.killer560.hub.util.SessionRecorderSink.tick();
+            }
+            hopsSent++;
+            note("hop" + lastIndex, "hop {} -> {}: from {} to {} (yaw {}, pitch {}), standing on point {}, item {},"
+                            + " section {}, delay {} tick(s){}, hop #{} at {} tick(s) since the first",
                     lastIndex, lastIndex + 1, current, next, String.format(java.util.Locale.ROOT, "%.1f", dir[0]),
-                    String.format(java.util.Locale.ROOT, "%.1f", dir[1]), index);
+                    String.format(java.util.Locale.ROOT, "%.1f", dir[1]), index,
+                    player.getMainHandItem().getHoverName().getString(),
+                    lastIndex < sectionOf.length ? sectionOf[lastIndex] + 1 : -1, cfg.getIceFillDelayTicks(),
+                    cfg.isIceFillAdaptive() ? " (adaptive)" : "", hopsSent, sinceFirstHop());
             // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
             // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
             com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
             lastIndex++;
             ticks = 0;
         } else {
+            LOGGER.debug("[AutoIceFill] point {}: delay tick {} of {}", lastIndex, ticks + 1, cfg.getIceFillDelayTicks());
             ticks++;
         }
     }
@@ -502,12 +539,19 @@ final class AutoIceFill {
         }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
+            note("retrepos" + s, "recovery: etherwarp back onto section {}'s start under way", s + 1);
             return;
         }
         if (mapWalkOurs) {
             if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                note("retwalking" + s, "recovery: map walk back to section {}'s start under way", s + 1);
                 return;
             }
+            LOGGER.info("[AutoIceFill] recovery: map walk to section {}'s start ended after {} tick(s), player at"
+                            + " ({}, {}, {})", s + 1, recoveryTicks,
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getX()),
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getY()),
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getZ()));
             mapWalkOurs = false;
         }
         if (recoveryTicks >= RETURN_TIMEOUT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(recoveryLag)) {
@@ -522,6 +566,7 @@ final class AutoIceFill {
             return;
         }
         if (AutoPuzzleUtil.isMoving(player)) {
+            note("retmoving" + s, "recovery: waiting for him to stop moving before warping back to {}", tile);
             return;
         }
         if (REPOSITION.start(client, tile, false, true, true)) {
@@ -621,6 +666,14 @@ final class AutoIceFill {
     }
 
     private static void reset(Minecraft client) {
+        if (hopsSent > 0 || !path.isEmpty()) {
+            LOGGER.info("[AutoIceFill] reset: left the room, switched off or changed world - {} hop(s) sent, last"
+                            + " point {} of {}, done={}, gaveUp={}, {} tick(s) since the first hop (tick {})",
+                    hopsSent, lastIndex, path.size(), done, gaveUp, sinceFirstHop(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+        }
+        hopsSent = 0;
+        firstHopTick = -1L;
         CAMERA.release(client.player);
         if (recovering >= 0) {
             LOGGER.info("[AutoIceFill] recovery of section {} abandoned - left the room or switched off", recovering + 1);

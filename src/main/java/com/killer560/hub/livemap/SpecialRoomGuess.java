@@ -33,22 +33,38 @@ public final class SpecialRoomGuess {
     private SpecialRoomGuess() {
     }
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-livemap");
+
+    /** Logging only: each tile's last logged guess as bits (1 blood, 2 champion, 4 trap, 8 puzzle); asked per frame, so
+     *  a line is written only when a tile's guess changes. */
+    private static final int[] LOGGED_GUESS = new int[DungeonLayout.GRID * DungeonLayout.GRID];
+
+    private static List<String> noted(int tile, List<String> out, String why) {
+        int bits = bitsOf(out);
+        if (tile >= 0 && tile < LOGGED_GUESS.length && LOGGED_GUESS[tile] != bits) {
+            LOGGED_GUESS[tile] = bits;
+            LOGGER.info("[MapLayout] special room guess for tile {},{}: {} ({})", tile % DungeonLayout.GRID,
+                    tile / DungeonLayout.GRID, out.isEmpty() ? "none" : out, why);
+        }
+        return out;
+    }
+
     /** The special room types tile {@code tile} (11x11 index) may still be - "CHAMPION", "TRAP", "PUZZLE", in that
      *  order - or an empty list when it is not an unopened one-tile room or nothing special is left. */
     public static List<String> candidates(int tile) {
         List<String> out = new ArrayList<>();
         if (!HeldMap.available() || HeldMap.roomState(tile) != HeldMap.STATE_UNOPENED) {
-            return out;
+            return noted(tile, out, "no map, or the tile is not an unopened room");
         }
         // killer560, 2026-10-19 (15:23:57): an unopened room with the red blood door beside it was split yellow/purple
         // with a "?". The Blood Room is one tile and a dead end, and the blood door is drawn once the room on its other
         // side is opened - so an unopened tile across a blood door from an opened room is the Blood Room.
         if (behindBloodDoor(tile)) {
             out.add("BLOOD");
-            return out;
+            return noted(tile, out, "its only door is the blood door and no Blood Room is opened");
         }
         if (!oneTile(tile)) {
-            return out;
+            return noted(tile, out, "not known to be one tile (a neighbour is unopened or joined)");
         }
         int puzzles = 0;
         boolean trap = false;
@@ -107,7 +123,25 @@ public final class SpecialRoomGuess {
         if (total < 0 || puzzles < total) {
             out.add("PUZZLE");
         }
-        return out;
+        if (out.isEmpty()) {
+            return noted(tile, out, "every special room is accounted for");
+        }
+        // The reason string is only built when the guess changed (it is asked per frame).
+        return LOGGED_GUESS[tile] == bitsOf(out) ? out : noted(tile, out, "one tile; puzzles counted " + puzzles + " of "
+                + (total < 0 ? "unknown" : String.valueOf(total)) + ", trap seen=" + trap + ", miniboss seen=" + champion);
+    }
+
+    private static int bitsOf(List<String> out) {
+        int bits = 0;
+        for (String s : out) {
+            bits |= switch (s) {
+                case "BLOOD" -> 1;
+                case "CHAMPION" -> 2;
+                case "TRAP" -> 4;
+                default -> 8;
+            };
+        }
+        return bits;
     }
 
     /**
@@ -191,6 +225,9 @@ public final class SpecialRoomGuess {
                 found = Integer.parseInt(m.group(1));
                 break;
             }
+        }
+        if (found != puzzleCount) {
+            LOGGER.info("[MapLayout] tab list puzzle count {} -> {}", puzzleCount, found);
         }
         puzzleCount = found;
         return puzzleCount;

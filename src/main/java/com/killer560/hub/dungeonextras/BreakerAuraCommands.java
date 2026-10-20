@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 public final class BreakerAuraCommands {
 
     public static final String FEATURE = "Breaker Aura";
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-breakeraura");
 
     private BreakerAuraCommands() {
     }
@@ -117,6 +118,7 @@ public final class BreakerAuraCommands {
      *  does not also require the master toggle or Skyblock/p3sim. */
     private static boolean ready() {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            LOGGER.info("[BreakerAura] /breakeraura refused: not available in this build (legit)");
             ModChat.send(FEATURE, ModChat.bad("Not available in this build."));
             return false;
         }
@@ -137,6 +139,7 @@ public final class BreakerAuraCommands {
     private static void list() {
         List<String> names = BreakerAuraStore.listConfigNames();
         String active = DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile();
+        LOGGER.info("[BreakerAura] /breakeraura config list: {} config(s), active={}, names={}", names.size(), active, names);
         ModChat.send(FEATURE, ModChat.text(names.size() + " config" + (names.size() == 1 ? "" : "s") + " in "),
                 ModChat.value(BreakerAuraStore.directory().getFileName().toString() + "/"), ModChat.text(":"));
         for (String n : names) {
@@ -151,19 +154,26 @@ public final class BreakerAuraCommands {
             error = "No config called " + clean + ".";
         }
         if (error != null) {
+            LOGGER.info("[BreakerAura] /breakeraura config select refused: name={} reason={}", clean, error);
             ModChat.send(FEATURE, ModChat.bad(error));
             return;
         }
         BreakerAuraStore.select(clean);
+        LOGGER.info("[BreakerAura] /breakeraura config select: now using {} ({} pick(s))",
+                DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile(),
+                BreakerAuraStore.getInstance().pickedKeys().size());
         ModChat.send(FEATURE, ModChat.good("Using " + DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile() + "."));
     }
 
     private static void create(String raw) {
         String error = BreakerAuraStore.createConfig(raw);
         if (error != null) {
+            LOGGER.info("[BreakerAura] /breakeraura config new refused: reason={}", error);
             ModChat.send(FEATURE, ModChat.bad(error));
             return;
         }
+        LOGGER.info("[BreakerAura] /breakeraura config new: created and using {}",
+                DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile());
         ModChat.send(FEATURE, ModChat.good("Created and using " + DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile() + "."));
     }
 
@@ -171,14 +181,18 @@ public final class BreakerAuraCommands {
         String name = BreakerAuraStore.normalizeConfigName(raw);
         String error = name == null ? "Type a name first." : BreakerAuraStore.delete(name);
         if (error != null) {
+            LOGGER.info("[BreakerAura] /breakeraura config delete refused: name={} reason={}", name, error);
             ModChat.send(FEATURE, ModChat.bad(error));
             return;
         }
+        LOGGER.info("[BreakerAura] /breakeraura config delete: deleted {}", name);
         ModChat.send(FEATURE, ModChat.good("Deleted " + name + "."));
     }
 
     private static void clear() {
         int n = BreakerAuraFeature.clearSelection();
+        LOGGER.info("[BreakerAura] /breakeraura clear: {} pick(s) removed from {}", n,
+                DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile());
         ModChat.send(FEATURE, ModChat.good("Cleared " + n + " picked block" + (n == 1 ? "" : "s") + " from "
                 + DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile() + "."));
     }
@@ -199,6 +213,8 @@ public final class BreakerAuraCommands {
         }
         BreakerAuraStore.reload();
         int loaded = BreakerAuraStore.getInstance().pickedKeys().size();
+        LOGGER.info("[BreakerAura] /breakeraura reload: file={} exists={} loaded={} parseError={}",
+                file.getFileName(), exists, loaded, parseError == null ? "none" : parseError);
         if (parseError != null) {
             ModChat.send(FEATURE, ModChat.bad("Failed to parse "), ModChat.value(file.getFileName().toString()),
                     ModChat.bad(": " + parseError), ModChat.dim(" - fix the file (or paste a good copy back in) and /breakeraura reload again."));

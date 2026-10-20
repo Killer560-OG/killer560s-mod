@@ -66,11 +66,15 @@ public final class RoutePathPlanner {
      */
     public static void refreshStale(Route route, RouteCoords.Frame frame) {
         if (route == null || frame == null || planning || RouteExecutor.isRunning()) {
+            LOGGER.info("[RoutePlan] stale-plan refresh skipped: route null={} frame null={} planning={} running={}",
+                    route == null, frame == null, planning, RouteExecutor.isRunning());
             return;
         }
         for (RouteNode n : route.nodes()) {
             if (n.type == RouteNode.Type.PATH && route.pathDestination(n) != null && !valid(route, n)
                     && !isProving(n)) {
+                LOGGER.info("[RoutePlan] path #{} in {} is stale ({} saved warp(s)) - planning it", route.indexOf(n) + 1,
+                        route.roomName(), n.pathHops.size());
                 plan(route, frame, n, why -> {
                     if (why == null) {
                         refreshStale(route, RouteCoords.Frame.current());
@@ -118,6 +122,8 @@ public final class RoutePathPlanner {
         Minecraft client = Minecraft.getInstance();
         RouteNode dest = route == null ? null : route.pathDestination(src);
         if (dest == null || frame == null || client.level == null) {
+            LOGGER.info("[RoutePlan] plan refused: destination null={} frame null={} level null={}", dest == null,
+                    frame == null, client.level == null);
             done.accept("no destination path node");
             return;
         }
@@ -131,6 +137,8 @@ public final class RoutePathPlanner {
         BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
         if (goal == null) {
             String why = "no etherwarpable block at or near path #" + b;
+            LOGGER.info("[RoutePlan] path #{} -> #{} not planned: nothing etherwarpable at or near {}", a, b,
+                    below.toShortString());
             AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": " + why + ".");
             done.accept(why);
             return;
@@ -252,11 +260,14 @@ public final class RoutePathPlanner {
             long took = System.currentTimeMillis() - t0;
             client.execute(() -> {
                 if (PROVERS.get(src) != prover) {
+                    LOGGER.info("[RoutePlan] proof of path #{} -> #{} dropped after {} ms: a newer plan took over", a, b, took);
                     return;   // a newer plan of this pair took over
                 }
                 PROVERS.remove(src);
                 PROVING.remove(src);
                 if (!prover.proven()) {
+                    LOGGER.info("[RoutePlan] proof of path #{} -> #{} cancelled after {} ms (pair moved, or world change)",
+                            a, b, took);
                     return;   // cancelled: the pair moved or went
                 }
                 RouteNode dest = route.pathDestination(src);
@@ -264,6 +275,8 @@ public final class RoutePathPlanner {
                         && Math.abs(src.y - fy) < 0.002 && Math.abs(src.z - fz) < 0.002 && Math.abs(dest.x - tx) < 0.002
                         && Math.abs(dest.y - ty) < 0.002 && Math.abs(dest.z - tz) < 0.002;
                 if (!same) {
+                    LOGGER.info("[RoutePlan] proof of path #{} -> #{} discarded after {} ms: a node moved or was deleted"
+                            + " while it ran", a, b, took);
                     return;
                 }
                 if (found != null) {
@@ -289,6 +302,9 @@ public final class RoutePathPlanner {
 
     /** Stops every running proof (a world change); their pairs plan again when they are next needed. */
     public static void cancelProofs() {
+        if (!PROVERS.isEmpty()) {
+            LOGGER.info("[RoutePlan] cancelling {} running path proof(s)", PROVERS.size());
+        }
         for (EtherwarpPathfinder.Prover p : PROVERS.values()) {
             p.cancel();
         }

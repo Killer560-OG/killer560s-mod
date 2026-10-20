@@ -178,7 +178,23 @@ public final class ItemIdentity {
                 return slot;
             }
         }
+        logMiss(identity);
         return -1;
+    }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoroutes");
+    private static String lastMissKey;
+    private static long lastMissTick;
+
+    /** No hotbar slot holds {@code identity}: once per identity per 20 ticks (callers ask every tick while waiting). */
+    private static void logMiss(String identity) {
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        if (identity.equals(lastMissKey) && now - lastMissTick < 20) {
+            return;
+        }
+        lastMissKey = identity;
+        lastMissTick = now;
+        LOGGER.info("[AutoRoutes] item lookup: no hotbar slot holds {} (family {})", identity, family(identity));
     }
 
     /** An empty hotbar slot (0-8) for an empty-hand click: the selected one if it is empty, else the first, or -1. */

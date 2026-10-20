@@ -45,8 +45,10 @@ public abstract class OutboundBreakMixin {
                     case START_DESTROY_BLOCK ->
                             ForeignBreakerProbe.onStartDestroy(action.getPos(), action.getDirection(),
                                     action.getSequence());
-                    case ABORT_DESTROY_BLOCK -> ForeignBreakerProbe.onAbortDestroy();
-                    case STOP_DESTROY_BLOCK -> ForeignBreakerProbe.onStopDestroy();
+                    case ABORT_DESTROY_BLOCK -> ForeignBreakerProbe.onAbortDestroy(action.getPos(),
+                            action.getSequence());
+                    case STOP_DESTROY_BLOCK -> ForeignBreakerProbe.onStopDestroy(action.getPos(),
+                            action.getSequence());
                     default -> {
                         // every other action (drops, offhand swap, STAB) is not a break - ignore it
                     }

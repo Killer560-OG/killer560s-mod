@@ -176,6 +176,18 @@ public final class RoomPredictor {
     private RoomPredictor() {
     }
 
+    /** Logging only: tiles whose "every placement ruled out" was logged this floor, the full store, and the gate. */
+    private static final boolean[] LOGGED_RULED_OUT = new boolean[TILES * TILES];
+    private static boolean loggedFull = false;
+    private static String loggedGate;
+
+    private static void logGate(String gate) {
+        if (!gate.equals(loggedGate)) {
+            loggedGate = gate;
+            LOGGER.info("[Predict] predictive rooms: {}", gate);
+        }
+    }
+
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("RoomPredictor", RoomPredictor::tick));
     }
@@ -190,18 +202,22 @@ public final class RoomPredictor {
             reset();
         }
         if (!PredictiveRoomsConfig.getInstance().isEnabled() || client.player == null || client.level == null) {
+            logGate(!PredictiveRoomsConfig.getInstance().isEnabled() ? "off" : "no player or level");
             return;
         }
         boolean sim = com.killer560.hub.roomsim.SimState.isActive();
         if (!(sim || com.killer560.hub.secrets.DungeonState.isInDungeon()) || LiveMapFeature.isInBoss()) {
+            logGate(LiveMapFeature.isInBoss() ? "in boss" : "not in a dungeon");
             setStatus("not in a dungeon clear");
             return;
         }
         if (!RoomLibrary.isReady()) {
+            logGate("waiting for the room library");
             RoomLibrary.loadAsync();
             setStatus("waiting for the room library");
             return;
         }
+        logGate(!RoomDatabase.isReady() ? "running (room database not loaded yet)" : sim ? "running (sim)" : "running");
         if (!RoomDatabase.isReady()) {
             RoomDatabase.ensureLoading();
         }
@@ -220,6 +236,12 @@ public final class RoomPredictor {
 
     /** Forgets everything seen: a new floor or a new world. */
     public static void reset() {
+        if (obsCount > 0 || !PREDICTIONS.isEmpty()) {
+            LOGGER.info("[Predict] reset (new floor or world): forgetting {} block(s) seen, {} placement(s), {} prediction(s)",
+                    obsCount, ALL.size(), PREDICTIONS.size());
+        }
+        Arrays.fill(LOGGED_RULED_OUT, false);
+        loggedFull = false;
         obsCount = 0;
         OBS_INDEX.clear();
         Arrays.fill(EVIDENCE, 0);
@@ -255,6 +277,10 @@ public final class RoomPredictor {
         double jy = ((sampleSeed / 4) + 0.5) / 4.0;
         int[] floor = HeldMap.floorTiles();
         if (obsCount >= MAX_OBSERVATIONS) {
+            if (!loggedFull) {
+                loggedFull = true;
+                LOGGER.info("[Predict] observation store full ({} blocks): no more sweeps this floor", obsCount);
+            }
             return; // record() keeps nothing more, whatever a ray meets
         }
         // Which tiles a hit may be recorded in, for this sweep (he does not move during it): isTarget, once per tile.
@@ -794,6 +820,11 @@ public final class RoomPredictor {
                     break;
                 }
             }
+            if (!pending && standing.isEmpty() && !LOGGED_RULED_OUT[t]) {
+                LOGGED_RULED_OUT[t] = true;
+                LOGGER.info("[Predict] tile {},{}: every one of {} placement(s) ruled out or touching an opened room ({} block(s) seen)",
+                        t % TILES, t / TILES, list.size(), EVIDENCE[t]);
+            }
             if (pending || standing.isEmpty()) {
                 continue;
             }
@@ -830,6 +861,12 @@ public final class RoomPredictor {
                 LOGGER.info("[Predict] tile {}: {} ({} certain tile(s), {} unsure, {} placement(s) left, {} block(s) seen)",
                         e.getKey(), p.name(), p.certainTiles().length, p.uncertainTiles().length, p.candidates(),
                         p.evidence());
+            }
+        }
+        for (Map.Entry<Integer, Prediction> e : PREDICTIONS.entrySet()) {
+            if (!next.containsKey(e.getKey())) {
+                LOGGER.info("[Predict] tile {}: prediction {} withdrawn (no longer a single room with enough matches)",
+                        e.getKey(), e.getValue().name());
             }
         }
         if (!sameDrawn(PREDICTIONS, next)) {

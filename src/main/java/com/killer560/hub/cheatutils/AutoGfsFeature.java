@@ -78,6 +78,8 @@ public final class AutoGfsFeature {
     /** The item whose /gfs is out and unanswered, and how many of it were held when it was sent. */
     private static RefillItem sent = null;
     private static int countAtSend = 0;
+    /** Logging only: the gate last logged (null = running). */
+    private static String lastGateLogged = "init";
 
     private AutoGfsFeature() {
     }
@@ -88,6 +90,8 @@ public final class AutoGfsFeature {
         }
         for (RefillItem item : RefillItem.values()) {
             if (plain.equals("You have no " + item.emptyName + " in your Sacks!")) {
+                LOGGER.info("[AutoGfs] sack empty: {} (awaitingThisItem={}) - left alone until world change tick={}",
+                        item.sackName, sent == item, com.killer560.hub.util.SessionRecorderSink.tick());
                 if (emptySacks.add(item)) {
                     pending.remove(item);
                 }
@@ -101,6 +105,9 @@ public final class AutoGfsFeature {
 
     static void tick(Minecraft client) {
         if (client.level != lastLevel) {
+            if (sent != null || !pending.isEmpty() || !emptySacks.isEmpty()) {
+                LOGGER.info("[AutoGfs] world change: reset (sent={} pending={} empty={})", sent, pending, emptySacks);
+            }
             lastLevel = client.level;
             emptySacks.clear();
             pending.clear();
@@ -114,10 +121,14 @@ public final class AutoGfsFeature {
         // MAX_TRIES misses leave that item alone until the next world.
         if (sent != null) {
             if (client.player != null && count(client, sent) > countAtSend) {
+                LOGGER.info("[AutoGfs] refill arrived: {} {} -> {} after {} ms", sent.sackName, countAtSend,
+                        count(client, sent), System.currentTimeMillis() - lastCommandMs);
                 misses[sent.ordinal()] = 0;
                 sent = null;
                 SackCommands.answered();
             } else if (!SackCommands.awaiting()) {
+                LOGGER.info("[AutoGfs] /gfs {} timed out with nothing back: miss {}/{} after {} ms", sent.sackName,
+                        misses[sent.ordinal()] + 1, MAX_TRIES, System.currentTimeMillis() - lastCommandMs);
                 if (++misses[sent.ordinal()] >= MAX_TRIES && emptySacks.add(sent)) {
                     LOGGER.warn("[AutoGfs] /gfs {} brought nothing back {} times - leaving it until the next world",
                             sent.sackName, MAX_TRIES);
@@ -142,6 +153,11 @@ public final class AutoGfsFeature {
                 : !SackCommands.available(client) ? "no /gfs here (not Hypixel Skyblock, or it answered unknown command)"
                 : cfg.isGfsDungeonKuudraOnly() && !ScoreboardData.inIsland("Catacombs", "Kuudra") ? "not in a dungeon or Kuudra"
                 : containerOpen ? "a container screen is open" : null;
+        if (!java.util.Objects.equals(gate, lastGateLogged)) {
+            LOGGER.info("[AutoGfs] gate: {} -> {} (pending={})", lastGateLogged == null ? "running" : lastGateLogged,
+                    gate == null ? "running" : gate, pending);
+            lastGateLogged = gate;
+        }
         if (gate != null) {
             // Real bug found (2026-09-20): this compared gate to the literal "screen open", which the gate
             // string above never actually produces (it says "a container screen is open") - so the compare
@@ -164,6 +180,10 @@ public final class AutoGfsFeature {
                     pending.add(item);
                 }
             }
+            if (!pending.isEmpty()) {
+                LOGGER.info("[AutoGfs] check: queued {} (thresholdPct={} empty={}) tick={}", pending,
+                        cfg.getGfsThresholdPercent(), emptySacks, com.killer560.hub.util.SessionRecorderSink.tick());
+            }
         }
         if (pending.isEmpty() || now - lastCommandMs < COMMAND_SPACING_MS) {
             return;
@@ -184,17 +204,24 @@ public final class AutoGfsFeature {
         RefillItem item = pending.peek();
         int amount = needed(client, cfg, item); // re-verify before the gate is asked for anything
         if (amount <= 0) {
+            LOGGER.info("[AutoGfs] dropped from queue: {} no longer needs a refill (have={})", item.sackName,
+                    count(client, item));
             pending.poll(); // nothing left to pull for this one - not an action, so no gate slot spent
             return;
         }
         if (SackCommands.awaiting() || !ActionGate.tryAct(ActionGate.Actor.AUTO_GFS)) {
+            LOGGER.debug("[AutoGfs] send held for {}: sackCommandAwaiting={} (else ActionGate refused)", item.sackName,
+                    SackCommands.awaiting());
             return;
         }
         int before = count(client, item);
         String args = item.sackName + " " + amount;
         if (!SackCommands.send(client, args)) {
+            LOGGER.info("[AutoGfs] SackCommands refused /gfs {} - kept queued", args);
             return;
         }
+        LOGGER.info("[AutoGfs] sent /gfs {}: have={} max={} tick={}", args, before, item.maxStack,
+                com.killer560.hub.util.SessionRecorderSink.tick());
         pending.poll();
         lastCommandMs = now;
         sent = item;

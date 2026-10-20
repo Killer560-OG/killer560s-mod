@@ -55,6 +55,30 @@ public final class TicTacToeSolverFeature {
      */
     private static boolean gameOver = false;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzlesolvers");
+    /** Logging only: last room state logged ("none" outside the room), so lines are written on CHANGE, never per tick. */
+    private static String roomLogKey = "none";
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        LOGGER.info("[TicTacToeSolver] {}", detail);
+    }
+
+    /** Logging only: the board as 9 chars, row by row from the top ('X' computer, 'O' player, '.' empty). */
+    private static String boardString(char[] board) {
+        StringBuilder sb = new StringBuilder(11);
+        for (int i = 0; i < 9; i++) {
+            if (i > 0 && i % 3 == 0) {
+                sb.append('/');
+            }
+            sb.append(board[i] == EMPTY ? '.' : board[i]);
+        }
+        return sb.toString();
+    }
+
     private TicTacToeSolverFeature() {
     }
 
@@ -90,6 +114,11 @@ public final class TicTacToeSolverFeature {
     private static void tickInner(Minecraft client) {
         if (!TicTacToeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "solver idle: enabled=" + TicTacToeSolverConfig.getInstance().isEnabled()
+                        + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                        + " level=" + (client.level != null) + " - board cleared");
+            }
             lastRoomEntry = null;
             gameOver = false;
             reset();
@@ -103,11 +132,24 @@ public final class TicTacToeSolverFeature {
             reset();
         }
         if (current == null || !ROOM.equals(current.name)) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "left Tic Tac Toe: now in " + (current == null ? "no known room" : current.name)
+                        + " (gameOver was reset)");
+            }
             return;
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (cr == null) {
+            logRoomState("wait", "in Tic Tac Toe but clay/rotation not known yet - board not read, waiting for the map");
             return;
+        }
+        String roomKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
+        if (!roomKey.equals(roomLogKey)) {
+            logRoomState(roomKey, "Tic Tac Toe detected: clay=" + cr[0] + "," + cr[1] + " rotation=" + cr[2]
+                    + " top-left square " + indexToPos(0, cr).toShortString() + " bottom-right "
+                    + indexToPos(8, cr).toShortString() + " preventMisclicks="
+                    + TicTacToeSolverConfig.getInstance().isPreventMisclicks() + " prediction="
+                    + TicTacToeSolverConfig.getInstance().isShowPrediction());
         }
         boardCr = cr;
         ClientLevel level = client.level;
@@ -140,6 +182,7 @@ public final class TicTacToeSolverFeature {
             }
         }
 
+        boolean fromFrames = validFrames > 0; // logging only: which medium the board was read from
         if (validFrames == 0) {
             // THE SIM HAS NO MAPS. The real board's nine marks are maps in item frames, and an item frame is an
             // entity - a room capture holds blocks and nothing else, so the dungeon sim has no way to paste them
@@ -150,6 +193,13 @@ public final class TicTacToeSolverFeature {
             validFrames = readSimBoard(level, cr, board);
         }
         if (getScore(board) != 0 || validFrames == 9) {
+            if (!gameOver) {
+                int score = getScore(board);
+                LOGGER.info("[TicTacToeSolver] game over: board {} ({} marks, read from {}) - {}", boardString(board),
+                        validFrames, fromFrames ? "map frames" : "sim concrete",
+                        score > 0 ? "player (O) has three in a row" : score < 0 ? "computer (X) has three in a row"
+                                : "board full, draw");
+            }
             gameOver = true;
             reset();
             return;
@@ -164,13 +214,25 @@ public final class TicTacToeSolverFeature {
             predictedMove = null;
             Integer best = getBestMove(board, true);
             bestMove = best == null ? null : indexToPos(best, cr);
+            LOGGER.info("[TicTacToeSolver] board changed: {} ({} marks, {} item frame(s) near, read from {}) - player's turn,"
+                            + " best move {}", boardString(board), validFrames, frames.size(),
+                    fromFrames ? "map frames" : "sim concrete",
+                    best == null ? "none (no empty square)" : "square " + best + " at " + bestMove.toShortString());
         } else if (TicTacToeSolverConfig.getInstance().isShowPrediction()) {
             bestMove = null;
             Integer safe = safePrediction(board);
             predictedMove = safe == null ? null : indexToPos(safe, cr);
+            LOGGER.info("[TicTacToeSolver] board changed: {} ({} marks, {} item frame(s) near, read from {}) - computer's"
+                            + " turn, prediction {}", boardString(board), validFrames, frames.size(),
+                    fromFrames ? "map frames" : "sim concrete",
+                    safe == null ? "none (no square is safe after every best reply)"
+                            : "square " + safe + " at " + predictedMove.toShortString());
         } else {
             bestMove = null;
             predictedMove = null;
+            LOGGER.info("[TicTacToeSolver] board changed: {} ({} marks, {} item frame(s) near, read from {}) - computer's"
+                            + " turn, nothing shown (prediction off)", boardString(board), validFrames, frames.size(),
+                    fromFrames ? "map frames" : "sim concrete");
         }
     }
 
@@ -292,11 +354,27 @@ public final class TicTacToeSolverFeature {
         BlockPos target = currentTarget();
         if (!cfg.isEnabled() || !cfg.isPreventMisclicks() || sneaking || cr == null || target == null || pos == null
                 || pos.equals(target)) {
+            if (sneaking && cfg.isEnabled() && cfg.isPreventMisclicks() && cr != null && target != null && pos != null
+                    && !pos.equals(target)) {
+                for (int i = 0; i < 9; i++) {
+                    if (pos.equals(indexToPos(i, cr))) {
+                        LOGGER.info("[TicTacToeSolver] misclick let through: square {} at {} while the target is {} -"
+                                + " sneaking overrides Prevent Misclicks", i, pos.toShortString(), target.toShortString());
+                        break;
+                    }
+                }
+            } else if (pos != null && target != null && pos.equals(target) && cfg.isEnabled()) {
+                LOGGER.info("[TicTacToeSolver] click on the target square {} ({})", pos.toShortString(),
+                        target.equals(bestMove) ? "best move" : "prediction");
+            }
             return false;
         }
         for (int i = 0; i < 9; i++) {
             if (pos.equals(indexToPos(i, cr))) {
                 blockedClicks++;
+                LOGGER.info("[TicTacToeSolver] misclick blocked: clicked square {} at {}, expected {} ({}) - click failed"
+                                + " on the client, nothing sent ({} blocked so far)", i, pos.toShortString(),
+                        target.toShortString(), target.equals(bestMove) ? "best move" : "prediction", blockedClicks);
                 return true;
             }
         }

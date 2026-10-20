@@ -103,6 +103,127 @@ public final class BreakerAuraFeature {
     private static String lastSkipReason = null;
     private static boolean wasActive = false;
 
+    // ---- logging only (2026-10-19 logging pass): nothing below changes what the aura does --------------------------
+    /** Blocks sent this run, watched for the server's answer: pos -> {session tick sent, zero ping 1/0}. */
+    private static final Map<BlockPos, long[]> SENT_WATCH = new HashMap<>();
+    /** How long a sent block is watched before its outcome is logged as "no change". */
+    private static final int SENT_WATCH_TICKS = 40;
+    private static String lastLogKey;
+    private static long lastLogTick;
+    private static String lastInactiveWhy;
+
+    /** At most once per 20 ticks for the same key (BloodCampFeature.logRefusal's shape). */
+    private static void logRated(String key, String fmt, Object... args) {
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        if (key.equals(lastLogKey) && now - lastLogTick < 20) {
+            return;
+        }
+        lastLogKey = key;
+        lastLogTick = now;
+        LOGGER.info(fmt, args);
+    }
+
+    private static String fmt2(double v) {
+        return String.format(java.util.Locale.ROOT, "%.2f", v);
+    }
+
+    /** Why the aura is not active, in plain words - read-only. */
+    private static String inactiveWhy(Minecraft client, DungeonExtrasConfig cfg) {
+        if (!cfg.isBreakerAuraEnabled()) {
+            return "switched off";
+        }
+        if (cfg.isBreakerAuraEditMode()) {
+            return "Breaker Aura edit mode on";
+        }
+        if (client.player == null || client.level == null || client.gameMode == null) {
+            return "no player/level/gameMode";
+        }
+        if (!DungeonState.isInDungeon()) {
+            return "not in a dungeon";
+        }
+        if (!inBoss()) {
+            return "not in a boss (bossPhase=" + DungeonState.isBossPhaseActive() + ", mapBoss="
+                    + com.killer560.hub.livemap.LiveMapFeature.isInBoss() + ")";
+        }
+        return "active";
+    }
+
+    /**
+     * Where every pick stands right now, for the idle line - read-only, and only built when that line is about to be
+     * written (on a change of reason), never every tick.
+     */
+    private static String pickCensus(LocalPlayer player, ClientLevel level, double reach) {
+        int total = 0, unloaded = 0, air = 0, recent = 0, far = 0, invalid = 0, ok = 0;
+        double nearest = Double.MAX_VALUE;
+        String nearestPos = "-";
+        Vec3 eye = player.getEyePosition();
+        double reachSq = reach * reach;
+        for (BlockPos pos : selectedBlocks()) {
+            total++;
+            if (!level.isLoaded(pos)) {
+                unloaded++;
+                continue;
+            }
+            if (level.getBlockState(pos).isAir()) {
+                air++;
+                continue;
+            }
+            double d = eyeToBlockSq(eye, pos);
+            if (d < nearest) {
+                nearest = d;
+                nearestPos = pos.toShortString();
+            }
+            if (RECENT.containsKey(pos)) {
+                recent++;
+            } else if (d > reachSq) {
+                far++;
+            } else if (!isValidTarget(level, pos)) {
+                invalid++;
+            } else {
+                ok++;
+            }
+        }
+        return "picks=" + total + " unloaded=" + unloaded + " alreadyAir=" + air + " recentlyTried=" + recent
+                + " outOfReach=" + far + " invalid/protected=" + invalid + " eligible=" + ok + " reach=" + fmt2(reach)
+                + " nearest=" + nearestPos + (nearest == Double.MAX_VALUE ? "" : " at " + fmt2(Math.sqrt(nearest)));
+    }
+
+    /** One tick of the outcome watch: the server's answer to each block sent, read from the client's copy. */
+    private static void watchSent(ClientLevel level) {
+        if (SENT_WATCH.isEmpty() || level == null) {
+            return;
+        }
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        var it = SENT_WATCH.entrySet().iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            BlockPos pos = e.getKey();
+            long sentAt = e.getValue()[0];
+            boolean zeroPing = e.getValue()[1] == 1L;
+            long age = now - sentAt;
+            if (!level.isLoaded(pos)) {
+                LOGGER.info("[BreakerAura] outcome unknown: pos={} chunk unloaded {} tick(s) after the START", pos.toShortString(), age);
+                it.remove();
+                continue;
+            }
+            BlockState st = level.getBlockState(pos);
+            if (!zeroPing && st.isAir()) {
+                LOGGER.info("[BreakerAura] outcome: pos={} gone {} tick(s) after the START (server's block update)",
+                        pos.toShortString(), age);
+                it.remove();
+            } else if (zeroPing && !st.isAir()) {
+                LOGGER.info("[BreakerAura] outcome: pos={} PUT BACK as {} {} tick(s) after the zero-ping START - the"
+                        + " server refused the break", pos.toShortString(), st.getBlock().getName().getString(), age);
+                it.remove();
+            } else if (age >= SENT_WATCH_TICKS) {
+                LOGGER.info("[BreakerAura] outcome: pos={} after {} tick(s): {}", pos.toShortString(), age,
+                        zeroPing ? "still air (zero-ping prediction held, the server agreed)"
+                                : "STILL " + st.getBlock().getName().getString() + " - the server never broke it");
+                it.remove();
+            }
+        }
+    }
+
     // ---- Auto Swap (killer560, 2026-09-20: "an option to make it swap to the breaker or not swap to the breaker
     // automatically ... If it swaps automatically it should whenever the blocks are in range swap to the breaker and
     // then break them"). A slot change and a block break on the same tick is not a thing a hand does, so the swap
@@ -124,6 +245,11 @@ public final class BreakerAuraFeature {
         swapArmedTicks = 0;
         idleSinceSwapTicks = 0;
         warnedNoBreakerInHotbar = false;
+        if (!SENT_WATCH.isEmpty()) {
+            LOGGER.info("[BreakerAura] state reset: {} sent block(s) still awaiting an outcome dropped from the watch",
+                    SENT_WATCH.size());
+        }
+        SENT_WATCH.clear(); // logging-only state
     }
 
     // ---- where the ticks go ------------------------------------------------------------------------------------
@@ -215,11 +341,14 @@ public final class BreakerAuraFeature {
             return;
         }
         if (!(client.hitResult instanceof BlockHitResult hit)) {
+            LOGGER.info("[BreakerAura] pick key pressed: not looking at a block (hit={})",
+                    client.hitResult == null ? "none" : client.hitResult.getType());
             ModChat.send("Breaker Aura", ModChat.text("Look at a block to pick it."));
             return;
         }
         BlockPos pos = hit.getBlockPos();
         if (client.level.getBlockState(pos).isAir()) {
+            LOGGER.info("[BreakerAura] pick key pressed: pos={} is air, nothing picked", pos.toShortString());
             return;
         }
         BreakerAuraStore store = BreakerAuraStore.getInstance();
@@ -232,6 +361,12 @@ public final class BreakerAuraFeature {
             return;
         }
         if (!isValidTarget(client.level, pos)) {
+            BlockState bs = client.level.getBlockState(pos);
+            LOGGER.info("[BreakerAura] pick refused: pos={} block={} reason={}", pos.toShortString(),
+                    bs.getBlock().getName().getString(),
+                    bs.hasBlockEntity() ? "has a block entity" : BLACKLIST.contains(bs.getBlock()) ? "blacklisted block"
+                            : bs.getDestroySpeed(client.level, pos) < 0f ? "unbreakable"
+                            : "protected by BreakerGuard (Fairy room or secret)");
             ModChat.send("Breaker Aura", ModChat.text("That one cannot be broken - "),
                     ModChat.value(client.level.getBlockState(pos).getBlock().getName().getString()));
             return;
@@ -481,6 +616,11 @@ public final class BreakerAuraFeature {
         if (active != wasActive) {
             wasActive = active;
             LOGGER.info("[DungeonExtras] Breaker Aura {}.", active ? "active" : "inactive");
+            LOGGER.info("[BreakerAura] {}: why={} reach={} cooldown={} multiBreak={} zeroPing={} autoSwap={} picks={}"
+                            + " tick={}", active ? "active" : "inactive", inactiveWhy(client, cfg),
+                    fmt2(cfg.getBreakerAuraReach()), cfg.getBreakerAuraCooldownTicks(), cfg.isBreakerAuraMultiBreak(),
+                    cfg.isBreakerAuraZeroPing(), cfg.isBreakerAuraAutoSwap(), selectedBlocks().size(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             if (!active) {
                 OBSIDIAN.abandon(client, "Breaker Aura inactive");
                 restoreSlot(client, "turned off");
@@ -488,8 +628,16 @@ public final class BreakerAuraFeature {
             resetState();
         }
         if (!active) {
+            // Only on a change of reason: "switched off" is the normal state and must not repeat every tick.
+            String why = inactiveWhy(client, cfg);
+            if (!why.equals(lastInactiveWhy)) {
+                lastInactiveWhy = why;
+                LOGGER.info("[BreakerAura] inactive: {}", why);
+            }
             return;
         }
+        lastInactiveWhy = null;
+        watchSent(client.level);
         // killer560 (2026-09-20): "It needs an edit mode where when I am in the edit mode, the breaker aura will not
         // work." Placing route nodes means right-clicking blocks you are standing next to, which is exactly what the
         // aura wants to chew through. Auto Routes owns the only real edit mode in the mod; AP3 has none (see notes).
@@ -525,6 +673,8 @@ public final class BreakerAuraFeature {
                 census("obsidian");
                 return;
             }
+            LOGGER.info("[BreakerAura] obsidian dig ended: result={} tick={} - back to picking targets this tick", res,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         }
 
         int breakerSlot = findBreakerHotbarSlot(player);
@@ -547,6 +697,9 @@ public final class BreakerAuraFeature {
         ItemStack source = autoSwap && breakerSlot >= 0 ? player.getInventory().getItem(breakerSlot) : player.getMainHandItem();
         int charges = getBreakerCharges(source);
         if (charges != lastLoreCharges) {
+            LOGGER.info("[BreakerAura] charges from lore: {} -> {} (locally spent since last lore: {}) slot={} tick={}",
+                    lastLoreCharges, charges, spentSinceLore, autoSwap && breakerSlot >= 0 ? breakerSlot : selected,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             lastLoreCharges = charges;
             spentSinceLore = 0;
         }
@@ -554,7 +707,7 @@ public final class BreakerAuraFeature {
         if (available <= 0) {
             skip(charges <= 0
                     ? (autoSwap ? "no Dungeon Breaker charges in the hotbar" : "no Dungeon Breaker charges in main hand")
-                    : "local charges spent, waiting for lore update");
+                    : "local charges spent, waiting for lore update (lore " + charges + ", spent " + spentSinceLore + ")");
             return;
         }
 
@@ -593,9 +746,16 @@ public final class BreakerAuraFeature {
                 : targets;
 
         if (targets.isEmpty()) {
-            skip(approaching.isEmpty()
+            String idleWhy = approaching.isEmpty()
                     ? "no picked blocks in reach"
-                    : "breaker coming to hand, a picked block is nearly in reach");
+                    : "breaker coming to hand, a picked block is nearly in reach";
+            if (!idleWhy.equals(lastSkipReason)) {
+                // Built only on a change of reason, so the full pick walk is not paid every idle tick.
+                LOGGER.info("[BreakerAura] idle: {} | {} | charges={} available={} cooldown={} swapArmed={} tick={}",
+                        idleWhy, pickCensus(player, level, reach), charges, available, cooldownTicks, swapArmedTicks,
+                        com.killer560.hub.util.SessionRecorderSink.tick());
+            }
+            skip(idleWhy);
             // The cooldown is the gap between two breaks, and a tick with nothing to break is part of that gap.
             // It used to be decremented only past this point, so it FROZE while idle: at a cooldown of 2 or more,
             // walking up to a fresh wall meant sitting out the remains of a gap that had already elapsed.
@@ -622,6 +782,9 @@ public final class BreakerAuraFeature {
         if (autoSwap && selected != breakerSlot) {
             if (swapArmedTicks <= 0) {
                 armSwap(player, cfg, selected, breakerSlot);
+            } else {
+                logRated("swapwait", "[BreakerAura] held: {} target(s) in reach, breaker not in hand yet (slot {} ->"
+                        + " {}), swap armed {} tick(s)", targets.size(), selected, breakerSlot, swapArmedTicks);
             }
             return;
         }
@@ -629,11 +792,15 @@ public final class BreakerAuraFeature {
             // Settling window after a slot change; the break goes out once the server has plausibly seen the swap.
             swapArmedTicks--;
             census("swap");
+            LOGGER.debug("[BreakerAura] held: settling after the swap, {} tick(s) left, {} target(s) in reach",
+                    swapArmedTicks, targets.size());
             return;
         }
         if (cooldownTicks > 0) {
             cooldownTicks--;
             census("cooldown");
+            LOGGER.debug("[BreakerAura] held: cooldown, {} tick(s) left, {} target(s) in reach", cooldownTicks,
+                    targets.size());
             return;
         }
 
@@ -717,7 +884,13 @@ public final class BreakerAuraFeature {
         // front of him. The default stays 1, which is the human-shaped rate.
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
             gateRefused = true;
+            logRated("gate", "[BreakerAura] held: ActionGate refused BREAKER_AURA this tick, {} target(s) in reach,"
+                    + " first {}", order.size(), order.isEmpty() ? "-" : order.get(0).toShortString());
             order = List.of();
+        }
+        if (!order.isEmpty()) {
+            LOGGER.debug("[BreakerAura] plan: {} target(s) allowed={} available={} moving={} speed={} first={}",
+                    order.size(), allowed, available, !Double.isNaN(dirX), speed, order.get(0).toShortString());
         }
         for (BlockPos pos : order) {
             if (sent >= allowed) {
@@ -725,6 +898,9 @@ public final class BreakerAuraFeature {
             }
             BlockHitResult hit = hitResult(player, level, pos);
             if (hit == null) {
+                logRated("noface " + pos.toShortString(), "[BreakerAura] skip: pos={} block={} - no face (empty"
+                        + " outline shape or the clip missed it)", pos.toShortString(),
+                        level.getBlockState(pos).getBlock().getName().getString());
                 continue;
             }
             if (com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(level.getBlockState(pos))) {
@@ -732,9 +908,15 @@ public final class BreakerAuraFeature {
                 // never zero-pinged - a client-side hole over obsidian the server still has is a ghost hole. Other
                 // blocks already sent this tick go first; it starts on a later tick.
                 if (sent > 0) {
+                    LOGGER.info("[BreakerAura] obsidian deferred: pos={} - {} other block(s) already sent this tick,"
+                            + " its dig starts alone on a later tick", pos.toShortString(), sent);
                     continue;
                 }
                 ForeignBreakerProbe.ours();
+                LOGGER.info("[BreakerAura] chose obsidian: pos={} face={} boxDist={} charges={} available={} tick={}"
+                                + " - starting a held dig", pos.toShortString(), hit.getDirection(),
+                        fmt2(Math.sqrt(eyeToBlockSq(player.getEyePosition(), pos))), charges, available,
+                        com.killer560.hub.util.SessionRecorderSink.tick());
                 OBSIDIAN.start(client, player, pos, hit.getDirection(), null);
                 RECENT.put(pos, now);
                 spentSinceLore++;
@@ -744,7 +926,19 @@ public final class BreakerAuraFeature {
             // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
+            String blockName = level.getBlockState(pos).getBlock().getName().getString(); // before any prediction
             breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || standsOn(player, pos));
+            LOGGER.info("[BreakerAura] START_DESTROY_BLOCK sent: pos={} block={} face={} seq={} boxDist={} reach={}"
+                            + " zeroPing={} standsOn={} predictedAir={} charges={} available={} #{} of {} this tick tick={}",
+                    pos.toShortString(), blockName, hit.getDirection(), lastSentSeq,
+                    fmt2(Math.sqrt(eyeToBlockSq(player.getEyePosition(), pos))), fmt2(reach),
+                    cfg.isBreakerAuraZeroPing(), standsOn(player, pos), lastSentPredicted, charges,
+                    available - sent, sent + 1, Math.min(allowed, order.size()),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+            if (SENT_WATCH.size() < 256) {
+                SENT_WATCH.put(pos.immutable(), new long[]{com.killer560.hub.util.SessionRecorderSink.tick(),
+                        lastSentPredicted ? 1L : 0L});
+            }
             RECENT.put(pos, now);
             spentSinceLore++;
             sent++;
@@ -766,6 +960,9 @@ public final class BreakerAuraFeature {
         // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560
         // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
         cooldownTicks = Math.max(0, cfg.getBreakerAuraCooldownTicks() - 1);
+        LOGGER.info("[BreakerAura] tick done: sent={} of {} target(s) | spentSinceLore={} lore={} | swing | cooldown"
+                        + " now {} tick(s) | tick={}", sent, targets.size(), spentSinceLore, charges, cooldownTicks,
+                com.killer560.hub.util.SessionRecorderSink.tick());
     }
 
     /** True while Auto Routes is in its block-placing edit mode. AP3 has no edit mode to ask about (see notes). */
@@ -820,9 +1017,16 @@ public final class BreakerAuraFeature {
         return pos.getY() < player.getY() && new AABB(pos).intersects(player.getBoundingBox().move(0.0, -0.05, 0.0));
     }
 
+    /** Logging only: the sequence and prediction of the last {@link #breakBlock}, read by its caller's log line. */
+    private static int lastSentSeq = -1;
+    private static boolean lastSentPredicted;
+
     private static void breakBlock(MultiPlayerGameModeInvoker invoker, ClientLevel level, BlockPos pos,
                                    Direction face, boolean zeroPing) {
+        lastSentSeq = -1;
+        lastSentPredicted = false;
         invoker.killer560smod$invokeStartPrediction(level, sequence -> {
+            lastSentSeq = sequence;
             // Obsidian never reaches here: it is dug over time by ObsidianDig and never zero-pinged (killer560,
             // 2026-10-19: obsidian takes time on the breaker; the 2026-10-05 "treat it as any other block" made a
             // ghost hole of it). QUOI's BreakerHelper exempts it from zero ping for the same reason.
@@ -833,6 +1037,7 @@ public final class BreakerAuraFeature {
                     || state.getDestroySpeed(level, pos) < 0f;
             if (zeroPing && !unbreakable) {
                 level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                lastSentPredicted = true;
             }
             return new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence);
         });

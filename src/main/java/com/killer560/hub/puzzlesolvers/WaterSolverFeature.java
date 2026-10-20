@@ -145,6 +145,28 @@ public final class WaterSolverFeature {
     private static long tickCounter = 0;
     private static RoomEntry lastRoomEntry = null;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
+    /** Logging only: last room state and last scan refusal logged, so lines are written on CHANGE, never per tick. */
+    private static String roomLogKey = "none";
+    private static String scanLogKey = null;
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        scanLogKey = null;
+        LOGGER.info("[WaterSolver] {}", detail);
+    }
+
+    private static void logScan(String key, String detail) {
+        if (key.equals(scanLogKey)) {
+            return;
+        }
+        scanLogKey = key;
+        LOGGER.info("[WaterSolver] {}", detail);
+    }
+
     private WaterSolverFeature() {
     }
 
@@ -162,6 +184,9 @@ public final class WaterSolverFeature {
         try (InputStream stream = WaterSolverFeature.class.getClassLoader()
                 .getResourceAsStream("data/killer560smod/puzzles/water-solutions.json")) {
             if (stream == null) {
+                // Inline logger: this runs in the static initializer, before LOGGER is assigned.
+                com.killer560.hub.util.ModLog.get("killer560smod-puzzles").warn(
+                        "[WaterSolver] solutions resource missing - no board will ever get timings");
                 return Map.of();
             }
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
@@ -182,6 +207,11 @@ public final class WaterSolverFeature {
     private static void tickInner(Minecraft client) {
         // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "solver idle: enabled=" + WaterSolverConfig.getInstance().isEnabled()
+                        + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                        + " - timings and click counts cleared (" + getCountedClicks() + " clicks counted)");
+            }
             reset();
             lastRoomEntry = null;
             return;
@@ -189,8 +219,15 @@ public final class WaterSolverFeature {
         tickCounter++;
         RoomEntry current = LiveMapFeature.currentRoomEntry();
         if (current != lastRoomEntry) {
+            if (patternIdentifier != -1) {
+                LOGGER.info("[WaterSolver] room changed: dropping board {} ({} clicks counted, water opened at tick {})",
+                        patternIdentifier, getCountedClicks(), openedWaterTick);
+            }
             lastRoomEntry = current;
             reset();
+        }
+        if ((current == null || !"Water Board".equals(current.name)) && !"none".equals(roomLogKey)) {
+            logRoomState("none", "left Water Board: now in " + (current == null ? "no known room" : current.name));
         }
         if (current == null || !"Water Board".equals(current.name) || patternIdentifier != -1) {
             return;
@@ -202,7 +239,15 @@ public final class WaterSolverFeature {
         Level level = client.level;
         int[] clayAndRotation = LiveMapFeature.currentRoomClayAndRotation();
         if (level == null || clayAndRotation == null) {
+            logRoomState("wait", "in Water Board but not scanning: clay/rotation known=" + (clayAndRotation != null)
+                    + " level=" + (level != null) + " - waiting for the map to resolve the room");
             return;
+        }
+        String roomKey = "room " + clayAndRotation[0] + "," + clayAndRotation[1] + " rot " + clayAndRotation[2];
+        if (!roomKey.equals(roomLogKey)) {
+            logRoomState(roomKey, "Water Board detected: clay=" + clayAndRotation[0] + "," + clayAndRotation[1]
+                    + " rotation=" + clayAndRotation[2] + " optimizedPath="
+                    + WaterSolverConfig.getInstance().isOptimizedPath());
         }
 
         StringBuilder extendedSlots = new StringBuilder();
@@ -215,6 +260,8 @@ public final class WaterSolverFeature {
             }
         }
         if (extendedSlots.length() != 3) {
+            logScan("slots " + extendedSlots, "scan waiting: " + extendedSlots.length() + " wool column(s) pushed out"
+                    + " (slots \"" + extendedSlots + "\" of purple/orange/blue/green/red), need exactly 3 - retrying every tick");
             return;
         }
 
@@ -227,12 +274,19 @@ public final class WaterSolverFeature {
             }
         }
         if (identifier == -1) {
+            logScan("noid " + extendedSlots, "scan waiting: wool slots " + extendedSlots + " found but none of the "
+                    + IDENTIFIER_MARKERS.size() + " layout marker blocks is present (first marker at "
+                    + realPos(IDENTIFIER_MARKERS.get(0).x(), IDENTIFIER_MARKERS.get(0).y(), IDENTIFIER_MARKERS.get(0).z(),
+                    clayAndRotation).toShortString() + ") - retrying every tick");
             return;
         }
 
         Map<String, List<Double>> leverTimes = bundledSolution(
                 WaterSolverConfig.getInstance().isOptimizedPath(), identifier, extendedSlots.toString());
         if (leverTimes == null) {
+            logScan("nosol " + identifier + " " + extendedSlots, "solution failed: board " + identifier + " slots "
+                    + extendedSlots + " optimizedPath=" + WaterSolverConfig.getInstance().isOptimizedPath()
+                    + " is not in the bundled solutions - nothing will be highlighted");
             return;
         }
 
@@ -244,9 +298,13 @@ public final class WaterSolverFeature {
             LeverBlock lever = fromKey(entry.getKey());
             if (lever != null) {
                 solutions.put(lever, entry.getValue());
+            } else {
+                LOGGER.warn("[WaterSolver] solution key \"{}\" names no known lever - its times are ignored", entry.getKey());
             }
         }
         patternIdentifier = identifier;
+        LOGGER.info("[WaterSolver] solution computed: board {} wool slots {} optimizedPath={} -> lever times {}",
+                identifier, extendedSlots, WaterSolverConfig.getInstance().isOptimizedPath(), solutions);
     }
 
     private static LeverBlock fromKey(String key) {
@@ -425,8 +483,32 @@ public final class WaterSolverFeature {
             if (leverRealPos(lever).equals(clicked)) {
                 if (lever == LeverBlock.WATER && openedWaterTick == -1) {
                     openedWaterTick = tickCounter;
+                    LOGGER.info("[WaterSolver] water lever opened at solver tick {} - timed clicks count from here",
+                            tickCounter);
                 }
                 lever.clicked++;
+                List<Double> times = solutions.get(lever);
+                NextClick next = nextClick();
+                LOGGER.info("[WaterSolver] step advanced: {} lever clicked at {} (click {} of {}, tick {}, {} since water)"
+                                + " - next {}", lever, clicked == null ? "null" : clicked.toShortString(), lever.clicked,
+                        times == null ? 0 : times.size(), tickCounter,
+                        openedWaterTick == -1 ? "water not opened" : (tickCounter - openedWaterTick) + " ticks",
+                        next == null ? "none (all clicks done)" : next.pos().toShortString() + " at "
+                                + String.format(Locale.ROOT, "%.2fs", next.time()) + (next.water() ? " (water)" : ""));
+                return;
+            }
+        }
+    }
+
+    /** Logging only, from {@code WaterSolverMixin}: a click on one of the board's levers whose result was not SUCCESS. */
+    public static void onLeverClickNotCounted(BlockPos clicked, String result) {
+        if (solutions.isEmpty() || clicked == null) {
+            return;
+        }
+        for (LeverBlock lever : solutions.keySet()) {
+            if (leverRealPos(lever).equals(clicked)) {
+                LOGGER.info("[WaterSolver] click on {} lever at {} not counted: result {} (not SUCCESS)", lever,
+                        clicked.toShortString(), result);
                 return;
             }
         }

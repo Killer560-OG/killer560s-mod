@@ -120,6 +120,8 @@ public final class AwaitEvents {
         beganAt = ticks;
         Minecraft mc = client;
         lastTabCrypts = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(mc);
+        LOGGER.info("[AwaitEvents] counting started at tick {}: tab crypts {}, {} remembered secret(s) from before the start"
+                + " (lookback {} ticks)", ticks, lastTabCrypts, recent.size(), START_LOOKBACK);
         window(client);
         Vec3 at = client.player == null ? null : client.player.position();
         for (Recent r : recent) {
@@ -136,6 +138,9 @@ public final class AwaitEvents {
                 LOGGER.info("[AutoRoutes] await: {} {} tick(s) before the route started - counted for the first node",
                         r.what(), ticks - r.tick());
                 addSecret(r.key(), r.what() + " (" + (ticks - r.tick()) + " tick(s) before the start)");
+            } else {
+                LOGGER.info("[AwaitEvents] await: {} {} tick(s) before the route started - older than the {}-tick lookback,"
+                        + " not counted", r.what(), ticks - r.tick(), START_LOOKBACK);
             }
         }
         recent.clear();
@@ -208,6 +213,9 @@ public final class AwaitEvents {
         if (!counted.isEmpty()) {
             LOGGER.info("[AutoRoutes] secret window reset at tick {} (opened tick {}): {} secret(s) handed to the carry {}",
                     ticks, windowStart, secrets, counted);
+        } else {
+            LOGGER.info("[AwaitEvents] window reset at tick {} (opened tick {}): nothing counted, crypts={} bats={}", ticks,
+                    windowStart, crypts, bats);
         }
         windowStart = ticks;
         secrets = 0;
@@ -284,6 +292,8 @@ public final class AwaitEvents {
                 continue;
             }
             if (!isSecretBat(bat)) {
+                LOGGER.debug("[AwaitEvents] bat {} at {} ignored: max health {} is not a secret bat's", bat.getId(),
+                        bat.blockPosition().toShortString(), bat.getMaxHealth());
                 continue; // a Spirit Sceptre's bats, or a vanilla one
             }
             double d = bat.distanceTo(player);
@@ -300,6 +310,8 @@ public final class AwaitEvents {
         int now = com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabCrypts(client);
         if (now >= 0) {
             if (lastTabCrypts >= 0 && now > lastTabCrypts) {
+                LOGGER.info("[AwaitEvents] tab crypts rose {} -> {} at tick {} (last weapon use {} tick(s) ago)",
+                        lastTabCrypts, now, ticks, ticks - lastWeaponUse);
                 for (int i = lastTabCrypts; i < now; i++) {
                     onCryptKill("crypt killed (Crypts " + i + " -> " + (i + 1) + ")");
                 }
@@ -338,6 +350,8 @@ public final class AwaitEvents {
             return;
         }
         if (ticks - mimicArmedAt > MIMIC_WATCH) {
+            LOGGER.info("[AwaitEvents] mimic watch on the trapped chest at {} expired after {} ticks without a death",
+                    mimicChest.toShortString(), MIMIC_WATCH);
             mimicChest = null;
             return;
         }
@@ -349,7 +363,9 @@ public final class AwaitEvents {
                 mimicKilledAt = ticks;
                 BlockPos at = mimicChest;
                 mimicChest = null;
-                LOGGER.info("[AutoRoutes] Mimic of the trapped chest at {} killed", at.toShortString());
+                LOGGER.info("[AutoRoutes] Mimic of the trapped chest at {} killed (zombie {} at {}, {} tick(s) after the click,"
+                        + " route running={})", at.toShortString(), z.getId(), z.blockPosition().toShortString(),
+                        ticks - mimicArmedAt, active);
                 RouteRunMemory.gotSecret("mimic " + at.asLong(), Vec3.atCenterOf(at), "mimic killed");
                 if (active) {
                     addSecret("mimic " + at.asLong(), "mimic killed (your trapped chest at " + at.toShortString() + ")");
@@ -480,6 +496,8 @@ public final class AwaitEvents {
     private static void onKeyClick(Minecraft client, BlockPos pos) {
         checkKeyRun(client);
         if (client.level.getBlockState(pos.below()).getBlock() == Blocks.REDSTONE_BLOCK) {
+            LOGGER.info("[AwaitEvents] key skull click at {} ignored: the key is already on its redstone block",
+                    pos.toShortString());
             return;
         }
         KeySpots.noteKeyAt(client, pos);
@@ -515,6 +533,7 @@ public final class AwaitEvents {
         String what = "redstone key put on its redstone block at " + pos.toShortString() + " (" + how + ")";
         RouteRunMemory.gotSecret(key, Vec3.atCenterOf(pos), what);
         if (!active) {
+            LOGGER.info("[AwaitEvents] {} at tick {} - no route running, remembered for the next start", what, ticks);
             noteBeforeStart(key, what, Vec3.atCenterOf(pos));
             return;
         }
@@ -537,6 +556,8 @@ public final class AwaitEvents {
                 LOGGER.info("[AutoRoutes] await: you took the redstone key at {}", p.toShortString());
             } else if (ticks - e.getValue()[0] > KEY_TAKE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
                 it.remove();
+                LOGGER.info("[AwaitEvents] key click at {} expired: skull still there {} tick(s) after the click - not taken",
+                        p.toShortString(), ticks - e.getValue()[0]);
             }
         }
         var nt = nodeClicks.entrySet().iterator();
@@ -550,6 +571,8 @@ public final class AwaitEvents {
                 countNode(p, "clicked by you, the server put the key in");
             } else if (ticks - e.getValue()[0] > NODE_CONFIRM_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
                 nt.remove();
+                LOGGER.info("[AwaitEvents] redstone block click at {} expired: no key put in {} tick(s) after the click -"
+                        + " not counted", p.toShortString(), ticks - e.getValue()[0]);
             }
         }
     }
@@ -597,6 +620,8 @@ public final class AwaitEvents {
         String what = "item picked up by you" + (item != null ? " at " + item.blockPosition().toShortString() : "");
         RouteRunMemory.gotSecret("item " + itemId, item != null ? item.position() : player.position(), what);
         if (!active) {
+            LOGGER.info("[AwaitEvents] {} (item {}) at tick {} - no route running, remembered for the next start", what,
+                    itemId, ticks);
             noteBeforeStart("item " + itemId, what, item != null ? item.position() : null);
             return;
         }
@@ -628,15 +653,19 @@ public final class AwaitEvents {
 
     private static void onCryptKill(String what) {
         if (!active) {
+            LOGGER.info("[AwaitEvents] crypt ignored: {} at tick {} - no route running", what, ticks);
             return;
         }
         int ago = ticks - lastWeaponUse;
         if (ago > CRYPT_WINDOW) {
-            LOGGER.debug("[AutoRoutes] await ignored: {} - not yours (no weapon use of yours in {} ticks)", what, CRYPT_WINDOW);
+            LOGGER.info("[AutoRoutes] await ignored: {} - not yours (no weapon use of yours in {} ticks, last {} ago)", what,
+                    CRYPT_WINDOW, ago);
             return;
         }
         crypts++;
         pending.add("await crypt " + crypts + ": " + what + " (your weapon use " + ago + " tick(s) earlier)");
+        LOGGER.info("[AwaitEvents] crypt counted: {} at tick {} - crypt count {} -> {} (weapon use {} tick(s) earlier)", what,
+                ticks, crypts - 1, crypts, ago);
     }
 
     /**
@@ -655,6 +684,8 @@ public final class AwaitEvents {
             return;
         }
         bats++;
+        LOGGER.info("[AwaitEvents] bat kill counted at {} tick {}: bat count {} -> {} ({} blocks, weapon use {} tick(s) ago)",
+                bat.blockPosition().toShortString(), ticks, bats - 1, bats, String.format(Locale.ROOT, "%.1f", d), ago);
         pending.add("await bat " + bats + ": secret bat killed at " + bat.blockPosition().toShortString()
                 + String.format(Locale.US, " (%.1f blocks from you, your weapon use %d tick(s) earlier)", d, ago));
         // The kill is also a SECRET for an await (QUOI: a bat's hurt/death sound calls onSecret on the waiting node),
@@ -680,7 +711,8 @@ public final class AwaitEvents {
         }
         secrets++;
         pending.add("await secret " + secrets + ": " + what);
-        LOGGER.info("[AutoRoutes] secret signal: {} [key {}] at tick {} - window count now {}", what, key, ticks, secrets);
+        LOGGER.info("[AutoRoutes] secret signal: {} [key {}] at tick {} - window count {} -> {}", what, key, ticks,
+                secrets - 1, secrets);
     }
 
     /** The tick of our last chest click (during a route, or just before one) - its window can arrive after the route moved on. */

@@ -21,6 +21,9 @@ final class HumanClicks {
 
     /** Nothing to click: the next engagement rolls a new pace. */
     void idle(long now) {
+        if (engaged) {
+            BloodCampFeature.LOGGER.debug("[BloodCamp] between-hits clicks: engagement ended tick={}", now);
+        }
         engaged = false;
     }
 
@@ -31,6 +34,8 @@ final class HumanClicks {
             ThreadLocalRandom r = ThreadLocalRandom.current();
             intervalTicks = 20.0 / (7.0 + 3.0 * r.nextDouble());
             next = Math.max(next, now + gap());
+            BloodCampFeature.LOGGER.info("[BloodCamp] between-hits clicks: engagement started, pace {} clicks/s, first at tick {} "
+                    + "(now {})", String.format(java.util.Locale.ROOT, "%.1f", 20.0 / intervalTicks), next, now);
         }
         return now >= next;
     }

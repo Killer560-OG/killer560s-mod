@@ -198,15 +198,18 @@ public final class BreakerAuraStore {
         String name = normalizeConfigName(rawName);
         String error = validateConfigName(name);
         if (error != null) {
+            LOGGER.info("[BreakerStore] create refused: name={} reason={}", name, error);
             return error;
         }
         for (String existing : listConfigNames()) {
             if (existing.equalsIgnoreCase(name)) {
+                LOGGER.info("[BreakerStore] create refused: name={} reason=a config called {} already exists", name, existing);
                 return "A config called " + existing + " already exists.";
             }
         }
         Path file = directory().resolve(name);
         if (Files.exists(file)) {
+            LOGGER.info("[BreakerStore] create refused: name={} reason=a file of that name already exists", name);
             return "A file called " + name + " already exists.";
         }
         try {
@@ -240,13 +243,16 @@ public final class BreakerAuraStore {
             }
         }
         if (match == null) {
+            LOGGER.info("[BreakerStore] delete refused: name={} reason=no such config ({} known)", name, names.size());
             return "No config called " + name + ".";
         }
         String active = DungeonExtrasConfig.getInstance().getBreakerAuraConfigFile();
         if (match.equalsIgnoreCase(active)) {
+            LOGGER.info("[BreakerStore] delete refused: name={} reason=it is the active config", match);
             return "Switch to a different config before deleting " + match + ".";
         }
         if (names.size() <= 1) {
+            LOGGER.info("[BreakerStore] delete refused: name={} reason=it is the only config", match);
             return "That is the only config - nothing to delete.";
         }
         try {
@@ -263,10 +269,13 @@ public final class BreakerAuraStore {
     public static void select(String name) {
         String clean = normalizeConfigName(name);
         if (clean == null || validateConfigName(clean) != null) {
+            LOGGER.info("[BreakerStore] select ignored: name={} reason={}", clean,
+                    clean == null ? "empty name" : validateConfigName(clean));
             return;
         }
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
         if (clean.equalsIgnoreCase(cfg.getBreakerAuraConfigFile())) {
+            LOGGER.info("[BreakerStore] select ignored: name={} reason=already the active config", clean);
             return;
         }
         cfg.setBreakerAuraConfigFile(clean);
@@ -296,10 +305,11 @@ public final class BreakerAuraStore {
         try {
             Path target = directory().resolve(DEFAULT_CONFIG_NAME);
             if (Files.exists(target)) {
-                return;
+                return; // already migrated (or a real default.json) - the usual case, left silent
             }
             Set<String> legacy = DungeonExtrasConfig.getInstance().getBreakerAuraSelected();
             if (legacy.isEmpty()) {
+                LOGGER.info("[BreakerStore] legacy migration skipped: no {} and no old picks to copy", DEFAULT_CONFIG_NAME);
                 return;
             }
             JsonObject root = emptyRoot();
@@ -329,10 +339,19 @@ public final class BreakerAuraStore {
         BreakerAuraStore store = new BreakerAuraStore();
         Path file = file();
         String fileName = file.getFileName().toString();
+        if (!Files.exists(file)) {
+            LOGGER.info("[BreakerStore] load: file={} not on disk yet, starting with 0 picks (written on the first save)",
+                    fileName);
+        }
         if (Files.exists(file)) {
             try {
                 JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
                 JsonArray arr = ConfigJson.getArray(root, "picked");
+                int skippedBad = 0;
+                int entries = arr != null ? arr.size() : 0;
+                if (arr == null) {
+                    LOGGER.info("[BreakerStore] load: file={} has no \"picked\" array, 0 picks", fileName);
+                }
                 if (arr != null) {
                     for (JsonElement el : arr) {
                         if (store.picked.size() >= MAX_PICKED) {
@@ -340,15 +359,21 @@ public final class BreakerAuraStore {
                             break;
                         }
                         if (el == null || !el.isJsonPrimitive()) {
+                            skippedBad++;
                             continue;
                         }
                         String clean = validateKey(el.getAsString());
                         if (clean != null) {
                             store.picked.add(clean);
+                        } else {
+                            skippedBad++;
                         }
                     }
                 }
                 LOGGER.info("[BreakerAura] Loaded {} pick(s) from {}", store.picked.size(), fileName);
+                LOGGER.info("[BreakerStore] load: file={} entries={} loaded={} malformed/out-of-range skipped={}"
+                        + " duplicates/over-cap={}", fileName, entries, store.picked.size(), skippedBad,
+                        Math.max(0, entries - skippedBad - store.picked.size()));
             } catch (Exception e) {
                 store.parseFailed = true;
                 store.picked.clear();
@@ -370,6 +395,8 @@ public final class BreakerAuraStore {
         }
         instance = store;
         version++;
+        LOGGER.info("[BreakerStore] load done: file={} picks={} parseFailed={} version={}", fileName,
+                store.picked.size(), store.parseFailed, version);
     }
 
     /** Writes every pick. Refuses while the file on disk failed to parse and nothing has changed since, so a
@@ -390,6 +417,7 @@ public final class BreakerAuraStore {
             }
             root.add("picked", arr);
             Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);
+            LOGGER.info("[BreakerStore] saved: file={} picks={}", fileName, picked.size());
         } catch (Exception e) {
             LOGGER.warn("[BreakerAura] Failed to save {}", fileName, e);
         }
@@ -422,11 +450,15 @@ public final class BreakerAuraStore {
     public boolean addPick(String key) {
         String clean = validateKey(key);
         if (clean == null || picked.contains(clean) || picked.size() >= MAX_PICKED) {
+            LOGGER.info("[BreakerStore] pick refused: key={} reason={} picks={}", key,
+                    clean == null ? "malformed or out of range" : picked.contains(clean) ? "already picked"
+                            : "cap of " + MAX_PICKED + " reached", picked.size());
             return false;
         }
         picked.add(clean);
         parseFailed = false; // an explicit pick is the user's own decision to start over on a recovered store
         version++;
+        LOGGER.info("[BreakerStore] picked: key={} picks={}", clean, picked.size());
         return true;
     }
 
@@ -436,6 +468,7 @@ public final class BreakerAuraStore {
         if (removed) {
             parseFailed = false;
             version++;
+            LOGGER.info("[BreakerStore] unpicked: key={} picks={}", key, picked.size());
         }
         return removed;
     }
@@ -447,6 +480,7 @@ public final class BreakerAuraStore {
         picked.clear();
         parseFailed = false;
         version++;
+        LOGGER.info("[BreakerStore] cleared: {} pick(s) removed", n);
         return n;
     }
 

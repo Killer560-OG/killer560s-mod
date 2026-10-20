@@ -33,6 +33,8 @@ import java.util.PriorityQueue;
  */
 final class MazeWalk {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
+
     /** How far around the start and goal the grid reaches. */
     private static final int MARGIN = 8;
     private static final int MAX_SIDE = 64;
@@ -62,6 +64,8 @@ final class MazeWalk {
         int w = Math.min(MAX_SIDE, Math.max(sx, goalFeet.getX()) + MARGIN - minX + 1);
         int d = Math.min(MAX_SIDE, Math.max(sz, goalFeet.getZ()) + MARGIN - minZ + 1);
         if (sx - minX >= w || sz - minZ >= d || goalFeet.getX() - minX >= w || goalFeet.getZ() - minZ >= d) {
+            LOGGER.info("[MazeWalk]walk plan failed: {} to {} is wider than the {}-block grid", fmtXZ(from),
+                    AutoPuzzleUtil.fmt(goalFeet), MAX_SIDE);
             return false;
         }
         double[] surface = new double[w * d];
@@ -73,6 +77,8 @@ final class MazeWalk {
         int start = (sz - minZ) * w + (sx - minX);
         int target = (goalFeet.getZ() - minZ) * w + (goalFeet.getX() - minX);
         if (Double.isNaN(surface[target])) {
+            LOGGER.info("[MazeWalk]walk plan failed: the goal {} is not standable at feet y {}",
+                    AutoPuzzleUtil.fmt(goalFeet), feetY);
             return false;
         }
         // He may be standing on something the grid calls unwalkable (an edge, a slab lip): start from it anyway.
@@ -82,6 +88,8 @@ final class MazeWalk {
         int[] prev = new int[w * d];
         double[] dist = dijkstra(surface, w, d, start, target, prev);
         if (dist[target] == Double.MAX_VALUE) {
+            LOGGER.info("[MazeWalk]walk plan failed: no walkable way from {} to {} on a {}x{} grid", fmtXZ(from),
+                    AutoPuzzleUtil.fmt(goalFeet), w, d);
             return false;
         }
         List<int[]> cells = new ArrayList<>();
@@ -106,7 +114,20 @@ final class MazeWalk {
         if (points.isEmpty()) {
             points.add(Vec3.atCenterOf(goalFeet));
         }
+        if (LOGGER.isDebugEnabled()) {
+            StringBuilder sb = new StringBuilder();
+            for (Vec3 p : points) {
+                sb.append(' ').append(fmtXZ(p));
+            }
+            LOGGER.debug("[MazeWalk]walk planned: {} to {} via{} ({} grid cells)", fmtXZ(from),
+                    AutoPuzzleUtil.fmt(goalFeet), sb, cells.size());
+        }
         return true;
+    }
+
+    /** "x,z" with two decimals, for log lines. */
+    private static String fmtXZ(Vec3 v) {
+        return v == null ? "null" : String.format(java.util.Locale.ROOT, "%.2f,%.2f", v.x, v.z);
     }
 
     /** The number of straight legs planned. */
@@ -144,7 +165,11 @@ final class MazeWalk {
         Vec3 aim = points.get(next);
         Vec3 from = next == 0 ? null : points.get(next - 1);
         if (from != null && offLine(at, from, aim) > OFF_COURSE && player.onGround()) {
+            LOGGER.info("[MazeWalk]walk off course by {} at {} (leg {} of {}) - re-planning to {} tick={}",
+                    String.format(java.util.Locale.ROOT, "%.2f", offLine(at, from, aim)), fmtXZ(at), next,
+                    points.size(), AutoPuzzleUtil.fmt(goal), com.killer560.hub.util.SessionRecorderSink.tick());
             if (!plan(client.level, at, goal)) {
+                LOGGER.info("[MazeWalk]re-plan found no way - falling back to a straight walk");
                 return false;
             }
             aim = points.get(0);
@@ -227,6 +252,8 @@ final class MazeWalk {
         int w = Math.max(sx, around.getX() + radius) + 2 - minX + 1;
         int d = Math.max(sz, around.getZ() + radius) + 2 - minZ + 1;
         if (w > MAX_SIDE || d > MAX_SIDE) {
+            LOGGER.info("[MazeWalk] spot search refused: {}x{} area round {} (radius {}) is over the {}-block grid",
+                    w, d, AutoPuzzleUtil.fmt(around), radius, MAX_SIDE);
             return null;
         }
         double[] surface = new double[w * d];
@@ -259,8 +286,13 @@ final class MazeWalk {
             }
         }
         if (best == null || !walk.plan(level, from, best)) {
+            LOGGER.info("[MazeWalk] spot search: {} within {} of {} from {}", best == null
+                    ? "no spot he can walk to has the eye the caller needs" : "spot " + AutoPuzzleUtil.fmt(best)
+                    + " found but its walk would not plan", radius, AutoPuzzleUtil.fmt(around), fmtXZ(from));
             return null;
         }
+        LOGGER.info("[MazeWalk] spot search: picked {} ({} blocks on foot) near {} from {}", AutoPuzzleUtil.fmt(best),
+                String.format(java.util.Locale.ROOT, "%.1f", bestDist), AutoPuzzleUtil.fmt(around), fmtXZ(from));
         return best;
     }
 

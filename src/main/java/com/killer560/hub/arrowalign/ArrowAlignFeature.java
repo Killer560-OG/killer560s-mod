@@ -115,6 +115,46 @@ public final class ArrowAlignFeature {
     private ArrowAlignFeature() {
     }
 
+    // ---- logging only ----
+    private static String lastHeldKey;
+    private static long lastHeldTick;
+    private static int lastAuraTargetLogged = -1;
+    private static boolean lastTriggerCrouchLogged;
+    private static boolean lastAuraCrouchLogged;
+    private static String lastAutomationGate = "init";
+
+    /** A held click, once per key per 20 ticks (BloodCampFeature.logRefusal model). */
+    private static void logHeld(String key, String detail) {
+        long now = com.killer560.hub.util.ActionGate.currentTick();
+        if (key.equals(lastHeldKey) && now - lastHeldTick < 20) {
+            return;
+        }
+        lastHeldKey = key;
+        lastHeldTick = now;
+        LOGGER.info("[ArrowAlign] click held: {} tick={}", detail, now);
+    }
+
+    private static int solutionIndex(int[] sol) {
+        for (int i = 0; i < SOLUTIONS.length; i++) {
+            if (SOLUTIONS[i] == sol) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Clicks needed per frame, as "index:needed" for the frames that need any (pure). */
+    private static String neededSummary() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 25; i++) {
+            int n = clicksNeeded(i);
+            if (n > 0) {
+                sb.append(sb.length() == 0 ? "" : " ").append(i).append(':').append(n);
+            }
+        }
+        return sb.length() == 0 ? "none" : sb.toString();
+    }
+
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ArrowAlignFeature.tick", ArrowAlignFeature::tick));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(com.killer560.hub.util.FeatureGuard.afterFeatures(
@@ -143,9 +183,18 @@ public final class ArrowAlignFeature {
         if (!anyOn || client.player == null || client.level == null || !DungeonState.isF7OrM7()
                 || client.player.distanceToSqr(DEVICE_STAND) > ACTIVE_RANGE_SQ) {
             if (active) {
+                LOGGER.info("[ArrowAlign] inactive: anyOn={} f7={} distToDevice={} - state reset", anyOn,
+                        DungeonState.isF7OrM7(), client.player == null ? "n/a"
+                                : String.format(Locale.ROOT, "%.1f", Math.sqrt(client.player.distanceToSqr(DEVICE_STAND))));
                 reset();
             }
             return;
+        }
+        if (!active) {
+            LOGGER.info("[ArrowAlign] active: near the device (dist={}) solver={} preventMisclicks={} triggerBot={} aura={} tick={}",
+                    String.format(Locale.ROOT, "%.1f", Math.sqrt(client.player.distanceToSqr(DEVICE_STAND))),
+                    cfg.isSolverEnabled(), cfg.isPreventMisclicksEnabled(), cfg.isTriggerBotEnabled(), cfg.isAuraEnabled(),
+                    com.killer560.hub.util.ActionGate.currentTick());
         }
         active = true;
         long now = System.currentTimeMillis();
@@ -165,6 +214,9 @@ public final class ArrowAlignFeature {
         for (int i = 0; i < 25; i++) {
             ItemFrame frame = found[i];
             if (frame == null) {
+                if (frames[i] != null) {
+                    LOGGER.info("[ArrowAlign] frame {} gone (entity #{}, pending {} dropped)", i, frames[i].getId(), pending[i]);
+                }
                 frames[i] = null;
                 observed[i] = -1;
                 pending[i] = 0;
@@ -172,6 +224,7 @@ public final class ArrowAlignFeature {
             }
             int rotation = frame.getRotation() & 7;
             if (frames[i] == null || frames[i].getId() != frame.getId() || observed[i] < 0) {
+                LOGGER.debug("[ArrowAlign] frame {} tracked: entity #{} rotation {}", i, frame.getId(), rotation);
                 frames[i] = frame;
                 observed[i] = rotation;
                 pending[i] = 0;
@@ -180,6 +233,9 @@ public final class ArrowAlignFeature {
             frames[i] = frame;
             if (rotation != observed[i]) {
                 int delta = (rotation - observed[i]) & 7;
+                LOGGER.info("[ArrowAlign] frame {} rotation {} -> {} (server): confirms {} of {} pending, {} ms after the last click",
+                        i, observed[i], rotation, Math.min(delta, pending[i]), pending[i],
+                        lastClickMs[i] > 0 ? now - lastClickMs[i] : -1L);
                 pending[i] = Math.max(0, pending[i] - delta);
                 observed[i] = rotation;
             }
@@ -193,6 +249,14 @@ public final class ArrowAlignFeature {
         if (match != solution) {
             solution = match;
             heldIndex = -2;
+            int present = 0;
+            for (ItemFrame f : frames) {
+                if (f != null) {
+                    present++;
+                }
+            }
+            LOGGER.info("[ArrowAlign] layout {}: frames={} needed {}", match == null ? "none matched" : "#" + solutionIndex(match),
+                    present, match == null ? "-" : neededSummary());
         }
     }
 
@@ -217,6 +281,7 @@ public final class ArrowAlignFeature {
         if (solvedAnnounced) {
             if (!serverSolved) {
                 // Device reset / re-randomised after a solve - arm a fresh attempt.
+                LOGGER.info("[ArrowAlign] device unsolved again after a solve: new attempt armed (needed {})", neededSummary());
                 solvedAnnounced = false;
                 firstClickMs = 0L;
                 clicksThisSolve = 0;
@@ -226,6 +291,8 @@ public final class ArrowAlignFeature {
         if (serverSolved && firstClickMs > 0L) {
             solvedAnnounced = true;
             long took = now - firstClickMs;
+            LOGGER.info("[ArrowAlign] solved (server rotations): {} ms, {} clicks tick={}", took, clicksThisSolve,
+                    com.killer560.hub.util.ActionGate.currentTick());
             if (cfg.isSolveTimeEnabled()) {
                 ModChat.send("Arrow Align",
                         ModChat.text("Solved in "),
@@ -236,6 +303,12 @@ public final class ArrowAlignFeature {
     }
 
     private static void reset() {
+        if (active || solution != null) {
+            LOGGER.info("[ArrowAlign] reset: solution={} clicksThisSolve={} solved={}", solution == null ? "none"
+                    : "#" + solutionIndex(solution), clicksThisSolve, solvedAnnounced);
+        }
+        lastAuraTargetLogged = -1;
+        lastHeldKey = null;
         Arrays.fill(frames, null);
         Arrays.fill(observed, -1);
         Arrays.fill(pending, 0);
@@ -330,9 +403,13 @@ public final class ArrowAlignFeature {
         }
         ArrowAlignConfig cfg = ArrowAlignConfig.getInstance();
         if (clicksNeeded(index) == 0 && cfg.isPreventMisclicksEnabled() && !(cfg.isCrouchOverride() && shiftDown)) {
+            LOGGER.info("[ArrowAlign] misclick blocked: frame {} already at target (observed {} + pending {}, target {}) tick={}",
+                    index, observed[index], pending[index], solution[index], com.killer560.hub.util.ActionGate.currentTick());
             return true;
         }
         noteClick(index, System.currentTimeMillis());
+        LOGGER.info("[ArrowAlign] player click booked: frame {} observed {} pending {} needed now {} sneak={} tick={}", index,
+                observed[index], pending[index], clicksNeeded(index), shiftDown, com.killer560.hub.util.ActionGate.currentTick());
         return false;
     }
 
@@ -360,6 +437,10 @@ public final class ArrowAlignFeature {
         // does not burn this tick's one interaction on a packet that is never sent.
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
         if (com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), box) > reach * reach) {
+            logHeld("reach" + index, "frame " + index + " out of reach: distToBox="
+                    + String.format(Locale.ROOT, "%.2f",
+                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), box)))
+                    + " max=" + String.format(Locale.ROOT, "%.2f", reach));
             return false;
         }
         // Mod-wide one-interaction-per-tick gate (killer560, 2026-09-20: "make sure every type of aura has some
@@ -367,6 +448,7 @@ public final class ArrowAlignFeature {
         // also what stops THIS feature putting two interact packets in one tick. A denial must leave the caller's
         // delay/target bookkeeping untouched so the same frame is simply clicked a tick later.
         if (claimGate && !com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.ARROW_ALIGN)) {
+            logHeld("gate", "ActionGate refused ARROW_ALIGN for frame " + index);
             return false;
         }
         // Where the line from the eye meets the frame's box - the point a real click reports. (It was the centre of
@@ -379,6 +461,8 @@ public final class ArrowAlignFeature {
         // GrimAC Hitboxes (testkit 415/418). False is the callers' "retry".
         if (!TURN.readyBox(client.player, box, hit, eye.distanceTo(hit) + 1.0)) {
             sendClickTurned = true;
+            LOGGER.info("[ArrowAlign] turning body to frame {} first (reported look does not reach it) tick={}", index,
+                    com.killer560.hub.util.ActionGate.currentTick());
             return false;
         }
         syntheticClickInProgress = true;
@@ -389,6 +473,11 @@ public final class ArrowAlignFeature {
         }
         client.player.swing(InteractionHand.MAIN_HAND);
         noteClick(index, now);
+        LOGGER.info("[ArrowAlign] click sent: frame {} entity #{} hit={} dist={} observed {} pending {} target {} needed {}{} tick={}",
+                index, frame.getId(), String.format(Locale.ROOT, "%.2f,%.2f,%.2f", hit.x, hit.y, hit.z),
+                String.format(Locale.ROOT, "%.2f", eye.distanceTo(hit)), observed[index], pending[index],
+                solution == null ? -1 : solution[index], clicksNeeded(index), claimGate ? "" : " (extra click this tick)",
+                com.killer560.hub.util.ActionGate.currentTick());
         return true;
     }
 
@@ -406,8 +495,18 @@ public final class ArrowAlignFeature {
         }
         if (!active || solution == null || client.player == null || client.level == null
                 || com.killer560.hub.util.ActionGate.containerScreenOpen(client) || client.gameMode == null || client.level != lastLevel) {
+            String why = !active ? "inactive" : solution == null ? "no layout matched"
+                    : com.killer560.hub.util.ActionGate.containerScreenOpen(client) ? "container screen open" : "no player/level";
+            if (!why.equals(lastAutomationGate)) {
+                lastAutomationGate = why;
+                LOGGER.info("[ArrowAlign] automation held: {}", why);
+            }
             triggerAimIndex = -1;
             return;
+        }
+        if (lastAutomationGate != null) {
+            lastAutomationGate = null;
+            LOGGER.info("[ArrowAlign] automation running: triggerBot={} aura={} needed {}", trigger, aura, neededSummary());
         }
         long now = System.currentTimeMillis();
         if (trigger) {
@@ -428,6 +527,11 @@ public final class ArrowAlignFeature {
         }
         // killer560, 2026-10-18: the Trigger Bot does nothing while the crouch key is held. Dropping the aim too means
         // the first click after the release waits a fresh gap, like a click on a newly aimed frame.
+        boolean crouchHeld = cfg.isTriggerBotDisableWhileCrouching() && client.player.isShiftKeyDown();
+        if (crouchHeld != lastTriggerCrouchLogged) {
+            lastTriggerCrouchLogged = crouchHeld;
+            LOGGER.info("[ArrowAlign] Trigger Bot {} (Disable While Crouching)", crouchHeld ? "paused: crouching" : "resumed");
+        }
         if (cfg.isTriggerBotDisableWhileCrouching() && client.player.isShiftKeyDown()) {
             triggerAimIndex = -1;
             return;
@@ -436,6 +540,9 @@ public final class ArrowAlignFeature {
         if (index != triggerAimIndex) {
             triggerAimIndex = index;
             nextTriggerClickDueTick = tick + rollTriggerGapTicks(cfg);
+            LOGGER.info("[ArrowAlign] Trigger Bot aimed at frame {}: needed {} first click due at tick {} (now {}) cps {}-{}",
+                    index, clicksNeeded(index), String.format(Locale.ROOT, "%.2f", nextTriggerClickDueTick), tick,
+                    cfg.getTriggerBotCpsMin(), cfg.getTriggerBotCpsMax());
         }
         if (tick < nextTriggerClickDueTick) {
             return;
@@ -459,6 +566,11 @@ public final class ArrowAlignFeature {
     private static void tickAura(Minecraft client, ArrowAlignConfig cfg, long now) {
         long tick = com.killer560.hub.util.ActionGate.currentTick();
         // killer560, 2026-10-18: Disable While Crouching (per feature, on by default).
+        boolean crouchHeld = cfg.isAuraDisableWhileCrouching() && client.player.isShiftKeyDown();
+        if (crouchHeld != lastAuraCrouchLogged) {
+            lastAuraCrouchLogged = crouchHeld;
+            LOGGER.info("[ArrowAlign] Aura {} (Disable While Crouching)", crouchHeld ? "paused: crouching" : "resumed");
+        }
         if (cfg.isAuraDisableWhileCrouching() && client.player.isShiftKeyDown()) {
             lastAuraIndex = -1;
             auraTurnStartTick = -1L;
@@ -470,6 +582,20 @@ public final class ArrowAlignFeature {
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getAuraRange() * cfg.getAuraRange();
         int target = pickAuraTarget(client.player, eye, rangeSq);
+        if (target != lastAuraTargetLogged) {
+            lastAuraTargetLogged = target;
+            if (target < 0) {
+                LOGGER.info("[ArrowAlign] Aura: no frame to click in range {} (needed {}, held frame {}) tick={}",
+                        String.format(Locale.ROOT, "%.2f", cfg.getAuraRange()), neededSummary(), heldIndex, tick);
+            } else {
+                LOGGER.info("[ArrowAlign] Aura target: frame {} needed {} (aura may click {}) distToBox={} onLook={} tick={}",
+                        target, clicksNeeded(target), auraClicksLeft(target),
+                        String.format(Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye,
+                                frames[target].getBoundingBox()))),
+                        frames[target].getBoundingBox().clip(eye, eye.add(com.killer560.hub.util.TurnFirst.look(client.player)
+                                .scale(Math.sqrt(rangeSq) + 1.0))).isPresent(), tick);
+            }
+        }
         if (target < 0) {
             lastAuraIndex = -1;
             auraTurnStartTick = -1L;
@@ -571,6 +697,8 @@ public final class ArrowAlignFeature {
                 }
             }
             heldIndex = best;
+            LOGGER.info("[ArrowAlign] Leave Last Arrow: frame {} kept one click from done until S3 (needed {})", best,
+                    best < 0 ? 0 : clicksNeeded(best));
         }
         return heldIndex;
     }

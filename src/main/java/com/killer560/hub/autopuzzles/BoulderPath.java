@@ -59,6 +59,10 @@ final class BoulderPath {
     private final List<Vec3> points = new ArrayList<>();
     private BlockPos goalFeet = null;
     private int expanded = 0;
+    /** Why the last {@link #plan} failed, in plain words, or null after a success (for the caller's log line). */
+    private String failure = null;
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
 
     BoulderPath(Level level, BlockPos cornerA, BlockPos cornerB, boolean avoidBarrier) {
         this.level = level;
@@ -85,6 +89,11 @@ final class BoulderPath {
         return expanded;
     }
 
+    /** Why the last plan failed, or null when it succeeded (or none ran). */
+    String failure() {
+        return failure;
+    }
+
     /** Path length in blocks (3D), from {@code from}. */
     double length(Vec3 from) {
         double total = 0;
@@ -106,6 +115,7 @@ final class BoulderPath {
         points.clear();
         goalFeet = null;
         expanded = 0;
+        failure = null;
         int sx = (int) Math.floor(from.x);
         int sz = (int) Math.floor(from.z);
         int sy = (int) Math.floor(from.y + 0.01);
@@ -121,8 +131,13 @@ final class BoulderPath {
         if (start < 0) {
             start = index(sx, sy, sz);
             if (start < 0) {
+                failure = "his feet " + sx + "," + sy + "," + sz + " are outside the planned box " + minX + "," + minY
+                        + "," + minZ + " +" + w + "x" + h + "x" + d;
+                LOGGER.debug("[BoulderPath] plan failed: {}", failure);
                 return false;
             }
+            LOGGER.debug("[BoulderPath] start {},{},{} reads unstandable - planning from his feet at y {}", sx, sy, sz,
+                    from.y);
             stand[start] = from.y;
         }
         double[] dist = new double[w * h * d];
@@ -207,6 +222,10 @@ final class BoulderPath {
             }
         }
         if (found < 0) {
+            failure = expanded > MAX_NODES ? "searched the node cap (" + MAX_NODES + ") without reaching a goal"
+                    : "no accepted node can be walked to (" + expanded + " node(s) searched, barrier avoided "
+                    + avoidBarrier + ")";
+            LOGGER.debug("[BoulderPath] plan from {},{},{} failed: {}", sx, sy, sz, failure);
             return false;
         }
         List<Vec3> rev = new ArrayList<>();
@@ -220,6 +239,8 @@ final class BoulderPath {
             points.add(rev.get(i));
         }
         goalFeet = new BlockPos(xOf(found), yOf(found), zOf(found));
+        LOGGER.debug("[BoulderPath] planned {},{},{} -> {},{},{}: {} point(s), {} node(s) searched", sx, sy, sz,
+                goalFeet.getX(), goalFeet.getY(), goalFeet.getZ(), points.size(), expanded);
         return true;
     }
 

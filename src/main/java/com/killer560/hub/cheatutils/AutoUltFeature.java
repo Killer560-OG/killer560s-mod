@@ -57,6 +57,10 @@ public final class AutoUltFeature {
 
     static void tick(Minecraft client) {
         if (client.level != lastLevel) {
+            if (pendingUltTrigger != null || !firedThisWorld.isEmpty()) {
+                CheatUtils.LOGGER.info("[AutoUlt] world change: fired={} pending dropped={} tick={}", firedThisWorld,
+                        pendingUltTrigger, com.killer560.hub.util.SessionRecorderSink.tick());
+            }
             lastLevel = client.level;
             firedThisWorld.clear();
             tabClass = null;
@@ -70,6 +74,7 @@ public final class AutoUltFeature {
             classScanCooldown = 40;
             DungeonClass found = scanTabClass(client);
             if (found != null && found != tabClass) {
+                CheatUtils.LOGGER.info("[AutoUlt] tab class: {} -> {}", tabClass, found);
                 tabClass = found;
             }
         }
@@ -90,6 +95,8 @@ public final class AutoUltFeature {
         }
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || !CheatUtils.isOnDungeonServer(client)) {
+            CheatUtils.LOGGER.info("[AutoUlt] '{}' seen but skipped: player={} onDungeonServer={}", trigger,
+                    client.player != null, CheatUtils.isOnDungeonServer(client));
             return;
         }
         if (!DungeonState.isF7OrM7() || !LiveMapFeature.isInBoss()) {
@@ -103,8 +110,11 @@ public final class AutoUltFeature {
             return;
         }
         if (!firedThisWorld.add(trigger)) {
+            CheatUtils.LOGGER.info("[AutoUlt] '{}' skipped: already fired this world", trigger);
             return;
         }
+        CheatUtils.LOGGER.info("[AutoUlt] '{}' queued: class={} (override={}) gateBudgetTicks={} tick={}", trigger, clazz,
+                cfg.getUltClassOverride(), ULT_GATE_BUDGET_TICKS, com.killer560.hub.util.SessionRecorderSink.tick());
         // Real gap found (2026-09-21, gate audit): ActionGate.Actor.AUTO_ULT was declared for this feature
         // ("Losing the tick loses the ult, so it sits near the top") but nothing here ever called tryAct -
         // the drop packet went straight out, so the ult could ride along with a Breaker Aura break or a
@@ -130,8 +140,15 @@ public final class AutoUltFeature {
             pendingUltTrigger = null;
             client.player.connection.send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.DROP_ITEM, BlockPos.ZERO, Direction.DOWN));
+            CheatUtils.LOGGER.info("[AutoUlt] DROP_ITEM sent for '{}': waitedTicks={} held={} tick={}", what,
+                    ULT_GATE_BUDGET_TICKS - pendingUltTicksLeft, CheatUtils.plainName(client.player.getMainHandItem()),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             ModChat.send(CheatUtils.CHAT_TAG, ModChat.text("Used Ultimate "), ModChat.dim("(" + what + ")"));
             return;
+        }
+        if (pendingUltTicksLeft == ULT_GATE_BUDGET_TICKS || pendingUltTicksLeft % 20 == 0) {
+            CheatUtils.LOGGER.info("[AutoUlt] ActionGate refused '{}': ticksLeft={} containerOpen={}", pendingUltTrigger,
+                    pendingUltTicksLeft, ActionGate.containerScreenOpen(client));
         }
         if (--pendingUltTicksLeft <= 0) {
             CheatUtils.LOGGER.warn("[CheatUtils] AutoUlt gave up on '{}' - ActionGate never freed up within {} ticks "

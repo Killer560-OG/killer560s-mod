@@ -76,6 +76,10 @@ final class DungeonMapScanner {
     }
 
     static void reset() {
+        if (calibrated || mapItemPresent) {
+            LOGGER.info("[MapScan] map scanner reset (was calibrated={} mapItem={} roomSize={} corner={},{})",
+                    calibrated, mapItemPresent, mapRoomSize, startCornerX, startCornerZ);
+        }
         java.util.Arrays.fill(centerColors, (byte) 0);
         java.util.Arrays.fill(sideColors, (byte) 0);
         java.util.Arrays.fill(kinds, KIND_NONE);
@@ -179,12 +183,15 @@ final class DungeonMapScanner {
         MapItemSavedData data = findDungeonMap(client);
         if (data == null || data.colors == null || data.colors.length < MAP_SIZE * MAP_SIZE) {
             if (mapItemPresent) {
+                LOGGER.info("[MapScan] dungeon map item gone from slot 9 ({}) - map cells keep their last reading",
+                        data == null ? "no map data" : "incomplete colors");
                 version++;
             }
             mapItemPresent = false;
             return false;
         }
         if (!mapItemPresent) {
+            LOGGER.info("[MapScan] dungeon map item found in slot 9 (calibrated={})", calibrated);
             version++;
         }
         mapItemPresent = true;
@@ -242,13 +249,59 @@ final class DungeonMapScanner {
             return false;
         }
         version++;
+        StringBuilder changes = null;
+        int changedCells = 0;
         for (int x = 0; x < GRID; x++) {
             for (int y = 0; y < GRID; y++) {
-                classify(y * GRID + x, x, y);
+                int idx = y * GRID + x;
+                int oldKind = kinds[idx];
+                int oldState = states[idx];
+                classify(idx, x, y);
+                if (kinds[idx] != oldKind || states[idx] != oldState) {
+                    changedCells++;
+                    if (changes == null) {
+                        changes = new StringBuilder();
+                    }
+                    if (changedCells <= 40) {
+                        changes.append(' ').append(x).append(',').append(y).append(':')
+                                .append(kindName(oldKind)).append("->").append(kindName(kinds[idx]))
+                                .append('/').append(stateName(oldState)).append("->").append(stateName(states[idx]))
+                                .append("(c").append(centerColors[idx] & 0xFF).append(",s").append(sideColors[idx] & 0xFF).append(')');
+                    }
+                }
             }
+        }
+        if (changes != null) {
+            LOGGER.info("[MapScan] map cells changed: {} cell(s){}{}", changedCells, changes,
+                    changedCells > 40 ? " ..." : "");
         }
         return true;
     }
+
+    /** Logging: a cell kind's name. */
+    private static String kindName(int kind) {
+        return switch (kind) {
+            case KIND_ROOM -> "room";
+            case KIND_SEPARATOR -> "sep";
+            case KIND_DOOR -> "door";
+            default -> "none";
+        };
+    }
+
+    /** Logging: a cell state's name. */
+    private static String stateName(int state) {
+        return switch (state) {
+            case STATE_GREEN -> "green";
+            case STATE_CLEARED -> "cleared";
+            case STATE_DISCOVERED -> "discovered";
+            case STATE_FAILED -> "failed";
+            case STATE_UNOPENED -> "unopened";
+            default -> "undiscovered";
+        };
+    }
+
+    /** The calibration failure last logged (logging only), so a once-a-second retry logs only when it changes. */
+    private static String lastCalibrationFailure;
 
     /** Port of NoammAddons' {@code HotbarMapScanner.scanTile} + the monotonic state merge in
      *  {@code MapUpdater.updateRooms} (a tile's state only moves forward, except puzzles which can fail). */
@@ -350,8 +403,15 @@ final class DungeonMapScanner {
             foundLength = currLength;
         }
         if (foundLength != 16 && foundLength != 18) {
+            String why = "entrance run length " + foundLength + " at pixel " + foundStart;
+            if (!why.equals(lastCalibrationFailure)) {
+                lastCalibrationFailure = why;
+                LOGGER.info("[MapScan] calibration refused: {} (needs a run of colour 30 that is 16 or 18 long), retry in 1 s",
+                        why);
+            }
             return false;
         }
+        lastCalibrationFailure = null;
         mapRoomSize = foundLength;
         int measuredX = (foundStart & 127) % (mapRoomSize + 4);
         int measuredZ = (foundStart >> 7) % (mapRoomSize + 4);

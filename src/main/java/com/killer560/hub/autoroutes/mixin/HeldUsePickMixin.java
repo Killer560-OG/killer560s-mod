@@ -56,6 +56,9 @@ public abstract class HeldUsePickMixin {
         Minecraft self = (Minecraft) (Object) this;
         if (rightClickDelay == 0 && self.player != null && !self.player.isUsingItem()
                 && self.options.keyUse.isDown() && RouteExecutor.heldUseUnderScreen(self)) {
+            com.killer560.hub.util.ModLog.get("killer560smod-autoroutes").debug(
+                    "[AutoRoutes] held use stepped under a screen (vanilla's held right click rule), tick {}",
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             startUseItem();
         }
     }

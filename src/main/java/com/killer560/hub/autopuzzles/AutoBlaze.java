@@ -212,6 +212,9 @@ final class AutoBlaze {
         boolean inRoom = LOWER.equals(roomName) || HIGHER.equals(roomName);
         if (!cfg.isAutoBlazeEnabled() || !inRoom) {
             if (wasInRoom) {
+                LOGGER.info("[AutoPuzzles] Blaze: visit over ({}) after {} tick(s): room done={}, secret stage {},"
+                                + " blazes last listed {}", !cfg.isAutoBlazeEnabled() ? "switched off" : "left the room",
+                        ticks, roomDone, secretStage, lastBlazeCount);
                 reset(client);
                 GUARD.leftRoom();
             }
@@ -224,6 +227,11 @@ final class AutoBlaze {
         LocalPlayer player = client.player;
         if (!wasInRoom && player != null) {
             entryPos = player.position();
+            LOGGER.info("[AutoPuzzles] Blaze: entered {} with the auto on at {} - {} blaze(s) listed, terminator {},"
+                            + " reposition {}, auto secret {}, shoot cooldown {} ms (tick {})", roomName,
+                    fmt(entryPos), blazes.size(), AutoPuzzleUtil.hasTerminator(player), cfg.isEtherwarpReposition(),
+                    cfg.isAutoBlazeSecretEnabled(), cfg.getShootCooldownMs(),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
         }
         wasInRoom = true;
         ticks++;
@@ -231,6 +239,7 @@ final class AutoBlaze {
         // landing): the camera stays free from the first aim to the last shot.
         CAMERA.keep(player);
         if (!GUARD.solverOn(BlazeSolverConfig.getInstance().isEnabled())) {
+            say("waiting: Blaze Solver is off (or the guard has not trusted it yet)");
             CAMERA.release(player);
             return;
         }
@@ -271,9 +280,11 @@ final class AutoBlaze {
                 } else {
                     if (ourKill) {
                         LOGGER.info("[AutoPuzzles] Blaze: done - the volley at the last blaze killed it ({} tick(s) "
-                                + "after the shot)", com.killer560.hub.util.ActionGate.currentTick() - lastShotTick);
+                                + "after the shot, visit tick {})", com.killer560.hub.util.ActionGate.currentTick() - lastShotTick,
+                                ticks);
                     } else {
-                        LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks", DONE_TICKS);
+                        LOGGER.info("[AutoPuzzles] Blaze: done - the solver has listed no blaze for {} ticks (waited {},"
+                                + " visit tick {})", DONE_TICKS, emptyTicks, ticks);
                     }
                     REPOSITION.cancel(client);
                     AutoReposition.releaseSneak(client);
@@ -293,6 +304,8 @@ final class AutoBlaze {
                 // Routes carry on this tick, not AutoPuzzleActivity's 40-tick grace later (his 2026-10-16 log: "Blaze:
                 // done" 30 ticks after the last kill, "carrying on" 40 after that).
                 endedSent = true;
+                LOGGER.info("[AutoPuzzles] Blaze: room finished and the secret trip over (stage {}) - handing back after"
+                        + " {} tick(s) in the room", secretStage, ticks);
                 AutoPuzzleActivity.ended();
             }
             return;
@@ -325,6 +338,7 @@ final class AutoBlaze {
         }
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
+            LOGGER.debug("[AutoPuzzles] Blaze: reposition under way (visit tick {})", ticks);
             return;
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
@@ -348,6 +362,9 @@ final class AutoBlaze {
         long now = System.currentTimeMillis();
         Entity target = currentTarget;
         if (waitingForUpdate && (target == null || target.isRemoved())) {
+            LOGGER.info("[AutoPuzzles] Blaze: the volley's target is {} - {} tick(s) after the shot, {} blaze(s) listed",
+                    target == null ? "unset" : "gone", com.killer560.hub.util.ActionGate.currentTick() - lastShotTick,
+                    blazes.size());
             waitingForUpdate = false;
             currentTarget = null;
         }
@@ -361,6 +378,8 @@ final class AutoBlaze {
             if (VOLLEY.resolved(client, target)) {
                 waitingForUpdate = false;
             } else {
+                LOGGER.debug("[AutoPuzzles] Blaze: waiting for the volley at '{}' ({} tick(s) after the shot)",
+                        nameOf(target), com.killer560.hub.util.ActionGate.currentTick() - lastShotTick);
                 if (reposition && !movedAhead) {
                     moveAhead(client, player, blazes, cr, higher);
                 }
@@ -397,8 +416,13 @@ final class AutoBlaze {
             if (AutoPuzzleUtil.at(player, returnTo) || returnPathIssued
                     && !com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
                     || System.currentTimeMillis() - returnStartMs > SECRET_WALK_TIMEOUT_MS) {
+                LOGGER.info("[AutoPuzzles] Blaze: return to {} over - {} after {} ms", AutoPuzzleUtil.fmt(returnTo),
+                        AutoPuzzleUtil.at(player, returnTo) ? "standing on it"
+                                : System.currentTimeMillis() - returnStartMs > SECRET_WALK_TIMEOUT_MS ? "timed out"
+                                : "the map walk ended elsewhere", System.currentTimeMillis() - returnStartMs);
                 returnTo = null; // there, or the walk back is over - from here on the usual reposition decides
             } else if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+                say("waiting: the Interactive Map is walking him back to " + AutoPuzzleUtil.fmt(returnTo));
                 return; // the Interactive Map is walking him back
             } else {
                 engageCamera(player);
@@ -409,6 +433,8 @@ final class AutoBlaze {
                     say("asking the Interactive Map to path back to " + AutoPuzzleUtil.fmt(returnTo)
                             + ", where the final volley was shot from");
                 } else {
+                    LOGGER.info("[AutoPuzzles] Blaze: no warp and no map path back to {} - the usual reposition takes"
+                            + " over", AutoPuzzleUtil.fmt(returnTo));
                     returnTo = null; // no way back from here: the usual reposition below takes over
                 }
                 if (returnTo != null) {
@@ -455,6 +481,9 @@ final class AutoBlaze {
         loggedNotShortbow = false;
         if (com.killer560.hub.util.ActionGate.currentTick() - lastShotTick
                 < com.killer560.hub.util.ActionGate.delayTicks(cfg.getShootCooldownMs())) {
+            LOGGER.debug("[AutoPuzzles] Blaze: shoot cooldown {} of {} tick(s)",
+                    com.killer560.hub.util.ActionGate.currentTick() - lastShotTick,
+                    com.killer560.hub.util.ActionGate.delayTicks(cfg.getShootCooldownMs()));
             return;
         }
         lastSaid = null;
@@ -463,6 +492,7 @@ final class AutoBlaze {
         float[] dir = AutoPuzzleUtil.direction(eye, finalTarget);
         engageCamera(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            held("gate" + blaze.getId(), "the action gate held the shot at '" + nameOf(blaze) + "' from " + fmt(eye));
             return; // gate held this tick back - no shot, so lastShotTick / waitingForUpdate must not move
         }
         lastShotTick = com.killer560.hub.util.ActionGate.currentTick();
@@ -478,9 +508,13 @@ final class AutoBlaze {
             shotsHere = 0;
         }
         shotsHere++;
-        LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' from {}, yaw {} pitch {}, {} blocks", nameOf(blaze),
+        LOGGER.info("[AutoPuzzles] Blaze: shot at '{}' (id {}, 1 of {}) from {}, yaw {} pitch {}, {} blocks, holding {}"
+                        + " (terminator {}), shot {} from this spot, simulated flight {} tick(s), gate tick {}, visit tick {}",
+                nameOf(blaze), blaze.getId(), blazes.size(),
                 fmt(eye), String.format("%.1f", dir[0]), String.format("%.1f", dir[1]),
-                String.format("%.1f", eye.distanceTo(blaze.position())));
+                String.format("%.1f", eye.distanceTo(blaze.position())),
+                player.getMainHandItem().getHoverName().getString(), terminator, shotsHere, shotFlightMs / 50L,
+                lastShotTick, ticks);
         if (resumePending) {
             resumePending = false;
             resumeTick = ticks;
@@ -489,6 +523,8 @@ final class AutoBlaze {
             earlyPending = true;
             finalReleaseTick = ticks;
             finalShotFrom = returnSpot(standing);
+            LOGGER.info("[AutoPuzzles] Blaze: that was the volley at the last blaze - secret trip starts next tick, back"
+                    + " spot {} (visit tick {})", AutoPuzzleUtil.fmt(finalShotFrom), ticks);
         }
     }
 
@@ -534,7 +570,25 @@ final class AutoBlaze {
             return;
         }
         lastSaid = what;
-        LOGGER.info("[AutoPuzzles] Blaze: {}", what);
+        LOGGER.info("[AutoPuzzles] Blaze: {} (visit tick {})", what, ticks);
+    }
+
+    /** When {@link #held} last logged each key: a repeat of the same key logs at most once a second, even when two
+     *  keys take turns in one tick. Cleared on reset, and whenever it grows past a few hundred keys. */
+    private static final java.util.Map<String, Long> HELD_AT = new java.util.HashMap<>();
+
+    /** For refusals that can repeat every tick beside a {@link #say} line (kept apart so the two never alternate). */
+    private static void held(String key, String detail) {
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        Long last = HELD_AT.get(key);
+        if (last != null && now - last < 20) {
+            return;
+        }
+        if (HELD_AT.size() > 256) {
+            HELD_AT.clear();
+        }
+        HELD_AT.put(key, now);
+        LOGGER.info("[AutoPuzzles] Blaze: held: {} (visit tick {})", detail, ticks);
     }
 
     /** How long the last shot's arrow needs to reach its target, simulated - {@link VolleyWatch}'s fallback only. */
@@ -993,7 +1047,10 @@ final class AutoBlaze {
             movedForBlaze = blazes.get(0);
             say("moving to standing spot " + bestI + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
                     + nameOf(blazes.get(0)) + "' and " + (bestCover - 1) + " more in order after it");
-            REPOSITION.start(client, realSpot, true, false, false);
+            if (!REPOSITION.start(client, realSpot, true, false, false)) {
+                held("repos" + realSpot, "the reposition refused to start onto spot " + bestI + " "
+                        + AutoPuzzleUtil.fmt(realSpot));
+            }
             return;
         }
         for (int j = 0; j < spots.length; j++) {
@@ -1013,7 +1070,10 @@ final class AutoBlaze {
                 movedForBlaze = blazes.get(0);
                 say("moving to standing spot " + i + " " + AutoPuzzleUtil.fmt(realSpot) + ", which has a shot at '"
                         + nameOf(blazes.get(0)) + "'");
-                REPOSITION.start(client, realSpot, true, false, false);
+                if (!REPOSITION.start(client, realSpot, true, false, false)) {
+                    held("repos" + realSpot, "the reposition refused to start onto spot " + i + " "
+                            + AutoPuzzleUtil.fmt(realSpot));
+                }
                 return;
             }
             for (BlockPos link : spots) {
@@ -1028,7 +1088,9 @@ final class AutoBlaze {
                         != null) {
                     currentSpot = i;
                     say("moving to standing spot " + AutoPuzzleUtil.fmt(realLink) + " on the way to spot " + i);
-                    REPOSITION.start(client, realLink, true, false, false);
+                    if (!REPOSITION.start(client, realLink, true, false, false)) {
+                        held("repos" + realLink, "the reposition refused to start onto link " + AutoPuzzleUtil.fmt(realLink));
+                    }
                     return;
                 }
             }
@@ -1042,7 +1104,9 @@ final class AutoBlaze {
                         && AutoPuzzleUtil.etherwarpAim(client.level, player, realSpot) != null) {
                     currentSpot = i;
                     say("climbing to standing spot " + i + " " + AutoPuzzleUtil.fmt(realSpot));
-                    REPOSITION.start(client, realSpot, true, false, false);
+                    if (!REPOSITION.start(client, realSpot, true, false, false)) {
+                        held("repos" + realSpot, "the reposition refused to start the climb onto " + AutoPuzzleUtil.fmt(realSpot));
+                    }
                     return;
                 }
             }
@@ -1051,8 +1115,11 @@ final class AutoBlaze {
         BlockPos found = searchRoom(client, player, blazes, hitboxes, terminator, higher);
         if (found != null) {
             say("no listed spot has a clean shot at '" + nameOf(blazes.get(0)) + "' - moving to "
-                    + AutoPuzzleUtil.fmt(found) + ", found by searching the room");
-            REPOSITION.start(client, found, true, false, false);
+                    + AutoPuzzleUtil.fmt(found) + ", found by searching the room (candidate " + searchIndex + " of "
+                    + searchSpots.size() + ")");
+            if (!REPOSITION.start(client, found, true, false, false)) {
+                held("repos" + found, "the reposition refused to start onto searched spot " + AutoPuzzleUtil.fmt(found));
+            }
             return;
         }
         // Nowhere better. Stay, hold the bow, and wait for the solver's next scan rather than warping somewhere
@@ -1065,7 +1132,9 @@ final class AutoBlaze {
                 if (!AutoPuzzleUtil.at(player, far) && !badSpots.contains(far)
                         && AutoPuzzleUtil.etherwarpAim(client.level, player, far) != null) {
                     say("moving to " + AutoPuzzleUtil.fmt(far) + ", which has a shot at '" + nameOf(blazes.get(0)) + "'");
-                    REPOSITION.start(client, far, true, false, false);
+                    if (!REPOSITION.start(client, far, true, false, false)) {
+                        held("repos" + far, "the reposition refused to start onto far spot " + AutoPuzzleUtil.fmt(far));
+                    }
                     return;
                 }
             }
@@ -1073,10 +1142,14 @@ final class AutoBlaze {
             if (hop != null) {
                 say("the only spots with a shot at '" + nameOf(blazes.get(0)) + "' are out of one warp's reach - "
                         + "warping to " + AutoPuzzleUtil.fmt(hop) + " first, which sees " + AutoPuzzleUtil.fmt(farSpots.get(farIdx)));
-                REPOSITION.start(client, hop, true, false, false);
+                if (!REPOSITION.start(client, hop, true, false, false)) {
+                    held("repos" + hop, "the reposition refused to start onto hop " + AutoPuzzleUtil.fmt(hop));
+                }
                 return;
             }
             if (farIdx < farSpots.size()) {
+                LOGGER.debug("[AutoPuzzles] Blaze: two-warp search at far spot {} of {}, via {} of {}", farIdx,
+                        farSpots.size(), hopIdx, searchSpots.size());
                 return; // the two-warp search is still going
             }
             if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
@@ -1255,6 +1328,7 @@ final class AutoBlaze {
         // check, 2026-10-15).
         SECRET_CAM.keep(player);
         if (McCompat.screen(client) != null) {
+            held("secretscreen", "secret trip (" + secretStage + ") waits - a screen is open");
             return;
         }
         switch (secretStage) {
@@ -1285,6 +1359,8 @@ final class AutoBlaze {
         RoomEntry entry = LiveMapFeature.currentRoomEntry();
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (entry == null || cr == null) {
+            held("secretfind", "secret: " + (entry == null ? "the room has no database entry yet"
+                    : "the live map has no clay corner/rotation yet"));
             return; // room identity/rotation not known yet - retry next tick
         }
         List<SecretCandidate> candidates = new ArrayList<>();
@@ -1327,9 +1403,11 @@ final class AutoBlaze {
         walkIssued = false;
         auraWaitStartMs = 0L;
         directTried.clear();
-        LOGGER.info("[AutoPuzzles] Blaze: secret {} at {}; {} standable block(s) within aura reach, walking to {}",
-                secretIsChest ? "chest" : "item", AutoPuzzleUtil.fmt(secretReal), standSpots.size(),
-                AutoPuzzleUtil.fmt(standGoal()));
+        LOGGER.info("[AutoPuzzles] Blaze: secret {} at {} (nearest of {} known, {} blocks); {} standable block(s) within"
+                        + " aura reach, walking to {} (visit tick {})",
+                secretIsChest ? "chest" : "item", AutoPuzzleUtil.fmt(secretReal), candidates.size(),
+                String.format(java.util.Locale.ROOT, "%.1f", Math.sqrt(bestDistSq)), standSpots.size(),
+                AutoPuzzleUtil.fmt(standGoal()), ticks);
         secretStage = SecretStage.WALK;
     }
 
@@ -1436,6 +1514,7 @@ final class AutoBlaze {
 
     private static void walkToSecret(Minecraft client, LocalPlayer player) {
         if (secretReal == null) {
+            LOGGER.info("[AutoPuzzles] Blaze: secret walk has no secret position - trip over");
             secretStage = SecretStage.DONE;
             return;
         }
@@ -1445,6 +1524,7 @@ final class AutoBlaze {
             if (SECRET_WARP.isActive()) {
                 return;
             }
+            LOGGER.info("[AutoPuzzles] Blaze: secret warp ended at {} (visit tick {})", fmt(player.position()), ticks);
             // Landed: the camera is handed back by tickSecret unless the chest click is next (see below).
         }
         BlockPos goal = standGoal();
@@ -1470,10 +1550,13 @@ final class AutoBlaze {
             return;
         }
         if (busy) {
+            LOGGER.debug("[AutoPuzzles] Blaze: walking to {} for the secret", goal);
             return; // already walking there
         }
         if (System.currentTimeMillis() - secretLegStartMs > SECRET_WALK_TIMEOUT_MS) {
-            LOGGER.warn("[AutoPuzzles] Blaze: walk to the secret at {} timed out - giving up for this room", secretReal);
+            LOGGER.warn("[AutoPuzzles] Blaze: walk to the secret at {} timed out after {} ms - giving up for this room"
+                            + " (stand spot {} of {}, {} direct warp(s) tried, player at {})", secretReal,
+                    SECRET_WALK_TIMEOUT_MS, standIdx, standSpots.size(), directTried.size(), fmt(player.position()));
             secretStage = SecretStage.DONE;
             return;
         }
@@ -1494,6 +1577,8 @@ final class AutoBlaze {
                             ticks);
                     return;
                 }
+                LOGGER.info("[AutoPuzzles] Blaze: secret warp onto {} refused to start - trying the next spot",
+                        AutoPuzzleUtil.fmt(spot));
             }
         }
         if (walkIssued && standIdx < standSpots.size()) {
@@ -1511,6 +1596,8 @@ final class AutoBlaze {
             LOGGER.info("[AutoPuzzles] Blaze: walking to {} for the secret (tick {})", AutoPuzzleUtil.fmt(goal), ticks);
         }
         if (!walkIssued && !secretMapOffWarned) {
+            LOGGER.info("[AutoPuzzles] Blaze: no warp line onto a spot in aura reach and pathing / the Interactive Map"
+                    + " refused the walk to {} - waiting", AutoPuzzleUtil.fmt(goal));
             secretMapOffWarned = true;
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Secret needs "), ModChat.value("Interactive Map"),
                     ModChat.text(" on to walk to it."));
@@ -1519,6 +1606,8 @@ final class AutoBlaze {
 
     private static void auraSecret(Minecraft client, LocalPlayer player, List<Entity> blazes) {
         if (secretAuraAttempts >= MAX_AURA_ATTEMPTS) {
+            LOGGER.info("[AutoPuzzles] Blaze: secret at {} - used all {} attempt(s), trip over (visit tick {})",
+                    AutoPuzzleUtil.fmt(secretReal), MAX_AURA_ATTEMPTS, ticks);
             secretStage = SecretStage.DONE;
             return;
         }
@@ -1529,6 +1618,8 @@ final class AutoBlaze {
         }
         boolean alive = !blazes.isEmpty();
         if (alive && waitingForUpdate && !VOLLEY.resolved(client, currentTarget, false)) {
+            held("secretvolley", "at the chest - the final volley's result is not in yet ("
+                    + blazes.size() + " blaze(s) listed)");
             return; // the final volley's result is not in yet: a chest may only open once the room is done
         }
         BlockPos target = AutoPuzzleUtil.nearestChest(client, player, AURA_REACH_SQ);
@@ -1547,9 +1638,12 @@ final class AutoBlaze {
                 return;
             }
             if (com.killer560.hub.util.ServerLag.serverMsSince(auraWaitStartMs, auraWaitLag) > CHEST_WAIT_MS) {
-                LOGGER.warn("[AutoPuzzles] Blaze: no chest appeared at {} - giving up for this room",
-                        AutoPuzzleUtil.fmt(target));
+                LOGGER.warn("[AutoPuzzles] Blaze: no chest appeared at {} in {} ms - giving up for this room",
+                        AutoPuzzleUtil.fmt(target), CHEST_WAIT_MS);
                 secretStage = SecretStage.DONE;
+            } else {
+                held("secretnochest", "at the chest spot - no chest at " + AutoPuzzleUtil.fmt(target) + " yet ("
+                        + state.getBlock() + "), waiting up to " + CHEST_WAIT_MS + " ms");
             }
             return; // arrived early: wait for it
         }
@@ -1558,6 +1652,10 @@ final class AutoBlaze {
             // with an item in hand does not open it, so wait rather than burn an attempt.
             if (com.killer560.hub.util.ServerLag.serverMsSince(auraWaitStartMs, auraWaitLag) > CHEST_WAIT_MS) {
                 secretAuraAttempts++;
+                LOGGER.info("[AutoPuzzles] Blaze: still sneaking at the chest after {} ms - attempt {}/{} burnt",
+                        CHEST_WAIT_MS, secretAuraAttempts, MAX_AURA_ATTEMPTS);
+            } else {
+                held("secretsneak", "at the chest - waiting for the landing's sneak to let go");
             }
             return;
         }
@@ -1566,9 +1664,14 @@ final class AutoBlaze {
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (distSq > AURA_REACH_SQ) {
             secretAuraAttempts++;
+            LOGGER.info("[AutoPuzzles] Blaze: chest at {} out of reach ({} > {}) from {} - attempt {}/{} burnt",
+                    AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
+                    String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(AURA_REACH_SQ)), fmt(player.position()),
+                    secretAuraAttempts, MAX_AURA_ATTEMPTS);
             return;
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, target)) {
+            held("secretgate", "the action gate held the chest click at " + AutoPuzzleUtil.fmt(target));
             return; // gate held this tick back (or the body was turned to it) - not burnt, retried next tick
         }
         secretAuraAttempts++;
@@ -1577,8 +1680,10 @@ final class AutoBlaze {
             return;
         }
         secretAuraTick = ticks;
-        LOGGER.info("[AutoPuzzles] Blaze: aura'd the secret at {} from {} (tick {})", AutoPuzzleUtil.fmt(target),
-                fmt(player.position()), ticks);
+        LOGGER.info("[AutoPuzzles] Blaze: aura'd the secret at {} from {} (tick {}), {} from his eye, attempt {}/{},"
+                        + " holding {}", AutoPuzzleUtil.fmt(target),
+                fmt(player.position()), ticks, String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
+                secretAuraAttempts, MAX_AURA_ATTEMPTS, player.getMainHandItem().getHoverName().getString());
         secretStage = SecretStage.DONE;
     }
 
@@ -1635,5 +1740,6 @@ final class AutoBlaze {
         finalShotFrom = null;
         returnTo = null;
         returnStartMs = 0L;
+        HELD_AT.clear();
     }
 }

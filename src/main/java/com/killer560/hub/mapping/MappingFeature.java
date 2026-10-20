@@ -45,6 +45,7 @@ public final class MappingFeature {
     public static String dumpHeldMap() {
         HeldMap held = findHeldMap();
         if (held == null) {
+            LOGGER.info("[Mapping] map dump refused: no filled map with data in either hand");
             return "§c[Mapping] You need to be holding a filled map to dump it.";
         }
         byte[] colors = held.data.colors;
@@ -95,6 +96,7 @@ public final class MappingFeature {
         }
         MapItemSavedData data = client.level.getMapData(mapId);
         if (data == null) {
+            LOGGER.info("[Mapping] held map id={} has no map data on the client yet", mapId);
             return null;
         }
         return new HeldMap(mapId, data);

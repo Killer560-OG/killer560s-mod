@@ -67,6 +67,13 @@ final class AutoWater {
     /** Whether the one-shot "walk to the start area" has been attempted for this room visit yet. */
     private static boolean startAreaAttempted = false;
 
+    /** Logging only: the tick this room visit began. */
+    private static long roomStartTick = 0L;
+
+    private static long nowTick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
     private AutoWater() {
     }
 
@@ -87,6 +94,9 @@ final class AutoWater {
         AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
         if (!cfg.isAutoWaterEnabled() || !ROOM.equals(roomName)) {
             if (wasInRoom) {
+                LOGGER.info("[AutoPuzzles] Water: left the room (room={} enabled={}) - reset: counted={} atChest={}"
+                                + " stopped={} elapsedTicks={}", roomName, cfg.isAutoWaterEnabled(),
+                        WaterSolverFeature.getCountedClicks(), atChest, stoppedThisRoom, nowTick() - roomStartTick);
                 reset(client);
                 GUARD.leftRoom();
             }
@@ -95,6 +105,12 @@ final class AutoWater {
         }
         if (!observing) {
             next = WaterSolverFeature.nextClick();
+        }
+        if (!wasInRoom) {
+            roomStartTick = nowTick();
+            LOGGER.info("[AutoPuzzles] Water: entered the room - counted={} next={} reposition={} tick={}",
+                    WaterSolverFeature.getCountedClicks(), next == null ? "none" : AutoPuzzleUtil.fmt(next.pos()),
+                    cfg.isEtherwarpReposition(), roomStartTick);
         }
         wasInRoom = true;
         CAMERA.keep(client.player);
@@ -105,22 +121,30 @@ final class AutoWater {
             BlockPos start = START_SPOT_RELATIVE == null ? null
                     : PuzzleCoords.real(START_SPOT_RELATIVE[0], START_SPOT_RELATIVE[1], START_SPOT_RELATIVE[2], cr);
             if (start == null) {
+                LOGGER.info("[AutoPuzzles] Water: start-area walk skipped - no room override spot for {}", ROOM);
                 startAreaAttempted = true; // no known spot for this room name - nothing to walk to, don't retry forever
             } else if (AutoPuzzleUtil.at(client.player, start) || client.player.onGround() && client.player.getY()
                     == 59.0 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
                 // Already on the lever floor (a map press now lands beside the spot, which is a stair and no landing):
                 // the lever logic warps him wherever each lever needs him from here.
+                LOGGER.info("[AutoPuzzles] Water: start-area walk not needed - already on the lever floor at {}",
+                        client.player.blockPosition().toShortString());
                 startAreaAttempted = true;
             } else if (AutoPuzzleUtil.pathIfMapOn(start, null)) {
+                LOGGER.info("[AutoPuzzles] Water: start-area walk queued to {} from {} tick={}", AutoPuzzleUtil.fmt(start),
+                        client.player.blockPosition().toShortString(), nowTick());
                 startAreaAttempted = true;
             }
             // else: Interactive Map is off, or another path is already running - leave startAreaAttempted false
             // and just try again next tick; cheap to check.
         }
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            waitFor("the Interactive Map is moving him (start-area walk or another)");
             return; // still walking to the start area (ours or someone else's) - the levers can wait
         }
         if (!GUARD.solverOn(WaterSolverConfig.getInstance().isEnabled()) || stoppedThisRoom || !GUARD.fresh()) {
+            waitFor(!WaterSolverConfig.getInstance().isEnabled() ? "Water Board Solver is off"
+                    : stoppedThisRoom ? "stopped for this room" : "the solver's data predates this world");
             CAMERA.release(client.player);
             return;
         }
@@ -138,6 +162,7 @@ final class AutoWater {
             return;
         }
         if (cr == null || McCompat.screen(client) != null) {
+            waitFor(cr == null ? "the room's rotation is not known yet" : "a screen is open");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -161,12 +186,21 @@ final class AutoWater {
                 // good - the auto sat on the lever floor saying nothing. The chest step gets him into reach itself.
                 if (reposition && !AutoPuzzleUtil.at(player, chestSpot)
                         && REPOSITION.start(client, chestSpot, false, false, false)) {
+                    LOGGER.info("[AutoPuzzles] Water: all {} clicks counted - warping to the chest spot {} tick={}",
+                            WaterSolverFeature.getCountedClicks(), AutoPuzzleUtil.fmt(chestSpot), nowTick());
                     return;
                 }
+                LOGGER.info("[AutoPuzzles] Water: all {} clicks counted - done at {} (chest spot {}, {}), opening the"
+                                + " reward chest elapsedTicks={}", WaterSolverFeature.getCountedClicks(),
+                        player.blockPosition().toShortString(), AutoPuzzleUtil.fmt(chestSpot),
+                        !reposition ? "reposition off" : AutoPuzzleUtil.at(player, chestSpot) ? "on it"
+                                : "no warp onto it", nowTick() - roomStartTick);
                 AutoReposition.releaseSneak(client);
                 CAMERA.release(player);
                 atChest = true;
                 ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Water Board: "), ModChat.good("done"), ModChat.text("."));
+            } else {
+                waitFor("the solver has no lever click yet (none counted)");
             }
             return;
         }
@@ -181,6 +215,9 @@ final class AutoWater {
                 ? (opened == -1 || remaining <= 0)
                 : (remaining <= 0 && (next.time() == 0.0 || opened != -1));
         if (!due) {
+            waitFor("next lever " + AutoPuzzleUtil.fmt(next.pos()) + " (" + (next.water() ? "water" : "timed")
+                    + ", at " + next.time() + " s) not due yet - water " + (opened == -1 ? "not opened"
+                    : "opened at solver tick " + opened));
             return; // standing on its spot with the body already on the lever (prepare): it goes the tick it is due
         }
         // To the BOX, not the centre. The limit is 4.5 to the box; measuring to the centre reads up to half
@@ -223,6 +260,10 @@ final class AutoWater {
                 next.water() ? "the water" : "a", AutoPuzzleUtil.fmt(next.pos()), next.time(),
                 opened == -1 ? 0 : tick - opened, opened == -1 ? "" : String.format(java.util.Locale.ROOT,
                         " (%d tick(s) late)", (long) Math.max(0, -remaining)));
+        LOGGER.info("[AutoPuzzles] Water: click detail: boxDist={} reach={} from {} counted {} -> {} elapsedTicks={}"
+                        + " tick={}", String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
+                String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(REACH_SQ)), player.blockPosition().toShortString(),
+                countedBefore, WaterSolverFeature.getCountedClicks(), nowTick() - roomStartTick, nowTick());
         if (WaterSolverFeature.getCountedClicks() <= countedBefore) {
             stoppedThisRoom = true;
             LOGGER.warn("[AutoPuzzles] Water: click at {} was not counted by the solver - stopping for this room", next.pos());
@@ -235,11 +276,19 @@ final class AutoWater {
         // reports the turn leaves after the click, like a player who clicks and then looks away.
         WaterSolverFeature.NextClick after = WaterSolverFeature.nextClick();
         if (after != null) {
+            LOGGER.info("[AutoPuzzles] Water: next after the click: lever {} at {} s ({} in reach from here)",
+                    AutoPuzzleUtil.fmt(after.pos()), after.time(), inReach(player.getEyePosition(), after.pos()) ? "is"
+                            : "not");
             prepare(client, player, cr, after, reposition);
         } else {
             BlockPos chestSpot = PuzzleCoords.real(15, 58, 22, cr);
             if (reposition && !AutoPuzzleUtil.at(player, chestSpot)) {
-                REPOSITION.start(client, chestSpot, false, false, false);
+                boolean started = REPOSITION.start(client, chestSpot, false, false, false);
+                LOGGER.info("[AutoPuzzles] Water: last lever clicked - warp to the chest spot {} {}",
+                        AutoPuzzleUtil.fmt(chestSpot), started ? "started" : "could not start (retried next tick)");
+            } else {
+                LOGGER.info("[AutoPuzzles] Water: last lever clicked - {}", reposition ? "already on the chest spot"
+                        : "reposition off, staying here");
             }
         }
     }
@@ -269,7 +318,16 @@ final class AutoWater {
                 return true;
             }
             if (!AutoPuzzleUtil.at(player, spot)) {
-                REPOSITION.start(client, spot, false, false, false);
+                boolean started = REPOSITION.start(client, spot, false, false, false);
+                if (started) {
+                    LOGGER.info("[AutoPuzzles] Water: lever {} out of reach from {} - warping onto {}{} tick={}",
+                            AutoPuzzleUtil.fmt(next.pos()), player.blockPosition().toShortString(),
+                            AutoPuzzleUtil.fmt(spot), follow == null ? "" : " (also reaches the next, "
+                                    + AutoPuzzleUtil.fmt(follow) + ", due soon after)", nowTick());
+                } else {
+                    waitFor("warp onto " + AutoPuzzleUtil.fmt(spot) + " for lever " + AutoPuzzleUtil.fmt(next.pos())
+                            + " did not start");
+                }
                 return true;
             }
         }

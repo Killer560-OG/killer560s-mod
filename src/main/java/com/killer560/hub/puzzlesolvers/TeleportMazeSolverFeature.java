@@ -58,6 +58,18 @@ public final class TeleportMazeSolverFeature {
     private static BlockPos best = null;
     private static int teleportSeq = 0;
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
+    /** Logging only: last room state logged, so entry / exit / waiting lines are written on CHANGE, never per tick. */
+    private static String roomLogKey = "none";
+
+    private static void logRoomState(String key, String detail) {
+        if (key.equals(roomLogKey)) {
+            return;
+        }
+        roomLogKey = key;
+        LOGGER.info("[TeleportMaze] {}", detail);
+    }
+
     private TeleportMazeSolverFeature() {
     }
 
@@ -105,6 +117,12 @@ public final class TeleportMazeSolverFeature {
     private static void tick(Minecraft client) {
         if (!TeleportMazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (lastRoomEntry != null || !tpPads.isEmpty()) {
+                if (!"none".equals(roomLogKey)) {
+                    logRoomState("none", "solver idle: enabled=" + TeleportMazeSolverConfig.getInstance().isEnabled()
+                            + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
+                            + " - pads, visited and links cleared (" + visited.size() + " visited, " + links.size()
+                            + " links)");
+                }
                 reset();
                 tpPads = new LinkedHashSet<>();
                 realCells = new ArrayList<>();
@@ -118,13 +136,21 @@ public final class TeleportMazeSolverFeature {
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         if (current != null && ROOM.equals(current.name) && cr == null) {
+            logRoomState("wait", "in Teleport Maze but clay/rotation not known yet - pads not placed, retrying every tick");
             return; // rotation not known yet - retry next tick
         }
         lastRoomEntry = current;
+        if (!tpPads.isEmpty() || !visited.isEmpty()) {
+            LOGGER.info("[TeleportMaze] room changed: forgetting {} pads, {} visited, {} links, {} candidates",
+                    tpPads.size(), visited.size(), links.size(), correctPortals.size());
+        }
         reset();
         tpPads = new LinkedHashSet<>();
         realCells = new ArrayList<>();
         if (current == null || !ROOM.equals(current.name)) {
+            if (!"none".equals(roomLogKey)) {
+                logRoomState("none", "left Teleport Maze: now in " + (current == null ? "no known room" : current.name));
+            }
             return;
         }
         for (int[] p : PADS) {
@@ -138,6 +164,11 @@ public final class TeleportMazeSolverFeature {
             }
             realCells.add(cell);
         }
+        roomLogKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
+        LOGGER.info("[TeleportMaze] Teleport Maze detected: clay={},{} rotation={} pads={} cells={} start={} end={}",
+                cr[0], cr[1], cr[2], tpPads.size(), realCells.size(),
+                PuzzleCoords.real(PADS[29][0], PADS[29][1], PADS[29][2], cr).toShortString(),
+                PuzzleCoords.real(PADS[28][0], PADS[28][1], PADS[28][2], cr).toShortString());
     }
 
     /** From {@code PuzzlePacketMixin}, main thread, before vanilla applies the teleport. */
@@ -153,6 +184,10 @@ public final class TeleportMazeSolverFeature {
         // made and the solver never marked a pad visited or worked out a candidate. Zero outside the sim.
         if (pos.x % 0.5 != 0.0 || pos.z % 0.5 != 0.0
                 || pos.y != 69.5 + com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
+            LOGGER.info("[TeleportMaze] teleport ignored: landed {} - not a maze landing (needs x/z on a half block and"
+                            + " y {}), visited/candidates unchanged",
+                    String.format(java.util.Locale.ROOT, "%.3f,%.3f,%.3f", pos.x, pos.y, pos.z),
+                    69.5 + com.killer560.hub.livemap.DungeonLayout.simYOffset());
             return;
         }
         float yaw = packet.change().yRot();
@@ -196,6 +231,10 @@ public final class TeleportMazeSolverFeature {
                 String.format(java.util.Locale.US, "%.1f", yaw), String.format(java.util.Locale.US, "%.1f",
                         packet.change().xRot()), correctPortals.size(),
                 correctPortals.size() == 1 ? " " + correctPortals.iterator().next().toShortString() : "");
+        LOGGER.info("[TeleportMaze] after teleport {}: visited={}/{} links={} best next pad={}{}", teleportSeq,
+                visited.size(), tpPads.size(), links.size(), best == null ? "none" : best.toShortString(),
+                from == null || to == null ? " (link not learnt: " + (from == null ? "no pad under the old position" : "")
+                        + (from == null && to == null ? ", " : "") + (to == null ? "no pad under the landing" : "") + ")" : "");
     }
 
     private static void getCorrectPortals(Minecraft client, Vec3 pos, float yaw, float pitch) {

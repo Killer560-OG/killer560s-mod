@@ -134,6 +134,18 @@ public final class LiveMapFeature {
     // [LiveMap] diagnostics - logging only, never affects scanning.
     private static final Logger LOGGER = ModLog.get("killer560smod-livemap");
     private static final boolean[] loggedNoRotation = new boolean[GRID * GRID];
+    /** Logging only: the core hash last logged as unmatched per tile, so a failed lookup logs once per new core. */
+    private static final int[] loggedUnmatchedCore = new int[GRID * GRID];
+    /** Logging only: the join decision last logged per connector cell. */
+    private static final String[] loggedConnector = new String[GRID * GRID];
+    /** Logging only: refused unions already logged this run ("a-b reason"). */
+    private static final java.util.Set<String> loggedRefusals = new java.util.HashSet<>();
+    /** Logging only: each room group as last logged, by main tile ("name tiles/cells"). */
+    private static final Map<Integer, String> loggedGroups = new HashMap<>();
+    /** Logging only: whether the scan was running at the last change, and why not. */
+    private static String loggedScanState;
+    /** Logging only: the action bar secret mismatch last logged ("room|max"). */
+    private static String loggedSecretMismatch;
 
     static {
         java.util.Arrays.fill(grid, Tile.UNKNOWN);
@@ -226,6 +238,11 @@ public final class LiveMapFeature {
         java.util.Arrays.fill(roomEntryGrid, null);
         java.util.Arrays.fill(rotationGrid, -1);
         java.util.Arrays.fill(loggedNoRotation, false);
+        java.util.Arrays.fill(loggedUnmatchedCore, 0);
+        java.util.Arrays.fill(loggedConnector, null);
+        loggedRefusals.clear();
+        loggedGroups.clear();
+        loggedSecretMismatch = null;
         java.util.Arrays.fill(rotationRetryAtMs, 0L);
         java.util.Arrays.fill(groupOfCell, -1);
         groups.clear();
@@ -306,6 +323,14 @@ public final class LiveMapFeature {
         // used to be built every tick in every world (FPS sweep, 2026-10-07). isInBoss is a plain read, so the order
         // of the tests changes nothing else.
         boolean scanning = inDungeon && !isInBoss() && !sim && !scanConsumers().isEmpty();
+        // Logged on change only. The consumer list is read again only at a change (pure config reads).
+        String scanState = scanning ? "scanning" : !inDungeon ? "not in a dungeon" : isInBoss() ? "in boss"
+                : sim ? "sim (floor is published, not scanned)" : "no feature needs the scan";
+        if (!scanState.equals(loggedScanState)) {
+            loggedScanState = scanState;
+            LOGGER.info("[MapScan] world scan state: {}{}", scanState,
+                    scanning ? " (consumers: " + scanConsumers() + ")" : "");
+        }
         if (sim && inDungeon && !isInBoss()) {
             // The sim publishes its floor instead of being scanned, but a dungeon map it holds in slot 9 is still read
             // the way Hypixel's is (MapPainter.hideUnrevealed): the map then shows only what that item shows.
@@ -407,7 +432,18 @@ public final class LiveMapFeature {
         simRoomExtent = extent == null || fitToRooms ? extent : new int[]{0, 0, 5, 5};
         // Where Hypixel would have put wither doors on this floor - the sim builds none. Drawn only in the sim.
         com.killer560.hub.roomsim.SimWitherDoors.publish(roomCells, doorCells, names);
-        LOGGER.info("[LiveMap] Sim floor published: {} room(s)", names.length);
+        int doorCount = 0;
+        int rotations = 0;
+        for (int idx = 0; idx < GRID * GRID; idx++) {
+            if (grid[idx] != Tile.ROOM && grid[idx] != Tile.UNKNOWN) {
+                doorCount++;
+            }
+            if (rotationGrid[idx] >= 0) {
+                rotations++;
+            }
+        }
+        LOGGER.info("[LiveMap] Sim floor published: {} room(s), {} door cell(s), {} tile(s) with clay+rotation, extent={} fit={}",
+                names.length, doorCount, rotations, java.util.Arrays.toString(simRoomExtent), fitToRooms);
     }
 
     private static void scan() {
@@ -422,6 +458,8 @@ public final class LiveMapFeature {
         int[] rooms = MapPainter.currentFloorRooms();
         int maxX = rooms[0] * 2 - 1;
         int maxZ = rooms[1] * 2 - 1;
+        // Logging only: every cell this pass classified for the first time, one line per pass.
+        StringBuilder classified = null;
         for (int x = 0; x < maxX; x++) {
             for (int z = 0; z < maxZ; z++) {
                 int idx = x + z * GRID;
@@ -465,7 +503,16 @@ public final class LiveMapFeature {
                     grid[idx] = Tile.ROOM;
                     groupsDirty = true;
                 }
+                if (classified == null) {
+                    classified = new StringBuilder();
+                }
+                classified.append(' ').append(x).append(',').append(z).append('=')
+                        .append(rowEven && colEven ? "tile" : grid[idx] == Tile.ROOM ? "connector" : grid[idx].name())
+                        .append("(roof ").append(roofHeight).append(')');
             }
+        }
+        if (classified != null) {
+            LOGGER.info("[MapScan] world scan classified:{}", classified);
         }
 
         ensureGroups();
@@ -489,6 +536,12 @@ public final class LiveMapFeature {
         if (entry != null) {
             roomEntryGrid[idx] = entry;
             groupsDirty = true;
+            LOGGER.info("[MapScan] tile {},{} identified: {} (core {} at {},{}, type={} shape={})", idx % GRID, idx / GRID,
+                    entry.name, core, wx, wz, entry.type, entry.shape);
+        } else if (loggedUnmatchedCore[idx] != core) {
+            loggedUnmatchedCore[idx] = core;
+            LOGGER.info("[MapScan] tile {},{} not identified: core {} at {},{} has no room database match", idx % GRID,
+                    idx / GRID, core, wx, wz);
         }
     }
 
@@ -553,8 +606,10 @@ public final class LiveMapFeature {
         }
         if (!loggedNoRotation[group.mainIdx]) {
             loggedNoRotation[group.mainIdx] = true;
-            LOGGER.info("[LiveMap] No blue-terracotta corner marker for room at cell ({},{}) tiles={} (roomIdentified={})",
-                    group.mainIdx % GRID, group.mainIdx / GRID, group.tiles.length, entry != null);
+            LOGGER.info("[LiveMap] No blue-terracotta corner marker for room at cell ({},{}) tiles={} worldTiles={} (roomIdentified={} name={} shape={} needsTiles={}) - retried each second",
+                    group.mainIdx % GRID, group.mainIdx / GRID, group.tiles.length, worldTiles.size(), entry != null,
+                    entry != null ? entry.name : "-", entry != null ? entry.shape : "-",
+                    entry != null ? RoomDatabase.shapeTileCount(entry.shape) : -1);
         }
     }
 
@@ -563,6 +618,14 @@ public final class LiveMapFeature {
         clayZGrid[idx] = clayZ;
         rotationGrid[idx] = rotation;
         rotationVersion++;
+        LOGGER.info("[MapScan] rotation found: {} main {},{} stored on tile {},{} - rotation {} clay {},{} roof {} from {} ({} tile(s))",
+                group.entry != null ? group.entry.name : "unidentified", group.mainIdx % GRID, group.mainIdx / GRID,
+                idx % GRID, idx / GRID, rotation, clayX, clayZ, roofHeight,
+                switch (how) {
+                    case "fairy" -> "fairy (fixed corner, no marker)";
+                    case "bounds" -> "the blue terracotta marker on the room's bounding box corners";
+                    default -> "the blue terracotta marker on this tile's own corners";
+                }, group.tiles.length);
     }
 
     /** Bumped whenever a room's clay corner or rotation is found ({@link DungeonLayout#current} keys on it). */
@@ -637,9 +700,11 @@ public final class LiveMapFeature {
             }
             int mapKind = DungeonMapScanner.kindAt(idx);
             if (mapKind == DungeonMapScanner.KIND_DOOR) {
+                logConnector(idx, "no join: the map shows a door here");
                 continue; // the dungeon map shows a door in this gap, not a room connector
             }
             if (!connectorMayJoin(idx)) {
+                logConnector(idx, "no join: the map shows both rooms and nothing in the gap (a wall)");
                 continue; // the map shows both rooms and nothing in this gap: two rooms with no link between them
             }
             // A world-scanned connector only merges when something confirms it: the dungeon map shows a
@@ -663,8 +728,12 @@ public final class LiveMapFeature {
                 }
             }
             if (!anchored || nearEntrance) {
+                logConnector(idx, nearEntrance ? "no join: next to the Entrance (an entrance door)"
+                        : "no join: unconfirmed (no map separator, no identified neighbour tile)");
                 continue;
             }
+            logConnector(idx, mapKind == DungeonMapScanner.KIND_SEPARATOR ? "joins: the map shows a separator"
+                    : "joins: an identified neighbour tile confirms it (world=" + grid[idx] + ")");
             if (gx > 0 && roomish[idx - 1] && !union(parent, tileCount, rootEntry, idx, idx - 1)) refused++;
             if (gx < GRID - 1 && roomish[idx + 1] && !union(parent, tileCount, rootEntry, idx, idx + 1)) refused++;
             if (gz > 0 && roomish[idx - GRID] && !union(parent, tileCount, rootEntry, idx, idx - GRID)) refused++;
@@ -726,6 +795,55 @@ public final class LiveMapFeature {
                 groupOfCell[c] = gid;
             }
         }
+        logGroupChanges(refused);
+    }
+
+    /** Logging only: a connector's join decision, when it differs from the last one logged for that cell. */
+    private static void logConnector(int idx, String decision) {
+        if (decision.equals(loggedConnector[idx])) {
+            return;
+        }
+        String before = loggedConnector[idx];
+        loggedConnector[idx] = decision;
+        LOGGER.info("[MapLayout] connector {},{}: {}{} (mapKind={} calibrated={})", idx % GRID, idx / GRID, decision,
+                before == null ? "" : " (was: " + before + ")", DungeonMapScanner.kindAt(idx), DungeonMapScanner.isCalibrated());
+    }
+
+    /** Logging only: each room group added, removed, renamed or regrouped since the last rebuild, by main tile. */
+    private static void logGroupChanges(int refused) {
+        Map<Integer, String> now = new HashMap<>();
+        for (RoomGroup g : groups) {
+            now.put(g.mainIdx, (g.entry != null && g.entry.name != null ? g.entry.name : "?") + " tiles="
+                    + g.tiles.length + " cells=" + g.cells.length);
+        }
+        if (now.equals(loggedGroups)) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<Integer, String> e : now.entrySet()) {
+            String before = loggedGroups.get(e.getKey());
+            if (!e.getValue().equals(before)) {
+                sb.append(" | ").append(e.getKey() % GRID).append(',').append(e.getKey() / GRID).append(' ')
+                        .append(before == null ? "new " + e.getValue() : before + " -> " + e.getValue());
+            }
+        }
+        for (Map.Entry<Integer, String> e : loggedGroups.entrySet()) {
+            if (!now.containsKey(e.getKey())) {
+                sb.append(" | ").append(e.getKey() % GRID).append(',').append(e.getKey() / GRID).append(" gone (was ")
+                        .append(e.getValue()).append(')');
+            }
+        }
+        loggedGroups.clear();
+        loggedGroups.putAll(now);
+        LOGGER.info("[MapLayout] room groups changed: {} room(s), {} union(s) refused{}", groups.size(), refused, sb);
+    }
+
+    /** Logging only: a refused union, once per pair and reason this run. */
+    private static void logRefusal(int a, int b, String reason) {
+        if (loggedRefusals.size() > 512 || !loggedRefusals.add(a + "-" + b + " " + reason)) {
+            return;
+        }
+        LOGGER.info("[MapLayout] join refused: cell {},{} with {},{} - {}", a % GRID, a / GRID, b % GRID, b / GRID, reason);
     }
 
     private static int find(int[] parent, int i) {
@@ -803,11 +921,14 @@ public final class LiveMapFeature {
         RoomEntry ea = rootEntry[ra];
         RoomEntry eb = rootEntry[rb];
         if (ea != null && eb != null && ea.name != null && !ea.name.equals(eb.name)) {
+            logRefusal(a, b, "different rooms (" + ea.name + " vs " + eb.name + ")");
             return false;
         }
         RoomEntry merged = ea != null ? ea : eb;
         int count = tileCount[ra] + tileCount[rb];
         if (count > RoomDatabase.shapeTileCount(merged != null ? merged.shape : null)) {
+            logRefusal(a, b, count + " tiles would exceed " + (merged != null ? merged.name + "'s shape " + merged.shape
+                    : "an unidentified room's cap") + " (" + RoomDatabase.shapeTileCount(merged != null ? merged.shape : null) + ")");
             return false;
         }
         parent[rb] = ra;
@@ -852,7 +973,15 @@ public final class LiveMapFeature {
             if (max == group.entry.secrets) {
                 Integer before = foundSecretsByRoom.put(group.entry.name, found);
                 if (before == null || before != found) {
+                    LOGGER.info("[MapScan] {} secrets {} -> {}/{} (action bar)", group.entry.name, before, found, max);
                     mapVersion++;
+                }
+            } else {
+                String key = group.entry.name + "|" + max;
+                if (!key.equals(loggedSecretMismatch)) {
+                    loggedSecretMismatch = key;
+                    LOGGER.info("[MapScan] action bar secrets ignored: {}/{} but {} has {} in the database (room misidentified?)",
+                            found, max, group.entry.name, group.entry.secrets);
                 }
             }
         } catch (NumberFormatException ignored) {
@@ -943,6 +1072,9 @@ public final class LiveMapFeature {
     public static void setSimDoorWither(int idx) {
         if (!com.killer560.hub.roomsim.SimState.isActive() || idx < 0 || idx >= GRID * GRID) {
             return;
+        }
+        if (grid[idx] != Tile.DOOR_WITHER) {
+            LOGGER.info("[MapLayout] sim door {},{} set to wither (was {})", idx % GRID, idx / GRID, grid[idx]);
         }
         grid[idx] = Tile.DOOR_WITHER;
         groupsDirty = true;

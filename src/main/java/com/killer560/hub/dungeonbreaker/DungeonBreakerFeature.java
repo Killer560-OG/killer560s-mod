@@ -48,7 +48,22 @@ public final class DungeonBreakerFeature {
     private static final String DUNGEON_BREAKER_SKYBLOCK_ID = "DUNGEONBREAKER";
     private static final Pattern CHARGES_PATTERN = Pattern.compile("Charges: (\\d+)/(\\d+)");
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-dungeonbreaker");
+    private static String lastLogKey;
+    private static long lastLogTick;
+
     private DungeonBreakerFeature() {
+    }
+
+    /** Rate-limited (same key at most once per 20 ticks): holding attack on one block calls startDestroyBlock every tick. */
+    private static void logOnce(String key, String fmt, Object... args) {
+        long now = com.killer560.hub.util.SessionRecorderSink.tick();
+        if (key.equals(lastLogKey) && now - lastLogTick < 20) {
+            return;
+        }
+        lastLogKey = key;
+        lastLogTick = now;
+        LOGGER.info(fmt, args);
     }
 
     /** Called from {@code DungeonBreakerMixin} at the HEAD of {@code startDestroyBlock}: true when the click must
@@ -59,10 +74,19 @@ public final class DungeonBreakerFeature {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || client.player == null || client.level == null) {
             return false;
         }
-        if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
+        int charges = getBreakerCharges(client.player.getMainHandItem());
+        if (charges <= 0) {
             return false;
         }
-        return BreakerGuard.protects(client.level, pos);
+        boolean blocked = BreakerGuard.protects(client.level, pos);
+        if (blocked) {
+            logOnce("guard " + pos.toShortString(),
+                    "[Breaker] click cancelled at startDestroyBlock HEAD: pos={} block={} charges={} fairyRoom={} tick={}"
+                            + " - BreakerGuard protects it, nothing sent", pos.toShortString(),
+                    client.level.getBlockState(pos).getBlock().getName().getString(), charges,
+                    BreakerGuard.inFairyRoom(pos), com.killer560.hub.util.SessionRecorderSink.tick());
+        }
+        return blocked;
     }
 
     /** Called from {@code DungeonBreakerMixin} right after the real
@@ -79,13 +103,25 @@ public final class DungeonBreakerFeature {
         // Hypixel's is, so the two cannot both "remove" anything. (In practice the sim's own client-side
         // AttackBlockCallback consumes every left click at the head of startDestroyBlock, so this TAIL hook does
         // not run there at all.)
+        String p = pos.toShortString();
+        long tick = com.killer560.hub.util.SessionRecorderSink.tick();
         if (cfg.isFatigueOnly() && !client.player.hasEffect(MobEffects.MINING_FATIGUE)) {
+            logOnce("fatigue " + p, "[Breaker] zero ping skipped: pos={} tick={} - Fatigue Only is on and there is no"
+                    + " Mining Fatigue", p, tick);
             return;
         }
-        if (getBreakerCharges(client.player.getMainHandItem()) <= 0) {
+        int charges = getBreakerCharges(client.player.getMainHandItem());
+        if (charges <= 0) {
+            // Any non-breaker left click lands here; only worth a line when it IS a breaker with no charges.
+            if (DUNGEON_BREAKER_SKYBLOCK_ID.equals(getSkyblockId(client.player.getMainHandItem()))) {
+                logOnce("charges " + p, "[Breaker] zero ping skipped: pos={} tick={} - Dungeon Breaker in hand has 0"
+                        + " charges (or no Charges lore line)", p, tick);
+            }
             return;
         }
         if (BreakerGuard.protects(client.level, pos)) {
+            logOnce("guard " + p, "[Breaker] zero ping skipped: pos={} charges={} tick={} - BreakerGuard protects it", p,
+                    charges, tick);
             return;
         }
         // Never predict air for barrier or bedrock (or anything unbreakable): the server never breaks them, so
@@ -93,6 +129,9 @@ public final class DungeonBreakerFeature {
         var target = client.level.getBlockState(pos);
         if (target.is(Blocks.BARRIER) || target.is(Blocks.BEDROCK)
                 || target.getDestroySpeed(client.level, pos) < 0f) {
+            logOnce("unbreakable " + p, "[Breaker] zero ping skipped: pos={} block={} charges={} tick={} - unbreakable"
+                    + " (barrier/bedrock/negative hardness), the server never breaks it", p,
+                    target.getBlock().getName().getString(), charges, tick);
             return;
         }
         // Real raycast validation, ported directly from QUOI's own real clip check - only ever clears the
@@ -102,9 +141,16 @@ public final class DungeonBreakerFeature {
                 ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, client.player));
         if (clip.getType() != HitResult.Type.BLOCK || !(clip instanceof BlockHitResult blockHit)
                 || !blockHit.getBlockPos().equals(pos)) {
+            logOnce("clip " + p, "[Breaker] zero ping skipped: pos={} block={} charges={} tick={} - raycast hit {}"
+                            + " instead of the block", p, target.getBlock().getName().getString(), charges, tick,
+                    clip instanceof BlockHitResult bh ? bh.getBlockPos().toShortString() : clip.getType());
             return;
         }
+        double dist = Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(client.player.getEyePosition(), pos));
         client.level.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState());
+        LOGGER.info("[Breaker] zero ping: predicted air at pos={} block={} charges={} boxDist={} tick={} (START already"
+                        + " sent by vanilla; the server's answer decides)", p, target.getBlock().getName().getString(),
+                charges, String.format(java.util.Locale.ROOT, "%.2f", dist), tick);
     }
 
     /** Real charges reading, ported directly from QUOI's own confirmed {@code ItemUtils.getBreakerCharges}

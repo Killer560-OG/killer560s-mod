@@ -36,6 +36,15 @@ public final class TerminalStands {
                 TerminalStands::isInactiveTerminal);
     }
 
+    /** "#id at x,y,z" for log lines (pure read). */
+    public static String describe(ArmorStand stand) {
+        if (stand == null) {
+            return "none";
+        }
+        return String.format(java.util.Locale.ROOT, "#%d at %.2f,%.2f,%.2f", stand.getId(), stand.getX(), stand.getY(),
+                stand.getZ());
+    }
+
     /** The centre of a stand's box - what both features aim their interact at. */
     public static Vec3 center(ArmorStand stand) {
         return stand.position().add(0, stand.getBbHeight() / 2.0, 0);

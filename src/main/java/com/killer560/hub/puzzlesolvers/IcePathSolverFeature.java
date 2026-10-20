@@ -99,9 +99,31 @@ public final class IcePathSolverFeature {
         com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info("[IcePathSolver] {}", why);
     }
 
+    /** Logging only: the room this solver last said it was solving ("none" outside), so entry/exit log once. */
+    private static String roomLogKey = "none";
+
+    private static int countWalls() {
+        int walls = 0;
+        for (boolean[] row : board) {
+            for (boolean cellIsWall : row) {
+                if (cellIsWall) {
+                    walls++;
+                }
+            }
+        }
+        return walls;
+    }
+
     private static void tickInner(Minecraft client) {
         if (!IcePathSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
                 || client.level == null) {
+            if (!"none".equals(roomLogKey)) {
+                roomLogKey = "none";
+                lastSaid = null;
+                sayOnce("solver idle: enabled=" + IcePathSolverConfig.getInstance().isEnabled() + " inDungeon="
+                        + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss() + " level="
+                        + (client.level != null) + " - path cleared");
+            }
             if (lastRoomEntry != null) {
                 reset();
             }
@@ -114,6 +136,11 @@ public final class IcePathSolverFeature {
             reset();
         }
         if (current == null || !ROOM.equals(current.name)) {
+            if (!"none".equals(roomLogKey)) {
+                roomLogKey = "none";
+                lastSaid = null;
+                sayOnce("left Ice Path: now in " + (current == null ? "no known room" : current.name));
+            }
             return;
         }
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
@@ -122,9 +149,18 @@ public final class IcePathSolverFeature {
                     + " to measure the board against");
             return;
         }
+        String roomKey = "room " + cr[0] + "," + cr[1] + " rot " + cr[2];
+        if (!roomKey.equals(roomLogKey)) {
+            roomLogKey = roomKey;
+            lastSaid = null;
+            sayOnce("Ice Path detected: clay=" + cr[0] + "," + cr[1] + " rotation=" + cr[2]);
+        }
         Level level = client.level;
         if (updateBoard(level, cr)) {
             boardDirty = true;
+            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                    "[IcePathSolver] board changed: {} wall cell(s) of 289 at relative y 67 - will re-solve when the"
+                            + " silverfish is at rest", countWalls());
         }
 
         // 20, not 16. The board is 17 cells across, so its far corners sit exactly 8 from this centre - the
@@ -140,7 +176,13 @@ public final class IcePathSolverFeature {
             return;
         }
         Silverfish fish = found.get(0);
+        if (fish != silverfish) {
+            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info(
+                    "[IcePathSolver] silverfish found: id={} at {} ({} in the search box)", fish.getId(),
+                    fish.blockPosition().toShortString(), found.size());
+        }
         silverfish = fish;
+        boolean wasMoving = moving;
         Vec3 pos = fish.position();
         if (pos.distanceToSqr(lastPos) > 0.0001) {
             stillTicks = 0;
@@ -152,6 +194,10 @@ public final class IcePathSolverFeature {
             }
         }
         lastPos = pos;
+        if (moving != wasMoving) {
+            com.killer560.hub.util.ModLog.get("killer560smod-puzzles").info("[IcePathSolver] silverfish {} at {}",
+                    moving ? "started sliding" : "came to rest", fish.blockPosition().toShortString());
+        }
 
         if (!moving) {
             BlockPos rel = PuzzleCoords.relative(fish.blockPosition(), cr);

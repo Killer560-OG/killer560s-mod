@@ -246,6 +246,8 @@ public final class BloodCampFeature {
         String texture = getSkullTexture(head);
         if (watcherEntityId == null && texture != null && WATCHER_SKULL_TEXTURES.contains(texture)) {
             watcherEntityId = packet.getEntity();
+            LOGGER.info("[BloodCamp] Watcher found from equipment packet: entity #{} tick={}", watcherEntityId,
+                    level != null ? level.getGameTime() : -1L);
         }
     }
 
@@ -300,6 +302,8 @@ public final class BloodCampFeature {
         if (data == null) {
             data = new BloodMobState(packetVec, nowTick, firstSpawn);
             bloodMobs.put(entity, data);
+            LOGGER.info("[BloodCamp] trip tracked: stand #{} {} tracked={} tick={}", entity.getId(), data.brief(),
+                    bloodMobs.size(), nowTick);
         } else if (nowTick - data.lastMoveTick >= RESETTLE_GAP_TICKS) {
             // This class's own doc: "the SAME entity periodically repositions". Deltas arrive every tick while a
             // mob is travelling, so a gap usually means the last trip ended - without restarting here the start
@@ -313,7 +317,11 @@ public final class BloodCampFeature {
             // now goes a different way. Otherwise the trip, its path and its countdown are kept and simply resume.
             if (continuesTrip(data, packetVec, nowTick - data.lastMoveTick)) {
                 stallsBridged++;
+                LOGGER.info("[BloodCamp] stall bridged: stand #{} gap={} ticks, same trip kept ({}) tick={}", entity.getId(),
+                        nowTick - data.lastMoveTick, data.brief(), nowTick);
             } else {
+                LOGGER.info("[BloodCamp] new trip: stand #{} gap={} ticks, previous ({}) tick={}", entity.getId(),
+                        nowTick - data.lastMoveTick, data.brief(), nowTick);
                 data.restart(packetVec, nowTick, firstSpawn);
                 data.firstPacketExact = null;
             }
@@ -340,7 +348,15 @@ public final class BloodCampFeature {
         // Only a real direction replaces the path; a sum that cancels to nothing (a step back after a correction
         // undoing the step before) keeps the last good one instead of dropping it.
         if (total.lengthSqr() > 1e-8) {
+            boolean firstPath = data.endVector == null;
             data.endVector = data.startVec.add(total.normalize().scale(spawnScale));
+            if (firstPath) {
+                LOGGER.info("[BloodCamp] landing predicted: stand #{} {} remaining={} ticks tick={}", entity.getId(),
+                        data.brief(), String.format(Locale.ROOT, "%.1f", remainingTicks(data, nowTick)), nowTick);
+            } else {
+                LOGGER.debug("[BloodCamp] landing updated: stand #{} end={} deltas={}", entity.getId(), data.endVector,
+                        data.deltaHistory.size());
+            }
         }
     }
 
@@ -374,12 +390,18 @@ public final class BloodCampFeature {
 
     public static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, Level level) {
         if (watcherEntityId != null && packet.getEntityIds().contains(watcherEntityId)) {
+            LOGGER.info("[BloodCamp] Watcher removed by the server: entity #{}", watcherEntityId);
             watcherEntityId = null;
         }
         // Every remove-entities packet in every world comes here: with no blood mob tracked there is nothing to drop,
         // so no capturing lambda and iterator are made for an empty map (mixin FPS pass, 2026-10-15).
         if (!bloodMobs.isEmpty()) {
+            int before = bloodMobs.size();
             bloodMobs.keySet().removeIf(entity -> packet.getEntityIds().contains(entity.getId()));
+            if (bloodMobs.size() != before) {
+                LOGGER.info("[BloodCamp] {} tracked stand(s) removed by the server, {} left", before - bloodMobs.size(),
+                        bloodMobs.size());
+            }
         }
     }
 
@@ -413,6 +435,10 @@ public final class BloodCampFeature {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
         if (client.level != lastLevel) {
+            if (!bloodMobs.isEmpty() || watcherEntityId != null || !FLOOR_CLICKS.isEmpty()) {
+                LOGGER.info("[BloodCamp] world change: reset (tracked={} watcher={} floorClicks={} clicks={} attacks={})",
+                        bloodMobs.size(), watcherEntityId, FLOOR_CLICKS.size(), triggerClicks, triggerAttacks);
+            }
             lastLevel = client.level;
             TAG_MEMO.clear(); // entity ids belong to the level
             FLOOR_CLICKS.clear();
@@ -427,8 +453,16 @@ public final class BloodCampFeature {
             lastKillSoundTick = Long.MIN_VALUE / 2;
             lastLineOfFireLogTick = Long.MIN_VALUE / 2;
         }
-        if (!isActive()) {
+        boolean activeNow = isActive();
+        if (activeNow != lastActiveLogged) {
+            lastActiveLogged = activeNow;
+            LOGGER.info("[BloodCamp] tracking {}: inDungeon={} inBoss={} enabled={} tick={}", activeNow ? "on" : "off",
+                    DungeonState.isInDungeon(), com.killer560.hub.livemap.LiveMapFeature.isInBoss(), cfg.isEnabled(),
+                    client.level != null ? client.level.getGameTime() : -1L);
+        }
+        if (!activeNow) {
             if (!bloodMobs.isEmpty() || watcherEntityId != null) {
+                LOGGER.info("[BloodCamp] inactive: dropped tracked={} watcher={}", bloodMobs.size(), watcherEntityId);
                 bloodMobs.clear();
                 watcherEntityId = null;
             }
@@ -444,6 +478,7 @@ public final class BloodCampFeature {
         // Camp was switched on mid-run, or the floor was not detected yet when it landed, nothing was ever tracked
         // and the whole feature silently did nothing. A 1 Hz scan closes that hole.
         if (watcherEntityId != null && client.level.getEntity(watcherEntityId) == null) {
+            LOGGER.info("[BloodCamp] Watcher #{} no longer in the client world: forgotten, rescanning", watcherEntityId);
             watcherEntityId = null;
         }
         if (watcherEntityId == null) {
@@ -461,6 +496,11 @@ public final class BloodCampFeature {
 
         // killer560, 2026-10-15: "Aura and triggerbot should both only work if I am in the blood room."
         boolean inRoom = inBloodRoom(client);
+        if (inRoom != lastInBloodRoom) {
+            LOGGER.info("[BloodCamp] Blood Room: {} (watcher={} mapType={} watcherTile={}) tick={}", inRoom ? "entered" : "left",
+                    watcherEntityId, com.killer560.hub.livemap.LiveMapFeature.currentRoomType(),
+                    watcherEntityId != null && inWatcherTile(client), now);
+        }
         lastInBloodRoom = inRoom;
 
         // ---- Aura: pick the mob, then turn (before the Trigger Bot looks, as a hand would already be moving) ------
@@ -511,6 +551,22 @@ public final class BloodCampFeature {
                 : auraTrip == null ? null : aimPoint(client, auraTrip.getValue());
         Object auraKey = auraFloor != null ? (Object) ("mob" + auraFloor.getId())
                 : auraTrip == null ? null : auraTrip.getKey().getId();
+        if (!java.util.Objects.equals(auraKey, lastAuraKeyLogged)) {
+            lastAuraKeyLogged = auraKey;
+            if (auraKey == null) {
+                if (cfg.isAuraEnabled()) {
+                    LOGGER.info("[BloodCampAim] Aura target: none (inRoom={} tracked={}) tick={}", inRoom, bloodMobs.size(), now);
+                }
+            } else if (auraFloor != null) {
+                LOGGER.info("[BloodCampAim] Aura target: floor mob {} aim={} tick={}", describe(client, auraFloor),
+                        String.format(Locale.ROOT, "%.2f,%.2f,%.2f", auraPoint.x, auraPoint.y, auraPoint.z), now);
+            } else {
+                LOGGER.info("[BloodCampAim] Aura target: trip stand #{} remaining={} ticks aim={} {} tick={}",
+                        auraTrip.getKey().getId(), String.format(Locale.ROOT, "%.1f", remainingTicks(auraTrip.getValue(), now)),
+                        String.format(Locale.ROOT, "%.2f,%.2f,%.2f", auraPoint.x, auraPoint.y, auraPoint.z),
+                        auraTrip.getValue().brief(), now);
+            }
+        }
         lastAuraPoint = auraPoint;
         lastAuraFloorTarget = auraFloor == null ? -1 : auraFloor.getId();
         AIM.tick(client, auraKey, auraPoint, cfg.isAuraEnabled() && cfg.isAuraFreecam());
@@ -527,6 +583,11 @@ public final class BloodCampFeature {
         // moved by the Trigger Offset. A mob's own countdown only says when THAT mob can be hit; until then the
         // Trigger Bot clicked on it alone, 100 ticks before "KILL" in his run. See BloodCampMoveTimer#killTimerAllows.
         boolean killTimerOpen = BloodCampMoveTimer.killTimerAllows(cfg.getTriggerOffsetTicks());
+        if (killTimerOpen != lastKillTimerOpen) {
+            LOGGER.info("[BloodCamp] kill timer gate: {} (KILL shown at tick {}, offset {}) cooldown={} tick={}",
+                    killTimerOpen ? "open, attacks allowed" : "closed, attacks held", BloodCampMoveTimer.killShownTick(),
+                    cfg.getTriggerOffsetTicks(), cooldown, now);
+        }
         lastKillTimerOpen = killTimerOpen;
         trackFloorClicks(client, now);
 
@@ -547,6 +608,13 @@ public final class BloodCampFeature {
         hitSound(cfg, now, clickBelow, killTimerOpen);
         boolean triggerBotUsable = cfg.isTriggerBotEnabled() && inRoom
                 && !com.killer560.hub.util.ActionGate.containerScreenOpen(client);
+        if (triggerBotUsable != lastTriggerUsableLogged) {
+            lastTriggerUsableLogged = triggerBotUsable;
+            LOGGER.info("[BloodCamp] Trigger Bot {}: enabled={} inRoom={} containerOpen={} clickBelow={} neverMiss={} ping={}ms tick={}",
+                    triggerBotUsable ? "usable" : "not usable", cfg.isTriggerBotEnabled(), inRoom,
+                    com.killer560.hub.util.ActionGate.containerScreenOpen(client),
+                    String.format(Locale.ROOT, "%.1f", clickBelow), neverMiss, pingMs, now);
+        }
         double reach = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_ENTITY_REACH;
         Entity triggerTarget = null;
         Entity triggerHit = null;
@@ -590,6 +658,8 @@ public final class BloodCampFeature {
                     if (data.clicks > MAX_RETRIES) {
                         if (now - data.lastClickTick > retryWindow) {
                             data.gaveUp = true;
+                            LOGGER.info("[BloodCamp] Trigger Bot gave up on trip stand #{}: {} clicks, no hit within {} ticks ({}) tick={}",
+                                    entity.getId(), data.clicks, retryWindow, data.brief(), now);
                         }
                         continue;
                     }
@@ -647,8 +717,23 @@ public final class BloodCampFeature {
             if (mob != null && aimedAt(client, mob.getBoundingBox())) {
                 auraMob = mob;
             } else {
+                if (mob != null) {
+                    if (auraHeldDue(now, "aim")) {
+                        logAuraHeld(now, "aim", "look not on " + describe(client, mob) + " yet (turning="
+                                + AIM.isTurning() + ")");
+                    }
+                } else if (auraTrip != null && auraHeldDue(now, "trip")) {
+                    logAuraHeld(now, "trip", "trip stand #" + auraTrip.getKey().getId() + " not hittable yet ("
+                            + String.format(Locale.ROOT, "%.1f", remainingTicks(auraTrip.getValue(), now))
+                            + " ticks left, clickBelow " + String.format(Locale.ROOT, "%.1f", clickBelow) + ", mob on spot="
+                            + (nearestMob(client, auraTrip.getValue().endVector) != null) + ")");
+                }
                 auraHitData = null;
             }
+        } else if (triggerTarget == null && cfg.isAuraEnabled() && (auraFloor != null || auraTrip != null)
+                && auraHeldDue(now, "gate")) {
+            logAuraHeld(now, "gate", "target chosen but not attacking: inRoom=" + inRoom + " killTimerOpen=" + killTimerOpen
+                    + " containerOpen=" + com.killer560.hub.util.ActionGate.containerScreenOpen(client));
         }
 
         // ---- Trigger Bot on the next mob that comes into range (killer560, 2026-10-18: "then it attacked 1 mob after
@@ -728,7 +813,12 @@ public final class BloodCampFeature {
                 ALL_CLICKS.removeFirst();
             }
             lastTrigger = "human " + kind.name().toLowerCase(Locale.ROOT) + " between hits";
+            LOGGER.info("[BloodCamp] between-hits click: {} on {} sinceHit={} of cooldown {} ticks tick={}", kind,
+                    describe(client, fillerMob), now - lastClickTick, cooldown, now);
             return;
+        }
+        if (fillerNow) {
+            LOGGER.debug("[BloodCamp] between-hits click held by ActionGate tick={}", now);
         }
         boolean anyTarget = triggerTarget != null || auraMob != null || triggerFloor != null;
         if (!anyTarget && cfg.isTriggerBotEnabled()) {
@@ -770,7 +860,8 @@ public final class BloodCampFeature {
                         + triggerFloor.getType().toShortString() + " #" + triggerFloor.getId()
                         + String.format(Locale.US, ", %.1f blocks",
                         client.player.getEyePosition().distanceTo(triggerFloor.getBoundingBox().getCenter()));
-                LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
+                LOGGER.info("[BloodCamp] Trigger Bot clicked: {} (floor mob, click {} of max {}, cooldown {} ticks) tick={}",
+                        lastTrigger, fc.clicks, MAX_RETRIES + 1, cooldown, now);
                 return;
             }
             if (triggerTarget == null) {
@@ -787,7 +878,8 @@ public final class BloodCampFeature {
                 lastTrigger = "aura " + done.name().toLowerCase(Locale.ROOT) + " " + auraMob.getType().toShortString()
                         + " #" + auraMob.getId() + String.format(Locale.US, ", %.1f blocks",
                         client.player.getEyePosition().distanceTo(auraMob.getBoundingBox().getCenter()));
-                LOGGER.info("[BloodCamp] Aura clicked: {}", lastTrigger);
+                LOGGER.info("[BloodCamp] Aura clicked: {} (trip={} cooldown {} ticks) tick={}", lastTrigger,
+                        auraHitData == null ? "floor" : auraHitData.brief(), cooldown, now);
                 return;
             }
             Click done = click(client, triggerHit);
@@ -820,7 +912,9 @@ public final class BloodCampFeature {
                     + triggerHit.getType().toShortString() + " #" + triggerHit.getId() : done.name().toLowerCase(Locale.ROOT))
                     + String.format(Locale.US, " at %.1f ticks, %.1f blocks", bestRemaining,
                     client.player.getEyePosition().distanceTo(triggerData.endVector));
-            LOGGER.info("[BloodCamp] Trigger Bot clicked: {}", lastTrigger);
+            LOGGER.info("[BloodCamp] Trigger Bot clicked: {} (stand #{}, clickBelow={} neverMiss={} ping={}ms cooldown {} ticks) tick={}",
+                    lastTrigger, triggerTarget.getId(), String.format(Locale.ROOT, "%.1f", clickBelow), neverMiss, pingMs,
+                    cooldown, now);
         }
     }
 
@@ -843,6 +937,23 @@ public final class BloodCampFeature {
         lastRefusalLogTick = now;
         lastLineOfFireLogTick = now;
         LOGGER.info("[BloodCamp] Trigger Bot held: {}", detail);
+    }
+
+    private static String lastAuraHeldKey;
+    private static long lastAuraHeldTick = Long.MIN_VALUE / 2;
+
+    private static boolean auraHeldDue(long now, String key) {
+        return !key.equals(lastAuraHeldKey) || now - lastAuraHeldTick >= 20;
+    }
+
+    /** The Aura's own held attacks, the {@link #logRefusal} pattern: a new kind at once, the same kind once a second. */
+    private static void logAuraHeld(long now, String key, String detail) {
+        if (key.equals(lastAuraHeldKey) && now - lastAuraHeldTick < 20) {
+            return;
+        }
+        lastAuraHeldKey = key;
+        lastAuraHeldTick = now;
+        LOGGER.info("[BloodCampAim] Aura attack held: {} tick={}", detail, now);
     }
 
     private static String describe(Minecraft client, Entity e) {
@@ -1083,11 +1194,15 @@ public final class BloodCampFeature {
                     if (isBloodTagCached(stand)) {
                         Entity mob = BloodMobNames.mobFor(client, stand);
                         if (mob != null && (watcherEntityId == null || mob.getId() != watcherEntityId)) {
-                            BLOOD_IDS.add(mob.getId());
+                            if (BLOOD_IDS.add(mob.getId())) {
+                                LOGGER.info("[BloodCamp] blood mob tagged by name tag: {} tick={}", describe(client, mob), now);
+                            }
                         }
                     }
                 } else if (BloodMobNames.isNamedNpc(client, e)) {
-                    BLOOD_IDS.add(e.getId());
+                    if (BLOOD_IDS.add(e.getId())) {
+                        LOGGER.info("[BloodCamp] blood mob tagged as named NPC: {} tick={}", describe(client, e), now);
+                    }
                 } else if (isRoomNpc(client, e)) {
                     // killer560, 2026-10-19: "watcher triggerbot still almost never fires." His run's log: the click was
                     // held for "player #1158128 in the line of fire" - a player-model NPC (not a real player: those are
@@ -1095,7 +1210,10 @@ public final class BloodCampFeature {
                     // Untagged, it was not a target (nearestMob, the next-mob pass and Never Miss all read BLOOD_IDS) and
                     // it blocked the click on every mob behind it. Nothing but the Watcher's summons is a player-model
                     // NPC inside the Blood Room, so one there is a blood mob.
-                    BLOOD_IDS.add(e.getId());
+                    if (BLOOD_IDS.add(e.getId())) {
+                        LOGGER.info("[BloodCamp] blood mob tagged as player-model NPC in the room: {} tick={}",
+                                describe(client, e), now);
+                    }
                 }
             }
         }
@@ -1123,7 +1241,11 @@ public final class BloodCampFeature {
             }
             if (best != null) {
                 data.mobId = best.getId();
-                BLOOD_IDS.add(best.getId());
+                if (BLOOD_IDS.add(best.getId())) {
+                    LOGGER.info("[BloodCamp] blood mob tagged by trip landing: {} stand #{} offSpot={} tick={}",
+                            describe(client, best), entry.getKey().getId(),
+                            String.format(Locale.ROOT, "%.2f", Math.sqrt(bestD)), now);
+                }
             }
         }
     }
@@ -1187,6 +1309,10 @@ public final class BloodCampFeature {
     /** Testkit: the cap in force last tick, Aura attacks sent, the floor mob the Aura last aimed at (-1 none), and
      *  whether a living mob stood on the spot when the last first click went. */
     private static int lastCooldownTicks;
+    /** Logging only: last Aura target key logged, and the active state last logged. */
+    private static Object lastAuraKeyLogged;
+    private static boolean lastActiveLogged;
+    private static boolean lastTriggerUsableLogged;
     private static int auraAttacks;
     private static int lastAuraFloorTarget = -1;
     private static boolean lastTriggerMobPresent;
@@ -1247,12 +1373,16 @@ public final class BloodCampFeature {
             var entry = it.next();
             Entity e = client.level.getEntity(entry.getIntKey());
             if (e == null || e.isRemoved() || !e.isAlive()) {
+                LOGGER.info("[BloodCamp] clicked mob #{} dead or gone (clicks={} hit={}) tick={}", entry.getIntKey(),
+                        entry.getValue().clicks, entry.getValue().hit, now);
                 it.remove();
                 continue;
             }
             FloorClick fc = entry.getValue();
             if (!fc.hit && now > fc.lastTick && e instanceof LivingEntity living && living.hurtTime > 0) {
                 fc.hit = true;
+                LOGGER.info("[BloodCamp] hit seen on clicked mob {} (clicks={}, {} ticks after the last) tick={}",
+                        describe(client, e), fc.clicks, now - fc.lastTick, now);
             }
         }
     }
@@ -1517,6 +1647,8 @@ public final class BloodCampFeature {
                 Entity attacked = client.level.getEntity(data.lastAttackedId);
                 if (attacked == null || attacked.isRemoved() || !attacked.isAlive()) {
                     data.confirmed = true;
+                    LOGGER.info("[BloodCamp] hit confirmed: attacked mob #{} dead or gone, {} ticks after the last click ({}) tick={}",
+                            data.lastAttackedId, now - data.lastClickTick, data.brief(), now);
                     continue;
                 }
             }
@@ -1530,6 +1662,9 @@ public final class BloodCampFeature {
                 LivingEntity living = (LivingEntity) candidate;
                 if (living.hurtTime > 0 || !living.isAlive()) {
                     data.confirmed = true;
+                    LOGGER.info("[BloodCamp] hit confirmed: {} #{} on the landing spot {} (hurtTime={}) clicks={} sinceClick={} tick={}",
+                            candidate.getType().toShortString(), candidate.getId(), living.isAlive() ? "hurt" : "dead",
+                            living.hurtTime, data.clicks, data.clicks > 0 ? now - data.lastClickTick : -1L, now);
                     break;
                 }
             }
@@ -1649,6 +1784,8 @@ public final class BloodCampFeature {
         if (kill && cfg.isKillSound() && volume > 0f && nowTick - lastKillSoundTick >= SOUND_MIN_GAP_TICKS) {
             lastKillSoundTick = nowTick;
             killSoundsPlayed++;
+            LOGGER.info("[BloodCamp] Kill Sound played: clickBelow={} tick={}", String.format(Locale.ROOT, "%.1f", clickBelow),
+                    nowTick);
             KILL_SOUND_TICKS.addLast(nowTick);
             while (KILL_SOUND_TICKS.size() > 32) {
                 KILL_SOUND_TICKS.removeFirst();
@@ -1712,6 +1849,9 @@ public final class BloodCampFeature {
             String texture = getSkullTexture(zombie.getItemBySlot(EquipmentSlot.HEAD));
             if (texture != null && WATCHER_SKULL_TEXTURES.contains(texture)) {
                 watcherEntityId = zombie.getId();
+                LOGGER.info("[BloodCamp] Watcher found by scan: entity #{} at {} tick={}", watcherEntityId,
+                        String.format(Locale.ROOT, "%.1f,%.1f,%.1f", zombie.getX(), zombie.getY(), zombie.getZ()),
+                        client.level.getGameTime());
                 return;
             }
         }

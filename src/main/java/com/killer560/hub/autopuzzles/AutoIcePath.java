@@ -68,8 +68,11 @@ final class AutoIcePath {
             return;
         }
         lastSaid = what;
-        LOGGER.info("[AutoIcePath] {}", what);
+        LOGGER.info("[AutoIcePath] {} (tick {})", what, com.killer560.hub.util.SessionRecorderSink.tick());
     }
+
+    /** Tick of the first shot this visit, for elapsed-tick lines on the finish; -1 before it. */
+    private static long firstShotTick = -1L;
 
     static void tick(Minecraft client, String roomName) {
         // Only read while the guard can still learn from it or the auto runs (fps-auto-1015).
@@ -127,6 +130,11 @@ final class AutoIcePath {
         if (shotThisVisit && !CHEST.isFinished() && ((fish == null && stopsLeftAtShot <= 1) || path.size() == 1)) {
             // Solved: the silverfish is out (Hypixel takes it away at the exit). Nothing opened the reward chest
             // after this before (killer560, 2026-10-15) - Secret Aura skips Ice Path entirely.
+            LOGGER.info("[AutoIcePath] solved: fish={} stopsLeftAtShot={} pathSize={} shots at last cell={} -"
+                            + " starting the reward chest, {} tick(s) since the first shot (tick {})",
+                    fish == null ? "gone" : AutoPuzzleUtil.fmt(fish.blockPosition()), stopsLeftAtShot, path.size(),
+                    shotsAtCell, firstShotTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - firstShotTick,
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             CAMERA.release(player);
             REPOSITION.cancel(client);
             AutoReposition.releaseSneak(client);
@@ -151,8 +159,12 @@ final class AutoIcePath {
         if (REPOSITION.isActive()) {
             REPOSITION.tick(client);
             if (REPOSITION.isActive() || !AutoReposition.landedThisTick()) {
+                say(REPOSITION.isActive() ? "waiting: etherwarp reposition under way"
+                        : "waiting: etherwarp reposition ended without a landing this tick");
                 return;
             }
+            LOGGER.info("[AutoIcePath] reposition landed at {} (tick {})", AutoPuzzleUtil.fmt(player.blockPosition()),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
             // Landed this tick: carry on below, so a second warp (onto the cell after a hop that sees it) is started in
             // this tick - its sneak taken straight back, its use next tick - while the shot waits for the next tick.
         }
@@ -161,13 +173,17 @@ final class AutoIcePath {
         BlockPos nextSpot = BlockPos.containing(path.get(1));
 
         if (IcePathSolverFeature.isSilverfishMoving()) {
-            say("waiting: the silverfish is sliding");
             if (reposition && !AutoPuzzleUtil.at(player, nextSpot)) {
-                REPOSITION.start(client, nextSpot, true, false, false);
+                boolean started = REPOSITION.start(client, nextSpot, true, false, false);
+                say("waiting: the silverfish is sliding - reposition onto the next stop " + AutoPuzzleUtil.fmt(nextSpot)
+                        + (started ? " started" : " refused (no etherwarp line)"));
+            } else {
+                say("waiting: the silverfish is sliding");
             }
             return;
         }
         if (now - lastShotTime < cfg.getShootCooldownMs()) {
+            LOGGER.debug("[AutoIcePath] shoot cooldown: {} of {} ms", now - lastShotTime, cfg.getShootCooldownMs());
             return;
         }
         BlockPos fishPos = fish.blockPosition();
@@ -184,6 +200,8 @@ final class AutoIcePath {
             return;
         }
         if (AutoReposition.landedThisTick()) {
+            LOGGER.info("[AutoIcePath] on the silverfish's cell {} - landed this tick, shot waits a tick (tick {})",
+                    AutoPuzzleUtil.fmt(currSpot), com.killer560.hub.util.SessionRecorderSink.tick());
             return; // the shot goes the tick after the landing, not in it
         }
         AutoPuzzleUtil.BowState bow = AutoPuzzleUtil.holdShortbow(client, player);
@@ -204,7 +222,12 @@ final class AutoIcePath {
         float yaw = AutoPuzzleUtil.direction(Vec3.atCenterOf(currSpot), Vec3.atCenterOf(nextSpot))[0];
         CAMERA.engage(player); // before the aim turns him
         if (!AutoPuzzleUtil.useItemRotated(client, player, yaw, 90f)) {
+            say("held: the action gate refused the shot from " + AutoPuzzleUtil.fmt(currSpot) + " toward "
+                    + AutoPuzzleUtil.fmt(nextSpot));
             return; // gate held this tick back - no shot, so lastShotTime must not move
+        }
+        if (firstShotTick < 0) {
+            firstShotTick = com.killer560.hub.util.SessionRecorderSink.tick();
         }
         lastShotTime = now;
         shotThisVisit = true;
@@ -215,9 +238,11 @@ final class AutoIcePath {
         }
         shotsAtCell++;
         lastSaid = null; // whatever it waits on after a shot is news again
-        LOGGER.info("[AutoIcePath] shot {} from {} toward the next stop {} (yaw {}), {} stop(s) left",
+        LOGGER.info("[AutoIcePath] shot {} from {} toward the next stop {} (yaw {}, pitch 90, item {}), {} stop(s)"
+                        + " left, fish at {} (tick {})",
                 shotsAtCell, AutoPuzzleUtil.fmt(currSpot), AutoPuzzleUtil.fmt(nextSpot),
-                String.format(java.util.Locale.US, "%.1f", yaw), path.size() - 1);
+                String.format(java.util.Locale.US, "%.1f", yaw), player.getMainHandItem().getHoverName().getString(),
+                path.size() - 1, AutoPuzzleUtil.fmt(fishPos), com.killer560.hub.util.SessionRecorderSink.tick());
         if (shotsAtCell == STUCK_SHOTS) {
             LOGGER.warn("[AutoIcePath] {} shots from {} and the silverfish has not moved - the shots are landing"
                     + " (or not) without shoving it", STUCK_SHOTS, AutoPuzzleUtil.fmt(currSpot));
@@ -244,6 +269,7 @@ final class AutoIcePath {
      */
     private static void getOnto(Minecraft client, LocalPlayer player, BlockPos currSpot, boolean reposition) {
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()) {
+            say("waiting: a map walk is under way toward " + AutoPuzzleUtil.fmt(currSpot));
             return; // a walk this started is still under way
         }
         if (reposition) {
@@ -308,6 +334,13 @@ final class AutoIcePath {
     }
 
     private static void reset(Minecraft client) {
+        if (shotThisVisit || shotsAtCell > 0) {
+            LOGGER.info("[AutoIcePath] reset: left the room, switched off or changed world after {} shot(s) at the last"
+                            + " cell, {} tick(s) since the first shot, chest finished={} (tick {})",
+                    shotsAtCell, firstShotTick < 0 ? -1 : com.killer560.hub.util.SessionRecorderSink.tick() - firstShotTick,
+                    CHEST.isFinished(), com.killer560.hub.util.SessionRecorderSink.tick());
+        }
+        firstShotTick = -1L;
         REPOSITION.cancel(client);
         AutoReposition.releaseSneak(client);
         CAMERA.release(client.player);

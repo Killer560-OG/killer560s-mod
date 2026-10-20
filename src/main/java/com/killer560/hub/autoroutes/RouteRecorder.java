@@ -115,6 +115,7 @@ public final class RouteRecorder {
         LocalPlayer player = client.player;
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         if (!cfg.isEnabled()) {
+            LOGGER.info("[AutoRoutes] Recording refused: Auto Routes is off");
             AutoRoutesFeature.chatBad("Auto Routes is off (cheat build + Skyblock only).");
             return null;
         }
@@ -122,18 +123,25 @@ public final class RouteRecorder {
             // Only reachable while the world isn't fully loaded - see AutoRoutesCommands#ready()'s identical
             // check (2026-09-2x review: this and addNode's own copy were the only two silent refusals /ar
             // start record and /ar add could hit without saying why).
+            LOGGER.info("[AutoRoutes] Recording refused: no player / level");
             AutoRoutesFeature.chatBad("Not fully loaded into the world yet - try again in a moment.");
             return null;
         }
         if (recording) {
+            LOGGER.info("[AutoRoutes] Recording refused: already recording {}", route == null ? null : route.roomName());
             AutoRoutesFeature.chatBad("Already recording - /ar stop record first.");
             return null;
         }
         RouteCoords.Frame f = RouteCoords.Frame.current();
         if (f == null) {
+            LOGGER.info("[AutoRoutes] Recording refused: room not identified");
             AutoRoutesFeature.chatBad("Room not identified yet - stand in a scanned room.");
             return null;
         }
+        LOGGER.info("[AutoRoutes] Recording started in {} (rotation {}, clay {},{}) at {}, replaces saved route={}, tick={}",
+                f.roomName(), f.rotation(), f.clayX(), f.clayZ(),
+                String.format(Locale.ROOT, "%.2f,%.2f,%.2f", player.getX(), player.getY(), player.getZ()),
+                RouteStore.getInstance().ownRoute(f.roomName()) != null, AwaitEvents.now());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("recording started");
         }
@@ -166,9 +174,12 @@ public final class RouteRecorder {
 
     public static String stopRecording() {
         if (!recording) {
+            LOGGER.info("[AutoRoutes] Stop recording refused: not recording");
             AutoRoutesFeature.chatBad("Not recording.");
             return null;
         }
+        LOGGER.info("[AutoRoutes] Recording stopped in {}: {} sample(s), {} node(s), pending etherwarp dropped={}, tick={}",
+                route.roomName(), route.path().size(), route.nodes().size(), pendingEtherwarp != null, AwaitEvents.now());
         Route done = route;
         recording = false;
         route = null;
@@ -204,6 +215,8 @@ public final class RouteRecorder {
         RouteCoords.Frame now = RouteCoords.Frame.current();
         if (now == null || !now.sameRoom(frame)) {
             // Walked (or warped) out of the room: the route is per-room, so that is the end of it.
+            LOGGER.info("[AutoRoutes] Recording ends: left {} (now in {})", frame.roomName(),
+                    now == null ? "an unidentified room" : now.roomName());
             String msg = stopRecording();
             if (msg != null) {
                 AutoRoutesFeature.chatInfo(msg + " (left the room)");
@@ -211,6 +224,7 @@ public final class RouteRecorder {
             return;
         }
         if (route.path().size() >= RouteStore.MAX_SAMPLES) {
+            LOGGER.info("[AutoRoutes] Recording ends: sample limit {} reached", RouteStore.MAX_SAMPLES);
             AutoRoutesFeature.chatInfo(stopRecording() + " (recording limit reached)");
             return;
         }
@@ -220,6 +234,13 @@ public final class RouteRecorder {
         // ---- teleport detection: an etherwarp / item teleport shows up as one big jump between two samples ----
         if (lastRealPos != null && pos.distanceTo(lastRealPos) > TELEPORT_JUMP) {
             Vec3 landing = RouteCoords.toRelative(frame, pos);
+            LOGGER.info("[AutoRoutes] Recording: teleport of {} blocks at sample {} to {} - {}",
+                    String.format(Locale.ROOT, "%.1f", pos.distanceTo(lastRealPos)), sampleIndex,
+                    String.format(Locale.ROOT, "%.2f,%.2f,%.2f", pos.x, pos.y, pos.z),
+                    pendingEtherwarp != null ? "etherwarp node recorded"
+                            : lastActionNode != null && !lastActionNode.hasLanding
+                            && sampleIndex - lastActionSample <= LANDING_WINDOW_TICKS ? "landing of the last use node"
+                            : "not ours (server move), nothing recorded");
             if (pendingEtherwarp != null) {
                 pendingEtherwarp.setLanding(landing);
                 pendingEtherwarp.roundToSaved();
@@ -238,6 +259,8 @@ public final class RouteRecorder {
         lastRealPos = pos;
 
         if (pendingEtherwarpTicks > 0 && --pendingEtherwarpTicks == 0) {
+            LOGGER.info("[AutoRoutes] Recording: etherwarp click dropped - no teleport within {} ticks",
+                    ETHERWARP_PENDING_TICKS);
             pendingEtherwarp = null; // the etherwarp click never teleported (no valid target) - not a node
         }
 
@@ -273,6 +296,8 @@ public final class RouteRecorder {
             // looked. A click into the air with nothing in hand does nothing in the game, so it is not a node.
             HitResult hit = Minecraft.getInstance().hitResult;
             if (!(hit instanceof BlockHitResult) || hit.getType() != HitResult.Type.BLOCK) {
+                LOGGER.info("[AutoRoutes] Recording: empty-hand right click into the air at sample {} - not a node",
+                        sampleIndex);
                 return;
             }
             RouteNode node = nodeAtPlayer(player, sampleIndex);
@@ -280,6 +305,8 @@ public final class RouteRecorder {
             node.item = null;
             node.roundToSaved();
             route.nodes().add(node);
+            LOGGER.info("[AutoRoutes] Recording: empty-hand block click at sample {} -> node #{} (use, click block)",
+                    sampleIndex, route.nodes().size());
             // A hand click teleports nothing, so a jump after it is not this node's landing.
             lastActionNode = null;
             return;
@@ -292,12 +319,16 @@ public final class RouteRecorder {
                     player.getY() + TeleportUtils.eyeHeight(true), player.getZ())));
             pendingEtherwarp = node;
             pendingEtherwarpTicks = ETHERWARP_PENDING_TICKS;
+            LOGGER.info("[AutoRoutes] Recording: sneaking etherwarp click at sample {} - waiting up to {} ticks for the"
+                    + " teleport", sampleIndex, ETHERWARP_PENDING_TICKS);
             return;
         }
         node.type = RouteNode.Type.USE_ITEM;
         node.item = ItemIdentity.of(held);
         node.roundToSaved();
         route.nodes().add(node);
+        LOGGER.info("[AutoRoutes] Recording: right click with {} at sample {} -> node #{} (use)", node.item, sampleIndex,
+                route.nodes().size());
         lastActionNode = node;
         lastActionSample = sampleIndex;
     }
@@ -312,6 +343,8 @@ public final class RouteRecorder {
             node.type = RouteNode.Type.BOOM;
             node.roundToSaved();
             route.nodes().add(node);
+            LOGGER.info("[AutoRoutes] Recording: left click with {} at sample {} -> node #{} (boom)", id, sampleIndex,
+                    route.nodes().size());
             lastActionNode = node;
             lastActionSample = sampleIndex;
             return;
@@ -333,6 +366,9 @@ public final class RouteRecorder {
             if (!breakerBeingBuilt.breakerBlocks.contains(rel)) {
                 breakerBeingBuilt.breakerBlocks.add(rel);
             }
+            LOGGER.info("[AutoRoutes] Recording: breaker click on {} at sample {} -> breaker node #{} ({} block(s))",
+                    blockHit.getBlockPos().toShortString(), sampleIndex, route.indexOf(breakerBeingBuilt) + 1,
+                    breakerBeingBuilt.breakerBlocks.size());
         }
     }
 
@@ -529,10 +565,14 @@ public final class RouteRecorder {
         if (mods.awaitEnabled) {
             extra += " [await " + node.awaitCondition.name().toLowerCase(Locale.ROOT) + " " + node.awaitAmount + "]";
         }
+        LOGGER.info("[AutoRoutes] /ar add {}: node #{} in {} at rel {} (anchor sample {}, recording={}, firing={}){}",
+                type, target.indexOf(node) + 1, f.roomName(),
+                String.format(Locale.ROOT, "%.2f,%.2f,%.2f", rel.x, rel.y, rel.z), anchor, recording, firing, extra);
         return "Added " + type.label() + extra + " to " + f.roomName() + (firing ? " - firing it" : "");
     }
 
     private static String bad(String message) {
+        LOGGER.info("[AutoRoutes] /ar add refused: {}", message);
         AutoRoutesFeature.chatBad(message);
         return null;
     }

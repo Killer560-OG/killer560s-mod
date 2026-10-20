@@ -84,6 +84,45 @@ public final class AutoPuzzlesFeature {
     private AutoPuzzlesFeature() {
     }
 
+    /** Logging only: the dispatcher's last logged state (room and why nothing ran), so each change is one line. */
+    private static String dispatchLogged = null;
+
+    private static long nowTick() {
+        return com.killer560.hub.util.SessionRecorderSink.tick();
+    }
+
+    /** The auto that owns {@code roomName} and whether it is on, for the dispatcher's line; null for a room with none. */
+    private static String autoFor(String roomName) {
+        if (roomName == null) {
+            return null;
+        }
+        AutoPuzzlesConfig c = AutoPuzzlesConfig.getInstance();
+        return switch (roomName) {
+            case QUIZ_ROOM -> "Auto Quiz " + onOff(c.isAutoQuizEnabled());
+            case WEIRDOS_ROOM -> "Auto Three Weirdos " + onOff(c.isAutoWeirdosEnabled());
+            case "Water Board" -> "Auto Water Board " + onOff(c.isAutoWaterEnabled());
+            case "Teleport Maze" -> "Auto Teleport Maze " + onOff(c.isAutoTeleportMazeEnabled());
+            case "Boulder" -> "Auto Boulder " + onOff(c.isAutoBoulderEnabled());
+            case "Tic Tac Toe" -> "Auto Tic Tac Toe " + onOff(c.isAutoTicTacToeEnabled());
+            case "Ice Fill" -> "Auto Ice Fill " + onOff(c.isAutoIceFillEnabled());
+            case "Ice Path" -> "Auto Ice Path " + onOff(c.isAutoIcePathEnabled());
+            case "Creeper Beams" -> "Auto Creeper Beams " + onOff(c.isAutoBeamsEnabled());
+            case "Higher Blaze", "Lower Blaze" -> "Auto Blaze " + onOff(c.isAutoBlazeEnabled());
+            default -> null;
+        };
+    }
+
+    private static String onOff(boolean on) {
+        return on ? "on" : "off";
+    }
+
+    private static void logDispatch(String state) {
+        if (!state.equals(dispatchLogged)) {
+            dispatchLogged = state;
+            LOGGER.info("[AutoPuzzles] dispatcher: {} tick={}", state, nowTick());
+        }
+    }
+
     /** Auto Ice Fill's own "done" (the finish tile is packed ice), for Auto Secret waiting on it in the room. */
     public static boolean isIceFillDone() {
         return AutoIceFill.isDone();
@@ -125,6 +164,8 @@ public final class AutoPuzzlesFeature {
         // even if the next answer arrives in the same tick (so the null gap is never observed).
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")
                 && (msg.contains("answered Question #") || msg.contains("answered the final question"))) {
+            LOGGER.info("[AutoPuzzles] Quiz: Oruo counted an answer ({}) - re-armed for the next question (acted={})"
+                    + " tick={}", msg.contains("final") ? "final question" : "a question", quizActed, nowTick());
             resetQuiz();
             // The answer counted: Auto Secret and Autopilot carry on now, not 40 ticks later - between questions it goes
             // off to other work (2026-10-17), and after the last one the room is solved.
@@ -137,6 +178,9 @@ public final class AutoPuzzlesFeature {
         AutoPuzzleUtil.turnTick(client); // first, always: a body turned for a click is given back the tick after
         AutoPuzzleActivity.tick(client);
         if (client.level != lastLevel) {
+            LOGGER.info("[AutoPuzzles] dispatcher: world changed ({}) - every puzzle auto reset, solvers must be seen"
+                    + " empty again tick={}", client.level == null ? "no world" : "new world", nowTick());
+            dispatchLogged = null;
             lastLevel = client.level;
             resetQuiz();
             QUIZ_CAMERA.drop();
@@ -154,16 +198,28 @@ public final class AutoPuzzlesFeature {
         }
         // Latches: once set they stay set until the next world, so the solver is only asked while they are not.
         if (!quizSolverClearedThisLevel && QuizSolverFeature.getCorrectAnswerPos() == null) {
+            LOGGER.info("[AutoPuzzles] Quiz: solver seen empty in this world - its answers are safe to act on, tick={}",
+                    nowTick());
             quizSolverClearedThisLevel = true;
         }
         AutoWeirdos.observeSolver();
         if (client.player == null || client.level == null || client.gameMode == null) {
+            logDispatch("idle - no player, world or game mode");
             return;
         }
         boolean inDungeon = DungeonState.isInDungeon();
         boolean inBoss = LiveMapFeature.isInBoss();
         RoomEntry room = inDungeon && !inBoss ? LiveMapFeature.currentRoomEntry() : null;
         String roomName = room != null ? room.name : null;
+        {
+            String owner = autoFor(roomName);
+            logDispatch(!inDungeon ? "idle - not in a dungeon"
+                    : inBoss ? "idle - in the boss"
+                    : roomName == null ? "idle - the live map has no room for where he stands"
+                    : owner == null ? "room '" + roomName + "' - no puzzle auto for it"
+                    : "room '" + roomName + "' - " + owner + (AutoPuzzlesConfig.getInstance().isAutoPuzzlesMasterEnabled()
+                    ? "" : " (Auto Puzzles master switch off or not in Skyblock)"));
+        }
         tickQuiz(client, QUIZ_ROOM.equals(roomName));
         AutoWeirdos.tick(client, WEIRDOS_ROOM.equals(roomName));
         // QUOI puzzle autos (each gates on its own toggle + room name and never acts on pre-world solver data).
@@ -195,6 +251,7 @@ public final class AutoPuzzlesFeature {
         if (!QuizSolverConfig.getInstance().isEnabled()) {
             if (!quizSolverOffWarned) {
                 quizSolverOffWarned = true;
+                LOGGER.info("[AutoPuzzles] Quiz: not acting - Quiz Solver is off (warned once) tick={}", nowTick());
                 ModChat.send(CHAT, ModChat.text("Auto Quiz needs "), ModChat.value("Quiz Solver"),
                         ModChat.text(" turned on."));
             }
@@ -224,11 +281,20 @@ public final class AutoPuzzlesFeature {
         }
         long now = System.currentTimeMillis();
         if (!answer.equals(quizPendingPos)) {
+            LOGGER.info("[AutoPuzzles] Quiz: new answer {} from the solver (question {}) - delay {} ms tick={}",
+                    answer.toShortString(), com.killer560.hub.puzzlesolvers.QuizState.question(), cfg.getQuizDelayMs(),
+                    nowTick());
             quizPendingPos = answer;
             quizPendingSinceMs = now;
             quizWaitLogged = false;
         }
         if (now - quizPendingSinceMs < cfg.getQuizDelayMs() || McCompat.screen(client) != null) {
+            String why = McCompat.screen(client) != null ? "a screen is open" : "Answer Delay (" + cfg.getQuizDelayMs()
+                    + " ms)";
+            if (!why.equals(quizBlockerLogged)) {
+                quizBlockerLogged = why;
+                LOGGER.info("[AutoPuzzles] Quiz: answer {} known, waiting - {}", answer.toShortString(), why);
+            }
             return;
         }
         // THE BUTTON - see below. Asked before the gate so a click the reported look misses turns the body first. The
@@ -286,10 +352,13 @@ public final class AutoPuzzlesFeature {
                     click, client.level.getBlockState(click));
             return;
         }
-        LOGGER.info("[AutoPuzzles] Quiz: answered question {} at server tick {} (answerable from {})",
+        LOGGER.info("[AutoPuzzles] Quiz: answered question {} at server tick {} (answerable from {}) - button {}"
+                        + " for answer {}, boxDist={} waitedMs={} tick={}",
                 com.killer560.hub.puzzlesolvers.QuizState.question(),
                 com.killer560.hub.witherdragons.ServerTickClock.now(),
-                com.killer560.hub.puzzlesolvers.QuizState.answerAtTick());
+                com.killer560.hub.puzzlesolvers.QuizState.answerAtTick(), click.toShortString(), answer.toShortString(),
+                String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(
+                        client.player.getEyePosition(), click))), now - quizPendingSinceMs, nowTick());
         ModChat.log(CHAT, ModChat.text("Quiz: clicked the "), ModChat.good("correct answer"), ModChat.text("."));
         releaseQuizCamera();
     }
@@ -379,8 +448,11 @@ public final class AutoPuzzlesFeature {
         }
         if (AutoPuzzleUtil.pathIfMapOn(spots.get(0), null, true)) {
             quizMovedFor = button;
-            LOGGER.info("[AutoPuzzles] Quiz: the answer's button {} is out of reach - moving onto {}",
-                    button.toShortString(), spots.get(0).toShortString());
+            LOGGER.info("[AutoPuzzles] Quiz: the answer's button {} is out of reach - moving onto {} tick={}",
+                    button.toShortString(), spots.get(0).toShortString(), nowTick());
+        } else {
+            LOGGER.debug("[AutoPuzzles] Quiz: move onto {} for button {} not started this tick (see PuzzleUtil)",
+                    spots.get(0).toShortString(), button.toShortString());
         }
     }
 
@@ -420,6 +492,8 @@ public final class AutoPuzzlesFeature {
         BlockState state = client.level.getBlockState(pos);
         VoxelShape shape = state.getShape(client.level, pos);
         if (shape.isEmpty()) {
+            LOGGER.info("[AutoPuzzles] Quiz: click refused - {} at {} has no shape tick={}", state.getBlock(),
+                    pos.toShortString(), nowTick());
             return false;
         }
         Vec3 eyes = client.player.getEyePosition();
@@ -433,6 +507,10 @@ public final class AutoPuzzlesFeature {
             // 2026-09-28) - so this last-resort centre is fine where it is and was deliberately left alone.
             hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
         }
+        LOGGER.info("[AutoPuzzles] Quiz: click sent: {} at {} face={} hit={} eye={} tick={}", state.getBlock(),
+                pos.toShortString(), hit.getDirection(), String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f",
+                        hit.getLocation().x, hit.getLocation().y, hit.getLocation().z),
+                String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", eyes.x, eyes.y, eyes.z), nowTick());
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         client.player.swing(InteractionHand.MAIN_HAND);
         return true;

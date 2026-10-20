@@ -98,6 +98,7 @@ public final class RouteStore {
     /** {@code /ar reload}: re-read the file, replacing what is in memory. Stops a running route first rather than
      *  swapping the node list out from under the executor. Safe from {@code ProfileManager.reloadAllConfigs}. */
     public static void reload() {
+        LOGGER.info("[RouteStore] reload: running={} recording={}", RouteExecutor.isRunning(), RouteRecorder.isRecording());
         if (RouteExecutor.isRunning()) {
             RouteExecutor.stop("routes reloaded");
         }
@@ -129,6 +130,8 @@ public final class RouteStore {
                         String name = cleanString(roomName, MAX_ROOM_NAME);
                         JsonObject routeObj = ConfigJson.getObject(routesObj, roomName);
                         if (name == null || routeObj == null) {
+                            LOGGER.info("[RouteStore] skipped room key \"{}\": {}", roomName,
+                                    name == null ? "bad room name" : "not a JSON object");
                             continue;
                         }
                         try {
@@ -136,6 +139,11 @@ public final class RouteStore {
                             migratedTotal += migrateLegacyMarkers(route);
                             if (!route.isEmpty()) {
                                 store.routes.put(name, route);
+                                RouteNode start = route.startNode();
+                                LOGGER.info("[RouteStore] loaded \"{}\": {} node(s), start node {}", name,
+                                        route.nodes().size(), start == null ? "none" : "#" + (route.indexOf(start) + 1));
+                            } else {
+                                LOGGER.info("[RouteStore] \"{}\" is empty - not loaded", name);
                             }
                         } catch (Exception e) {
                             LOGGER.warn("[AutoRoutes] Skipping unreadable route for \"{}\": {}", name, e.toString());
@@ -170,6 +178,8 @@ public final class RouteStore {
                     LOGGER.warn("[AutoRoutes] Could not back up the unreadable routes file", backupError);
                 }
             }
+        } else {
+            LOGGER.info("[RouteStore] no routes file at {} - starting with no routes", file);
         }
         instance = store;
     }
@@ -193,6 +203,7 @@ public final class RouteStore {
             }
             root.add("routes", routesObj);
             Files.writeString(file, GSON.toJson(root), StandardCharsets.UTF_8);
+            LOGGER.info("[RouteStore] saved {} route(s) to {}", routes.size(), FILE_NAME);
         } catch (Exception e) {
             LOGGER.warn("[AutoRoutes] Failed to save {}", FILE_NAME, e);
         }
@@ -235,10 +246,31 @@ public final class RouteStore {
         if (o != null && !RouteRecorder.isRecording()) {
             Route over = o.apply(roomName);
             if (over != null) {
+                noteSource(roomName, "overlay (Auto Trap)", over);
                 return over;
             }
         }
-        return routes.get(roomName);
+        Route own = routes.get(roomName);
+        noteSource(roomName, own == null ? "none" : "own", own);
+        return own;
+    }
+
+    /** The route {@link #forRoom} last answered with, per room: logged on change only (it runs every tick, for many
+     *  rooms). Holds one entry per room name asked about, bounded by the room database. */
+    private static final Map<String, Object> lastSource = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Object NO_ROUTE = new Object();
+
+    private static void noteSource(String room, String source, Route route) {
+        Object key = route == null ? NO_ROUTE : route;
+        if (lastSource.get(room) == key) {
+            return;
+        }
+        if (lastSource.size() > 1024) {
+            lastSource.clear();
+        }
+        lastSource.put(room, key);
+        LOGGER.info("[RouteStore] route for \"{}\": {}{}", room, source,
+                route == null ? "" : " (" + route.nodes().size() + " node(s))");
     }
 
     /** His own saved route for this room (never the overlay's), or null. */
@@ -255,6 +287,7 @@ public final class RouteStore {
             }
             return r == null || r.isEmpty() ? null : r;
         } catch (Exception e) {
+            LOGGER.info("[RouteStore] route JSON for \"{}\" unreadable: {}", roomName, e.toString());
             return null;
         }
     }
@@ -268,6 +301,7 @@ public final class RouteStore {
     public Route forRoomOrCreate(String roomName) {
         Route route = routes.get(roomName);
         if (route == null) {
+            LOGGER.info("[RouteStore] new empty route created for \"{}\"", roomName);
             route = new Route(roomName);
             routes.put(roomName, route);
             parseFailed = false; // an explicit new route is the user's own decision to start over
@@ -277,6 +311,7 @@ public final class RouteStore {
 
     public void put(Route route) {
         if (route != null) {
+            LOGGER.info("[RouteStore] route for \"{}\" replaced: {} node(s)", route.roomName(), route.nodes().size());
             routes.put(route.roomName(), route);
             parseFailed = false;
         }
@@ -284,6 +319,7 @@ public final class RouteStore {
 
     public boolean remove(String roomName) {
         boolean removed = roomName != null && routes.remove(roomName) != null;
+        LOGGER.info("[RouteStore] remove route \"{}\": {}", roomName, removed ? "removed" : "none saved");
         if (removed) {
             parseFailed = false;
         }
@@ -299,6 +335,7 @@ public final class RouteStore {
     private static Route readRoute(String name, JsonObject obj) {
         Route route = new Route(name);
         JsonArray nodes = ConfigJson.getArray(obj, "nodes");
+        int skipped = 0;
         if (nodes != null) {
             for (JsonElement el : nodes) {
                 if (route.nodes().size() >= MAX_NODES) {
@@ -306,17 +343,27 @@ public final class RouteStore {
                     break;
                 }
                 if (el == null || !el.isJsonObject()) {
+                    skipped++;
                     continue;
                 }
                 try {
                     RouteNode node = readNode(el.getAsJsonObject());
                     if (node != null) {
                         route.nodes().add(node);
+                    } else {
+                        skipped++;
                     }
                 } catch (Exception e) {
                     // skip just this node; the rest of the room still loads
+                    skipped++;
+                    LOGGER.info("[RouteStore] \"{}\": node {} unreadable: {}", name, route.nodes().size() + skipped,
+                            e.toString());
                 }
             }
+        }
+        if (skipped > 0) {
+            LOGGER.info("[RouteStore] \"{}\": {} node(s) skipped (unknown type, bad coordinates or not an object)", name,
+                    skipped);
         }
         route.setPath(RoutePath.decode(ConfigJson.getString(obj, "path", ""), MAX_SAMPLES, MAX_ABS_COORD));
         route.clampNodeAnchors();
