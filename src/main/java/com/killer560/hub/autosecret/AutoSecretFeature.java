@@ -464,7 +464,12 @@ public final class AutoSecretFeature {
                 }
             }
             case AUTO_CLEAR -> {
-                // Auto Clear calls back; nothing to poll.
+                // Auto Clear calls back. It waits while a route runs, so a route that armed under him meanwhile (a node
+                // he was put on) is stopped - the clear is what this step is for.
+                if (RouteExecutor.isRunning()) {
+                    LOGGER.info("[AutoSecret] a route started under him while Auto Clear clears {} - stopping it", target);
+                    AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+                }
             }
             default -> {
             }
@@ -3145,6 +3150,10 @@ public final class AutoSecretFeature {
         int id = runId;
         String room = target;
         status = "Auto Clear: " + room;
+        // Auto Clear waits while any route runs, and a route stopped for stalling re-arms on the node he stands in a tick
+        // later (Redstone Key, sim 2026-10-20: the clear then waited 13 minutes behind it). As before any map trip: stop
+        // a running route and let only a START node arm until he has been through one.
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         setPhase(Phase.AUTO_CLEAR);
         LOGGER.info("[AutoSecret] handing {} to Auto Clear", room);
         AutoClearFeature.clearRoom(room, () -> Minecraft.getInstance().execute(() -> {
