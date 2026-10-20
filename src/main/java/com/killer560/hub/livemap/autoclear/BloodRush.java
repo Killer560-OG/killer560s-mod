@@ -40,6 +40,10 @@ public final class BloodRush {
     private static boolean pathStarted = false;
     private static int cooldownTicks = 0;
     private static Object lastLevel = null;
+    /** Said once a run: Auto Door Opener is off, so nothing will click the door Blood Rush waits at. */
+    private static boolean openerOffSaid = false;
+    /** The door the "keeping Auto Door Opener armed" line was last said for, -1 none. */
+    private static int armedSaidDoor = -1;
 
     private BloodRush() {
     }
@@ -93,6 +97,8 @@ public final class BloodRush {
         pathFailures = 0;
         pathStarted = false;
         cooldownTicks = 0;
+        openerOffSaid = false;
+        armedSaidDoor = -1;
         ModChat.send(CHAT, ModChat.good("Started"));
     }
 
@@ -192,7 +198,28 @@ public final class BloodRush {
         double dz = player.getZ() - (approach.getZ() + 0.5);
         if (dx * dx + dz * dz <= 2.5 * 2.5 && Math.abs(player.getY() - (approach.getY() + 1)) <= 2.0) {
             // Arrived: wait for the door to open. killer560: "remove the click door on arrival setting from
-            // auto blood rush" - opening the door is Auto Door Opener's job now, not Blood Rush's.
+            // auto blood rush" - opening the door is Auto Door Opener's job now, not Blood Rush's. But the opener
+            // only clicks for three seconds after a key pickup, and the blood key is usually picked up further away
+            // than that, so the blood door was never clicked and this ended "stuck at door". So, with the team's key,
+            // the opener's window is kept open every tick here until the door reads open (its own Retry delay, reach,
+            // ActionGate and world-border hold still decide each click).
+            boolean bloodDoor = door == blood;
+            boolean key = bloodDoor ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey() != 0
+                    : com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > 0;
+            if (key) {
+                String kind = bloodDoor ? "blood" : "wither";
+                if (!com.killer560.hub.doorhelpers.AutoDoorOpenerFeature.armAtDoor(bloodDoor)) {
+                    if (!openerOffSaid) {
+                        openerOffSaid = true;
+                        ModChat.send(CHAT, ModChat.bad("Auto Door Opener is off - nothing will open the " + kind
+                                + " door"));
+                    }
+                } else if (armedSaidDoor != door) {
+                    armedSaidDoor = door;
+                    ModChat.log(CHAT, ModChat.text("At the " + kind + " door with the key - Auto Door Opener kept armed "
+                            + "until it opens (door " + door + ")"));
+                }
+            }
             return;
         }
         if (!AutoClearUtils.canPath(layout)) {

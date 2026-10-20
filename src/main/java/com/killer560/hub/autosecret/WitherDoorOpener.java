@@ -40,6 +40,8 @@ final class WitherDoorOpener {
     private static boolean blood;
     private static int clicks;
     private static String lastResult;
+    /** When the world border began refusing the pending click (ms), or -1. */
+    private static long borderHeldSinceMs = -1;
 
     private WitherDoorOpener() {
     }
@@ -59,6 +61,7 @@ final class WitherDoorOpener {
         blood = bloodDoor;
         step = Step.AIM;
         lastResult = null;
+        borderHeldSinceMs = -1;
     }
 
     static void cancel() {
@@ -179,10 +182,31 @@ final class WitherDoorOpener {
             return;
         }
         // Tick t+1: the use, at the START, before this tick's movement packet; the body still faces the point.
+        // A Shadow Assassin's leap puts the door outside the client's world border and vanilla drops the click unsent
+        // (util/ShadowAssassinLeap); it used to count as one of Auto Secret's tries, so a leap could spend them all.
+        // Held (still busy) until the border lifts, up to HOLD_MAX_MS.
+        long nowMs = System.currentTimeMillis();
+        if (com.killer560.hub.util.ShadowAssassinLeap.refuses(client, lock)) {
+            if (borderHeldSinceMs < 0) {
+                borderHeldSinceMs = nowMs;
+                LOGGER.info("[AutoSecret] the {} door at {} is outside the world border ({}) - click held until the border "
+                        + "lifts", blood ? "blood" : "wither", lock.toShortString(),
+                        com.killer560.hub.util.ShadowAssassinLeap.describe(client));
+            }
+            if (nowMs - borderHeldSinceMs < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS) {
+                return;
+            }
+        } else if (borderHeldSinceMs >= 0) {
+            LOGGER.info("[AutoSecret] the world border lifted after {} ms - clicking the door", nowMs - borderHeldSinceMs);
+            borderHeldSinceMs = -1;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.DOOR_OPENER)) {
             return; // the same click goes on the next tick the gate allows
         }
-        client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+        if (client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit) == net.minecraft.world.InteractionResult.FAIL) {
+            fail("refused client-side before sending (outside the world border)");
+            return;
+        }
         player.swing(InteractionHand.MAIN_HAND);
         clicks++;
         LOGGER.info("[AutoSecret] right-clicked the {} door at {} (face {}, from {})", blood ? "blood" : "wither",

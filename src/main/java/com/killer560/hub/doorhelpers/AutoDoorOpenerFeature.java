@@ -103,6 +103,29 @@ public final class AutoDoorOpenerFeature {
                 PENDING_WINDOW_TICKS);
     }
 
+    /**
+     * Auto Blood Rush standing at a locked door whose key the team holds: keeps a {@link #PENDING_WINDOW_TICKS} window
+     * for that door type open while it stands there (it calls this every tick until the door opens). The pickup window
+     * alone is three seconds, and a blood rush usually picks the key up further than that from the door, so it arrived
+     * to an opener that had already gone quiet and the blood door was never clicked. The clicks it lands are still
+     * paced by Retry delay and gated as every other click here. False when Auto Door Opener is off (nothing will open
+     * the door). An armed window is left running; no log line (Blood Rush says it once per door).
+     */
+    public static boolean armAtDoor(boolean blood) {
+        if (!DoorHelpersConfig.getInstance().isAutoDoorEnabled()) {
+            return false;
+        }
+        DoorScanner.DoorType type = blood ? DoorScanner.DoorType.BLOOD : DoorScanner.DoorType.WITHER;
+        if (pendingTicks <= 0 || pendingType != type) {
+            if (pendingType != type) {
+                triggerAimDoor = null;
+            }
+            pendingType = type;
+            pendingTicks = PENDING_WINDOW_TICKS;
+        }
+        return true;
+    }
+
     private static void cancelIfPending(DoorScanner.DoorType type, String why) {
         if (pendingTicks > 0 && pendingType == type) {
             pendingTicks = 0;
@@ -175,6 +198,13 @@ public final class AutoDoorOpenerFeature {
         // (the exact server-visible tell the gate exists to stop), and it could share a tick with Breaker
         // Aura / Secret Aura / a lever flick. Claimed here, as the last check before lastClick moves, so a
         // denied tick costs nothing - the same door is simply clicked on the next tick the gate allows.
+        // A Shadow Assassin's leap puts the door outside the client's world border and vanilla drops the click before
+        // sending it (util/ShadowAssassinLeap). It used to count as the window's one click anyway, so the door was never
+        // clicked again. Hold the window (it does not run down) until the border lifts, up to HOLD_MAX_MS.
+        if (holdForBorder(client, doorPos, now)) {
+            pendingTicks++;
+            return;
+        }
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.DOOR_OPENER)) {
             return;
         }
@@ -190,6 +220,8 @@ public final class AutoDoorOpenerFeature {
             client.player.swing(InteractionHand.MAIN_HAND);
         }
         lastClick = now;
+        DoorHelpersFeature.LOGGER.info("[DoorHelpers] {} door at {}: click {}", pendingType, doorPos.toShortString(),
+                sent ? "sent" : "not sent (refused client-side) - retried after Retry delay");
         if (sent) {
             // One click is the whole point now - stop trying for this pickup rather than keep retrying
             // every Retry delay for the rest of the window.
@@ -244,14 +276,38 @@ public final class AutoDoorOpenerFeature {
         return null;
     }
 
-    /** QUOI {@code BlockInteract.execute}. @return false when the block has no outline shape to hit. */
+    /** QUOI {@code BlockInteract.execute}. @return false when the block has no outline shape to hit, or vanilla refused
+     *  the click before sending it. */
     private static boolean interactBlock(Minecraft client, BlockPos pos) {
         BlockHitResult hit = hitResult(client, pos);
         if (hit == null) {
             return false;
         }
-        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
-        return true;
+        // FAIL is a click vanilla refused before sending (outside the world border): not the window's one click.
+        return client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit)
+                != net.minecraft.world.InteractionResult.FAIL;
+    }
+
+    private static Long borderHeldKey;
+    private static long borderHeldSinceMs;
+
+    /** True while the click on {@code pos} would be refused by the world border and the hold is under HOLD_MAX_MS. */
+    private static boolean holdForBorder(Minecraft client, BlockPos pos, long now) {
+        if (!com.killer560.hub.util.ShadowAssassinLeap.refuses(client, pos)) {
+            if (borderHeldKey != null) {
+                DoorHelpersFeature.LOGGER.info("[DoorHelpers] The world border lifted after {} ms - clicking the door at {}",
+                        now - borderHeldSinceMs, pos.toShortString());
+                borderHeldKey = null;
+            }
+            return false;
+        }
+        if (borderHeldKey == null || borderHeldKey != pos.asLong()) {
+            borderHeldKey = pos.asLong();
+            borderHeldSinceMs = now;
+            DoorHelpersFeature.LOGGER.info("[DoorHelpers] The door at {} is outside the world border ({}) - click held until "
+                    + "the border lifts", pos.toShortString(), com.killer560.hub.util.ShadowAssassinLeap.describe(client));
+        }
+        return now - borderHeldSinceMs < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS;
     }
 
     /** QUOI {@code BlockPos.getHitResult(force = false)} (same as {@code BreakerAuraFeature.hitResult}). */

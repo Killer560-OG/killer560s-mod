@@ -2841,9 +2841,17 @@ public final class AutoSecretFeature {
         doorLastClickTick = -1000;
     }
 
-    /** Clicks to try before waiting for a teammate instead, and the ticks to let each one show. */
-    private static final int DOOR_CLICKS = 3;
-    private static final int DOOR_CLICK_GAP_TICKS = 40;
+    /**
+     * The failsafe (killer560, 2026-10-20: a wither door "was tried too early, and failed"): while the door still reads
+     * shut {@link #DOOR_CLICK_GAP_TICKS} after a click (counted from the tick {@link WitherDoorOpener} finished it), it
+     * is clicked again, up to {@link #DOOR_CLICKS} (about a second), then one line and it waits for a teammate. Open is
+     * only the map's door going unlocked (the server's blocks), so a late server answer is just the next try. Until then
+     * it was three clicks 40 ticks apart.
+     */
+    private static final int DOOR_CLICKS = 12;
+    private static final int DOOR_CLICK_GAP_TICKS = 5;
+    /** Ticks after our click spent the key that the door is taken to be on its way out, not "no key". */
+    private static final int DOOR_OPENING_TICKS = 40;
 
     /** At the door: open it if the team has a key; otherwise wait, saying so; carry on the moment it reads open. */
     private static void tickDoor() {
@@ -2862,6 +2870,7 @@ public final class AutoSecretFeature {
             return;
         }
         if (WitherDoorOpener.isBusy()) {
+            doorLastClickTick = phaseTicks; // the gap to the next try runs from the click going, not from asking for it
             return;
         }
         // The blood key is the team's sidebar tick; with no Keys line to read, one click is how to find out.
@@ -2880,7 +2889,7 @@ public final class AutoSecretFeature {
             WitherDoorOpener.click(doorLock, doorBlood);
             return;
         }
-        if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_CLICK_GAP_TICKS) {
+        if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_OPENING_TICKS) {
             // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
             status = "Opening the " + kind + " door";
         } else if (!key) {

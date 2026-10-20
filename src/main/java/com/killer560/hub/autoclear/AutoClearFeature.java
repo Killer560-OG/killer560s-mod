@@ -808,18 +808,28 @@ public final class AutoClearFeature {
     private static int doorKeysAtClick = 0;
     /** The server took the key for our click: wait for the door to go, click no more. */
     private static boolean doorAccepted = false;
-    /** Clicks of ours on this door, and how many the server answered without taking the key. */
+    /** Clicks of ours on this door, and the client tick of the last one. */
     private static int doorClicks = 0;
-    private static int doorRefusals = 0;
+    private static long doorLastClickTick = 0L;
+    /** The "stayed shut" line has been said for this door. */
+    private static boolean doorShutSaid = false;
+    /** The click count the "clicking again" line was said after. */
+    private static int doorRetrySaid = 0;
+    /** Client tick the world border began refusing the door click (Shadow Assassin leap), -1 none. */
+    private static long doorBorderSinceTick = -1;
     private static long doorStartTick = 0L;
     /** A walk to this door got stuck: etherwarp to it from now on. */
     private static boolean walkOffDoor = false;
-    /** Refused clicks before it stops clicking and waits for a teammate (the old behaviour clicked once a second for
-     *  ever). */
-    static final int DOOR_MAX_REFUSALS = 3;
-    /** Ticks after the click's ack before an unchanged key count is read as a refusal (see openDoor). */
-    static final int DOOR_ANSWER_TICKS = 2;
-    private static long doorAckTick = -1;
+    /**
+     * The failsafe (killer560, 2026-10-20: a wither door "was tried too early, and failed"): while the door still stands
+     * {@link #DOOR_RETRY_TICKS} ticks after our click, the click goes again, up to {@link #DOOR_MAX_CLICKS} (about a
+     * second), then one line and it waits for a teammate. The door counts as open only when its blocks are gone (the
+     * server's block updates, {@link #doorClickBlock}); a late or lost server answer is just the next try. Until then it
+     * read an unchanged key count two ticks after the click's ack as a refusal and gave up after three, which a click the
+     * server handled late (just after a landing) could spend in a few ticks.
+     */
+    static final int DOOR_RETRY_TICKS = 5;
+    static final int DOOR_MAX_CLICKS = 12;
 
     /** The team's wither keys as this client can count them: the sidebar / chat count, the sim's, a hotbar key item. */
     private static int witherKeyCount(LocalPlayer player) {
@@ -855,9 +865,9 @@ public final class AutoClearFeature {
      * slow to open wither doors"): to the door's approach - a walk when Walk When Faster says it beats the etherwarp,
      * ending the tick the door is in reach, else an etherwarp trip that ends on the server's answer to its last landing
      * (it used the Interactive Map's slow trip, which waits ~9 ticks after landing) - and from the first tick the door is
-     * in reach (trip or not) the key's slot and the body's turn together, the click the tick after. Then it waits only on
-     * real signals: the server taking the key (the door is opening - no more clicks), or the server answering the click
-     * without taking it (refused - click again, up to {@link #DOOR_MAX_REFUSALS}). Until 2026-10-20 it clicked at most
+     * in reach (trip or not) the key's slot and the body's turn together, the click the tick after. Then the door's blocks
+     * going is the only "open": while they stand {@link #DOOR_RETRY_TICKS} after a click it clicks again, up to
+     * {@link #DOOR_MAX_CLICKS} (not once the server has taken the key and none is left). Until 2026-10-20 it clicked at most
      * once a second (a 20-tick cooldown) and swapped to the key on a tick of its own. No key: it waits there and says so
      * once. Called each decision while the door is the only way on; it notices the door open and moves on.
      */
@@ -870,10 +880,12 @@ public final class AutoClearFeature {
             doorTripDone = -1;
             saidNoKey = false;
             doorClickSeq = -1;
-            doorAckTick = -1;
             doorAccepted = false;
             doorClicks = 0;
-            doorRefusals = 0;
+            doorLastClickTick = 0L;
+            doorShutSaid = false;
+            doorRetrySaid = 0;
+            doorBorderSinceTick = -1;
             walkOffDoor = false;
             doorStartTick = ClearExecutor.clientTick();
             LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
@@ -924,45 +936,42 @@ public final class AutoClearFeature {
             return;
         }
         boolean key = witherKeyCount(player) > 0;
-        if (doorAccepted) {
-            action = "opening the wither door";
-            return;
-        }
-        if (doorClickSeq >= 0) {
-            if (witherKeyCount(player) < doorKeysAtClick) {
+        long now = ClearExecutor.clientTick();
+        if (doorClicks > 0) {
+            // The door still stands (target != null above): it is open only when its blocks go.
+            if (!doorAccepted && witherKeyCount(player) < doorKeysAtClick) {
                 doorAccepted = true;
                 LOGGER.info("[AutoClear] wither door {}: the server took the key {} ticks after the trip began - opening",
-                        door, ClearExecutor.clientTick() - doorStartTick);
+                        door, now - doorStartTick);
+            }
+            if (now - doorLastClickTick < DOOR_RETRY_TICKS) {
+                action = doorAccepted ? "opening the wither door" : "waiting for the server's answer to the door click";
+                return;
+            }
+            if (doorClicks >= DOOR_MAX_CLICKS) {
+                action = "waiting at the wither door - it stayed shut";
+                if (!doorShutSaid) {
+                    doorShutSaid = true;
+                    LOGGER.info("[AutoClear] wither door {} still shut {} ticks after click {} of {} (key taken {}, last click"
+                            + " answered {}) - no more clicks, waiting for a teammate", door, now - doorLastClickTick,
+                            doorClicks, DOOR_MAX_CLICKS, doorAccepted,
+                            doorClickSeq >= 0 && com.killer560.hub.util.ChestWindows.acked(doorClickSeq));
+                    say(ModChat.bad("The wither door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
+                }
+                return;
+            }
+            if (doorAccepted && !key) {
+                // The server took our key and the door is on its way out; with no key left there is nothing to click.
                 action = "opening the wither door";
                 return;
             }
-            if (!com.killer560.hub.util.ChestWindows.acked(doorClickSeq)) {
-                action = "waiting for the server's answer to the door click";
-                return;
+            if (doorRetrySaid != doorClicks) {
+                doorRetrySaid = doorClicks; // once per try, not once per tick while it turns or holds
+                LOGGER.info("[AutoClear] wither door {} still shut {} ticks after click {} (answered {}) - clicking again"
+                        + " ({} of {})", door, now - doorLastClickTick, doorClicks,
+                        doorClickSeq >= 0 && com.killer560.hub.util.ChestWindows.acked(doorClickSeq), doorClicks + 1,
+                        DOOR_MAX_CLICKS);
             }
-            // The ack and the key's going can arrive a tick apart (the ack is flushed with the connection's tick, the
-            // inventory and sidebar with the player's): the answer is read on the tick after the ack.
-            long now = ClearExecutor.clientTick();
-            if (doorAckTick < 0) {
-                doorAckTick = now;
-            }
-            if (now - doorAckTick < DOOR_ANSWER_TICKS) {
-                action = "reading the server's answer to the door click";
-                return;
-            }
-            doorAckTick = -1;
-            doorClickSeq = -1;
-            doorRefusals++;
-            LOGGER.info("[AutoClear] wither door {}: the server answered click {} without taking the key ({} of {})", door,
-                    doorClicks, doorRefusals, DOOR_MAX_REFUSALS);
-        }
-        if (doorRefusals >= DOOR_MAX_REFUSALS) {
-            action = "waiting at the wither door - it stayed shut";
-            if (doorRefusals == DOOR_MAX_REFUSALS) {
-                doorRefusals++;
-                say(ModChat.bad("The wither door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
-            }
-            return;
         }
         if (!key) {
             action = "waiting at the wither door - no Wither Key";
@@ -1006,11 +1015,40 @@ public final class AutoClearFeature {
             action = "no face of the wither door to click";
             return;
         }
-        doorKeysAtClick = witherKeyCount(player);
-        client.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
+        // A Shadow Assassin's leap puts the door outside the client's world border and vanilla drops the click unsent
+        // (util/ShadowAssassinLeap): held here until the border lifts (up to HOLD_MAX_MS), not spent as a try.
+        if (com.killer560.hub.util.ShadowAssassinLeap.refuses(client, target)) {
+            if (doorBorderSinceTick < 0) {
+                doorBorderSinceTick = now;
+                LOGGER.info("[AutoClear] wither door {} is outside the world border ({}) - click held until the border"
+                        + " lifts", door, com.killer560.hub.util.ShadowAssassinLeap.describe(client));
+            }
+            if ((now - doorBorderSinceTick) * 50L < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS) {
+                action = "waiting for the world border to lift (Shadow Assassin)";
+                return;
+            }
+        } else if (doorBorderSinceTick >= 0) {
+            LOGGER.info("[AutoClear] the world border lifted after {} ticks - clicking wither door {}",
+                    now - doorBorderSinceTick, door);
+            doorBorderSinceTick = -1;
+        }
+        int keysNow = witherKeyCount(player);
+        if (client.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit)
+                == net.minecraft.world.InteractionResult.FAIL) {
+            // Refused before sending (outside the border past the hold): not a sent click, but a try, so the cap holds.
+            doorClicks++;
+            doorLastClickTick = now;
+            action = "opening the wither door";
+            LOGGER.info("[AutoClear] wither door {}: click {} refused client-side, not sent", door, doorClicks);
+            return;
+        }
         player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        if (!doorAccepted) {
+            doorKeysAtClick = keysNow;
+        }
         doorClickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
         doorClicks++;
+        doorLastClickTick = now;
         action = "opening the wither door";
         LOGGER.info("[AutoClear] clicked wither door {} at {} with the key (click {}, seq {}, {} ticks after the door"
                 + " trip began)", door, target.toShortString(), doorClicks, doorClickSeq,
