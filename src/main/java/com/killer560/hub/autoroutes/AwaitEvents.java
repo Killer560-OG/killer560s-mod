@@ -30,8 +30,9 @@ import java.util.Set;
  * <ul>
  *   <li><b>secrets</b> (an await on any node but a crypt node): a right click WE sent on a chest, lever or player head
  *   (a wither-essence skull), seen at {@code MultiPlayerGameMode.useItemOn} - by hand or a route node, each block once;
- *   the Redstone Key as Hypixel counts it - its pickup is not a secret, our click putting it on the room's redstone
- *   block is one (by hand, a route node or Secret Aura alike; {@link #onNodeClick});
+ *   the Redstone Key: our click putting it on the room's redstone block (by hand, a route node or Secret Aura alike;
+ *   {@link #onNodeClick}), and our pickup of it once the skull goes ({@link #countPickup}) - the pickup is an await
+ *   event only, not one of the room's secrets;
  *   an item WE picked up ({@code ClientboundTakeItemEntityPacket} collector = our id); a secret bat (Hypixel's Skyblock
  *   health, {@link #isSecretBat}) first appearing within {@link #BAT_SPAWN_RANGE} blocks of us; and the MIMIC dying
  *   after we clicked its trapped chest - the trapped chest's click itself never counts. A button, or any other block,
@@ -520,10 +521,10 @@ public final class AwaitEvents {
     }
 
     /**
-     * A click on the Redstone Key's skull. NOT a secret: Hypixel gives the room's key secret for PUTTING the key on its
-     * redstone node ("rewards 1 secret", hypixelskyblock.minecraft.wiki, Redstone Key), and its three key rooms list
-     * three secrets with the key as one of them, so the pickup and the placing are one secret between them - the
-     * placing's. A key already put in (a key head standing on its redstone block) is not a pickup at all.
+     * A click on the Redstone Key's skull. Not one of the room's secrets: Hypixel gives the room's key secret for PUTTING
+     * the key on its redstone node ("rewards 1 secret", hypixelskyblock.minecraft.wiki, Redstone Key). It is one await
+     * event once the skull goes ({@link #countPickup}), as his routes count it. A key already put in (a key head
+     * standing on its redstone block) is not a pickup at all.
      */
     private static void onKeyClick(Minecraft client, BlockPos pos) {
         checkKeyRun(client);
@@ -534,8 +535,8 @@ public final class AwaitEvents {
         }
         KeySpots.noteKeyAt(client, pos);
         keyClicks.put(pos.asLong(), new long[]{ticks, com.killer560.hub.util.ServerLag.mark()});
-        LOGGER.info("[AutoRoutes] await: redstone key at {} clicked by you - not a secret (Hypixel counts putting it on "
-                + "its redstone block)", pos.toShortString());
+        LOGGER.info("[AutoRoutes] await: redstone key at {} clicked by you - counted for the await once the skull goes "
+                + "(the room's secret is putting it on its redstone block)", pos.toShortString());
     }
 
     /**
@@ -572,6 +573,27 @@ public final class AwaitEvents {
         addSecret(key, what);
     }
 
+    /** What {@link RouteRunMemory} files a key pickup under: an await event, never one of the room's secrets. */
+    static final String KEY_PICKUP_WHAT = "redstone key taken";
+
+    /**
+     * His pickup of the key, confirmed by the skull going: one for the await, as his routes were recorded with it (Redstone
+     * Crypt #1 waits for 2 by its chest and the key; the sim stalled there 20 s on every floor of fullclear acplan-1020
+     * while the pickup counted nothing), and as {@link KeySpots} prefills one for a spot the key never spawned at. Not one
+     * of the room's secrets: Hypixel gives that for the placing ({@link #onNodeClick}), so the run memory files it like a
+     * lever, which {@code RouteRunMemory.secretsSince} leaves out of a room's count.
+     */
+    private static void countPickup(BlockPos p) {
+        String key = "keypickup " + p.asLong();
+        String what = KEY_PICKUP_WHAT + " at " + p.toShortString();
+        RouteRunMemory.gotSecret(key, Vec3.atCenterOf(p), what);
+        if (!active) {
+            noteBeforeStart(key, what + " (by you)", Vec3.atCenterOf(p));
+            return;
+        }
+        addSecret(key, what + " (by you)");
+    }
+
     /** Every tick: his key clicks answered (the skull gone) and node clicks answered (a key put in). */
     private static void tickKey(Minecraft client) {
         if (keyClicks.isEmpty() && nodeClicks.isEmpty()) {
@@ -586,6 +608,7 @@ public final class AwaitEvents {
                 it.remove();
                 ownKeyFound = true;
                 LOGGER.info("[AutoRoutes] await: you took the redstone key at {}", p.toShortString());
+                countPickup(p);
             } else if (ticks - e.getValue()[0] > KEY_TAKE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
                 it.remove();
                 LOGGER.info("[AwaitEvents] key click at {} expired: skull still there {} tick(s) after the click - not taken",

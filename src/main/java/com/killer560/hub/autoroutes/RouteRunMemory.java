@@ -187,8 +187,9 @@ public final class RouteRunMemory {
         return out;
     }
 
+    /** A lever flip or a Redstone Key pickup: await events, not among a room's secrets. */
     private static boolean isLever(Got g) {
-        return g.what() != null && g.what().startsWith("lever");
+        return g.what() != null && (g.what().startsWith("lever") || g.what().startsWith(AwaitEvents.KEY_PICKUP_WHAT));
     }
 
     /** What {@link #gotSince} counts, one entry per secret ("chest at x, y, z"), for log lines. */

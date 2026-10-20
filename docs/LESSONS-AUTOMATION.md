@@ -764,6 +764,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 
 ## Route stalls in the sim (stall-1020)
 
+- **His routes count the Redstone Key's PICKUP as an await event.** ce2cc26b (2026-10-16) made only the placing count,
+  and his Redstone Crypt #1 (await 2: its chest and the key) stood 20 s on every floor that has it. The pickup counts
+  again once the skull goes (`AwaitEvents.countPickup`); the run memory files it like a lever, so Auto Secret's room
+  count still has only Hypixel's secrets. Testkit 96-ar-1016-keyawait/-keyaura expect it now.
 - **A breaker node fired with the sneak still at the server measures from the 1.27 eye.** His Wizard #1 (start node, right
   after the map's sneaking warp) left its third block at 4.71 to the linger; the stacked #2 etherwarp put the sneak back,
   the block never came in reach and #2's landing stayed shut. A non-sneaking breaker node now waits (one tick in the sim)
