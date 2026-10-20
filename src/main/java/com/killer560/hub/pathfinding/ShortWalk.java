@@ -49,9 +49,14 @@ public final class ShortWalk {
     /** Extra ticks a jump up a step costs over flat ground (estimate only). */
     static final int JUMP_TICKS = 3;
 
-    /** A planned walk and its cost estimate. */
+    /**
+     * A planned walk and its cost estimate. {@code doneAt} is the caller's "far enough" test (null: the whole way);
+     * {@code doneAtEnd} whether the way's last point passes it, in which case the walk is not ARRIVED until his feet do
+     * (the ARRIVED tolerance alone stopped him up to {@link #ARRIVED} short of it, outside the reach the estimate was
+     * priced for - 62-argrim-1019-acwalk, 2026-10-19: the walk "arrived" 5.15 blocks from the mob and then etherwarped).
+     */
     public record Plan(List<Vec3> points, BlockPos goal, double length, double lengthToDone, int jumps,
-                       double topSpeed, int ticks) {
+                       double topSpeed, int ticks, Predicate<Vec3> doneAt, boolean doneAtEnd) {
         public String describe() {
             return String.format(Locale.US, "%.1f blocks on foot (%.1f until in reach), %d jump(s), top %.2f b/t",
                     length, lengthToDone, jumps, topSpeed);
@@ -134,7 +139,8 @@ public final class ShortWalk {
             toDone = length;
         }
         int ticks = START_TICKS + (int) Math.ceil(toDone / Math.max(0.05, top)) + JUMP_TICKS * jumps;
-        return new Plan(List.copyOf(points), goalFeet, length, toDone, jumps, top, ticks);
+        boolean doneAtEnd = doneAt != null && doneAt.test(points.get(points.size() - 1));
+        return new Plan(List.copyOf(points), goalFeet, length, toDone, jumps, top, ticks, doneAt, doneAtEnd);
     }
 
     // ------------------------------------------------------------------ the walk
@@ -201,7 +207,8 @@ public final class ShortWalk {
         }
         WalkPhysics.Model model = WalkPhysics.read(player);
         if (next == pts.size() - 1 && Math.hypot(last.x - pos.x, last.z - pos.z) < ARRIVED
-                && Math.abs(last.y - pos.y) < 1.5 && player.onGround() && model.speed() < 0.12) {
+                && Math.abs(last.y - pos.y) < 1.5 && player.onGround() && model.speed() < 0.12
+                && (!plan.doneAtEnd() || plan.doneAt().test(pos))) {
             return Status.ARRIVED;
         }
         // ---- progress, on his real position: a failsafe, extended by any server stall
