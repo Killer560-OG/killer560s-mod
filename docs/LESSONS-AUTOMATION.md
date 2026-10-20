@@ -727,3 +727,21 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - `AutoClearFeature.estimateClear` prices a clear by its cover count far more than by where he starts (the AOTV range
   makes most first trips one warp), so clear-first vs route-first is nearly always a tie: route first. The time Fastest
   Total saves is the re-entry trips and settles, about 12 s a floor in the sim (8 floors, 2026-10-20).
+
+## Booms, puzzle leave and the chest rule (2026-10-20)
+
+- **A boom node stores only a look, and the look was cast from the live eye.** With the previous warp's sneak still held
+  (0.35 lower) a shallow look met the floor a block short of the block it was recorded on, and Hypixel blows only what is
+  within 3 of the dug block: his Museum #11 (27 degrees down) dug -167, 68, -163 and changed nothing, fired standing it dug
+  -166 and blew 30. `RouteExecutor.planBoom` casts the look from the node's standing eye once (`/ar add` is typed standing)
+  and every send aims at that block from wherever the eye is. Testkit 96-ar-1020-boomsneak (main digs a block short in
+  Museum) and 62-argrim-1020-boomsneak (main blows nothing, fixed blows both, GrimAC clean).
+- A boom that blew this run is remembered (`RouteRunMemory.boomed`, keyed with its look: a stack's booms share a tile) and a
+  re-run of its stack completes it at once; main re-sent it and waited 13 ticks per re-run of a two-boom stack.
+- **Leave a puzzle on its auto's `AutoPuzzleActivity.ended()`, not the map's check.** Hypixel's check for Higher Blaze came
+  7 s after the auto ended (Mod Only Test 09:55:27 -> 09:55:34). The sim sends its "PUZZLE SOLVED!" line with the solve, a
+  tick before the auto ends, so testkit 93-solve-higherblaze-leave leaves at 0 ticks on main too: it proves the fix leaves
+  on the auto's own signal, not that main was slow. Holding the sim's check back from the test thread races the packet.
+- **Chest rule** (killer560): `autoclear/ChestClearRule`, fed by `RouteRunMemory.gotSecret`. A mob room's chest grabbed under
+  Auto Clear or Auto Secret counts it cleared 3 s on; not cleared on the map 30 s on, it is returned once (Auto Secret drops
+  it from `clearsDone`). Testkit 1020-sim-chestclear.
