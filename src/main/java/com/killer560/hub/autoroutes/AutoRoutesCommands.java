@@ -498,7 +498,7 @@ public final class AutoRoutesCommands {
             case DUNGEON_BREAKER -> ModChat.dim(" - /ar db, then right-click its blocks.");
             case USE_ITEM -> ModChat.dim(status.contains("(empty hand)") ? " - right-clicks the block it looks at, by hand."
                     : " - matched on the item, not the slot.");
-            case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second.");
+            case PATH -> ModChat.dim(" - path nodes pair up in number order; the first warps to the second (in a trap room it walks there, planned by AP3).");
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies (a Spirit Sceptre then aims at each crypt mob, two uses each).");
             case BAT -> ModChat.dim(" - place it where the bat flies; uses the Bat Weapon straight down until a secret bat dies.");
             case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");

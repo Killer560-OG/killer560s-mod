@@ -1,5 +1,6 @@
 package com.killer560.hub.autoroutes;
 
+import com.killer560.hub.ap3.Ap3TrapWalk;
 import com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import net.minecraft.client.Minecraft;
@@ -687,6 +688,10 @@ public final class RouteExecutor {
                     route.indexOf(activeNode) + 1, activeNode.type, AwaitEvents.secrets() + awaitRemembered.size(),
                     Math.max(1, activeNode.awaitAmount), (System.currentTimeMillis() - awaitStartMs) / 50L, reason);
         }
+        if (trapWalk) {
+            Ap3TrapWalk.cancel("the route stopped (" + reason + ")");
+            trapWalk = false;
+        }
         stackQueue.clear();
         stackTrigger = null;
         activeNode = null;
@@ -1027,6 +1032,14 @@ public final class RouteExecutor {
             letGoAfterCorrection(client, player);
             return;
         }
+        if (node != null && node.type == RouteNode.Type.PATH && trapWalk) {
+            // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honoured, never
+            // fought, never a stop - AP3 plans the walk again from where he now is.
+            reportCorrection(String.format(Locale.US, "during path #%d's walk in a trap room - walking on from here",
+                    route.indexOf(node) + 1));
+            Ap3TrapWalk.onCorrection(client, player);
+            return;
+        }
         if (node != null && (node.type == RouteNode.Type.USE_ITEM || node.type == RouteNode.Type.COMMAND
                 || node.type == RouteNode.Type.ETHERWARP || node.type == RouteNode.Type.PATH)) {
             LOGGER.info("[AutoRoutes] position packet during node {} (step {}, await done {}) moved {} - presumed the "
@@ -1227,6 +1240,13 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] fresh movement key - the held walk sprint is handed back to you (route keeps running)");
             endWalkHold();
             RouteRotation.clear();
+            return false;
+        }
+        if (trapWalk && activeNode != null && activeNode.type == RouteNode.Type.PATH) {
+            // A trap-room path walk drives him for as long as the walk takes, like a recorded route: a fresh press is him
+            // taking over, not something to override.
+            LOGGER.info("[AutoRoutes] fresh movement key during node {}'s trap-room walk - stopping", nodeTag(activeNode));
+            stop("you moved");
             return false;
         }
         if (breakerWaiting()) {
@@ -1972,6 +1992,10 @@ public final class RouteExecutor {
         breakerWaitTicks = 0;
         breakerWaitSaid = false;
         hopIndex = -1;
+        if (trapWalk) {
+            Ap3TrapWalk.cancel("another node fired");
+        }
+        trapWalk = false;
         // The last warp's landing and aim belong to that warp. Left over, checkCorrections measured a packet during
         // this node's await from them - in killer560's 2026-10-07 log from the landing of #6 of a run stopped two
         // minutes earlier, "47.4 from its landing" - and let the start node go (see checkCorrections).
@@ -2057,7 +2081,8 @@ public final class RouteExecutor {
         RouteNode finished = activeNode;
         if (finished != null && (finished.type == RouteNode.Type.USE_ITEM || finished.type == RouteNode.Type.COMMAND)) {
             ownTeleportUntil = execTicks + OWN_TELEPORT_GRACE_TICKS; // its teleport, if it has one, may still be coming
-        } else if (finished != null && (finished.type == RouteNode.Type.ETHERWARP || finished.type == RouteNode.Type.PATH)) {
+        } else if (finished != null && (finished.type == RouteNode.Type.ETHERWARP
+                || (finished.type == RouteNode.Type.PATH && !trapWalk))) {
             ownTeleportUntil = Math.max(ownTeleportUntil, execTicks + 3); // a late duplicate of the landing packet
         }
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
@@ -2232,7 +2257,9 @@ public final class RouteExecutor {
             forceSneak = false;
         } else {
             forceSneak = switch (up.type) {
-                case ETHERWARP, PATH -> inPlace || (was && pathless);
+                case ETHERWARP -> inPlace || (was && pathless);
+                // A path pair in a trap room walks (tickTrapWalk): nothing to sneak for.
+                case PATH -> !inTrapRoom() && (inPlace || (was && pathless));
                 case WALK, UNSNEAK, USE_ITEM, CRYPT, BAT -> false;
                 default -> was && (pathless || inPlace);
             };
@@ -2725,6 +2752,10 @@ public final class RouteExecutor {
      * its tile, through the ordinary landing re-fire.
      */
     private static void tickPath(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (trapWalk) {
+            tickTrapWalk(client, player, node);
+            return;
+        }
         if (hopIndex < 0) {
             if (!route.isPathSource(node)) {
                 logActed(node, " (path arrival)");
@@ -2737,6 +2768,22 @@ public final class RouteExecutor {
                         + " has no later path node to go to - add one with /ar add path.");
                 logActed(node, " (no destination path node)");
                 finishAction();
+                return;
+            }
+            if (inTrapRoom()) {
+                // killer560, 2026-10-19: in a trap room no ability works, so a path pair WALKS from its first node to its
+                // second - AP3's path planner and driver (ap3/Ap3TrapWalk), no etherwarp. Other rooms fly as below.
+                trapWalk = true;
+                forceSneak = false;
+                wantSneak = false;
+                Vec3 to = RouteCoords.toReal(frame, dest.relativePos());
+                // Arrive with the feet well inside the second node's ring, so the walk step finds him in it and fires it.
+                double half = Math.max(0.1, dest.radius) / 2.0 * 0.8;
+                Ap3TrapWalk.begin(client, player, to, half, "Path #" + (route.indexOf(node) + 1) + " -> #"
+                        + (route.indexOf(dest) + 1) + " in " + frame.roomName());
+                step = Step.DO;
+                stepTicks = 0;
+                tickTrapWalk(client, player, node);
                 return;
             }
             wantSneak = forceSneak;
@@ -2814,6 +2861,62 @@ public final class RouteExecutor {
                 pathOffBlock == 0 ? "each on its planned block" : pathOffBlock + " of them OFF the planned block");
         finishAction();
         noteLanding(node);
+    }
+
+    /** The active PATH node is being walked by AP3 ({@link #tickTrapWalk}) rather than flown; reset by beginAction. */
+    private static boolean trapWalk;
+
+    /**
+     * The route's room is a trap room (the room database's two TRAP rooms, or a room it does not know whose name says
+     * Trap - the same rule as {@code AutoClearUtils.isTrap}): no ability works there, so a path pair walks.
+     */
+    private static boolean inTrapRoom() {
+        String name = frame == null ? null : frame.roomName();
+        return name != null && (com.killer560.hub.autotrap.AutoTrap.TRAPS.contains(name) || name.contains("Trap"));
+    }
+
+    /**
+     * One tick of a trap-room path walk: AP3's planned keys for this tick go in through the input mixin (discrete keys,
+     * the body turned to the step's yaw with the camera held, the yaw a delta on the running yaw, pitch untouched), until
+     * AP3 says he stands on the second node - then the node finishes and the walk step fires the second node, which he is
+     * standing in, as the arrival. A refusal (no walkable way, nowhere to stand) stops the route and says why.
+     */
+    private static void tickTrapWalk(Minecraft client, LocalPlayer player, RouteNode node) {
+        Ap3TrapWalk.Drive d = Ap3TrapWalk.tick(client, player);
+        Ap3TrapWalk.Phase phase = Ap3TrapWalk.phase();
+        RouteNode dest = route.pathDestination(node);
+        String pair = "Path #" + (route.indexOf(node) + 1) + " -> #" + (dest == null ? "?" : route.indexOf(dest) + 1);
+        if (phase == Ap3TrapWalk.Phase.REFUSED) {
+            String why = Ap3TrapWalk.refusal();
+            LOGGER.info("[AutoRoutes] Node #{} PATH: trap-room walk refused - {}", route.indexOf(node) + 1, why);
+            AutoRoutesFeature.chatBad(pair + ": can't walk it in a trap room - " + why + ".");
+            stop(pair + " can't be walked in a trap room");
+            return;
+        }
+        if (phase == Ap3TrapWalk.Phase.ARRIVED) {
+            logActed(node, " (walked by AP3 in a trap room, no etherwarp)");
+            finishAction();
+            if (running && route.path().isEmpty()) {
+                // The arrival fires the node he walked into, as a flown pair's landing re-fire does (nodeLandedIn).
+                landedFrom = node;
+            }
+            return;
+        }
+        wantSneak = false;
+        if (d == null) {
+            return; // planning, or holding still while a re-plan lands: no keys this tick
+        }
+        float delta = Mth.wrapDegrees(d.yaw() - player.getYRot());
+        if (Math.abs(delta) > 1e-4f) {
+            turnBody(player, player.getYRot() + delta, player.getXRot());
+        }
+        wantForward = d.forward();
+        wantBackward = d.backward();
+        wantLeft = d.left();
+        wantRight = d.right();
+        wantJump = d.jump();
+        wantSneak = d.sneak();
+        wantSprint = d.sprint() && !player.isInWater();
     }
 
     /** Points the warp step at saved hop {@code i} of {@code node}. */

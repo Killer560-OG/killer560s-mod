@@ -42,8 +42,10 @@ import java.util.Map;
  *   <li>its START node is the entry - "I will add a start node of some sort, whether it is walk or pearl ... The pathfinder
  *       will be able to etherwarp to that node to start the room": the Interactive Map's one etherwarp, from outside, onto
  *       the start node, is the only warp into the room;</li>
- *   <li>no etherwarp inside - a route with an ETHERWARP or PATH node is refused, captured or bundled (no ability works in
- *       a trap room, docs/SIM.md; the Interactive Map also never paths or hops from inside one);</li>
+ *   <li>no etherwarp inside - a route with an ETHERWARP node is refused, captured or bundled (no ability works in a trap
+ *       room, docs/SIM.md; the Interactive Map also never paths or hops from inside one). A PATH pair is kept: in a trap
+ *       room Auto Routes WALKS it from its first node to its second with AP3's path planner ({@code ap3/Ap3TrapWalk},
+ *       killer560 2026-10-19), and refuses at the pair, with the reason, when AP3 finds no walk;</li>
  *   <li>his route takes him out ("I will have mine pathfind out of the room once it finishes"), and THE MOMENT he is no
  *       longer in the trap room every bit of trap programming ends ({@link #tick}): a trap route still playing is stopped,
  *       the run's mode choice is forgotten, and Auto Routes' latches are cleared so whatever plans next starts clean.</li>
@@ -282,12 +284,15 @@ public final class AutoTrap {
         return had ? "Cleared " + room + " " + mode.label() : "Nothing captured for " + room + " " + mode.label();
     }
 
-    /** The first node that would warp inside the room (ETHERWARP, PATH), described, or null. */
+    /**
+     * The first node that would warp inside the room (ETHERWARP), described, or null. A PATH node is not one: in a trap
+     * room its pair is walked by AP3 instead of flown (RouteExecutor.tickTrapWalk, killer560 2026-10-19).
+     */
     static String warpNode(Route route) {
         List<RouteNode> nodes = route.nodes();
         for (int i = 0; i < nodes.size(); i++) {
             RouteNode.Type t = nodes.get(i).type();
-            if (t == RouteNode.Type.ETHERWARP || t == RouteNode.Type.PATH) {
+            if (t == RouteNode.Type.ETHERWARP) {
                 return "node #" + (i + 1) + " is " + t;
             }
         }

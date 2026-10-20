@@ -70,6 +70,12 @@ public final class RoutePathPlanner {
                     route == null, frame == null, planning, RouteExecutor.isRunning());
             return;
         }
+        String room = route.roomName();
+        if (room != null && (com.killer560.hub.autotrap.AutoTrap.TRAPS.contains(room) || room.contains("Trap"))) {
+            // A trap room's path pairs are walked by AP3 (RouteExecutor.tickTrapWalk), never flown: no warps to plan.
+            LOGGER.info("[RoutePlan] stale-plan refresh skipped: {} is a trap room - its path pairs walk", room);
+            return;
+        }
         for (RouteNode n : route.nodes()) {
             if (n.type == RouteNode.Type.PATH && route.pathDestination(n) != null && !valid(route, n)
                     && !isProving(n)) {

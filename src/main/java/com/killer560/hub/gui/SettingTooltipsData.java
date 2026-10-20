@@ -130,7 +130,7 @@ final class SettingTooltipsData {
     }
 
     private static void autoSecret(Map<String, String> d) {
-        d.put("auto trap/auto trap", "Cheat build: plays your trap-room routes (New Trap, Old Trap) through Auto Routes - one etherwarp onto the route's start node to enter, no etherwarp inside, your route walks you out, and everything trap-related stops the moment you leave the room. Dungeon Autopilot does trap rooms only with this on.");
+        d.put("auto trap/auto trap", "Cheat build: plays your trap-room routes (New Trap, Old Trap) through Auto Routes - one etherwarp onto the route's start node to enter, no etherwarp inside (a path node pair walks there, planned by AP3), your route walks you out, and everything trap-related stops the moment you leave the room. Dungeon Autopilot does trap rooms only with this on.");
         d.put("auto trap/mode", "Full Trap: the route that does the whole trap. Just Cleared: the route that only gets the room cleared. Each has its own captured route; this picks which one plays (Dungeon Autopilot Solo picks per score itself).");
         d.put("auto clear/key base range", "Unverified: the wiki gives no base pickup range for dungeon keys. 1 block is vanilla's item pickup reach. The Magnetic Talisman was confirmed not to apply to keys, so the range used (shown after the arrow) is the base + 5 (the 0.27.2 bonus): 6 blocks by default. Set it to what you measure.");
         d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot - Auto Secret, Auto Clear and Auto Puzzles under one planner. Each step it re-reads the map and score and picks the next route, clear, puzzle or door. Any movement key takes over; a server correction only warns you.");
