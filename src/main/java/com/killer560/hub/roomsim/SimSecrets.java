@@ -183,6 +183,11 @@ public final class SimSecrets {
      */
     public static int place(ServerLevel level, RoomLibrary.Room room, int gridX, int gridZ, int rotation) {
         RoomEntry entry = RoomDatabase.lookupByName(room.name);
+        if (SimLiveMobs.skipSecrets(room.name)) {
+            // Counted at GO instead, as if Auto Trap had taken them (SimLiveMobs, the trap-cleared option).
+            LOGGER.info("Sim secrets for {}: 0 placed (the trap room is counted cleared with its secrets)", room.name);
+            return 0;
+        }
         if (entry == null || entry.secretCoords == null) {
             // Not every captured room is in the database - and a room with no entry is not an error, it is a
             // room nobody has documented. Silence would be wrong though: a floor with no secrets in it looks

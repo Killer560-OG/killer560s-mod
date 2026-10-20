@@ -126,6 +126,20 @@ public final class SimScore {
                 at == null ? "?" : at.toShortString(), room, room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0));
     }
 
+    /**
+     * {@code n} secrets of {@code room} counted at once, none of them placed - the trap room counted as done
+     * ({@link SimLiveMobs#setTrapCleared}): the run's total and the room's own count, as if each had been found there.
+     */
+    public static synchronized void creditRoomSecrets(String room, int n) {
+        if (room == null || n <= 0) {
+            return;
+        }
+        secretsFound += n;
+        FOUND_BY_ROOM.merge(room, n, Integer::sum);
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim secrets credited: {} in {} ({} in the room)",
+                n, room, FOUND_BY_ROOM.getOrDefault(room, 0));
+    }
+
     /** Secrets found so far in the named room this run. */
     public static int foundInRoom(String room) {
         return room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0);
