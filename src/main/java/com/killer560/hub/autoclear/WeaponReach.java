@@ -172,6 +172,81 @@ public final class WeaponReach {
         return BAT_LAUNCH_TICKS + (int) Math.ceil(player.getEyeHeight() / BAT_BLOCKS_PER_TICK);
     }
 
+    // ---- leading a moving mob (killer560, 2026-10-20: "lead the bat at a moving mob the way a human would") ----
+
+    /** Slower than this (blocks a tick, over the last ticks) a mob is aimed at where it stands. */
+    public static final double LEAD_MIN_SPEED = 0.03;
+    /** No lead past this many ticks of flight: a mob does not keep one heading that long. */
+    public static final int LEAD_MAX_TICKS = 24;
+
+    /**
+     * How far a mob moving at {@code velocity} (blocks a tick) goes before a bat fired now from {@code eye} reaches it:
+     * the flight time T solves |target + velocity*T - eye| = {@link #BAT_BLOCKS_PER_TICK} * (T - {@link #BAT_LAUNCH_TICKS}),
+     * by fixed-point steps (they converge, a mob being far slower than the bat), capped at {@link #LEAD_MAX_TICKS}.
+     * Zero for a mob slower than {@link #LEAD_MIN_SPEED}. No mod in this repo led a moving target before (the Blood Camp
+     * prediction is of a stand's landing spot, the Auto Routes bat node aims at the bat as it is), so this is the one.
+     */
+    public static Vec3 leadOffset(Vec3 eye, Vec3 target, Vec3 velocity) {
+        if (velocity == null || velocity.horizontalDistance() < LEAD_MIN_SPEED) {
+            return Vec3.ZERO;
+        }
+        double t = BAT_LAUNCH_TICKS + eye.distanceTo(target) / BAT_BLOCKS_PER_TICK;
+        for (int i = 0; i < 6; i++) {
+            t = Math.min(LEAD_MAX_TICKS, t);
+            Vec3 at = target.add(velocity.scale(t));
+            t = BAT_LAUNCH_TICKS + eye.distanceTo(at) / BAT_BLOCKS_PER_TICK;
+        }
+        t = Math.min(LEAD_MAX_TICKS, t);
+        // Horizontal only: a walking mob's vertical motion is steps and falls, not a heading.
+        return new Vec3(velocity.x * t, 0.0, velocity.z * t);
+    }
+
+    // ---- one bat, one kill (killer560, 2026-10-20) ----
+
+    /** Guided Bat's damage, hypixelskyblock.minecraft.wiki "Spirit Sceptre" (fetched 2026-10-20): "Shoots a guided spirit
+     *  bat, following your aim and exploding for 2,000 damage", Intelligence Scaling 0.2. */
+    public static final double BAT_BASE_DAMAGE = 2000.0;
+    public static final double BAT_INT_SCALING = 0.2;
+
+    /**
+     * A floor under one bat's damage from his maximum mana (Skyblock's maximum mana is 100 plus his Intelligence): the
+     * wiki's base times (1 + Intelligence / 100 * 0.2), and nothing else - every ability damage bonus only adds to it,
+     * so the real hit is at least this. -1 with no mana figure seen.
+     */
+    public static double batDamageFloor(long manaMax) {
+        if (manaMax <= 0) {
+            return -1;
+        }
+        double intelligence = Math.max(0, manaMax - 100);
+        return BAT_BASE_DAMAGE * (1.0 + intelligence / 100.0 * BAT_INT_SCALING);
+    }
+
+    /** The health at the end of a mob's name tag ("✯ Zombie 337.5k❤", "1.4M/2M❤", "800❤" - the first figure), bounded
+     *  quantifiers only (the tag is server text, LESSONS); -1 when there is none. */
+    private static final java.util.regex.Pattern TAG_HEALTH = java.util.regex.Pattern.compile(
+            "(\\d{1,4}(?:,\\d{3}){0,3}(?:\\.\\d{1,3})?)([kMB]?)(?:/\\d{1,4}(?:,\\d{3}){0,3}(?:\\.\\d{1,3})?[kMB]?)?❤\\s{0,2}$");
+
+    public static double tagHealth(String tag) {
+        if (tag == null) {
+            return -1;
+        }
+        java.util.regex.Matcher m = TAG_HEALTH.matcher(tag);
+        if (!m.find()) {
+            return -1;
+        }
+        try {
+            double v = Double.parseDouble(m.group(1).replace(",", ""));
+            return switch (m.group(2)) {
+                case "k" -> v * 1_000;
+                case "M" -> v * 1_000_000;
+                case "B" -> v * 1_000_000_000;
+                default -> v;
+            };
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
     public static boolean sceptreHits(Vec3 impact, AABB mob) {
         double r = SCEPTRE_RADIUS - MARGIN;
         return mob.distanceToSqr(impact) <= r * r;

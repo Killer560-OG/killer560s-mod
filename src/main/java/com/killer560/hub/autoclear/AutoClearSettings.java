@@ -75,6 +75,15 @@ public final class AutoClearSettings {
         y[0] += 24;
 
         toggleCell(widgets, x, y[0], half, "Walk When Faster", cfg::isWalkWhenFaster, cfg::setWalkWhenFaster, null);
+        toggleCell(widgets, x + half + GAP, y[0], right, "Predictive Bats", cfg::isPredictiveBats, cfg::setPredictiveBats,
+                null);
+        y[0] += 24;
+
+        widgets.add(SettingsButtonWidget.cycling(oneTapText(cfg), (btn, dir) -> {
+            cfg.setOneTap(SettingsButtonWidget.step(cfg.getOneTap(), dir));
+            cfg.save();
+            btn.setMessage(oneTapText(cfg));
+        }).bounds(x, y[0], half, 20).build());
         y[0] += 24;
 
         int span = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
@@ -140,6 +149,10 @@ public final class AutoClearSettings {
 
     private static Component weaponText(AutoClearConfig cfg) {
         return Component.literal("Clear Weapon: §e" + cfg.getWeapon().label());
+    }
+
+    private static Component oneTapText(AutoClearConfig cfg) {
+        return Component.literal("One-Tap Warp: §e" + cfg.getOneTap().label());
     }
 
     private static Component keyText(AutoClearConfig cfg) {

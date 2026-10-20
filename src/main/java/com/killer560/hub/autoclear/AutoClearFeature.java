@@ -299,6 +299,15 @@ public final class AutoClearFeature {
         keysTried.clear();
         resetRoam();
         midasFor = null;
+        seenMobs.clear();
+        edgeLogged.clear();
+        doomed.clear();
+        batLogs.clear();
+        oneTapLogged.clear();
+        oneTapFailed.clear();
+        leadLogged.clear();
+        doorClicks = 0;
+        doorClickSeq = -1;
         roomsCleared = 0;
         runStartMs = System.currentTimeMillis();
         mobsKilled = 0;
@@ -593,10 +602,21 @@ public final class AutoClearFeature {
                 targetId = -1;
             }
         }
+        if (oneTapStep(client, player)) {
+            return;
+        }
         List<Entity> mobs = starredIn(client, layout, room);
         if (mobs.isEmpty()) {
             targetId = -1;
             targetName = "";
+            String waitingOn = doomedIn(client, layout, room);
+            if (waitingOn != null) {
+                // Every mob left here is one a bat is on its way to: its death (or the bat being late) is the signal.
+                releaseUse(client);
+                action = "waiting for the bat at " + waitingOn;
+                noMobTicks = 0;
+                return;
+            }
             if (layout.currentRoom() == room) {
                 releaseUse(client);
                 if (midasAltar(client, player, layout, room)) {
@@ -781,13 +801,65 @@ public final class AutoClearFeature {
     private static int doorTarget = -1;
     /** The door a trip to its approach spot has finished for: from then on it is clicked from where he stands. */
     private static int doorTripDone = -1;
-    private static int doorCooldown = 0;
     private static boolean saidNoKey = false;
+    /** Our last click on the door: its block-click sequence (the server acks it, util/ChestWindows), -1 none waiting. */
+    private static int doorClickSeq = -1;
+    /** Keys the team had when that click went out: fewer since is the server taking the key - the door is opening. */
+    private static int doorKeysAtClick = 0;
+    /** The server took the key for our click: wait for the door to go, click no more. */
+    private static boolean doorAccepted = false;
+    /** Clicks of ours on this door, and how many the server answered without taking the key. */
+    private static int doorClicks = 0;
+    private static int doorRefusals = 0;
+    private static long doorStartTick = 0L;
+    /** A walk to this door got stuck: etherwarp to it from now on. */
+    private static boolean walkOffDoor = false;
+    /** Refused clicks before it stops clicking and waits for a teammate (the old behaviour clicked once a second for
+     *  ever). */
+    static final int DOOR_MAX_REFUSALS = 3;
+    /** Ticks after the click's ack before an unchanged key count is read as a refusal (see openDoor). */
+    static final int DOOR_ANSWER_TICKS = 2;
+    private static long doorAckTick = -1;
+
+    /** The team's wither keys as this client can count them: the sidebar / chat count, the sim's, a hotbar key item. */
+    private static int witherKeyCount(LocalPlayer player) {
+        int n = com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            n = Math.max(n, com.killer560.hub.roomsim.SimDoors.keysHeld());
+        } else if (com.killer560.hub.witherdoors.WitherDoorsFeature.isWitherKeyHeld()) {
+            n = Math.max(n, 1);
+        }
+        return Math.max(n, ItemIdentity.findHotbarSlotById(player, "WITHER_KEY") >= 0 ? 1 : 0);
+    }
+
+    /** Whether a click from an eye at {@code eye} reaches the door block {@code target} (its box, as the server
+     *  measures). */
+    private static boolean doorInReach(LocalPlayer player, Vec3 eye, BlockPos target) {
+        double reach = player.blockInteractionRange();
+        return new AABB(target).distanceToSqr(eye) <= reach * reach;
+    }
+
+    /** The first block of the door's column that is still there (the click goes on it), or null once it has gone. */
+    private static BlockPos doorClickBlock(Minecraft client, int door) {
+        BlockPos lock = DungeonLayout.doorBlock(door);
+        for (BlockPos p : new BlockPos[]{lock.above(), lock, lock.above(2)}) {
+            if (!client.level.getBlockState(p).getShape(client.level, p).isEmpty()) {
+                return p;
+            }
+        }
+        return null;
+    }
 
     /**
-     * Gets through a shut wither door: the Interactive Map's door pathing to its approach spot (Auto Blood Rush's
-     * pathToDoor), then a right-click on the door with the Wither Key. No key: it waits there and says so once.
-     * Called each decision while the door is the only way on; it notices the door open (the block goes) and moves on.
+     * Gets through a shut wither door as fast as the server lets it (killer560, 2026-10-20: "during Auto Clear it is
+     * slow to open wither doors"): to the door's approach - a walk when Walk When Faster says it beats the etherwarp,
+     * ending the tick the door is in reach, else an etherwarp trip that ends on the server's answer to its last landing
+     * (it used the Interactive Map's slow trip, which waits ~9 ticks after landing) - and from the first tick the door is
+     * in reach (trip or not) the key's slot and the body's turn together, the click the tick after. Then it waits only on
+     * real signals: the server taking the key (the door is opening - no more clicks), or the server answering the click
+     * without taking it (refused - click again, up to {@link #DOOR_MAX_REFUSALS}). Until 2026-10-20 it clicked at most
+     * once a second (a 20-tick cooldown) and swapped to the key on a tick of its own. No key: it waits there and says so
+     * once. Called each decision while the door is the only way on; it notices the door open and moves on.
      */
     private static void openDoor(DungeonLayout layout, int door, String behind) {
         Minecraft client = Minecraft.getInstance();
@@ -797,36 +869,101 @@ public final class AutoClearFeature {
             doorTarget = door;
             doorTripDone = -1;
             saidNoKey = false;
-            doorCooldown = 0;
+            doorClickSeq = -1;
+            doorAckTick = -1;
+            doorAccepted = false;
+            doorClicks = 0;
+            doorRefusals = 0;
+            walkOffDoor = false;
+            doorStartTick = ClearExecutor.clientTick();
             LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
         }
+        BlockPos target = doorClickBlock(client, door);
+        if (target == null) {
+            action = "waiting for the wither door to finish opening";
+            return;
+        }
+        Vec3 eye = player.getEyePosition();
+        boolean inReach = doorInReach(player, eye, target);
         int cur = layout.currentRoom();
         BlockPos approach = cur < 0 ? null : DungeonMapPathfinder.getDoorPos(layout, cur, door);
-        if (approach == null) {
+        if (approach == null && !inReach) {
             action = "no way to the wither door";
             return;
         }
-        double dx = player.getX() - (approach.getX() + 0.5);
-        double dz = player.getZ() - (approach.getZ() + 0.5);
         // Once a trip there has finished he is as close as the map takes him: its planner calls anything within five
         // blocks of the approach "already there", so asking again from 2.5-5 blocks off asked every tick for ever
         // (2026-10-07, testkit 131: "trip to wither door" and "Already there" on every tick, never a click).
         boolean arrived = doorTripDone == door;
-        if (!arrived && (dx * dx + dz * dz > 2.5 * 2.5 || Math.abs(player.getY() - (approach.getY() + 1)) > 2.0)) {
-            if (!AutoClearUtils.canPath(layout)) {
+        if (!inReach && !arrived) {
+            if (!AutoClearUtils.canPath(layout, true)) {
                 action = "waiting to land before the trip to the wither door";
                 return;
             }
+            BlockPos goal = TeleportUtils.landable(approach) ? approach : TeleportUtils.nearestEtherwarpable(approach);
+            if (goal == null) {
+                action = "no block to stand on at the wither door";
+                return;
+            }
+            final BlockPos stand = goal;
+            final BlockPos click = target;
+            double eyeHeight = player.getEyeHeight();
+            if (!walkOffDoor && walkInsteadOfTrip(client, player, stand,
+                    feet -> doorInReach(player, feet.add(0, eyeHeight, 0), click), "the wither door", true)) {
+                return;
+            }
             action = "etherwarp to the wither door";
-            LOGGER.info("[AutoClear] trip to wither door {} (approach {})", door, approach.toShortString());
-            startTrip(client, player, () -> AutoClearUtils.pathToDoor(layout, door, false));
+            startTrip(client, player, () -> {
+                ClearExecutor.etherPathFast(stand, null);
+                return true;
+            });
+            if (phase == Phase.TRAVEL) {
+                LOGGER.info("[AutoClear] trip to wither door {} (approach {}, standing on {})", door,
+                        approach.toShortString(), stand.toShortString());
+            }
             return;
         }
-        // The team's key (DungeonKeys: sidebar, else the pickup / door chat lines - Hypixel keys are the team's).
-        boolean key = com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > 0
-                || (com.killer560.hub.roomsim.SimState.isActive()
-                ? com.killer560.hub.roomsim.SimDoors.keysHeld() > 0
-                : com.killer560.hub.witherdoors.WitherDoorsFeature.isWitherKeyHeld());
+        boolean key = witherKeyCount(player) > 0;
+        if (doorAccepted) {
+            action = "opening the wither door";
+            return;
+        }
+        if (doorClickSeq >= 0) {
+            if (witherKeyCount(player) < doorKeysAtClick) {
+                doorAccepted = true;
+                LOGGER.info("[AutoClear] wither door {}: the server took the key {} ticks after the trip began - opening",
+                        door, ClearExecutor.clientTick() - doorStartTick);
+                action = "opening the wither door";
+                return;
+            }
+            if (!com.killer560.hub.util.ChestWindows.acked(doorClickSeq)) {
+                action = "waiting for the server's answer to the door click";
+                return;
+            }
+            // The ack and the key's going can arrive a tick apart (the ack is flushed with the connection's tick, the
+            // inventory and sidebar with the player's): the answer is read on the tick after the ack.
+            long now = ClearExecutor.clientTick();
+            if (doorAckTick < 0) {
+                doorAckTick = now;
+            }
+            if (now - doorAckTick < DOOR_ANSWER_TICKS) {
+                action = "reading the server's answer to the door click";
+                return;
+            }
+            doorAckTick = -1;
+            doorClickSeq = -1;
+            doorRefusals++;
+            LOGGER.info("[AutoClear] wither door {}: the server answered click {} without taking the key ({} of {})", door,
+                    doorClicks, doorRefusals, DOOR_MAX_REFUSALS);
+        }
+        if (doorRefusals >= DOOR_MAX_REFUSALS) {
+            action = "waiting at the wither door - it stayed shut";
+            if (doorRefusals == DOOR_MAX_REFUSALS) {
+                doorRefusals++;
+                say(ModChat.bad("The wither door stayed shut"), ModChat.dim(" - waiting there for a teammate"));
+            }
+            return;
+        }
         if (!key) {
             action = "waiting at the wither door - no Wither Key";
             if (!saidNoKey) {
@@ -836,43 +973,27 @@ public final class AutoClearFeature {
             }
             return;
         }
-        if (doorCooldown > 0) {
-            doorCooldown--;
-            action = "opening the wither door";
-            return;
-        }
-        int keySlot = ItemIdentity.findHotbarSlotById(player, "WITHER_KEY");
-        if (keySlot >= 0 && player.getInventory().getSelectedSlot() != keySlot) {
-            select(client, player, keySlot);
-            return;
-        }
-        BlockPos lock = DungeonLayout.doorBlock(door);
-        BlockPos target = null;
-        for (BlockPos p : new BlockPos[]{lock.above(), lock, lock.above(2)}) {
-            if (!client.level.getBlockState(p).getShape(client.level, p).isEmpty()) {
-                target = p;
-                break;
-            }
-        }
-        if (target == null) {
-            action = "waiting for the wither door to finish opening";
-            return;
-        }
-        Vec3 eye = player.getEyePosition();
         Vec3 aimAt = Vec3.atCenterOf(target);
-        double reach = player.blockInteractionRange();
-        if (Math.sqrt(new net.minecraft.world.phys.AABB(target).distanceToSqr(eye)) > reach) {
+        if (!inReach) {
             // Measured to the block's box, as the server does. Out of reach from where the map leaves him: say so and
             // stop, rather than clicking at a door the server will never let him reach.
             stop(String.format(Locale.US, "the wither door is %.1f blocks away, out of reach from where the map put you",
-                    Math.sqrt(new net.minecraft.world.phys.AABB(target).distanceToSqr(eye))));
+                    Math.sqrt(new AABB(target).distanceToSqr(eye))));
             return;
+        }
+        // The key's slot and the body's turn on the same tick (WitherDoorOpener's AIM step), the click on the next.
+        int keySlot = ItemIdentity.findHotbarSlotById(player, "WITHER_KEY");
+        boolean swapped = false;
+        if (keySlot >= 0 && player.getInventory().getSelectedSlot() != keySlot) {
+            select(client, player, keySlot);
+            swapped = true;
         }
         TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, aimAt);
         float yaw = player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot());
         float pitch = Mth.clamp(r.pitch(), -90f, 90f);
         bodyWanted = true;
-        if (!BODY.isHeld() || Math.abs(yaw - player.getYRot()) > 0.5f || Math.abs(pitch - player.getXRot()) > 0.5f) {
+        if (swapped || !BODY.isHeld() || Math.abs(yaw - player.getYRot()) > 0.5f
+                || Math.abs(pitch - player.getXRot()) > 0.5f) {
             // Turn first: the click goes out a tick later, from a body a movement packet has already reported.
             BODY.turn(player, yaw, pitch);
             action = "turning to the wither door";
@@ -885,11 +1006,15 @@ public final class AutoClearFeature {
             action = "no face of the wither door to click";
             return;
         }
+        doorKeysAtClick = witherKeyCount(player);
         client.gameMode.useItemOn(player, net.minecraft.world.InteractionHand.MAIN_HAND, hit);
         player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
-        doorCooldown = 20;
+        doorClickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
+        doorClicks++;
         action = "opening the wither door";
-        LOGGER.info("[AutoClear] clicked wither door {} at {} with the key", door, target.toShortString());
+        LOGGER.info("[AutoClear] clicked wither door {} at {} with the key (click {}, seq {}, {} ticks after the door"
+                + " trip began)", door, target.toShortString(), doorClicks, doorClickSeq,
+                ClearExecutor.clientTick() - doorStartTick);
     }
 
     // ---- dropped Wither Keys (killer560, 2026-10-19: "if a Wither Key drops ... walk to it and pick it up before going
@@ -1071,7 +1196,6 @@ public final class AutoClearFeature {
         roamTrip = false;
         roamLookedFrom.clear();
         roamSpots = null;
-        seenMobs.clear();
         walkOffRoam = false;
     }
 
@@ -1092,41 +1216,125 @@ public final class AutoClearFeature {
     /** Within this of the block a known mob is reached from, and it is not in sight: it is not there any more. */
     private static final double KNOWN_THERE = 3.0;
 
-    private record Seen(String name, Vec3 pos, double dist, boolean lost) {
+    /**
+     * A starred mob as last seen: where, how far from him, whether it has since left the view alive ({@code lost}), the
+     * room it counts for ({@code room}, by name - the edge rule below can keep it there a little past the room's edge),
+     * its velocity in blocks a tick (smoothed over consecutive sightings, for the bat lead), the health its name tag
+     * read (-1 none), and the ClearExecutor tick it was seen.
+     */
+    private record Seen(String name, Vec3 pos, double dist, boolean lost, String room, Vec3 vel, double health,
+                        long tick) {
     }
 
-    /** The current room's starred mobs as last seen, by entity id; {@code lost} once one left the view alive. */
+    /**
+     * Every starred mob of the run as last seen, by entity id, whatever room it is in (killer560, 2026-10-20: "keep the
+     * last known position of each mob in the room ... and use it when planning a pathfind"). Since 2026-10-20 it lasts
+     * the whole run instead of being cleared with each room's roam, so a room's mobs seen while clearing the one next to
+     * it are still known when Auto Clear gets there. An entry is overwritten whenever the mob is seen (elsewhere
+     * included), and dropped when it dies.
+     */
     private static final java.util.Map<Integer, Seen> seenMobs = new java.util.HashMap<>();
     private static int roamKnownTried = 0;
+
+    /**
+     * killer560, 2026-10-20: "Sometimes a mob walks out of the room by a hair; Auto Clear then loses it and pathfinds
+     * around the room looking for it." A mob seen in a room still counts for it while it is no further than this outside
+     * the room's tiles (horizontally, each tile 32 across round {@link DungeonLayout#cellCenter} as
+     * {@code MobEspFeature.currentRoomBox} reads them). "About one block"; 1.5 lets a mob standing in a doorway's gap
+     * block and a half step past it stay.
+     */
+    static final double EDGE_MARGIN = 1.5;
+    /** Mobs the edge rule has kept in their room, each logged once a run. */
+    private static final Set<Integer> edgeLogged = new HashSet<>();
 
     /** A mob to roam to: last seen at {@code pos}; {@code lostId} >= 0 for a lost one (forgotten once gone for). */
     private record Known(String name, Vec3 pos, int lostId, String why) {
     }
 
+    /** How far (blocks, horizontally) {@code x, z} lies outside {@code room}'s tiles; 0 inside them. */
+    static double outsideRoom(DungeonLayout layout, int room, double x, double z) {
+        int[] tiles = room < 0 ? null : layout.tiles(room);
+        if (tiles == null || tiles.length == 0) {
+            return Double.MAX_VALUE;
+        }
+        double best = Double.MAX_VALUE;
+        for (int t : tiles) {
+            BlockPos c = DungeonLayout.cellCenter(t);
+            double dx = Math.max(0.0, Math.abs(x - (c.getX() + 0.5)) - 16.0);
+            double dz = Math.max(0.0, Math.abs(z - (c.getZ() + 0.5)) - 16.0);
+            best = Math.min(best, Math.sqrt(dx * dx + dz * dz));
+        }
+        return best;
+    }
+
+    /**
+     * The room a starred mob counts for: the one under it, unless it was last counted for another room and is still
+     * within {@link #EDGE_MARGIN} of that one (it walked out by a hair - it is still that room's mob, and that room's
+     * clear still needs it). Null when it is on no room.
+     */
+    private static String mobRoom(DungeonLayout layout, Entity mob, Seen before) {
+        int under = layout.roomAtWorld(mob.getX(), mob.getZ());
+        String here = under < 0 ? null : layout.name(under);
+        if (before == null || before.lost() || before.room() == null || before.room().equals(here)) {
+            return here;
+        }
+        int was = AutoClearTargets.roomByName(layout, before.room());
+        double out = was < 0 ? Double.MAX_VALUE : outsideRoom(layout, was, mob.getX(), mob.getZ());
+        if (out <= EDGE_MARGIN) {
+            if (edgeLogged.add(mob.getId())) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] %s at %s is %.2f blocks outside %s (over into %s) - still"
+                                + " counted as its mob (edge %.1f)", mob.getName().getString(),
+                        mob.blockPosition().toShortString(), out, before.room(), here, EDGE_MARGIN));
+            }
+            return before.room();
+        }
+        return here;
+    }
+
+    /** Whether {@code mob} counts for {@code room}: under it, or kept there by the edge rule ({@link #mobRoom}). */
+    private static boolean inRoom(DungeonLayout layout, int room, Entity mob) {
+        if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {
+            return true;
+        }
+        Seen s = seenMobs.get(mob.getId());
+        return s != null && !s.lost() && layout.name(room).equals(s.room())
+                && outsideRoom(layout, room, mob.getX(), mob.getZ()) <= EDGE_MARGIN;
+    }
+
     /** Every running tick (trips included, so a mob dying under a bat in flight is seen dying, not lost). */
     private static void observeMobs(Minecraft client, LocalPlayer player) {
-        if (roomName == null || client.level == null) {
+        if (client.level == null) {
             seenMobs.clear();
             return;
         }
         DungeonLayout layout = DungeonLayout.capture();
-        int room = AutoClearTargets.roomByName(layout, roomName);
-        if (room < 0) {
-            seenMobs.clear();
-            return;
-        }
+        long tick = ClearExecutor.clientTick();
+        java.util.Map<Integer, String> tags = new java.util.HashMap<>();
         Set<Integer> now = new HashSet<>();
-        for (Entity mob : MobEspFeature.starredMobs(client)) {
-            if (layout.roomAtWorld(mob.getX(), mob.getZ()) != room) {
+        for (Entity mob : MobEspFeature.starredMobs(client, tags)) {
+            Seen before = seenMobs.get(mob.getId());
+            String room = mobRoom(layout, mob, before);
+            if (room == null) {
                 continue;
             }
             now.add(mob.getId());
-            Seen before = seenMobs.get(mob.getId());
             if (before != null && before.lost()) {
                 LOGGER.info(String.format(Locale.US, "[AutoClear] %s is in view again at %s, %.1f blocks away",
                         before.name(), mob.blockPosition().toShortString(), mob.distanceTo(player)));
             }
-            seenMobs.put(mob.getId(), new Seen(mob.getName().getString(), mob.position(), mob.distanceTo(player), false));
+            Vec3 pos = mob.position();
+            Vec3 vel = Vec3.ZERO;
+            if (before != null && !before.lost() && tick - before.tick() == 1) {
+                Vec3 step = pos.subtract(before.pos());
+                // A step longer than two blocks is a teleport (or a fresh entity id's first move), not a walk.
+                vel = step.lengthSqr() > 4.0 ? Vec3.ZERO : before.vel().scale(0.5).add(step.scale(0.5));
+            }
+            double hp = WeaponReach.tagHealth(tags.get(mob.getId()));
+            if (hp < 0 && before != null) {
+                hp = before.health();
+            }
+            seenMobs.put(mob.getId(), new Seen(mob.getName().getString(), pos, mob.distanceTo(player), false, room, vel,
+                    hp, tick));
         }
         for (var it = seenMobs.entrySet().iterator(); it.hasNext(); ) {
             var entry = it.next();
@@ -1138,30 +1346,34 @@ public final class AutoClearFeature {
             if (e != null) {
                 if (!e.isAlive() || e.isRemoved()) {
                     it.remove();   // dead
+                    mobDied(entry.getKey(), s);
                 }
                 continue;          // still there without its star tag: kept as last seen
             }
             if (s.dist() >= LOST_MIN_DISTANCE) {
-                entry.setValue(new Seen(s.name(), s.pos(), s.dist(), true));
-                LOGGER.info(String.format(Locale.US, "[AutoClear] %s left the client's view alive at %s, %.1f blocks away"
-                        + " - remembered for the roam", s.name(), BlockPos.containing(s.pos()).toShortString(), s.dist()));
+                entry.setValue(new Seen(s.name(), s.pos(), s.dist(), true, s.room(), Vec3.ZERO, s.health(), s.tick()));
+                LOGGER.info(String.format(Locale.US, "[AutoClear] %s of %s left the client's view alive at %s, %.1f blocks"
+                                + " away - its spot remembered", s.name(), s.room(),
+                        BlockPos.containing(s.pos()).toShortString(), s.dist()));
             } else {
                 it.remove();       // gone this near: killed
+                mobDied(entry.getKey(), s);
             }
         }
     }
 
-    /** The current room's mobs worth going to with nothing in sight: those lost from view, then those skipped. */
+    /** The room's mobs worth going to with nothing in sight: those lost from view there, then those skipped. */
     private static List<Known> knownMobs(Minecraft client, DungeonLayout layout, int room) {
         List<Known> out = new java.util.ArrayList<>();
+        String name = layout.name(room);
         for (var entry : seenMobs.entrySet()) {
-            if (entry.getValue().lost()) {
+            if (entry.getValue().lost() && name.equals(entry.getValue().room())) {
                 out.add(new Known(entry.getValue().name(), entry.getValue().pos(), entry.getKey(), "left the view"));
             }
         }
         for (int id : skippedMobs) {
             Entity e = client.level.getEntity(id);
-            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
+            if (e != null && e.isAlive() && inRoom(layout, room, e)) {
                 out.add(new Known(e.getName().getString(), e.position(), -1, "skipped as out of reach"));
             }
         }
@@ -1267,7 +1479,7 @@ public final class AutoClearFeature {
         int freed = 0;
         for (java.util.Iterator<Integer> it = skippedMobs.iterator(); it.hasNext(); ) {
             Entity e = client.level.getEntity(it.next());
-            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
+            if (e != null && e.isAlive() && inRoom(layout, room, e)) {
                 it.remove();
                 freed++;
             }
@@ -1620,7 +1832,7 @@ public final class AutoClearFeature {
             planKey = key;
             cachedAttack = weapon == AutoClearConfig.Weapon.HYPERION
                     ? (WeaponReach.hyperionHits(feet, box) ? WeaponReach.hyperionInPlace(player, feet) : null)
-                    : WeaponReach.sceptreAim(client.level, player, player.getEyePosition(), box);
+                    : leadAim(client, player, target, box);
             cachedHops = -2;   // computed only if a move is needed
             cachedBat = null;
             cachedBatTicks = -2;
@@ -1780,9 +1992,260 @@ public final class AutoClearFeature {
                 batSentTick = ClearExecutor.clientTick() - 1;
                 batTarget = targetId;
                 batFlight = Math.max(1, holdingBatFlight);
+                BatLog b = batLogs.get(targetId);
+                Seen s = seenMobs.get(targetId);
+                batLogs.put(targetId, b == null ? new BatLog(1, batSentTick, batFlight, s == null ? -1 : s.health(),
+                        com.killer560.hub.util.ServerLag.mark(), Long.MAX_VALUE) : b.plusOne(batSentTick, batFlight));
+                if (b == null) {
+                    afterFirstBat(player, s);
+                }
             }
             itemUsesSeen = uses;
         }
+    }
+
+    // ---- one bat, one kill (killer560, 2026-10-20: "If the sceptre's damage ... is enough to kill a mob in one tap, Auto
+    // Clear should etherwarp right after the first bat is sent, instead of waiting for the bat to land") ----
+
+    /** After a doomed mob's bat is due, this long for its death to reach the client before it is called a survivor. */
+    static final int DOOM_CONFIRM_TICKS = 10;
+    /** The share of the Intelligence floor ({@link WeaponReach#batDamageFloor}) a mob's health must be under. The floor
+     *  ignores every bonus, so it is already low; this is for what it cannot know (a mob that resists magic). */
+    static final double ONE_TAP_FLOOR_SHARE = 0.8;
+
+    /** Our bats at one mob: how many, the tick and flight of the first, its tag health then, a ServerLag mark, and the
+     *  earliest tick the second could land ({@code Long.MAX_VALUE} with one). */
+    private record BatLog(int count, long first, int flight, double health, long lag, long secondLands) {
+        BatLog plusOne(long sent, int itsFlight) {
+            return new BatLog(count + 1, first, flight, health, lag, count == 1 ? sent + itsFlight : secondLands);
+        }
+    }
+
+    /** A mob whose one bat is trusted to kill it: when the bat left, its flight, when to move on, its health. */
+    private record Flight(long sent, int flight, long moveOn, double health, long lag, String name) {
+    }
+
+    private static final java.util.Map<Integer, BatLog> batLogs = new java.util.HashMap<>();
+    /** Mobs left to their bat: not targeted until they die or the bat should long have hit (then shot again). */
+    private static final java.util.Map<Integer, Flight> doomed = new java.util.HashMap<>();
+    private static final Set<Integer> oneTapLogged = new HashSet<>();
+    /** A trusted bat did not kill it: never trusted again this run. */
+    private static final Set<Integer> oneTapFailed = new HashSet<>();
+    /**
+     * Tag healths of mobs that died to exactly ONE of our bats, inside its flight: each proves a bat does at least that
+     * much (to this mob kind, in this run's gear). Kept for the game session; a survivor drops every figure at or above
+     * its health.
+     */
+    private static final List<Double> oneBatKills = new java.util.ArrayList<>();
+    private static int oneTapMoves = 0;
+
+    /** For the testkit: mobs left to a trusted bat (Auto Clear moved on before it landed), ever (only goes up). */
+    public static int oneTapMoves() {
+        return oneTapMoves;
+    }
+
+    /** The bat damage proven by kills: the second highest one-bat kill (one fluke - a teammate's hit landing with ours -
+     *  cannot set it alone), -1 with fewer than two. */
+    static double learnedBatFloor() {
+        if (oneBatKills.size() < 2) {
+            return -1;
+        }
+        List<Double> sorted = new java.util.ArrayList<>(oneBatKills);
+        sorted.sort(null);
+        return sorted.get(sorted.size() - 2);
+    }
+
+    private record OneTapCall(boolean sure, String why) {
+    }
+
+    /** Whether one bat kills a mob with {@code health}: under the kill-proven floor, or under the Intelligence floor. */
+    private static OneTapCall oneTapCall(int id, double health) {
+        double learned = learnedBatFloor();
+        double intFloor = WeaponReach.batDamageFloor(com.killer560.hub.playerstats.PlayerStatsFeature.manaMaxNow());
+        String figures = String.format(Locale.US, "tag health %s; kill-proven bat damage %s (%d one-bat kill(s));"
+                        + " Intelligence floor %s (x%.1f)", health < 0 ? "none" : String.format(Locale.US, "%.0f", health),
+                learned < 0 ? "none" : String.format(Locale.US, "%.0f", learned), oneBatKills.size(),
+                intFloor < 0 ? "none (no mana figure)" : String.format(Locale.US, "%.0f", intFloor), ONE_TAP_FLOOR_SHARE);
+        if (oneTapFailed.contains(id)) {
+            return new OneTapCall(false, "a trusted bat already failed to kill it - " + figures);
+        }
+        if (health <= 0) {
+            return new OneTapCall(false, figures);
+        }
+        if (learned > 0 && health <= learned) {
+            return new OneTapCall(true, figures);
+        }
+        if (intFloor > 0 && health <= intFloor * ONE_TAP_FLOOR_SHARE) {
+            return new OneTapCall(true, figures);
+        }
+        return new OneTapCall(false, figures);
+    }
+
+    /** The first bat at the target just left: decide (and log, once per mob) whether to leave the mob to it. */
+    private static void afterFirstBat(LocalPlayer player, Seen s) {
+        AutoClearConfig.OneTap mode = AutoClearConfig.getInstance().getOneTap();
+        if (mode == AutoClearConfig.OneTap.OFF) {
+            return;
+        }
+        OneTapCall call = oneTapCall(targetId, s == null ? -1 : s.health());
+        if (oneTapLogged.add(targetId)) {
+            LOGGER.info("[AutoClear] one-tap: {} at {} - {} ({})", targetName, s == null ? "?" : fmt(s.pos()),
+                    call.sure() ? (mode == AutoClearConfig.OneTap.AT_ONCE ? "trusting the bat, moving on now"
+                            : "trusting the bat, moving on when it lands (~" + batFlight + " ticks)")
+                            : "not sure, staying on it", call.why());
+        }
+        if (!call.sure()) {
+            return;
+        }
+        long moveOn = mode == AutoClearConfig.OneTap.AT_ONCE ? batSentTick : batSentTick + batFlight;
+        doomed.put(targetId, new Flight(batSentTick, batFlight, moveOn, s == null ? -1 : s.health(),
+                com.killer560.hub.util.ServerLag.mark(), targetName));
+        if (mode == AutoClearConfig.OneTap.AT_ONCE) {
+            leaveToBat(Minecraft.getInstance());
+        }
+    }
+
+    /** The target is left to its bat: the use goes up and the next decision is a fresh one, for another mob. */
+    private static void leaveToBat(Minecraft client) {
+        oneTapMoves++;
+        releaseUse(client);
+        targetId = -1;
+        targetName = "";
+        planKey = Long.MIN_VALUE;
+        if (phase == Phase.ATTACK) {
+            phase = Phase.IDLE;
+        }
+    }
+
+    /**
+     * A tick of the one-tap bookkeeping, before a target is picked: a doomed mob whose bat should long have hit and that
+     * is still alive is shot again (never trusted again); with After Impact, the target's bat still in flight keeps the
+     * body on the mob (the Guided Bat follows the aim - wiki) and nothing else is done.
+     * @return true while the bat in flight owns this tick
+     */
+    private static boolean oneTapStep(Minecraft client, LocalPlayer player) {
+        long now = ClearExecutor.clientTick();
+        for (var it = doomed.entrySet().iterator(); it.hasNext(); ) {
+            var entry = it.next();
+            Flight f = entry.getValue();
+            Entity e = client.level.getEntity(entry.getKey());
+            if (e == null || !e.isAlive()) {
+                it.remove();   // died (counted by mobDied) or left the view (remembered by observeMobs)
+                continue;
+            }
+            long due = f.sent() + f.flight() + BAT_HIT_GRACE_TICKS + DOOM_CONFIRM_TICKS
+                    + com.killer560.hub.util.ServerLag.ticksSince(f.lag());
+            if (now > due) {
+                it.remove();
+                oneTapFailed.add(entry.getKey());
+                if (f.health() > 0) {
+                    oneBatKills.removeIf(v -> v >= f.health());
+                }
+                LOGGER.info("[AutoClear] one-tap: {} is still alive {} ticks after its bat (flight ~{}) - shooting it"
+                        + " again, and no bat damage at or over {} is trusted any more", f.name(), now - f.sent(),
+                        f.flight(), f.health() < 0 ? "?" : String.format(Locale.US, "%.0f", f.health()));
+            }
+        }
+        Flight mine = targetId < 0 ? null : doomed.get(targetId);
+        if (mine == null) {
+            return false;
+        }
+        if (now >= mine.moveOn()) {
+            LOGGER.info("[AutoClear] one-tap: {}'s bat is due ({} of ~{} ticks) - moving on", targetName,
+                    now - mine.sent(), mine.flight());
+            leaveToBat(client);
+            return false;
+        }
+        Entity e = client.level.getEntity(targetId);
+        releaseUse(client);
+        bodyWanted = true;
+        action = String.format(Locale.US, "bat in flight at %s (%d of ~%d ticks, one tap)", targetName,
+                now - mine.sent(), mine.flight());
+        if (e != null) {
+            Vec3 eye = player.getEyePosition();
+            WeaponReach.Aim aim = WeaponReach.sceptreAim(client.level, player, eye, batBox(e, eye));
+            if (aim != null) {
+                BODY.turn(player, player.getYRot() + Mth.wrapDegrees(aim.yaw() - player.getYRot()),
+                        Mth.clamp(aim.pitch(), -90f, 90f));
+            }
+        }
+        return true;
+    }
+
+    /**
+     * A mob seen dying (observeMobs): a death after exactly one of our bats, inside its flight, proves the bat's damage
+     * (its tag health then); a doomed mob's death is counted here, since the target had already moved on from it.
+     */
+    private static void mobDied(int id, Seen s) {
+        BatLog b = batLogs.remove(id);
+        Flight f = doomed.remove(id);
+        long now = ClearExecutor.clientTick();
+        // One bat did it: the only one sent, or a death before the second could have landed (the held use repeats every
+        // 4 ticks, so a second bat is usually in the air when the first hits).
+        if (b != null && (b.count() == 1 || now < b.secondLands()) && b.health() > 0 && now >= b.first()
+                && now <= b.first() + b.flight() + BAT_HIT_GRACE_TICKS + DOOM_CONFIRM_TICKS
+                + com.killer560.hub.util.ServerLag.ticksSince(b.lag())) {
+            oneBatKills.add(b.health());
+            LOGGER.info(String.format(Locale.US, "[AutoClear] one-tap: %s died %d ticks after our one bat - a bat does at"
+                            + " least %.0f; trusted from %s (%d one-bat kill(s) seen)", s.name(), now - b.first(),
+                    b.health(), learnedBatFloor() < 0 ? "the second such kill"
+                            : String.format(Locale.US, "%.0f", learnedBatFloor()), oneBatKills.size()));
+        }
+        if (f != null && id != targetId) {
+            mobsKilled++;
+            if (s.room() != null && s.room().equals(roomName)) {
+                killsInRoom++;
+            }
+            LOGGER.info("[AutoClear] one-tap: {} died {} ticks after its bat (flight ~{}) ({} starred kill(s) this run)",
+                    f.name(), now - f.sent(), f.flight(), mobsKilled);
+        }
+    }
+
+    /** Doomed mobs of {@code room} still alive (the room's clear is waiting on their bats). */
+    private static String doomedIn(Minecraft client, DungeonLayout layout, int room) {
+        for (var entry : doomed.entrySet()) {
+            Entity e = client.level.getEntity(entry.getKey());
+            if (e != null && e.isAlive() && inRoom(layout, room, e)) {
+                return entry.getValue().name();
+            }
+        }
+        return null;
+    }
+
+    // ---- leading a moving mob ----
+
+    private static final Set<Integer> leadLogged = new HashSet<>();
+
+    /**
+     * The box a bat is aimed at: with Predictive Bats, the mob's box moved to where its smoothed velocity takes it while
+     * the bat flies there ({@link WeaponReach#leadOffset}); else, or for a mob standing still, its box as it is.
+     */
+    private static AABB batBox(Entity target, Vec3 eye) {
+        AABB box = target.getBoundingBox();
+        if (!AutoClearConfig.getInstance().isPredictiveBats()) {
+            return box;
+        }
+        Seen s = seenMobs.get(target.getId());
+        if (s == null || s.vel() == null) {
+            return box;
+        }
+        Vec3 off = WeaponReach.leadOffset(eye, box.getCenter(), s.vel());
+        if (off.lengthSqr() == 0.0) {
+            return box;
+        }
+        if (leadLogged.add(target.getId())) {
+            LOGGER.info(String.format(Locale.US, "[AutoClear] leading the bat at %s: moving %.2f b/t, aiming %.1f blocks"
+                    + " ahead of it", target.getName().getString(), s.vel().horizontalDistance(), off.length()));
+        }
+        return box.move(off);
+    }
+
+    /** {@link WeaponReach#sceptreAim} at the led box, else (nothing reaches the spot ahead) at the mob as it stands. */
+    private static WeaponReach.Aim leadAim(Minecraft client, LocalPlayer player, Entity target, AABB box) {
+        Vec3 eye = player.getEyePosition();
+        AABB led = batBox(target, eye);
+        WeaponReach.Aim aim = led.equals(box) ? null : WeaponReach.sceptreAim(client.level, player, eye, led);
+        return aim != null ? aim : WeaponReach.sceptreAim(client.level, player, eye, box);
     }
 
     /**
@@ -1849,7 +2312,7 @@ public final class AutoClearFeature {
                                            int hypeTicks) {
         if (cachedBatTicks == -2) {
             int slot = sceptreSlot(player);
-            cachedBat = slot < 0 ? null : WeaponReach.sceptreAim(client.level, player, player.getEyePosition(), box);
+            cachedBat = slot < 0 ? null : leadAim(client, player, target, box);
             cachedBatTicks = cachedBat == null ? -1
                     : WeaponReach.batTicks(client.level, player, player.getEyePosition(), cachedBat)
                     + (player.getInventory().getSelectedSlot() == slot ? 0 : 1);
@@ -1934,9 +2397,16 @@ public final class AutoClearFeature {
      */
     private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
                                              java.util.function.Predicate<Vec3> doneAt, String what) {
+        return walkInsteadOfTrip(client, player, spot, doneAt, what, false);
+    }
+
+    /** As above; {@code forDoor}: the walk is to a wither door, ending where {@code doneAt} says the door is in reach
+     *  (since 2026-10-20), and counted as a trip to it (tripEnded) when it arrives. */
+    private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
+                                             java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor) {
         AutoClearConfig cfg = AutoClearConfig.getInstance();
         if (!cfg.isWalkWhenFaster() || !player.onGround() || !ShortWalk.mixinApplied()
-                || (doneAt != null ? walkOffFor == targetId : walkOffRoam)) {
+                || (forDoor ? walkOffDoor : doneAt != null ? walkOffFor == targetId : walkOffRoam)) {
             return false;
         }
         Vec3 feet = player.position();
@@ -1972,7 +2442,8 @@ public final class AutoClearFeature {
         }
         walkDecisionKey = null;   // taken: the next decision is a fresh one
         walkDecisionPlan = null;
-        walkForMob = doneAt != null;
+        walkForMob = doneAt != null && !forDoor;
+        walkForDoor = forDoor;
         walkWhat = what;
         walkDoneAt = doneAt;
         ShortWalk.start(plan, "Auto Clear");
@@ -1981,13 +2452,15 @@ public final class AutoClearFeature {
         travelStarted = true;
         walks++;
         action = "walking to " + what + " (~" + plan.ticks() + " ticks vs etherwarp ~" + etherTicks + ")";
-        if (walkForMob) {
+        if (walkForMob || walkForDoor) {
             stepWalk(client, player);   // the first keys go in this same tick's input, not the next
         }
         return true;
     }
 
     private static java.util.function.Predicate<Vec3> walkDoneAt = null;
+    /** The walk running is to a wither door (it ends the tick the door is in reach). */
+    private static boolean walkForDoor = false;
 
     /**
      * One tick of Phase.WALK, driven by his real position ({@link ShortWalk#tick}): the body turned toward the way with
@@ -2019,6 +2492,15 @@ public final class AutoClearFeature {
                 return false;
             }
         }
+        if (walkForDoor && walkDoneAt != null && player.onGround() && walkDoneAt.test(player.position())) {
+            // The door is in reach: the walk has done what a trip to it does (doorTripDone), and the click goes now.
+            endWalk("in reach of the wither door");
+            phase = Phase.IDLE;
+            planKey = Long.MIN_VALUE;
+            walkForDoor = false;
+            tripEnded(player, false);
+            return false;
+        }
         bodyWanted = true;
         float pitch = Mth.clamp(player.getXRot(), -90f, 90f);
         ShortWalk.Status status = ShortWalk.tick(client.level, player, yaw -> BODY.turn(player, yaw, pitch));
@@ -2030,7 +2512,9 @@ public final class AutoClearFeature {
         phase = Phase.IDLE;
         planKey = Long.MIN_VALUE;
         if (failed) {
-            if (walkForMob) {
+            if (walkForDoor) {
+                walkOffDoor = true;
+            } else if (walkForMob) {
                 walkOffFor = targetId;
             } else {
                 walkOffRoam = true;
@@ -2068,6 +2552,39 @@ public final class AutoClearFeature {
         if (!AutoClearUtils.canPath(layout)) {
             action = "waiting to land before the trip to " + roomName;
             return;
+        }
+        // A mob of the room last seen somewhere (it left the view while he was elsewhere): go where it was, not to the
+        // room's nearest tile (killer560, 2026-10-20: "goes to the last known spot of a mob instead of searching the
+        // whole room"). Not there on arrival, the roam forgets it (roamToKnown) and looks on as before.
+        Known lastSeen = null;
+        for (Known k : knownMobs(client, layout, room)) {
+            if (k.lostId() >= 0 && (lastSeen == null || k.pos().distanceToSqr(player.position())
+                    < lastSeen.pos().distanceToSqr(player.position()))) {
+                lastSeen = k;
+            }
+        }
+        if (lastSeen != null) {
+            Vec3 p = lastSeen.pos();
+            AABB box = new AABB(p.x - 0.3, p.y, p.z - 0.3, p.x + 0.3, p.y + 1.95, p.z + 0.3);
+            BlockPos stand = WeaponReach.standSpot(client.level, player, box, AutoClearConfig.getInstance().getWeapon());
+            if (stand == null) {
+                stand = TeleportUtils.nearestEtherwarpable(BlockPos.containing(p));
+            }
+            if (stand != null && layout.roomAtWorld(stand.getX() + 0.5, stand.getZ() + 0.5) == room) {
+                final BlockPos goal = stand;
+                final Known k = lastSeen;
+                action = "etherwarp to " + roomName + " (" + k.name() + " last seen there)";
+                startTrip(client, player, () -> {
+                    ClearExecutor.etherPathFast(goal, null);
+                    return true;
+                });
+                if (phase == Phase.TRAVEL) {
+                    LOGGER.info(String.format(Locale.US, "[AutoClear] trip to room %s: to %s's last known spot %s, standing"
+                                    + " on %s (%.1f blocks away)", roomName, k.name(), BlockPos.containing(p).toShortString(),
+                            goal.toShortString(), player.position().distanceTo(Vec3.atCenterOf(goal))));
+                }
+                return;
+            }
         }
         int[] tiles = layout.tiles(room);
         int tile = tiles[0];
@@ -2248,10 +2765,10 @@ public final class AutoClearFeature {
     private static List<Entity> starredIn(Minecraft client, DungeonLayout layout, int room) {
         List<Entity> out = new java.util.ArrayList<>();
         for (Entity mob : MobEspFeature.starredMobs(client)) {
-            if (skippedMobs.contains(mob.getId())) {
+            if (skippedMobs.contains(mob.getId()) || doomed.containsKey(mob.getId())) {
                 continue;
             }
-            if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {
+            if (inRoom(layout, room, mob)) {
                 out.add(mob);
             }
         }

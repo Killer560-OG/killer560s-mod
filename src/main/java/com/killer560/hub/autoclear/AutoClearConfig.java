@@ -53,6 +53,23 @@ public final class AutoClearConfig {
         }
     }
 
+    /**
+     * When a Spirit Sceptre bat is enough to kill its mob in one hit (killer560, 2026-10-20), what Auto Clear does after
+     * sending it: keep on it as before, move on to the next mob when the bat is due to land, or move on the tick it leaves
+     * (the next etherwarp overlaps the bat's flight).
+     */
+    public enum OneTap {
+        OFF, AFTER_IMPACT, AT_ONCE;
+
+        public String label() {
+            return switch (this) {
+                case OFF -> "Off";
+                case AFTER_IMPACT -> "After Impact";
+                case AT_ONCE -> "At Once";
+            };
+        }
+    }
+
     public static final int MIN_MOB_TIMEOUT_TICKS = 40;
     public static final int MAX_MOB_TIMEOUT_TICKS = 400;
 
@@ -71,6 +88,10 @@ public final class AutoClearConfig {
     private boolean pickUpKeys = true;
     /** Walk (sprint, jump) to a mob or a room spot when that is estimated faster than etherwarping (killer560, 2026-10-19). */
     private boolean walkWhenFaster = true;
+    /** Aim each bat where a moving mob will be when it gets there (killer560, 2026-10-20). */
+    private boolean predictiveBats = true;
+    /** What follows a bat that kills its mob in one hit (killer560, 2026-10-20). */
+    private OneTap oneTap = OneTap.AT_ONCE;
 
     private AutoClearConfig() {
     }
@@ -95,6 +116,8 @@ public final class AutoClearConfig {
                 cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
                 cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
                 cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
+                cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
+                cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
                 // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
                 // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
             } catch (Exception e) {
@@ -116,6 +139,8 @@ public final class AutoClearConfig {
             o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
             o.addProperty("pickUpKeys", pickUpKeys);
             o.addProperty("walkWhenFaster", walkWhenFaster);
+            o.addProperty("predictiveBats", predictiveBats);
+            o.addProperty("oneTap", oneTap.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -147,6 +172,12 @@ public final class AutoClearConfig {
 
     public boolean isWalkWhenFaster() { return walkWhenFaster; }
     public void setWalkWhenFaster(boolean v) { walkWhenFaster = v; }
+
+    public boolean isPredictiveBats() { return predictiveBats; }
+    public void setPredictiveBats(boolean v) { predictiveBats = v; }
+
+    public OneTap getOneTap() { return oneTap; }
+    public void setOneTap(OneTap v) { oneTap = v == null ? OneTap.AT_ONCE : v; }
 
     public int getMobTimeoutTicks() { return mobTimeoutTicks; }
     public void setMobTimeoutTicks(int v) {

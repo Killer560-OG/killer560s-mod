@@ -490,6 +490,15 @@ public final class MobEspFeature {
      * target list (killer560, 2026-10-06: "kills starred mobs only ... reuse" the ESP's detection). Client thread.
      */
     public static List<Entity> starredMobs(Minecraft client) {
+        return starredMobs(client, null);
+    }
+
+    /**
+     * {@link #starredMobs(Minecraft)}, also filling {@code tags} (when not null) with each mob's name tag as the client
+     * reads it - the "✯ Name 337.5k❤" stand's text, whose health Auto Clear's one-tap estimate reads (killer560,
+     * 2026-10-20). A miniboss found by its player name and no stand gets no entry.
+     */
+    public static List<Entity> starredMobs(Minecraft client, Map<Integer, String> tags) {
         List<Entity> out = new java.util.ArrayList<>();
         if (client.level == null || client.player == null) {
             return out;
@@ -500,16 +509,21 @@ public final class MobEspFeature {
                 continue;
             }
             Entity mob = null;
+            String tag = null;
             if (entity instanceof ArmorStand stand && stand.hasCustomName()) {
                 String name = stand.getName().getString();
                 if (name.contains(STAR) && name.contains(HEART)) {
                     mob = resolveMob(client, stand, name);
+                    tag = name;
                 }
             } else if (entity instanceof Player p && isMiniboss(client, p)) {
                 mob = p;
             }
             if (mob != null && mob.isAlive() && !mob.isRemoved() && seen.add(mob.getId())) {
                 out.add(mob);
+            }
+            if (mob != null && tag != null && tags != null) {
+                tags.put(mob.getId(), tag);
             }
         }
         return out;
