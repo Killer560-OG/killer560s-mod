@@ -1578,24 +1578,41 @@ public final class AutoSecretFeature {
         RoomTour.Matrix m = RoomTour.matrix(from, sites, true, layout);
         // The Room Order setting (killer560, 2026-10-18): Largest To Smallest, or Least Etherwarps through the whole floor;
         // with only rooms of 3 unfound or fewer left it is Least Etherwarps whatever the setting says.
-        AutoSecretConfig.SecretOrder mode = RoomTour.effectiveOrder(m.weight(),
-                AutoSecretConfig.getInstance().getSecretOrder());
-        int[] idx = RoomTour.secretOrder(m, 3_000_000L);
+        // Least Etherwarps (killer560, 2026-10-19): the best order its search has found so far - at the first decision the
+        // nearest room next improved by moves, while the search (no time limit) goes on in the background; every later
+        // decision, the room boundary, takes whatever better order it has found by then.
+        RoomTour.Choice choice = RoomTour.secretOrder(m, sites);
+        AutoSecretConfig.SecretOrder mode = choice.mode();
+        int[] idx = choice.order().clone();
+        String aheadNote = "";
         if (ahead != null) {
-            // Planned ahead from here with every trip searched: that pick's trip is already waiting.
+            // Planned ahead from here with every trip searched: that pick's trip is already waiting. Least Etherwarps
+            // leaves it only for an order the search has since found with strictly less travel.
             for (int k = 0; k < idx.length; k++) {
                 if (sites.get(idx[k]).key().equals(ahead) && k > 0) {
-                    int v = idx[k];
-                    System.arraycopy(idx, 0, idx, 1, k);
-                    idx[0] = v;
+                    int[] aheadFirst = idx.clone();
+                    int v = aheadFirst[k];
+                    System.arraycopy(aheadFirst, 0, aheadFirst, 1, k);
+                    aheadFirst[0] = v;
+                    double tBest = TourPlanner.travel(idx, m.fromHere(), m.between());
+                    double tAhead = TourPlanner.travel(aheadFirst, m.fromHere(), m.between());
+                    if (mode == AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS && tBest < tAhead - 1e-9) {
+                        aheadNote = String.format(Locale.US, " | planned ahead: %s, left for the search's better order"
+                                + " (%.0f ticks against %.0f)", ahead, tBest, tAhead);
+                    } else {
+                        idx = aheadFirst;
+                    }
                     break;
                 }
             }
+            if (aheadNote.isEmpty()) {
+                aheadNote = " | planned ahead: " + ahead;
+            }
         }
-        LOGGER.info("[AutoSecret] room order ({}): {} | travel {} ticks; {}{}", mode.label(),
+        LOGGER.info("[AutoSecret] room order ({}): {} | travel {} ticks, {} ({}); {}{}", mode.label(),
                 RoomTour.describe(sites, idx), Math.round(TourPlanner.travel(idx, m.fromHere(), m.between())),
-                RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"),
-                ahead != null ? " | planned ahead: " + ahead : "");
+                choice.proven() ? "proven optimal" : "not proven yet", choice.method(),
+                RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"), aheadNote);
         List<RoomStatus.Room> out = new ArrayList<>();
         for (int i : idx) {
             out.add(withSite.get(i));

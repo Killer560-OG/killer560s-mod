@@ -81,16 +81,6 @@ public final class TourPlanner {
         return t;
     }
 
-    /**
-     * The order with the least travel through EVERY room, whatever they hold - Auto Secret's "Least Etherwarps" (killer560,
-     * 2026-10-18: "as few etherwarps possible pathfinding the whole dungeon no room order preference"). The trips are in
-     * ticks, which are a warp count times a constant ({@code RoomTour}), so least travel is fewest warps. Exact (branch and
-     * bound) inside {@code budgetNanos}; past it, the nearest-room-next order improved by moving single rooms.
-     */
-    /** Up to this many rooms the least-travel order is exact by Held-Karp, whatever the time budget (killer560, 2026-10-19:
-     *  "make sure min etherwarp is actually using the fewest"). 2^14 subsets x 14 ends is a few million steps. */
-    static final int HELD_KARP_MAX = 14;
-
     /** Exact least-travel tour over every subset of rooms with each room last (Held-Karp dynamic programming). */
     static Result heldKarp(double[] fromHere, double[][] between) {
         int n = fromHere.length;
@@ -143,144 +133,17 @@ public final class TourPlanner {
         return new Result(order, t, t, true);
     }
 
+    /**
+     * The order with the least travel through EVERY room, whatever they hold - Auto Secret's "Least Etherwarps" (killer560,
+     * 2026-10-18: "as few etherwarps possible pathfinding the whole dungeon no room order preference"). The trips are in
+     * ticks, which are a warp count times a constant ({@code RoomTour}), so least travel is fewest warps. Always exact, on
+     * the calling thread, with no time limit (killer560, 2026-10-19: "give it no time budget"): {@code budgetNanos} is
+     * ignored and kept only for callers. Auto Secret itself uses {@link LeastWarpSearch#order}, which answers at once and
+     * keeps searching in the background.
+     */
     public static Result shortest(double[] fromHere, double[][] between, long budgetNanos) {
-        int n = fromHere.length;
-        if (n == 0) {
-            return new Result(new int[0], 0, 0, true);
-        }
-        if (n <= HELD_KARP_MAX) {
-            return heldKarp(fromHere, between);
-        }
-        boolean[] used = new boolean[n];
-        int[] best = new int[n];
-        int prev = -1;
-        for (int k = 0; k < n; k++) {
-            int pick = -1;
-            for (int i = 0; i < n; i++) {
-                if (!used[i] && (pick < 0 || (prev < 0 ? fromHere[i] < fromHere[pick] : between[prev][i] < between[prev][pick]))) {
-                    pick = i;
-                }
-            }
-            used[pick] = true;
-            best[k] = pick;
-            prev = pick;
-        }
-        best = improveTravel(best, fromHere, between);
-        Shortest s = new Shortest(fromHere, between, System.nanoTime() + Math.max(0, budgetNanos));
-        s.bestCost = travel(best, fromHere, between);
-        s.bestOrder = best.clone();
-        s.run();
-        double t = travel(s.bestOrder, fromHere, between);
-        return new Result(s.bestOrder, t, t, !s.timedOut);
-    }
-
-    private static int[] improveTravel(int[] order, double[] fromHere, double[][] between) {
-        int[] cur = order.clone();
-        double cost = travel(cur, fromHere, between);
-        boolean better = true;
-        int rounds = 0;
-        while (better && rounds++ < 50) {
-            better = false;
-            for (int i = 0; i < cur.length; i++) {
-                for (int j = 0; j < cur.length; j++) {
-                    if (i == j) {
-                        continue;
-                    }
-                    int[] moved = move(cur, i, j);
-                    double c = travel(moved, fromHere, between);
-                    if (c < cost - 1e-9) {
-                        cur = moved;
-                        cost = c;
-                        better = true;
-                    }
-                }
-            }
-        }
-        return cur;
-    }
-
-    /** Depth-first branch and bound over the orders by travel alone, nearest room first at every level. */
-    private static final class Shortest {
-        final double[] fromHere;
-        final double[][] between;
-        final long deadline;
-        final int n;
-        final int[] path;
-        final boolean[] used;
-        double bestCost;
-        int[] bestOrder;
-        boolean timedOut;
-        long steps;
-
-        Shortest(double[] fromHere, double[][] between, long deadline) {
-            this.fromHere = fromHere;
-            this.between = between;
-            this.deadline = deadline;
-            this.n = fromHere.length;
-            this.path = new int[n];
-            this.used = new boolean[n];
-        }
-
-        void run() {
-            dfs(0, -1, 0);
-        }
-
-        private void dfs(int depth, int prev, double cost) {
-            if (timedOut) {
-                return;
-            }
-            if ((++steps & 1023) == 0 && System.nanoTime() > deadline) {
-                timedOut = true;
-                return;
-            }
-            if (depth == n) {
-                if (cost < bestCost - 1e-9) {
-                    bestCost = cost;
-                    bestOrder = path.clone();
-                }
-                return;
-            }
-            if (cost + bound(prev) >= bestCost - 1e-9) {
-                return;
-            }
-            Integer[] kids = new Integer[n - depth];
-            int k = 0;
-            for (int i = 0; i < n; i++) {
-                if (!used[i]) {
-                    kids[k++] = i;
-                }
-            }
-            final int p = prev;
-            Arrays.sort(kids, (a, b) -> Double.compare(p < 0 ? fromHere[a] : between[p][a],
-                    p < 0 ? fromHere[b] : between[p][b]));
-            for (int i : kids) {
-                used[i] = true;
-                path[depth] = i;
-                dfs(depth + 1, i, cost + (prev < 0 ? fromHere[i] : between[prev][i]));
-                used[i] = false;
-                if (timedOut) {
-                    return;
-                }
-            }
-        }
-
-        /** Each room left is entered once, by no trip cheaper than its cheapest way in from here or another room left. */
-        private double bound(int prev) {
-            double add = 0;
-            for (int i = 0; i < n; i++) {
-                if (used[i]) {
-                    continue;
-                }
-                double in = prev < 0 ? fromHere[i] : between[prev][i];
-                for (int j = 0; j < n; j++) {
-                    if (!used[j] && j != i) {
-                        in = Math.min(in, between[j][i]);
-                    }
-                }
-                add += Math.max(0, in);
-            }
-            return add;
-        }
+        LeastWarpSearch.Snapshot s = LeastWarpSearch.solve(fromHere, between, () -> false);
+        return new Result(s.order(), s.travel(), s.travel(), s.proven());
     }
 
     /** Value per tick of the trip and the work, next room first, from wherever the last one ended. */

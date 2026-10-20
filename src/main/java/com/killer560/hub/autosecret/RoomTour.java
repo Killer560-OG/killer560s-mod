@@ -74,10 +74,15 @@ final class RoomTour {
     private static volatile String aheadPick;
     private static volatile Vec3 aheadFrom;
 
+    static {
+        LeastWarpSearch.setLog(LOGGER::info);
+    }
+
     private RoomTour() {
     }
 
     static void reset() {
+        LeastWarpSearch.cancel();
         generation++;
         COST.clear();
         LEAVES.clear();
@@ -368,8 +373,10 @@ final class RoomTour {
                 return;
             }
             Matrix m = matrix(from, sites, travelOnly, layout);
-            TourPlanner.Result res = TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L);
-            int[] order = travelOnly ? secretOrder(m, 30_000_000L) : res.order();
+            // Auto Secret's own order (travelOnly), or Dungeon Autopilot's value-weighted plan.
+            Choice choice = travelOnly ? secretOrder(m, sites) : null;
+            int[] order = choice != null ? choice.order()
+                    : TourPlanner.plan(m.fromHere(), m.between(), m.weight(), m.work(), 30_000_000L).order();
             Site next = sites.get(order[0]);
             ClearExecutor.preplanStarted(from, next.arrive(), next.tile(), next.exact());
             // The trip precomputed (TripCache) when there is one - read on this thread, it is a concurrent map.
@@ -379,9 +386,11 @@ final class RoomTour {
                     ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
                     : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
             LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"
-                            + " order %s | %s", from.x, from.y, from.z, next.key(), next.arriveKey(),
+                            + " order %s | %s%s", from.x, from.y, from.z, next.key(), next.arriveKey(),
                     path == null ? "no" : String.valueOf(path.size()), describe(sites, order),
-                    compare(m, order, byWeight(m), "most unfound first")));
+                    compare(m, order, byWeight(m), "most unfound first"), choice == null ? ""
+                            : String.format(Locale.US, " | %s, travel %.0f ticks, %s: %s", choice.mode().label(),
+                            choice.travel(), choice.proven() ? "proven optimal" : "not proven yet", choice.method())));
             Minecraft.getInstance().execute(() -> {
                 if (gen != generation) {
                     ClearExecutor.preplanFailed();
@@ -413,19 +422,32 @@ final class RoomTour {
 
     /**
      * Auto Secret's own order for these sites, by its Room Order setting: Largest To Smallest is {@link #byWeight} (each
-     * site's weight is its room's unfound secrets), Least Etherwarps is {@link TourPlanner#shortest} over the trips. When
-     * every room left has {@link AutoSecretConfig#SMALL_ROOM_SECRETS} unfound or fewer it is Least Etherwarps whatever the
-     * setting says (killer560, 2026-10-18). Both the choice now and the pick planned ahead come through here.
+     * site's weight is its room's unfound secrets), Least Etherwarps is {@link LeastWarpSearch#order} over the trips - an
+     * order at once, and a search with no time limit behind it that keeps improving it until it is proven; each call
+     * reads its best so far (killer560, 2026-10-19). When every room left has {@link AutoSecretConfig#SMALL_ROOM_SECRETS}
+     * unfound or fewer it is Least Etherwarps whatever the setting says (killer560, 2026-10-18). Both the choice now and
+     * the pick planned ahead come through here.
      */
-    static int[] secretOrder(Matrix m, long budget) {
-        return secretOrder(m, AutoSecretConfig.getInstance().getSecretOrder(), budget);
+    static Choice secretOrder(Matrix m, List<Site> sites) {
+        return secretOrder(m, sites, AutoSecretConfig.getInstance().getSecretOrder());
     }
 
-    static int[] secretOrder(Matrix m, AutoSecretConfig.SecretOrder setting, long budget) {
-        if (effectiveOrder(m.weight(), setting) == AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST) {
-            return byWeight(m);
+    static Choice secretOrder(Matrix m, List<Site> sites, AutoSecretConfig.SecretOrder setting) {
+        AutoSecretConfig.SecretOrder mode = effectiveOrder(m.weight(), setting);
+        if (mode == AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST) {
+            int[] o = byWeight(m);
+            return new Choice(o, mode, "most unfound first", false, TourPlanner.travel(o, m.fromHere(), m.between()));
         }
-        return TourPlanner.shortest(m.fromHere(), m.between(), budget).order();
+        List<String> keys = new ArrayList<>(sites.size());
+        for (Site s : sites) {
+            keys.add(s.key());
+        }
+        LeastWarpSearch.Snapshot s = LeastWarpSearch.order(keys, m.fromHere(), m.between());
+        return new Choice(s.order(), mode, s.method(), s.proven(), s.travel());
+    }
+
+    /** An order for the sites and how it was found ({@code proven}: no order has less travel). */
+    record Choice(int[] order, AutoSecretConfig.SecretOrder mode, String method, boolean proven, double travel) {
     }
 
     /** The order actually used for rooms worth {@code weights} (unfound secrets) under {@code setting}. */
