@@ -36,6 +36,10 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
   both off the board each decision (two face-up tiles of a kind = claimed, one = the turn's open tile; 2026-10-05,
   `ExperimentSolver.readBoard`). An offline port of the testkit's Hx table driving the solver class found both: in it,
   main's solver never finished 207 of 300 random boards (how often real Hypixel boards hit it is unmeasured).
+- **A "first" rule in Superpairs has to cover the Instant Find too.** With the Nadeshiko Dye as the turn's open tile and
+  an Instant Find turned over as its second click, the match went on a known Sharpness V while the dye waited; and
+  Explore Before Claiming's held-back kinds, left out of `anyMoneySingle`, let a known XP pair go ahead of a Titanic
+  (2026-10-20, a 2,400-board offline check of the solver class; both fixed in `armedTarget` and `firstClickOfTurn`).
 - `ServerTickClock.now()` counts ticks since client LAUNCH, so `now() % N` has no relation to any server cycle. Tick
   Timers' clear "Death Tick" was `20 - now() % 20` and so never lined up with anything; removed 2026-10-06. A phase needs
   a server anchor (NoammAddons used `ClientboundSetTimePacket.gameTime`).

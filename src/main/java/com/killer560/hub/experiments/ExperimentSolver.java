@@ -1030,9 +1030,12 @@ final class ExperimentSolver {
             return hidden() >= 0;
         }
 
+        /** A single of money whose partner is still out there. Explore Before Claiming's held-back kinds count: they
+         *  are money claimed late, not XP, so turning their partners over still comes before the skipped kinds and
+         *  XP (2026-10-20: with them left out, a held-back Titanic single let a known XP pair go first). */
         boolean anyMoneySingle() {
             for (Cell single : singles) {
-                if (isMoney(single)) {
+                if (isMoney(single) || isLowValueDeferred(single)) {
                     return true;
                 }
             }
@@ -1173,13 +1176,28 @@ final class ExperimentSolver {
             superpairsRevealAttempted.add(reveal);
             return OptionalInt.of(reveal);
         }
+        if (!deferredGo) {
+            // Explore Before Claiming's held-back money is still money: once the clicks left no longer cover every
+            // known held-back pair (and, in "Every Pair", every known XP pair) plus a full exploring turn, the most
+            // valuable held-back pair is claimed now, ahead of any XP - "then goes back for them" must not mean losing
+            // them to the click count (2026-10-20: 10 clicks claimed an XP pair and left a known Titanic pair).
+            int heldPairs = countKnownPairs(board, ExperimentSolver::isLowValueDeferred);
+            int wantedXpPairs = valuableOnly ? 0 : countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile);
+            if (heldPairs > 0 && remaining >= 0 && remaining < 2 * (heldPairs + wantedXpPairs) + 2) {
+                OptionalInt held = matchBestLowValuePair(board);
+                if (held.isPresent()) {
+                    return held;
+                }
+            }
+        }
         if (!valuableOnly && !deferredGo) {
             // "Every Pair": XP is wanted, after money. With the clicks left unreadable, as before: take it at once.
             // Otherwise keep exploring while the clicks left cover every known XP pair plus a full exploring turn
             // (a turn's first click commits its second), and take the best XP pair once they no longer would.
             // Once nothing better is left to find this is skipped and the end order below (skipped, then XP) runs.
             int xpPairs = countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile);
-            if (xpPairs > 0 && (remaining < 0 || remaining < 2 * xpPairs + 2)) {
+            int heldPairs = countKnownPairs(board, ExperimentSolver::isLowValueDeferred);
+            if (xpPairs > 0 && (remaining < 0 || remaining < 2 * (xpPairs + heldPairs) + 2)) {
                 OptionalInt xp = matchHighestValueDyePair(board);
                 if (xp.isPresent()) {
                     return xp;
@@ -1407,7 +1425,7 @@ final class ExperimentSolver {
         queuedPairSlots.add(second);
         pairClicks.add(second);
         superpairsPairFirstSlot = first;
-        LOGGER.info("Superpairs: board known, collecting held-back pair slot {} with slot {} (name='{}', {} coins)",
+        LOGGER.info("Superpairs: collecting held-back pair slot {} with slot {} (name='{}', {} coins)",
                 first, second, knownSuperpairsCells.get(first).name(), Math.round(bestValue));
         return OptionalInt.of(first);
     }
@@ -1627,7 +1645,11 @@ final class ExperimentSolver {
     private OptionalInt armedTarget(Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
         String openKey = board.open.size() == 1 ? pairKey(bySlot.get(board.open.get(0))) : null;
         Integer reveal = nextExploreSlot(bySlot);
-        // The automatic match claims the dye (always), else a T7 (T7 Drops First), whatever else is known.
+        // The automatic match claims the dye (always), else a T7 (T7 Drops First), whatever else is known. When the
+        // focused drop is the turned-over tile and its partner is unseen, the match goes on a new tile, the only click
+        // that can still claim it: a known tile of another kind would claim that kind while the dye waits (2026-10-20,
+        // the dye open and an Instant Find turned over as the turn's second click spent the match on a Sharpness V).
+        Cell openCell = board.open.size() == 1 ? bySlot.get(board.open.get(0)) : null;
         for (int pass = 0; pass < 2; pass++) {
             if (pass == 1 && !t7First()) break;
             for (int slot : SUPERPAIRS_SNAKE_ORDER) {
@@ -1636,6 +1658,10 @@ final class ExperimentSolver {
                 if (pass == 0 ? isPriorityDye(known) : isT7Drop(known)) {
                     return OptionalInt.of(slot);
                 }
+            }
+            boolean openIsFocus = openCell != null && (pass == 0 ? isPriorityDye(openCell) : isT7Drop(openCell));
+            if (openIsFocus && reveal != null) {
+                return OptionalInt.of(reveal);
             }
         }
         OptionalInt best = bestKnownSingleTarget(valuableOnly, board, openKey);
