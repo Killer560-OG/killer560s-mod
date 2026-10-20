@@ -284,6 +284,7 @@ public final class AutoClearFeature {
         keyId = -1;
         keyTrip = false;
         keysTried.clear();
+        resetRoam();
         roomsCleared = 0;
         runStartMs = System.currentTimeMillis();
         mobsKilled = 0;
@@ -445,6 +446,19 @@ public final class AutoClearFeature {
                 }
                 travelStarted = false;
             }
+            if (roamTrip) {
+                // A roam trip's failure costs its spot (already counted), not one of the room's tries.
+                roamTrip = false;
+                if (travelStarted && ClearExecutor.lastPathFailed()) {
+                    LOGGER.info("[AutoClear] roam: the trip to spot {} in {} failed - looking from here", roamSpotsTried,
+                            roomName);
+                } else {
+                    LOGGER.info("[AutoClear] roam: at spot {} in {} ({}) - looking for starred mobs for {} ticks",
+                            roamSpotsTried, roomName, fmt(player.position()), ROAM_LOOK_TICKS);
+                }
+                noMobTicks = 0;
+                travelStarted = false;
+            }
             if (travelStarted && ClearExecutor.lastPathFailed()) {
                 pathFailures++;
                 LOGGER.info("[AutoClear] trip {} failed ({} of {})", action, pathFailures, MAX_PATH_FAILURES);
@@ -519,6 +533,7 @@ public final class AutoClearFeature {
             killsInRoom = 0;
             pathFailures = 0;
             targetId = -1;
+            resetRoam();
             ModChat.log(CHAT, ModChat.text("Room: "), ModChat.value(roomName));
         }
 
@@ -542,13 +557,22 @@ public final class AutoClearFeature {
                 if (++noMobTicks == 1) {
                     noMobLag = com.killer560.hub.util.ServerLag.mark();
                 }
-                if (noMobTicks > NO_MOB_TICKS + com.killer560.hub.util.ServerLag.ticksSince(noMobLag)) {
-                    if (killsInRoom > 0 && !LiveMapFeature.hasRoomStates()) {
+                long lag = com.killer560.hub.util.ServerLag.ticksSince(noMobLag);
+                boolean doneWithoutMap = killsInRoom > 0 && !LiveMapFeature.hasRoomStates();
+                // Not cleared and nothing in sight: walk the room before giving up on it (killer560, 2026-10-19).
+                if (!roamDone && !doneWithoutMap
+                        && noMobTicks > (roamSpotsTried == 0 ? ROAM_AFTER_TICKS : ROAM_LOOK_TICKS) + lag
+                        && roam(client, player, layout, room)) {
+                    return;
+                }
+                if (noMobTicks > (roamSpotsTried == 0 ? NO_MOB_TICKS : ROAM_LOOK_TICKS) + lag) {
+                    if (doneWithoutMap) {
                         // No dungeon map to say so (nothing ever reads cleared without one): every starred mob in
                         // sight is dead, which is all a clear is.
                         roomDoneWithoutMap();
                     } else {
-                        giveUpRoom("no starred mob is visible but the room is not cleared");
+                        giveUpRoom("no starred mob is visible but the room is not cleared"
+                                + (roamSpotsTried > 0 ? " (looked from " + roamSpotsTried + " more spot(s))" : ""));
                     }
                 }
                 return;
@@ -952,6 +976,150 @@ public final class AutoClearFeature {
                     keyPos.distanceTo(new Vec3(stand0.getX() + 0.5, stand0.getY() + 1.0, stand0.getZ() + 0.5))));
         }
         return true;
+    }
+
+    // ---- roaming a room that shows nothing (killer560, 2026-10-19: "when the current room is not yet clear but no mob
+    // is visible or reachable, move around the room ... before giving up on the room") ----
+
+    /** No starred mob in sight (or every one skipped as out of reach) this long: the first roam. Before 2026-10-19 the
+     *  room was given up at {@link #NO_MOB_TICKS} with no move at all. */
+    static final int ROAM_AFTER_TICKS = 40;
+    /** After each roam landing: this long looking for the room's mobs before the next spot (or giving up). */
+    static final int ROAM_LOOK_TICKS = 30;
+    /** At most this many spots per room. */
+    static final int ROAM_MAX_SPOTS = 4;
+    /** And at most this long from the first roam, however the trips went (real time; server lag stretches it). */
+    static final long ROAM_TIME_LIMIT_MS = 25_000L;
+    /** A spot must be this far from everywhere already looked from, or it shows nothing new. */
+    static final double ROAM_MIN_SEPARATION = 8.0;
+    /** The offset of each quadrant's look point from its tile centre (a tile is 31 across). */
+    private static final int ROAM_QUADRANT = 8;
+
+    private static int roamSpotsTried = 0;
+    private static long roamStartMs = 0L;
+    /** No spot left, or the bound reached: give up the room as before. */
+    private static boolean roamDone = false;
+    /** The trip under way (Phase.TRAVEL) is a roam: its failure is not one of the room's tries. */
+    private static boolean roamTrip = false;
+    private static final List<Vec3> roamLookedFrom = new java.util.ArrayList<>();
+    /** The room's candidate spots (computed on the first roam), minus those taken. */
+    private static List<BlockPos> roamSpots = null;
+
+    private static void resetRoam() {
+        roamSpotsTried = 0;
+        roamStartMs = 0L;
+        roamDone = false;
+        roamTrip = false;
+        roamLookedFrom.clear();
+        roamSpots = null;
+    }
+
+    /**
+     * Takes the next roam spot: of the room's spots (one per quadrant of each of its tiles,
+     * {@link TeleportUtils#etherwarpableInTile}), the one farthest from everywhere he has looked from, by an Interactive
+     * Map trip. Mobs skipped in this room as out of reach are tried again from there. Bounded by
+     * {@link #ROAM_MAX_SPOTS} and {@link #ROAM_TIME_LIMIT_MS}; each spot and why is logged.
+     * @return true while roaming owns this tick (a trip started or waiting to), false once it is done (roamDone set)
+     */
+    private static boolean roam(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {
+        long now = System.currentTimeMillis();
+        if (roamStartMs == 0L) {
+            roamStartMs = now;
+            roamLookedFrom.add(player.position());
+        }
+        if (roamSpotsTried >= ROAM_MAX_SPOTS) {
+            LOGGER.info("[AutoClear] roam: {} spot(s) in {} showed no starred mob - giving up on the room", roamSpotsTried,
+                    roomName);
+            roamDone = true;
+            return false;
+        }
+        if (now - roamStartMs > ROAM_TIME_LIMIT_MS) {
+            LOGGER.info("[AutoClear] roam: {} s in {} after {} spot(s) - the time limit, giving up on the room",
+                    (now - roamStartMs) / 1000, roomName, roamSpotsTried);
+            roamDone = true;
+            return false;
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before roaming " + roomName;
+            return true;
+        }
+        if (roamSpots == null) {
+            roamSpots = roamCandidates(layout, room);
+            LOGGER.info("[AutoClear] roam: {} candidate spot(s) in {}: {}", roamSpots.size(), roomName,
+                    roamSpots.stream().map(BlockPos::toShortString).toList());
+        }
+        BlockPos best = null;
+        double bestD = ROAM_MIN_SEPARATION;
+        for (BlockPos s : roamSpots) {
+            Vec3 feet = new Vec3(s.getX() + 0.5, s.getY() + 1.0, s.getZ() + 0.5);
+            double nearest = Double.MAX_VALUE;
+            for (Vec3 v : roamLookedFrom) {
+                nearest = Math.min(nearest, feet.distanceTo(v));
+            }
+            if (nearest >= bestD) {
+                bestD = nearest;
+                best = s;
+            }
+        }
+        if (best == null) {
+            LOGGER.info("[AutoClear] roam: no spot in {} at least {} blocks from where it has looked ({} spot(s) tried) -"
+                    + " giving up on the room", roomName, ROAM_MIN_SEPARATION, roamSpotsTried);
+            roamDone = true;
+            return false;
+        }
+        final BlockPos spot = best;
+        final double separation = bestD;
+        action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
+        startTrip(client, player, () -> {
+            ClearExecutor.etherPath(spot, null);
+            return true;
+        });
+        if (phase != Phase.TRAVEL) {
+            return true;   // the body goes back first (Phase.RELEASE); this comes through again next tick
+        }
+        roamTrip = true;
+        roamSpotsTried++;
+        roamSpots.remove(spot);
+        roamLookedFrom.add(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
+        // Out of reach from where he stood is not out of reach from the next spot.
+        int freed = 0;
+        for (java.util.Iterator<Integer> it = skippedMobs.iterator(); it.hasNext(); ) {
+            Entity e = client.level.getEntity(it.next());
+            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
+                it.remove();
+                freed++;
+            }
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoClear] roam %d/%d in %s: to %s, %.1f blocks away and %.1f from the"
+                        + " nearest spot looked from - why: no starred mob in sight for %d ticks, the room not cleared"
+                        + " (%d killed here so far, %d skipped as out of reach - tried again from there)", roamSpotsTried,
+                ROAM_MAX_SPOTS, roomName, spot.toShortString(), player.position().distanceTo(new Vec3(spot.getX() + 0.5,
+                        spot.getY() + 1.0, spot.getZ() + 0.5)), separation, noMobTicks, killsInRoom, freed));
+        ModChat.log(CHAT, ModChat.text("Nothing in sight - looking from another spot "),
+                ModChat.dim("(" + roamSpotsTried + "/" + ROAM_MAX_SPOTS + ")"));
+        return true;
+    }
+
+    /** One standable block per quadrant of each of the room's tiles, distinct. */
+    private static List<BlockPos> roamCandidates(DungeonLayout layout, int room) {
+        List<BlockPos> out = new java.util.ArrayList<>();
+        int[] tiles = layout.tiles(room);
+        if (tiles == null) {
+            return out;
+        }
+        int[][] quadrants = {{ROAM_QUADRANT, ROAM_QUADRANT}, {ROAM_QUADRANT, -ROAM_QUADRANT},
+                {-ROAM_QUADRANT, ROAM_QUADRANT}, {-ROAM_QUADRANT, -ROAM_QUADRANT}};
+        for (int t : tiles) {
+            BlockPos c = DungeonLayout.cellCenter(t);
+            for (int[] q : quadrants) {
+                BlockPos s = TeleportUtils.etherwarpableInTile(c, new Vec3(c.getX() + 0.5 + q[0], c.getY(),
+                        c.getZ() + 0.5 + q[1]));
+                if (s != null && !out.contains(s) && layout.roomAtWorld(s.getX() + 0.5, s.getZ() + 0.5) == room) {
+                    out.add(s);
+                }
+            }
+        }
+        return out;
     }
 
     private static void roomDoneWithoutMap() {
