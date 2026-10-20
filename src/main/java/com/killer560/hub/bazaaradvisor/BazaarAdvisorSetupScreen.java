@@ -17,12 +17,19 @@ import net.minecraft.network.chat.Component;
  */
 public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemedScreen {
 
-    private static final int PANEL_W = 320;
-    private static final int PANEL_H = 110;
+    /** Widest the panel gets; on a narrow screen it shrinks to the screen less a 4 unit margin, like the other compact
+     *  screens (Auto Sell List, Custom Items), instead of running off both edges. */
+    private static final int PANEL_MAX_W = 320;
+    /** Header, question, the two answers, the saved answers' line and Use last, each with room around it: the answers
+     *  and Use last were 4 units apart in the 110-unit panel. */
+    private static final int PANEL_H = 120;
+    private static final int ANSWER_Y = 42;
+    private static final int LAST_LINE_Y = 72;
 
     private int step;
     private int panelX;
     private int panelY;
+    private int panelW = PANEL_MAX_W;
 
     public BazaarAdvisorSetupScreen() {
         super(Component.literal("Bazaar Advisor Setup"));
@@ -30,7 +37,8 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
 
     @Override
     protected void init() {
-        panelX = (this.width - PANEL_W) / 2;
+        panelW = Math.min(PANEL_MAX_W, this.width - 8);
+        panelX = (this.width - panelW) / 2;
         panelY = Math.max(2, (this.height - PANEL_H) / 2);
         buildButtons();
     }
@@ -38,8 +46,8 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
     private void buildButtons() {
         this.clearWidgets();
         int bx = panelX + 12;
-        int bw = (PANEL_W - 36) / 2;
-        int by = panelY + 60;
+        int bw = (panelW - 36) / 2;
+        int by = panelY + ANSWER_Y;
         switch (step) {
             case 0 -> {
                 addButton(bx, by, bw, "NPC", () -> answer(c -> c.setMode(BazaarAdvisorConfig.Mode.NPC), "NPC"));
@@ -61,11 +69,11 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
             }
         }
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Close"), b -> onClose())
-                .bounds(panelX + PANEL_W - 52, panelY + 3, 44, 16).build());
+                .bounds(panelX + panelW - 52, panelY + 3, 44, 16).build());
         // Use last (killer560, 2026-10-19: "on every turn on have it make me select ... or have a button for use last"):
         // keeps the saved answers and carries on without asking again.
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Use last"), b -> useLast())
-                .bounds(panelX + 12, panelY + PANEL_H - 26, PANEL_W - 24, 20).build());
+                .bounds(panelX + 12, panelY + PANEL_H - 28, panelW - 24, 20).build());
     }
 
     /** Keeps the saved answers. The Flipper's switch uses this screen every time it turns on. */
@@ -102,15 +110,20 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         ScreenChrome.backdrop(graphics, this.width, this.height);
-        ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
-        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 16, "Bazaar Advisor - question " + (step + 1) + " of 4");
+        ScreenChrome.frame(graphics, panelX, panelY, panelW, PANEL_H);
+        // The title stops short of the Close button (it ran under it on a narrow screen).
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16,
+                MenuStyle.ellipsize("Bazaar Advisor - question " + (step + 1) + " of 4", panelW - 70));
         String[] questions = {
                 "Where do you sell?",
                 "What should it optimise?",
                 "How do you buy?",
                 "How do you sell on the Bazaar?"
         };
-        MenuStyle.text(graphics, questions[step], panelX + 12, panelY + 28, MenuStyle.TXT);
+        ScreenChrome.text(graphics, MenuStyle.ellipsize(questions[step], panelW - 24), panelX + 12, panelY + 27, MenuStyle.TXT);
+        // What Use last keeps: the button alone did not say.
+        ScreenChrome.text(graphics, MenuStyle.ellipsize("Last: " + BazaarAdvisorConfig.getInstance().summary(), panelW - 24),
+                panelX + 12, panelY + LAST_LINE_Y, MenuStyle.DIM);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -126,6 +139,6 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
 
     @Override
     public int[] themedPanelBounds() {
-        return new int[]{panelX, panelY, PANEL_W, PANEL_H};
+        return new int[]{panelX, panelY, panelW, PANEL_H};
     }
 }
