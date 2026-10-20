@@ -105,6 +105,7 @@ public final class RouteRunMemory {
         check();
         if (pos != null && !got.containsKey(key)) {
             got.put(key, new Got(key, pos, AwaitEvents.now(), what));
+            LiveMapFeature.noteSecretTakenAt(pos.x, pos.z);
             LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} tick {} ({} this run)", what, key,
                     String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), AwaitEvents.now(), got.size());
         } else {

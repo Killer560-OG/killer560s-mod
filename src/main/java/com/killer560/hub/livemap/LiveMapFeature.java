@@ -1387,6 +1387,28 @@ public final class LiveMapFeature {
         return foundSecrets(roomName);
     }
 
+    /**
+     * A secret of his was just taken at (x, z) - a click or a pickup, counted on the packet. The map's count otherwise
+     * waits for the action bar's next line, so a room left straight after a secret read one short until he came back in
+     * (killer560, 2026-10-19: "it says 4/5 but if I go back in it updates"). The action bar still corrects it.
+     */
+    public static void noteSecretTakenAt(double x, double z) {
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = layout.roomAtWorld(x, z);
+        if (id < 0) {
+            return;
+        }
+        String name = layout.name(id);
+        for (RoomGroup g : groupsView()) {
+            if (g.entry != null && name != null && name.equals(g.entry.name) && g.entry.secrets > 0) {
+                int prev = Math.max(0, foundSecretsByRoom.getOrDefault(name, 0));
+                foundSecretsByRoom.put(name, Math.min(g.entry.secrets, prev + 1));
+                mapVersion++;
+                return;
+            }
+        }
+    }
+
     static int foundSecrets(String roomName) {
         Integer found = roomName == null ? null : foundSecretsByRoom.get(roomName);
         return found == null ? -1 : found;
