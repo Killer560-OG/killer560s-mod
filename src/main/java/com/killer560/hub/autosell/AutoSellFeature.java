@@ -102,6 +102,9 @@ public final class AutoSellFeature {
 
     /** Starts a session against whatever screen is open RIGHT NOW - never opens or navigates to one itself.
      *  @return null on success, else the reason it refused (so the command can print it). */
+    /** The last container title Auto Sell refused, so the log names it once. */
+    private static String lastRefusedTitle = "";
+
     private static void autoStart(Minecraft client) {
         AutoSellConfig cfg = AutoSellConfig.getInstance();
         if (!cfg.isEnabled() || cfg.getSellIdentities().isEmpty()) {
@@ -110,7 +113,14 @@ public final class AutoSellFeature {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) || screen == doneScreen) {
             return;
         }
-        if (!compileOrDefault(cfg.getScreenTitlePattern()).matcher(titleOf(screen)).matches()) {
+        String title = titleOf(screen);
+        if (!compileOrDefault(cfg.getScreenTitlePattern()).matcher(title).matches()) {
+            // killer560, 2026-10-19: the /trades menu was never sold to. Said once per title, so the real one shows in the log.
+            if (!title.equals(lastRefusedTitle)) {
+                lastRefusedTitle = title;
+                LOGGER.info("[AutoSell] screen title \"{}\" does not match the sell pattern '{}' - not selling in it",
+                        title, cfg.getScreenTitlePattern());
+            }
             return;
         }
         handled.clear();

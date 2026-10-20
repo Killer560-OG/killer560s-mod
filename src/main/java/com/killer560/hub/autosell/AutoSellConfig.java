@@ -36,7 +36,7 @@ public final class AutoSellConfig {
      *  {@code AutoSellFeature}'s class doc) - this is deliberately loose (matches anything with "sell" in the
      *  title) rather than a guessed exact string, and is the one thing worth tuning per-server if a screen
      *  Auto Sell should run in doesn't happen to say "sell" in its title. */
-    public static final String DEFAULT_SCREEN_TITLE_PATTERN = "(?i).*sell.*";
+    public static final String DEFAULT_SCREEN_TITLE_PATTERN = "(?i).*(sell|trade).*";
 
     private static AutoSellConfig instance;
 
