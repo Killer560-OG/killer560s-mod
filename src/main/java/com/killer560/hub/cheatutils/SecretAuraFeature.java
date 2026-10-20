@@ -522,6 +522,15 @@ public final class SecretAuraFeature {
                     xyz(bestPos), count, tickNow());
             return; // no outline to strike; skipping beats sending an impossible hit
         }
+        if ("essence".equals(bestKind)) {
+            // killer560, 2026-10-19: "whenever it has to click on a wither essence it swaps to my dungeon breaker" - the held
+            // Aspect of the Void would teleport him toward the skull. With no breaker in the hotbar the click stays as it was.
+            int breakerSlot = com.killer560.hub.autoroutes.ItemIdentity.findHotbarSlotById(client.player,
+                    com.killer560.hub.autoroutes.ItemIdentity.BREAKER_ID);
+            if (breakerSlot >= 0) {
+                com.killer560.hub.util.HotbarSelect.select(client, client.player, breakerSlot);
+            }
+        }
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         LOGGER.info("[SecretAura] click sent: kind={} pos={} face={} hit={},{},{} distToBox={} attempt={}/{} lever={} held={} swing={} tick={}",
                 bestKind, xyz(bestPos), hit.getDirection(), fmt(hit.getLocation().x), fmt(hit.getLocation().y),
