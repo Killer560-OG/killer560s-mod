@@ -487,7 +487,7 @@ public final class AutoClearFeature {
         boolean moving = phase == Phase.TRAVEL || phase == Phase.WALK;
         if (RoomClock.running()) {
             if (moving && !RoomClock.tripOpen()) {
-                RoomClock.tripStarted(action, tripPrice);
+                RoomClock.tripStarted(action, tripPrice, phase == Phase.WALK);
                 tripPrice = -1;
             } else if (!moving && phase != Phase.RELEASE && RoomClock.tripOpen()) {
                 RoomClock.tripEnded(ClearExecutor.lastPathFailed());
@@ -2354,6 +2354,7 @@ public final class AutoClearFeature {
             cachedBatTicks = -2;
             cachedPreferEther = null;
             cachedAttackFlight = -1;
+            cachedTripSpotDone = false;
         }
         if (cachedAttack != null) {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
@@ -2386,9 +2387,12 @@ public final class AutoClearFeature {
         if (cachedHops == -2) {
             cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) : -1;
         }
-        double dist = Math.sqrt(box.distanceToSqr(feet));
-        int warps = Math.max(1, (int) Math.ceil(dist / ClearExecutor.hopRange()));
-        int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
+        // The trip's real price: its warps from here (one only when a line from here lands on the block), each warp count
+        // priced by what this run's trips of that many warps really took (tripTicks).
+        BlockPos priceSpot = tripSpot(client, player, target, box, cfg);
+        int warps = priceSpot == null ? Math.max(1, (int) Math.ceil(Math.sqrt(box.distanceToSqr(feet)) / ClearExecutor.hopRange()))
+                : warpsTo(feet, priceSpot);
+        int etherTicks = tripTicks(warps);
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
         if (weapon == AutoClearConfig.Weapon.HYPERION && hyperionBatWins(client, player, target, box, etherTicks,
                 canHop ? hypeTicks : Integer.MAX_VALUE)) {
@@ -2494,7 +2498,7 @@ public final class AutoClearFeature {
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
             double toGoal = feet.distanceTo(new Vec3(goal.getX() + 0.5, goal.getY() + 1.0, goal.getZ() + 0.5));
-            int goalWarps = Math.max(1, (int) Math.ceil(toGoal / ClearExecutor.hopRange()));
+            int goalWarps = warpsTo(feet, goal);
             String whyNoBat;
             if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE) {
                 whyNoBat = cachedAttack == null ? "no bat from here reaches it (no aim within "
@@ -2510,7 +2514,7 @@ public final class AutoClearFeature {
             com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: etherwarp%s onto %s (%.1f blocks,"
                             + " %d warp(s), ~%d ticks; weapon %s, %.1f blocks from it) - not a bat: %s", targetName, targetId,
                     target.blockPosition().toShortString(), goalWarps == 1 ? " (a one-tap warp)" : "", goal.toShortString(),
-                    toGoal, goalWarps, ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * goalWarps, weapon,
+                    toGoal, goalWarps, tripTicks(goalWarps), weapon,
                     Math.sqrt(box.distanceToSqr(player.getEyePosition())), whyNoBat));
         }
     }
@@ -2850,8 +2854,89 @@ public final class AutoClearFeature {
 
     // ---- bat travel against etherwarping (killer560, 2026-10-19) ----
 
-    /** After an etherwarp chain with the Hyperion, the in-place Wither Impact still needs its turn tick before the use. */
-    static final int HYPERION_KILL_TICKS = 1;
+    /** After an etherwarp chain with the Hyperion, the in-place Wither Impact still needs the weapon back in hand and its
+     *  turn tick before the use - {@link #AFTER_TRIP_TICKS}, as every weapon after a trip. */
+    static final int HYPERION_KILL_TICKS = 2;
+
+    // ---- what a trip really costs (autoclear-speed-1020; killer560's study of his 2026-10-20 run: in-room trips were
+    // priced "~7 ticks (1 warp)" because the straight distance over the 56-block hop range is always one warp inside a
+    // room, while they averaged 2.1 warps and 12.7 ticks, so a bat that was faster lost to a trip) ----
+
+    /** After a trip lands: the weapon back in hand and the body turned onto the mob, a tick each (the sim's room-time
+     *  buckets: one swap and one turn per trip), before the use goes. */
+    static final int AFTER_TRIP_TICKS = 2;
+    /** Measured in-room etherwarp trips, by warps sent (1, 2, 3 or more): their mean ticks and how many. */
+    private static final double[] tripMean = new double[4];
+    private static final int[] tripSeen = new int[4];
+
+    /** The block a trip for {@code target} would go to (the room plan's block for it, else the nearest that reaches it),
+     *  worked out once per plan key. */
+    private static BlockPos cachedTripSpot = null;
+    private static boolean cachedTripSpotDone = false;
+
+    private static BlockPos tripSpot(Minecraft client, LocalPlayer player, Entity target, AABB box, AutoClearConfig cfg) {
+        if (!cachedTripSpotDone) {
+            cachedTripSpotDone = true;
+            BlockPos planned = coverSpotFor(target);
+            cachedTripSpot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        }
+        return cachedTripSpot;
+    }
+
+    /**
+     * Warps an etherwarp trip from {@code feet} onto {@code stand} needs: one when a sneaking look from here lands on it
+     * ({@link TeleportUtils#getEtherwarpDirection}, its face points only - the cheap check), else at least two, and one more
+     * for every further hop range of straight distance.
+     */
+    static int warpsTo(Vec3 feet, BlockPos stand) {
+        Vec3 eye = feet.add(0, TeleportUtils.eyeHeight(true), 0);
+        double hop = Math.max(1.0, ClearExecutor.hopRange());
+        double d = eye.distanceTo(Vec3.atCenterOf(stand));
+        if (d <= hop + 1.0 && TeleportUtils.getEtherwarpDirection(eye, stand, hop + 1.0, false) != null) {
+            return 1;
+        }
+        return Math.max(2, (int) Math.ceil(d / hop) + 1);
+    }
+
+    /** What a trip of {@code warps} warps takes: this run's own mean for that many once one has been seen, else the
+     *  nearest measured count's mean and {@link #ETHER_TICKS_PER_WARP} a warp between, else the fixed estimate. */
+    static int tripTicks(int warps) {
+        int w = Math.max(1, Math.min(3, warps));
+        if (tripSeen[w] > 0) {
+            return (int) Math.round(tripMean[w] + (warps > 3 ? ETHER_TICKS_PER_WARP * (warps - 3) : 0));
+        }
+        for (int d = 1; d <= 2; d++) {
+            for (int k : new int[]{w - d, w + d}) {
+                if (k >= 1 && k <= 3 && tripSeen[k] > 0) {
+                    return (int) Math.round(Math.max(1.0, tripMean[k] + ETHER_TICKS_PER_WARP * (warps - k)));
+                }
+            }
+        }
+        return ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
+    }
+
+    private static String tripCostNote(int warps) {
+        int w = Math.max(1, Math.min(3, warps));
+        return tripSeen[w] > 0 ? String.format(Locale.US, "%d trip(s) of %s warp(s) seen", tripSeen[w], w == 3 ? "3+" : w)
+                : "none of " + (w == 3 ? "3+" : String.valueOf(w)) + " warp(s) seen yet";
+    }
+
+    /** RoomClock: an etherwarp trip of the clear ended after {@code ticks}, having sent {@code uses} warps. */
+    static void noteTripCost(int ticks, int uses, boolean failed) {
+        if (failed || uses <= 0 || ticks <= 0) {
+            return;
+        }
+        int w = Math.min(3, uses);
+        // A running mean that leans on the last few (a lag spike or a server that sped up moves it within a few trips).
+        tripMean[w] = tripSeen[w] == 0 ? ticks : tripMean[w] * 0.7 + ticks * 0.3;
+        tripSeen[w]++;
+        if (tripSeen[w] == 1 || tripSeen[w] % 10 == 0) {
+            LOGGER.info(String.format(Locale.US, "[AutoClear] trip cost learned: 1 warp ~%s, 2 warps ~%s, 3+ warps ~%s ticks",
+                    tripSeen[1] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[1], tripSeen[1]) : "?",
+                    tripSeen[2] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[2], tripSeen[2]) : "?",
+                    tripSeen[3] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[3], tripSeen[3]) : "?"));
+        }
+    }
 
     /** The sceptre bat from where he stands for the current plan key: its aim, and its cost in ticks (-2 not worked
      *  out yet, -1 none: no sceptre in the hotbar or no bat from here reaches). */
@@ -2919,29 +3004,36 @@ public final class AutoClearFeature {
         cachedPreferEther = false;
         Vec3 eye = player.getEyePosition();
         int batTicks = WeaponReach.batTicks(client.level, player, eye, cachedAttack);
+        // A bat trusted to kill alone (One-Tap Warp At Once) costs him only its launch: he moves on as it flies, so its
+        // flight is no time of his (the room's clear still waits for it, but nothing he could do instead is faster).
+        Seen seen = seenMobs.get(target.getId());
+        boolean trusted = AutoClearConfig.getInstance().getOneTap() == AutoClearConfig.OneTap.AT_ONCE
+                && oneTapCall(target.getId(), seen == null ? -1 : seen.health()).sure();
+        int batCost = trusted ? WeaponReach.BAT_LAUNCH_TICKS : batTicks;
         int down = WeaponReach.batDownTicks(player);
-        if (batTicks <= ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP + down) {
+        if (batCost <= tripTicks(1) + AFTER_TRIP_TICKS + down) {
             return false;
         }
-        BlockPos planned = coverSpotFor(target);
-        BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        BlockPos spot = tripSpot(client, player, target, box, cfg);
         if (spot == null || BlockPos.containing(player.position()).below().equals(spot)) {
             return false;
         }
         double d = player.position().distanceTo(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
-        int warps = Math.max(1, (int) Math.ceil(d / ClearExecutor.hopRange()));
-        int ether = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps + down;
-        cachedPreferEther = ether < batTicks;
+        int warps = warpsTo(player.position(), spot);
+        int ether = tripTicks(warps) + AFTER_TRIP_TICKS + down;
+        cachedPreferEther = ether < batCost;
         LOGGER.info("[AutoClear] cost for {} at {}: bat from here ~{} ticks ({} b/t), etherwarp onto {} and fire down ~{}"
-                        + " ticks - {}", targetName, target.blockPosition().toShortString(), batTicks,
+                        + " ticks - {}", targetName, target.blockPosition().toShortString(), batCost,
                 WeaponReach.BAT_BLOCKS_PER_TICK, spot.toShortString(), ether,
                 cachedPreferEther ? "etherwarp" : "the bat from here");
         com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (sceptre weapon): %s - bat from here"
-                        + " ~%d ticks (%.1f blocks at %.2f b/t) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
-                        + " ~%d ticks (fixed %d + %d a warp + down %d)", targetName, target.getId(),
-                target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batTicks,
-                Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK, warps == 1 ? " (one-tap warp)" : "",
-                spot.toShortString(), d, warps, ether, ETHER_FIXED_TICKS, ETHER_TICKS_PER_WARP, down));
+                        + " ~%d ticks (%.1f blocks at %.2f b/t%s) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
+                        + " ~%d ticks (trip %d as measured, %s, + %d after the landing + down %d)", targetName,
+                target.getId(), target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batCost,
+                Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK,
+                trusted ? "; trusted to kill alone, so only its launch counts (flight " + batTicks + ")" : "",
+                warps == 1 ? " (one-tap warp)" : "", spot.toShortString(), d, warps, ether, tripTicks(warps),
+                tripCostNote(warps), AFTER_TRIP_TICKS, down));
         return cachedPreferEther;
     }
 
@@ -2961,6 +3053,8 @@ public final class AutoClearFeature {
     /** The last walk-or-etherwarp decision, so it is worked out (and logged) once per plan: start block, goal, what. */
     private static String walkDecisionKey = null;
     private static ShortWalk.Plan walkDecisionPlan = null;
+    /** The etherwarp trip's warps for {@link #walkDecisionKey} (worked out with it). */
+    private static int walkWarps = 1;
     private static int walks = 0;
 
     /** For the testkit: walks Auto Clear chose over an etherwarp, ever (only goes up). */
@@ -2998,9 +3092,12 @@ public final class AutoClearFeature {
         }
         Vec3 goalFeet = new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5);
         double straight = feet.distanceTo(goalFeet);
-        int warps = Math.max(1, (int) Math.ceil(straight / ClearExecutor.hopRange()));
-        int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
         String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what;
+        if (!key.equals(walkDecisionKey)) {
+            walkWarps = warpsTo(feet, spot);
+        }
+        int warps = walkWarps;
+        int etherTicks = tripTicks(warps);
         if (!key.equals(walkDecisionKey)) {
             walkDecisionKey = key;
             walkDecisionPlan = null;
@@ -3647,7 +3744,7 @@ public final class AutoClearFeature {
             double[] s = cover.spots()[i];
             double d = Math.sqrt((s[0] - at[0]) * (s[0] - at[0]) + (s[1] - at[1]) * (s[1] - at[1])
                     + (s[2] - at[2]) * (s[2] - at[2]));
-            ticks += ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * Math.max(1, Math.ceil(d / hop)) + ESTIMATE_USE_TICKS;
+            ticks += tripTicks(Math.max(1, (int) Math.ceil(d / hop))) + ESTIMATE_USE_TICKS;
             at = s;
         }
         return new double[]{ticks, at[0], at[1], at[2], list.size()};

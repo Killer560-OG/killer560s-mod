@@ -36,6 +36,7 @@ final class RoomClock {
     private static int tripUses = 0;
     private static int tripPriced = -1;
     private static String tripWhat = "";
+    private static boolean tripWalk = false;
 
     private RoomClock() {
     }
@@ -120,10 +121,11 @@ final class RoomClock {
     }
 
     /** A trip (an etherwarp chain or a walk) inside the clear started, priced at {@code priced} ticks (-1: not priced). */
-    static void tripStarted(String what, int priced) {
+    static void tripStarted(String what, int priced, boolean walk) {
         if (room == null) {
             return;
         }
+        tripWalk = walk;
         tripStart = ClearExecutor.clientTick();
         tripUses = 0;
         tripPriced = priced;
@@ -139,6 +141,9 @@ final class RoomClock {
         trips++;
         tripTicks += ticks;
         tripWarps += tripUses;
+        if (!tripWalk) {
+            AutoClearFeature.noteTripCost(ticks, tripUses, failed);
+        }
         LOGGER.info(String.format(Locale.US, "[AutoClear] trip time: %s in %s - %d tick(s), %d use(s)"
                         + " sent%s%s", tripWhat, room, ticks, tripUses, tripPriced >= 0 ? ", priced ~" + tripPriced : "",
                 failed ? " (failed)" : ""));
