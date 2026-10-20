@@ -44,8 +44,10 @@ public final class AutoSellConfig {
     /** Random wait between two sell clicks, in client ticks: a uniform pick from {@link #minTicks} to {@link #maxTicks}
      *  (killer560, 2026-10-18: "a random ticks between selling from 0 to 10"). Both clamped to 0..{@link #MAX_TICKS}. */
     public static final int MAX_TICKS = 10;
-    private int minTicks = 0;
-    private int maxTicks = MAX_TICKS;
+    /** Never 0: a sell every tick is flagged by GrimAC (killer560, 2026-10-19). */
+    public static final int MIN_TICKS = 1;
+    private int minTicks = 1;
+    private int maxTicks = 1;
     private String screenTitlePattern = DEFAULT_SCREEN_TITLE_PATTERN;
     private final Set<String> sellIdentities = new LinkedHashSet<>();
     private final Set<String> neverSellIdentities = new LinkedHashSet<>();
@@ -143,17 +145,17 @@ public final class AutoSellConfig {
         return maxTicks;
     }
 
-    /** Clamped to 0..{@link #MAX_TICKS}; the max is pulled up to it if it would fall below. */
+    /** Clamped to {@link #MIN_TICKS}..{@link #MAX_TICKS}; the max is pulled up to it if it would fall below. */
     public void setMinTicks(int v) {
-        this.minTicks = Math.max(0, Math.min(MAX_TICKS, v));
+        this.minTicks = Math.max(MIN_TICKS, Math.min(MAX_TICKS, v));
         if (maxTicks < minTicks) {
             maxTicks = minTicks;
         }
     }
 
-    /** Clamped to 0..{@link #MAX_TICKS}; the min is pulled down to it if it would rise above. */
+    /** Clamped to {@link #MIN_TICKS}..{@link #MAX_TICKS}; the min is pulled down to it if it would rise above. */
     public void setMaxTicks(int v) {
-        this.maxTicks = Math.max(0, Math.min(MAX_TICKS, v));
+        this.maxTicks = Math.max(MIN_TICKS, Math.min(MAX_TICKS, v));
         if (minTicks > maxTicks) {
             minTicks = maxTicks;
         }

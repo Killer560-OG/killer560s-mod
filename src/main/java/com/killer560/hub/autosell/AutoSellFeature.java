@@ -225,7 +225,7 @@ public final class AutoSellFeature {
         }
     }
 
-    /** Client ticks to wait before the next sell click: uniform from the configured min to max, both 0..10. */
+    /** Client ticks to wait before the next sell click: uniform from the configured min to max, both 1..10 (never 0). */
     private static int randomTicks(AutoSellConfig cfg) {
         int lo = cfg.getMinTicks();
         int hi = Math.max(lo, cfg.getMaxTicks());
