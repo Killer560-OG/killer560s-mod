@@ -752,3 +752,12 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   for ever. It now holds while `util/ShadowAssassinLeap.refuses` (clicks when the border lifts, 5 s ceiling), and an
   await lets go uncounted once a click was refused and none is coming (that route run then does not mark the room fully
   secreted). Sim: `roomsim/SimShadowAssassinLeap`; testkit 96-ar-1020-saleap / -letgo.
+
+## Auto Clear edge mobs, bats and doors (ac-1020)
+
+- A held sceptre use sends a bat every 4 ticks, so a second bat is nearly always in the air when the first hits (sim
+  flights 5-12 ticks). Counting only mobs that got exactly one bat learned nothing in 131e; a death before the second
+  bat could land counts as a one-bat kill (`BatLog.secondLands`).
+- The wiki's Guided Bat "follows your aim" (Spirit Sceptre page, 2026-10-20); the sim's bat flies straight. One-Tap
+  Warp At Once turns away while the bat flies, so the sim cannot tell whether it misses on Hypixel; After Impact keeps
+  the aim on the mob until the bat is due.
