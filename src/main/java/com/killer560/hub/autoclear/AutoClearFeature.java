@@ -1483,7 +1483,7 @@ public final class AutoClearFeature {
         }
     }
 
-    // ---- bats when mana runs low (2026-10-19 log: the bar read NOT ENOUGH MANA 21 times between 22:15:21 and 22:15:56,
+    // ---- bats when mana runs low (2026-10-19 log: the bar read NOT ENOUGH MANA 19 times between 22:15:21 and 22:15:56,
     // and two of Altar's etherwarp trips stalled on it - 22:15:26-28 and 22:15:35-37, each ending in "warp never landed"
     // and a second plan; the held sceptre use sends a bat every 4 ticks while the first is still ~20 ticks from the mob,
     // 168 mana each by that log's action bar) ----
