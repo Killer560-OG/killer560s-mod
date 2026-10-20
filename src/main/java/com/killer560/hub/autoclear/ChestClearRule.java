@@ -67,6 +67,7 @@ public final class ChestClearRule {
             }
             rooms.clear();
             returnsDue.clear();
+            comeBacksTaken.clear();
             level = client.level;
             generation = gen;
         }
@@ -76,6 +77,7 @@ public final class ChestClearRule {
     public static void reset() {
         rooms.clear();
         returnsDue.clear();
+        comeBacksTaken.clear();
         level = Minecraft.getInstance().level;
         generation = LiveMapFeature.resetGeneration();
     }
@@ -162,6 +164,83 @@ public final class ChestClearRule {
         }
         List<String> out = new ArrayList<>(returnsDue);
         returnsDue.clear();
+        return out;
+    }
+
+    /** Rooms {@link #comeBackNear} has handed back this run (each at most once). */
+    private static final java.util.Set<String> comeBacksTaken = new java.util.HashSet<>();
+
+    /**
+     * killer560, 2026-10-20: "sometimes it is still leaving behind a random room uncleared and going back at the very end
+     * way out of its way". The come-back is taken while he is still near the room, not 30 s on from across the floor: a
+     * room this rule holds that the map does not show cleared, within one room of {@code here}, is handed back when the
+     * next pick ({@code next}, -1 for none) is not it -
+     * <ul>
+     *   <li>counted as cleared for its chest (past {@link #LEAVE_TICKS}) and the next pick is two or more rooms from it:
+     *       its come-back falls due now, before the run leaves its neighbourhood (it then counts as uncleared, once);</li>
+     *   <li>already due (the 30 s passed) and he is near it again: it goes first, rather than wherever its order puts it.</li>
+     * </ul>
+     * Only rooms {@code allowed} passes (the ones the caller would clear; null for any). Each room at most once a run;
+     * after that only the map decides, as before. Null when there is none.
+     */
+    public static String comeBackNear(DungeonLayout layout, int here, int next, java.util.function.IntPredicate allowed) {
+        check();
+        if (rooms.isEmpty() || here < 0) {
+            return null;
+        }
+        int[] fromHere = AutoClearTargets.bfsDistances(layout, here);
+        int[] fromNext = next < 0 ? null : AutoClearTargets.bfsDistances(layout, next);
+        for (Map.Entry<String, Entry> me : rooms.entrySet()) {
+            String name = me.getKey();
+            Entry e = me.getValue();
+            int room = AutoClearTargets.roomByName(layout, name);
+            if (room < 0 || room == next || comeBacksTaken.contains(name) || fromHere[room] > 1
+                    || (allowed != null && !allowed.test(room))) {
+                continue;
+            }
+            evaluate(layout, room, name, e);
+            if (AutoClearTargets.isClearedOnMap(layout, room)) {
+                continue;
+            }
+            long since = ClearExecutor.clientTick() - e.tick;
+            if (e.state == State.CLEARED) {
+                if (fromNext != null && fromNext[room] < 2) {
+                    continue;   // the next pick is next door to it: still near, it may yet clear on the map
+                }
+                e.state = State.RETURNED;
+                returnsDue.add(name);
+                comeBacksTaken.add(name);
+                LOGGER.info("[AutoClear] chest rule: {} still not cleared {} s after its chest ({}) and the next pick ({}) "
+                                + "leaves it behind - coming back to it now, from {} room(s) away (once this run)", name,
+                        String.format(Locale.ROOT, "%.1f", since / 20.0), e.chest, next < 0 ? "none" : layout.name(next),
+                        fromHere[room]);
+                return name;
+            }
+            if (e.state == State.RETURNED) {
+                comeBacksTaken.add(name);
+                LOGGER.info("[AutoClear] chest rule: {} is due a come-back ({} s after its chest) and is {} room(s) away - "
+                                + "going to it first, ahead of {}", name, String.format(Locale.ROOT, "%.1f", since / 20.0),
+                        fromHere[room], next < 0 ? "nothing" : layout.name(next));
+                return name;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Rooms this rule counts as cleared that the map does not show cleared yet: the ones a come-back may still be due for.
+     * Their trip back is part of what is left (Auto Clear's time-left estimate counts it).
+     */
+    public static List<String> pendingUncleared(DungeonLayout layout) {
+        check();
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, Entry> me : rooms.entrySet()) {
+            int room = AutoClearTargets.roomByName(layout, me.getKey());
+            if (room >= 0 && me.getValue().state == State.CLEARED && !comeBacksTaken.contains(me.getKey())
+                    && !AutoClearTargets.isClearedOnMap(layout, room)) {
+                out.add(me.getKey());
+            }
+        }
         return out;
     }
 

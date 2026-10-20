@@ -297,6 +297,7 @@ public final class AutoClearFeature {
         keyId = -1;
         keyTrip = false;
         keysTried.clear();
+        resetQuiz();
         resetRoam();
         midasFor = null;
         seenMobs.clear();
@@ -516,6 +517,16 @@ public final class AutoClearFeature {
      * @return false when the room was given up on (nothing more to do this tick)
      */
     private static boolean tripEnded(LocalPlayer player, boolean failed) {
+        if (quizTrip) {
+            // A trip to the Quiz is the Quiz's business: its failure counts against the Quiz (quizStep), not a room.
+            quizTrip = false;
+            if (travelStarted && failed) {
+                quizTripFails++;
+                LOGGER.info("[AutoClear] the trip to the Quiz failed ({} of {})", quizTripFails, MAX_PATH_FAILURES);
+            }
+            travelStarted = false;
+            return true;
+        }
         if (keyTrip) {
             // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
             keyTrip = false;
@@ -576,7 +587,16 @@ public final class AutoClearFeature {
                 finish(roomName + " cleared");
                 return;
             }
+            // Counted once: a pick that opens a wither door first returns no room, and the name left here logged "room
+            // cleared" and counted it again every tick at the door (2026-10-20 F6 log: "rooms cleared 101" for 5 rooms).
+            roomName = null;
             room = -1;
+        }
+
+        // ---- the Quiz first (killer560, 2026-10-20), once a pick chose it ----
+        if (quizActive) {
+            quizStep(client, player, layout);
+            return;
         }
         if (room < 0) {
             room = pickRoom(layout, cfg);
@@ -703,17 +723,24 @@ public final class AutoClearFeature {
             doorTarget = -1;
             return r;
         }
+        if (startQuizFirst(layout)) {
+            return -1;
+        }
         List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
         if (candidates == null) {
             stop("the blood door is not on the map yet (Blood Rush Split)");
             return -1;
+        }
+        AutoClearTargets.Choice c = candidates.isEmpty() ? null : AutoClearTargets.choose(layout, candidates);
+        int back = comeBackRoom(layout, cfg, c == null ? -1 : c.room());
+        if (back >= 0) {
+            return back;
         }
         if (candidates.isEmpty()) {
             finish(roomsCleared + " room(s) cleared, nothing left" + (skippedRooms.isEmpty() ? ""
                     : " (gave up on " + String.join(", ", skippedRooms) + ")"));
             return -1;
         }
-        AutoClearTargets.Choice c = AutoClearTargets.choose(layout, candidates);
         if (c == null) {
             finish("the uncleared rooms left are behind doors it does not open");
             return -1;
@@ -748,8 +775,18 @@ public final class AutoClearFeature {
                 rooms.add(r);
             }
         }
+        // Rooms the chest rule counts as cleared that the map does not yet: a come-back may still take him there, so the
+        // trip back is priced in the time left (killer560, 2026-10-20: rooms left behind and gone back to at the end).
+        List<Integer> priced = new java.util.ArrayList<>(rooms);
+        for (String name : ChestClearRule.pendingUncleared(layout)) {
+            int r = AutoClearTargets.roomByName(layout, name);
+            if (r >= 0 && !priced.contains(r) && AutoClearTargets.allowedByMode(layout,
+                    AutoClearConfig.getInstance().getMode(), skippedRooms, r)) {
+                priced.add(r);
+            }
+        }
         com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR, names, null,
-                roomsCleared, estimateSeconds(layout, rooms));
+                roomsCleared, estimateSeconds(layout, priced));
     }
 
     /** Seconds a room's clear takes, travel excluded, before this run has cleared one (Dungeon Autopilot's start value). */
@@ -794,6 +831,268 @@ public final class AutoClearFeature {
     public static List<String> plannedRooms() {
         var plan = com.killer560.hub.autoroutes.RunPlan.of(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR);
         return plan == null ? List.of() : plan.rooms();
+    }
+
+    // ---- the chest rule's come-back, taken while he is near (killer560, 2026-10-20) ----
+
+    /**
+     * killer560, 2026-10-20: "sometimes it is still leaving behind a random room uncleared and going back at the very end
+     * way out of its way". Before the pick {@code next} takes him two rooms or more from a room the chest rule counts as
+     * cleared but the map does not, that room is cleared now ({@link ChestClearRule#comeBackNear}); a room already due a
+     * come-back that he is next to again goes first, wherever the order put it.
+     * @return the room to clear now, or -1
+     */
+    private static int comeBackRoom(DungeonLayout layout, AutoClearConfig cfg, int next) {
+        int here = layout.currentRoom();
+        String back = ChestClearRule.comeBackNear(layout, here, next,
+                r -> AutoClearTargets.allowedByMode(layout, cfg.getMode(), skippedRooms, r));
+        if (back == null) {
+            return -1;
+        }
+        int b = AutoClearTargets.roomByName(layout, back);
+        if (b < 0 || AutoClearTargets.isCleared(layout, b)
+                || (b != here && DungeonMapPathfinder.findPath(layout, here, b, false) == null)) {
+            return -1;
+        }
+        doorTarget = -1;
+        List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
+        publishPlan(layout, b, candidates == null ? List.of() : AutoClearTargets.ordered(layout, candidates));
+        LOGGER.info("[AutoClear] next room {} (come back while near - the chest rule) - before {}", back,
+                next < 0 ? "nothing else" : layout.name(next));
+        return b;
+    }
+
+    // ---- the Quiz first (killer560, 2026-10-20: "It should have focused quiz from the start prioritizing opening it as
+    // fast as possible") ----
+
+    private static final String QUIZ = "Quiz";
+    /** Ticks in the Quiz, Oruo not begun, before the walk-in counts as not having started him. */
+    static final int QUIZ_START_WAIT_TICKS = 5 * 20;
+    /** Walk-ins that did not start Oruo before the Quiz is left to the rest of the run. */
+    static final int QUIZ_MAX_START_TRIES = 2;
+    /** A pick chose the Quiz: every decision is the Quiz's until it is done or given up. */
+    private static boolean quizActive = false;
+    private static boolean quizGaveUp = false;
+    /** The trip under way (Phase.TRAVEL) is to the Quiz: its failure is the Quiz's, not a room's. */
+    private static boolean quizTrip = false;
+    private static int quizTripFails = 0;
+    /** Trips onto Auto Quiz's answer spot from inside the room. */
+    private static int quizSpotTrips = 0;
+    private static int quizStartTries = 0;
+    private static int quizWaitTicks = 0;
+    private static long quizWaitLag = 0L;
+    /** The last reason the Quiz was put off ("behind a wither door, no key"), so each is logged once. */
+    private static String quizPutOff = null;
+
+    private static void resetQuiz() {
+        quizActive = false;
+        quizGaveUp = false;
+        quizTrip = false;
+        quizTripFails = 0;
+        quizSpotTrips = 0;
+        quizStartTries = 0;
+        quizWaitTicks = 0;
+        quizPutOff = null;
+    }
+
+    /**
+     * Quiz First for a run he started (not a room Auto Secret / Autopilot handed over, which do the Quiz themselves):
+     * Auto Secret's Quiz First setting on, with Auto Quiz and the Quiz Solver, which answer it - Auto Clear only gets him
+     * there and waits; no answer is clicked here.
+     */
+    private static boolean quizWanted() {
+        com.killer560.hub.autopuzzles.AutoPuzzlesConfig a = com.killer560.hub.autopuzzles.AutoPuzzlesConfig.getInstance();
+        return singleRoom == null && !quizGaveUp && !com.killer560.hub.autosecret.AutoSecretFeature.isRunning()
+                && com.killer560.hub.autosecret.AutoSecretConfig.getInstance().isQuizFirst()
+                && a.isAutoQuizEnabled() && a.isAutoPuzzlesMasterEnabled()
+                && com.killer560.hub.puzzlesolvers.QuizSolverConfig.getInstance().isEnabled();
+    }
+
+    /** Answered, failed or done on the map or the tab list (its tick or cross), or solved by him. */
+    private static boolean quizFinished(DungeonLayout layout, int quiz) {
+        if (com.killer560.hub.puzzlesolvers.QuizState.done() || AutoClearTargets.isClearedOnMap(layout, quiz)
+                || com.killer560.hub.autopuzzles.AutoPuzzleActivity.solvedByHim(QUIZ)) {
+            return true;
+        }
+        for (com.killer560.hub.livemap.RoomStatus.Room r : com.killer560.hub.livemap.RoomStatus.rooms()) {
+            if (r.room() == quiz && (r.cleared() || r.failed())) {
+                return true;
+            }
+        }
+        char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(QUIZ);
+        return tab == '\u2714' || tab == '\u2716';
+    }
+
+    /** At a pick: the Quiz is on the map and not done - it goes before any room's mobs. */
+    private static boolean startQuizFirst(DungeonLayout layout) {
+        if (!quizWanted()) {
+            return false;
+        }
+        int quiz = AutoClearTargets.roomByName(layout, QUIZ);
+        if (quiz < 0 || quizFinished(layout, quiz)) {
+            return false;
+        }
+        String off = quizPutOffReason(layout, quiz);
+        if (off != null) {
+            if (!off.equals(quizPutOff)) {
+                quizPutOff = off;
+                LOGGER.info("[AutoClear] Quiz first: {} - rooms meanwhile, it is asked again at every pick", off);
+            }
+            return false;
+        }
+        quizPutOff = null;
+        quizActive = true;
+        quizWaitTicks = 0;
+        pathFailures = 0;
+        doorTarget = -1;
+        LOGGER.info("[AutoClear] Quiz first: {} ({}) - before any room's mobs; Auto Quiz answers", layout.currentRoom() == quiz
+                ? "in it" : "going to it", com.killer560.hub.puzzlesolvers.QuizState.describe());
+        com.killer560.hub.autoroutes.RunPlan.publish(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR,
+                List.of(QUIZ), List.of("Puzzle"), roomsCleared, Double.NaN);
+        ModChat.log(CHAT, ModChat.text("Quiz first"));
+        return true;
+    }
+
+    /**
+     * Why the Quiz cannot be gone for right now, or null when it can: a way through open doors, or a wither door on the
+     * way with a key in hand (or that door already being opened). Behind the blood door, or a wither door with no key, the
+     * rooms go on meanwhile - their keys are what opens it.
+     */
+    private static String quizPutOffReason(DungeonLayout layout, int quiz) {
+        int here = layout.currentRoom();
+        if (here < 0 || here == quiz) {
+            return null;
+        }
+        AutoClearTargets.Choice c = AutoClearTargets.choose(layout, List.of(quiz));
+        if (c == null) {
+            return "no way to it on the map yet (or only through the blood door)";
+        }
+        if (c.door() >= 0 && c.door() != doorTarget && witherKeyCount(Minecraft.getInstance().player) <= 0) {
+            return "behind wither door " + c.door() + " and nobody has a Wither Key";
+        }
+        return null;
+    }
+
+    /** Every decision while the Quiz is the goal: get into the room (onto Auto Quiz's answer spot once known), then wait. */
+    private static void quizStep(Minecraft client, LocalPlayer player, DungeonLayout layout) {
+        releaseUse(client);
+        int quiz = AutoClearTargets.roomByName(layout, QUIZ);
+        if (quiz < 0 || quizFinished(layout, quiz)) {
+            endQuiz(quiz < 0 ? "the Quiz left the map" : com.killer560.hub.puzzlesolvers.QuizState.done()
+                    ? "every question answered" : "the map or tab list shows it done");
+            return;
+        }
+        if (!quizWanted()) {
+            endQuiz("Quiz First, Auto Quiz or the Quiz Solver is off");
+            return;
+        }
+        int here = layout.currentRoom();
+        BlockPos spot = com.killer560.hub.autopuzzles.AutoPuzzlesFeature.quizAnswerSpot();
+        // Two trips onto the spot that left him off it: where he stands will do (Auto Quiz moves into reach of the answer).
+        if (here == quiz && (spot == null || quizSpotTrips >= 2 || player.blockPosition().below().distSqr(spot) <= 2)) {
+            action = "at the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
+            if (com.killer560.hub.puzzlesolvers.QuizState.started()) {
+                quizWaitTicks = 0;
+                return;   // Auto Quiz clicks each answer the solver gives, when its cooldown ends
+            }
+            if (++quizWaitTicks == 1) {
+                quizWaitLag = com.killer560.hub.util.ServerLag.mark();
+                LOGGER.info("[AutoClear] at the Quiz ({}) - waiting for Oruo", com.killer560.hub.puzzlesolvers.QuizState.describe());
+            }
+            if (quizWaitTicks > QUIZ_START_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(quizWaitLag)) {
+                quizWaitTicks = 0;
+                if (++quizStartTries >= QUIZ_MAX_START_TRIES) {
+                    giveUpQuiz("Oruo never began after " + quizStartTries + " wait(s) of " + QUIZ_START_WAIT_TICKS / 20
+                            + " s in the room");
+                } else {
+                    LOGGER.info("[AutoClear] Quiz: Oruo has not begun in {} s here - waiting once more", QUIZ_START_WAIT_TICKS / 20);
+                }
+            }
+            return;
+        }
+        if (here != quiz) {
+            AutoClearTargets.Choice c = AutoClearTargets.choose(layout, List.of(quiz));
+            if (c == null) {
+                endQuiz("no way to it any more");
+                return;
+            }
+            if (c.door() >= 0) {
+                if (c.door() == doorTarget && doorClicks >= DOOR_MAX_CLICKS && doorShutSaid) {
+                    giveUpQuiz("wither door " + c.door() + " on the way stayed shut");
+                    return;
+                }
+                if (c.door() != doorTarget && witherKeyCount(player) <= 0) {
+                    endQuiz("the way needs a Wither Key nobody has");
+                    return;
+                }
+                openDoor(layout, c.door(), QUIZ);
+                return;
+            }
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before the trip to the Quiz";
+            return;
+        }
+        if (quizTripFails >= MAX_PATH_FAILURES) {
+            giveUpQuiz("no etherwarp path to it (" + quizTripFails + " tries)");
+            return;
+        }
+        if (BODY.isHeld()) {
+            phase = Phase.RELEASE;
+            return;
+        }
+        ClearExecutor.setExternalOwner(true);
+        boolean started;
+        if (spot != null) {
+            action = "etherwarp to the Quiz's answer spot";
+            LOGGER.info("[AutoClear] trip to the Quiz's answer spot {}", spot.toShortString());
+            if (here == quiz) {
+                quizSpotTrips++;
+            }
+            ClearExecutor.etherPathExact(spot, null);
+            started = true;
+        } else {
+            int[] tiles = layout.tiles(quiz);
+            int tile = tiles[0];
+            double best = Double.MAX_VALUE;
+            for (int t : tiles) {
+                BlockPos cc = DungeonLayout.cellCenter(t);
+                double d = player.distanceToSqr(cc.getX() + 0.5, player.getY(), cc.getZ() + 0.5);
+                if (d < best) {
+                    best = d;
+                    tile = t;
+                }
+            }
+            action = "etherwarp to the Quiz";
+            LOGGER.info("[AutoClear] trip to the Quiz (tile {}) - walking in starts Oruo", tile);
+            started = AutoClearUtils.pathToRoom(layout, quiz, tile, 0);
+        }
+        if (!started) {
+            quizTripFails++;
+            LOGGER.info("[AutoClear] the trip to the Quiz did not start ({} of {})", quizTripFails, MAX_PATH_FAILURES);
+            return;
+        }
+        travelStarted = true;
+        quizTrip = true;
+        phase = Phase.TRAVEL;
+    }
+
+    /** The Quiz is over for now (done, or it cannot be got at): the rooms take over; a later pick may come back to it. */
+    private static void endQuiz(String why) {
+        quizActive = false;
+        quizTrip = false;
+        doorTarget = -1;
+        LOGGER.info("[AutoClear] Quiz first over: {} ({}) - on to the rooms", why,
+                com.killer560.hub.puzzlesolvers.QuizState.describe());
+        if (com.killer560.hub.puzzlesolvers.QuizState.done()) {
+            ModChat.log(CHAT, ModChat.good("Quiz done"));
+        }
+    }
+
+    private static void giveUpQuiz(String why) {
+        quizGaveUp = true;
+        endQuiz("given up - " + why);
+        say(ModChat.bad("Leaving the Quiz"), ModChat.dim(" - " + why));
     }
 
     // ---- wither doors (killer560, 2026-10-06: only when opening one is the only thing left before it can progress) ----

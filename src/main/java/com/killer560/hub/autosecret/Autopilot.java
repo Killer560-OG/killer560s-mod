@@ -326,6 +326,58 @@ final class Autopilot {
                 isBlood ? "Blood First: the blood door is next" : "Blood First: the next wither door on the blood path", null);
     }
 
+    /**
+     * The step that opens the way to {@code room} when it is behind a locked door (killer560, 2026-10-20, the Quiz: "it
+     * should have focused quiz from the start prioritizing opening it as fast as possible"): the first locked door on the
+     * room path from here (locked doors counted passable), when it is a wither door and the team has a key; else a wither
+     * key lying in a room it can reach. Null when the room is reachable already, no path is on the map, the first locked
+     * door is the blood door (never opened for this), or there is no key - the run goes on meanwhile and asks again.
+     */
+    static Order doorToward(DungeonLayout layout, int room, Map<Integer, Integer> dist, String label) {
+        int here = layout.currentRoom();
+        if (here < 0 || room < 0 || room == here) {
+            return null;
+        }
+        lastDist = dist;
+        List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, here, room, true);
+        if (path == null) {
+            return null;
+        }
+        int door = -1;
+        for (DungeonMapPathfinder.RoomStep step : path) {
+            if (step.door() >= 0 && layout.isLocked(step.door())) {
+                door = step.door();
+                break;
+            }
+        }
+        if (door < 0 || layout.doorType(door) != DungeonLayout.DOOR_WITHER) {
+            return null;
+        }
+        int[] near = DungeonMapPathfinder.resolve(layout, here, door, false);
+        if (near == null || near[2] == Integer.MAX_VALUE) {
+            return null;
+        }
+        if (!WitherDoorOpener.haveKey(Minecraft.getInstance().player)) {
+            DungeonKeys.Dropped lying = reachableKey(layout, false);
+            return lying == null ? null : keyOrder(lying, label + ": the wither door on the way wants a key and one is"
+                    + " lying there");
+        }
+        setHud("Opening the way to the " + layout.name(room), label);
+        return new Order(Type.DOOR, null, door, false, false, false, label + ": the wither door on the way", null);
+    }
+
+    /**
+     * Auto Secret did something other than what the last decision picked (a Quiz step, a chest-rule come-back): that
+     * action never ran, so it is dropped unlogged and unlearned rather than timed as if it had.
+     */
+    static void dropCurrent(String why) {
+        if (current != null) {
+            LOGGER.info("[Autopilot] {} {} not done - {}", current.kind(), current.room(), why);
+        }
+        current = null;
+        currentFailed = false;
+    }
+
     // =========================================================================================== keys
 
     /** Keys on the ground it has given up on (twice not picked up from as close as it could stand), by entity id. */
@@ -499,6 +551,11 @@ final class Autopilot {
 
     /** Auto Secret stopped: close the action so the log has its time. */
     static void onStopped() {
+        closeCurrent();
+    }
+
+    /** Auto Secret is about to take a step of its own (the Quiz): the last action is over, logged and learnt from. */
+    static void closeAction() {
         closeCurrent();
     }
 

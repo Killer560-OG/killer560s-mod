@@ -136,6 +136,15 @@ final class AutoClearTargets {
         return out;
     }
 
+    /** Whether {@link #candidates} would take {@code room} if it were uncleared: a mob room the mode allows, not given up. */
+    static boolean allowedByMode(DungeonLayout layout, AutoClearConfig.Mode mode, Set<String> skipped, int room) {
+        if (room < 0 || !isMobRoom(layout, room) || skipped.contains(layout.name(room))) {
+            return false;
+        }
+        List<Integer> rush = mode == AutoClearConfig.Mode.BLOOD_RUSH_SPLIT ? bloodRushRooms(layout) : null;
+        return rush == null || rush.contains(room);
+    }
+
     /** What to do next: clear {@code room}, or first open the wither {@code door} that is all that stands in the way. */
     record Choice(int room, int door) {
     }
@@ -258,7 +267,8 @@ final class AutoClearTargets {
         return parent;
     }
 
-    private static int[] bfsDistances(DungeonLayout layout, int from) {
+    /** Rooms between {@code from} and every room over any door, locked or not (1000 unreached). */
+    static int[] bfsDistances(DungeonLayout layout, int from) {
         int n = layout.roomCount();
         int[] dist = new int[n];
         java.util.Arrays.fill(dist, 1000);

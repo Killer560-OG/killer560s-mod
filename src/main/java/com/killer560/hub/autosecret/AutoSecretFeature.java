@@ -1029,10 +1029,12 @@ public final class AutoSecretFeature {
             decidePilot(layout, rooms, dist, here);
             return;
         }
-        if (decideBloodFirst(layout, rooms, dist)) {
+        // The Quiz before everything, Blood First included (killer560, 2026-10-20: "It should have focused quiz from the
+        // start prioritizing opening it as fast as possible").
+        if (decideQuiz(layout, rooms, dist)) {
             return;
         }
-        if (decideQuiz(layout, rooms, dist)) {
+        if (decideBloodFirst(layout, rooms, dist)) {
             return;
         }
         if (decideIceFill(layout, rooms, dist)) {
@@ -1236,8 +1238,9 @@ public final class AutoSecretFeature {
             }
         }
         if (quiz == null) {
-            return false;
+            return decideQuizWay(layout, rooms, dist);
         }
+        quizWayNote = null;
         boolean here = layout.currentRoom() == quiz.room();
         if (!com.killer560.hub.puzzlesolvers.QuizState.started()) {
             if (RoomStatus.teammateInside(quiz.cells()) && !here) {
@@ -1290,6 +1293,58 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] Quiz: question {} opens in {} tick(s) - back to the Quiz",
                 com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), left);
         return goToQuiz(layout, quiz);
+    }
+
+    /** The last reason the way to the Quiz could not be opened yet, so each is logged once. */
+    private static String quizWayNote;
+
+    /**
+     * The Quiz is on the map behind a locked door (2026-10-20 F6: identified behind wither doors, and the run did every
+     * other room first): open the way to it first - the wither door on the room path to it when the team has a key, or a
+     * wither key lying in reach ({@link Autopilot#doorToward}). With neither (or only the blood door on the way) the run
+     * goes on and this is asked again every decision, so the key from the next room is used for it.
+     * @return true when this decision opens the way to the Quiz
+     */
+    private static boolean decideQuizWay(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        RoomStatus.Room quiz = null;
+        for (RoomStatus.Room r : rooms) {
+            if ("Quiz".equals(r.name()) && !r.cleared() && !r.failed()) {
+                quiz = r;
+            }
+        }
+        if (quiz == null) {
+            return false;
+        }
+        Autopilot.Order o = Autopilot.doorToward(layout, quiz.room(), dist, "Quiz first");
+        if (o == null) {
+            String why = "the Quiz is behind a door it cannot open yet (no Wither Key, or the blood door)";
+            if (!why.equals(quizWayNote)) {
+                quizWayNote = why;
+                LOGGER.info("[AutoSecret] Quiz first: {} - the rest meanwhile, asked again every decision", why);
+            }
+            return false;
+        }
+        quizWayNote = null;
+        if (o.type() == Autopilot.Type.KEY && o.key() != null) {
+            LOGGER.info("[AutoSecret] Quiz first: {}", o.why());
+            goKey(o.key(), o.why());
+            return true;
+        }
+        if (o.type() != Autopilot.Type.DOOR) {
+            return false;
+        }
+        if (secreted.contains(doorName(o.door())) || o.door() == doorCell && doorClicks >= DOOR_CLICKS) {
+            QuizPlan.giveUp("the way to it stayed shut");
+            LOGGER.info("[AutoSecret] Quiz first: the wither door at cell {} on the way {} - left to the rest of the run",
+                    o.door(), secreted.contains(doorName(o.door())) ? "is out of reach" : "stayed shut");
+            say(ModChat.bad("Couldn't open the way to the Quiz"), ModChat.dim(" - carrying on"));
+            resetDoor();
+            return false;
+        }
+        LOGGER.info("[AutoSecret] Quiz first: opening the wither door at cell {} - the way to the Quiz", o.door());
+        note(ModChat.text("Opening the way to the "), ModChat.value("Quiz"), ModChat.dim(" first"));
+        goToDoor(layout, o.door(), false, o.why());
+        return true;
     }
 
     /** Ticks kept in hand when a clear fills a Quiz gap (the clear's estimate is a straight-line one). */
@@ -2333,11 +2388,21 @@ public final class AutoSecretFeature {
 
     /** One decision as Dungeon Autopilot: a known insta clear first (Auto Secret's), then whatever {@link Autopilot} says. */
     private static void decidePilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist, int here) {
+        // Quiz First runs the Autopilot too (killer560, 2026-10-20 F6: Dungeon Autopilot ranked the Quiz like any puzzle
+        // and never went, its way being behind wither doors): the Quiz and the way to it come before anything it ranks.
+        Autopilot.closeAction();
+        if (decideQuiz(layout, rooms, dist)) {
+            Autopilot.setHud(status, "Quiz first");
+            return;
+        }
         if (decideInstaClear(layout, rooms, dist, here)) {
             Autopilot.setHud("Insta clearing " + target, "a known insta-clear entry is a clear for one warp");
             return;
         }
         Autopilot.Order o = Autopilot.decide(layout, rooms, dist, secreted, clearsDone, puzzlesDone);
+        if (comeBackFirst(layout, rooms, dist, here, o)) {
+            return;
+        }
         RoomStatus.Room r = o.room();
         switch (o.type()) {
             case SECRET -> {
@@ -2364,6 +2429,49 @@ public final class AutoSecretFeature {
             case KEY -> goKey(o.key(), o.why());
             default -> setPhase(Phase.SETTLE);
         }
+    }
+
+    /**
+     * killer560, 2026-10-20: "sometimes it is still leaving behind a random room uncleared and going back at the very end
+     * way out of its way" (F6: Quartz Knight counted cleared for its chest, left, and due again 32 s later from across the
+     * floor). Before the Autopilot's pick takes him two rooms or more from a room the chest rule counts as cleared but the
+     * map does not, that room is cleared now; one already due that he is next to again goes ahead of the pick
+     * ({@link com.killer560.hub.autoclear.ChestClearRule#comeBackNear}).
+     * @return true when the come-back was started instead of the pick
+     */
+    private static boolean comeBackFirst(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                         int here, Autopilot.Order o) {
+        if (!AutoClearFeature.isAvailable()) {
+            return false;
+        }
+        int next = -1;
+        if (o.room() != null) {
+            next = o.room().room();
+        } else if (o.key() != null) {
+            next = layout.roomAtWorld(o.key().x(), o.key().z());
+        }
+        String back = com.killer560.hub.autoclear.ChestClearRule.comeBackNear(layout, here, next,
+                id -> dist.containsKey(id) && AutoClearFeature.isMobRoom(layout, id));
+        if (back == null) {
+            return false;
+        }
+        RoomStatus.Room room = null;
+        for (RoomStatus.Room x : rooms) {
+            if (back.equals(x.name())) {
+                room = x;
+            }
+        }
+        if (room == null || room.cleared()) {
+            return false;
+        }
+        String instead = o.type() + (o.room() != null ? " " + o.room().name() : o.door() >= 0 ? " cell " + o.door() : "");
+        Autopilot.dropCurrent("the chest rule's come-back to " + back + " goes first, while it is near");
+        clearsDone.remove(back);
+        LOGGER.info("[AutoSecret] autopilot: clearing {} now, while it is near (the chest rule's come-back) - before {}",
+                back, instead);
+        Autopilot.setHud("Clearing " + back, "come-back while near (chest rule), before " + instead);
+        goClear(layout, room, dist);
+        return true;
     }
 
     /** Nothing left the planner wants: a wither door with something behind it, then (Solo) the blood door, then hand back. */
