@@ -71,6 +71,7 @@ public final class SpotifyLyricsFeature {
 
     public static void init() {
         loadConfig();
+        SpotifyHudConfig.load();
         registerChatListeners();
         // 250 ms, not 2 s.
         //
@@ -144,10 +145,14 @@ public final class SpotifyLyricsFeature {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
         // credentials were entered the key + username were sent to ws.audioscrobbler.com every 2 s for
         // the whole session even with the feature disabled (2026-09-16 audit).
-        if (!enabled) {
+        // The Spotify HUD reads the same poll, so it runs while either is on; only chat sending needs Mod Enabled.
+        if (!enabled && !SpotifyHudConfig.getInstance().isHudEnabled()) {
             return;
         }
         ENGINE.poll(DESKTOP, fullLyrics);
+        if (!enabled) {
+            return;
+        }
 
         // The sim counts as a place lyrics may play.
         //
@@ -183,6 +188,11 @@ public final class SpotifyLyricsFeature {
         }
 
         sendToChat(applyProfanityFilter(lyric), inSim);
+    }
+
+    /** What the Spotify HUD draws: the last poll's state, safe to read from the render thread. */
+    public static LyricsEngine.Snapshot snapshot() {
+        return ENGINE.snapshot();
     }
 
     /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */

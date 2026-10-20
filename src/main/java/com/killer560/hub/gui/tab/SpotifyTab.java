@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.spotify.SpotifyHudConfig;
 import com.killer560.hub.spotify.SpotifyLyricsFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -68,7 +69,50 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
+        // The Spotify HUD (2026-10-20): its own switch, independent of Mod Enabled (which only sends to chat).
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Spotify HUD", false), Minecraft.getInstance().font));
+        y += 14;
+        widgets.add(SettingsButtonWidget.builder(onOff("Spotify HUD", hud().isHudEnabled()), btn -> {
+                    hud().setHudEnabled(!hud().isHudEnabled());
+                    hud().save();
+                    btn.setMessage(onOff("Spotify HUD", hud().isHudEnabled()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.builder(onOff("HUD Lyrics", hud().isShowLyrics()), btn -> {
+                    hud().setShowLyrics(!hud().isShowLyrics());
+                    hud().save();
+                    btn.setMessage(onOff("HUD Lyrics", hud().isShowLyrics()));
+                }).bounds(contentX, y, half, 20).build());
+        widgets.add(SettingsButtonWidget.builder(onOff("Word Highlight", hud().isWordHighlight()), btn -> {
+                    hud().setWordHighlight(!hud().isWordHighlight());
+                    hud().save();
+                    btn.setMessage(onOff("Word Highlight", hud().isWordHighlight()));
+                }).bounds(contentX + half + 8, y, half, 20).build());
+        y += 24;
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide When Paused", hud().isHideWhenPaused()), btn -> {
+                    hud().setHideWhenPaused(!hud().isHideWhenPaused());
+                    hud().save();
+                    btn.setMessage(onOff("Hide When Paused", hud().isHideWhenPaused()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
         return widgets;
+    }
+
+    /** Chat lyrics and the HUD are separate features: the card is ON while either is. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Mod Enabled", "Spotify HUD");
+    }
+
+    /** Read fresh each time: applying a profile replaces the config instance. */
+    private static SpotifyHudConfig hud() {
+        return SpotifyHudConfig.getInstance();
+    }
+
+    private static Component onOff(String label, boolean on) {
+        return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
     private static Component enabledText() {

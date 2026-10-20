@@ -28,7 +28,9 @@ public final class HudInGameRenderer {
             "ability_cooldowns", "lag_display",
             "blessings", "maxor_crystals",
             // Advanced Position (2026-09-21) - missing from this list at first, so it never drew in game.
-            "advanced_position");
+            "advanced_position",
+            // Spotify HUD (2026-10-20).
+            "spotify_hud");
 
     private HudInGameRenderer() {
     }

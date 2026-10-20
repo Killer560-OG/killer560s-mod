@@ -130,7 +130,7 @@ final class CardBlurbsData {
         d.put("PartyCommandsTab", "Party command switches.");
         d.put("PeekChatTab", "Read chat without typing.");
         d.put("ScreenshotCopyTab", "Copies screenshots.");
-        d.put("SpotifyTab", "Shares your Spotify song in chat.");
+        d.put("SpotifyTab", "Shares your Spotify song in chat or on a HUD.");
         d.put("TranslateTab", "Sends your messages translated.");
         d.put("VoiceToTextTab", "Speech to party chat.");
         d.put("AuctionHouseTab", "Custom Auction House.");

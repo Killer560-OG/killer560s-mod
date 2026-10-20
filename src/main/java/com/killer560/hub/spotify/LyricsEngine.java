@@ -64,7 +64,81 @@ public final class LyricsEngine {
     private Long playingSinceMs = null;
     private long playedMs = 0;
 
-    public record LyricLine(double timeSeconds, String text) {
+    /** The current track's artist and title, kept through a pause so the HUD can still name it. */
+    private String lastArtist = "";
+    private String lastTitle = "";
+    private boolean lastWasAd = false;
+    /** lrclib's {@code duration} for the current track in seconds, or 0 when it gave none. */
+    private double durationSeconds = 0;
+    /** Whether lrclib has answered for the current track (with or without lyrics). */
+    private boolean lyricsAnswered = false;
+
+    /** {@code parsed} carries the line's words and, for an enhanced-LRC line, each word's start. */
+    public record LyricLine(double timeSeconds, String text, LyricTiming.Parsed parsed) {
+    }
+
+    /**
+     * What the Spotify HUD draws, published whole by the poll thread and read by the render thread with no lock.
+     * The clock is kept as its two parts, so the HUD can run it on every frame for a smooth word highlight
+     * instead of stepping on the 250 ms poll.
+     *
+     * @param playingSinceMs wall time playback last resumed, or 0 while paused
+     * @param lines          the synced lyric lines (immutable), empty while unknown or when lrclib had none
+     */
+    public record Snapshot(NowPlaying.Kind kind, String artist, String title, long playedMs, long playingSinceMs,
+                           double durationSeconds, List<LyricLine> lines, boolean lyricsAnswered) {
+
+        public static final Snapshot NONE =
+                new Snapshot(NowPlaying.Kind.PAUSED, "", "", 0, 0, 0, List.of(), false);
+
+        /** Seconds played of this track at wall time {@code nowMs}, pauses excluded. */
+        public double elapsedSeconds(long nowMs) {
+            return (playedMs + (playingSinceMs == 0 ? 0 : Math.max(0, nowMs - playingSinceMs))) / 1000.0;
+        }
+
+        public boolean hasTrack() {
+            return !title.isEmpty();
+        }
+
+        /** Index of the line being sung at {@code seconds}, or -1 before the first. */
+        public int lineAt(double seconds) {
+            int idx = -1;
+            for (int i = 0; i < lines.size(); i++) {
+                if (lines.get(i).timeSeconds() <= seconds) {
+                    idx = i;
+                } else {
+                    break;
+                }
+            }
+            return idx;
+        }
+
+        /** Where line {@code i} ends: the next line's start, else the track's end, else NaN. */
+        public double lineEnd(int i) {
+            if (i + 1 < lines.size()) {
+                return lines.get(i + 1).timeSeconds();
+            }
+            return durationSeconds > 0 ? durationSeconds : Double.NaN;
+        }
+    }
+
+    private volatile Snapshot snapshot = Snapshot.NONE;
+
+    /** The latest {@link Snapshot}; any thread, never null. */
+    public Snapshot snapshot() {
+        return snapshot;
+    }
+
+    /** Publishes the current state as a {@link Snapshot}. Caller holds the lock. */
+    private void publish(NowPlaying.Kind kind) {
+        if (lastTrackKey == null) {
+            snapshot = Snapshot.NONE;
+            return;
+        }
+        NowPlaying.Kind shown = kind == NowPlaying.Kind.PAUSED ? kind
+                : (lastWasAd ? NowPlaying.Kind.AD : NowPlaying.Kind.TRACK);
+        snapshot = new Snapshot(shown, lastArtist, lastWasAd ? "" : lastTitle, playedMs,
+                playingSinceMs == null ? 0 : playingSinceMs, durationSeconds, syncedLyrics, lyricsAnswered);
     }
 
     /**
@@ -93,6 +167,7 @@ public final class LyricsEngine {
                 }
                 currentLyric = "";
                 currentIsTransition = false;
+                publish(NowPlaying.Kind.PAUSED);
                 return;
             }
 
@@ -116,6 +191,11 @@ public final class LyricsEngine {
                 }
                 lastTrackKey = trackKey;
                 lastTrackTitle = title;
+                lastArtist = isAd ? "" : nowPlaying.artist();
+                lastTitle = isAd ? "" : nowPlaying.title();
+                lastWasAd = isAd;
+                durationSeconds = 0;
+                lyricsAnswered = isAd;
                 playedMs = 0;
                 playingSinceMs = now;
                 syncedLyrics = List.of();
@@ -157,6 +237,7 @@ public final class LyricsEngine {
                 currentLyric = currentLyricAt(elapsed);
                 currentIsTransition = false;
             }
+            publish(nowPlaying.kind());
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("Poll failed: {}", String.valueOf(e), e);
         }
@@ -191,14 +272,22 @@ public final class LyricsEngine {
      */
     private void requestLyrics(String forTrackKey, String artist, String title) {
         LYRIC_FETCH.submit(() -> {
-            List<LyricLine> lines = fetchLyrics(artist, title);
+            Fetched fetched = fetchLyrics(artist, title);
             synchronized (this) {
                 if (forTrackKey.equals(lastTrackKey)) {
-                    syncedLyrics = lines;
-                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} synced line(s)", title, lines.size());
+                    syncedLyrics = fetched.lines();
+                    durationSeconds = fetched.durationSeconds();
+                    lyricsAnswered = true;
+                    publish(snapshot.kind());
+                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} synced line(s)", title, fetched.lines().size());
                 }
             }
         });
+    }
+
+    /** What lrclib gave for one track: its synced lines (immutable, maybe empty) and its length (0 = unknown). */
+    private record Fetched(List<LyricLine> lines, double durationSeconds) {
+        static final Fetched NOTHING = new Fetched(List.of(), 0);
     }
 
     /** Playing time on this track, with any paused stretches excluded. */
@@ -227,7 +316,7 @@ public final class LyricsEngine {
         return current;
     }
 
-    private List<LyricLine> fetchLyrics(String artist, String title) {
+    private Fetched fetchLyrics(String artist, String title) {
         try {
             String url = LRCLIB_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title);
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
@@ -236,13 +325,13 @@ public final class LyricsEngine {
             if (response.statusCode() / 100 != 2) {
                 SpotifyLyricsFeature.LOGGER.warn("lrclib search failed: HTTP {} for artist='{}' title='{}'",
                         response.statusCode(), artist, title);
-                return List.of();
+                return Fetched.NOTHING;
             }
 
             JsonArray results = JsonParser.parseString(response.body()).getAsJsonArray();
             if (results.isEmpty()) {
                 SpotifyLyricsFeature.LOGGER.info("lrclib had no results at all for artist='{}' title='{}'", artist, title);
-                return List.of();
+                return Fetched.NOTHING;
             }
 
             // An EXACT artist and title match wins over merely the first result with synced lyrics.
@@ -259,18 +348,32 @@ public final class LyricsEngine {
             if (match == null) {
                 match = results.get(0).getAsJsonObject();
             }
+            double duration = duration(match);
             if (!match.has("syncedLyrics") || match.get("syncedLyrics").isJsonNull()) {
                 SpotifyLyricsFeature.LOGGER.info(
                         "lrclib had {} result(s) for artist='{}' title='{}' but none had synced lyrics",
                         results.size(), artist, title);
-                return List.of();
+                return new Fetched(List.of(), duration);
             }
 
-            return parseLrc(match.get("syncedLyrics").getAsString());
+            return new Fetched(List.copyOf(parseLrc(match.get("syncedLyrics").getAsString())), duration);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("lrclib search threw for artist='{}' title='{}': {}", artist, title, e.toString());
-            return List.of();
+            return Fetched.NOTHING;
         }
+    }
+
+    /** lrclib's {@code duration} (seconds) for a result, or 0 when missing or not a sane number. */
+    private static double duration(JsonObject obj) {
+        try {
+            if (obj.has("duration") && !obj.get("duration").isJsonNull()) {
+                double d = obj.get("duration").getAsDouble();
+                return d > 0 && d < 24 * 3600 ? d : 0;
+            }
+        } catch (RuntimeException ignored) {
+            // not a number: unknown length
+        }
+        return 0;
     }
 
     /**
@@ -309,7 +412,9 @@ public final class LyricsEngine {
             Matcher m = LRC_LINE.matcher(line);
             if (m.matches()) {
                 double time = Integer.parseInt(m.group(1)) * 60 + Double.parseDouble(m.group(2));
-                result.add(new LyricLine(time, m.group(3).trim()));
+                // Word tags (enhanced LRC) are taken out of the text, so chat never shows them.
+                LyricTiming.Parsed parsed = LyricTiming.parse(m.group(3), time);
+                result.add(new LyricLine(time, parsed.text(), parsed));
             }
         }
         return result;

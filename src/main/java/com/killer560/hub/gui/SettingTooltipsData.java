@@ -288,6 +288,10 @@ final class SettingTooltipsData {
         d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, Co-op / Plain, or Mod Chat.");
         d.put("lyrics mode", "Sends every lyric line, or only announces the song when it changes.");
         d.put("profanity filter", "Stars out swear words in the lyrics you send.");
+        d.put("spotify lyrics/spotify hud", "Shows a panel with the song, its time and the lyric being sung; move it in Edit HUD.");
+        d.put("spotify lyrics/hud lyrics", "Shows the current lyric line in the Spotify HUD.");
+        d.put("spotify lyrics/word highlight", "Lights up the word being sung in the Spotify HUD's lyric line.");
+        d.put("spotify lyrics/hide when paused", "Hides the Spotify HUD while Spotify is paused.");
         d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
