@@ -116,6 +116,28 @@ public final class RunPlan {
         return (14 + 2 * warps + 4 * Math.max(0, roomSteps)) / 20.0;
     }
 
+    /**
+     * The seconds the shut wither doors on the way to the rooms left add to a plan (killer560, 2026-10-20: "if there is a
+     * wither door blocking off a section it doesn't include that other section into the clear timer. Make that
+     * all-inclusive"): {@code perDoorSeconds} for each door (the caller's stop at it and its clicks), and for each door
+     * beyond the {@code keysHeld} a key pickup - the cheapest of {@code lyingKeySeconds} (keys on the ground, priced as the
+     * trip to each) first, then {@code unseenKeySeconds} for a key that has not dropped yet. Zero for no doors.
+     */
+    public static double witherDoorSeconds(int doors, int keysHeld, double[] lyingKeySeconds, double perDoorSeconds,
+                                           double unseenKeySeconds) {
+        if (doors <= 0) {
+            return 0.0;
+        }
+        double total = doors * perDoorSeconds;
+        int pickups = doors - Math.max(0, keysHeld);
+        double[] lying = lyingKeySeconds == null ? new double[0] : lyingKeySeconds.clone();
+        java.util.Arrays.sort(lying);
+        for (int i = 0; i < pickups; i++) {
+            total += i < lying.length ? lying[i] : unseenKeySeconds;
+        }
+        return total;
+    }
+
     /** The run ended (or never began): nothing of {@code source}'s is planned. */
     public static void clear(Source source) {
         if (LIVE[source.ordinal()] != null) {

@@ -797,21 +797,32 @@ public final class AutoClearFeature {
      * this run has cleared a room, its own pace: the seconds it has run over the rooms it cleared, per room left. Before
      * that: the etherwarp trip to each room in order (as {@link com.killer560.hub.autoroutes.RunPlan#tripSeconds} prices
      * one) plus {@link #CLEAR_SECONDS_GUESS} a room. NaN with no player.
+     * <p>
+     * All-inclusive (killer560, 2026-10-20: "if there is a wither door blocking off a section it doesn't include that
+     * other section into the clear timer"): the rooms counted are the plan's, plus the rooms not identified yet
+     * ({@link #unidentifiedRoomsLeft}), which is what a room behind a shut wither door usually is - the map shows it grey
+     * and nothing has scanned it, so it is not a mob room to the plan and was left out. Each is counted at the plan's own
+     * per-room figure (its pace, or the trip plus {@link #CLEAR_SECONDS_GUESS}), as a mob room, because its kind cannot be
+     * known until it is seen. On top, every shut wither door on the way ({@link #witherDoorSeconds}). The plan itself
+     * (what is picked, in what order, the HUD's room list) is unchanged; only the time counts these.
      */
     private static double estimateSeconds(DungeonLayout layout, List<Integer> rooms) {
+        Minecraft client = Minecraft.getInstance();
+        List<Integer> all = new java.util.ArrayList<>(rooms);
+        all.addAll(unidentifiedRoomsLeft(layout, AutoClearConfig.getInstance().getMode(), all));
         if (roomsCleared > 0) {
             double perRoom = (System.currentTimeMillis() - runStartMs) / 1000.0 / roomsCleared;
-            return perRoom * rooms.size();
+            // The pace already holds any door opened so far; a door still shut is added as the open itself costs.
+            return perRoom * all.size() + (client.player == null ? 0.0 : witherDoorSeconds(client, layout, all));
         }
-        Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return Double.NaN;
         }
         double hop = ClearExecutor.hopRange();
         double x = client.player.getX();
         double z = client.player.getZ();
-        double total = 0.0;
-        for (int r : rooms) {
+        double total = witherDoorSeconds(client, layout, all);
+        for (int r : all) {
             int[] tiles = layout.tiles(r);
             if (tiles == null || tiles.length == 0) {
                 continue;
@@ -825,6 +836,94 @@ public final class AutoClearFeature {
             z = c.getZ() + 0.5;
         }
         return total;
+    }
+
+    /** Blocks a key not dropped yet is priced at: it drops in a room being cleared, so about half a room's detour. */
+    static final double UNSEEN_KEY_BLOCKS = 16.0;
+
+    /**
+     * Rooms on the map with no identity yet (no room database entry: the grey "?" room behind a shut wither door, or one
+     * further on that the world scan has not read), not cleared, not in {@code counted}, that the run would reach: a way
+     * to them from where he is (or the Entrance) with locked doors passable but no shut BLOOD door on it - the room behind
+     * that is the Blood Room, never cleared. In Blood Rush Split mode only those on the rush path. Timer only: the plan
+     * still picks only identified mob rooms. A one-tile piece of a larger room not merged yet would be counted on its own.
+     */
+    private static List<Integer> unidentifiedRoomsLeft(DungeonLayout layout, AutoClearConfig.Mode mode,
+                                                       List<Integer> counted) {
+        List<Integer> out = new java.util.ArrayList<>();
+        int from = layout.currentRoom() >= 0 ? layout.currentRoom() : AutoClearTargets.entranceRoom(layout);
+        if (from < 0) {
+            return out;
+        }
+        List<Integer> rush = mode == AutoClearConfig.Mode.BLOOD_RUSH_SPLIT ? AutoClearTargets.bloodRushRooms(layout) : null;
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (layout.entry(r) != null || r == from || counted.contains(r) || AutoClearTargets.isClearedOnMap(layout, r)
+                    || (rush != null && !rush.contains(r))) {
+                continue;
+            }
+            List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, from, r, true);
+            if (path != null && !crossesShutBloodDoor(layout, path)) {
+                out.add(r);
+            }
+        }
+        return out;
+    }
+
+    private static boolean crossesShutBloodDoor(DungeonLayout layout, List<DungeonMapPathfinder.RoomStep> path) {
+        for (DungeonMapPathfinder.RoomStep step : path) {
+            int d = step.door();
+            if (d >= 0 && layout.isLocked(d) && layout.doorType(d) == DungeonLayout.DOOR_BLOOD) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The shut wither doors between him and {@code rooms} (each counted once), priced as {@link #openDoor} works one: a
+     * stop of its own at the door (a hop-long trip, {@link com.killer560.hub.autoroutes.RunPlan#tripSeconds}: 18 ticks),
+     * the turn and the click on the next tick, and {@link #DOOR_RETRY_TICKS} for the server's answer; for each door beyond the
+     * team's keys a pickup - a lying key at the trip to it, a key not dropped yet at {@link #UNSEEN_KEY_BLOCKS}.
+     */
+    private static double witherDoorSeconds(Minecraft client, DungeonLayout layout, List<Integer> rooms) {
+        int from = layout.currentRoom();
+        if (from < 0) {
+            return 0.0;
+        }
+        Set<Integer> doors = new HashSet<>();
+        for (int r : rooms) {
+            if (r == from) {
+                continue;
+            }
+            List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, from, r, true);
+            if (path == null) {
+                continue;
+            }
+            for (DungeonMapPathfinder.RoomStep step : path) {
+                int d = step.door();
+                if (d >= 0 && layout.isLocked(d)) {
+                    if (layout.doorType(d) != DungeonLayout.DOOR_WITHER) {
+                        break;   // a blood door: never opened here (as AutoClearTargets.choose reads it)
+                    }
+                    doors.add(d);
+                }
+            }
+        }
+        if (doors.isEmpty()) {
+            return 0.0;
+        }
+        double hop = ClearExecutor.hopRange();
+        List<Double> lying = new java.util.ArrayList<>();
+        for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+            if (!k.blood() && !keysTried.contains(k.id())) {
+                lying.add(com.killer560.hub.autoroutes.RunPlan.tripSeconds(
+                        client.player.position().distanceTo(new Vec3(k.x(), k.y(), k.z())), hop, 0));
+            }
+        }
+        double perDoor = com.killer560.hub.autoroutes.RunPlan.tripSeconds(hop, hop, 0) + (2 + DOOR_RETRY_TICKS) / 20.0;
+        return com.killer560.hub.autoroutes.RunPlan.witherDoorSeconds(doors.size(), witherKeyCount(client.player),
+                lying.stream().mapToDouble(Double::doubleValue).toArray(), perDoor,
+                com.killer560.hub.autoroutes.RunPlan.tripSeconds(UNSEEN_KEY_BLOCKS, hop, 0));
     }
 
     /** The rooms Auto Clear plans to do, the one under way first (empty when it is not running). For the testkit. */
