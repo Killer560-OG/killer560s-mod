@@ -689,6 +689,18 @@ public final class SimItems {
                 for (BlockPos spot : cryptZombies) {
                     SimMobs.spawnCrypt(client, spot, false);
                 }
+                // KING MIDAS. killer560 (2026-10-19/20): in King Midas "it needs to clear the room" - the gold altar in
+                // the middle (the room's one crypt: a 35-slab lid, capture x 14..18, y 69, z 9..15) has to be
+                // superboomed, and only then does the room's mob spawn and have to be killed; "the others just have a
+                // mob spawned in them". So opening it also brings King Midas, starred (his death clears the room), in
+                // the tomb the blast just opened.
+                for (BlockPos spot : cryptZombies) {
+                    if (SimMiniboss.Name.KING_MIDAS.text().equals(SimWhere.roomNameAt(spot))) {
+                        LOGGER.info("Sim superboom opened the King Midas altar at {} - King Midas spawns", spot);
+                        SimMobs.spawnMiniboss(client, spot, SimMiniboss.Name.KING_MIDAS, true);
+                        break;
+                    }
+                }
             }
             if (princeAt != null) {
                 boolean scored = SimPrince.takeScore();

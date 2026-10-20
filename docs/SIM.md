@@ -3352,3 +3352,19 @@ side by side `final-side-by-side.png`). In capture terms (wall plane x 1, one in
   Withermancer's course was the cover of its ladder shaft, and its three chiseled corners and one nether brick stay.
 - Testkit: 1018-sim-skull-golden-oasis / -redstone-crypt / -redstone-key, 1018-sim-prince-stairs / -withermancer /
   -sloth / -red-blue / -grass-ruin (SimWorldTests).
+
+## King Midas: the altar is the crypt, and sim minibosses could not die (2026-10-20, midas-1020)
+
+King Midas (capture `rooms/King_Midas.json`) has one crypt in the room database and one smooth stone slab run in the
+whole capture: the altar in the middle, a 5 x 7 stone-brick tomb at capture x 14..18, y 67..69, z 9..15 with a 35-slab
+bottom-slab lid at y 69, gold at its four foot corners and under the lid's front row, and the skull at (16, 68, 15) on
+the front face where the red carpet ends. killer560 (2026-10-19/20): its mob only spawns once that altar is
+superboomed. The sim's Superboom already opened it as a slab crypt (Crypt Undead, no star); since midas-1020 opening it
+also spawns a starred King Midas miniboss (`SimItems.superboom`, by `SimWhere.roomNameAt` of the opened crypt), so the
+room clears when he dies. Auto Clear finds the lid by its blocks (`autoclear/MidasAltar`: a bottom smooth stone slab run
+over 20 with gold under it), not by coordinates.
+
+`SimSurvival`'s ALLOW_DEATH (death sends him back to the middle of the room) caught every `ServerPlayer`, and
+`SimMiniboss` places minibosses as `ServerPlayer`s: every sim miniboss was healed and teleported at each death, so none
+could ever die (King Midas "died" eleven times in 8 s under the Hyperion). It now skips `SimMiniboss.isPlaced`.
+Testkit 131-sim-midas-1020 (sim) and 62-argrim-1020-midas (GrimAC) cover it.

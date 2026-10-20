@@ -77,7 +77,10 @@ public final class SimSurvival {
 
         // Death goes back to the middle of the room instead of to a respawn screen.
         ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
-            if (!(entity instanceof ServerPlayer player) || !SimState.isActive()) {
+            // NOT a miniboss: SimMiniboss places them as ServerPlayers, and this used to heal every one at death and put
+            // it in the middle of the room, so a sim miniboss could never die (midas-1020: King Midas "died" eleven
+            // times in 8 s under Auto Clear's Hyperion and stood up again each time).
+            if (!(entity instanceof ServerPlayer player) || SimMiniboss.isPlaced(entity) || !SimState.isActive()) {
                 return true;
             }
             player.setHealth(player.getMaxHealth());

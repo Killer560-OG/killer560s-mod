@@ -4779,17 +4779,7 @@ public final class RouteExecutor {
                 // from that face (2026-10-05, 62-argrim: a boom's EAST abort, then six breaker digs flagged).
                 turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw)
                         - player.getYRot()), node.pitch);
-                BlockPos target = boomTarget;
-                Direction face = hit.getDirection();
-                if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-                    invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face, sequence));
-                } else {
-                    player.connection.send(new ServerboundPlayerActionPacket(
-                            ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face));
-                }
-                player.connection.send(new ServerboundPlayerActionPacket(
-                        ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, target, Direction.DOWN));
+                sendBoomTap(client, player, boomTarget, hit.getDirection());
             }
             player.swing(InteractionHand.MAIN_HAND);
             boomSentAt = execTicks;
@@ -4847,6 +4837,30 @@ public final class RouteExecutor {
         }
     }
 
+    /**
+     * A Superboom's left click on {@code target}, packet for packet what a vanilla tap on it sends: START through the
+     * block-prediction sequence with the face the ray struck, then ABORT with face DOWN (vanilla's stopDestroyBlock always
+     * says DOWN, javap 26.1.2 - an ABORT carrying the struck face made GrimAC's PositionBreakB flag every later dig,
+     * 2026-10-05). The caller turns the body to the block first, so GrimAC's RotationBreak sees a look that strikes it.
+     * Shared by the boom node and Auto Clear's King Midas altar; the caller swings.
+     */
+    public static void sendBoomTap(Minecraft client, LocalPlayer player, BlockPos target, Direction face) {
+        if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face, sequence));
+        } else {
+            player.connection.send(new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, target, face));
+        }
+        player.connection.send(new ServerboundPlayerActionPacket(
+                ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, target, Direction.DOWN));
+    }
+
+    /** The hotbar slot of a Superboom (infinite or plain), or -1 - the boom node's own lookup. */
+    public static int superboomSlot(LocalPlayer player) {
+        return ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
+    }
+
     /** Ticks a boom that changed nothing waits: the measured round trip ({@link
      *  com.killer560.hub.util.PingTracker#automationMs}) rounded up, plus a margin, bounded - 5 at a local 1-50 ms, 8 at
      *  200 ms, 20 (a second) above 750 ms. Until 2026-10-11 the round trip was the tab-list latency, about 1 ms on
@@ -4856,7 +4870,7 @@ public final class RouteExecutor {
         return com.killer560.hub.util.ServerLag.ticksSince(stepLag);
     }
 
-    static int boomSettleTicks() {
+    public static int boomSettleTicks() {
         int ping = 0;
         Minecraft client = Minecraft.getInstance();
         if (client.getConnection() != null && client.player != null) {

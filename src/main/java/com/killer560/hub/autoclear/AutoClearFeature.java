@@ -298,6 +298,7 @@ public final class AutoClearFeature {
         keyTrip = false;
         keysTried.clear();
         resetRoam();
+        midasFor = null;
         roomsCleared = 0;
         runStartMs = System.currentTimeMillis();
         mobsKilled = 0;
@@ -597,6 +598,11 @@ public final class AutoClearFeature {
             targetName = "";
             if (layout.currentRoom() == room) {
                 releaseUse(client);
+                if (midasAltar(client, player, layout, room)) {
+                    // King Midas: its mob is not there until the altar is open, so the mob-less wait starts after it.
+                    noMobTicks = 0;
+                    return;
+                }
                 action = "looking for starred mobs";
                 if (++noMobTicks == 1) {
                     noMobLag = com.killer560.hub.util.ServerLag.mark();
@@ -631,6 +637,7 @@ public final class AutoClearFeature {
             return;
         }
         noMobTicks = 0;
+        midasCheckOpened(client);
         planRepositions(client, player, mobs, cfg.getWeapon());
         Entity target = pickTarget(player, mobs, cfg.getWeapon());
         if (target.getId() != targetId) {
@@ -1376,6 +1383,229 @@ public final class AutoClearFeature {
         roomName = null;
         targetId = -1;
         releaseUse(Minecraft.getInstance());
+    }
+
+    // =========================================================================================== King Midas altar
+
+    /** Superbooms on the altar that changed nothing before the room is given up. */
+    static final int MIDAS_MAX_BOOMS = 3;
+    /** The room the altar state below belongs to (its name), or null. */
+    private static String midasFor = null;
+    private static List<BlockPos> midasLid = null;
+    private static boolean midasSaidNone = false;
+    private static boolean midasOpened = false;
+    private static int midasBooms = 0;
+    /** Ticks since the last Superboom on the altar while its answer is awaited, else -1. */
+    private static int midasWait = -1;
+    private static long midasLag = 0L;
+
+    /**
+     * King Midas (killer560, 2026-10-19/20): its mob only spawns once the gold altar in the middle of the room is
+     * superboomed ({@link MidasAltar}), so with no starred mob in sight and the altar still standing, the altar comes
+     * first: a Superboom tap on its lid ({@link com.killer560.hub.autoroutes.RouteExecutor#sendBoomTap}, the boom node's
+     * own packets) from where he stands, or an etherwarp to a block that reaches it first. Then it waits on the lid
+     * breaking - the server's answer, no fixed delay - and from there the room is an ordinary mob room: the spawned mob is
+     * found and killed by the normal clear, and the room is cleared when it dies.
+     *
+     * @return true while the altar step owns this tick; false once there is no standing altar (opened, or none found)
+     */
+    private static boolean midasAltar(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {
+        if (!MidasAltar.ROOM.equals(roomName)) {
+            return false;
+        }
+        if (!roomName.equals(midasFor)) {
+            midasFor = roomName;
+            midasLid = null;
+            midasSaidNone = false;
+            midasOpened = false;
+            midasBooms = 0;
+            midasWait = -1;
+        }
+        if (midasOpened) {
+            return false;
+        }
+        if (midasLid == null) {
+            for (int tile : layout.tiles(room)) {
+                List<BlockPos> lid = MidasAltar.find(client.level, LiveMapFeature.roomWorldBounds(tile));
+                if (lid != null && (midasLid == null || lid.size() > midasLid.size())) {
+                    midasLid = lid;
+                }
+            }
+            if (midasLid == null) {
+                if (!midasSaidNone) {
+                    midasSaidNone = true;
+                    LOGGER.info("[AutoClear] King Midas: no altar standing (already opened?) - clearing it as a mob room");
+                }
+                return false;
+            }
+            BlockPos a = midasLid.get(0);
+            LOGGER.info("[AutoClear] King Midas: altar lid of {} smooth stone slabs at y {} (around {}) - booming it first",
+                    midasLid.size(), a.getY(), a.toShortString());
+        }
+        if (midasCheckOpened(client)) {
+            return false;
+        }
+        if (midasWait >= 0) {
+            if (midasWait++ == 0) {
+                midasLag = com.killer560.hub.util.ServerLag.mark();
+            }
+            if (midasWait <= com.killer560.hub.autoroutes.RouteExecutor.boomSettleTicks()
+                    + com.killer560.hub.util.ServerLag.ticksSince(midasLag)) {
+                action = "waiting for the King Midas altar to break";
+                return true;
+            }
+            LOGGER.info("[AutoClear] King Midas: Superboom {} changed nothing within {} tick(s)", midasBooms, midasWait);
+            midasWait = -1;
+            if (midasBooms >= MIDAS_MAX_BOOMS) {
+                giveUpRoom("the King Midas altar did not break after " + midasBooms + " Superbooms");
+                return true;
+            }
+        }
+        int slot = com.killer560.hub.autoroutes.RouteExecutor.superboomSlot(player);
+        if (slot < 0) {
+            giveUpRoom("no Superboom in the hotbar to open the King Midas altar");
+            return true;
+        }
+        double reach = player.blockInteractionRange();
+        net.minecraft.world.phys.BlockHitResult hit = altarHit(client, player, player.getEyePosition(), reach);
+        if (hit == null) {
+            if (!player.onGround()) {
+                action = "landing";
+                return true;
+            }
+            BlockPos spot = altarStandSpot(client, player, reach - 0.5);
+            if (spot == null) {
+                giveUpRoom("no block to Superboom the King Midas altar from");
+                return true;
+            }
+            action = "etherwarp to the King Midas altar";
+            startTrip(client, player, () -> {
+                ClearExecutor.etherPath(spot, null);
+                return true;
+            });
+            if (phase == Phase.TRAVEL) {
+                LOGGER.info("[AutoClear] King Midas: etherwarp to {} to reach the altar", spot.toShortString());
+            }
+            return true;
+        }
+        if (player.getInventory().getSelectedSlot() != slot) {
+            select(client, player, slot);
+            action = "Superboom in hand";
+            return true;
+        }
+        Vec3 eye = player.getEyePosition();
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, hit.getLocation());
+        float yaw = player.getYRot() + Mth.wrapDegrees(r.yaw() - player.getYRot());
+        float pitch = Mth.clamp(r.pitch(), -90f, 90f);
+        bodyWanted = true;
+        if (!BODY.isHeld() || Math.abs(yaw - player.getYRot()) > 0.5f || Math.abs(pitch - player.getXRot()) > 0.5f) {
+            // Turn first: the tap goes out a tick later, from a body a movement packet has already reported.
+            BODY.turn(player, yaw, pitch);
+            action = "turning to the King Midas altar";
+            return true;
+        }
+        com.killer560.hub.autoroutes.RouteExecutor.sendBoomTap(client, player, hit.getBlockPos(), hit.getDirection());
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        midasBooms++;
+        midasWait = 0;
+        action = "Superboom on the King Midas altar";
+        ModChat.log(CHAT, ModChat.text("Superboom on the King Midas altar"));
+        LOGGER.info(String.format(Locale.US, "[AutoClear] King Midas: Superboom %d on the altar at %s face %s from %s (%.2f"
+                        + " blocks)", midasBooms, hit.getBlockPos().toShortString(), hit.getDirection(), fmt(eye),
+                Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, hit.getBlockPos()))));
+        return true;
+    }
+
+    /**
+     * Whether the altar this room's step found has opened: the structure breaking is the signal, and from then on the
+     * room is an ordinary mob room. Said once. Also asked while the spawned mob is already in sight (it can be the very
+     * next tick), so the log says the altar opened before it says the mob died.
+     */
+    private static boolean midasCheckOpened(Minecraft client) {
+        if (midasOpened || midasLid == null || !String.valueOf(roomName).equals(midasFor)) {
+            return midasOpened;
+        }
+        int standing = MidasAltar.standing(client.level, midasLid);
+        if (standing == midasLid.size()) {
+            return false;
+        }
+        midasOpened = true;
+        LOGGER.info("[AutoClear] King Midas: altar opened ({} of {} lid slabs gone{}) - clearing the mob",
+                midasLid.size() - standing, midasLid.size(), midasBooms > 0 ? ", " + midasWait
+                        + " tick(s) after Superboom " + midasBooms : ", not by Auto Clear");
+        midasWait = -1;
+        ModChat.log(CHAT, ModChat.text("King Midas altar opened"), ModChat.dim(" - clearing the mob"));
+        return true;
+    }
+
+    /**
+     * A tap on the altar's lid from {@code eye}: a face of a lid slab that is exposed, faces the eye and is the first thing
+     * the eye's ray meets, within {@code reach} of the slab's box (as the server measures). The nearest such slab, or null.
+     */
+    private static net.minecraft.world.phys.BlockHitResult altarHit(Minecraft client, LocalPlayer player, Vec3 eye,
+                                                                    double reach) {
+        net.minecraft.world.phys.BlockHitResult best = null;
+        double bestSq = reach * reach;
+        for (BlockPos p : midasLid) {
+            double sq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, p);
+            if (sq > bestSq) {
+                continue;
+            }
+            net.minecraft.world.phys.BlockHitResult face = com.killer560.hub.util.BlockHits.exposedSurface(client.level, p, eye);
+            if (face == null || face.getLocation().distanceTo(eye) > reach) {
+                continue;
+            }
+            Vec3 dir = face.getLocation().subtract(eye);
+            HitResult seen = client.level.clip(new ClipContext(eye, eye.add(dir.normalize().scale(dir.length() + 0.05)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+            if (!(seen instanceof net.minecraft.world.phys.BlockHitResult b) || !b.getBlockPos().equals(p)) {
+                continue;   // something else is in the way
+            }
+            best = face;
+            bestSq = sq;
+        }
+        return best;
+    }
+
+    /**
+     * The nearest block to etherwarp onto from which {@link #altarHit} finds a lid face within {@code reach} - never on
+     * the altar itself (booming the lid he stands on would drop him into the tomb).
+     */
+    private static BlockPos altarStandSpot(Minecraft client, LocalPlayer player, double reach) {
+        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        int y = midasLid.get(0).getY();
+        for (BlockPos p : midasLid) {
+            minX = Math.min(minX, p.getX());
+            maxX = Math.max(maxX, p.getX());
+            minZ = Math.min(minZ, p.getZ());
+            maxZ = Math.max(maxZ, p.getZ());
+        }
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int x = minX - 5; x <= maxX + 5; x++) {
+            for (int z = minZ - 5; z <= maxZ + 5; z++) {
+                if (x >= minX - 1 && x <= maxX + 1 && z >= minZ - 1 && z <= maxZ + 1) {
+                    continue;   // on or against the tomb
+                }
+                for (int dy = -4; dy <= 1; dy++) {
+                    BlockPos pos = new BlockPos(x, y + dy, z);
+                    if (!TeleportUtils.landable(pos)) {
+                        continue;
+                    }
+                    Vec3 eye = new Vec3(x + 0.5, pos.getY() + 1.0 + com.killer560.hub.autopuzzles.AutoPuzzleUtil.EYE_STANDING,
+                            z + 0.5);
+                    if (altarHit(client, player, eye, reach) == null) {
+                        continue;
+                    }
+                    double d = player.distanceToSqr(x + 0.5, pos.getY() + 1.0, z + 0.5);
+                    if (d < bestD) {
+                        bestD = d;
+                        best = pos;
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     // =========================================================================================== attacking
