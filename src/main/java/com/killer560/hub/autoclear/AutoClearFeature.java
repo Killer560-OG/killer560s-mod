@@ -2921,6 +2921,21 @@ public final class AutoClearFeature {
                 : "none of " + (w == 3 ? "3+" : String.valueOf(w)) + " warp(s) seen yet";
     }
 
+    /** Whether a live starred mob of the room other than {@code target} (and not already left to its bat) is in sight. */
+    private static boolean othersLeft(Minecraft client, Entity target) {
+        DungeonLayout layout = DungeonLayout.capture();
+        int room = AutoClearTargets.roomByName(layout, roomName);
+        if (room < 0) {
+            return false;
+        }
+        for (Entity e : starredIn(client, layout, room)) {
+            if (e.getId() != target.getId() && e.isAlive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** RoomClock: an etherwarp trip of the clear ended after {@code ticks}, having sent {@code uses} warps. */
     static void noteTripCost(int ticks, int uses, boolean failed) {
         if (failed || uses <= 0 || ticks <= 0) {
@@ -3004,12 +3019,15 @@ public final class AutoClearFeature {
         cachedPreferEther = false;
         Vec3 eye = player.getEyePosition();
         int batTicks = WeaponReach.batTicks(client.level, player, eye, cachedAttack);
-        // A bat trusted to kill alone (One-Tap Warp At Once) costs him only its launch: he moves on as it flies, so its
-        // flight is no time of his (the room's clear still waits for it, but nothing he could do instead is faster).
+        // A bat trusted to kill alone (One-Tap Warp At Once) is left to fly while he goes on to the room's next mob, so the
+        // part of its flight that the next mob's own work (at least a trip and a shot) covers is no time of his. With no
+        // other mob left in the room the clear waits for it whole (testkit 1020-sim-ac-speed: counting only the launch
+        // made far bats the last thing in every room, 404 ticks of bat waits against 206).
         Seen seen = seenMobs.get(target.getId());
         boolean trusted = AutoClearConfig.getInstance().getOneTap() == AutoClearConfig.OneTap.AT_ONCE
-                && oneTapCall(target.getId(), seen == null ? -1 : seen.health()).sure();
-        int batCost = trusted ? WeaponReach.BAT_LAUNCH_TICKS : batTicks;
+                && oneTapCall(target.getId(), seen == null ? -1 : seen.health()).sure() && othersLeft(client, target);
+        int batCost = trusted ? Math.max(WeaponReach.BAT_LAUNCH_TICKS, batTicks - (tripTicks(1) + AFTER_TRIP_TICKS))
+                : batTicks;
         int down = WeaponReach.batDownTicks(player);
         if (batCost <= tripTicks(1) + AFTER_TRIP_TICKS + down) {
             return false;
@@ -3031,7 +3049,7 @@ public final class AutoClearFeature {
                         + " ~%d ticks (trip %d as measured, %s, + %d after the landing + down %d)", targetName,
                 target.getId(), target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batCost,
                 Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK,
-                trusted ? "; trusted to kill alone, so only its launch counts (flight " + batTicks + ")" : "",
+                trusted ? "; trusted to kill alone, the next mob's work covers part of its flight " + batTicks : "",
                 warps == 1 ? " (one-tap warp)" : "", spot.toShortString(), d, warps, ether, tripTicks(warps),
                 tripCostNote(warps), AFTER_TRIP_TICKS, down));
         return cachedPreferEther;
