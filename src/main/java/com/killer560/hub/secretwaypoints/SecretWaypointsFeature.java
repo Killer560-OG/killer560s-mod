@@ -624,6 +624,20 @@ public final class SecretWaypointsFeature {
      * after that). Client thread.
      */
     public static List<BlockPos> currentRoomItemSecrets() {
+        return currentRoomSecrets(true);
+    }
+
+    /**
+     * The room database's CHEST secrets of the room he stands in, as world blocks (the same rooms, corner and rotation as
+     * {@link #currentRoomItemSecrets}). For Auto Secret's last-node wait: a secret chest is not there until he has been
+     * near it a moment (killer560, 2026-10-18: chests spawn in like bats), so at a route's end one in reach can still be
+     * air. Client thread.
+     */
+    public static List<BlockPos> currentRoomChestSecrets() {
+        return currentRoomSecrets(false);
+    }
+
+    private static List<BlockPos> currentRoomSecrets(boolean items) {
         List<BlockPos> out = new ArrayList<>();
         int currentIdx = LiveMapFeature.currentRoomIndex();
         if (currentIdx < 0) {
@@ -641,11 +655,14 @@ public final class SecretWaypointsFeature {
             boolean hasCell = sim
                     ? com.killer560.hub.roomsim.SimRoomIndex.roomHasCell(room[0], currentIdx)
                     : roomHasCell(room[0], currentIdx);
-            if (entry == null || entry.secretCoords == null || entry.secretCoords.item == null || !hasCell) {
+            List<RoomEntry.Pos> list = entry == null || entry.secretCoords == null ? null
+                    : items ? entry.secretCoords.item : entry.secretCoords.chest;
+            if (list == null || !hasCell) {
                 continue;
             }
-            for (RoomEntry.Pos relative : entry.secretCoords.item) {
-                BlockPos real = itemRestingBlock(RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift));
+            for (RoomEntry.Pos relative : list) {
+                BlockPos at = RoomDatabase.toRealCoord(relative, room[1], room[2], room[3]).above(shift);
+                BlockPos real = items ? itemRestingBlock(at) : at;
                 if (!out.contains(real)) {
                     out.add(real);
                 }

@@ -446,7 +446,11 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `heldAtStart`, the hold lets the sneak up only while an aura click is due (`SecretAuraFeature.clickDue`) and turns the
   body to the first warp's look once it has gone, and a secret the aura has in reach and has not seen taken (or a
   database item secret by his feet) holds the warp until it registers, bounded by `TAKE_TIMEOUT_TICKS` (50 + server lag).
-  Testkit 147-sim-autosecret-lastsecret.
+  Testkit 147-sim-autosecret-lastsecret. Since 2026-10-20 (his rule: wait at most 20 ticks, only when a secret is close,
+  else leave at once) the cap is 20 and the flat 6-tick wait is gone - and the 6 ticks had been hiding something: secret
+  chests spawn in only after he has been near them a moment (like bats, sim-secrets-1018), so at a route's end the aura's
+  scan can see air where the chest will be. Leaving at once left 2 of 5 such chests in 147 until `takingHere` also counts a
+  database chest in the aura's reach that is not there yet (up to `ITEM_APPEAR_TICKS`, as an item).
 - **Deciding the next trip inside the wait overwrote the wait's own count.** `onRouteDone` calls `decide`, which sets
   `routeStartClock`/`routeFoundAtStart` for the NEXT room, and the wait then counted the room it was leaving from that
   room's found count: "every secret counted after 1 tick" with the room still 4/5 (147 on main, every floor). The wait keeps
