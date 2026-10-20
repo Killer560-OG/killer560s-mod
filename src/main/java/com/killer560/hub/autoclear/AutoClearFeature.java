@@ -403,6 +403,12 @@ public final class AutoClearFeature {
             stop("you pressed " + pressed);
             return;
         }
+        try {
+            // Every running tick, waits and trips included, so a mob that dies meanwhile is seen dying, not lost.
+            observeMobs(client, player);
+        } catch (RuntimeException e) {
+            LOGGER.warn("[AutoClear] watching the room's mobs failed", e);
+        }
         if (McCompat.screen(client) != null || com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
             // A screen (chat, a chest) or an Auto Routes route: wait, holding nothing.
             releaseUse(client);
@@ -563,20 +569,26 @@ public final class AutoClearFeature {
                 }
                 long lag = com.killer560.hub.util.ServerLag.ticksSince(noMobLag);
                 boolean doneWithoutMap = killsInRoom > 0 && !LiveMapFeature.hasRoomStates();
+                boolean roamedAny = roamSpotsTried > 0 || roamKnownTried > 0;
+                List<Known> known = roamDone || roamKnownTried >= ROAM_KNOWN_MAX ? List.of()
+                        : knownMobs(client, layout, room);
+                // A mob known to be in the room (lost from view, or skipped from where he stood) is gone for at once;
+                // with none known the room is looked at a while first, as before.
+                int roamAfter = !known.isEmpty() ? ROAM_KNOWN_AFTER_TICKS : roamedAny ? ROAM_LOOK_TICKS : ROAM_AFTER_TICKS;
                 // Not cleared and nothing in sight: walk the room before giving up on it (killer560, 2026-10-19).
-                if (!roamDone && !doneWithoutMap
-                        && noMobTicks > (roamSpotsTried == 0 ? ROAM_AFTER_TICKS : ROAM_LOOK_TICKS) + lag
-                        && roam(client, player, layout, room)) {
+                if (!roamDone && !doneWithoutMap && noMobTicks > roamAfter + lag
+                        && roam(client, player, layout, room, known)) {
                     return;
                 }
-                if (noMobTicks > (roamSpotsTried == 0 ? NO_MOB_TICKS : ROAM_LOOK_TICKS) + lag) {
+                if (noMobTicks > (roamedAny ? ROAM_LOOK_TICKS : NO_MOB_TICKS) + lag) {
                     if (doneWithoutMap) {
                         // No dungeon map to say so (nothing ever reads cleared without one): every starred mob in
                         // sight is dead, which is all a clear is.
                         roomDoneWithoutMap();
                     } else {
                         giveUpRoom("no starred mob is visible but the room is not cleared"
-                                + (roamSpotsTried > 0 ? " (looked from " + roamSpotsTried + " more spot(s))" : ""));
+                                + (roamedAny ? " (looked from " + (roamSpotsTried + roamKnownTried) + " more spot(s))"
+                                : ""));
                     }
                 }
                 return;
@@ -1011,11 +1023,106 @@ public final class AutoClearFeature {
 
     private static void resetRoam() {
         roamSpotsTried = 0;
+        roamKnownTried = 0;
         roamStartMs = 0L;
         roamDone = false;
         roamTrip = false;
         roamLookedFrom.clear();
         roamSpots = null;
+        seenMobs.clear();
+    }
+
+    // ---- mobs that left the client's view alive (killer560, 2026-10-19: "the clear was still really unoptimal") ----
+    // Altar, 2026-10-19 22:15:35-46: two Zombies at -184, 68, -96 were in the room's plan until he warped 36 blocks away
+    // to -187, 70, -60; there they left the client's entity view (alive - the room was not cleared), the room showed
+    // nothing for 46 ticks, and the first roam went 43 blocks the other way. Where a mob was last seen is the best guess
+    // of where it is, so a room with such mobs (or with mobs skipped as out of reach) roams to them first, at once.
+
+    /** Gone from the client while alive and at least this far away: it left the entity view, it did not die. A death is
+     *  seen first as the mob no longer alive (its death animation), on a tick this class looks at. */
+    static final double LOST_MIN_DISTANCE = 20.0;
+    /** With a known mob to go to, the roam starts after this long with nothing in sight (instead of ROAM_AFTER_TICKS):
+     *  long enough for the server's entity packets after a landing, no longer. */
+    static final int ROAM_KNOWN_AFTER_TICKS = 5;
+    /** Trips to known mobs per room (each lost mob is gone for once, so this only bounds a room that keeps losing them). */
+    static final int ROAM_KNOWN_MAX = 6;
+    /** Within this of the block a known mob is reached from, and it is not in sight: it is not there any more. */
+    private static final double KNOWN_THERE = 3.0;
+
+    private record Seen(String name, Vec3 pos, double dist, boolean lost) {
+    }
+
+    /** The current room's starred mobs as last seen, by entity id; {@code lost} once one left the view alive. */
+    private static final java.util.Map<Integer, Seen> seenMobs = new java.util.HashMap<>();
+    private static int roamKnownTried = 0;
+
+    /** A mob to roam to: last seen at {@code pos}; {@code lostId} >= 0 for a lost one (forgotten once gone for). */
+    private record Known(String name, Vec3 pos, int lostId, String why) {
+    }
+
+    /** Every running tick (trips included, so a mob dying under a bat in flight is seen dying, not lost). */
+    private static void observeMobs(Minecraft client, LocalPlayer player) {
+        if (roomName == null || client.level == null) {
+            seenMobs.clear();
+            return;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int room = AutoClearTargets.roomByName(layout, roomName);
+        if (room < 0) {
+            seenMobs.clear();
+            return;
+        }
+        Set<Integer> now = new HashSet<>();
+        for (Entity mob : MobEspFeature.starredMobs(client)) {
+            if (layout.roomAtWorld(mob.getX(), mob.getZ()) != room) {
+                continue;
+            }
+            now.add(mob.getId());
+            Seen before = seenMobs.get(mob.getId());
+            if (before != null && before.lost()) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] %s is in view again at %s, %.1f blocks away",
+                        before.name(), mob.blockPosition().toShortString(), mob.distanceTo(player)));
+            }
+            seenMobs.put(mob.getId(), new Seen(mob.getName().getString(), mob.position(), mob.distanceTo(player), false));
+        }
+        for (var it = seenMobs.entrySet().iterator(); it.hasNext(); ) {
+            var entry = it.next();
+            Seen s = entry.getValue();
+            if (now.contains(entry.getKey()) || s.lost()) {
+                continue;
+            }
+            Entity e = client.level.getEntity(entry.getKey());
+            if (e != null) {
+                if (!e.isAlive() || e.isRemoved()) {
+                    it.remove();   // dead
+                }
+                continue;          // still there without its star tag: kept as last seen
+            }
+            if (s.dist() >= LOST_MIN_DISTANCE) {
+                entry.setValue(new Seen(s.name(), s.pos(), s.dist(), true));
+                LOGGER.info(String.format(Locale.US, "[AutoClear] %s left the client's view alive at %s, %.1f blocks away"
+                        + " - remembered for the roam", s.name(), BlockPos.containing(s.pos()).toShortString(), s.dist()));
+            } else {
+                it.remove();       // gone this near: killed
+            }
+        }
+    }
+
+    /** The current room's mobs worth going to with nothing in sight: those lost from view, then those skipped. */
+    private static List<Known> knownMobs(Minecraft client, DungeonLayout layout, int room) {
+        List<Known> out = new java.util.ArrayList<>();
+        for (var entry : seenMobs.entrySet()) {
+            if (entry.getValue().lost()) {
+                out.add(new Known(entry.getValue().name(), entry.getValue().pos(), entry.getKey(), "left the view"));
+            }
+        }
+        for (int id : skippedMobs) {
+            Entity e = client.level.getEntity(id);
+            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
+                out.add(new Known(e.getName().getString(), e.position(), -1, "skipped as out of reach"));
+            }
+        }
+        return out;
     }
 
     /**
@@ -1025,11 +1132,25 @@ public final class AutoClearFeature {
      * {@link #ROAM_MAX_SPOTS} and {@link #ROAM_TIME_LIMIT_MS}; each spot and why is logged.
      * @return true while roaming owns this tick (a trip started or waiting to), false once it is done (roamDone set)
      */
-    private static boolean roam(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {
+    private static boolean roam(Minecraft client, LocalPlayer player, DungeonLayout layout, int room, List<Known> known) {
         long now = System.currentTimeMillis();
         if (roamStartMs == 0L) {
             roamStartMs = now;
             roamLookedFrom.add(player.position());
+        }
+        if (now - roamStartMs <= ROAM_TIME_LIMIT_MS && !known.isEmpty()) {
+            if (!AutoClearUtils.canPath(layout)) {
+                action = "waiting to land before going to a mob of " + roomName;
+                return true;
+            }
+            if (roamToKnown(client, player, layout, room, known)) {
+                return true;
+            }
+            // None worth a trip after all: the room gets its ordinary look before the spots across it.
+            if (noMobTicks <= (roamSpotsTried == 0 && roamKnownTried == 0 ? ROAM_AFTER_TICKS : ROAM_LOOK_TICKS)) {
+                action = "looking for starred mobs";
+                return true;
+            }
         }
         if (roamSpotsTried >= ROAM_MAX_SPOTS) {
             LOGGER.info("[AutoClear] roam: {} spot(s) in {} showed no starred mob - giving up on the room", roamSpotsTried,
@@ -1085,15 +1206,7 @@ public final class AutoClearFeature {
         roamSpotsTried++;
         roamSpots.remove(spot);
         roamLookedFrom.add(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
-        // Out of reach from where he stood is not out of reach from the next spot.
-        int freed = 0;
-        for (java.util.Iterator<Integer> it = skippedMobs.iterator(); it.hasNext(); ) {
-            Entity e = client.level.getEntity(it.next());
-            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
-                it.remove();
-                freed++;
-            }
-        }
+        int freed = freeSkipped(client, layout, room);
         LOGGER.info(String.format(Locale.US, "[AutoClear] roam %d/%d in %s: to %s, %.1f blocks away and %.1f from the"
                         + " nearest spot looked from - why: no starred mob in sight for %d ticks, the room not cleared"
                         + " (%d killed here so far, %d skipped as out of reach - tried again from there)", roamSpotsTried,
@@ -1102,6 +1215,76 @@ public final class AutoClearFeature {
         ModChat.log(CHAT, ModChat.text("Nothing in sight - looking from another spot "),
                 ModChat.dim("(" + roamSpotsTried + "/" + ROAM_MAX_SPOTS + ")"));
         return true;
+    }
+
+    /** Out of reach from where he stood is not out of reach from the next spot: the room's skipped mobs are tried again. */
+    private static int freeSkipped(Minecraft client, DungeonLayout layout, int room) {
+        int freed = 0;
+        for (java.util.Iterator<Integer> it = skippedMobs.iterator(); it.hasNext(); ) {
+            Entity e = client.level.getEntity(it.next());
+            if (e != null && e.isAlive() && layout.roomAtWorld(e.getX(), e.getZ()) == room) {
+                it.remove();
+                freed++;
+            }
+        }
+        return freed;
+    }
+
+    /**
+     * Goes to the nearest known mob of the room (lost from view, or skipped): an Interactive Map trip onto a block that
+     * reaches where it was last seen ({@link WeaponReach#standSpot}), else the nearest block to stand on there. One that
+     * should be in sight from where he stands is forgotten (it moved or died). Each trip is logged with the mob and why.
+     * @return true when a trip started (or the body is going back first); false when no known mob is worth a trip
+     */
+    private static boolean roamToKnown(Minecraft client, LocalPlayer player, DungeonLayout layout, int room,
+                                       List<Known> known) {
+        List<Known> byDistance = new java.util.ArrayList<>(known);
+        Vec3 feet = player.position();
+        byDistance.sort(java.util.Comparator.comparingDouble(k -> k.pos().distanceToSqr(feet)));
+        AutoClearConfig.Weapon weapon = AutoClearConfig.getInstance().getWeapon();
+        for (Known k : byDistance) {
+            Vec3 p = k.pos();
+            AABB box = new AABB(p.x - 0.3, p.y, p.z - 0.3, p.x + 0.3, p.y + 1.95, p.z + 0.3);
+            BlockPos stand = WeaponReach.standSpot(client.level, player, box, weapon);
+            if (stand == null) {
+                stand = TeleportUtils.nearestEtherwarpable(BlockPos.containing(p));
+            }
+            double d = stand == null ? 0.0
+                    : feet.distanceTo(new Vec3(stand.getX() + 0.5, stand.getY() + 1.0, stand.getZ() + 0.5));
+            if (stand == null || d < KNOWN_THERE || layout.roomAtWorld(stand.getX() + 0.5, stand.getZ() + 0.5) != room) {
+                if (k.lostId() >= 0) {
+                    seenMobs.remove(k.lostId());
+                    LOGGER.info("[AutoClear] {} last seen at {} is not there ({}) - forgotten", k.name(),
+                            BlockPos.containing(p).toShortString(), stand == null ? "no block to stand on near it"
+                                    : d < KNOWN_THERE ? "standing by it and it is not in sight" : "that block is another room's");
+                }
+                continue;
+            }
+            final BlockPos spot = stand;
+            action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
+            startTrip(client, player, () -> {
+                ClearExecutor.etherPath(spot, null);
+                return true;
+            });
+            if (phase != Phase.TRAVEL) {
+                return true;   // the body goes back first (Phase.RELEASE); this comes through again next tick
+            }
+            roamTrip = true;
+            roamKnownTried++;
+            if (k.lostId() >= 0) {
+                seenMobs.remove(k.lostId());   // once: in view again it is seen afresh, not there it is not gone for again
+            }
+            roamLookedFrom.add(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
+            int freed = freeSkipped(client, layout, room);
+            LOGGER.info(String.format(Locale.US, "[AutoClear] roam to a known mob %d/%d in %s: %s %s, last at %s - standing"
+                            + " on %s, %.1f blocks away, after %d tick(s) with nothing in sight (%d known, %d skipped tried"
+                            + " again)", roamKnownTried, ROAM_KNOWN_MAX, roomName, k.name(), k.why(),
+                    BlockPos.containing(p).toShortString(), spot.toShortString(), d, noMobTicks, known.size(), freed));
+            ModChat.log(CHAT, ModChat.text("Going to "), ModChat.value(k.name()),
+                    ModChat.dim(" (" + k.why() + ")"));
+            return true;
+        }
+        return false;
     }
 
     /** One standable block per quadrant of each of the room's tiles, distinct. */
