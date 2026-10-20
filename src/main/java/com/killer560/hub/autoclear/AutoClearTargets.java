@@ -108,11 +108,11 @@ final class AutoClearTargets {
     /** Uncleared mob rooms the mode allows, minus the ones given up on this run (by name). */
     static List<Integer> candidates(DungeonLayout layout, AutoClearConfig.Mode mode, Set<String> skipped) {
         List<Integer> pool = new ArrayList<>();
-        if (mode == AutoClearConfig.Mode.BLOOD_RUSH_SPLIT) {
-            List<Integer> rush = bloodRushRooms(layout);
-            if (rush == null) {
-                return null;
-            }
+        // killer560, 2026-10-19: "it will complain it cannot see blood sometimes, yet it can still see wither doors ... clear
+        // the room prior to wither doors with mobs and it will load blood as time goes on." Until the Blood door is on the
+        // map, the split clears the mob rooms like Full Clear instead of stopping; once it is, the rush order takes over.
+        List<Integer> rush = mode == AutoClearConfig.Mode.BLOOD_RUSH_SPLIT ? bloodRushRooms(layout) : null;
+        if (rush != null) {
             pool.addAll(rush);
         } else {
             for (int r = 0; r < layout.roomCount(); r++) {
