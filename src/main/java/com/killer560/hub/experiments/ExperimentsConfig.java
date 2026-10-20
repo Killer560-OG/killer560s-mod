@@ -91,8 +91,9 @@ public final class ExperimentsConfig {
     /** With {@link #superpairsExploreFirst}: a reward worth more than this is claimed at once. 0-3,000,000 in steps
      *  of 100,000. */
     private double superpairsSkipValueCoins = DEFAULT_SUPERPAIRS_SKIP_VALUE;
-    /** A T7 book (an enchant at its true max of VII, Enchant Colours' Perfect tier) or the Nadeshiko Dye is claimed
-     *  before anything else, and nothing else is claimed until it is - killer560, 2026-10-19. */
+    /** A T7 book (an enchant at its true max of VII, Enchant Colours' Perfect tier) is claimed before anything but the
+     *  Nadeshiko Dye, and nothing else is claimed until it is - killer560, 2026-10-19. The dye itself always comes
+     *  first, with this on or off ({@code ExperimentSolver#isPriorityDye}). */
     private boolean superpairsT7First = DEFAULT_SUPERPAIRS_T7_FIRST;
     private int delayMs = DEFAULT_DELAY_MS;
     /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier

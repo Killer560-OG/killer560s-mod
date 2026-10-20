@@ -1243,17 +1243,20 @@ final class ExperimentSolver {
      */
     private OptionalInt secondClickOfTurn(int open, Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
         Cell openCell = bySlot.get(open);
-        // T7 Drops First: a T7 drop is known and the open tile is something else - claim nothing. Turn a new tile
-        // over (it may be the T7's partner), or with none left close the turn on the T7 tile itself.
+        // The dye (always) or a T7 (T7 Drops First) is known and the open tile is another kind - claim nothing. Turn a
+        // new tile over (it may be the partner), or with none left close the turn on the focused tile itself.
         Integer t7Reveal = nextExploreSlot(bySlot);
-        Integer t7Slot = t7First() && !isT7Drop(openCell) ? activeT7(board, t7Reveal) : null;
+        Integer t7Slot = activeT7(board, t7Reveal);
+        if (t7Slot != null && pairKey(knownSuperpairsCells.get(t7Slot)).equals(pairKey(openCell))) {
+            t7Slot = null;
+        }
         if (t7Slot != null) {
             if (t7Reveal != null) {
                 superpairsRevealAttempted.add(t7Reveal);
                 return OptionalInt.of(t7Reveal);
             }
-            LOGGER.info("Superpairs: T7 Drops First - slot {} is turned over but '{}' (slot {}) comes first; closing the "
-                    + "turn on it", open, knownSuperpairsCells.get(t7Slot).name(), t7Slot);
+            LOGGER.info("Superpairs: slot {} is turned over but '{}' (slot {}) comes first; closing the turn on it",
+                    open, knownSuperpairsCells.get(t7Slot).name(), t7Slot);
             return OptionalInt.of(t7Slot);
         }
         String key = pairKey(openCell);
@@ -1314,21 +1317,30 @@ final class ExperimentSolver {
     }
 
     /**
-     * T7 Drops First (killer560, 2026-10-19): the covered, unqueued T7 tile ({@link #isT7Drop}) to focus, or null.
-     * Snake order, a kind whose pair is already known first. Only while the T7 can still be had: its pair is known,
-     * a new tile is left to turn over ({@code reveal}), or it is the only single and one unknown tile is left (that
-     * tile is its partner). Otherwise null, so a T7 whose partner cannot be found never stalls the board.
+     * The covered, unqueued tile the board is focused on (killer560, 2026-10-19), or null: the Nadeshiko Dye always
+     * ({@link #isPriorityDye}, "the most important drop"), else a T7 book while T7 Drops First is on.
      */
     private Integer activeT7(BoardFacts board, Integer reveal) {
-        if (!t7First()) {
-            return null;
+        Integer dye = focusSlot(board, reveal, ExperimentSolver::isPriorityDye);
+        if (dye != null) {
+            return dye;
         }
+        return t7First() ? focusSlot(board, reveal, ExperimentSolver::isT7Drop) : null;
+    }
+
+    /**
+     * The covered, unqueued tile of a kind {@code kind} accepts, to focus, or null. Snake order, a kind whose pair is
+     * already known first. Only while it can still be had: its pair is known, a new tile is left to turn over
+     * ({@code reveal}), or it is the only single and one unknown tile is left (that tile is its partner). Otherwise
+     * null, so a drop whose partner cannot be found never stalls the board.
+     */
+    private Integer focusSlot(BoardFacts board, Integer reveal, java.util.function.Predicate<Cell> kind) {
         Map<String, Integer> firstOfKind = new HashMap<>();
         Integer single = null;
         for (int slot : SUPERPAIRS_SNAKE_ORDER) {
             if (!board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot)) continue;
             Cell known = knownSuperpairsCells.get(slot);
-            if (!isT7Drop(known)) continue;
+            if (!kind.test(known)) continue;
             Integer first = firstOfKind.putIfAbsent(pairKey(known), slot);
             if (first != null) {
                 return first;
@@ -1362,7 +1374,7 @@ final class ExperimentSolver {
             return pair;
         }
         if (!logOnce("t7-focus:" + pairKey(t7))) {
-            LOGGER.info("Superpairs: T7 Drops First - '{}' at slot {} is claimed before anything else", t7.name(), slot);
+            LOGGER.info("Superpairs: '{}' at slot {} is claimed before anything else", t7.name(), slot);
         }
         return OptionalInt.of(slot);
     }
@@ -1615,11 +1627,13 @@ final class ExperimentSolver {
     private OptionalInt armedTarget(Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
         String openKey = board.open.size() == 1 ? pairKey(bySlot.get(board.open.get(0))) : null;
         Integer reveal = nextExploreSlot(bySlot);
-        // T7 Drops First: the automatic match claims the T7 whatever else is known.
-        if (t7First()) {
+        // The automatic match claims the dye (always), else a T7 (T7 Drops First), whatever else is known.
+        for (int pass = 0; pass < 2; pass++) {
+            if (pass == 1 && !t7First()) break;
             for (int slot : SUPERPAIRS_SNAKE_ORDER) {
-                if (board.coveredKnown.contains(slot) && !queuedPairSlots.contains(slot)
-                        && isT7Drop(knownSuperpairsCells.get(slot))) {
+                if (!board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot)) continue;
+                Cell known = knownSuperpairsCells.get(slot);
+                if (pass == 0 ? isPriorityDye(known) : isT7Drop(known)) {
                     return OptionalInt.of(slot);
                 }
             }
@@ -1758,6 +1772,18 @@ final class ExperimentSolver {
         return ExperimentsConfig.getInstance().isSuperpairsT7First();
     }
 
+    /** The {@link #T7_DYE_NAME} tile. killer560, 2026-10-19: "the most important drop" - whenever the board shows it,
+     *  every other choice stops until it is claimed, whatever the settings. */
+    static boolean isPriorityDye(Cell cell) {
+        return cell != null && cell.name() != null
+                && SECTION_CODE.matcher(cell.name()).replaceAll("").contains(T7_DYE_NAME);
+    }
+
+    /** What the board is focused on claiming: the dye always, a T7 book while T7 Drops First is on. */
+    private static boolean isFocusDrop(Cell cell) {
+        return isPriorityDye(cell) || (t7First() && isT7Drop(cell));
+    }
+
     /** The enchant on a book tile as printed ("Power VII"), from its name or lore; null for anything else. */
     private static String enchantText(Cell cell) {
         String name = SECTION_CODE.matcher(cell.name()).replaceAll("").trim();
@@ -1790,7 +1816,7 @@ final class ExperimentSolver {
         if (cell == null || cell.name() == null) {
             return false;
         }
-        if (SECTION_CODE.matcher(cell.name()).replaceAll("").contains(T7_DYE_NAME)) {
+        if (isPriorityDye(cell)) {
             return true;
         }
         String enchant = enchantText(cell);
@@ -1864,7 +1890,7 @@ final class ExperimentSolver {
         if (!cfg.isSuperpairsExploreFirst() || isSuperpairsXpTile(cell) || isUserSkipped(cell)) {
             return false;
         }
-        if (cfg.isSuperpairsT7First() && isT7Drop(cell)) {
+        if (isFocusDrop(cell)) {
             return false;
         }
         return coinValue(cell) <= cfg.getSuperpairsSkipValueCoins();
@@ -1883,8 +1909,9 @@ final class ExperimentSolver {
      *  click and got paired ahead of real rewards. Kept separate from isDyeFamilyItem because Ultrasequencer
      *  uses that one for its notes. */
     private static boolean isSuperpairsXpTile(Cell cell) {
-        // The Nadeshiko Dye is a dye item and would read as XP below; with T7 Drops First on it is a T7 drop.
-        if (t7First() && SECTION_CODE.matcher(cell.name()).replaceAll("").contains(T7_DYE_NAME)) {
+        // The Nadeshiko Dye is a dye item and would read as XP below. It is the board's most valuable drop, in every
+        // mode (killer560, 2026-10-19).
+        if (isPriorityDye(cell)) {
             return false;
         }
         // By NAME first: every XP tile is named "<n>k Enchanting Exp", whatever item draws it. Cocoa beans
