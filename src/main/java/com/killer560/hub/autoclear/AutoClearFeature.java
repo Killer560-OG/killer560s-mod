@@ -3380,13 +3380,57 @@ public final class AutoClearFeature {
             return false;
         }
         phase = next;
-        holdUse(client);
+        if (next == Phase.ATTACK) {
+            pressUse(client);
+        } else {
+            holdUse(client);   // a Hyperion hop keeps its one held use along the dash until it lands
+        }
         return true;
     }
 
     private static void holdUse(Minecraft client) {
         client.options.keyUse.setDown(true);
         useHeld = true;
+    }
+
+    // ---- the fast repeat (autoclear-speed-1020; his study: vanilla repeats a HELD use only every 4 ticks
+    // (Minecraft.handleKeybinds: held, rightClickDelay == 0), which cost about 384 ticks of his run; a fresh press is not
+    // bound by it - "while (keyUse.consumeClick()) startUseItem()" has no rightClickDelay check (javap 26.1.2, offsets
+    // 786-799) - so an attack's uses are fresh presses on a 2-tick schedule, 10 a second, as Lever Aura's clicks are) ----
+
+    /** Ticks between two of Auto Clear's presses of the use key: 10 uses a second. */
+    static final int FAST_REPEAT_TICKS = 2;
+    /** The client tick of Auto Clear's last press. */
+    private static long lastPressTick = Long.MIN_VALUE / 2;
+
+    /**
+     * One fresh press of the use key this tick, unless the last went out under {@link #FAST_REPEAT_TICKS} ago: vanilla's
+     * own click path then sends the use in this tick's {@code handleKeybinds}, after the body turned a tick earlier (the
+     * movement packet has reported it), through the same pick (HeldUsePickMixin, while {@link #useHeld}). A use key bound
+     * to nothing is held as before.
+     */
+    private static void pressUse(Minecraft client) {
+        useHeld = true;
+        if (client.options.keyUse.isDown()) {
+            client.options.keyUse.setDown(false);
+        }
+        long now = ClearExecutor.clientTick();
+        if (now - lastPressTick < FAST_REPEAT_TICKS) {
+            return;
+        }
+        com.mojang.blaze3d.platform.InputConstants.Key key = null;
+        try {
+            key = ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) client.options.keyUse)
+                    .killer560smod$getKey();
+        } catch (RuntimeException e) {
+            // the accessor did not apply: hold as before
+        }
+        if (key == null || key.equals(com.mojang.blaze3d.platform.InputConstants.UNKNOWN)) {
+            client.options.keyUse.setDown(true);
+            return;
+        }
+        KeyMapping.click(key);
+        lastPressTick = now;
     }
 
     private static void releaseUse(Minecraft client) {
