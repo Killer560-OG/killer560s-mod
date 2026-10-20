@@ -2477,8 +2477,14 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
-        if (walkInsteadOfTrip(client, player, spot, feetAt -> reaches(cfg.getWeapon(), feetAt, box),
-                targetName + " at " + target.blockPosition().toShortString())) {
+        if (planned != null && spot.equals(planned)) {
+            // Of the blocks that reach what the plan's block reaches, one that a single warp from here lands on.
+            spot = preferOneWarp(client, feet, planned);
+        }
+        java.util.function.Predicate<Vec3> inReach = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE
+                ? feetAt -> WeaponReach.sceptreReachesFrom(client.level, feetAt, box)
+                : feetAt -> reaches(cfg.getWeapon(), feetAt, box);
+        if (walkInsteadOfTrip(client, player, spot, inReach, targetName + " at " + target.blockPosition().toShortString())) {
             return;
         }
         if (lastTripGoal != null && BlockPos.containing(feet).below().equals(lastTripGoal)) {
@@ -2912,7 +2918,8 @@ public final class AutoClearFeature {
         if (!cachedTripSpotDone) {
             cachedTripSpotDone = true;
             BlockPos planned = coverSpotFor(target);
-            cachedTripSpot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+            cachedTripSpot = planned != null ? preferOneWarp(client, player.position(), planned)
+                    : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
         }
         return cachedTripSpot;
     }
@@ -4075,6 +4082,10 @@ public final class AutoClearFeature {
 
     /** The plan's first block that reaches {@code mob}, or null. */
     private static BlockPos coverSpotFor(Entity mob) {
+        if (java.util.Objects.equals(nextBlockPlan, coverIds) && nextBlockAnswer < coverSpots.size()
+                && coverMobs.get(nextBlockAnswer).contains(mob.getId())) {
+            return coverSpots.get(nextBlockAnswer);   // the block nextPlanBlock chose for this mob
+        }
         for (int i = 0; i < coverSpots.size(); i++) {
             if (coverMobs.get(i).contains(mob.getId())) {
                 return coverSpots.get(i);
@@ -4151,8 +4162,9 @@ public final class AutoClearFeature {
         }
         if (!coverSpots.isEmpty()) {
             List<Entity> reached = new java.util.ArrayList<>();
+            int next = nextPlanBlock(player);
             for (Entity e : mobs) {
-                if (coverMobs.get(0).contains(e.getId())) {
+                if (coverMobs.get(next).contains(e.getId())) {
                     reached.add(e);
                 }
             }
@@ -4161,6 +4173,46 @@ public final class AutoClearFeature {
             }
         }
         return nearest(player, mobs);
+    }
+
+    /** {@link #nextPlanBlock}'s answer for one block of his and one plan. */
+    private static long nextBlockKey = Long.MIN_VALUE;
+    private static String nextBlockPlan = null;
+    private static int nextBlockAnswer = 0;
+
+    /**
+     * Which of the room plan's blocks to go to next (autoclear-speed-1020, his study: "prefer the mob the next trip reaches
+     * with the fewest warps, not the nearest"): the one the fewest warps from here reach ({@link #warpsTo}, a block that
+     * does its job one warp away counting for it), the plan's nearest-first order breaking ties. Worked out once per block
+     * of his and plan.
+     */
+    private static int nextPlanBlock(LocalPlayer player) {
+        long here = BlockPos.containing(player.position()).asLong();
+        if (here == nextBlockKey && java.util.Objects.equals(nextBlockPlan, coverIds) && nextBlockAnswer < coverSpots.size()) {
+            return nextBlockAnswer;
+        }
+        nextBlockKey = here;
+        nextBlockPlan = coverIds;
+        int best = 0;
+        int bestWarps = Integer.MAX_VALUE;
+        Minecraft client = Minecraft.getInstance();
+        for (int i = 0; i < coverSpots.size() && bestWarps > 1; i++) {
+            BlockPos b = coverSpots.get(i);
+            int w = warpsTo(player.position(), b);
+            if (w > 1 && preferOneWarp(client, player.position(), b) != b) {
+                w = 1;
+            }
+            if (w < bestWarps) {
+                bestWarps = w;
+                best = i;
+            }
+        }
+        if (best != 0) {
+            LOGGER.info("[AutoClear] next block: {} ({} warp(s) from here) before the plan's nearest {}",
+                    coverSpots.get(best).toShortString(), bestWarps, coverSpots.get(0).toShortString());
+        }
+        nextBlockAnswer = best;
+        return best;
     }
 
     private static Entity nearest(LocalPlayer player, List<Entity> mobs) {
