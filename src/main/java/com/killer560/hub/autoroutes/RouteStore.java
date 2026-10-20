@@ -511,8 +511,86 @@ public final class RouteStore {
                 n.planToZ = to[2];
                 n.planBreakers = ConfigJson.getInt(o, "planBreakers", 0);
             }
+            readWalk(o, n);
         }
         return n;
+    }
+
+    /** Most ticks a saved trap walk may hold (the AP3 planner's own ceiling is 900). */
+    public static final int MAX_WALK_STEPS = 1200;
+
+    /** A PATH node's saved trap walk (see RouteNode#walkSteps); a damaged one is dropped and planned again. */
+    private static void readWalk(JsonObject o, RouteNode n) {
+        String walk = ConfigJson.getString(o, "walk", "");
+        double[] from = parseNumbers(ConfigJson.getString(o, "walkFrom", ""), 7);
+        double[] src = parseTriple(ConfigJson.getString(o, "walkSrc", ""));
+        double[] to = parseTriple(ConfigJson.getString(o, "walkTo", ""));
+        if (walk.isBlank() || from == null || src == null || to == null) {
+            return;
+        }
+        List<RouteNode.WalkStep> steps = new ArrayList<>();
+        try {
+            for (String t : walk.split(";")) {
+                if (t.isBlank()) {
+                    continue;
+                }
+                String[] p = t.trim().split(" ");
+                if (p.length != 6 || steps.size() >= MAX_WALK_STEPS) {
+                    return;
+                }
+                int fw = Integer.parseInt(p[0]);
+                int st = Integer.parseInt(p[1]);
+                float yaw = Float.parseFloat(p[3]);
+                if (fw < -1 || fw > 1 || st < -1 || st > 1 || !Float.isFinite(yaw)) {
+                    return;
+                }
+                steps.add(new RouteNode.WalkStep(fw, st, "1".equals(p[2]), yaw, "1".equals(p[4]), "1".equals(p[5])));
+            }
+        } catch (Exception e) {
+            return;
+        }
+        for (int i = 0; i < 6; i++) {
+            if (!finiteCoord(from[i])) {
+                return;
+            }
+        }
+        n.walkSteps.addAll(steps);
+        n.walkFromX = from[0];
+        n.walkFromY = from[1];
+        n.walkFromZ = from[2];
+        n.walkFromVX = from[3];
+        n.walkFromVY = from[4];
+        n.walkFromVZ = from[5];
+        n.walkFromGround = from[6] != 0;
+        n.walkSrcX = src[0];
+        n.walkSrcY = src[1];
+        n.walkSrcZ = src[2];
+        n.walkToX = to[0];
+        n.walkToY = to[1];
+        n.walkToZ = to[2];
+    }
+
+    /** {@code count} finite numbers separated by spaces, or null. */
+    private static double[] parseNumbers(String s, int count) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            String[] p = s.trim().split("\\s+");
+            if (p.length != count) {
+                return null;
+            }
+            double[] v = new double[count];
+            for (int i = 0; i < count; i++) {
+                v[i] = Double.parseDouble(p[i]);
+                if (!Double.isFinite(v[i])) {
+                    return null;
+                }
+            }
+            return v;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Most warps a saved path may hold - a whole floor is crossed in well under this. */
@@ -608,6 +686,23 @@ public final class RouteStore {
                         h.ly(), h.lz()));
             }
             o.add("hops", hops);
+        }
+        if (n.type == RouteNode.Type.PATH && !n.walkSteps.isEmpty()) {
+            // The saved trap-room walk (see RouteNode#walkSteps) - planned once by AP3, replayed every run.
+            o.addProperty("walkFrom", String.format(Locale.US, "%.6f %.6f %.6f %.6f %.6f %.6f %d", n.walkFromX,
+                    n.walkFromY, n.walkFromZ, n.walkFromVX, n.walkFromVY, n.walkFromVZ, n.walkFromGround ? 1 : 0));
+            o.addProperty("walkSrc", String.format(Locale.US, "%.6f %.6f %.6f", n.walkSrcX, n.walkSrcY, n.walkSrcZ));
+            o.addProperty("walkTo", String.format(Locale.US, "%.6f %.6f %.6f", n.walkToX, n.walkToY, n.walkToZ));
+            StringBuilder sb = new StringBuilder();
+            for (RouteNode.WalkStep w : n.walkSteps) {
+                if (sb.length() > 0) {
+                    sb.append(';');
+                }
+                sb.append(w.fw()).append(' ').append(w.st()).append(' ').append(w.sneak() ? 1 : 0).append(' ')
+                        .append(String.format(Locale.US, "%.6f", w.yaw())).append(' ').append(w.jump() ? 1 : 0)
+                        .append(' ').append(w.sprint() ? 1 : 0);
+            }
+            o.addProperty("walk", sb.toString());
         }
         if (n.hasLanding) {
             o.addProperty("landing", String.format(Locale.US, "%.6f %.6f %.6f", n.landingX, n.landingY, n.landingZ));

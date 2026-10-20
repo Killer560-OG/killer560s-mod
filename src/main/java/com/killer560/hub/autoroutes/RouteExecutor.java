@@ -2779,8 +2779,11 @@ public final class RouteExecutor {
                 Vec3 to = RouteCoords.toReal(frame, dest.relativePos());
                 // Arrive with the feet well inside the second node's ring, so the walk step finds him in it and fires it.
                 double half = Math.max(0.1, dest.radius) / 2.0 * 0.8;
+                final Route walkRoute = route;
+                final RouteCoords.Frame walkFrame = frame;
                 Ap3TrapWalk.begin(client, player, to, half, "Path #" + (route.indexOf(node) + 1) + " -> #"
-                        + (route.indexOf(dest) + 1) + " in " + frame.roomName());
+                        + (route.indexOf(dest) + 1) + " in " + frame.roomName(), savedWalk(node, dest),
+                        w -> saveWalk(walkRoute, walkFrame, node, dest, w));
                 step = Step.DO;
                 stepTicks = 0;
                 tickTrapWalk(client, player, node);
@@ -2873,6 +2876,72 @@ public final class RouteExecutor {
     private static boolean inTrapRoom() {
         String name = frame == null ? null : frame.roomName();
         return name != null && (com.killer560.hub.autotrap.AutoTrap.TRAPS.contains(name) || name.contains("Trap"));
+    }
+
+    /**
+     * The walk saved on {@code src} (RouteNode#walkSteps), in real coordinates, or null when there is none or it is stale:
+     * either node has moved since it was planned (the same rule as a path's saved warps, RoutePathPlanner.valid).
+     */
+    private static Ap3TrapWalk.SavedWalk savedWalk(RouteNode src, RouteNode dest) {
+        if (src.walkSteps.isEmpty()) {
+            return null;
+        }
+        if (!(nearSaved(src.walkSrcX, src.x) && nearSaved(src.walkSrcY, src.y) && nearSaved(src.walkSrcZ, src.z)
+                && nearSaved(src.walkToX, dest.x) && nearSaved(src.walkToY, dest.y) && nearSaved(src.walkToZ, dest.z))) {
+            LOGGER.info("[AutoRoutes] Node #{} PATH: its saved trap walk is stale (a node moved since) - planning afresh",
+                    route.indexOf(src) + 1);
+            return null;
+        }
+        Vec3 at = RouteCoords.toReal(frame, src.walkFromX, src.walkFromY, src.walkFromZ);
+        // A velocity is a direction: the real end of (from + v) less the real start.
+        Vec3 tip = RouteCoords.toReal(frame, src.walkFromX + src.walkFromVX, src.walkFromY + src.walkFromVY,
+                src.walkFromZ + src.walkFromVZ);
+        List<Ap3TrapWalk.SavedStep> steps = new ArrayList<>(src.walkSteps.size());
+        for (RouteNode.WalkStep w : src.walkSteps) {
+            steps.add(new Ap3TrapWalk.SavedStep(w.fw(), w.st(), w.sneak(), RouteCoords.toRealYaw(frame, w.yaw()),
+                    w.jump(), w.sprint()));
+        }
+        return new Ap3TrapWalk.SavedWalk(at.x, at.y, at.z, tip.x - at.x, tip.y - at.y, tip.z - at.z,
+                src.walkFromGround, steps);
+    }
+
+    private static boolean nearSaved(double a, double b) {
+        return Math.abs(a - b) < 0.002;
+    }
+
+    /**
+     * Keeps a fresh first plan of a trap walk on the pair's first node, room-relative, and saves the routes file - like a
+     * path's warps (RoutePathPlanner). An Auto Trap route is saved through Auto Trap, whose captures it lives in.
+     */
+    private static void saveWalk(Route r, RouteCoords.Frame f, RouteNode src, RouteNode dest, Ap3TrapWalk.SavedWalk w) {
+        if (r == null || f == null || w == null || w.steps().isEmpty()
+                || w.steps().size() > RouteStore.MAX_WALK_STEPS) {
+            return;
+        }
+        Vec3 rel = RouteCoords.toRelative(f, new Vec3(w.x(), w.y(), w.z()));
+        Vec3 tip = RouteCoords.toRelative(f, new Vec3(w.x() + w.vx(), w.y() + w.vy(), w.z() + w.vz()));
+        src.walkSteps.clear();
+        for (Ap3TrapWalk.SavedStep s : w.steps()) {
+            src.walkSteps.add(new RouteNode.WalkStep(s.fw(), s.st(), s.sneak(),
+                    (float) RouteNode.roundSaved(RouteCoords.toRelativeYaw(f, s.yaw())), s.jump(), s.sprint()));
+        }
+        src.walkFromX = RouteNode.roundSaved(rel.x);
+        src.walkFromY = RouteNode.roundSaved(rel.y);
+        src.walkFromZ = RouteNode.roundSaved(rel.z);
+        src.walkFromVX = RouteNode.roundSaved(tip.x - rel.x);
+        src.walkFromVY = RouteNode.roundSaved(tip.y - rel.y);
+        src.walkFromVZ = RouteNode.roundSaved(tip.z - rel.z);
+        src.walkFromGround = w.onGround();
+        src.walkSrcX = src.x;
+        src.walkSrcY = src.y;
+        src.walkSrcZ = src.z;
+        src.walkToX = dest.x;
+        src.walkToY = dest.y;
+        src.walkToZ = dest.z;
+        RouteStore.getInstance().save();
+        boolean trap = com.killer560.hub.autotrap.AutoTrap.saveIfOurs(r);
+        LOGGER.info("[AutoRoutes] Node #{} PATH: trap walk saved with the route ({} tick(s)){}", r.indexOf(src) + 1,
+                src.walkSteps.size(), trap ? " - in Auto Trap's captures" : "");
     }
 
     /**

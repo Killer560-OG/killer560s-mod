@@ -2173,6 +2173,23 @@ public final class Ap3Executor {
         return m;
     }
 
+    /**
+     * The movement model a regular camera-method ALIGN plans its finish with ({@link #driveDiscrete}), at the configured
+     * Align Tolerance, for a caller that holds sprint off itself (Ap3TrapWalk's stop on a trap walk's second node).
+     */
+    static Ap3DiscretePlanner.Model alignModel(LocalPlayer player) {
+        Ap3DiscretePlanner.Model m = modelFor(player, true);
+        m.tolerance = Ap3Config.getInstance().getAlignTolerance();
+        m.sprintKeyHeld = false;
+        return m;
+    }
+
+    /** {@link #ALIGN_YAW_STEP}: the most a camera-method align turns the yaw in one tick. */
+    static final double ALIGN_YAW_STEP_FOR_WALK = ALIGN_YAW_STEP;
+
+    /** {@link #SETTLE_TICKS}: ticks an align holds at rest on the point before it is done. */
+    static final int ALIGN_SETTLE_TICKS = SETTLE_TICKS;
+
     private static Ap3DiscretePlanner.Model modelFor(LocalPlayer player, boolean yawSteerable) {
         Ap3DiscretePlanner.Model m = new Ap3DiscretePlanner.Model();
         double attr = player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);

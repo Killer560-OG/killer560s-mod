@@ -299,6 +299,36 @@ public final class AutoTrap {
         return null;
     }
 
+    /**
+     * Auto Routes changed {@code route} at run time (a trap walk AP3 planned, saved on its path node, 2026-10-20): when it
+     * is one of his captures, the captures file is written so the next run has it. A bundled route lives in the jar, so
+     * its change is kept for this session only. @return true when it was one of Auto Trap's routes.
+     */
+    public static boolean saveIfOurs(Route route) {
+        if (route == null) {
+            return false;
+        }
+        ensureLoaded();
+        for (Map<Mode, Entry> byMode : captured.values()) {
+            for (Entry e : byMode.values()) {
+                if (e.route() == route) {
+                    save();
+                    return true;
+                }
+            }
+        }
+        for (Map<Mode, Entry> byMode : bundled.values()) {
+            for (Entry e : byMode.values()) {
+                if (e.route() == route) {
+                    LOGGER.info("[AutoTrap] a bundled route for {} changed at run time - kept until the game closes "
+                            + "(bundled routes are not written back)", route.roomName());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // ------------------------------------------------------------------------------------------- files
 
     private static void ensureLoaded() {

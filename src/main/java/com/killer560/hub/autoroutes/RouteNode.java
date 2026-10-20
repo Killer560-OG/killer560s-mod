@@ -197,6 +197,32 @@ public final class RouteNode {
                           double lx, double ly, double lz) {
     }
 
+    /**
+     * {@link Type#PATH} in a trap room, on the FIRST node of a pair: the walk AP3 planned to the second node (killer560,
+     * 2026-10-20: saved with the route like the warps above, so a later run plays it instead of planning from nothing).
+     * One step per tick: keys, the yaw to face (room-relative, as a node's look is), jump and sprint. It was planned from
+     * {@link #walkFromX}.. moving at {@link #walkFromVX}.. (room-relative), with this node at {@link #walkSrcX}.. and the
+     * second at {@link #walkToX}..: a node moved since makes it stale, and a start too far from walkFrom plans afresh.
+     */
+    public final List<WalkStep> walkSteps = new ArrayList<>();
+    public double walkFromX;
+    public double walkFromY;
+    public double walkFromZ;
+    public double walkFromVX;
+    public double walkFromVY;
+    public double walkFromVZ;
+    public boolean walkFromGround;
+    public double walkSrcX;
+    public double walkSrcY;
+    public double walkSrcZ;
+    public double walkToX;
+    public double walkToY;
+    public double walkToZ;
+
+    /** One tick of a saved trap walk: {@code fw}/{@code st} in -1..1, room-relative {@code yaw}. */
+    public record WalkStep(int fw, int st, boolean sneak, float yaw, boolean jump, boolean sprint) {
+    }
+
     public RouteNode() {
     }
 
@@ -474,6 +500,23 @@ public final class RouteNode {
         planToY = o.planToY;
         planToZ = o.planToZ;
         planBreakers = o.planBreakers;
+        if (o != this) {
+            walkSteps.clear();
+            walkSteps.addAll(o.walkSteps);
+        }
+        walkFromX = o.walkFromX;
+        walkFromY = o.walkFromY;
+        walkFromZ = o.walkFromZ;
+        walkFromVX = o.walkFromVX;
+        walkFromVY = o.walkFromVY;
+        walkFromVZ = o.walkFromVZ;
+        walkFromGround = o.walkFromGround;
+        walkSrcX = o.walkSrcX;
+        walkSrcY = o.walkSrcY;
+        walkSrcZ = o.walkSrcZ;
+        walkToX = o.walkToX;
+        walkToY = o.walkToY;
+        walkToZ = o.walkToZ;
     }
 
     /** True when every stored field matches {@code o}'s - the editor's "nothing changed, push no undo entry". */
@@ -489,6 +532,11 @@ public final class RouteNode {
                 && hasPlaceEye == o.hasPlaceEye && placeEyeX == o.placeEyeX && placeEyeY == o.placeEyeY
                 && placeEyeZ == o.placeEyeZ
                 && planFromX == o.planFromX && planFromY == o.planFromY && planFromZ == o.planFromZ
-                && planToX == o.planToX && planToY == o.planToY && planToZ == o.planToZ;
+                && planToX == o.planToX && planToY == o.planToY && planToZ == o.planToZ
+                && walkSteps.equals(o.walkSteps) && walkFromX == o.walkFromX && walkFromY == o.walkFromY
+                && walkFromZ == o.walkFromZ && walkFromVX == o.walkFromVX && walkFromVY == o.walkFromVY
+                && walkFromVZ == o.walkFromVZ && walkFromGround == o.walkFromGround && walkSrcX == o.walkSrcX
+                && walkSrcY == o.walkSrcY && walkSrcZ == o.walkSrcZ && walkToX == o.walkToX && walkToY == o.walkToY
+                && walkToZ == o.walkToZ;
     }
 }
