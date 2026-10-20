@@ -1,10 +1,13 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.BuildVariant;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.modusers.ModUserConfig;
 import com.killer560.hub.modusers.ModUsers;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -39,6 +42,11 @@ public class ModTagTab extends BaseTab {
         y += 22;
 
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // A cheat-only row: at the bottom of the tab, under the red Cheat header.
+            y += 6;
+            widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Cheat", true),
+                    Minecraft.getInstance().font));
+            y += 16;
             // Arrows like the other cycling settings: left click steps forward, right click back (killer560, 2026-10-19).
             widgets.add(SettingsButtonWidget.cycling(showAsText(cfg), (btn, dir) -> {
                         cfg.setShareAs("cheat".equals(cfg.getShareAs()) ? "legit" : "cheat");

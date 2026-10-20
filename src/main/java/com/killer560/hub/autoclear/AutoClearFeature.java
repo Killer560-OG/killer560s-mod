@@ -187,7 +187,13 @@ public final class AutoClearFeature {
                             toggle();
                             return 1;
                         })));
-        // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab; ours go below its section).
+        // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab): its switch is the tab's first row, the rest
+        // go below Auto Secret's section.
+        com.killer560.hub.gui.tab.AutoClearTab.addMaster((widgets, x, y, width, rebuild) -> {
+            int[] at = {y};
+            AutoClearSettings.addMaster(widgets, x, at, width, rebuild);
+            return at[0];
+        });
         com.killer560.hub.gui.tab.AutoClearTab.addSection((widgets, x, y, width, rebuild) -> {
             int[] at = {y};
             AutoClearSettings.addSettings(widgets, x, at, width, rebuild);

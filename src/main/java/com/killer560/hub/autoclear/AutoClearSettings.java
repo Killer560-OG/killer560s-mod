@@ -16,9 +16,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Auto Clear's rows for the shared "Auto Clear" tab, which Auto Secret owns: the tab calls {@link #addSettings} for
- * this section. AutoRoutesTab's house style - a header, a full-width master switch, then even two-column rows, 20 high
- * on a 24 step - and nothing below the switch while it is OFF. Tooltips live in {@code SettingTooltipsData} under the
+ * Auto Clear's rows for the shared "Auto Clear" tab, which Auto Secret owns: the tab calls {@link #addMaster} for its
+ * first row (the Auto Clear switch) and {@link #addSettings} for this section. AutoRoutesTab's house style - a header,
+ * then even two-column rows, 20 high on a 24 step - and nothing of the section while the switch is OFF. Tooltips live in {@code SettingTooltipsData} under the
  * bare labels.
  *
  * <p>The toggle KEY row cannot use the tab's own key capture (the tab is not this class), so it captures by polling:
@@ -37,6 +37,19 @@ public final class AutoClearSettings {
     }
 
     /**
+     * Auto Clear's ON/OFF row, full width at {@code x}, {@code y[0]} (advanced past it). The tab puts it first: it is the
+     * tab's one saved switch, and the card's (Dungeon Autopilot and Auto Secret are started and stopped, not switched).
+     */
+    public static void addMaster(List<AbstractWidget> widgets, int x, int[] y, int width, Runnable rebuild) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return;
+        }
+        AutoClearConfig cfg = AutoClearConfig.getInstance();
+        toggleCell(widgets, x, y[0], width, "Auto Clear", cfg::isEnabledRaw, cfg::setEnabled, rebuild);
+        y[0] += 24;
+    }
+
+    /**
      * Appends Auto Clear's section at {@code x}, {@code y[0]} (advanced past what it adds), {@code width} wide.
      * {@code rebuild} rebuilds the tab (the master switch collapses the section).
      */
@@ -48,15 +61,14 @@ public final class AutoClearSettings {
         int half = (width - GAP) / 2;
         int right = Math.max(1, width - half - GAP);
 
+        // The Auto Clear switch itself is the tab's first row ({@link #addMaster}); its settings show only while it is on.
+        if (!cfg.isEnabledRaw()) {
+            return;
+        }
         y[0] += 6;
         widgets.add(new StringWidget(x, y[0], width, 12, SectionHeaders.header("Auto Clear", true),
                 Minecraft.getInstance().font));
         y[0] += 16;
-        toggleCell(widgets, x, y[0], width, "Auto Clear", cfg::isEnabledRaw, cfg::setEnabled, rebuild);
-        y[0] += 24;
-        if (!cfg.isEnabledRaw()) {
-            return;
-        }
 
         widgets.add(SettingsButtonWidget.cycling(modeText(cfg), (btn, dir) -> {
             cfg.setMode(SettingsButtonWidget.step(cfg.getMode(), dir));

@@ -60,8 +60,7 @@ public class FastLeapTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         int y = contentY;
 
-        widgets.add(header(contentX, y, contentWidth, "Fast Leap"));
-        y += HEADER_H;
+        // The Fast Leap switch is the tab's first row: no header above it.
         y = FastLeapSection.buildGeneral(widgets, contentX, y, contentWidth, requestRebuild);
         if (!FastLeapSection.isEnabledSetting()) {
             return widgets;
@@ -87,7 +86,6 @@ public class FastLeapTab extends BaseTab {
             return false;
         }
         List<AbstractWidget> scan = new ArrayList<>();
-        scan.add(header(0, 0, 200, "Fast Leap"));
         FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
         scan.add(header(0, 0, 200, "Leaps"));
         FastLeapSection.buildLeapList(scan, 0, 0, 400, () -> {});

@@ -70,22 +70,23 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
-        // Predictive Rooms lives here, not in a card of its own (killer560, 2026-10-18: "predictive rooms should be inside
-        // of the map not its own toggle"). Same config and key as before; the Special Room Guess split rides with it.
-        PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
-        widgets.add(SettingsButtonWidget.builder(onOff("Predictive Rooms", pcfg.isEnabledRaw()), btn -> {
-                    pcfg.setEnabled(!pcfg.isEnabledRaw());
-                    pcfg.save();
-                    btn.setMessage(onOff("Predictive Rooms", pcfg.isEnabledRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 20;
-        widgets.add(SettingsButtonWidget.builder(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()), btn -> {
-                    pcfg.setSpecialGuess(!pcfg.isSpecialGuessRaw());
-                    pcfg.save();
-                    btn.setMessage(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()));
-                }).bounds(contentX, y, contentWidth, 18).build());
-        y += 24;
         if (cfg.isEnabledRaw()) {
+            // Predictive Rooms lives here, under the map's switch like every other map setting, not in a card of its own
+            // (killer560, 2026-10-18: "predictive rooms should be inside of the map not its own toggle"). Same config and
+            // key as before; the Special Room Guess split rides with it.
+            PredictiveRoomsConfig pcfg = PredictiveRoomsConfig.getInstance();
+            widgets.add(SettingsButtonWidget.builder(onOff("Predictive Rooms", pcfg.isEnabledRaw()), btn -> {
+                        pcfg.setEnabled(!pcfg.isEnabledRaw());
+                        pcfg.save();
+                        btn.setMessage(onOff("Predictive Rooms", pcfg.isEnabledRaw()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+            widgets.add(SettingsButtonWidget.builder(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()), btn -> {
+                        pcfg.setSpecialGuess(!pcfg.isSpecialGuessRaw());
+                        pcfg.save();
+                        btn.setMessage(onOff("Special Room Guess", pcfg.isSpecialGuessRaw()));
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 24;
             widgets.add(cycle("Room Labels", LiveMapConfig.ROOM_LABEL_NAMES, cfg::getRoomLabels, cfg::setRoomLabels,
                     cfg, contentX, y, full));
             y += 20;

@@ -51,6 +51,16 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }
     }
 
+    /** The tab's first row(s): Auto Clear's ON/OFF switch, which is the tab's saved switch and its card's. */
+    private static final List<Section> MASTERS = new CopyOnWriteArrayList<>();
+
+    /** For Auto Clear: its ON/OFF row, drawn as the tab's first row (above the Autopilot's start/stop rows). */
+    public static void addMaster(Section section) {
+        if (section != null) {
+            MASTERS.add(section);
+        }
+    }
+
     private boolean capturing;
     /** The key being captured is the Autopilot's, not Auto Secret's. */
     private boolean capturingPilot;
@@ -122,7 +132,12 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         int right = Math.max(1, contentWidth - half - GAP);
         int[] y = {contentY};
 
-        // Dungeon Autopilot: Auto Secret, Auto Clear and Auto Puzzles under one planner (its rows first - it drives the rest).
+        // The tab's switch first (Auto Clear's, the one saved ON/OFF here). The Autopilot and Auto Secret rows below it
+        // start and stop a run; they are actions, not settings, so they keep their Running / Stopped buttons.
+        for (Section s : MASTERS) {
+            y[0] = s.build(w, contentX, y[0], contentWidth, requestRebuild);
+        }
+        // Dungeon Autopilot: Auto Secret, Auto Clear and Auto Puzzles under one planner (its rows next - it drives the rest).
         header(w, contentX, y, contentWidth, "Dungeon Autopilot");
         w.add(SettingsButtonWidget.builder(pilotRunText(), btn -> {
             AutoSecretFeature.toggleAutopilot();

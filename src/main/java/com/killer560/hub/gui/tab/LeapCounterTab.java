@@ -21,7 +21,7 @@ import java.util.function.Supplier;
 /**
  * Leap Counter settings - how many teammates must leap to you per F7/M7 section before the alert fires (see
  * {@link com.killer560.hub.leapcounter.LeapTracker}). Informational, so not cheat-only: orange headers, ships on both
- * jars. Master ships OFF; every change saves immediately. Lives in the New tab until killer560 confirms it in a run.
+ * jars. Master ships OFF; every change saves immediately. A Dungeons card.
  * <p>
  * Labels double as tooltip keys (label cut at ':' and lower-cased, see {@code gui/SettingTooltips}), so a few are
  * prefixed to stay clear of keys other tabs already own: "Leap Alert Sound" (not "Alert Sound"), "Counter HUD" (not
@@ -43,7 +43,7 @@ public class LeapCounterTab extends BaseTab {
         int half = Math.max(100, (contentWidth - gap) / 2);
         int colB = contentX + half + gap;
 
-        header(w, contentX, y, contentWidth, "Leap Counter");
+        // The switch is the tab's first row (no header above it; the tab name already says Leap Counter).
         w.add(SettingsButtonWidget.builder(onOff("Leap Counter", cfg.getEnabledRaw()), btn -> {
                     cfg.setEnabled(!cfg.getEnabledRaw());
                     cfg.save();
