@@ -270,7 +270,9 @@ final class AutoBlaze {
                 // The last blaze went to OUR volley at it: the list went from one to none with that blaze's stand gone
                 // and an arrow of the volley struck. That is the finish itself - the 30-tick wait is for a failed
                 // chain's stands all dropping at once (several listed, none shot), which this cannot be.
-                boolean ourKill = lastBlazeCount == 1 && currentTarget != null && currentTarget.isRemoved()
+                // killer560, 2026-10-19: "if you have shot every mob then it is done" - the last shot's kill counts however many
+                // were listed, so a room whose blazes all fell to our volleys is done at once.
+                boolean ourKill = currentTarget != null && currentTarget.isRemoved()
                         && VOLLEY.struck();
                 if (!ourKill
                         && emptyTicks < DONE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag)) {

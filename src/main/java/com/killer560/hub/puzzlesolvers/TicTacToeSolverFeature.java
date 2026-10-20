@@ -192,13 +192,16 @@ public final class TicTacToeSolverFeature {
             // dungeon never takes this path.
             validFrames = readSimBoard(level, cr, board);
         }
-        if (getScore(board) != 0 || validFrames == 9) {
+        // killer560, 2026-10-19: "if there is only one button left on the board consider that done". With one square
+        // left the game is decided for Auto Tic Tac Toe's purposes, so it can leave the room without waiting for the
+        // last press.
+        if (getScore(board) != 0 || validFrames >= 8) {
             if (!gameOver) {
                 int score = getScore(board);
                 LOGGER.info("[TicTacToeSolver] game over: board {} ({} marks, read from {}) - {}", boardString(board),
                         validFrames, fromFrames ? "map frames" : "sim concrete",
                         score > 0 ? "player (O) has three in a row" : score < 0 ? "computer (X) has three in a row"
-                                : "board full, draw");
+                                : validFrames == 9 ? "board full, draw" : "one button left, done");
             }
             gameOver = true;
             reset();
