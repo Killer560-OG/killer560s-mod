@@ -451,6 +451,10 @@ public final class RouteExecutor {
     /** Ticks the breaker node has waited for charges, and whether chat has been told. */
     private static int breakerWaitTicks;
     private static boolean breakerWaitSaid;
+    /** Ticks a breaker node has waited for his stand to reach the server (a block in reach only standing). */
+    private static int breakerStandTicks;
+    /** Vanilla's standing eye height, both versions. */
+    private static final double STANDING_EYE = 1.62;
     /** How long a breaker node waits for its charges before the route gives up (30 s; 2 come back a second). */
     private static final int BREAKER_WAIT_TIMEOUT = 600;
     private static final Set<BlockPos> breakerSent = new HashSet<>();
@@ -5110,6 +5114,7 @@ public final class RouteExecutor {
             breakerReady = false;
             breakerWaitTicks = 0;
             breakerWaitSaid = false;
+            breakerStandTicks = 0;
             step = Step.DO;
             stepTicks = 0;
         }
@@ -5131,12 +5136,39 @@ public final class RouteExecutor {
             }
             Vec3 eye = player.getEyePosition();
             int needed = 0;
+            BlockPos onlyStanding = null;
+            Vec3 standEye = player.position().add(0, STANDING_EYE, 0);
             for (BlockPos pos : breakerQueue) {
                 if (client.level.isLoaded(pos) && !client.level.getBlockState(pos).isAir()
-                        && !com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
-                        && com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
-                    needed++;
+                        && !com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
+                    if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
+                        needed++;
+                    } else if (onlyStanding == null
+                            && com.killer560.hub.util.BlockHits.boxDistanceSq(standEye, pos) <= BREAKER_RANGE_SQ) {
+                        onlyStanding = pos;
+                    }
                 }
+            }
+            // His Wizard #1 (fullclear acplan-1020): the start-node warp's sneak was still at the server when the breaker
+            // fired, so its third block (4.71 from the 1.27 crouched eye, 4.36 from the standing one) was "left to the
+            // linger", #2's stacked etherwarp put the sneak back down, the linger never reached it, and #2's landing stayed
+            // shut - 20 s held. A node that does not sneak breaks from his standing eye: while a block is in reach only
+            // standing, it waits for the server to have shift up and the pose to stand (one or two ticks), as a use node
+            // waits for shift up, at most SNEAK_TIMEOUT (a ceiling that keeps him crouched never lets him stand).
+            if (onlyStanding != null && !wantSneak && (player.getLastSentInput().shift() || player.isCrouching())
+                    && breakerStandTicks < SNEAK_TIMEOUT) {
+                if (breakerStandTicks++ == 0) {
+                    LOGGER.info("[AutoRoutes] Breaker: {} is in reach only from the standing eye ({} crouched) - waiting "
+                                    + "for the stand to reach the server (shift at the server {}, crouching {})",
+                            onlyStanding.toShortString(), String.format(Locale.ROOT, "%.2f",
+                                    Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, onlyStanding))),
+                            player.getLastSentInput().shift(), player.isCrouching());
+                }
+                return;
+            }
+            if (breakerStandTicks > 0) {
+                LOGGER.info("[AutoRoutes] Breaker: standing after {} tick(s) - breaking", breakerStandTicks);
+                breakerStandTicks = 0;
             }
             int required = Math.min(needed, charges[1]);
             if (charges[0] < required) {

@@ -761,3 +761,28 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - The wiki's Guided Bat "follows your aim" (Spirit Sceptre page, 2026-10-20); the sim's bat flies straight. One-Tap
   Warp At Once turns away while the bat flies, so the sim cannot tell whether it misses on Hypixel; After Impact keeps
   the aim on the mob until the bat is due.
+
+## Route stalls in the sim (stall-1020)
+
+- **A breaker node fired with the sneak still at the server measures from the 1.27 eye.** His Wizard #1 (start node, right
+  after the map's sneaking warp) left its third block at 4.71 to the linger; the stacked #2 etherwarp put the sneak back,
+  the block never came in reach and #2's landing stayed shut. A non-sneaking breaker node now waits (one tick in the sim)
+  while a block is in reach only from the standing eye (`RouteExecutor.breakerStandTicks`; testkit 62-argrim-1020-breakerstand).
+- **The floor graph's "already there" (within five blocks) is not on the block.** Auto Clear's fast trip landed 4.9 off
+  its stand block in Flags and Mines; every later trip ended at once where he stood and the clear asked again every other
+  tick for 16 s. A repeat trip to the same block now asks for the block itself (`etherPathArrive`), and when that ends
+  off it too the mob is skipped (`AutoClearFeature.tripTo` / `tripsCannotReach`).
+- An auto that leaves its room as its last step must call `AutoPuzzleActivity.ended()`: Auto Teleport Maze's end pad
+  sends him out and the leave-reset never did, so Auto Secret waited out the grace (2 s in the rerun; 64 s on one floor
+  of acplan-1020, cause of the extra length not found).
+- Kill Mimic runs outside routes too (Secret Aura's trapped-chest click under Auto Clear), and Auto Secret warped away
+  under it; it then fired 51 sceptre uses straight down in the next room. Auto Secret now holds for it
+  (`holdForMimic`), and it ends once he is 16 blocks from the chest. That hold then showed the real waste: Dueces'
+  trapped chest opened as a plain chest (no mimic in it), and Kill Mimic fired its whole 5 s timeout at nothing. It now
+  ends when the chest's window has come and no new baby zombie is by it 4 ticks later (plus server lag).
+- At 100% secrets Auto Secret stopped with the endgame's puzzles undone once routes stopped stalling; it carries on
+  while a puzzle is left (`unfinishedPuzzleLeft`).
+- Route data, not code (left as recorded): Redstone Key has no await node within click reach of its key spot (19,66,7)
+  (#8 waits for 2: the item and the placing, and the key is never taken under the aura's await-only rule); Golden Oasis
+  #1 (start) waits for 1 at the entrance with no secret in reach; Supertall #13 CRYPT sits 1.41 off #20's landing, a
+  step he walks by hand. Quiz cadence (waiting at Oruo for the next question) is the 4-12 s "TRAVEL" still at floor start.

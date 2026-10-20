@@ -1148,7 +1148,7 @@ public final class AutoClearFeature {
         final BlockPos stand0 = goal;
         action = "etherwarp to the Wither Key";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPathFast(stand0, null);
+            tripTo(stand0);
             return true;
         });
         if (phase == Phase.TRAVEL) {
@@ -1452,7 +1452,7 @@ public final class AutoClearFeature {
         action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
         if (!walkInsteadOfTrip(client, player, spot, null, "roam spot " + (roamSpotsTried + 1) + " in " + roomName)) {
             startTrip(client, player, () -> {
-                ClearExecutor.etherPathFast(spot, null);
+                tripTo(spot);
                 return true;
             });
         }
@@ -1521,7 +1521,7 @@ public final class AutoClearFeature {
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
             if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")")) {
                 startTrip(client, player, () -> {
-                    ClearExecutor.etherPathFast(spot, null);
+                    tripTo(spot);
                     return true;
                 });
             }
@@ -1948,11 +1948,24 @@ public final class AutoClearFeature {
                 targetName + " at " + target.blockPosition().toShortString())) {
             return;
         }
+        if (lastTripGoal != null && BlockPos.containing(feet).below().equals(lastTripGoal)) {
+            lastTripGoal = null;   // the last trip did land on its block: a new trip there is a new trip
+        }
+        if (tripsCannotReach(spot)) {
+            // The near trip and the exact one both ended off this block: a third would end where he stands again.
+            LOGGER.info("[AutoClear] skipped {} at {}: no trip lands on {} (the near and the exact plan both ended at {})",
+                    targetName, target.blockPosition().toShortString(), spot.toShortString(),
+                    BlockPos.containing(feet).toShortString());
+            skippedMobs.add(targetId);
+            targetId = -1;
+            lastTripGoal = null;
+            return;
+        }
         final BlockPos goal = spot;
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPathFast(goal, null);
+            tripTo(goal);
             return true;
         });
         if (phase == Phase.TRAVEL) {
@@ -2652,6 +2665,37 @@ public final class AutoClearFeature {
         action = "etherwarp to " + roomName;
         LOGGER.info("[AutoClear] trip to room {} (tile {})", roomName, chosen);
         startTrip(client, player, () -> AutoClearUtils.pathToRoom(layout, room, chosen, 0));
+    }
+
+    /** The block the last trip onto a block was asked for (for {@link #tripTo}). */
+    private static BlockPos lastTripGoal;
+
+    /**
+     * A trip onto {@code spot}: the planner's landing, near allowed, the first time; the block itself when the trip before
+     * was for the same block. A near landing (up to five blocks off) can be out of the weapon's reach, and from there the
+     * floor graph calls him "already there": every later fast trip to that block ended at once where he stood, and the
+     * clear asked again every other tick - 16 s still in Flags and Mines, five runs of eight (fullclear acplan-1020, 155
+     * "already there (exact)" lines each). Asking again for the same block is the signal the near landing did not do.
+     */
+    private static void tripTo(BlockPos spot) {
+        if (spot.equals(lastTripGoal)) {
+            sameGoalTrips++;
+            LOGGER.info("[AutoClear] trip to {} again - the last one ended off it (a near landing): asking for the block "
+                    + "itself", spot.toShortString());
+            ClearExecutor.etherPathArrive(spot, null);
+        } else {
+            sameGoalTrips = 1;
+            ClearExecutor.etherPathFast(spot, null);
+        }
+        lastTripGoal = spot.immutable();
+    }
+
+    /** Trips in a row asked for {@link #lastTripGoal}. */
+    private static int sameGoalTrips;
+
+    /** True when both the near trip and the exact one onto {@code spot} ended off it: no trip will get him there. */
+    private static boolean tripsCannotReach(BlockPos spot) {
+        return spot.equals(lastTripGoal) && sameGoalTrips >= 2;
     }
 
     /** Gives the body back first (a tick), then starts an Interactive Map trip. */

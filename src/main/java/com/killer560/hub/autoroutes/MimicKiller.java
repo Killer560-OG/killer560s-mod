@@ -4,6 +4,7 @@ import com.killer560.hub.util.ModLog;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 /**
@@ -50,6 +51,22 @@ public final class MimicKiller {
     private static int lastUseTick;
     private static int uses;
     private static boolean[] keysAtStart;
+    /** The trapped chest this run is for (its centre). */
+    private static Vec3 chestAt;
+    /**
+     * Past this from the chest, nothing it sends can reach the mimic (the mimic stays within AwaitEvents' 8 of its chest,
+     * a straight-down sceptre blast reaches 6): he has left it. stall-1020: Secret Aura took Dueces' trapped chest under
+     * Auto Clear, Auto Secret then warped him to Staircase, and 51 sceptre uses went straight down there for the whole
+     * Mimic Timeout - Staircase's route stood 4.3 s behind it.
+     */
+    private static final double LEFT_CHEST = 16.0;
+    /** ChestWindows.count() when the chest was clicked; the client tick its window came (-1 none yet); lag mark then. */
+    private static int windowMark;
+    private static int windowAt = -1;
+    private static long windowLag;
+    /** Ticks after the chest's window with no mimic by it before it counts as a plain chest (the sim's mimic is out with
+     *  the window; Hypixel spawns it as the chest opens). Plus any server stall since the window. */
+    private static final int NO_MIMIC_TICKS = 4;
 
     private MimicKiller() {
     }
@@ -90,6 +107,9 @@ public final class MimicKiller {
             return;
         }
         mode = m;
+        chestAt = Vec3.atCenterOf(chest);
+        windowMark = com.killer560.hub.util.ChestWindows.count();
+        windowAt = -1;
         itemSlot = slot;
         slotBefore = player.getInventory().getSelectedSlot();
         armedAt = AwaitEvents.now();
@@ -114,6 +134,25 @@ public final class MimicKiller {
         stateTicks++;
         if (AwaitEvents.mimicKilledSince(armedAt)) {
             finish(client, player, "mimic killed after " + uses + " use(s)");
+            return;
+        }
+        // Not every trapped chest is the mimic: one that opens as a plain chest (its window came) with no new baby zombie
+        // by it a few ticks later has none, and the sceptre has nothing to kill (stall-1020: Dueces' trapped chest, 51
+        // uses and the whole Mimic Timeout for nothing, with Auto Secret holding for it).
+        if (windowAt < 0 && com.killer560.hub.util.ChestWindows.since(windowMark)) {
+            windowAt = AwaitEvents.now();
+            windowLag = com.killer560.hub.util.ServerLag.mark();
+        }
+        if (windowAt >= 0 && AwaitEvents.liveMimic(client) == null
+                && AwaitEvents.now() - windowAt > NO_MIMIC_TICKS + com.killer560.hub.util.ServerLag.ticksSince(windowLag)) {
+            finish(client, player, "the chest opened as a plain chest - no mimic came out in "
+                    + (AwaitEvents.now() - windowAt) + " tick(s)");
+            return;
+        }
+        if (chestAt != null && player.position().distanceTo(chestAt) > LEFT_CHEST) {
+            finish(client, player, String.format(java.util.Locale.ROOT,
+                    "he left the trapped chest (%.1f blocks from it) - nothing from here reaches its mimic",
+                    player.position().distanceTo(chestAt)));
             return;
         }
         boolean legit = AutoRoutesConfig.getInstance().isLegitMode();

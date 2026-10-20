@@ -439,6 +439,9 @@ public final class AutoSecretFeature {
         if (holdForPuzzle()) {
             return;
         }
+        if (holdForMimic()) {
+            return;
+        }
         phaseTicks++;
         if (keyTarget != null && (phase == Phase.TRAVEL || phase == Phase.KEY_WAIT) && keyGone(client)) {
             return;
@@ -768,6 +771,32 @@ public final class AutoSecretFeature {
         return true;
     }
 
+    private static boolean mimicHoldSaid;
+
+    /**
+     * While Auto Routes' Kill Mimic is at work on a trapped chest he clicked (by hand or Secret Aura's click, a route or
+     * not), no trip starts: the mimic is a secret of this room, and its sceptre uses and the map's warps are two actors on
+     * one body. stall-1020: Secret Aura took Dueces' trapped chest under Auto Clear, Auto Secret warped him to Staircase
+     * the tick the clear ended, and Kill Mimic spent its 5 s timeout firing straight down there with Staircase's route
+     * standing behind it. A trip or route already under way, and Auto Clear, are left alone (as for a puzzle).
+     */
+    private static boolean holdForMimic() {
+        if (!com.killer560.hub.autoroutes.MimicKiller.isBusy()
+                || phase == Phase.TRAVEL || phase == Phase.ROUTE || phase == Phase.AUTO_CLEAR) {
+            if (mimicHoldSaid && !com.killer560.hub.autoroutes.MimicKiller.isBusy()) {
+                LOGGER.info("[AutoSecret] Kill Mimic is done - carrying on ({})", phase);
+                mimicHoldSaid = false;
+            }
+            return false;
+        }
+        status = "Waiting: Kill Mimic is working";
+        if (!mimicHoldSaid) {
+            mimicHoldSaid = true;
+            LOGGER.info("[AutoSecret] waiting: Kill Mimic is working (phase {})", phase);
+        }
+        return true;
+    }
+
     private static void pollToggleKey(Minecraft client) {
         int key = AutoSecretConfig.getInstance().getToggleKey();
         boolean down = key != KeyUtil.NONE && client.getWindow() != null && McCompat.screen(client) == null
@@ -808,11 +837,15 @@ public final class AutoSecretFeature {
             // Every room must be cleared too (300 needs them): with a mob room still to clear and Auto Clear on it carries
             // on - the endgame then takes the clears (and puzzles) and ends with "nothing left to do". Until 2026-10-20 it
             // stopped here and left them (sim floors with mobs: 15-16 rooms uncleared on two floors of four).
-            if (AutoSecretConfig.getInstance().isAutoClearRooms() && AutoClearFeature.isAvailable()
-                    && unclearedMobRoomLeft()) {
+            boolean clears = AutoSecretConfig.getInstance().isAutoClearRooms() && AutoClearFeature.isAvailable()
+                    && unclearedMobRoomLeft();
+            // The endgame's puzzles too (stall-1020: his Lots Of Floors floor found every secret at 124 s now that its
+            // routes stop stalling, and it stopped there with Lower Blaze, Teleport Maze and Boulder never done).
+            boolean puzzles = !clears && unfinishedPuzzleLeft();
+            if (clears || puzzles) {
                 if (planSaid.add("all-secrets")) {
-                    LOGGER.info("[AutoSecret] every secret found ({}%) - carrying on for the rooms still to clear",
-                            fmtPercent(percent));
+                    LOGGER.info("[AutoSecret] every secret found ({}%) - carrying on for the {} still to do",
+                            fmtPercent(percent), clears ? "rooms" : "puzzles");
                 }
             } else {
                 stop("all secrets found (" + fmtPercent(percent) + "%)", true);
@@ -1839,6 +1872,23 @@ public final class AutoSecretFeature {
             if (!clearedForUs(layout, r) && !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP")
                     && !r.isType("BLOOD") && !r.isType("ENTRANCE") && !r.isType("FAIRY")
                     && AutoClearFeature.isMobRoom(layout, r.room()) && !clearsDone.contains(r.name())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A puzzle the endgame would still go to ({@link #decideEndgame}'s own test: not done or failed on the map, not
+     * already tried this run), or one it is on its way to or waiting at now.
+     */
+    private static boolean unfinishedPuzzleLeft() {
+        if (phase == Phase.PUZZLE_WAIT || phase == Phase.TRAVEL && trip == Trip.PUZZLE) {
+            return true;
+        }
+        for (RoomStatus.Room r : RoomStatus.rooms()) {
+            if (r.isType("PUZZLE") && !r.cleared() && !r.failed() && !"Unknown".equals(r.name())
+                    && !puzzlesDone.contains(r.name())) {
                 return true;
             }
         }

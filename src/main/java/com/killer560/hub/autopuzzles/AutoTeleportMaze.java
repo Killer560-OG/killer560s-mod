@@ -204,7 +204,16 @@ final class AutoTeleportMaze {
                 LOGGER.info("[AutoPuzzles] TeleportMaze: left the maze (room={} enabled={}) - reset: hops={}"
                                 + " finishStage={} walking={} tick={}", roomName, cfg.isAutoTeleportMazeEnabled(), hops,
                         finishStage, walking, nowTick());
+                // Out of the maze after its last cell (the end pad sends him out, or he walked out): that is the auto's
+                // last step, so the working spell ends now. Left to the 40-tick grace (and the grace's server-lag
+                // extension), Auto Secret stood at the maze's exit for 64 s on one floor of fullclear acplan-1020.
+                boolean finished = finishStage == FinishStage.STEP_ON_END_PAD || finishStage == FinishStage.WALK_OUT
+                        || finishStage == FinishStage.DONE;
                 reset(client);
+                if (finished) {
+                    LOGGER.info("[AutoPuzzles] TeleportMaze: out after the last cell - done tick={}", nowTick());
+                    AutoPuzzleActivity.ended();
+                }
                 GUARD.leftRoom();
             }
             wasInRoom = false;
