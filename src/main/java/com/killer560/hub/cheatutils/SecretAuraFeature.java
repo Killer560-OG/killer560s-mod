@@ -471,6 +471,14 @@ public final class SecretAuraFeature {
             logHeld("route", "Auto Routes running and not on a secret-await node target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
+        // A Shadow Assassin leaping at him (util/ShadowAssassinLeap): the client's world border leaves the secret outside
+        // it, so vanilla would refuse the click before sending it - and booked as an attempt, two refusals a second apart
+        // used to give the chest up for the run while an Auto Routes await waited for it forever (killer560, 2026-10-20).
+        // Held instead, with nothing booked: it goes on the first tick the border lifts. Past HOLD_MAX_MS the border is no
+        // leap's, and the click goes as it always did (refused, and counted against MAX_ATTEMPTS).
+        if (holdForBorder(client, bestPos, bestKind, now)) {
+            return;
+        }
         // Shared one-interaction-per-tick gate. Must sit above the attempt/cooldown bookkeeping below so a refused
         // tick costs nothing - the same (nearest) secret is simply re-picked next tick.
         if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_AURA)) {
@@ -531,11 +539,17 @@ public final class SecretAuraFeature {
                 com.killer560.hub.util.HotbarSelect.select(client, client.player, breakerSlot);
             }
         }
-        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
+        net.minecraft.world.InteractionResult result = client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         LOGGER.info("[SecretAura] click sent: kind={} pos={} face={} hit={},{},{} distToBox={} attempt={}/{} lever={} held={} swing={} tick={}",
                 bestKind, xyz(bestPos), hit.getDirection(), fmt(hit.getLocation().x), fmt(hit.getLocation().y),
                 fmt(hit.getLocation().z), fmt(Math.sqrt(bestDist)), count, MAX_ATTEMPTS, powered,
                 CheatUtils.plainName(client.player.getMainHandItem()), cfg.isAuraSwing(), tickNow());
+        if (result == net.minecraft.world.InteractionResult.FAIL) {
+            LOGGER.info("[SecretAura] Click on the {} at {} refused client-side (attempt {}/{}{})", bestKind,
+                    bestPos.toShortString(), count, MAX_ATTEMPTS, com.killer560.hub.util.ShadowAssassinLeap.refuses(client,
+                            bestPos) ? ", outside the world border - " + com.killer560.hub.util.ShadowAssassinLeap.describe(client)
+                            : "");
+        }
         if ("redstoneNode".equals(bestKind)) {
             keyFound = false; // one key, one redstone block
             LOGGER.info("[SecretAura] Redstone Key placing click sent on {} (keyFound cleared) tick={}", xyz(bestPos), tickNow());
@@ -895,7 +909,65 @@ public final class SecretAuraFeature {
                 LOGGER.info("[SecretAura] done: pos={} why={} attempts={} sinceLastClickMs={} tick={}", xyz(BlockPos.of(key)),
                         why, a.count(), System.currentTimeMillis() - a.lastMs(), tickNow());
             }
+            if (why != null && why.startsWith("gave up")) {
+                // Given up with the secret not taken: Auto Routes' await stops waiting on a click that is not coming.
+                gaveUpCount++;
+                lastGaveUp = BlockPos.of(key).toShortString();
+                LOGGER.info("[SecretAura] {} at {} - left for the run", why, lastGaveUp);
+            }
         }
+    }
+
+    // ------------------------------------------------------------------------------------------- Shadow Assassin leap
+
+    /** Secrets given up this session (attempts spent, never taken) - read by Auto Routes' await as "no click is coming". */
+    private static int gaveUpCount;
+    private static String lastGaveUp;
+    /** The block held for the world border to lift and since when (ms), or null. */
+    private static Long borderHeldKey;
+    private static long borderHeldSinceMs;
+    private static boolean borderHoldExpiredSaid;
+
+    /** How many secrets this aura gave up without taking (only ever goes up). */
+    public static int gaveUpCount() {
+        return gaveUpCount;
+    }
+
+    /** The last secret given up, "x, y, z", or null. */
+    public static String lastGaveUp() {
+        return lastGaveUp;
+    }
+
+    /**
+     * Whether the click on {@code pos} is held this tick: the client's world border refuses it (a Shadow Assassin's leap,
+     * util/ShadowAssassinLeap) and the hold is younger than {@code HOLD_MAX_MS}. Ends the tick the border lifts.
+     */
+    private static boolean holdForBorder(Minecraft client, BlockPos pos, String kind, long now) {
+        long key = pos.asLong();
+        if (!com.killer560.hub.util.ShadowAssassinLeap.refuses(client, pos)) {
+            if (borderHeldKey != null) {
+                LOGGER.info("[SecretAura] The world border lifted after {} ms - clicking the {} at {} now",
+                        now - borderHeldSinceMs, kind, pos.toShortString());
+                borderHeldKey = null;
+            }
+            return false;
+        }
+        if (borderHeldKey == null || borderHeldKey != key) {
+            borderHeldKey = key;
+            borderHeldSinceMs = now;
+            borderHoldExpiredSaid = false;
+            LOGGER.info("[SecretAura] The {} at {} is outside the world border ({}) - a click would be refused; held "
+                    + "until the border lifts", kind, pos.toShortString(), com.killer560.hub.util.ShadowAssassinLeap.describe(client));
+        }
+        if (now - borderHeldSinceMs < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS) {
+            return true;
+        }
+        if (!borderHoldExpiredSaid) {
+            borderHoldExpiredSaid = true;
+            LOGGER.info("[SecretAura] The border has refused the {} at {} for {} ms - clicking as usual", kind,
+                    pos.toShortString(), now - borderHeldSinceMs);
+        }
+        return false;
     }
 
     /** The dungeon sim: a local singleplayer world, never a remote server (see {@code SimState.canAct}). */
@@ -958,5 +1030,6 @@ public final class SecretAuraFeature {
         lastClickKey = null;
         keySkullsSeen.clear();
         keyFound = false;
+        borderHeldKey = null;
     }
 }

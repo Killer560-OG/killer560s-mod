@@ -36,6 +36,7 @@ public abstract class AwaitEventsGameModeMixin {
                 com.killer560.hub.util.ModLog.get("killer560smod-autoroutes").info(
                         "[AwaitEvents] block click at {} refused client-side (FAIL) - no packet, not counted",
                         hit.getBlockPos() == null ? "?" : hit.getBlockPos().toShortString());
+                AwaitEvents.onLocalBlockClickRefused(hit); // not a secret: nothing was sent
             }
         } catch (RuntimeException ignored) {
             // never breaks a click

@@ -221,6 +221,7 @@ public final class AwaitEvents {
         secrets = 0;
         crypts = 0;
         bats = 0;
+        refused = 0;
         counted.clear();
         pending.clear();
         seenBats.clear();
@@ -245,6 +246,7 @@ public final class AwaitEvents {
         secrets = 0;
         crypts = 0;
         bats = 0;
+        refused = 0;
     }
 
     static int secrets() {
@@ -454,6 +456,36 @@ public final class AwaitEvents {
             lastChestClickAt = ticks;
         }
         addSecret("block " + pos.asLong(), kind + " at " + pos.toShortString() + " (clicked by you)");
+    }
+
+    /** Our right clicks on a secret block that vanilla refused client-side (sent nothing) in the open window. */
+    private static int refused;
+
+    /** Refused secret clicks in the open window - never secrets, only what Auto Routes' await reads as "a click failed". */
+    static int refused() {
+        return refused;
+    }
+
+    /**
+     * From {@code AwaitEventsGameModeMixin}: our right click on {@code hit} returned FAIL - vanilla refused it before
+     * sending anything, which is what a Shadow Assassin's leap does to every block click (util/ShadowAssassinLeap: the
+     * block is outside the client's world border). Not a secret; noted so a route's await knows a click was lost.
+     */
+    public static void onLocalBlockClickRefused(net.minecraft.world.phys.BlockHitResult hit) {
+        Minecraft client = Minecraft.getInstance();
+        if (!active || hit == null || client.level == null) {
+            return;
+        }
+        BlockPos pos = hit.getBlockPos();
+        Block b = client.level.getBlockState(pos).getBlock();
+        if (b != Blocks.CHEST && b != Blocks.TRAPPED_CHEST && b != Blocks.LEVER && b != Blocks.PLAYER_HEAD
+                && b != Blocks.PLAYER_WALL_HEAD && b != Blocks.REDSTONE_BLOCK) {
+            return;
+        }
+        refused++;
+        pending.add("await: click on " + b.getName().getString().toLowerCase(Locale.ROOT) + " at " + pos.toShortString()
+                + " refused client-side - nothing sent" + (com.killer560.hub.util.ShadowAssassinLeap.refuses(client, pos)
+                ? " (outside the world border: " + com.killer560.hub.util.ShadowAssassinLeap.describe(client) + ")" : ""));
     }
 
     // ------------------------------------------------------------------------------------------- the Redstone Key

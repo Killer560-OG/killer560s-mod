@@ -202,6 +202,7 @@ public final class SimMobs {
             SimMimic.tickServer(level);
             countDeadCrypts(level);
             SimMiniboss.tick(level);
+            SimShadowAssassinLeap.tickServer(level);
         });
         // Client side: the snapshot the server task above publishes is read here, against the map's rooms.
         if (++roomClearTicks >= 10) {

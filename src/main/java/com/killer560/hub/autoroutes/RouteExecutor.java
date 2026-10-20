@@ -2015,6 +2015,7 @@ public final class RouteExecutor {
         warpAimFrom = null;
         lineWaitTicks = 0;
         lineWaitBlock = null;
+        useBorderHoldSinceMs = -1;
         jumpsDone = 0;
         landingConfirmed = false;
         planAsked = false;
@@ -2646,6 +2647,7 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             awaitStartMs = System.currentTimeMillis();
             awaitLogSecond = 0;
+            awaitGaveUpBase = com.killer560.hub.cheatutils.SecretAuraFeature.gaveUpCount();
             step = Step.CONFIRM;
             LOGGER.info("[AutoRoutes] secret wait start: node #{} {} waits for {} {} (window {} so far, {} remembered{}) - "
                             + "counts your chest/lever/skull clicks, your item pickups, a secret bat appearing within {} "
@@ -2675,6 +2677,9 @@ public final class RouteExecutor {
                     used.add(g.key());
                 }
                 RouteRunMemory.met(awaitNodeKey, used);
+            } else if (refusedClickLetGo(client, node, have)) {
+                // Let go uncounted: no RouteRunMemory.met, nothing claimed - the secret stays not collected.
+                done = true;
             }
             long waitedMs = System.currentTimeMillis() - awaitStartMs;
             if (!done && waitedMs / 1000L > awaitLogSecond) {
@@ -2707,6 +2712,47 @@ public final class RouteExecutor {
             step = Step.PREP;
             stepTicks = 0;
         }
+    }
+
+    /** When an empty-hand use node began holding its click for the world border to lift (ms), or -1. */
+    private static long useBorderHoldSinceMs = -1;
+    /** Secret Aura's give-up count when the active await began (its give-ups since are this await's). */
+    private static int awaitGaveUpBase;
+    /** His own refused secret clicks (no Secret Aura retry coming) after which a waiting await lets go. */
+    static final int REFUSED_CLICKS_LET_GO = 3;
+
+    /**
+     * killer560, 2026-10-20: "if I am trying to grab a chest when it leaps to me then it'll sit there and the auto route
+     * freezes for forever because it couldn't click when it tried." A Shadow Assassin's leap puts the blocks round him
+     * outside the client's world border, and vanilla refuses every click on them before sending it (util/
+     * ShadowAssassinLeap). Secret Aura now holds its click until the border lifts and clicks then - the await meets on
+     * that click as on any other. This is the bound for when it never registers: the await lets go, UNCOUNTED (no secret
+     * added, nothing claimed in RouteRunMemory), when a click was refused and no click is still coming - Secret Aura gave
+     * the secret up (its MAX_ATTEMPTS spent, refused each time) and has nothing else to take in reach, or with the aura
+     * off, {@link #REFUSED_CLICKS_LET_GO} of his own clicks were refused. Every count here is a real event, never a timer.
+     * Says so in chat (a real failure: a secret was left).
+     */
+    private static boolean refusedClickLetGo(Minecraft client, RouteNode node, int have) {
+        int gaveUp = com.killer560.hub.cheatutils.SecretAuraFeature.gaveUpCount() - awaitGaveUpBase;
+        int refused = AwaitEvents.refused();
+        if (gaveUp <= 0 && refused < REFUSED_CLICKS_LET_GO) {
+            return false;
+        }
+        String coming = com.killer560.hub.cheatutils.SecretAuraFeature.takingInReach(client, false);
+        if (coming != null) {
+            return false; // a click of Secret Aura's is still to come (held for the border, or its retry)
+        }
+        int index = route.indexOf(node) + 1;
+        String what = gaveUp > 0 ? "Secret Aura gave up on the secret at "
+                + com.killer560.hub.cheatutils.SecretAuraFeature.lastGaveUp() + " after its clicks were refused"
+                : refused + " secret clicks were refused";
+        String leap = com.killer560.hub.util.ShadowAssassinLeap.describe(client);
+        LOGGER.info("[AutoRoutes] Node #{} {}: await let go at {}/{} secrets - {} ({} refused client-side this await, {}) - "
+                        + "the secret is left uncollected", index, node.type, have, Math.max(1, node.awaitAmount), what, refused,
+                leap);
+        AutoRoutesFeature.chatBad("Node #" + index + ": a secret click never registered (" + what + "; " + leap
+                + ") - going on without it, " + have + "/" + Math.max(1, node.awaitAmount) + " secrets.");
+        return true;
     }
 
     /**
@@ -4714,6 +4760,30 @@ public final class RouteExecutor {
             stop("the empty-hand use node has nothing to click (no block in sight within 4.5)");
             return;
         }
+        if (com.killer560.hub.util.ShadowAssassinLeap.refuses(client, hit.getBlockPos())) {
+            // A Shadow Assassin's leap (util/ShadowAssassinLeap): vanilla would refuse this click before sending it, and
+            // the node used to finish on the lost click. Held in AIM until the border lifts - the click goes on that
+            // tick - with HOLD_MAX_MS as the ceiling, past which it clicks as before and moves on.
+            long nowMs = System.currentTimeMillis();
+            if (useBorderHoldSinceMs < 0) {
+                useBorderHoldSinceMs = nowMs;
+                LOGGER.info("[AutoRoutes] Node #{} USE_ITEM (empty hand): {} at {} is outside the world border ({}) - "
+                                + "holding the click until it lifts", route.indexOf(node) + 1,
+                        blockName(hit.getBlockPos()), hit.getBlockPos().toShortString(),
+                        com.killer560.hub.util.ShadowAssassinLeap.describe(client));
+            }
+            if (nowMs - useBorderHoldSinceMs < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS) {
+                return;
+            }
+            LOGGER.info("[AutoRoutes] Node #{} USE_ITEM (empty hand): the border still refuses the click after {} ms - "
+                    + "clicking as usual", route.indexOf(node) + 1, nowMs - useBorderHoldSinceMs);
+            AutoRoutesFeature.chatBad("Node #" + (route.indexOf(node) + 1) + ": its click is outside the world border ("
+                    + com.killer560.hub.util.ShadowAssassinLeap.describe(client) + ") - it will not register; going on.");
+        } else if (useBorderHoldSinceMs >= 0) {
+            LOGGER.info("[AutoRoutes] Node #{} USE_ITEM (empty hand): the world border lifted after {} ms - clicking now",
+                    route.indexOf(node) + 1, System.currentTimeMillis() - useBorderHoldSinceMs);
+        }
+        useBorderHoldSinceMs = -1;
         RouteTrace.sent(traceIndex(node), "USE_ITEM click", player.position(), hit.getBlockPos(),
                 blockName(hit.getBlockPos()), RouteCoords.toRealYaw(frame, node.yaw), node.pitch);
         if (!AutoRoutesConfig.getInstance().isLegitMode()) {
