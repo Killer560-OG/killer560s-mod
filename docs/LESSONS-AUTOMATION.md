@@ -712,3 +712,18 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   `RightClick.eatenRetryTicks`, whichever is longer) plus any server stall, once per warp, while he has not moved. Testkit
   1018-waterboard-lever (a server that refuses a lever click the heard look misses and drops that warp) and
   1018-waterboard-grim (the real auto on a pasted board, GrimAC).
+
+## Auto Secret and Auto Clear in one visit (acplan-1020)
+
+- Generated sim floors have no mobs and clear every room on entry, so an Auto Clear comparison there measures nothing.
+  Testkit 1016-sim-fullclear `-PfullclearMobs=N` places starred mobs (seeded by map code) and turns clear-on-entry off;
+  `-PfullclearNoTraps=true` keeps trap rooms out (his trap routes do not work yet, 2026-10-20).
+- Auto Clear waits while ANY route runs. A route Auto Secret stopped for stalling re-armed on the node under him a tick
+  later, and the clear it had just handed over waited 13 minutes. Every hand-over to Auto Clear goes through
+  `AutoRoutesFeature.cancelForInteractiveMap` first, as a map trip does.
+- The "every secret found" stop ended runs on the trip to the last uncleared room (the last secret tends to come in
+  then) and, before that, at 100% with up to 17 rooms never cleared. It now waits for a clear under way and for every
+  mob room. The base jar's sim times on such floors are not comparable: they skipped the clears.
+- `AutoClearFeature.estimateClear` prices a clear by its cover count far more than by where he starts (the AOTV range
+  makes most first trips one warp), so clear-first vs route-first is nearly always a tie: route first. The time Fastest
+  Total saves is the re-entry trips and settles, about 12 s a floor in the sim (8 floors, 2026-10-20).
