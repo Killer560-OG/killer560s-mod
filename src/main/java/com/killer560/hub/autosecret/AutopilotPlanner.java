@@ -186,6 +186,60 @@ public final class AutopilotPlanner {
         return total;
     }
 
+    /**
+     * Clear before secrets in the same room (killer560, 2026-10-20: "if something goes to a room for the first time during
+     * auto pilot it tends to secret it then clear it, try to clear it first as secreting it first leads to mobs going
+     * everywhere"). A SECRET pick in a room whose CLEAR is also a candidate becomes that CLEAR; the room it cleared first
+     * this way ({@code clearedFirst}, a candidate key) has its SECRET taken next, while it is still worth score, ahead of
+     * whatever else was picked. A dropped-key pick is left alone. A room with no CLEAR candidate (no mobs, already cleared,
+     * counted cleared by the chest rule) or with a teammate in it is not touched. {@link Autopilot} applies it in Solo only.
+     * @return the choice to take (the same one when nothing applies)
+     */
+    public static Choice clearFirst(Choice c, List<Candidate> all, String clearedFirst) {
+        if (c == null || c.pick().kind() == Kind.KEY) {
+            return c;
+        }
+        boolean stillToClear = false;
+        for (Candidate k : all) {
+            stillToClear |= k.kind() == Kind.CLEAR && k.room().equals(clearedFirst);
+        }
+        // Only once its clear is over (no CLEAR left for it): a clear that never ran must not let its secrets jump ahead.
+        if (clearedFirst != null && !stillToClear
+                && !(c.pick().kind() == Kind.SECRET && c.pick().room().equals(clearedFirst))) {
+            for (Candidate k : all) {
+                if (k.kind() == Kind.SECRET && k.room().equals(clearedFirst) && k.gain() > 0) {
+                    return new Choice(k, "cleared first - its secrets now (was: " + c.pick().describe() + ")", c.ranked(),
+                            fronted(c.tour(), k));
+                }
+            }
+        }
+        if (c.pick().kind() != Kind.SECRET) {
+            return c;
+        }
+        for (Candidate k : all) {
+            if (k.kind() == Kind.CLEAR && k.room().equals(c.pick().room()) && !k.teammateInside()) {
+                return new Choice(k, "clear first: mobs dead before its secrets (was: " + c.pick().describe() + ")",
+                        c.ranked(), fronted(c.tour(), k));
+            }
+        }
+        return c;
+    }
+
+    /** The tour it now takes: {@code first}, then the rest in the order planned (empty stays empty: picked by rate). */
+    private static List<Candidate> fronted(List<Candidate> tour, Candidate first) {
+        if (tour.isEmpty()) {
+            return tour;
+        }
+        List<Candidate> out = new ArrayList<>();
+        out.add(first);
+        for (Candidate t : tour) {
+            if (t != first) {
+                out.add(t);
+            }
+        }
+        return out;
+    }
+
     /** Blood First: the uncleared room furthest back on the rush path (a teammate's room left to them), or null. */
     public static Choice chooseBloodFirst(List<Candidate> all) {
         List<Candidate> rush = new ArrayList<>();

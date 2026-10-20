@@ -86,6 +86,8 @@ final class Autopilot {
     private static boolean noClearSaid;
     private static boolean noScoreSaid;
     private static String lastBloodFirstWait;
+    /** The room (candidate key) it cleared before its secrets; its SECRET goes next ({@link AutopilotPlanner#clearFirst}). */
+    private static String clearedFirst;
 
     /** The action under way: what it was, when it began, its estimate. */
     private static AutopilotPlanner.Candidate current;
@@ -112,6 +114,7 @@ final class Autopilot {
         noClearSaid = false;
         noScoreSaid = false;
         lastBloodFirstWait = null;
+        clearedFirst = null;
         current = null;
         actionsDone = 0;
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
@@ -217,6 +220,18 @@ final class Autopilot {
         }
 
         AutopilotPlanner.Choice c = AutopilotPlanner.chooseTour(party, cands, tourTravel(), 3_000_000L);
+        // Solo: a mob room is cleared before its secrets are taken, then secreted next (AutopilotPlanner.clearFirst).
+        // Party keeps routes first (its clears are the team's, after every route).
+        AutopilotPlanner.Choice cf = party ? c : AutopilotPlanner.clearFirst(c, cands, clearedFirst);
+        if (cf != c) {
+            LOGGER.info("[Autopilot] {} {}: {}", cf.pick().kind(), cf.pick().room(), cf.why());
+        }
+        if (cf != null && cf != c && cf.pick().kind() == AutopilotPlanner.Kind.CLEAR) {
+            clearedFirst = cf.pick().room();
+        } else if (cf == null || cf.pick().kind() != AutopilotPlanner.Kind.KEY) {
+            clearedFirst = null;
+        }
+        c = cf;
         if (c != null) {
             if (!c.tour().isEmpty()) {
                 List<String> t = new ArrayList<>();
