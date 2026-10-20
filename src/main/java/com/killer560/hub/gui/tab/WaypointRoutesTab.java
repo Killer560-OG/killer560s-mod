@@ -125,8 +125,8 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             widgets.add(nameField);
             y += 22;
 
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", sel.color), btn ->
-                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Route Color", sel.color, Route.DEFAULT_COLOR,
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Colour", sel.color), btn ->
+                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Route Colour", sel.color, Route.DEFAULT_COLOR,
                                     argb -> {
                                         sel.color = argb;
                                         RouteStore.save();
@@ -221,7 +221,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                     btn.setMessage(onOff("Start At Nearest", cfg.isStartAtNearest()));
                 }).bounds(contentX, y, col2W, 18).build());
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Next Point", cfg.getTargetColor()), btn ->
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Next Point Color", cfg.getTargetColor(),
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Next Point Colour", cfg.getTargetColor(),
                                 WaypointRoutesConfig.DEFAULT_TARGET_COLOR, argb -> {
                                     cfg.setTargetColor(argb);
                                     cfg.save();

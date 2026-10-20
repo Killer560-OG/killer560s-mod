@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
  *  per killer560's explicit "make auto terms into its own section in dungeons" follow-up request; this
  *  tab's own solving/highlighting works identically on both builds regardless.
  *  <p>
- *  Overlay Colours (2026-09-15, killer560: "add the option to set custom colors for terminal overlays")
+ *  Overlay Colours (2026-09-15, killer560: "add the option to set custom colours for terminal overlays")
  *  - one picker button per real drawing role (see {@link TerminalSolverConfig.OverlayColor}), plus a
  *  Reset Colours button. Everything is legit-build behaviour, so every header here is the normal orange
  *  {@link SectionHeaders} one, not the cheat red.
@@ -362,7 +362,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         Minecraft mc = Minecraft.getInstance();
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Overlay Colors", false), mc.font));
+                SectionHeaders.header("Overlay Colours", false), mc.font));
         y += 14;
 
         TerminalSolverConfig.OverlayColor[] order = {
@@ -423,7 +423,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
      *  label at the first ':', so the tooltip key stays "reset colours" in both states instead of
      *  changing out from under {@code SettingTooltipsData} whenever the colours are stock. */
     private static Component resetText() {
-        return Component.literal("Reset Colors"
+        return Component.literal("Reset Colours"
                 + (TerminalSolverConfig.getInstance().isOverlayColorsDefault() ? ": §7default" : ""));
     }
 

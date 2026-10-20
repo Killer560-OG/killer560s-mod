@@ -78,9 +78,9 @@ public class RealTimeTab extends BaseTab {
                 }).bounds(col2X, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Text Color", cfg.getTextColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Text Colour", cfg.getTextColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Real Time Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Real Time Colour",
                             cfg.getTextColor(), RealTimeConfig.DEFAULT_TEXT_COLOR, argb -> {
                         cfg.setTextColor(argb);
                         cfg.save();

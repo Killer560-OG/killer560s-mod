@@ -20,7 +20,7 @@ import java.util.List;
  *  independently of the other and of the per-file toggles), speed/volume sliders that can also be
  *  typed in directly, a shortcut to open the drop folder, and a per-file toggle row for every gif and
  *  audio file found in it - several can be enabled at once, each independently. Position/size of each
- *  gif overlay are adjusted through the same HUD editor the RNG Meter overlay uses, not here. */
+ *  gif overlay are adjusted through the same HUD editor the other HUD elements use, not here. */
 public class GifPlayerTab extends BaseTab {
 
     private static final float MIN_SPEED = 0.25f;
@@ -105,7 +105,7 @@ public class GifPlayerTab extends BaseTab {
         widgets.add(SettingsButtonWidget.builder(Component.literal("Set"), btn -> {
                     Float parsed = parseFloat(volumeField.getValue());
                     if (parsed == null) {
-                        ModOverlayMessage.show("§c[Killer560's Mod] Invalid volume - enter a number like 50 (%)", 3000);
+                        ModOverlayMessage.show("§c[Killer560's Mod] Invalid volume - enter a number like 50", 3000);
                         return;
                     }
                     GifPlayerConfig cfg = GifPlayerConfig.getInstance();

@@ -77,9 +77,9 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label));
                 }).bounds(contentX, y, half, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Border Color", cfg.getOverlayColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Border Colour", cfg.getOverlayColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Slot Bind Border Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Slot Bind Border Colour",
                             cfg.getOverlayColor(), 0xFFFFAA00, argb -> {
                         cfg.setOverlayColor(argb);
                         cfg.save();

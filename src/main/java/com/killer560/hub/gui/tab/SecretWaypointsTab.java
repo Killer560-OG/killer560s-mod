@@ -85,30 +85,30 @@ public class SecretWaypointsTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
-        // Per-type colours (killer560, 2026-09-27: "You can choose the color for levers" - and there was no
+        // Per-type colours (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no
         // colour picker for any of the other five either until now, same gap EtherwarpOverlayTab/MobEspTab's
         // colorButton already closed for their own features).
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
-        widgets.add(colorButton(contentX, y, colW, "Chest Color", cfg.getChestColor(),
+        widgets.add(colorButton(contentX, y, colW, "Chest Colour", cfg.getChestColor(),
                 SecretWaypointsConfig.DEFAULT_CHEST_COLOR, cfg::setChestColor));
-        widgets.add(colorButton(col2X, y, colW, "Item Color", cfg.getItemColor(),
+        widgets.add(colorButton(col2X, y, colW, "Item Colour", cfg.getItemColor(),
                 SecretWaypointsConfig.DEFAULT_ITEM_COLOR, cfg::setItemColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Wither Essence Color", cfg.getWitherColor(),
+        widgets.add(colorButton(contentX, y, colW, "Wither Essence Colour", cfg.getWitherColor(),
                 SecretWaypointsConfig.DEFAULT_WITHER_COLOR, cfg::setWitherColor));
-        widgets.add(colorButton(col2X, y, colW, "Bat Color", cfg.getBatColor(),
+        widgets.add(colorButton(col2X, y, colW, "Bat Colour", cfg.getBatColor(),
                 SecretWaypointsConfig.DEFAULT_BAT_COLOR, cfg::setBatColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Redstone Key Color", cfg.getRedstoneKeyColor(),
+        widgets.add(colorButton(contentX, y, colW, "Redstone Key Colour", cfg.getRedstoneKeyColor(),
                 SecretWaypointsConfig.DEFAULT_REDSTONE_KEY_COLOR, cfg::setRedstoneKeyColor));
-        widgets.add(colorButton(col2X, y, colW, "Lever Color", cfg.getLeverColor(),
+        widgets.add(colorButton(col2X, y, colW, "Lever Colour", cfg.getLeverColor(),
                 SecretWaypointsConfig.DEFAULT_LEVER_COLOR, cfg::setLeverColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Crypt Color", cfg.getCryptColor(),
+        widgets.add(colorButton(contentX, y, colW, "Crypt Colour", cfg.getCryptColor(),
                 SecretWaypointsConfig.DEFAULT_CRYPT_COLOR, cfg::setCryptColor));
-        widgets.add(colorButton(col2X, y, colW, "Prince Color", cfg.getPrinceColor(),
+        widgets.add(colorButton(col2X, y, colW, "Prince Colour", cfg.getPrinceColor(),
                 SecretWaypointsConfig.DEFAULT_PRINCE_COLOR, cfg::setPrinceColor));
 
         return widgets;

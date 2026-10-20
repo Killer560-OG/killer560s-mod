@@ -4,10 +4,7 @@ import com.killer560.hub.auction.AuctionConfig;
 import com.killer560.hub.auction.BazaarApi;
 import com.killer560.hub.bazaar.BazaarFeature;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -15,11 +12,7 @@ import java.util.List;
 
 /** Bazaar Browser settings - killer560's item 8.1 ("the same for Bazaar"). See
  *  {@link com.killer560.hub.bazaar.BazaarFeature}. */
-public class BazaarTab extends BaseTab implements KeyCaptureTab {
-
-    private boolean capturingKey = false;
-    /** Which key the capture is for: the browser's open key, or the hold-for-Hypixel's-menu key. */
-    private boolean capturingVanillaKey = false;
+public class BazaarTab extends BaseTab {
 
     public BazaarTab() {
         super("Bazaar");
@@ -78,34 +71,4 @@ public class BazaarTab extends BaseTab implements KeyCaptureTab {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
     }
 
-    private static Component keyText(AuctionConfig cfg) {
-        String name = cfg.getOpenBazaarKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getOpenBazaarKeyCode()).getDisplayName().getString();
-        return Component.literal("Open Key: §b" + name);
-    }
-
-    private static Component vanillaKeyText(AuctionConfig cfg) {
-        String name = cfg.getBazaarVanillaKeyCode() < 0 ? "Not Set"
-                : InputConstants.Type.KEYSYM.getOrCreate(cfg.getBazaarVanillaKeyCode()).getDisplayName().getString();
-        return Component.literal("Hypixel Menu Key: §b" + name);
-    }
-
-    @Override
-    public boolean isListeningForKey() {
-        return capturingKey;
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        AuctionConfig cfg = AuctionConfig.getInstance();
-        int code = keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode;
-        if (capturingVanillaKey) {
-            cfg.setBazaarVanillaKeyCode(code);
-        } else {
-            cfg.setOpenBazaarKeyCode(code);
-        }
-        capturingKey = false;
-        capturingVanillaKey = false;
-        cfg.save();
-    }
 }

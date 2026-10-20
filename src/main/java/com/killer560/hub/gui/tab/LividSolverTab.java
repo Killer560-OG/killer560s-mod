@@ -63,7 +63,7 @@ public class LividSolverTab extends BaseTab {
         y = below(widgets, y);
 
         // killer560, 2026-10-18: the colour of the highlight and the tracer - the Livid's own, or the two set here.
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Livid Color", false),
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Livid Colour", false),
                 Minecraft.getInstance().font));
         y += 16;
         widgets.add(SettingsButtonWidget.cycling(colourModeText(cfg), (btn, dir) -> {
@@ -74,17 +74,17 @@ public class LividSolverTab extends BaseTab {
         y += 22;
         if (cfg.getColourMode() == LividSolverConfig.ColourMode.CUSTOM) {
             int half = (contentWidth - 6) / 2;
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Highlight Color", cfg.getHighlightColour()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Highlight Colour", cfg.getHighlightColour()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Highlight Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Highlight Colour",
                                 cfg.getHighlightColour(), LividSolverConfig.DEFAULT_CUSTOM_COLOUR, argb -> {
                             cfg.setHighlightColour(argb);
                             cfg.save();
                         }));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Tracer Color", cfg.getTracerColour()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Tracer Colour", cfg.getTracerColour()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Tracer Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Tracer Colour",
                                 cfg.getTracerColour(), LividSolverConfig.DEFAULT_CUSTOM_COLOUR, argb -> {
                             cfg.setTracerColour(argb);
                             cfg.save();
@@ -131,7 +131,7 @@ public class LividSolverTab extends BaseTab {
     }
 
     private static Component colourModeText(LividSolverConfig cfg) {
-        return Component.literal("Livid Color: §6" + cfg.getColourMode().label);
+        return Component.literal("Livid Colour: §6" + cfg.getColourMode().label);
     }
 
     private static Component thicknessText(LividSolverConfig cfg) {

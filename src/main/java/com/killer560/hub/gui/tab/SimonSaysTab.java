@@ -103,27 +103,27 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
         // cycling a fixed palette - killer560's explicit request. Each button's own click handler
         // captures a fresh Minecraft/Screen reference each press so re-opening after a rebuild still
         // points at the current tab's own screen instance.
-        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("1st Color", cfg.getFirstColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("1st Colour", cfg.getFirstColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "First Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "First Colour",
                             cfg.getFirstColor(), SimonSaysConfig.DEFAULT_FIRST_COLOR, argb -> {
                         cfg.setFirstColor(argb);
                         cfg.save();
                     }));
                 }).bounds(col3aX, y, col3W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("2nd Color", cfg.getSecondColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("2nd Colour", cfg.getSecondColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Second Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Second Colour",
                             cfg.getSecondColor(), SimonSaysConfig.DEFAULT_SECOND_COLOR, argb -> {
                         cfg.setSecondColor(argb);
                         cfg.save();
                     }));
                 }).bounds(col3bX, y, col3W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("3rd Color", cfg.getThirdColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("3rd Colour", cfg.getThirdColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Third Color+",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Third Colour+",
                             cfg.getThirdColor(), SimonSaysConfig.DEFAULT_THIRD_COLOR, argb -> {
                         cfg.setThirdColor(argb);
                         cfg.save();

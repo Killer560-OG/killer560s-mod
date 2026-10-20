@@ -81,9 +81,9 @@ public class TeammatesTab extends BaseTab {
                 cfg.save();
             }
         });
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Class Color", cfg.getUnknownColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Class Colour", cfg.getUnknownColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Class Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Unknown Class Colour",
                             cfg.getUnknownColor(), TeammatesConfig.DEFAULT_UNKNOWN_COLOR, argb -> {
                         cfg.setUnknownColor(argb);
                         cfg.save();

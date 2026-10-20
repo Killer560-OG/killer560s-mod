@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Component;
  *  Built (2026-09-07), part 2 of the black+amber GUI overhaul: vanilla {@code Button} has no way to
  *  recolor its own fixed 9-slice texture, so once the menu chrome (phase 1) was reworked, every actual
  *  settings control still rendered as a plain grey vanilla button, clashing with the new theme - per
- *  killer560's "make those boxes a different color, something more fitting." Deliberately styled with a
+ *  killer560's "make those boxes a different colour, something more fitting." Deliberately styled with a
  *  DIMMER border than {@link MenuRowWidget}'s accordion headers (full amber, always) so headers still
  *  visually lead over individual controls instead of every box in the menu competing at once.
  *  <p>

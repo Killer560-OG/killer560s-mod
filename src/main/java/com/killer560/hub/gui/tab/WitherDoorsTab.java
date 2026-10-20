@@ -44,17 +44,17 @@ public class WitherDoorsTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door Color", cfg.getWitherLockedColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door Colour", cfg.getWitherLockedColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door Colour",
                             cfg.getWitherLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
                         cfg.setWitherLockedColor(argb);
                         cfg.save();
                     }));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door (Key) Color", cfg.getWitherReadyColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Wither Door (Key) Colour", cfg.getWitherReadyColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door (Key) Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Wither Door (Key) Colour",
                             cfg.getWitherReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
                         cfg.setWitherReadyColor(argb);
                         cfg.save();
@@ -62,7 +62,7 @@ public class WitherDoorsTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 22;
 
-        // Style and fill (killer560, 2026-10-07: "make it so wither doors also have a fill color option"). Always shown,
+        // Style and fill (killer560, 2026-10-07: "make it so wither doors also have a fill colour option"). Always shown,
         // whatever the style, so the rows never move under the cursor when the style is cycled.
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.setStyle(SettingsButtonWidget.step(cfg.getStyle(), dir));
@@ -91,9 +91,9 @@ public class WitherDoorsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(fillModeText(cfg));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Custom Fill Color", cfg.getFillColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Custom Fill Colour", cfg.getFillColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Custom Fill Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Custom Fill Colour",
                             cfg.getFillColor(), WitherDoorsConfig.DEFAULT_FILL_COLOR, argb -> {
                         cfg.setFillColor(argb);
                         cfg.save();
@@ -121,17 +121,17 @@ public class WitherDoorsTab extends BaseTab {
 
         // The Blood door is drawn in both builds since 2026-10-15 (killer560: "For some reason blood door isnt
         // highlighting unless I have all doors on"), so its colours left the cheat section with it.
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Color", cfg.getBloodLockedColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door Colour", cfg.getBloodLockedColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door Colour",
                             cfg.getBloodLockedColor(), WitherDoorsConfig.DEFAULT_LOCKED_COLOR, argb -> {
                         cfg.setBloodLockedColor(argb);
                         cfg.save();
                     }));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door (Key) Color", cfg.getBloodReadyColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Blood Door (Key) Colour", cfg.getBloodReadyColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door (Key) Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Blood Door (Key) Colour",
                             cfg.getBloodReadyColor(), WitherDoorsConfig.DEFAULT_READY_COLOR, argb -> {
                         cfg.setBloodReadyColor(argb);
                         cfg.save();
@@ -146,9 +146,9 @@ public class WitherDoorsTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Fairy Door", cfg.isFairyDoorRaw()));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Fairy Door Color", cfg.getFairyDoorColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Fairy Door Colour", cfg.getFairyDoorColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Fairy Door Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Fairy Door Colour",
                             cfg.getFairyDoorColor(), WitherDoorsConfig.DEFAULT_FAIRY_DOOR_COLOR, argb -> {
                         cfg.setFairyDoorColor(argb);
                         cfg.save();
@@ -194,7 +194,7 @@ public class WitherDoorsTab extends BaseTab {
     }
 
     private static Component fillModeText(WitherDoorsConfig cfg) {
-        return Component.literal("Fill Color: " + (cfg.isCustomFillColor() ? "§6Custom" : "§7Same as Outline"));
+        return Component.literal("Fill Colour: " + (cfg.isCustomFillColor() ? "§6Custom" : "§7Same as Outline"));
     }
 
     private static Component onOff(String label, boolean value) {

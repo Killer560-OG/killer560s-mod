@@ -241,7 +241,7 @@ public class HealthAndManaBarsTab extends BaseTab {
 
             // Colours, one compact grid: each bar that is on, the overflow layers of the bars that have one, and the
             // empty track.
-            note(widgets, contentX, contentWidth, y, "Colors");
+            note(widgets, contentX, contentWidth, y, "Colours");
             int cols = contentWidth >= 420 ? 3 : 2;
             int cellW = (contentWidth - GAP * (cols - 1)) / cols;
             int[] cell = {0};
@@ -252,11 +252,11 @@ public class HealthAndManaBarsTab extends BaseTab {
                 }
             }
             if (ps.isReadoutOn(Readout.HEALTH_BAR) || scanningForSearch) {
-                gridColour(widgets, contentX, y, cols, cellW, cell, "Absorption Color", ps.getAbsorptionColor(),
+                gridColour(widgets, contentX, y, cols, cellW, cell, "Absorption Colour", ps.getAbsorptionColor(),
                         PlayerStatsConfig.DEFAULT_ABSORPTION_COLOR, ps::setAbsorptionColor);
             }
             if (ps.isReadoutOn(Readout.MANA_BAR) || scanningForSearch) {
-                gridColour(widgets, contentX, y, cols, cellW, cell, "Overflow Mana Color", ps.getOverflowManaColor(),
+                gridColour(widgets, contentX, y, cols, cellW, cell, "Overflow Mana Colour", ps.getOverflowManaColor(),
                         PlayerStatsConfig.DEFAULT_OVERFLOW_MANA_COLOR, ps::setOverflowManaColor);
             }
             gridColour(widgets, contentX, y, cols, cellW, cell, "Background", ps.getBarBackground(),
@@ -283,7 +283,7 @@ public class HealthAndManaBarsTab extends BaseTab {
             toggle(widgets, col2, y[0], half, "Hunger Bar", ps::isHideVanillaHunger, ps::setHideVanillaHunger,
                     ps::save, null);
             y[0] += ROW;
-            toggle(widgets, contentX, y[0], half, "Armor Bar", ps::isHideVanillaArmour, ps::setHideVanillaArmour,
+            toggle(widgets, contentX, y[0], half, "Armour Bar", ps::isHideVanillaArmour, ps::setHideVanillaArmour,
                     ps::save, null);
             toggle(widgets, col2, y[0], half, "Air Bar", ps::isHideVanillaAir, ps::setHideVanillaAir, ps::save, null);
             y[0] += ROW;
@@ -304,7 +304,7 @@ public class HealthAndManaBarsTab extends BaseTab {
         toggle(widgets, col2, y[0], half, "Regeneration Bounce", oh::getHideRegenBounceRaw, oh::setHideRegenBounce,
                 oh::save, null);
         y[0] += ROW;
-        toggle(widgets, contentX, y[0], half, "Armor", oh::getHideArmorBarRaw, oh::setHideArmorBar, oh::save, null);
+        toggle(widgets, contentX, y[0], half, "Armour", oh::getHideArmorBarRaw, oh::setHideArmorBar, oh::save, null);
         toggle(widgets, col2, y[0], half, "Hunger", oh::getHideHungerBarRaw, oh::setHideHungerBar, oh::save, null);
         y[0] += ROW;
         toggle(widgets, contentX, y[0], half, "XP Bar And Level", ps::isHideXpBar, ps::setHideXpBar, ps::save,
@@ -326,8 +326,8 @@ public class HealthAndManaBarsTab extends BaseTab {
     /** "Health Colour" for the Health Bar: the bar's label without "Bar", for the colour grid. */
     private static String colourLabel(Readout r) {
         return switch (r) {
-            case OTHER_BAR -> "Other Color";
-            default -> r.label.replace(" Bar", "") + " Color";
+            case OTHER_BAR -> "Other Colour";
+            default -> r.label.replace(" Bar", "") + " Colour";
         };
     }
 
@@ -385,7 +385,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(x, y, Math.max(1, toggleW), ROW_H).build());
         if (on) {
-            colour(widgets, x + width - SWATCH_W, y, SWATCH_W, "Color", ps.getReadoutColor(r), r.defaultColor,
+            colour(widgets, x + width - SWATCH_W, y, SWATCH_W, "Colour", ps.getReadoutColor(r), r.defaultColor,
                     c -> ps.setReadoutColor(r, c));
         }
     }

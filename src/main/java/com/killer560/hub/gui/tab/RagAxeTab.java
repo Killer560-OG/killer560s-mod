@@ -98,7 +98,7 @@ public class RagAxeTab extends BaseTab {
         toggle(w, colB, y[0], half, "Skip Tank/Healer", cfg::isSkipTankHealer, cfg::setSkipTankHealer, cfg);
         y[0] += 24;
         w.add(new StringWidget(contentX, y[0], contentWidth, 12,
-                Component.literal("§7Prompt text (supports § color codes):"), Minecraft.getInstance().font));
+                Component.literal("§7Prompt text (supports § colour codes):"), Minecraft.getInstance().font));
         y[0] += 14;
         EditBox text = new EditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18,
                 Component.literal("Prompt text"));

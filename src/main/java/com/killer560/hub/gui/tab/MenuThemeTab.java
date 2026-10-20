@@ -74,7 +74,7 @@ public class MenuThemeTab extends BaseTab {
         }.steps(speeds.length - 1));
         y += 26;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colors", false),
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Custom Colours", false),
                 Minecraft.getInstance().font));
         y += 16;
         int[] colours = cfg.activeColours();
@@ -110,7 +110,7 @@ public class MenuThemeTab extends BaseTab {
         List<MenuConfig.SavedTheme> saved = cfg.getSavedThemes();
         if (saved.isEmpty()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7None yet - Save as New Theme keeps the colors you see now."), font));
+                    Component.literal("§7None yet - Save as New Theme keeps the colours you see now."), font));
             y += 16;
         }
         int useW = 54;

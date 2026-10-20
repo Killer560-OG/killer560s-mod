@@ -33,11 +33,15 @@ public class BazaarAdvisorTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Setup: " + cfg.summary()), btn -> {
-                }).bounds(contentX, y, contentWidth, 18).build());
+        AbstractWidget setup = SettingsButtonWidget.builder(Component.literal("Setup: " + cfg.summary()), btn -> {
+                }).bounds(contentX, y, contentWidth, 18).build();
+        setup.active = false;
+        widgets.add(setup);
         y += 22;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Change the answers with /bzflip"), btn -> {
-                }).bounds(contentX, y, contentWidth, 18).build());
+        AbstractWidget change = SettingsButtonWidget.builder(Component.literal("Change the answers with /bzflip"), btn -> {
+                }).bounds(contentX, y, contentWidth, 18).build();
+        change.active = false;
+        widgets.add(change);
 
         return widgets;
     }

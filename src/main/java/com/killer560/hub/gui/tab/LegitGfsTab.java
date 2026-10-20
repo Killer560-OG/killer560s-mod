@@ -4,7 +4,9 @@ import com.killer560.hub.gfs.LegitGfs;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.util.KeyUtil;
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -63,7 +65,7 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
             LegitGfs.Item row = item;
             int key = LegitGfs.keyFor(item);
             Component label = capturing == row
-                    ? Component.literal(row.label + ": Press a key...")
+                    ? Component.literal(row.label + ": Press any key...")
                     : Component.literal(row.label + ": " + (key == KeyUtil.NONE ? "§7Not set" : "§b" + KeyUtil.bindDisplayName(key)));
             widgets.add(SettingsButtonWidget.builder(label, btn -> {
                         capturing = row;
@@ -71,8 +73,8 @@ public class LegitGfsTab extends BaseTab implements KeyCaptureTab {
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 22;
         }
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Type /k gfs pearl, boom, leap or jerry"), btn -> {
-                }).bounds(contentX, y, contentWidth, 18).build());
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                Component.literal("§7Type /k gfs pearl, boom, leap or jerry"), Minecraft.getInstance().font));
         return widgets;
     }
 }

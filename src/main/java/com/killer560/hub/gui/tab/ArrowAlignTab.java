@@ -69,9 +69,9 @@ public class ArrowAlignTab extends BaseTab {
 
             if (cfg.isHighlightFrames()) {
                 widgets.add(SettingsButtonWidget.builder(
-                        ColorSwatch.label("Highlight Color", cfg.getHighlightColor()), btn -> {
+                        ColorSwatch.label("Highlight Colour", cfg.getHighlightColor()), btn -> {
                             Minecraft client = Minecraft.getInstance();
-                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Highlight Color",
+                            McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Highlight Colour",
                                     cfg.getHighlightColor(), ArrowAlignConfig.DEFAULT_HIGHLIGHT_COLOR, argb -> {
                                 cfg.setHighlightColor(argb);
                                 cfg.save();

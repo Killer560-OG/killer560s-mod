@@ -52,9 +52,9 @@ public class TooltipScrollTab extends BaseTab {
         if (!renderSeen || !scrollSeen) {
             String warning;
             if (!renderSeen) {
-                warning = "§8Render hook hasn't fired - hover any tooltip. If this stays, the mixin didn't apply.";
+                warning = "§7Not active yet. Hover any tooltip; if this stays, Scrollable Tooltips could not attach to the game.";
             } else {
-                warning = "§8Render hook is alive; scroll hook hasn't fired - scroll while hovering an item.";
+                warning = "§7Tooltips are detected; scrolling has not been seen yet - scroll while hovering an item.";
             }
             widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(warning), mc.font));
             y += 14;

@@ -2,27 +2,15 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.modchat.ModChatConfig;
-import com.killer560.hub.notify.ModOverlayMessage;
-import com.killer560.hub.relay.HypixelLocation;
-import com.killer560.hub.relay.RelayClient;
-import com.killer560.hub.relay.RelayRoom;
-import com.killer560.hub.util.ModChat;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.narration.NarratedElementType;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /** Mod Chat settings - see {@link com.killer560.hub.modchat.ModChatFeature}. Messages go over the mod's own
  *  relay, never over Hypixel chat, so non-mod-users cannot see them. */
 public class ModChatTab extends BaseTab {
-
-    private static final int LINE_HEIGHT = 11;
 
     public ModChatTab() {
         super("Mod Chat");
@@ -69,80 +57,7 @@ public class ModChatTab extends BaseTab {
         return widgets;
     }
 
-    private static List<Component> status() {
-        RelayClient.State state = RelayClient.state();
-        int colour = switch (state) {
-            case CONNECTED -> ModChat.GOOD;
-            case RETRYING, NO_URL -> ModChat.BAD;
-            default -> ModChat.DIM;
-        };
-        List<Component> lines = new ArrayList<>(3);
-        lines.add(ModChat.colored("Relay: ", ModChat.TEXT).append(ModChat.colored(RelayClient.statusText(), colour)));
-        lines.add(ModChat.colored("Room: ", ModChat.TEXT).append(roomLine(RelayClient.room())));
-        List<String> online = RelayClient.online();
-        List<String> others = new ArrayList<>(online.size());
-        Minecraft client = Minecraft.getInstance();
-        String self = client.player == null ? null : client.player.getGameProfile().name();
-        for (String name : online) {
-            if (self == null || !self.equalsIgnoreCase(name)) {
-                others.add(name);
-            }
-        }
-        lines.add(ModChat.colored("Mod users here: ", ModChat.TEXT).append(others.isEmpty()
-                ? ModChat.dim(state == RelayClient.State.CONNECTED ? "nobody else yet" : "-")
-                : ModChat.value(String.join(", ", others))));
-        return lines;
-    }
-
-    /** Honest about why there's no room yet instead of ever implying a wider one is in use - see
-     *  {@code RelayRoom}'s class doc on the removed Global option. {@code room} is whatever the relay
-     *  actually connected with, which can lag one connect cycle behind a just-changed setting. */
-    private static Component roomLine(String room) {
-        if (room != null && !room.isEmpty()) {
-            return ModChat.value(RelayRoom.describe(room));
-        }
-        ModChatConfig cfg = ModChatConfig.getInstance();
-        if (cfg.getRoomMode() == RelayRoom.Mode.PARTY) {
-            return ModChat.dim("Party (not in a party)");
-        }
-        Minecraft client = Minecraft.getInstance();
-        if (HypixelLocation.isP3Sim(client)) {
-            return ModChat.dim("Lobby (not available on p3sim)");
-        }
-        // The id can already be known here (e.g. right after switching modes) with the socket still on its
-        // way to the new room - say so rather than imply nothing has happened yet.
-        return ModChat.dim(HypixelLocation.isKnown() ? "Lobby (connecting...)" : "Lobby (waiting for location...)");
-    }
-
     private static Component onOff(String label, boolean value) {
         return Component.literal(label + ": " + (value ? "§aON" : "§cOFF"));
-    }
-
-    /** A few lines of text re-read every frame - the relay's state changes while the screen is open, and a
-     *  {@code StringWidget} built once would freeze on whatever it said when the tab was opened. Inert: it is
-     *  never active, so it takes no clicks and no tab focus. */
-    private static final class LiveTextWidget extends AbstractWidget {
-
-        private final Supplier<List<Component>> lines;
-
-        private LiveTextWidget(int x, int y, int width, int height, Supplier<List<Component>> lines) {
-            super(x, y, width, height, Component.empty());
-            this.lines = lines;
-            this.active = false;
-        }
-
-        @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            int y = getY();
-            for (Component line : lines.get()) {
-                graphics.text(Minecraft.getInstance().font, line, getX(), y, 0xFFFFFFFF);
-                y += LINE_HEIGHT;
-            }
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {
-            output.add(NarratedElementType.TITLE, Component.literal("Mod Chat relay status"));
-        }
     }
 }

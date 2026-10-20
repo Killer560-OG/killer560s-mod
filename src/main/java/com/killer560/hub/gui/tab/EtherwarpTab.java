@@ -63,7 +63,7 @@ public class EtherwarpTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(colorButton(contentX, y, contentWidth, "Color", cfg.getColor(),
+        widgets.add(colorButton(contentX, y, contentWidth, "Colour", cfg.getColor(),
                 EtherwarpWaypointsConfig.DEFAULT_COLOR, cfg::setColor));
         y += 26;
 

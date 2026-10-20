@@ -30,16 +30,12 @@ public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
         applyCapture(keyCode == InputConstants.KEY_ESCAPE ? -1 : keyCode);
     }
 
-    /** Lets {@code ModScreen} route the next mouse press here instead of to the widget under the cursor.
-     *  Not yet an interface method - the {@code KeyCaptureTab}/{@code ModScreen} patch is in this wave's
-     *  staging notes; it becomes an override the moment that lands. */
+    /** Lets {@code ModScreen} route the next mouse press here (a {@code KeyCaptureTab} method). */
     public boolean supportsMouseCapture() {
         return true;
     }
 
-    /** Mouse half of the capture (killer560: "make all of the keybind things compatible with mouse buttons
-     *  and middle mouse buttons"). Not yet an interface method - {@code ModScreen}'s routing patch is in this
-     *  wave's staging notes; until it lands this simply never gets called. */
+    /** Mouse half of the capture: a mouse button can be bound as well as a key. */
     public void onMouseCaptured(int button) {
         applyCapture(AbilityKeybindsConfig.codeForMouseButton(button));
     }

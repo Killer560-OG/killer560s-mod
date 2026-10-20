@@ -401,7 +401,7 @@ public class ModScreen extends Screen {
 
     /** Selects the sidebar entry called {@code name} ("Favourites" included) and rebuilds; false if there is none. */
     public boolean selectCategory(String name) {
-        if ("Favorites".equals(name)) {
+        if ("Favourites".equals(name)) {
             favouritesSelected = true;
             gridScroll = 0;
             rebuild();
@@ -509,7 +509,7 @@ public class ModScreen extends Screen {
             side.add(new SideEntry(tabs.get(home).name, "⌂", home, false, x, y, w, rowH));
             y += rowH + 1;
         }
-        side.add(new SideEntry("Favorites", "★", -1, true, x, y, w, rowH));
+        side.add(new SideEntry("Favourites", "★", -1, true, x, y, w, rowH));
         y += rowH + 4;
         sideSeparators.add(y - 2);
         y += 4;
@@ -949,7 +949,7 @@ public class ModScreen extends Screen {
             }
             if (added == 0) {
                 items.add(new Item(ItemKind.BLOCK, null, null, false, new HintBlock(
-                        "No favorites yet. Click the star on a feature card, or in a drawer's title bar, to pin it here.")));
+                        "No favourites yet. Click the star on a feature card, or in a drawer's title bar, to pin it here.")));
             }
             return;
         }
@@ -2921,7 +2921,7 @@ public class ModScreen extends Screen {
      *  should have a button to toggle between the fancy or simple mode for main menu"; left click forward, right click back). */
     private final class ThemeBlock implements Block {
 
-        private static final String CUSTOMISE = "Customize...";
+        private static final String CUSTOMISE = "Customise...";
 
         @Override
         public int height(int width) {

@@ -51,7 +51,7 @@ public class DungeonAlertsTab extends BaseTab {
         master(w, contentX, y, contentWidth, "Shadow Assassin Alert", () -> cfg.shadowAssassinEnabled,
                 v -> cfg.shadowAssassinEnabled = v, requestRebuild);
         if (cfg.shadowAssassinEnabled) {
-            colorButton(w, contentX, y[0], contentWidth, "Alert Color", () -> cfg.shadowAssassinColor,
+            colorButton(w, contentX, y[0], contentWidth, "Alert Colour", () -> cfg.shadowAssassinColor,
                     v -> cfg.shadowAssassinColor = v, DungeonAlertsConfig.DEFAULT_SHADOW_ASSASSIN_COLOR);
             y[0] += 24;
         }
@@ -63,9 +63,9 @@ public class DungeonAlertsTab extends BaseTab {
             toggle(w, contentX, y[0], half, "Room Cleared", () -> cfg.roomAlertsRoomCleared, v -> cfg.roomAlertsRoomCleared = v);
             toggle(w, colB, y[0], half, "Secrets Done", () -> cfg.roomAlertsSecretsDone, v -> cfg.roomAlertsSecretsDone = v);
             y[0] += 22;
-            colorButton(w, contentX, y[0], half, "Cleared Color", () -> cfg.roomAlertsClearedColor,
+            colorButton(w, contentX, y[0], half, "Cleared Colour", () -> cfg.roomAlertsClearedColor,
                     v -> cfg.roomAlertsClearedColor = v, DungeonAlertsConfig.DEFAULT_ROOM_ALERT_COLOR);
-            colorButton(w, colB, y[0], half, "Secrets Color", () -> cfg.roomAlertsSecretsColor,
+            colorButton(w, colB, y[0], half, "Secrets Colour", () -> cfg.roomAlertsSecretsColor,
                     v -> cfg.roomAlertsSecretsColor = v, DungeonAlertsConfig.DEFAULT_ROOM_ALERT_COLOR);
             y[0] += 22;
             w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, displayLabel(cfg), (cfg.roomAlertsDisplaySeconds - 0.5) / 2.5) {

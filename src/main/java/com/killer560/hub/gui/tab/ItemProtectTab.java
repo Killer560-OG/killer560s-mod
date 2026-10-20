@@ -117,9 +117,9 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         cfg.save();
                         btn.setMessage(onOff("Item ID Fallback", cfg.isUseItemIdFallback()));
                     }).bounds(contentX, y, half, 18).build());
-            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Color", cfg.getProtectedColor()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Star Colour", cfg.getProtectedColor()), btn -> {
                         Minecraft client = Minecraft.getInstance();
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Color",
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Protected Item Star Colour",
                                 cfg.getProtectedColor(), ItemProtectConfig.DEFAULT_STAR_COLOR, argb -> {
                             cfg.setProtectedColor(argb);
                             cfg.save();

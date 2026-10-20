@@ -101,7 +101,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                 widgets.add(toggle("Player Heads", cfg::isPlayerHeads, cfg::setPlayerHeads, cfg, contentX, y, full));
                 y += 20;
             }
-            widgets.add(toggle("Recolor by Class", cfg::isClassRecolorTeammates, cfg::setClassRecolorTeammates, cfg,
+            widgets.add(toggle("Recolour by Class", cfg::isClassRecolorTeammates, cfg::setClassRecolorTeammates, cfg,
                     contentX, y, colW));
             widgets.add(toggle("Names Holding Leap", cfg::isLeapNames, cfg::setLeapNames, cfg, colB, y, colW));
             y += 20;
@@ -118,7 +118,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         // ---------------------------------------------------------------- how both maps look
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Map Appearance", false), font));
         y += 16;
-        widgets.add(toggle("Color Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
+        widgets.add(toggle("Colour Rooms by Type", cfg::isColourByType, cfg::setColourByType, cfg, contentX, y, colW));
         widgets.add(slider("Darken Unexplored", cfg::getDarkenUnopened, v -> cfg.setDarkenUnopened((float) v), 0, 0.9, "",
                 cfg, colB, y, colW));
         y += 20;
@@ -186,7 +186,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
         y += 20;
         widgets.add(colour("Map Background", cfg::getMapBackground, cfg::setMapBackground,
                 LiveMapConfig.DEFAULT_MAP_BACKGROUND, cfg, contentX, y, colW));
-        widgets.add(colour("Border Color", cfg::getMapBorderColor, cfg::setMapBorderColor, LiveMapConfig.DEFAULT_MAP_BORDER,
+        widgets.add(colour("Border Colour", cfg::getMapBorderColor, cfg::setMapBorderColor, LiveMapConfig.DEFAULT_MAP_BORDER,
                 cfg, colB, y, colW));
         y += 24;
 
@@ -210,7 +210,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             y += 20;
             if (cfg.isFunnyMapRaw()) {
                 widgets.add(toggle("Show Mimic Room", cfg::isShowMimicRoomRaw, cfg::setShowMimicRoom, cfg, contentX, y, colW));
-                widgets.add(colour("Mimic Room Color", cfg::getMimicColorRaw, cfg::setMimicColor, 0x33FF0000, cfg, colB, y,
+                widgets.add(colour("Mimic Room Colour", cfg::getMimicColorRaw, cfg::setMimicColor, 0x33FF0000, cfg, colB, y,
                         colW));
                 y += 20;
             }

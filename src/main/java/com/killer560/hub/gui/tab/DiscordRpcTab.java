@@ -12,9 +12,8 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Discord Rich Presence settings - see {@link DiscordRpcFeature}. The Application ID box is the whole
- *  feature: Rich Presence shows the NAME of a Discord application, so it only works with an app killer560
- *  creates himself at discord.com/developers (named "Killer560's Mod"), and no id ships with the mod. */
+/** Discord Rich Presence settings - see {@link DiscordRpcFeature}. Shows the mod's Discord application (its id
+ *  ships in DiscordRpcConfig). */
 public class DiscordRpcTab extends BaseTab {
 
     public DiscordRpcTab() {
@@ -70,8 +69,7 @@ public class DiscordRpcTab extends BaseTab {
                 }).bounds(contentX + halfW + gap, y, halfW, 18).build());
         y += 22;
 
-        if (cfg.isHideDetails()) {
-        } else {
+        if (!cfg.isHideDetails()) {
             widgets.add(SettingsButtonWidget.builder(onOff("Show Island / Area", cfg.isShowArea()), btn -> {
                         cfg.setShowArea(!cfg.isShowArea());
                         cfg.save();

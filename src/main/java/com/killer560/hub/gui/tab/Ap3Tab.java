@@ -199,7 +199,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
     private void buildColorSection(List<AbstractWidget> w, Ap3Config cfg, int x, int[] y, int width, int half, Runnable rebuild) {
         boolean open = scanningForSearch || cfg.isColorsSectionOpen();
-        y[0] = CollapsibleSection.header(w, x, y[0], width, "AP3 Colors", true, open, () -> {
+        y[0] = CollapsibleSection.header(w, x, y[0], width, "AP3 Colours", true, open, () -> {
             cfg.setColorsSectionOpen(!cfg.isColorsSectionOpen());
             cfg.save();
             rebuild.run();
@@ -207,25 +207,25 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         if (!open) {
             return;
         }
-        toggle(w, x, y, "Uniform Node Color", cfg::isUniformColor, cfg::setUniformColor, rebuild);
+        toggle(w, x, y, "Uniform Node Colour", cfg::isUniformColor, cfg::setUniformColor, rebuild);
         if (cfg.isUniformColor()) {
-            colorButton(w, x, y[0], half, "Chain Color", cfg.getUniformColorArgb(),
+            colorButton(w, x, y[0], half, "Chain Colour", cfg.getUniformColorArgb(),
                     Ap3Config.DEFAULT_UNIFORM_COLOR, cfg::setUniformColorArgb, null);
-            colorButton(w, x + half + GAP, y[0], half, "Current Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF,
+            colorButton(w, x + half + GAP, y[0], half, "Current Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF,
                     cfg::setActiveColorArgb, null);
             y[0] += 24;
             return;
         }
-        colorButton(w, x, y[0], half, "Current Node Color", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb, null);
+        colorButton(w, x, y[0], half, "Current Node Colour", cfg.getActiveColorArgb(), 0xFFFFFFFF, cfg::setActiveColorArgb, null);
         y[0] += 24;
         Ap3Node.Type[] types = Ap3Node.Type.values();
         for (int i = 0; i < types.length; i += 2) {
             Ap3Node.Type a = types[i];
-            colorButton(w, x, y[0], half, "AP3 " + Ap3Commands.typeName(a) + " Color", cfg.getNodeColorArgb(a), defaultColor(a),
+            colorButton(w, x, y[0], half, "AP3 " + Ap3Commands.typeName(a) + " Colour", cfg.getNodeColorArgb(a), defaultColor(a),
                     argb -> cfg.setNodeColorArgb(a, argb), null);
             if (i + 1 < types.length) {
                 Ap3Node.Type b = types[i + 1];
-                colorButton(w, x + half + GAP, y[0], half, "AP3 " + Ap3Commands.typeName(b) + " Color", cfg.getNodeColorArgb(b), defaultColor(b),
+                colorButton(w, x + half + GAP, y[0], half, "AP3 " + Ap3Commands.typeName(b) + " Colour", cfg.getNodeColorArgb(b), defaultColor(b),
                         argb -> cfg.setNodeColorArgb(b, argb), null);
             }
             y[0] += 24;
@@ -255,7 +255,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
         toggleCell(w, x + half + GAP, y[0], right, "Show Node Type", cfg::isShowNodeType, cfg::setShowNodeType);
         y[0] += ROW + GAP;
         toggleCell(w, x, y[0], half, "Show Node Details", cfg::isShowNodeDetails, cfg::setShowNodeDetails);
-        // "toggleable for color": the node's own colour (so the number matches its box) or one fixed colour.
+        // "toggleable for colour": the node's own colour (so the number matches its box) or one fixed colour.
         w.add(SettingsButtonWidget.cycling(labelColorModeText(cfg), (btn, dir) -> {
                     cfg.setLabelUseNodeColor(!cfg.isLabelUseNodeColor());
                     cfg.save();
@@ -263,7 +263,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                 }).bounds(x + half + GAP, y[0], right, ROW).build());
         y[0] += ROW + GAP;
         if (!cfg.isLabelUseNodeColor()) {
-            colorButton(w, x, y[0], width, "Fixed Label Color", cfg.getLabelColorArgb(),
+            colorButton(w, x, y[0], width, "Fixed Label Colour", cfg.getLabelColorArgb(),
                     Ap3Config.DEFAULT_LABEL_COLOR, cfg::setLabelColorArgb, null);
             y[0] += 24;
         }
@@ -339,7 +339,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component labelColorModeText(Ap3Config cfg) {
-        return Component.literal("Label Color: §6" + (cfg.isLabelUseNodeColor() ? "Node's Color" : "Fixed"));
+        return Component.literal("Label Colour: §6" + (cfg.isLabelUseNodeColor() ? "Node's Colour" : "Fixed"));
     }
 
     private static Component messageDetailText(Ap3Config cfg) {

@@ -101,9 +101,9 @@ public class DungeonQueueTab extends BaseTab {
             widgets.add(toggle("Ignore Own Class", pf::isIgnoreOwnRole, pf::setIgnoreOwnRole, pf::save,
                     contentX, y, contentWidth));
             y += 20;
-            widgets.add(colorButton("Joinable Color", pf::getJoinableColor, pf::setJoinableColor,
+            widgets.add(colorButton("Joinable Colour", pf::getJoinableColor, pf::setJoinableColor,
                     PartyFinderOverlayConfig.DEFAULT_JOINABLE_COLOR, pf::save, contentX, y, colW));
-            widgets.add(colorButton("Blocked Color", pf::getBlockedColor, pf::setBlockedColor,
+            widgets.add(colorButton("Blocked Colour", pf::getBlockedColor, pf::setBlockedColor,
                     PartyFinderOverlayConfig.DEFAULT_BLOCKED_COLOR, pf::save, colBX, y, colW));
             y += 20;
         }
@@ -113,7 +113,7 @@ public class DungeonQueueTab extends BaseTab {
         widgets.add(rebuildToggle("Member Count", pf::isMemberCount, pf::setMemberCount, pf::save, requestRebuild,
                 contentX, y, pf.isMemberCount() ? colW : contentWidth));
         if (pf.isMemberCount()) {
-            widgets.add(colorButton("Count Color", pf::getCountColor, pf::setCountColor,
+            widgets.add(colorButton("Count Colour", pf::getCountColor, pf::setCountColor,
                     PartyFinderOverlayConfig.DEFAULT_COUNT_COLOR, pf::save, colBX, y, colW));
         }
         y += 24;
@@ -139,7 +139,7 @@ public class DungeonQueueTab extends BaseTab {
                     pf.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(toggle("Rank Name Colors", pf::isRankNameColors, pf::setRankNameColors, pf::save, colBX, y, colW));
+        widgets.add(toggle("Rank Name Colours", pf::isRankNameColors, pf::setRankNameColors, pf::save, colBX, y, colW));
         y += 20;
         if (pf.getCompactMode() == CompactMode.CUSTOM) {
             y = buildCustomStyleEditor(widgets, pf, requestRebuild, contentX, y, contentWidth, colW, colBX);

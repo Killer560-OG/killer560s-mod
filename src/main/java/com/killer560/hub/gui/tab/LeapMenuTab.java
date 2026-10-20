@@ -96,10 +96,10 @@ public class LeapMenuTab extends BaseTab {
         // 2026-10-18, ScreenThemes.section).
 
         if (cfg.isEnabled()) {
-            widgets.add(SettingsButtonWidget.builder(onOff("Use Class Colors", cfg.isUseClassColors()), btn -> {
+            widgets.add(SettingsButtonWidget.builder(onOff("Use Class Colours", cfg.isUseClassColors()), btn -> {
                         cfg.setUseClassColors(!cfg.isUseClassColors());
                         cfg.save();
-                        btn.setMessage(onOff("Use Class Colors", cfg.isUseClassColors()));
+                        btn.setMessage(onOff("Use Class Colours", cfg.isUseClassColors()));
                     }).bounds(x, y, half, ROW).build());
 
             float span = SpiritLeapOverlayConfig.MAX_SCALE - SpiritLeapOverlayConfig.MIN_SCALE;

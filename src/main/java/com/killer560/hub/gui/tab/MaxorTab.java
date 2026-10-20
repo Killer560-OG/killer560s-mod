@@ -75,7 +75,7 @@ public class MaxorTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Crystal Highlight", false), mc.font));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Highlight Crystals", cfg::getHighlightRaw, cfg::setHighlight));
-        widgets.add(colorButton(col2X, y, colW, "Highlight Color", cfg.getHighlightColor(),
+        widgets.add(colorButton(col2X, y, colW, "Highlight Colour", cfg.getHighlightColor(),
                 MaxorConfig.DEFAULT_HIGHLIGHT_COLOR, cfg::setHighlightColor));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Filled Boxes", cfg::isHighlightFilled, cfg::setHighlightFilled));

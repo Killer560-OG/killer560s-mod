@@ -148,9 +148,9 @@ public class P3NavTab extends BaseTab {
 
     private static void colorButton(List<AbstractWidget> widgets, int x, int y, int width, String name,
                                     IntSupplier getter, IntConsumer setter, int defaultColor) {
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", getter.getAsInt()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Colour", getter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name + " Color",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), name + " Colour",
                             getter.getAsInt(), defaultColor, setter::accept));
                 }).bounds(x, y, width, 18).build());
     }

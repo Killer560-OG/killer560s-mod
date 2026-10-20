@@ -69,10 +69,10 @@ public class EtherwarpOverlayTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 
-        widgets.add(colorButton(contentX, y, colW, "Safe Color", cfg.getSafeColor(),
+        widgets.add(colorButton(contentX, y, colW, "Safe Colour", cfg.getSafeColor(),
                 EtherwarpOverlayConfig.DEFAULT_SAFE_COLOR, cfg::setSafeColor));
         if (cfg.isShowWhenFailed()) {
-            widgets.add(colorButton(col2X, y, colW, "Failed Color", cfg.getFailedColor(),
+            widgets.add(colorButton(col2X, y, colW, "Failed Colour", cfg.getFailedColor(),
                     EtherwarpOverlayConfig.DEFAULT_FAILED_COLOR, cfg::setFailedColor));
         }
         y += 26;

@@ -35,7 +35,7 @@ import com.killer560.hub.compat.McCompat;
 public class ColorPickerScreen extends Screen {
 
     /** Tooltip scope for this screen's buttons in {@code SettingTooltipsData} ("colour picker/copy" ...). */
-    static final String TOOLTIP_SCOPE = "color picker";
+    static final String TOOLTIP_SCOPE = "colour picker";
     private static final long STATUS_MS = 3000L;
     private static final int SWATCH = 16;
     private static final int SWATCH_GAP = 4;
@@ -157,7 +157,7 @@ public class ColorPickerScreen extends Screen {
         }
         ColourHex.Parsed p = ColourHex.parse(clip);
         if (p == null) {
-            setStatus("Clipboard is not a color", true);
+            setStatus("Clipboard is not a colour", true);
             return false;
         }
         applyArgb(ColourHex.applyTo(argb, p));
@@ -239,7 +239,7 @@ public class ColorPickerScreen extends Screen {
         ColourHex.Parsed p = ColourHex.parse(text);
         if (p == null) {
             if (text != null && !text.isBlank()) {
-                setStatus("Not a color: use #RRGGBB", true);
+                setStatus("Not a colour: use #RRGGBB", true);
             }
             return;
         }
@@ -354,7 +354,7 @@ public class ColorPickerScreen extends Screen {
         }
         String text;
         if (swatch >= 0) {
-            text = swatch < recent.size() ? ColourHex.format(recent.get(swatch)) + " - click to use this color" : null;
+            text = swatch < recent.size() ? ColourHex.format(recent.get(swatch)) + " - click to use this colour" : null;
         } else {
             text = hovered == null ? null : SettingTooltips.describe(TOOLTIP_SCOPE, hovered.getMessage().getString());
         }

@@ -118,11 +118,11 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 rightW, false, null));
         y += 24;
         widgets.add(toggle("Element Edges", hc::isSnapElementEdges, hc::setSnapElementEdges, contentX, y, half, true, null));
-        widgets.add(toggle("Element Centers", hc::isSnapElementCentres, hc::setSnapElementCentres,
+        widgets.add(toggle("Element Centres", hc::isSnapElementCentres, hc::setSnapElementCentres,
                 contentX + half + gap, y, rightW, true, null));
         y += 24;
         widgets.add(toggle("Screen Edges", hc::isSnapScreenEdges, hc::setSnapScreenEdges, contentX, y, half, true, null));
-        widgets.add(toggle("Screen Center", hc::isSnapScreenCentre, hc::setSnapScreenCentre, contentX + half + gap, y,
+        widgets.add(toggle("Screen Centre", hc::isSnapScreenCentre, hc::setSnapScreenCentre, contentX + half + gap, y,
                 rightW, true, null));
         y += 24;
         // Alone on its line, so full width: its switch lines up with the others on the right (at half width it sat in

@@ -44,7 +44,7 @@ final class FeatureDescriptions {
         BY_TAB.put("CustomPartyFinderTab", "Our own party finder for Dungeons, Diana and Fishing: list a party, ask to join one, and the leader's invite is accepted for you.");
         BY_TAB.put("WitherDragonsTab", "F7/M7 dragon phase: spawn timers, priority, boxes and health, and the King Relics helper.");
         BY_TAB.put("MobEspTab", "Boxes or glow on starred mobs, bats and the wither bosses.");
-        BY_TAB.put("LeapMenuTab", "A custom leap menu with player heads and class colors, and a message sent when you leap.");
+        BY_TAB.put("LeapMenuTab", "A custom leap menu with player heads and class colours, and a message sent when you leap.");
         BY_TAB.put("CroesusTab", "Chest profit in Croesus, a profit logger for claimed chests, and hiding opened runs.");
         BY_TAB.put("ExperimentsTab", "Solves the Experimentation Table games, and tracks the profit of your sessions.");
         BY_TAB.put("InventoryThemeTab", "Re-skins the inventory in the menu theme; Hide Potion Effects is a switch of its own.");

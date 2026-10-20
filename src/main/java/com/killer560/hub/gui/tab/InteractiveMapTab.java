@@ -93,7 +93,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             widgets.add(LiveMapTab.cycle("Player Names", LiveMapConfig.PLAYER_NAME_MODES, cfg::getPlayerNames,
                     cfg::setPlayerNames, cfg, colB, y, colW));
             y += 20;
-            widgets.add(LiveMapTab.toggle("Class Colors", cfg::isClassBorderColour, cfg::setClassBorderColour,
+            widgets.add(LiveMapTab.toggle("Class Colours", cfg::isClassBorderColour, cfg::setClassBorderColour,
                     cfg, contentX, y, colW));
             widgets.add(LiveMapTab.toggle("Extra Info", cfg::isShowExtraInfo, cfg::setShowExtraInfo,
                     cfg, colB, y, colW));

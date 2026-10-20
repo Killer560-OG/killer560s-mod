@@ -57,7 +57,7 @@ public class AbilityCooldownTab extends BaseTab {
         toggle(w, colB, y[0], half, "Text Only", cfg::isTextOnly, cfg::setTextOnly, cfg);
         y[0] += 22;
         toggle(w, contentX, y[0], half, "Show When Ready", cfg::isShowWhenReady, cfg::setShowWhenReady, cfg);
-        toggle(w, colB, y[0], half, "Color By Remaining", cfg::isColorByRemaining, cfg::setColorByRemaining, cfg);
+        toggle(w, colB, y[0], half, "Colour By Remaining", cfg::isColorByRemaining, cfg::setColorByRemaining, cfg);
         y[0] += 22;
         w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, linesLabel(cfg),
                 (cfg.getMaxLines() - 1) / 11.0) {

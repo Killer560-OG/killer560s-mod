@@ -246,17 +246,6 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
                 cfg.getSellSpeed(), cfg.getSellDelayMinMs(), cfg.getSellDelayMaxMs()));
     }
 
-    /** The advisor's answers in as few characters as possible, so the row is never cut off. */
-    private static String shortAdvisor() {
-        com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig a = com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.getInstance();
-        String mode = a.getMode() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Mode.NPC ? "NPC" : "Bazaar";
-        String goal = a.getGoal() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Goal.TOTAL_PROFIT ? "total" : "%";
-        String buy = a.getBuyMethod() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.BuyMethod.INSTA_BUY ? "insta buy" : "buy order";
-        String sell = a.getMode() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.Mode.NPC ? "NPC sell"
-                : a.getSellMethod() == com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.SellMethod.INSTA_SELL ? "insta sell" : "sell offer";
-        return mode + " / " + goal + " / " + buy + " / " + sell;
-    }
-
     private static AbstractWidget inertLabel(int x, int y, int width, String text) {
         SettingsButtonWidget w = SettingsButtonWidget.builder(Component.literal("§7" + text), btn -> {
         }).bounds(x, y, width, 16).build();

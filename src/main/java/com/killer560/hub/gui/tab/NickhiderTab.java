@@ -27,7 +27,7 @@ public class NickhiderTab extends BaseTab {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Randomize Others", cfg.isRandomizeOthers()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Randomise Others", cfg.isRandomizeOthers()), btn -> {
                     cfg.setRandomizeOthers(!cfg.isRandomizeOthers());
                     cfg.save();
                     requestRebuild.run();
@@ -39,7 +39,7 @@ public class NickhiderTab extends BaseTab {
         }
         // A style of Randomize Others, so it only shows while that is on (and pressing Randomize Others twice
         // leaves every other setting as it was).
-        widgets.add(SettingsButtonWidget.builder(onOff("Randomized Name", cfg.isRandomizedName()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Randomised Name", cfg.isRandomizedName()), btn -> {
                     cfg.setRandomizedName(!cfg.isRandomizedName());
                     cfg.save();
                     requestRebuild.run();

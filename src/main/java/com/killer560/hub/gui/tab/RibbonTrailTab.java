@@ -126,7 +126,7 @@ public class RibbonTrailTab extends BaseTab {
         });
         y[0] += 22;
 
-        header(w, x, y, width, "Ribbon Colors");
+        header(w, x, y, width, "Ribbon Colours");
         w.add(SettingsButtonWidget.cycling(colorModeLabel(cfg), (btn, dir) -> {
                     cfg.setColorMode(SettingsButtonWidget.step(cfg.getColorMode(), dir));
                     cfg.save();
@@ -141,15 +141,15 @@ public class RibbonTrailTab extends BaseTab {
                         requestRebuild.run();
                     }).bounds(x, y[0], width, 18).build());
             y[0] += 22;
-            w.add(colorButton(x, y[0], width, "Head Color", cfg.getHeadColor(), RibbonTrailConfig.DEFAULT_HEAD_COLOR,
+            w.add(colorButton(x, y[0], width, "Head Colour", cfg.getHeadColor(), RibbonTrailConfig.DEFAULT_HEAD_COLOR,
                     cfg::setHeadColor));
             y[0] += 22;
             if (cfg.getColorCount() >= 3) {
-                w.add(colorButton(x, y[0], width, "Middle Color", cfg.getMidColor(), RibbonTrailConfig.DEFAULT_MID_COLOR,
+                w.add(colorButton(x, y[0], width, "Middle Colour", cfg.getMidColor(), RibbonTrailConfig.DEFAULT_MID_COLOR,
                         cfg::setMidColor));
                 y[0] += 22;
             }
-            w.add(colorButton(x, y[0], width, "Tail Color", cfg.getTailColor(), RibbonTrailConfig.DEFAULT_TAIL_COLOR,
+            w.add(colorButton(x, y[0], width, "Tail Colour", cfg.getTailColor(), RibbonTrailConfig.DEFAULT_TAIL_COLOR,
                     cfg::setTailColor));
             y[0] += 22;
         }
@@ -224,11 +224,11 @@ public class RibbonTrailTab extends BaseTab {
     }
 
     private static Component colorModeLabel(RibbonTrailConfig cfg) {
-        return Component.literal("Color Mode: " + cfg.getColorMode().label());
+        return Component.literal("Colour Mode: " + cfg.getColorMode().label());
     }
 
     private static Component colorCountLabel(RibbonTrailConfig cfg) {
-        return Component.literal("Colors: " + cfg.getColorCount());
+        return Component.literal("Colours: " + cfg.getColorCount());
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String title) {
