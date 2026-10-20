@@ -284,7 +284,7 @@ final class SettingTooltipsData {
         d.put("volume", "Loudness of this feature's sound, from silent to full.");
         d.put("open cringe lines folder", "Opens the folder with cringe-lines.txt, the lines /cringe picks from.");
         d.put("reload lines", "Reloads cringe-lines.txt so your edits apply to /cringe.");
-        d.put("mod enabled", "Sends the song you are playing on Spotify to chat as messages other players can see.");
+        d.put("spotify lyrics/send lyrics to chat", "Posts the song you are playing on Spotify, or its lyrics, to the chat you pick.");
         d.put("chat destination", "Which chat the lyrics are sent to: Party, All, Guild, Co-op / Plain, or Mod Chat.");
         d.put("lyrics mode", "Sends every lyric line, or only announces the song when it changes.");
         d.put("profanity filter", "Stars out swear words in the lyrics you send.");

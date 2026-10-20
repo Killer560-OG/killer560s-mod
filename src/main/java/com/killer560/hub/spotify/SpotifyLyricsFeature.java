@@ -34,6 +34,9 @@ public final class SpotifyLyricsFeature {
     // Off by default, and "Song Title Only" by default (killer560, 2026-09-30). This is one of the few
     // settings that does NOT follow the usual "defaults ON" rule; he asked for it off. The same two defaults
     // are repeated in loadConfig() as the fallback for a missing key, so keep all three in agreement.
+    // "enabled" is the Send Lyrics To Chat switch (row renamed from "Mod Enabled", killer560 2026-10-20: "an option
+    // for sending lyrics"). It only ever controlled chat posting; the HUD has its own switch. Same field and JSON
+    // key as before, so nobody's saved value changes.
     public static volatile boolean enabled = false;
     public static volatile ChatDestination chatDestination = ChatDestination.PARTY;
     public static volatile boolean fullLyrics = false;
@@ -119,6 +122,15 @@ public final class SpotifyLyricsFeature {
         }
     }
 
+    /** Send Lyrics To Chat: whether lyric lines (or the song title) are posted to the chosen chat. */
+    public static boolean isSendLyricsToChat() {
+        return enabled;
+    }
+
+    public static void setSendLyricsToChat(boolean send) {
+        enabled = send;
+    }
+
     // ---- Party detection ----
 
     private static void registerChatListeners() {
@@ -145,7 +157,7 @@ public final class SpotifyLyricsFeature {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
         // credentials were entered the key + username were sent to ws.audioscrobbler.com every 2 s for
         // the whole session even with the feature disabled (2026-09-16 audit).
-        // The Spotify HUD reads the same poll, so it runs while either is on; only chat sending needs Mod Enabled.
+        // The Spotify HUD reads the same poll, so it runs while either is on; only chat sending needs Send Lyrics To Chat.
         if (!enabled && !SpotifyHudConfig.getInstance().isHudEnabled()) {
             return;
         }
