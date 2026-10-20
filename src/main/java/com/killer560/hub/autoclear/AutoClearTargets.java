@@ -31,8 +31,16 @@ final class AutoClearTargets {
         return type.equals("NORMAL") || type.equals("RARE") || type.equals("CHAMPION");
     }
 
-    /** Cleared on the map (the checkmark, green or white) on any of its tiles. */
+    /**
+     * Cleared as Auto Clear reads it: on the map, or by killer560's chest rule ({@link ChestClearRule}: its secret chest
+     * grabbed a few seconds ago, under Auto Clear or Auto Secret, and not yet 30 s without the map agreeing).
+     */
     static boolean isCleared(DungeonLayout layout, int room) {
+        return isClearedOnMap(layout, room) || ChestClearRule.clearedInItsEyes(layout, room);
+    }
+
+    /** Cleared on the map (the checkmark, green or white) on any of its tiles. */
+    static boolean isClearedOnMap(DungeonLayout layout, int room) {
         int[] tiles = layout.tiles(room);
         if (tiles == null) {
             return false;

@@ -39,6 +39,7 @@ public final class AutoPuzzleActivity {
             level = client.level;
             lastMark = Integer.MIN_VALUE / 2;
             solvedRooms.clear();
+            endedRooms.clear();
         }
     }
 
@@ -121,6 +122,30 @@ public final class AutoPuzzleActivity {
                     + " (spell of {} tick(s))", what(), ticks - spellStart);
         }
         lastMark = Integer.MIN_VALUE / 2;
+        com.killer560.hub.roomdatabase.RoomEntry room = com.killer560.hub.livemap.LiveMapFeature.currentRoomEntry();
+        if (room != null && room.name != null) {
+            endedRooms.put(room.name, ticks);
+        }
+    }
+
+    /** Rooms where an auto ended its last step this world ({@link #ended}), with the tick it did. */
+    private static final java.util.Map<String, Integer> endedRooms = new java.util.HashMap<>();
+
+    /** This class's tick clock, for {@link #endedSince}. */
+    public static int clock() {
+        return ticks;
+    }
+
+    /**
+     * An auto ended its last step in {@code room} on or after tick {@code since} ({@link #clock}): nothing it does there is
+     * left, so whatever the puzzle still does (the server's solve, the map's tick) comes whether he stays or not. Auto
+     * Secret and Dungeon Autopilot leave a puzzle on it rather than waiting for the map or tab list's check (Higher Blaze,
+     * killer560's Mod Only Test log 2026-10-20 09:55:27: done, then 7 s for the map). The Quiz is the exception the caller
+     * handles: its auto ends after every answer, not only the last.
+     */
+    public static boolean endedSince(String room, int since) {
+        Integer at = room == null ? null : endedRooms.get(room);
+        return at != null && at >= since;
     }
 
     /** True while an auto puzzle marked itself within the last {@link #GRACE_TICKS} ticks. */

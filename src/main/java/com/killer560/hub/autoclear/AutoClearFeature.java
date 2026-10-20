@@ -561,7 +561,8 @@ public final class AutoClearFeature {
         int room = AutoClearTargets.roomByName(layout, roomName);
         if (room >= 0 && AutoClearTargets.isCleared(layout, room)) {
             roomsCleared++;
-            LOGGER.info("[AutoClear] room cleared: {}", roomName);
+            LOGGER.info("[AutoClear] room cleared: {}{}", roomName, AutoClearTargets.isClearedOnMap(layout, room) ? ""
+                    : " (its secret chest was grabbed - killer560's chest rule: " + ChestClearRule.describe() + ")");
             if (singleRoom != null) {
                 finish(roomName + " cleared");
                 return;

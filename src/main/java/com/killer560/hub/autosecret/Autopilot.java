@@ -569,7 +569,8 @@ final class Autopilot {
                             mate, rushIndex));
                 }
             }
-            if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())) {
+            if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())
+                    && !com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, r.room())) {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.CLEAR, key, AutopilotScore.roomValue(s),
                         travel + clearSeconds, mate, rushIndex));
             }

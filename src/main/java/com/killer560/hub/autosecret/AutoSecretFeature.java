@@ -946,6 +946,13 @@ public final class AutoSecretFeature {
                         routed);
             }
         }
+        // killer560's chest rule: a room counted as cleared for its secret chest that the map still does not show cleared
+        // 30 s on may be come back to, once - so a clear already sent there is forgotten.
+        for (String back : com.killer560.hub.autoclear.ChestClearRule.drainReturns()) {
+            boolean had = clearsDone.remove(back);
+            LOGGER.info("[AutoSecret] {}: not cleared 30 s after its secret chest - {}", back,
+                    had ? "may send Auto Clear back to it (once)" : "it counts as uncleared again (once)");
+        }
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
         if (here >= 0) {
@@ -1041,7 +1048,7 @@ public final class AutoSecretFeature {
                         continue;
                     }
                     for (RoomStatus.Room r : rooms) {
-                        if (r.room() == id && !r.cleared() && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())) {
+                        if (r.room() == id && !clearedForUs(layout, r) && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())) {
                             LOGGER.info("[AutoSecret] Blood First (Full Blood Rush): clearing {} - room {} of the blood rush"
                                     + " path", r.name(), rush.indexOf(id) + 1);
                             goClear(layout, r, dist);
@@ -1805,9 +1812,17 @@ public final class AutoSecretFeature {
 
     /** A mob room the map shows uncleared that Auto Clear has not been sent to this run. */
     private static boolean needsClear(DungeonLayout layout, RoomStatus.Room r) {
-        return !r.cleared() && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())
+        return !clearedForUs(layout, r) && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())
                 && !r.isType("PUZZLE") && !r.isType("TRAP") && !r.isType("BLOOD") && !r.isType("ENTRANCE")
                 && !r.isType("FAIRY") && AutoClearFeature.isMobRoom(layout, r.room());
+    }
+
+    /**
+     * Cleared as far as Auto Secret is concerned: on the map, or by killer560's chest rule (its secret chest grabbed under
+     * Auto Clear or Auto Secret a few seconds ago, and not yet 30 s without the map agreeing - autoclear/ChestClearRule).
+     */
+    private static boolean clearedForUs(DungeonLayout layout, RoomStatus.Room r) {
+        return r.cleared() || com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, r.room());
     }
 
     /**
@@ -1821,7 +1836,7 @@ public final class AutoSecretFeature {
         }
         DungeonLayout layout = DungeonLayout.capture();
         for (RoomStatus.Room r : RoomStatus.rooms()) {
-            if (!r.cleared() && !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP")
+            if (!clearedForUs(layout, r) && !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("TRAP")
                     && !r.isType("BLOOD") && !r.isType("ENTRANCE") && !r.isType("FAIRY")
                     && AutoClearFeature.isMobRoom(layout, r.room()) && !clearsDone.contains(r.name())) {
                 return true;
@@ -2454,6 +2469,7 @@ public final class AutoSecretFeature {
         puzzlesDone.add(r.name());
         target = r.name();
         targetRoomId = r.room();
+        puzzleSince = com.killer560.hub.autopuzzles.AutoPuzzleActivity.clock();
         status = "Going to the puzzle " + r.name();
         LOGGER.info("[AutoSecret] autopilot: puzzle {} ({} room(s) away) - its Auto Puzzles auto", r.name(),
                 dist.get(r.room()));
@@ -2520,6 +2536,7 @@ public final class AutoSecretFeature {
             }
             target = r.name();
             targetRoomId = r.room();
+            puzzleSince = com.killer560.hub.autopuzzles.AutoPuzzleActivity.clock();
             LOGGER.info("[AutoSecret] endgame: puzzle {} ({} room(s) away)", r.name(), dist.get(r.room()));
             status = "Going to the puzzle " + r.name();
             note(ModChat.text("Secrets done - going to the puzzle "), ModChat.value(r.name()));
@@ -2534,7 +2551,7 @@ public final class AutoSecretFeature {
         // An uncleared room.
         List<RoomStatus.Room> uncleared = new ArrayList<>();
         for (RoomStatus.Room r : rooms) {
-            if (!r.cleared() && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name()) && dist.containsKey(r.room())
+            if (!clearedForUs(layout, r) && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name()) && dist.containsKey(r.room())
                     && !r.isType("PUZZLE") && !r.isType("TRAP") && !r.isType("BLOOD") && !r.isType("ENTRANCE")
                     && !r.isType("FAIRY")) {
                 uncleared.add(r);
@@ -3100,8 +3117,25 @@ public final class AutoSecretFeature {
         }
     }
 
+    /** {@link com.killer560.hub.autopuzzles.AutoPuzzleActivity#clock} when the puzzle {@link #target} was chosen. */
+    private static int puzzleSince;
+
     private static void tickPuzzleWait() {
         status = "At the puzzle " + target;
+        // Its auto has ended its last step here since the puzzle was chosen (everything held while it worked): nothing is
+        // left for him to do, so waiting only waits for the map or tab list's check, which the puzzle gets either way
+        // (killer560, 2026-10-20: Higher Blaze done at 09:55:27, the map's check at 09:55:34, handed back at 09:55:35) -
+        // or, after an auto that gave up, for a timeout that changes nothing. Leave now, on the auto's own signal. The
+        // Quiz's auto ends after every answer, not only the last, so it keeps the wait.
+        boolean autoDone = !"Quiz".equalsIgnoreCase(target)
+                && com.killer560.hub.autopuzzles.AutoPuzzleActivity.endedSince(target, puzzleSince);
+        if (autoDone) {
+            LOGGER.info("[AutoSecret] puzzle {}: its auto ended its last step - leaving without waiting for the map's"
+                    + " check, after {} tick(s)", target, phaseTicks);
+            permitLeaveHere();
+            setPhase(Phase.DECIDE);
+            return;
+        }
         if (pilot) {
             RoomStatus.Room r = roomNamed(target);
             boolean finished = r != null && Autopilot.puzzleFinished(r);

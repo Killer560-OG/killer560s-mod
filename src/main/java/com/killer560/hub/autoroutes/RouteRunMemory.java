@@ -108,6 +108,11 @@ public final class RouteRunMemory {
             LiveMapFeature.noteSecretTakenAt(pos.x, pos.z);
             LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} tick {} ({} this run)", what, key,
                     String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), AwaitEvents.now(), got.size());
+            if (what != null && what.startsWith("chest")) {
+                // killer560's rule: a mob room whose secret chest Auto Clear or Auto Secret grabbed counts as cleared a few
+                // seconds later (and may be come back to once if the map still disagrees 30 s on).
+                com.killer560.hub.autoclear.ChestClearRule.noteChest(pos, what);
+            }
         } else {
             LOGGER.info("[RouteMemory] secret {} [{}] not remembered again: {}", what, key,
                     pos == null ? "no position" : "already remembered this run");
