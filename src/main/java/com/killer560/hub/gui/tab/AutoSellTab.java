@@ -97,11 +97,11 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
 
         // Hover toggle key: press it over an item in any container to add or remove that item from the sell list.
         widgets.add(SettingsButtonWidget.builder(
-                capturingToggleKey ? Component.literal("Press a key...")
+                capturingToggleKey ? Component.literal("Press any key...")
                         : Component.literal("Toggle Item Key: " + KeyUtil.bindDisplayName(cfg.getToggleKeyCode())),
                 btn -> {
                     capturingToggleKey = true;
-                    btn.setMessage(Component.literal("Press a key..."));
+                    btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open Sell List"), btn -> {

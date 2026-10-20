@@ -833,7 +833,7 @@ public final class TerminalSolverFeature {
                 ModChat.send("Terminals",
                         ModChat.bad("A terminal click was aborted: another mod threw on the click path. "),
                         ModChat.text("Auto Terminals is standing down for this terminal - see the log. "),
-                        ModChat.dim("If Skyblocker is installed, turn its own terminal solvers off (Dungeons > Terminals) - Custom GUI hides the screen they initialize from."));
+                        ModChat.dim("If Skyblocker is installed, turn its own terminal solvers off (Dungeons > Terminals) - Custom GUI hides the screen they initialise from."));
             }
             return false;
         }

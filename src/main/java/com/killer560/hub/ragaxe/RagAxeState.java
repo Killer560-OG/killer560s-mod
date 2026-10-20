@@ -123,7 +123,7 @@ public final class RagAxeState {
         strengthSent = true;
         endAlerted = true;
         if (cfg.isCancelAlert()) {
-            RagAxeFeature.alert("§cRagnarock Canceled!");
+            RagAxeFeature.alert("§cRagnarock Cancelled!");
         }
     }
 

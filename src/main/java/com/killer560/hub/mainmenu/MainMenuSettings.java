@@ -149,7 +149,7 @@ public final class MainMenuSettings {
     }
 
     static Component speedText() {
-        return Component.literal("Animation Speed: " + MainMenuThemeConfig.getInstance().getSpeed() + "%");
+        return Component.literal("Background Speed: " + MainMenuThemeConfig.getInstance().getSpeed() + "%");
     }
 
     static Component vanillaText() {

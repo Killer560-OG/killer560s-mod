@@ -201,7 +201,7 @@ public final class AutoBeams {
         }
         BlockPos start = PuzzleCoords.real(16, 74, 14, cr);
         if (client.level.getBlockState(start).isAir()) {
-            say("waiting: the center platform at " + AutoPuzzleUtil.fmt(start) + " reads air (chunk not loaded yet?)");
+            say("waiting: the centre platform at " + AutoPuzzleUtil.fmt(start) + " reads air (chunk not loaded yet?)");
             return;
         }
         if (REPOSITION.isActive()) {
@@ -230,11 +230,11 @@ public final class AutoBeams {
         // straight after the first had landed.
         if (Math.abs(player.getY() - platformY) > 0.5) {
             if (reposition) {
-                say("off the center platform (platform feet y " + platformY + ") - repositioning onto "
+                say("off the centre platform (platform feet y " + platformY + ") - repositioning onto "
                         + AutoPuzzleUtil.fmt(start));
                 boolean started = REPOSITION.start(client, start, true, false, false);
                 if (!started) {
-                    held("platform", "no etherwarp line onto the center platform " + AutoPuzzleUtil.fmt(start) + " from "
+                    held("platform", "no etherwarp line onto the centre platform " + AutoPuzzleUtil.fmt(start) + " from "
                             + fmt(player.position()) + (melee ? " - trying a hop toward it" : " - waiting"));
                 }
                 if (!started && melee) {
@@ -246,11 +246,11 @@ public final class AutoBeams {
                         held("platformhop" + hop, "hop toward the platform via " + AutoPuzzleUtil.fmt(hop) + " "
                                 + (hopped ? "started" : "refused"));
                     } else {
-                        held("platformhop", "no hop toward the center platform either");
+                        held("platformhop", "no hop toward the centre platform either");
                     }
                 }
             } else {
-                say("waiting: stand on the center platform (Etherwarp Reposition is off)");
+                say("waiting: stand on the centre platform (Etherwarp Reposition is off)");
             }
             return;
         }

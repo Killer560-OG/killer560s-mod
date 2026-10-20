@@ -292,7 +292,7 @@ public class ProfilesTab extends BaseTab {
         MenuStyle.well(r, x, y, w, h, MenuStyle.WELL);
         r.submit();
         MenuStyle.text(g, "No saved profiles yet.", x + 10, y + 9, MenuStyle.TXT);
-        MenuStyle.flat(g, MenuStyle.ellipsize("Name one above and press Save Current As New, or drop a .zip into Import.",
+        MenuStyle.flat(g, MenuStyle.ellipsize("Name one above and press Save Current As New, or drop a .zip in Import Profile's folder.",
                 w - 20), x + 10, y + 22, MenuStyle.DIM);
     }
 

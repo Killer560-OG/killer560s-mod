@@ -33,7 +33,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
     private int controlW;
 
     public CustomColorScreen(CustomItemsScreen main) {
-        super(Component.literal("Custom Color"));
+        super(Component.literal("Custom Colour"));
         this.main = main;
     }
 
@@ -82,7 +82,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
                         }).bounds(controlX, row(1), half, 20).build();
         colour.active = has;
         addRenderableWidget(colour);
-        SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Color: "
+        SettingsButtonWidget use = SettingsButtonWidget.builder(Component.literal("Use Colour: "
                         + (e != null && e.colorEnabled ? "§aON" : "§cOFF")), b -> {
                     main.toggleUseColour();
                     rebuildWidgets();
@@ -151,7 +151,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
-        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Custom Color");
+        ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, panelW - 6, 16, "Custom Colour");
 
         // The large preview: the item with its look, always (this page is for changing the look).
         ItemStack stack = main.selectedStack();

@@ -102,7 +102,13 @@ A new feature gets its name in the README list and its full text in `docs/FEATUR
 Google Doc is regenerated. Sharing and receiving settings default ON. The GUI is orange-themed. Never carry
 his typos into a command, label or alias.
 A setting that steps through values is built with `SettingsButtonWidget.cycling(label, (btn, dir) -> ...)` and its
-`step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`.
+`step` helpers: left click forward, right click back, wrapping (killer560, 2026-10-11); testkit 806 finds them by `isCycling()`,
+which since 2026-10-20 is true only for `cycling(...)`: a plain `builder(...).secondaryPress(...)` (Door Keys' colour rows,
+right click = Auto) is not a cycler, and 806 treating it as one opened the colour picker and failed every row after it.
+A tooltip key is its label, and labels are also built outside gui/ (config enum labels such as
+`TerminalSolverConfig.OverlayColor`, `ScoreboardEditorScreen`, `InventoryCustomizeScreen`): rename both together, or the
+hover vanishes (1c10b812 renamed the keys to British and missed those). Testkit 513 compares every hover with its fixture
+plus `menu-layout-merged.json`, and 511 every tab: an intended change goes in that file the same day.
 
 Menu placement (killer560, 2026-10-07): every feature is its own tab (a card in the Option A menu, 2026-10-12) in its
 category - no combined folders (only Secrets and Puzzle Solvers group tabs, at his request). Cheat-only tabs go in one

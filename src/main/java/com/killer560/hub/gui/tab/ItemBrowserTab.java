@@ -101,12 +101,8 @@ public class ItemBrowserTab extends BaseTab {
                 contentX, y, contentWidth, 18));
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(alignText(cfg), btn -> {
-                    cfg.setAlign(cfg.getAlign().next());
-                    cfg.save();
-                    btn.setMessage(alignText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setAlign(cfg.getAlign().previous());
+        widgets.add(SettingsButtonWidget.cycling(alignText(cfg), (btn, dir) -> {
+                    cfg.setAlign(dir > 0 ? cfg.getAlign().next() : cfg.getAlign().previous());
                     cfg.save();
                     btn.setMessage(alignText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());
@@ -140,6 +136,6 @@ public class ItemBrowserTab extends BaseTab {
     }
 
     private static Component alignText(ItemBrowserConfig cfg) {
-        return Component.literal("Centered: " + cfg.getAlign().label());
+        return Component.literal("Centred: " + cfg.getAlign().label());
     }
 }

@@ -289,7 +289,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             return;
         }
         if (capturingKey) {
-            bindButton.setMessage(Component.literal("Press a key..."));
+            bindButton.setMessage(Component.literal("Press any key..."));
         } else {
             int code = selected == null ? KeyUtil.NONE : InventorySorterConfig.getInstance().getLayoutKey(selected);
             bindButton.setMessage(Component.literal("Key: " + CommandKeybindsTab.bindName(code)));

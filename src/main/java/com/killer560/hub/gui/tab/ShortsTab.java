@@ -78,12 +78,8 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(Component.literal(cfg.isHidden() ? "Overlay: §cHidden" : "Overlay: §aShown"));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(anchorText(cfg), btn -> {
-                    cfg.setAnchor(cfg.getAnchor().next());
-                    cfg.save();
-                    btn.setMessage(anchorText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setAnchor(cfg.getAnchor().previous());
+        widgets.add(SettingsButtonWidget.cycling(anchorText(cfg), (btn, dir) -> {
+                    cfg.setAnchor(dir > 0 ? cfg.getAnchor().next() : cfg.getAnchor().previous());
                     cfg.save();
                     btn.setMessage(anchorText(cfg));
                 }).bounds(col2bX, y, col2W, 18).build());
@@ -135,13 +131,8 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
 
         // 2026-09-16, killer560: "make an option for dark or light mode. Otherwise it is perfect." Applies live
         // to a running window (no relaunch needed); a fresh launch also starts in the chosen scheme.
-        widgets.add(SettingsButtonWidget.builder(themeText(cfg), btn -> {
-                    cfg.setTheme(cfg.getTheme().next());
-                    cfg.save();
-                    btn.setMessage(themeText(cfg));
-                    ShortsFeature.applyTheme();
-                }).secondaryPress(btn -> {
-                    cfg.setTheme(cfg.getTheme().previous());
+        widgets.add(SettingsButtonWidget.cycling(themeText(cfg), (btn, dir) -> {
+                    cfg.setTheme(dir > 0 ? cfg.getTheme().next() : cfg.getTheme().previous());
                     cfg.save();
                     btn.setMessage(themeText(cfg));
                     ShortsFeature.applyTheme();
@@ -166,12 +157,8 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
         // ---- 2026-09-21 expansion (killer560 item 8.8: "YT Shorts expansion") ----
         widgets.add(label(contentX, y, contentWidth, "§6Site §7(the profile stays signed into all of them at once)"));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(siteText(cfg), btn -> {
-                    cfg.setSite(cfg.getSite().next());
-                    cfg.save();
-                    requestRebuild.run();
-                }).secondaryPress(btn -> {
-                    cfg.setSite(cfg.getSite().previous());
+        widgets.add(SettingsButtonWidget.cycling(siteText(cfg), (btn, dir) -> {
+                    cfg.setSite(dir > 0 ? cfg.getSite().next() : cfg.getSite().previous());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
@@ -189,18 +176,14 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
             y += 20;
         }
 
-        widgets.add(SettingsButtonWidget.builder(placementText(cfg), btn -> {
-                    cfg.setPlacementMode(cfg.getPlacementMode().next());
-                    cfg.save();
-                    btn.setMessage(placementText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setPlacementMode(cfg.getPlacementMode().previous());
+        widgets.add(SettingsButtonWidget.cycling(placementText(cfg), (btn, dir) -> {
+                    cfg.setPlacementMode(dir > 0 ? cfg.getPlacementMode().next() : cfg.getPlacementMode().previous());
                     cfg.save();
                     btn.setMessage(placementText(cfg));
                 }).bounds(col2aX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §7OFF"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §cOFF"), btn -> {
                     ShortsFeature.toggleEditMode();
-                    btn.setMessage(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §7OFF"));
+                    btn.setMessage(Component.literal(ShortsFeature.isEditMode() ? "Edit Window: §aON" : "Edit Window: §cOFF"));
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 

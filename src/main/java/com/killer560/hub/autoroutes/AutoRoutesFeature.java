@@ -606,7 +606,7 @@ public final class AutoRoutesFeature {
         int number = route == null ? -1 : route.indexOf(node) + 1;
         LOGGER.info("[AutoRoutes] Go To #{} ended without arrival: lastPathFailed={} tick={}", number,
                 ClearExecutor.lastPathFailed(), AwaitEvents.now());
-        chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To canceled before reaching node ")
+        chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To cancelled before reaching node ")
                 + (number > 0 ? "#" + number : "") + " - edit mode not turned on.");
     }
 

@@ -112,7 +112,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 .build());
         int picked = BreakerAuraStore.getInstance().pickedKeys().size();
         widgets.add(SettingsButtonWidget.builder(
-                Component.literal("Clear Picked (" + picked + ")"), btn -> {
+                Component.literal("Clear Picked: " + picked), btn -> {
                     com.killer560.hub.dungeonextras.BreakerAuraFeature.clearSelection();
                     requestRebuild.run();
                 }).bounds(col2bX, y, col2W, 18)

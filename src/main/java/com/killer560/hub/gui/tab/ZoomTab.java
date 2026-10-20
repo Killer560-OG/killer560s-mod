@@ -65,12 +65,12 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
         }
 
         widgets.add(SettingsButtonWidget.builder(
-                capturing ? Component.literal("Press a key...")
+                capturing ? Component.literal("Press any key...")
                         : Component.literal("Zoom Key: " + (cfg.getKeyCode() == KeyUtil.NONE ? "§7Not Set"
                         : KeyUtil.bindDisplayName(cfg.getKeyCode()))),
                 btn -> {
                     capturing = true;
-                    btn.setMessage(Component.literal("Press a key..."));
+                    btn.setMessage(Component.literal("Press any key..."));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 

@@ -370,7 +370,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
         customItem.active = has;
         addRenderableWidget(customItem);
 
-        SettingsButtonWidget customColor = SettingsButtonWidget.builder(Component.literal("Custom Color"),
+        SettingsButtonWidget customColor = SettingsButtonWidget.builder(Component.literal("Custom Colour"),
                         b -> minecraft.setScreenAndShow(new CustomColorScreen(this)))
                 .bounds(rightX, row(2), rightW, BTN_H).build();
         customColor.active = has;
@@ -540,7 +540,7 @@ public class CustomItemsScreen extends Screen implements MenuThemedScreen {
 
     /** Opens the shared colour wheel; the choice is applied to the selection and the wheel returns to {@code back}. */
     static void colourPicker(Screen back, String label, int current, java.util.function.IntConsumer onChange) {
-        Minecraft.getInstance().setScreenAndShow(new ColorPickerScreen(back, label + " Color", current, 0xFFFFFFFF, onChange));
+        Minecraft.getInstance().setScreenAndShow(new ColorPickerScreen(back, label + " Colour", current, 0xFFFFFFFF, onChange));
     }
 
     @Override

@@ -63,29 +63,29 @@ public final class TerminalSolverConfig {
      *  Rubix's left-click vs right-click tells you which mouse button to use, and Melody's endpoint /
      *  moving-piece / button / track roles are what make its board readable at a glance. */
     public enum OverlayColor {
-        PANES("colorPanes", "Panes Color", 0xFFFFA500, false),
-        NUMBERS_NEXT("colorNumbersNext", "Numbers Next Color", 0xFFFFA500, false),
-        NUMBERS_AFTER_NEXT("colorNumbersAfterNext", "Numbers After Next Color", 0xFFB37744, false),
-        NUMBERS_THIRD("colorNumbersThird", "Numbers 3rd Color", 0xFF4D3319, false),
-        STARTS_WITH("colorStartsWith", "Starts With Color", 0xFFFFA500, false),
-        SELECT("colorSelect", "Select All Color", 0xFFFFA500, false),
-        RUBIX_LEFT_CLICK("colorRubixLeftClick", "Rubix Left Click Color", 0xFFFF8C00, false),
-        RUBIX_RIGHT_CLICK("colorRubixRightClick", "Rubix Right Click Color", 0xFF3399FF, false),
-        MELODY_ENDPOINT("colorMelodyEndpoint", "Melody Endpoint Color", 0xFFFFA500, false),
-        MELODY_MOVING("colorMelodyMoving", "Melody Moving Piece Color", 0xFFFFA500, false),
-        MELODY_BUTTON("colorMelodyButton", "Melody Button Color", 0xFFFFA500, false),
-        MELODY_TRACK("colorMelodyTrack", "Melody Track Color", 0xFFCDA775, false),
+        PANES("colorPanes", "Panes Colour", 0xFFFFA500, false),
+        NUMBERS_NEXT("colorNumbersNext", "Numbers Next Colour", 0xFFFFA500, false),
+        NUMBERS_AFTER_NEXT("colorNumbersAfterNext", "Numbers After Next Colour", 0xFFB37744, false),
+        NUMBERS_THIRD("colorNumbersThird", "Numbers 3rd Colour", 0xFF4D3319, false),
+        STARTS_WITH("colorStartsWith", "Starts With Colour", 0xFFFFA500, false),
+        SELECT("colorSelect", "Select All Colour", 0xFFFFA500, false),
+        RUBIX_LEFT_CLICK("colorRubixLeftClick", "Rubix Left Click Colour", 0xFFFF8C00, false),
+        RUBIX_RIGHT_CLICK("colorRubixRightClick", "Rubix Right Click Colour", 0xFF3399FF, false),
+        MELODY_ENDPOINT("colorMelodyEndpoint", "Melody Endpoint Colour", 0xFFFFA500, false),
+        MELODY_MOVING("colorMelodyMoving", "Melody Moving Piece Colour", 0xFFFFA500, false),
+        MELODY_BUTTON("colorMelodyButton", "Melody Button Colour", 0xFFFFA500, false),
+        MELODY_TRACK("colorMelodyTrack", "Melody Track Colour", 0xFFCDA775, false),
         /** Forced fully opaque on both load and set - a translucent panel fill can never fully hide the
          *  real screen still being drawn underneath it, which is exactly the "Inactive Terminal"/"CLICK
          *  HERE" ghost-text bleed-through killer560 screenshotted in round 10 (the old constant had
          *  already been bumped from 0xEE to 0xFF for that reason). The alpha slider is therefore a no-op
          *  for this one entry. */
-        PANEL_BACKGROUND("colorPanelBackground", "Panel Background Color", 0xFF241206, true),
-        PANEL_BORDER("colorPanelBorder", "Panel Border Color", 0xFFFFA500, false),
+        PANEL_BACKGROUND("colorPanelBackground", "Panel Background Colour", 0xFF241206, true),
+        PANEL_BORDER("colorPanelBorder", "Panel Border Colour", 0xFFFFA500, false),
         /** The little per-slot label drawn over the vanilla (non-Custom-GUI) overlay. */
-        LABEL_TEXT("colorLabelText", "Label Text Color", 0xFFFFFFFF, false),
+        LABEL_TEXT("colorLabelText", "Label Text Colour", 0xFFFFFFFF, false),
         /** Rubix's click-count number, drawn centred inside its filled Custom GUI cell. */
-        RUBIX_COUNT_TEXT("colorRubixCountText", "Rubix Count Text Color", 0xFF000000, false);
+        RUBIX_COUNT_TEXT("colorRubixCountText", "Rubix Count Text Colour", 0xFF000000, false);
 
         private final String key;
         private final String label;

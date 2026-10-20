@@ -79,7 +79,7 @@ public final class DyePickerScreen extends Screen implements MenuThemedScreen {
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         MenuStyle.text(graphics, this.font.plainSubstrByWidth(
-                        "Animated: left click first color, right click second", panelW - 16),
+                        "Animated: left click first colour, right click second", panelW - 16),
                 panelX + 8, panelY + 20, MenuStyle.DIM);
     }
 

@@ -63,7 +63,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         for (int i = 0; i < binds.size(); i++) {
             final int index = i;
             Component label = capturingIndex == index
-                    ? Component.literal("Press a key" + modsSuffix())
+                    ? Component.literal("Press any key" + modsSuffix())
                     : Component.literal("Open Bind " + (i + 1) + ": §b" + binds.get(i).display());
             widgets.add(SettingsButtonWidget.builder(label, btn -> {
                         capturingIndex = index;
@@ -80,7 +80,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
         }
         if (binds.size() < StorageSearchConfig.MAX_BINDS) {
             Component label = capturingIndex == CAPTURING_NEW
-                    ? Component.literal("Press a key" + modsSuffix())
+                    ? Component.literal("Press any key" + modsSuffix())
                     : Component.literal("+ Add Open Bind");
             widgets.add(SettingsButtonWidget.builder(label, btn -> {
                         capturingIndex = CAPTURING_NEW;

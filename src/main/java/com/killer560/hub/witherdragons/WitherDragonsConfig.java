@@ -55,7 +55,7 @@ public final class WitherDragonsConfig {
     }
 
     public enum NameStyle {
-        COLOUR("Color (Red)"), TYPE("Type (Power)");
+        COLOUR("Colour (Red)"), TYPE("Type (Power)");
         public final String label;
 
         NameStyle(String label) {

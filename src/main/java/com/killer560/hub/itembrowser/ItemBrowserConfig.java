@@ -18,7 +18,7 @@ public final class ItemBrowserConfig {
      *  it is centered as well". The panel is always full screen height (see {@link ItemBrowserFeature}),
      *  so only the horizontal anchor is meaningful. */
     public enum HorizontalAlign {
-        LEFT("Left"), CENTER("Center"), RIGHT("Right");
+        LEFT("Left"), CENTER("Centre"), RIGHT("Right");
 
         private final String label;
 
