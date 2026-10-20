@@ -32,16 +32,28 @@ public class SpotifyTab extends BaseTab {
         int y = contentY;
         int half = (contentWidth - 8) / 2;
 
-        widgets.add(SettingsButtonWidget.builder(enabledText(), btn -> {
-                    SpotifyLyricsFeature.enabled = !SpotifyLyricsFeature.enabled;
+        // The tab's two features, each with its own switch, both at the top (killer560, 2026-10-20: "it needs a
+        // setting for the hud and an option for sending lyrics as well"). Send Lyrics To Chat was the "Mod Enabled"
+        // row, which only ever controlled chat; the HUD switch moved up from under its header.
+        widgets.add(SettingsButtonWidget.builder(sendText(), btn -> {
+                    SpotifyLyricsFeature.setSendLyricsToChat(!SpotifyLyricsFeature.isSendLyricsToChat());
                     SpotifyLyricsFeature.saveConfig();
-                    btn.setMessage(enabledText());
+                    btn.setMessage(sendText());
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 24;
+        widgets.add(SettingsButtonWidget.builder(onOff("Spotify HUD", hud().isHudEnabled()), btn -> {
+                    hud().setHudEnabled(!hud().isHudEnabled());
+                    hud().save();
+                    btn.setMessage(onOff("Spotify HUD", hud().isHudEnabled()));
+                }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
 
         // No status line at all: the "Reading Spotify" line went on 2026-09-30 and the "Spotify is not running"
         // one on 2026-10-18 (killer560).
 
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12,
+                com.killer560.hub.gui.SectionHeaders.header("Chat Lyrics", false), Minecraft.getInstance().font));
+        y += 14;
         widgets.add(SettingsButtonWidget.builder(destText(), btn -> {
                     SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.next();
                     SpotifyLyricsFeature.saveConfig();
@@ -69,16 +81,10 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // The Spotify HUD (2026-10-20): its own switch, independent of Mod Enabled (which only sends to chat).
+        // The Spotify HUD's own options; its switch is the second row at the top, independent of chat sending.
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 com.killer560.hub.gui.SectionHeaders.header("Spotify HUD", false), Minecraft.getInstance().font));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(onOff("Spotify HUD", hud().isHudEnabled()), btn -> {
-                    hud().setHudEnabled(!hud().isHudEnabled());
-                    hud().save();
-                    btn.setMessage(onOff("Spotify HUD", hud().isHudEnabled()));
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
         widgets.add(SettingsButtonWidget.builder(onOff("HUD Lyrics", hud().isShowLyrics()), btn -> {
                     hud().setShowLyrics(!hud().isShowLyrics());
                     hud().save();
@@ -103,7 +109,7 @@ public class SpotifyTab extends BaseTab {
     /** Chat lyrics and the HUD are separate features: the card is ON while either is. */
     @Override
     public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Mod Enabled", "Spotify HUD");
+        return switchRows(built, "Send Lyrics To Chat", "Spotify HUD");
     }
 
     /** Read fresh each time: applying a profile replaces the config instance. */
@@ -115,8 +121,8 @@ public class SpotifyTab extends BaseTab {
         return Component.literal(label + ": " + (on ? "§aON" : "§cOFF"));
     }
 
-    private static Component enabledText() {
-        return Component.literal("Mod Enabled: " + (SpotifyLyricsFeature.enabled ? "§aON" : "§cOFF"));
+    private static Component sendText() {
+        return onOff("Send Lyrics To Chat", SpotifyLyricsFeature.isSendLyricsToChat());
     }
 
     private static Component destText() {
