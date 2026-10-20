@@ -310,6 +310,8 @@ public final class AutoClearFeature {
         edgeLogged.clear();
         doomed.clear();
         batLogs.clear();
+        missedAims.clear();
+        aimKey = Long.MIN_VALUE;
         oneTapLogged.clear();
         oneTapFailed.clear();
         leadLogged.clear();
@@ -2357,6 +2359,15 @@ public final class AutoClearFeature {
             cachedPreferEther = null;
             cachedAttackFlight = -1;
             cachedTripSpotDone = false;
+            if (cachedAttack != null && missedAims.contains(key)) {
+                cachedAttack = null;   // its bats from this block went off somewhere else: a move instead
+            }
+        }
+        if (cachedAttack != null && weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && aimMissed(target)) {
+            missedAims.add(key);
+            cachedAttack = null;
+            releaseUse(client);
+            phase = Phase.IDLE;
         }
         if (cachedAttack != null) {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
@@ -2570,6 +2581,15 @@ public final class AutoClearFeature {
                 Seen s = seenMobs.get(targetId);
                 batLogs.put(targetId, b == null ? new BatLog(1, batSentTick, batFlight, s == null ? -1 : s.health(),
                         com.killer560.hub.util.ServerLag.mark(), Long.MAX_VALUE) : b.plusOne(batSentTick, batFlight));
+                if (aimKey != planKey) {
+                    aimKey = planKey;
+                    aimShots = 0;
+                    aimFirst = batSentTick;
+                    aimFlight = batFlight;
+                    aimHealth = s == null ? -1 : s.health();
+                    aimLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                aimShots++;
                 if (b == null) {
                     afterFirstBat(player, s);
                 }
@@ -2711,6 +2731,18 @@ public final class AutoClearFeature {
                     + com.killer560.hub.util.ServerLag.ticksSince(f.lag());
             if (now > due) {
                 it.remove();
+                Seen sNow = seenMobs.get(entry.getKey());
+                double hpNow = sNow == null ? -1 : sNow.health();
+                if (f.health() > 0 && hpNow >= f.health()) {
+                    // Not a hit too weak: no hit at all (its tag never dropped) - the bat went off somewhere else. The bat's
+                    // damage is not in question, so the run's trust in it stays (autoclear-speed-1020: one miss threw away
+                    // every one-bat kill seen, and every mob after it got a held stream of bats until it died).
+                    batMisses++;
+                    LOGGER.info("[AutoClear] one-tap: {} is still alive {} ticks after its bat (flight ~{}) and its tag"
+                            + " still reads {} - the bat missed; shooting it again (the bat damage trusted is unchanged)",
+                            f.name(), now - f.sent(), f.flight(), String.format(Locale.US, "%.0f", hpNow));
+                    continue;
+                }
                 oneTapFailed.add(entry.getKey());
                 if (f.health() > 0) {
                     oneBatKills.removeIf(v -> v >= f.health());
@@ -2921,6 +2953,52 @@ public final class AutoClearFeature {
         int w = Math.max(1, Math.min(3, warps));
         return tripSeen[w] > 0 ? String.format(Locale.US, "%d trip(s) of %s warp(s) seen", tripSeen[w], w == 3 ? "3+" : w)
                 : "none of " + (w == 3 ? "3+" : String.valueOf(w)) + " warp(s) seen yet";
+    }
+
+    // ---- bats that miss (autoclear-speed-1020: a far aim "into the block beside the mob" whose bats went off a block from
+    // his hand, every 4 ticks for the whole Mob Timeout - 63 ticks of firing at one zombie in the sim's Flags) ----
+
+    /** The plan key the shots below were fired under, how many, the first one's tick and flight, the mob's tag health
+     *  then, and a ServerLag mark. */
+    private static long aimKey = Long.MIN_VALUE;
+    private static int aimShots = 0;
+    private static long aimFirst = 0L;
+    private static int aimFlight = 0;
+    private static double aimHealth = -1;
+    private static long aimLag = 0L;
+    /** Plan keys (his block, the mob's block, the mob) whose aim's bats missed: from there the mob is moved to instead. */
+    private static final Set<Long> missedAims = new HashSet<>();
+    /** Bats that missed (a doomed mob's tag never dropped, or an aim's shots never touched it), ever - for the testkit. */
+    private static int batMisses = 0;
+
+    public static int batMisses() {
+        return batMisses;
+    }
+
+    /**
+     * Two or more bats sent at {@code target} from here and the first should long have hit (its flight, the grace and the
+     * confirm window, and any server stall), yet its tag health has not dropped at all: the aim from here does not reach it
+     * in the server's world, whatever the client's ray said. Logged once per aim.
+     */
+    private static boolean aimMissed(Entity target) {
+        if (aimKey != planKey || aimShots < 2 || aimHealth <= 0) {
+            return false;
+        }
+        long due = aimFirst + aimFlight + BAT_HIT_GRACE_TICKS + DOOM_CONFIRM_TICKS
+                + com.killer560.hub.util.ServerLag.ticksSince(aimLag);
+        if (ClearExecutor.clientTick() <= due) {
+            return false;
+        }
+        Seen s = seenMobs.get(target.getId());
+        if (s == null || s.health() < aimHealth) {
+            return false;
+        }
+        batMisses++;
+        LOGGER.info(String.format(Locale.US, "[AutoClear] %s at %s: %d bat(s) from here and none touched it (tag still %.0f,"
+                        + " %d ticks after the first, flight ~%d) - the aim from this block misses; moving to it instead",
+                targetName, target.blockPosition().toShortString(), aimShots, s.health(),
+                ClearExecutor.clientTick() - aimFirst, aimFlight));
+        return true;
     }
 
     /** Whether a live starred mob of the room other than {@code target} (and not already left to its bat) is in sight. */
