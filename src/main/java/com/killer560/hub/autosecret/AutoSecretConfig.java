@@ -137,8 +137,9 @@ public final class AutoSecretConfig {
     }
 
     private RoomPlan roomPlan = RoomPlan.FASTEST_TOTAL;
-    /** Fastest Total: leave out the secrets an S+ does not need (by the Score Calculator), slowest first. */
-    private boolean skipUnneededSecrets = true;
+    /** Fastest Total: leave out the secrets an S+ does not need (by the Score Calculator), slowest first. Off by default
+     *  until a run has shown the S+ is still reached with it (coordinator, 2026-10-20). */
+    private boolean skipUnneededSecrets = false;
 
     private int autopilotKey = KeyUtil.NONE;
     private RunMode runMode = RunMode.SOLO;
