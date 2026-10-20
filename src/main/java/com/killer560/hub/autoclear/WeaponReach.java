@@ -252,6 +252,40 @@ public final class WeaponReach {
         return mob.distanceToSqr(impact) <= r * r;
     }
 
+    /** His standing eye over feet. */
+    private static final double STANDING_EYE = 1.62;
+
+    /**
+     * Whether a sceptre bat fired by him standing with his feet at {@code feet} reaches the mob, for the room's plan of
+     * stand blocks (autoclear-speed-1020): fired straight down (the blast at his feet, the old rule), or a straight shot at
+     * the mob's centre or top within {@link #SCEPTRE_PLAN_RANGE} whose first block on the way (collision shapes; mobs and
+     * stands are not looked at) is within the planned blast radius of it. A cut of {@link #sceptreAim}, which also tries
+     * a fan of looks round the mob: whatever this says reaches, the aim from there finds.
+     */
+    public static boolean sceptreReachesFrom(Level level, Vec3 feet, AABB mob) {
+        if (sceptreHits(feet, mob)) {
+            return true;
+        }
+        Vec3 eye = feet.add(0, STANDING_EYE, 0);
+        Vec3 c = mob.getCenter();
+        if (eye.distanceToSqr(c) > (SCEPTRE_PLAN_RANGE + 1.0) * (SCEPTRE_PLAN_RANGE + 1.0)) {
+            return false;
+        }
+        Vec3[] points = {c, new Vec3(c.x, mob.maxY - 0.2, c.z)};
+        for (Vec3 p : points) {
+            if (eye.distanceTo(p) > SCEPTRE_PLAN_RANGE) {
+                continue;
+            }
+            BlockHitResult hit = level.clip(new ClipContext(eye, p, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                    net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            Vec3 impact = hit.getType() == HitResult.Type.MISS ? p : hit.getLocation();
+            if (sceptreHits(impact, mob)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * An aim from where he stands whose bat goes off within reach of the mob: straight at it first, then at points of
      * its box, then a fan of looks around it (which is what finds a wall face next to a mob standing inside the wall).

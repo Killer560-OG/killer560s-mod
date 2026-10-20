@@ -754,7 +754,7 @@ public final class AutoClearFeature {
         }
         noMobTicks = 0;
         midasCheckOpened(client);
-        planRepositions(client, player, mobs, cfg.getWeapon());
+        planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
         Entity target = pickTarget(player, mobs, cfg.getWeapon());
         if (target.getId() != targetId) {
             targetId = target.getId();
@@ -3540,6 +3540,57 @@ public final class AutoClearFeature {
     private static final int COVER_REPLAN_TICKS = 10;
     private static List<BlockPos> coverSpots = List.of();
     private static List<Set<Integer>> coverMobs = List.of();
+    /** Every candidate block of the last plan, and the mob ids each reaches. */
+    private static List<BlockPos> coverAllSpots = List.of();
+    private static List<Set<Integer>> coverAllIds = List.of();
+    /** At most this many blocks are tried (nearest him first) for one that a single warp from here lands on. */
+    static final int ONE_WARP_TRIES = 40;
+
+    /**
+     * A block that does the plan block's job - it reaches every live mob the plan block reaches - and that one warp from
+     * where he stands lands on ({@link #warpsTo}); the nearest such of the plan's candidates, or {@code planned} itself
+     * when it is one warp already or none is. The plan counts blocks and their straight distance; a block one warp away
+     * is the cheaper of two that reach the same mobs (his study: in-room trips averaged 2.1 warps).
+     */
+    private static BlockPos preferOneWarp(Minecraft client, Vec3 feet, BlockPos planned) {
+        int at = coverAllSpots.indexOf(planned);
+        if (at < 0 || warpsTo(feet, planned) == 1) {
+            return planned;
+        }
+        Set<Integer> need = new HashSet<>();
+        for (int id : coverAllIds.get(at)) {
+            Entity e = client.level.getEntity(id);
+            if (e != null && e.isAlive()) {
+                need.add(id);
+            }
+        }
+        if (need.isEmpty()) {
+            return planned;
+        }
+        List<Integer> order = new java.util.ArrayList<>();
+        for (int i = 0; i < coverAllSpots.size(); i++) {
+            if (i != at && coverAllIds.get(i).containsAll(need)) {
+                order.add(i);
+            }
+        }
+        order.sort(java.util.Comparator.comparingDouble(i -> Vec3.atCenterOf(coverAllSpots.get(i)).distanceToSqr(feet)));
+        int tried = 0;
+        for (int i : order) {
+            if (++tried > ONE_WARP_TRIES) {
+                break;
+            }
+            BlockPos b = coverAllSpots.get(i);
+            if (BlockPos.containing(feet).below().equals(b)) {
+                continue;
+            }
+            if (warpsTo(feet, b) == 1) {
+                LOGGER.info("[AutoClear] trip: {} reaches the same {} mob(s) as the plan's {} and is one warp from here"
+                        + " (the plan's block is not) - going there", b.toShortString(), need.size(), planned.toShortString());
+                return b;
+            }
+        }
+        return planned;
+    }
     /** Etherwarps toward mobs, ever (each is a reposition). */
     private static int repositions = 0;
 
@@ -3554,8 +3605,8 @@ public final class AutoClearFeature {
      * mobs, each with the mobs its weapon reaches from there, and the fewest of them that reach every mob
      * ({@link RepositionPlanner}). Planned again whenever a mob dies or moves a block.
      */
-    private static void planRepositions(Minecraft client, LocalPlayer player, List<Entity> mobs,
-                                        AutoClearConfig.Weapon weapon) {
+    private static void planRepositions(Minecraft client, LocalPlayer player, List<Entity> mobs, AutoClearConfig.Weapon weapon,
+                                        DungeonLayout layout, int room) {
         List<Entity> list = mobs.size() > 63 ? mobs.subList(0, 63) : mobs;
         StringBuilder ids = new StringBuilder(weapon.name());
         StringBuilder key = new StringBuilder();
@@ -3574,7 +3625,7 @@ public final class AutoClearFeature {
         coverKey = key.toString();
         coverAge = 0;
         long t0 = System.nanoTime();
-        Cover cover = cover(list, weapon);
+        Cover cover = cover(list, weapon, layout, room);
         List<Long> keys = cover.keys();
         long[] covers = cover.covers();
         double[][] spots = cover.spots();
@@ -3602,6 +3653,21 @@ public final class AutoClearFeature {
         }
         coverSpots = order;
         coverMobs = reach;
+        // Every candidate block with the mobs it reaches, for the trip's pick among blocks that do the plan block's job.
+        List<BlockPos> allSpots = new java.util.ArrayList<>(keys.size());
+        List<Set<Integer>> allIds = new java.util.ArrayList<>(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            Set<Integer> mobIds = new HashSet<>();
+            for (int j = 0; j < list.size(); j++) {
+                if ((covers[i] & (1L << j)) != 0) {
+                    mobIds.add(list.get(j).getId());
+                }
+            }
+            allSpots.add(BlockPos.of(keys.get(i)));
+            allIds.add(mobIds);
+        }
+        coverAllSpots = allSpots;
+        coverAllIds = allIds;
         int old = RepositionPlanner.nearestMobFirst(covers, list.size(), spots, mobAt, from);
         LOGGER.info(String.format(Locale.US, "[AutoClear] reposition plan for %s: %d block(s) reach all %d reachable starred"
                         + " mob(s)%s (nearest mob first would take %d); %d candidate block(s), %.1f ms: %s", roomName,
@@ -3617,7 +3683,78 @@ public final class AutoClearFeature {
     private record Cover(List<Long> keys, long[] covers, double[][] spots, long[] trimmed, int reachable) {
     }
 
+    // ---- stand blocks within the bat's real reach (autoclear-speed-1020; his study: trips were planned only onto blocks
+    // within 5 of a mob - the bat fired straight down - though a bat flies 24, so every reposition went onto a mob cluster
+    // and each mob or two cost a trip of its own) ----
+
+    /** How far round each mob the sceptre's stand blocks are looked for (horizontally), and the grid they are taken on. */
+    static final int SCEPTRE_STAND_RADIUS = 18;
+    static final int SCEPTRE_STAND_STEP = 3;
+
+    /** The mobs of {@code list} the weapon reaches with his feet at {@code feet} (bit j = mob j). */
+    private static long reachMask(AutoClearConfig.Weapon weapon, Vec3 feet, List<Entity> list) {
+        long m = 0;
+        net.minecraft.world.level.Level level = Minecraft.getInstance().level;
+        for (int j = 0; j < list.size(); j++) {
+            AABB box = list.get(j).getBoundingBox();
+            boolean hit = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && level != null
+                    ? WeaponReach.sceptreReachesFrom(level, feet, box) : reaches(weapon, feet, box);
+            if (hit) {
+                m |= 1L << j;
+            }
+        }
+        return m;
+    }
+
+    /**
+     * The sceptre's far stand blocks: on a {@link #SCEPTRE_STAND_STEP}-block grid up to {@link #SCEPTRE_STAND_RADIUS} round
+     * each mob, inside the room, every block he can etherwarp onto between six under and four over the mob, each with the
+     * mobs a straight bat from its standing eye reaches ({@link WeaponReach#sceptreReachesFrom}) - so the plan can take one
+     * block that shoots across the room instead of a block beside each mob.
+     */
+    private static void sceptreStands(List<Entity> list, DungeonLayout layout, int room, java.util.Map<Long, Long> masks) {
+        net.minecraft.world.level.Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        Set<Long> columns = new HashSet<>();
+        for (Entity mob : list) {
+            int mx = Mth.floor(mob.getX());
+            int my = Mth.floor(mob.getY());
+            int mz = Mth.floor(mob.getZ());
+            // Snapped to the grid, so the columns round two mobs are the same columns.
+            int x0 = Math.floorDiv(mx - SCEPTRE_STAND_RADIUS, SCEPTRE_STAND_STEP) * SCEPTRE_STAND_STEP;
+            int z0 = Math.floorDiv(mz - SCEPTRE_STAND_RADIUS, SCEPTRE_STAND_STEP) * SCEPTRE_STAND_STEP;
+            for (int x = x0; x <= mx + SCEPTRE_STAND_RADIUS; x += SCEPTRE_STAND_STEP) {
+                for (int z = z0; z <= mz + SCEPTRE_STAND_RADIUS; z += SCEPTRE_STAND_STEP) {
+                    if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
+                        continue;
+                    }
+                    for (int y = my - 6; y <= my + 4; y++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        long k = pos.asLong();
+                        if (masks.containsKey(k) || !columns.add(k)) {
+                            continue;
+                        }
+                        if (!TeleportUtils.etherwarpable(pos)) {
+                            continue;
+                        }
+                        Vec3 feet = new Vec3(x + 0.5, y + 1.0, z + 0.5);
+                        long m = reachMask(AutoClearConfig.Weapon.SPIRIT_SCEPTRE, feet, list);
+                        if (m != 0) {
+                            masks.put(k, m);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon) {
+        return cover(list, weapon, null, -1);
+    }
+
+    private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon, DungeonLayout layout, int room) {
         java.util.Map<Long, Long> masks = new java.util.LinkedHashMap<>();
         for (int i = 0; i < list.size(); i++) {
             AABB box = list.get(i).getBoundingBox();
@@ -3638,16 +3775,13 @@ public final class AutoClearFeature {
                             masks.put(k, 0L);
                             continue;
                         }
-                        long m = 0;
-                        for (int j = 0; j < list.size(); j++) {
-                            if (reaches(weapon, feet, list.get(j).getBoundingBox())) {
-                                m |= 1L << j;
-                            }
-                        }
-                        masks.put(k, m);
+                        masks.put(k, reachMask(weapon, feet, list));
                     }
                 }
             }
+        }
+        if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && layout != null && room >= 0) {
+            sceptreStands(list, layout, room, masks);
         }
         List<Long> keys = new java.util.ArrayList<>();
         for (java.util.Map.Entry<Long, Long> e : masks.entrySet()) {
@@ -3828,6 +3962,19 @@ public final class AutoClearFeature {
             List<Entity> now = new java.util.ArrayList<>();
             for (Entity e : mobs) {
                 if (WeaponReach.hyperionHits(player.position(), e.getBoundingBox())) {
+                    now.add(e);
+                }
+            }
+            if (!now.isEmpty()) {
+                return nearest(player, now);
+            }
+        }
+        if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && player.level() != null) {
+            // Every mob a bat from here reaches first: no trip at all for those (a turn and a use each), and the room's
+            // plan for the rest is made again without them.
+            List<Entity> now = new java.util.ArrayList<>();
+            for (Entity e : mobs) {
+                if (WeaponReach.sceptreReachesFrom(player.level(), player.position(), e.getBoundingBox())) {
                     now.add(e);
                 }
             }
