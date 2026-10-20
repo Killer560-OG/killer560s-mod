@@ -1857,7 +1857,7 @@ public final class AutoClearFeature {
                     if (waitForBatInFlight(client)) {
                         return;
                     }
-                    BatLog.expectTarget(targetId);
+                    com.killer560.hub.autoclear.BatLog.expectTarget(targetId);
                 }
                 action = aim.what() + " -> " + targetName;
                 aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
@@ -1882,7 +1882,7 @@ public final class AutoClearFeature {
             }
             action = "Guided Bat -> " + targetName + " (~" + cachedBatTicks + " ticks vs etherwarp ~"
                     + (etherTicks + HYPERION_KILL_TICKS) + (canHop && cachedHops > 0 ? ", hops ~" + hypeTicks : "") + ")";
-            BatLog.expectTarget(targetId);
+            com.killer560.hub.autoclear.BatLog.expectTarget(targetId);
             aimAndHold(client, player, AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId(),
                     AutoClearConfig.Weapon.SPIRIT_SCEPTRE.label(), cachedBat, Phase.ATTACK);
             return;
@@ -1977,7 +1977,7 @@ public final class AutoClearFeature {
                         : "no sceptre bat from here reaches it") : "the bat from here (~" + cachedBatTicks
                         + " ticks) is not faster than the etherwarp (~" + (etherTicks + HYPERION_KILL_TICKS) + ")";
             }
-            BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: etherwarp%s onto %s (%.1f blocks,"
+            com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: etherwarp%s onto %s (%.1f blocks,"
                             + " %d warp(s), ~%d ticks; weapon %s, %.1f blocks from it) - not a bat: %s", targetName, targetId,
                     target.blockPosition().toShortString(), goalWarps == 1 ? " (a one-tap warp)" : "", goal.toShortString(),
                     toGoal, goalWarps, ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * goalWarps, weapon,
@@ -1993,7 +1993,7 @@ public final class AutoClearFeature {
         }
         Vec3 eye = player.getEyePosition();
         TeleportUtils.Rotation direct = TeleportUtils.getDirection(eye, box.getCenter());
-        BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: bat from here (%s), look %.2f/%.2f,"
+        com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: bat from here (%s), look %.2f/%.2f,"
                         + " off the mob by %+.1f/%+.1f deg, %.1f blocks, flight ~%d ticks at %.2f b/t - %s", targetName,
                 target.getId(), target.blockPosition().toShortString(), aim.what(), aim.yaw(), aim.pitch(),
                 Mth.wrapDegrees(aim.yaw() - direct.yaw()), aim.pitch() - direct.pitch(), eye.distanceTo(box.getCenter()),
@@ -2361,7 +2361,7 @@ public final class AutoClearFeature {
                         WeaponReach.BAT_BLOCKS_PER_TICK, etherTicks + HYPERION_KILL_TICKS,
                         hypeTicks == Integer.MAX_VALUE ? "none" : "~" + hypeTicks,
                         wins ? "the Spirit Sceptre" : "the Hyperion");
-                BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (Hyperion weapon): %s - bat"
+                com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (Hyperion weapon): %s - bat"
                                 + " from here ~%d ticks (swap %d, launch %d, %.1f blocks at %.2f b/t) vs etherwarp ~%d, hops %s",
                         targetName, target.getId(), target.blockPosition().toShortString(),
                         wins ? "a sceptre bat" : "no bat", cachedBatTicks,
@@ -2404,7 +2404,7 @@ public final class AutoClearFeature {
                         + " ticks - {}", targetName, target.blockPosition().toShortString(), batTicks,
                 WeaponReach.BAT_BLOCKS_PER_TICK, spot.toShortString(), ether,
                 cachedPreferEther ? "etherwarp" : "the bat from here");
-        BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (sceptre weapon): %s - bat from here"
+        com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (sceptre weapon): %s - bat from here"
                         + " ~%d ticks (%.1f blocks at %.2f b/t) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
                         + " ~%d ticks (fixed %d + %d a warp + down %d)", targetName, target.getId(),
                 target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batTicks,
@@ -2774,10 +2774,11 @@ public final class AutoClearFeature {
      * Whether a run of Auto Clear holds back every automatic secret click (Secret Aura, the Secret Triggerbot): a run is
      * going and no Auto Routes route is running (killer560, 2026-10-20: "Secret clicks are for Auto Routes running a
      * route, or for Auto Secret"). A secret taken while it kills is one the route through that room then has to find
-     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always.
+     * gone; under a route, {@code RouteExecutor.secretAuraMayClick} decides as always. /test ({@link BatTest}) holds them
+     * the same way: it is not a route either, and an aura click would put its own use beside the shot's.
      */
     public static boolean holdsSecretClicks() {
-        return running && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
+        return (running || BatTest.isRunning()) && !com.killer560.hub.autoroutes.RouteExecutor.isRunning();
     }
 
     // =========================================================================================== corrections

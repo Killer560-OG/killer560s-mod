@@ -749,8 +749,16 @@ public final class BatTest {
         LocalPlayer player = client.player;
         Vec3 eye = player.getEyePosition();
         Vec3 look = TeleportUtils.getLook(player.getYRot(), player.getXRot()).scale(player.blockInteractionRange());
-        return client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
-                player));
+        HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        if (hit instanceof net.minecraft.world.phys.BlockHitResult bh && hit.getType() == HitResult.Type.BLOCK
+                && AutoClearFeature.isSecretBlock(client.level.getBlockState(bh.getBlockPos()).getBlock())) {
+            // Auto Clear's rule: a secret on the shot's look is not the use's block; the sceptre goes in the air.
+            BatLog.LOGGER.info("[BatTest] the shot's look meets the secret at {} - used in the air instead",
+                    bh.getBlockPos().toShortString());
+            return net.minecraft.world.phys.BlockHitResult.miss(hit.getLocation(), bh.getDirection(), bh.getBlockPos());
+        }
+        return hit;
     }
 
     // ---- corrections ----
