@@ -995,6 +995,16 @@ public final class RouteExecutor {
             return; // rotation-only: he is where he was
         }
         RouteNode node = activeNode;
+        if (node != null && node.type == RouteNode.Type.PATH && trapWalk) {
+            // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honoured, never
+            // fought, never a stop - AP3's walk planner plans the walk again from where he now is. Checked BEFORE the
+            // warp branches below, so a correction mid-walk can never re-fly a hop saved on the pair (killer560,
+            // 2026-10-20: a trap-room re-plan only ever walks).
+            reportCorrection(String.format(Locale.US, "during path #%d's walk in a trap room - walking on from here",
+                    route.indexOf(node) + 1));
+            Ap3TrapWalk.onCorrection(client, player);
+            return;
+        }
         // The WARP's confirm, not the await's: tickAwait runs its own PREP/CONFIRM cycle on the same step field before
         // the node acts, and a packet then was judged against warpLanding - unset for this node, so another warp's - and
         // let a start node go that had sent nothing (killer560, 2026-10-07: "the interactive map was off when it tried
@@ -1030,14 +1040,6 @@ public final class RouteExecutor {
             reportCorrection(String.format(Locale.US,
                     "during etherwarp #%d (%.1f from its landing) - carrying on from here", route.indexOf(node) + 1, off));
             letGoAfterCorrection(client, player);
-            return;
-        }
-        if (node != null && node.type == RouteNode.Type.PATH && trapWalk) {
-            // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honoured, never
-            // fought, never a stop - AP3 plans the walk again from where he now is.
-            reportCorrection(String.format(Locale.US, "during path #%d's walk in a trap room - walking on from here",
-                    route.indexOf(node) + 1));
-            Ap3TrapWalk.onCorrection(client, player);
             return;
         }
         if (node != null && (node.type == RouteNode.Type.USE_ITEM || node.type == RouteNode.Type.COMMAND
@@ -2756,6 +2758,12 @@ public final class RouteExecutor {
             tickTrapWalk(client, player, node);
             return;
         }
+        if (hopIndex >= 0 && inTrapRoom()) {
+            // Never a saved hop in a trap room, however it got loaded: the pair starts over as a walk below.
+            LOGGER.info("[AutoRoutes] Node #{} PATH: hop {} loaded in a trap room - walking the pair instead",
+                    route.indexOf(node) + 1, hopIndex + 1);
+            hopIndex = -1;
+        }
         if (hopIndex < 0) {
             if (!route.isPathSource(node)) {
                 logActed(node, " (path arrival)");
@@ -2870,12 +2878,11 @@ public final class RouteExecutor {
     private static boolean trapWalk;
 
     /**
-     * The route's room is a trap room (the room database's two TRAP rooms, or a room it does not know whose name says
-     * Trap - the same rule as {@code AutoClearUtils.isTrap}): no ability works there, so a path pair walks.
+     * The route's room is a trap room (the room database's two TRAP rooms, {@code AutoTrap.isTrapRoom}): no ability works
+     * there, so a path pair walks - first plan and every re-plan by AP3's walk planner, never an etherwarp.
      */
     private static boolean inTrapRoom() {
-        String name = frame == null ? null : frame.roomName();
-        return name != null && (com.killer560.hub.autotrap.AutoTrap.TRAPS.contains(name) || name.contains("Trap"));
+        return com.killer560.hub.autotrap.AutoTrap.isTrapRoom(frame == null ? null : frame.roomName());
     }
 
     /**

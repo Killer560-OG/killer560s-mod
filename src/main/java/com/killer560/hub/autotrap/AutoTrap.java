@@ -67,6 +67,15 @@ public final class AutoTrap {
     /** The room database's TRAP rooms. */
     public static final List<String> TRAPS = List.of("New Trap", "Old Trap");
 
+    /**
+     * Is {@code room} one of the two TRAP rooms, where no ability works and a path pair walks (AP3) instead of flying its
+     * etherwarps? By name, exactly: "Arrow Trap" is a NORMAL room in the room database, where warps work, and the old
+     * {@code contains("Trap")} rule made its path pairs walk too.
+     */
+    public static boolean isTrapRoom(String room) {
+        return room != null && TRAPS.contains(room);
+    }
+
     public enum Mode {
         FULL("Full Trap"), CLEARED("Just Cleared");
 

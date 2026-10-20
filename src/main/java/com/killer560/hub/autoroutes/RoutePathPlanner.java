@@ -71,7 +71,7 @@ public final class RoutePathPlanner {
             return;
         }
         String room = route.roomName();
-        if (room != null && (com.killer560.hub.autotrap.AutoTrap.TRAPS.contains(room) || room.contains("Trap"))) {
+        if (com.killer560.hub.autotrap.AutoTrap.isTrapRoom(room)) {
             // A trap room's path pairs are walked by AP3 (RouteExecutor.tickTrapWalk), never flown: no warps to plan.
             LOGGER.info("[RoutePlan] stale-plan refresh skipped: {} is a trap room - its path pairs walk", room);
             return;
@@ -105,9 +105,16 @@ public final class RoutePathPlanner {
         int rooms = 0;
         for (Route route : RouteStore.getInstance().routes().values()) {
             int before = pairs;
+            boolean trap = com.killer560.hub.autotrap.AutoTrap.isTrapRoom(route.roomName());
             for (RouteNode n : route.nodes()) {
-                if (n.type == RouteNode.Type.PATH && !n.pathHops.isEmpty()) {
+                // In a trap room the pair's plan is its saved AP3 walk: dropping it makes the next run plan the walk
+                // afresh with AP3's walk planner (RouteExecutor -> Ap3TrapWalk), never with etherwarps.
+                boolean had = !n.pathHops.isEmpty() || (trap && !n.walkSteps.isEmpty());
+                if (n.type == RouteNode.Type.PATH && had) {
                     n.pathHops.clear();
+                    if (trap) {
+                        n.walkSteps.clear();
+                    }
                     pairs++;
                 }
             }
@@ -135,6 +142,16 @@ public final class RoutePathPlanner {
         }
         int a = route.indexOf(src) + 1;
         int b = route.indexOf(dest) + 1;
+        if (com.killer560.hub.autotrap.AutoTrap.isTrapRoom(route.roomName())
+                || com.killer560.hub.autotrap.AutoTrap.isTrapRoom(frame.roomName())) {
+            // killer560, 2026-10-20: a trap room's pair re-plans with the planner AP3 walks with (Ap3TrapWalk ->
+            // Ap3RoutePlanner), never with etherwarps - no ability works there. Every caller (the edit screen's Replan,
+            // /ar replan, a stale refresh, RouteExecutor) lands here, so this is the one place that refuses it.
+            LOGGER.info("[RoutePlan] path #{} -> #{} not planned with warps: {} is a trap room - the pair walks (AP3)", a,
+                    b, route.roomName());
+            done.accept("a trap room's path pair walks with AP3, it has no etherwarps to plan");
+            return;
+        }
         Vec3 from = RouteCoords.toReal(frame, src.relativePos());
         Vec3 destReal = RouteCoords.toReal(frame, dest.relativePos());
         BlockPos below = BlockPos.containing(destReal.x, destReal.y - 0.5, destReal.z);

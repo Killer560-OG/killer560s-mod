@@ -518,6 +518,10 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
     /** "Path - 3 warp(s) saved" for the first of a pair, what it pairs with otherwise. */
     private String pathHeading() {
         RouteNode dest = route.pathDestination(node);
+        if (dest != null && com.killer560.hub.autotrap.AutoTrap.isTrapRoom(route.roomName())) {
+            return "Path to #" + (route.indexOf(dest) + 1) + " - walked by AP3 (trap room), "
+                    + (node.walkSteps.isEmpty() ? "planned on the next run" : node.walkSteps.size() + "-tick walk saved");
+        }
         if (dest != null) {
             return "Path to #" + (route.indexOf(dest) + 1) + " - " + (RoutePathPlanner.valid(route, node)
                     ? node.pathHops.size() + " warp(s) saved" : "not planned yet");
@@ -534,6 +538,17 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         RouteNode src = route.isPathSource(node) ? node : route.pathSource(node);
         if (src == null || route.pathDestination(src) == null) {
             status = "§cThis path node has no partner to plan to.";
+            return;
+        }
+        if (com.killer560.hub.autotrap.AutoTrap.isTrapRoom(route.roomName())) {
+            // A trap room's pair walks (AP3), never warps: Replan drops the saved walk, and the next run plans it with
+            // AP3's walk planner from wherever he starts it.
+            src.walkSteps.clear();
+            src.pathHops.clear();
+            RouteStore.getInstance().save();
+            com.killer560.hub.autotrap.AutoTrap.saveIfOurs(route);
+            status = "§aTrap room: the saved walk is dropped - AP3 plans the walk on the next run (no etherwarps).";
+            rebuildWidgets();
             return;
         }
         src.pathHops.clear();
