@@ -1681,8 +1681,10 @@ public final class AutoClearFeature {
     /** No starred mob in sight (or every one skipped as out of reach) this long: the first roam. Before 2026-10-19 the
      *  room was given up at {@link #NO_MOB_TICKS} with no move at all. */
     static final int ROAM_AFTER_TICKS = 40;
-    /** After each roam landing: this long looking for the room's mobs before the next spot (or giving up). */
-    static final int ROAM_LOOK_TICKS = 30;
+    /** After each roam landing: this long looking for the room's mobs before the next spot (or giving up). 30 until
+     *  autoclear-speed-1020 (his study: Mossy, 280 ticks of roaming with no kill at four spots); a mob in range of the new
+     *  spot is in the client's world a tick or two after the landing (the server's spawn packets), plus any server lag. */
+    static final int ROAM_LOOK_TICKS = 3;
     /** At most this many spots per room. */
     static final int ROAM_MAX_SPOTS = 4;
     /** And at most this long from the first roam, however the trips went (real time; server lag stretches it). */
@@ -3320,13 +3322,24 @@ public final class AutoClearFeature {
             ClearExecutor.etherPathArrive(spot, null);
         } else {
             sameGoalTrips = 1;
-            ClearExecutor.etherPathFast(spot, null);
+            // One warp onto it from here: no search (autoclear-speed-1020).
+            if (ClearExecutor.etherDirectFast(spot, null)) {
+                directTrips++;
+            } else {
+                ClearExecutor.etherPathFast(spot, null);
+            }
         }
         lastTripGoal = spot.immutable();
     }
 
     /** Trips in a row asked for {@link #lastTripGoal}. */
     private static int sameGoalTrips;
+    /** Trips sent as one direct warp with no search (ClearExecutor.etherDirectFast), ever - read by the testkit. */
+    private static int directTrips = 0;
+
+    public static int directTrips() {
+        return directTrips;
+    }
 
     /** True when both the near trip and the exact one onto {@code spot} ended off it: no trip will get him there. */
     private static boolean tripsCannotReach(BlockPos spot) {
@@ -3336,8 +3349,15 @@ public final class AutoClearFeature {
     /** Gives the body back first (a tick), then starts an Interactive Map trip. */
     private static void startTrip(Minecraft client, LocalPlayer player, java.util.function.BooleanSupplier trip) {
         if (BODY.isHeld()) {
-            phase = Phase.RELEASE;
-            return;
+            // The body goes back to his view NOW, inside this tick, as ClearExecutor.finishArrivalEarly hands it over before
+            // a route turns it: nothing of Auto Clear's goes out on this tick after it, and the trip's first hop turns the
+            // body with its own BodyAim when it is sent. Until autoclear-speed-1020 this was a whole tick (Phase.RELEASE)
+            // before every trip: 95 ticks of the sim's 44 rooms.
+            BODY.tick(player, false);
+            if (BODY.isHeld()) {
+                phase = Phase.RELEASE;
+                return;
+            }
         }
         ClearExecutor.setExternalOwner(true);
         boolean started = trip.getAsBoolean();
@@ -3363,11 +3383,15 @@ public final class AutoClearFeature {
             stop("no " + label + " in the hotbar");
             return false;
         }
+        boolean swapped = false;
         if (player.getInventory().getSelectedSlot() != slot) {
+            // The weapon and the turn on the same tick (autoclear-speed-1020: the swap was a tick of its own after every
+            // trip, 146 ticks of the sim's 44 rooms): the carried-item packet goes now, the movement packet carries the
+            // turn, and the use the next tick - what a player pressing the hotbar key while he turns sends.
             releaseUse(client);
             select(client, player, slot);
             tickKind = "swap";
-            return false;
+            swapped = true;
         }
         bodyWanted = true;
         float yaw = player.getYRot() + Mth.wrapDegrees(aim.yaw() - player.getYRot());
@@ -3376,8 +3400,11 @@ public final class AutoClearFeature {
             releaseUse(client);
             BODY.turn(player, yaw, pitch);
             phase = Phase.IDLE;
-            tickKind = "turning";
+            tickKind = swapped ? "swap" : "turning";
             return false;
+        }
+        if (swapped) {
+            return false;   // already aimed: the use goes next tick, a tick after the swap the server has heard
         }
         phase = next;
         if (next == Phase.ATTACK) {
