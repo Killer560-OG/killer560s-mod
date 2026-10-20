@@ -624,6 +624,20 @@ public final class RouteExecutor {
         return running && r != null ? r.roomName() : null;
     }
 
+    /**
+     * A trap room's route walking him out, which Auto Trap ends itself once he is past the room's edge by its margin
+     * ({@code AutoTrap.LEAVE_MARGIN}, AutoTrap.tick): the map's room change is not the end of it. The map gives the
+     * doorway's outer half-block to the next room while the server still has him in the trap, so a stop there left him
+     * standing in the doorway, every warp out refused ("No abilities in a trap room") and Dungeon Autopilot out of rooms
+     * it could reach (142-sim-autopilot2, 2026-10-20: stopped at -72.87 on the map's edge -72.5, the server's -73).
+     */
+    public static boolean trapExitPending() {
+        Route r = route;
+        return running && r != null && com.killer560.hub.autotrap.AutoTrap.isTrapRoom(r.roomName())
+                && com.killer560.hub.autotrap.AutoTrap.isEnabled()
+                && r.roomName().equals(com.killer560.hub.autotrap.AutoTrap.inTrapRoom());
+    }
+
     /** Stops playback and tells the user why (chat, when chat feedback is on). Safe to call when idle. */
     /** {@code /ar stop} and its key - one of the user-stop reasons below. */
     private static final String STOPPED_BY_COMMAND = "you stopped it";
@@ -813,6 +827,7 @@ public final class RouteExecutor {
         RouteRotation.clear();
         running = true;
         handsLatched = true;
+        trapExitSaid = false;
         RouteRunMemory.noteProgress(r.roomName(), nextNode, ordered.size());
         LOGGER.info("[AutoRoutes] Started \"{}\" from node {} ({}) at sample {} of {}", r.roomName(),
                 r.indexOf(startNode), startNode.type, cursor, r.path().size());
@@ -1481,7 +1496,14 @@ public final class RouteExecutor {
         // driven route outright and skip an await on any route, so clicking the chest an await:2 was waiting on
         // fired the node early.
         RouteCoords.Frame now = RouteCoords.Frame.current();
-        if (now == null || !now.sameRoom(frame)) {
+        if ((now == null || !now.sameRoom(frame)) && trapExitPending()) {
+            if (!trapExitSaid) {
+                trapExitSaid = true;
+                LOGGER.info("[AutoRoutes] the map has him in {} at {}, but Auto Trap still has him in {} - the trap route"
+                        + " goes on until Auto Trap sees him out", now == null ? "no room" : now.roomName(),
+                        fmt(player.position()), frame.roomName());
+            }
+        } else if (now == null || !now.sameRoom(frame)) {
             LOGGER.info("[AutoRoutes] room check failed at tick {}: now {} vs the route's {} (player {})", execTicks,
                     now == null ? "no room" : now.roomName(), frame.roomName(), fmt(player.position()));
             stop("left the room");
@@ -2064,6 +2086,8 @@ public final class RouteExecutor {
     /** Ticks a path-less route has stood with no node firing, and whether that gap was said. */
     private static int idleTicks;
     private static boolean idleSaid;
+    /** Whether this run already logged that a trap route goes on past the map's room edge (trapExitPending). */
+    private static boolean trapExitSaid;
     /** A path-less route idle this long (he stands in no next node's ring) says where the next node is, once. */
     private static final int IDLE_SAY_TICKS = 60;
     /** An await waiting this long says what it has counted, once (a WARN: the route has gone nowhere for 10 s). */

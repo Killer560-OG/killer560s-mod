@@ -2540,7 +2540,12 @@ public final class AutoSecretFeature {
             beginKeyWait();
             return;
         }
-        etherPathTo(keyGoal, Trip.KEY);
+        // The stand is the nearest to him in a straight line, not along the warps: a path there can pass in range of the
+        // key first, and the trip then ends on that landing (ClearExecutor.etherPathWithin).
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        ClearExecutor.setExternalOwner(true);
+        ClearExecutor.etherPathWithin(keyGoal, keyPos, reach, false, null);
+        beginTravel(Trip.KEY);
     }
 
     /** Stay this far inside the pickup range: the landing is a block, the range a measurement of feet. */
@@ -3111,7 +3116,9 @@ public final class AutoSecretFeature {
             arrived = trip == Trip.DOOR ? doorGoal != null && client.player != null
                     && client.player.blockPosition().distSqr(doorGoal) <= 9
                     : trip == Trip.KEY ? keyGoal != null && client.player != null
-                    && client.player.blockPosition().below().distSqr(keyGoal) <= 4
+                    && (client.player.blockPosition().below().distSqr(keyGoal) <= 4 || keyTarget != null
+                    && client.player.position().distanceTo(new net.minecraft.world.phys.Vec3(keyTarget.x(), keyTarget.y(),
+                    keyTarget.z())) <= AutoSecretConfig.getInstance().keyPickupRange())
                     : trip == Trip.INSTA_INTO ? instaLanding != null && client.player != null
                     && client.player.blockPosition().below().distSqr(instaLanding) <= 4
                     : here >= 0 && here == roomIdOf(layout, trip == Trip.INSTA_FROM ? instaFrom : target);
