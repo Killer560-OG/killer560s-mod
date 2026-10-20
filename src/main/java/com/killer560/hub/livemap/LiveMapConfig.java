@@ -63,8 +63,11 @@ public final class LiveMapConfig {
     // Defaults are the real dungeon map's own colours, decoded from Hypixel's MapColor bytes by NoammAddons'
     // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same grey.
     private boolean colourByType = true;
-    /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read. */
-    private float darkenUnopened = 0.05f;
+    /** Undiscovered rooms are this much darker than their colour. killer560, 2026-10-19: 0.4 made them too dark to read.
+     *  Default 0 since the NoammAddons colours (2026-10-19): the grey "?" room is then exactly NoammAddons' 65,65,65 and a
+     *  Funny Map room he has not opened exactly its {@code darker().darker()} (see {@link MapPainter#unexploredFill}). */
+    public static final float DEFAULT_DARKEN_UNOPENED = 0f;
+    private float darkenUnopened = DEFAULT_DARKEN_UNOPENED;
     /** NoammAddons' look (killer560, 2026-10-19): a faint white wash, {@code MapConfig.kt} "Map Background Color"
      *  (255, 255, 255, 50), with a 1px white border ("Map Border Color", "Border Thickness" 1). Until then 60% black with
      *  the mod's orange border; {@link #migrateNoammLook} moves a file still holding those defaults. */
@@ -197,13 +200,17 @@ public final class LiveMapConfig {
                 cfg.setPeekScale(ConfigJson.getFloat(obj, "peekScale", 2f));
 
                 cfg.colourByType = ConfigJson.getBool(obj, "colourByType", true);
-                cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", 0.05f));
-                // Migration, once (2026-10-19): a file saved with an OLD default (0.4, then 0.15) never picked up the new
-                // 0.05, because a saved key wins over the default - every instance he has still read 0.4, the value he
-                // called too dark to read. Exactly an old default is taken as never chosen; anything else he set stays.
-                if (!ConfigJson.getBool(obj, "darkenUnopenedDefault1019", false)
-                        && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f || Math.abs(cfg.darkenUnopened - 0.15f) < 1e-4f)) {
-                    cfg.darkenUnopened = 0.05f;
+                cfg.setDarkenUnopened(ConfigJson.getFloat(obj, "darkenUnopened", DEFAULT_DARKEN_UNOPENED));
+                // Migration, once (2026-10-19): a file saved with an OLD default (0.4, then 0.15, then 0.05) never picks up
+                // the new one, because a saved key wins over the default - every instance he has still read 0.4, the value
+                // he called too dark to read. Exactly an old default is taken as never chosen; anything else he set stays.
+                // The second flag covers files saved while 0.05 was the default (before the NoammAddons colours).
+                boolean firstDone = ConfigJson.getBool(obj, "darkenUnopenedDefault1019", false);
+                if (!ConfigJson.getBool(obj, "darkenUnopenedNoamm1019", false)
+                        && ((!firstDone && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f
+                                || Math.abs(cfg.darkenUnopened - 0.15f) < 1e-4f))
+                            || Math.abs(cfg.darkenUnopened - 0.05f) < 1e-4f)) {
+                    cfg.darkenUnopened = DEFAULT_DARKEN_UNOPENED;
                 }
                 // "hatchUnexplored" (Stripe Unexplored) is gone and a saved value is ignored: killer560, 2026-10-19, "That
                 // stripe should never exist no matter what setting." An old file still holding the key loads fine.
@@ -324,6 +331,7 @@ public final class LiveMapConfig {
             obj.addProperty("colourByType", colourByType);
             obj.addProperty("darkenUnopened", darkenUnopened);
             obj.addProperty("darkenUnopenedDefault1019", true);
+            obj.addProperty("darkenUnopenedNoamm1019", true);
             obj.addProperty("mapBackground", mapBackground);
             obj.addProperty("mapBorderColor", mapBorderColor);
             obj.addProperty("customCheckmarks", customCheckmarks);

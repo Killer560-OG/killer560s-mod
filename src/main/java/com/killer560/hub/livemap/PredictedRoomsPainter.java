@@ -57,8 +57,7 @@ public final class PredictedRoomsPainter {
                         // The grey MapPainter.roomColor gives every unopened room, Darken Unexplored included: it was
                         // the plain Unopened colour, so with his saved 0.4 an unsure tile read lighter than every
                         // other "?" room (killer560's 14:47:48 screenshot, 2026-10-19).
-                        fill(graphics, ox, oy, ppu, gx, gz,
-                                MapPainter.multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened()));
+                        fill(graphics, ox, oy, ppu, gx, gz, MapPainter.unopenedFill(cfg));
                         question(graphics, font, cfg, gx, gz, ox, oy, ppu);
                     }
                 }
@@ -171,12 +170,11 @@ public final class PredictedRoomsPainter {
         if (minX == Integer.MAX_VALUE) {
             return;
         }
-        float cxUnits = (MapPainter.cellPos(minX) + MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS) / 2f;
-        float czUnits = (MapPainter.cellPos(minZ) + MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS) / 2f;
-        float boxW = (MapPainter.cellPos(maxX) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minX)) * ppu;
-        float boxH = (MapPainter.cellPos(maxZ) + MapPainter.ROOM_UNITS - MapPainter.cellPos(minZ)) * ppu;
+        // On the room's own tiles, not the centre of its bounding box: an L's box centre is its empty corner (killer560,
+        // 2026-10-19 23:15:17, "Chambers 0/5" half outside the room). MapPainter.labelBox is the one rule for both.
+        float[] box = MapPainter.labelBox(p.certainTiles());
         String[] lines = predictionLines(p, cfg.getRoomLabels());
-        MapPainter.drawFittedLines(graphics, font, lines, ox + cxUnits * ppu, oy + czUnits * ppu, boxW, boxH,
+        MapPainter.drawFittedLines(graphics, font, lines, ox + box[0] * ppu, oy + box[1] * ppu, box[2] * ppu, box[3] * ppu,
                 MapPainter.LABEL_SCALE * cfg.getFontScale() * ppu, 0xFFE0E0E0, true);
     }
 

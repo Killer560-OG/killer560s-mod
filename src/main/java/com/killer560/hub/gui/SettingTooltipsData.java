@@ -1889,7 +1889,7 @@ final class SettingTooltipsData {
         d.put("custom checkmark sprite", "Off: the map's checks, crosses and question marks are Hypixel's own, copied off your hotbar map. On: the mod's outlined marks, or your own pictures.");
         d.put("dungeon map/sprite", "Which custom marks to draw: the mod's own, or Your Own - PNG pictures you make, in the sprite folder.");
         d.put("open sprite folder", "Opens the folder for your own marks: put green.png, cleared.png, failed.png and unopened.png in it (small pixel art, up to 64x64). A missing one uses the mod's mark.");
-        d.put("darken unexplored", "How much darker rooms you have not been in yet are drawn, 0 to 0.9: the gray question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
+        d.put("darken unexplored", "How much darker than NoammAddons' colors rooms you have not been in yet are drawn, 0 to 0.9 (0 by default): the gray question-mark rooms, and on Funny Map every room your hotbar map has not opened yet.");
         d.put("dungeon map/map theme", "The map's room colors: Real Map (Hypixel's), Amber, Dark, Light, Ocean, Green, Match Menu Theme (follows the mod menu's theme) or Custom (your own schemes).");
         d.put("dungeon map/scheme", "Which of your saved Custom schemes the map uses.");
         d.put("edit scheme", "Opens this scheme on a sample map: rename it, change each room and door color, reset it or delete it.");

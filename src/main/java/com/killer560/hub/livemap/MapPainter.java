@@ -448,6 +448,85 @@ public final class MapPainter {
         return g % 2 == 0 ? ROOM_UNITS : GAP_UNITS;
     }
 
+    /**
+     * Where a room's text goes, in map units: {@code {centreX, centreZ, boxW, boxH}} for a room made of these room tiles
+     * (grid indices, even cells). A room that fills its bounding rectangle (1x1, 1xN, 2x2) is labelled on the rectangle;
+     * any other shape - the L - on its longest straight run of tiles, a row before a column (QUOI's
+     * {@code textPlacement}: the L's horizontal pair). Drawing only: nothing here feeds the room's logic.
+     * <p>killer560, 2026-10-19 (23:15:17): Predictive Rooms labelled the L room Chambers on the centre of its 2x2
+     * bounding box, the empty corner, so "Chambers 0/5" sat half outside the room and was sized for a 2x2 room.
+     */
+    static float[] labelBox(int[] tiles) {
+        int g = LiveMapFeature.GRID;
+        int mnX = Integer.MAX_VALUE;
+        int mxX = Integer.MIN_VALUE;
+        int mnZ = Integer.MAX_VALUE;
+        int mxZ = Integer.MIN_VALUE;
+        java.util.Set<Integer> set = new java.util.HashSet<>();
+        for (int t : tiles) {
+            set.add(t);
+            mnX = Math.min(mnX, t % g);
+            mxX = Math.max(mxX, t % g);
+            mnZ = Math.min(mnZ, t / g);
+            mxZ = Math.max(mxZ, t / g);
+        }
+        if (set.isEmpty()) {
+            return new float[]{0, 0, ROOM_UNITS, ROOM_UNITS};
+        }
+        int cols = (mxX - mnX) / 2 + 1;
+        int rows = (mxZ - mnZ) / 2 + 1;
+        int x0 = mnX;
+        int x1 = mxX;
+        int z0 = mnZ;
+        int z1 = mxZ;
+        if (set.size() != cols * rows) {
+            // Not a rectangle: the longest run along a row, else along a column; the first in grid order on a tie.
+            int[] sorted = set.stream().mapToInt(Integer::intValue).sorted().toArray();
+            int bestLen = 0;
+            for (int t : sorted) {
+                int tx = t % g;
+                int tz = t / g;
+                if (tx < 2 || !set.contains(t - 2)) {
+                    int end = tx;
+                    while (end + 2 < g && set.contains(tz * g + end + 2)) {
+                        end += 2;
+                    }
+                    int len = (end - tx) / 2 + 1;
+                    if (len > bestLen) {
+                        bestLen = len;
+                        x0 = tx;
+                        x1 = end;
+                        z0 = tz;
+                        z1 = tz;
+                    }
+                }
+            }
+            for (int t : sorted) {
+                int tx = t % g;
+                int tz = t / g;
+                if (tz < 2 || !set.contains(t - 2 * g)) {
+                    int end = tz;
+                    while (end + 2 < g && set.contains((end + 2) * g + tx)) {
+                        end += 2;
+                    }
+                    int len = (end - tz) / 2 + 1;
+                    if (len > bestLen) {
+                        bestLen = len;
+                        x0 = tx;
+                        x1 = tx;
+                        z0 = tz;
+                        z1 = end;
+                    }
+                }
+            }
+        }
+        float left = cellPos(x0);
+        float right = cellPos(x1) + ROOM_UNITS;
+        float top = cellPos(z0);
+        float bottom = cellPos(z1) + ROOM_UNITS;
+        return new float[]{(left + right) / 2f, (top + bottom) / 2f, right - left, bottom - top};
+    }
+
     /** Map-unit position of a world coordinate (tile centres land on tile centres). */
     static double worldToUnits(double world) {
         return (world - LiveMapFeature.START_X) * 0.625 + 8;
@@ -481,6 +560,32 @@ public final class MapPainter {
         int g = Math.min(255, Math.round(((argb >> 8) & 0xFF) * f));
         int b = Math.min(255, Math.round((argb & 0xFF) * f));
         return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * The grey a room or door the map item shows as unopened is drawn in (the "?" rooms, and the door into one): the
+     * Unopened colour, as NoammAddons' {@code RoomTile.getColor}/{@code DoorTile.getColor} draw it (65, 65, 65, not
+     * darkened), then Darken Unexplored, whose default 0 leaves it exactly NoammAddons' grey (killer560, 2026-10-19).
+     */
+    public static int unopenedFill(LiveMapConfig cfg) {
+        return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
+    }
+
+    /**
+     * A room (or door) drawn in its own colour although he has not opened it yet - every such room on Funny Map, and the
+     * Blood Room behind its blood door. NoammAddons' cheater map draws these {@code color.darker().darker()}
+     * ({@code MapRenderer.renderRooms}); Darken Unexplored darkens further from there, 0 by default.
+     */
+    static int unexploredFill(int argb, LiveMapConfig cfg) {
+        return multiply(awtDarker(awtDarker(argb)), 1f - cfg.getDarkenUnopened());
+    }
+
+    /** {@code java.awt.Color.darker()}: each channel times 0.7, truncated; alpha kept. */
+    static int awtDarker(int argb) {
+        int r = (int) (((argb >> 16) & 0xFF) * 0.7);
+        int g = (int) (((argb >> 8) & 0xFF) * 0.7);
+        int b = (int) ((argb & 0xFF) * 0.7);
+        return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
     /** QUOI {@code base.mix(roomInCol.withAlpha(255), roomInCol.alpha)}. */
@@ -634,13 +739,13 @@ public final class MapPainter {
             // every other room he has not been in), in both styles. It was the greyed Normal brown (2026-10-18), which
             // on Funny Map read as an ordinary unopened room. On the regular map only once its blood door is known.
             logBloodRoom(group);
-            return multiply(cfg.getColorBlood(), 1f - cfg.getDarkenUnopened());
+            return unexploredFill(cfg.getColorBlood(), cfg);
         }
         // Funny Map: an unopened room the world scan has not reached yet is still a Funny Map room - its own colour
         // (the map item's byte, Normal brown for a plain unopened room) darkened below, not the regular map's grey.
         if (state == DungeonMapScanner.STATE_UNDISCOVERED
                 || (state == DungeonMapScanner.STATE_UNOPENED && !cfg.isFunnyMap())) {
-            return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
+            return unopenedFill(cfg);
         }
         String type = roomType(group);
         int color = cfg.isColourByType() ? typeColor(type, cfg) : cfg.getColorNormal();
@@ -672,7 +777,7 @@ public final class MapPainter {
             color = mix(color, cfg.getMimicColor());
         }
         if (unexplored(group)) {
-            color = multiply(color, 1f - cfg.getDarkenUnopened());
+            color = unexploredFill(color, cfg);
         }
         return color;
     }
@@ -1165,9 +1270,9 @@ public final class MapPainter {
                 // The map item's own grey: a door into a room nobody has opened yet. Hypixel draws it grey (NoammAddons
                 // DoorTile: "Unopened Door"), not in the colour of the opened room it leads from; it used to be drawn as
                 // that room's colour darkened, so it read as an opened corridor.
-                color = multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
+                color = unopenedFill(cfg);
             } else if (DungeonMapScanner.isCalibrated() && DungeonMapScanner.stateAt(idx) >= DungeonMapScanner.STATE_UNOPENED) {
-                color = multiply(color, 1f - cfg.getDarkenUnopened());
+                color = unexploredFill(color, cfg);
             }
             float[] box = doorUnits(gx, gz);
             float ux = box[0];
@@ -1426,14 +1531,25 @@ public final class MapPainter {
             for (String s : lines) {
                 maxWidth = Math.max(maxWidth, font.width(s));
             }
-            float boxW = group.lShape ? 36 : cellPos(group.maxGX) + ROOM_UNITS - cellPos(group.minGX);
-            float boxH = group.lShape ? ROOM_UNITS : cellPos(group.maxGZ) + ROOM_UNITS - cellPos(group.minGZ);
+            float[] box = drawnLabelBox(group);
             LABEL_CACHE.add(new Label(lines.toArray(new String[0]), maxWidth,
-                    stateColor(visibleState(group)), boxW, boxH,
-                    group.labelGX * 10 + 8, group.labelGZ * 10 + 8,
+                    stateColor(visibleState(group)), box[2], box[3], box[0], box[1],
                     roomColor(group, LiveMapConfig.getInstance())));
         }
         return LABEL_CACHE;
+    }
+
+    /** {@link #labelBox} over the room's tiles the map actually paints (all of them when it paints none), so the text
+     *  never lands on a tile of the room that is not drawn. */
+    private static float[] drawnLabelBox(LiveMapFeature.RoomGroup group) {
+        int n = 0;
+        int[] shown = new int[group.tiles.length];
+        for (int t : group.tiles) {
+            if (cellRevealed(t)) {
+                shown[n++] = t;
+            }
+        }
+        return labelBox(n == 0 ? group.tiles : java.util.Arrays.copyOf(shown, n));
     }
 
     /**
@@ -1527,8 +1643,8 @@ public final class MapPainter {
             if (PredictedRoomsPainter.namesAny(group.tiles)) {
                 continue;
             }
-            drawMark(graphics, group, visibleState(group), cfg, ox, oy,
-                    ox + (group.labelGX * 10 + 8) * ppu, oy + (group.labelGZ * 10 + 8) * ppu, ppu);
+            float[] box = drawnLabelBox(group);
+            drawMark(graphics, group, visibleState(group), cfg, ox, oy, ox + box[0] * ppu, oy + box[1] * ppu, ppu);
         }
         if (style == 1) {
             return;
