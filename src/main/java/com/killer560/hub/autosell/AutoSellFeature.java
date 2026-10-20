@@ -16,9 +16,8 @@ import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -69,20 +68,27 @@ public final class AutoSellFeature {
     private static final int MAX_CLICKS_PER_SESSION = 200;
 
     private static boolean running = false;
-    /** The sell screen the current session runs on, and the one the last session ended on (no restart there). */
+    /** The sell screen the current session runs on, and the one the last session ended on. A session does not start
+     *  again on {@link #doneScreen} unless the sell lists changed since it ended ({@link #doneListVersion}). */
     private static AbstractContainerScreen<?> sessionScreen;
     private static AbstractContainerScreen<?> doneScreen;
+    private static int doneListVersion;
     private static long stateSinceMs;
     /** Client ticks left before the next sell click may go out (see {@link #randomTicks}). */
     private static int waitTicks;
     private static int clicksSent;
     private static int attempted;
-    /** Identities already clicked this session - tracked by IDENTITY, not slot: a shift-click that doesn't
-     *  actually sell (a false-positive screen match) relocates the stack within the inventory rather than
-     *  removing it, and tracking by slot index would then just find it again at its new position and click it
-     *  forever. One attempt per identity per session is also a closer match to the real behaviour the forum
-     *  research turned up ("sell every item in your inventory that is of the same block" off one shift-click). */
-    private static final Set<String> handled = new HashSet<>();
+    /** Ticks since the session started; the clock {@link AutoSellVisit} times the server's answers against. */
+    private static int tickNo;
+    /** True once nothing is left to click and the session only waits for the server to answer the last clicks
+     *  (no click goes out while settling, so this adds no delay between sells). */
+    private static boolean settling;
+    /** The visit to {@link #visitScreen}, which tracks clicks per SLOT (see {@link AutoSellVisit}). Kept when a
+     *  session restarts on the same screen after a list change, so a slot already clicked there is not clicked twice
+     *  and an item added since the visit began is named in the log. */
+    private static AutoSellVisit visit;
+    private static AbstractContainerScreen<?> visitScreen;
+    private static List<AutoSellVisit.Stack> lastStacks = List.of();
 
     private AutoSellFeature() {
     }
@@ -123,7 +129,13 @@ public final class AutoSellFeature {
                 LOGGER.info("[AutoSell] screen open: {} (container={})", shown, open instanceof AbstractContainerScreen<?>);
             }
         }
-        if (!(open instanceof AbstractContainerScreen<?> screen) || screen == doneScreen) {
+        if (!(open instanceof AbstractContainerScreen<?> screen)) {
+            return;
+        }
+        // killer560, 2026-10-20: an item added to the list while the Trades menu is open is sold in that menu
+        // without reopening it, so a finished screen starts again once either list has changed.
+        boolean again = screen == doneScreen;
+        if (again && cfg.getListVersion() == doneListVersion) {
             return;
         }
         String title = titleOf(screen);
@@ -136,9 +148,17 @@ public final class AutoSellFeature {
             }
             return;
         }
-        handled.clear();
+        if (visit == null || visitScreen != screen) {
+            visit = new AutoSellVisit(cfg.getSellIdentities());
+            visitScreen = screen;
+            tickNo = 0;
+        }
+        if (again) {
+            LOGGER.info("[AutoSell] sell list changed while \"{}\" is open - selling again in it", titleOf(screen));
+        }
         clicksSent = 0;
         attempted = 0;
+        settling = false;
         running = true;
         sessionScreen = screen;
         stateSinceMs = System.currentTimeMillis();
@@ -146,7 +166,8 @@ public final class AutoSellFeature {
     }
 
     /** Auto Sell runs by itself on any sell screen while it is on - there is no start or stop command (killer560,
-     *  2026-10-19). A session that has finished or stopped on a screen does not start again on that same screen. */
+     *  2026-10-19). A session that has finished or stopped on a screen starts again on that same screen only when a
+     *  sell or never-sell list has changed since. */
     public static void requestStop() {
         if (running) {
             stop("stopped by user");
@@ -183,6 +204,21 @@ public final class AutoSellFeature {
             stop("screen changed to \"" + title + "\"");
             return;
         }
+        tickNo++;
+        AbstractContainerMenu menu = screen.getMenu();
+        visit.observe(menu.getStateId(), tickNo);
+        List<Slot> slots = playerSlots(menu);
+        lastStacks = stacksOf(slots);
+        if (settling) {
+            if (visit.next(lastStacks, lists(AutoSellConfig.getInstance())) != null) {
+                settling = false; // an item was added while waiting for the answers: back to clicking
+            } else {
+                if (visit.settled(tickNo)) {
+                    finish();
+                }
+                return;
+            }
+        }
         if (clicksSent >= MAX_CLICKS_PER_SESSION) {
             stop("safety limit reached");
             return;
@@ -192,39 +228,55 @@ public final class AutoSellFeature {
             return;
         }
         AutoSellConfig cfg = AutoSellConfig.getInstance();
-        AbstractContainerMenu menu = screen.getMenu();
-        for (Slot slot : playerSlots(menu)) {
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) {
-                continue;
+        // The lists are read afresh on every pass, so an item added while this screen is open is picked up here.
+        AutoSellVisit.Stack next = visit.next(lastStacks, lists(cfg));
+        if (next == null) {
+            settling = true;
+            if (visit.settled(tickNo)) {
+                finish();
             }
-            String identity = ItemIdentity.of(stack);
-            if (identity == null || handled.contains(identity) || !isSellable(cfg, identity)) {
-                continue;
-            }
-            if (!ActionGate.tryAct(ActionGate.Actor.AUTO_SELL, screen)) {
-                return; // gate denied this tick - retry next tick, nothing marked handled
-            }
-            client.gameMode.handleContainerInput(menu.containerId, slot.index, 0, ContainerInput.QUICK_MOVE, client.player);
-            handled.add(identity);
-            clicksSent++;
-            attempted++;
-            waitTicks = randomTicks(cfg);
             return;
         }
-        finish();
+        if (!ActionGate.tryAct(ActionGate.Actor.AUTO_SELL, screen)) {
+            return; // gate denied this tick - retry next tick, nothing marked clicked
+        }
+        if (visit.addedMidVisit(next.identity())) {
+            LOGGER.info("[AutoSell] picked up mid-visit: {} x{} in slot {} (added to the sell list while this screen was open)",
+                    next.identity(), next.count(), next.slot());
+        }
+        int stateBefore = menu.getStateId();
+        client.gameMode.handleContainerInput(menu.containerId, next.slot(), 0, ContainerInput.QUICK_MOVE, client.player);
+        visit.clicked(next, stateBefore, tickNo);
+        clicksSent++;
+        attempted++;
+        waitTicks = randomTicks(cfg);
     }
 
-    /** Sellable = explicitly on the sell list AND not on the never-sell list - both checked every time, no
-     *  "sell everything not protected" fallback. */
-    static boolean isSellable(AutoSellConfig cfg, String identity) {
-        if (identity == null) {
-            return false;
+    private static List<AutoSellVisit.Stack> stacksOf(List<Slot> slots) {
+        List<AutoSellVisit.Stack> out = new ArrayList<>(slots.size());
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                out.add(new AutoSellVisit.Stack(slot.index, ItemIdentity.of(stack), stack.getCount()));
+            }
         }
-        if (cfg.getNeverSellIdentities().stream().anyMatch(identity::equalsIgnoreCase)) {
-            return false;
-        }
-        return cfg.getSellIdentities().stream().anyMatch(identity::equalsIgnoreCase);
+        return out;
+    }
+
+    /** Sellable = explicitly on the sell list AND not on the never-sell list - both read live on every pass, no
+     *  "sell everything not protected" fallback (see {@link AutoSellVisit#sellable}). */
+    private static AutoSellVisit.Lists lists(AutoSellConfig cfg) {
+        return new AutoSellVisit.Lists() {
+            @Override
+            public boolean onSell(String identity) {
+                return cfg.getSellIdentities().stream().anyMatch(identity::equalsIgnoreCase);
+            }
+
+            @Override
+            public boolean onNever(String identity) {
+                return cfg.getNeverSellIdentities().stream().anyMatch(identity::equalsIgnoreCase);
+            }
+        };
     }
 
     /** The real container slots that are the player's OWN inventory - the last 36 real slots of whatever menu
@@ -258,14 +310,25 @@ public final class AutoSellFeature {
     private static void finish() {
         ModChat.send("AutoSell", ModChat.good("Done - "), ModChat.value(attempted + " item stack(s)"),
                 ModChat.text(" clicked."));
-        doneScreen = sessionScreen;
-        running = false;
+        end();
     }
 
     private static void stop(String reason) {
         ModChat.send("AutoSell", ModChat.bad("Stopped: "), ModChat.text(reason),
                 ModChat.dim(" (" + attempted + " item stack(s) clicked)"));
+        end();
+    }
+
+    /** Logs every stack the visit left unsold, with the reason, from the last scan of the inventory. */
+    private static void end() {
+        if (visit != null) {
+            for (String line : visit.report(lastStacks, lists(AutoSellConfig.getInstance()), tickNo)) {
+                LOGGER.info("[AutoSell] {}", line);
+            }
+        }
         doneScreen = sessionScreen;
+        doneListVersion = AutoSellConfig.getInstance().getListVersion();
         running = false;
+        settling = false;
     }
 }

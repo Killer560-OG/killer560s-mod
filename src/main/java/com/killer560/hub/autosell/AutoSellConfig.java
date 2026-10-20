@@ -24,7 +24,7 @@ import java.util.regex.PatternSyntaxException;
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} gate (see {@link #isEnabled()}) it also needs its
  * own separate opt-in per item: nothing is ever clicked unless its identity is on {@link #getSellIdentities()},
  * and the never-sell list in {@link #getNeverSellIdentities()} wins over that if an id somehow ends up on both
- * (see {@code AutoSellFeature#isSellable}).
+ * (see {@code AutoSellVisit#sellable}).
  */
 public final class AutoSellConfig {
 
@@ -53,6 +53,9 @@ public final class AutoSellConfig {
     private final Set<String> neverSellIdentities = new LinkedHashSet<>();
     /** Key that adds or removes the hovered inventory item on the sell list (killer560, 2026-10-18). {@code KeyUtil.NONE} = unset. */
     private int toggleKeyCode = KeyUtil.NONE;
+    /** Bumped on every change to either list (not saved): lets Auto Sell run again on a screen it already finished
+     *  on when an item is added there (killer560, 2026-10-20). */
+    private static int listVersion = 0;
 
     private AutoSellConfig() {
     }
@@ -87,6 +90,7 @@ public final class AutoSellConfig {
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
             cfg.toggleKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "toggleKeyCode", cfg.toggleKeyCode));
             instance = cfg;
+            listVersion++;
         } catch (Exception e) {
             instance = new AutoSellConfig();
         }
@@ -203,19 +207,31 @@ public final class AutoSellConfig {
     }
 
     public boolean addSellIdentity(String identity) {
-        return identity != null && !identity.isBlank() && sellIdentities.add(identity.trim().toUpperCase(Locale.ROOT));
+        return bump(identity != null && !identity.isBlank() && sellIdentities.add(identity.trim().toUpperCase(Locale.ROOT)));
     }
 
     public boolean removeSellIdentity(String identity) {
-        return identity != null && sellIdentities.remove(identity.trim().toUpperCase(Locale.ROOT));
+        return bump(identity != null && sellIdentities.remove(identity.trim().toUpperCase(Locale.ROOT)));
     }
 
     public boolean addNeverSellIdentity(String identity) {
-        return identity != null && !identity.isBlank() && neverSellIdentities.add(identity.trim().toUpperCase(Locale.ROOT));
+        return bump(identity != null && !identity.isBlank() && neverSellIdentities.add(identity.trim().toUpperCase(Locale.ROOT)));
     }
 
     public boolean removeNeverSellIdentity(String identity) {
-        return identity != null && neverSellIdentities.remove(identity.trim().toUpperCase(Locale.ROOT));
+        return bump(identity != null && neverSellIdentities.remove(identity.trim().toUpperCase(Locale.ROOT)));
+    }
+
+    private boolean bump(boolean changed) {
+        if (changed) {
+            listVersion++;
+        }
+        return changed;
+    }
+
+    /** Changes whenever either list changes in this session. */
+    public int getListVersion() {
+        return listVersion;
     }
 
     public int getToggleKeyCode() {

@@ -14,6 +14,9 @@ Moved out of CLAUDE.md to keep it under its size limit. Same rules: problem, the
 - `ItemIdentity.of()` is shared by Auto Sell, the Inventory Sorter, Armour Dye and the mining profit tracker (shelved until after 2.0).
   Widening it to make two items equal makes "sell my Hyperion" sell an Astraea. Loose matching belongs in
   `matches()`, which only a route's USE_ITEM node reaches.
+- A shift-click in Hypixel's Trades menu sells the clicked STACK only, not every item of that kind. Auto Sell marked an
+  identity done after one click, so three Dreadlord Swords took three visits and two Training Weights stacks two
+  (log, 2026-10-20). `AutoSellVisit` tracks clicks per slot, capped per identity at the most stacks seen in one scan.
 - Custom Items' `DataComponentHolder#get` override must never reach `getHoverName`: on a player head that is
   `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armour stand)
   overflowed the render thread (2026-10-18). `ArmourDye.identityOf` reads the name with `entryFor` switched off per thread.

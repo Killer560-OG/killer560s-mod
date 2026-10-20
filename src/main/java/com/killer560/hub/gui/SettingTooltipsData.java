@@ -2453,7 +2453,7 @@ final class SettingTooltipsData {
         d.put("show with look", "Previews the item with its saved skin, color, trim and look drawn on it.");
         d.put("show clear item", "Previews the item as it really is, with no custom skin, color, trim or look drawn on it.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");
-        d.put("auto sell", "Sells items on your sell list automatically while a sell screen is open; start it with /autosell start.");
+        d.put("auto sell", "Sells every stack on your sell list by itself while a sell screen is open; an item added there is sold without reopening it.");
         // Auto Anvil (killer560, 2026-10-07). Scoped under its own tab name: Min/Max Delay and Close When Done are
         // generic labels other tabs use too.
         d.put("auto anvil", "In Hypixel's Anvil, combines two identical single-enchant books into the next level, where the anvil can make it (cheat build only).");
