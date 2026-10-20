@@ -2482,7 +2482,7 @@ public final class AutoClearFeature {
             spot = preferOneWarp(client, feet, planned);
         }
         java.util.function.Predicate<Vec3> inReach = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE
-                ? feetAt -> WeaponReach.sceptreReachesFrom(client.level, feetAt, box)
+                ? feetAt -> WeaponReach.sceptreReachesFrom(client.level, feetAt, box, usefulBatRange())
                 : feetAt -> reaches(cfg.getWeapon(), feetAt, box);
         if (walkInsteadOfTrip(client, player, spot, inReach, targetName + " at " + target.blockPosition().toShortString())) {
             return;
@@ -3006,6 +3006,19 @@ public final class AutoClearFeature {
                 targetName, target.blockPosition().toShortString(), aimShots, s.health(),
                 ClearExecutor.clientTick() - aimFirst, aimFlight));
         return true;
+    }
+
+    /**
+     * How far a straight bat is worth planning on: the distance a bat flies in the time a one-warp trip, the swap and turn
+     * after it and a bat fired down take ({@link #tripTicks}, as measured this run), at least 6 and at most the plan range.
+     * Past it a trip onto a nearer block kills sooner, so the room's plan of stand blocks and the "a bat from here
+     * first" pick stop there (testkit 1020-sim-ac-speed: planning on the full 24 made 20-block bats the clear's bottleneck,
+     * bat waits 652 and firing 445 ticks over 44 rooms against 206 and 241; the sim's trips take ~6 ticks, its bat 1.02 a
+     * tick). His Hypixel trips (12.7 ticks in the study) make it about 17.
+     */
+    static double usefulBatRange() {
+        int ticks = tripTicks(1) + AFTER_TRIP_TICKS + WeaponReach.BAT_LAUNCH_TICKS + 2;
+        return Math.max(6.0, Math.min(WeaponReach.SCEPTRE_PLAN_RANGE, ticks * WeaponReach.BAT_BLOCKS_PER_TICK));
     }
 
     /** Whether a live starred mob of the room other than {@code target} (and not already left to its bat) is in sight. */
@@ -3872,7 +3885,7 @@ public final class AutoClearFeature {
         for (int j = 0; j < list.size(); j++) {
             AABB box = list.get(j).getBoundingBox();
             boolean hit = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && level != null
-                    ? WeaponReach.sceptreReachesFrom(level, feet, box) : reaches(weapon, feet, box);
+                    ? WeaponReach.sceptreReachesFrom(level, feet, box, usefulBatRange()) : reaches(weapon, feet, box);
             if (hit) {
                 m |= 1L << j;
             }
@@ -4152,7 +4165,7 @@ public final class AutoClearFeature {
             // plan for the rest is made again without them.
             List<Entity> now = new java.util.ArrayList<>();
             for (Entity e : mobs) {
-                if (WeaponReach.sceptreReachesFrom(player.level(), player.position(), e.getBoundingBox())) {
+                if (WeaponReach.sceptreReachesFrom(player.level(), player.position(), e.getBoundingBox(), usefulBatRange())) {
                     now.add(e);
                 }
             }

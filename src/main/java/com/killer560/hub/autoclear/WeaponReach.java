@@ -275,17 +275,23 @@ public final class WeaponReach {
      * a fan of looks round the mob: whatever this says reaches, the aim from there finds.
      */
     public static boolean sceptreReachesFrom(Level level, Vec3 feet, AABB mob) {
+        return sceptreReachesFrom(level, feet, mob, SCEPTRE_PLAN_RANGE);
+    }
+
+    /** {@link #sceptreReachesFrom} with straight shots only out to {@code range} (at most the plan range). */
+    public static boolean sceptreReachesFrom(Level level, Vec3 feet, AABB mob, double range) {
         if (sceptreHits(feet, mob)) {
             return true;
         }
+        range = Math.min(range, SCEPTRE_PLAN_RANGE);
         Vec3 eye = feet.add(0, STANDING_EYE, 0);
         Vec3 c = mob.getCenter();
-        if (eye.distanceToSqr(c) > (SCEPTRE_PLAN_RANGE + 1.0) * (SCEPTRE_PLAN_RANGE + 1.0)) {
+        if (eye.distanceToSqr(c) > (range + 1.0) * (range + 1.0)) {
             return false;
         }
         Vec3[] points = {c, new Vec3(c.x, mob.maxY - 0.2, c.z)};
         for (Vec3 p : points) {
-            if (eye.distanceTo(p) > SCEPTRE_PLAN_RANGE) {
+            if (eye.distanceTo(p) > range) {
                 continue;
             }
             BlockHitResult hit = level.clip(new ClipContext(eye, p, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
