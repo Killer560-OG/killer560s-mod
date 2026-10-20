@@ -745,12 +745,12 @@ final class BazaarFlipAutopilot {
                     fail("unknown menu for the " + jobName() + ": " + BazaarFlipMenus.describe(screen));
                     return;
                 }
-                for (String preset : new String[]{"Get me a stack!", "A big stack!", "One thousand!"}) {
-                    BazaarPages.Item it = BazaarFlipMenus.item(page, preset);
-                    if (it != null && BazaarFlipMenus.loreAmount(it.lore()) == b.amount()) {
-                        click(client, screen, it.slot(), ContainerInput.PICKUP, cfg, true);
-                        return;
-                    }
+                // A preset stating exactly the amount (lore "Amount: Nx", else its name: "Buy only one!", "Buy 32!");
+                // Confirm Buy Order re-checks the amount before anything is placed.
+                BazaarPages.Item exact = BazaarPages.exactAmountPreset(page, b.amount());
+                if (exact != null) {
+                    click(client, screen, exact.slot(), ContainerInput.PICKUP, cfg, true);
+                    return;
                 }
                 BazaarPages.Item custom = BazaarFlipMenus.item(page, "Custom Amount");
                 if (custom == null) {
@@ -864,12 +864,8 @@ final class BazaarFlipAutopilot {
         BazaarPages.Item bound = null;
         long boundAmount = Long.MAX_VALUE;
         double boundPrice = -1;
-        for (String preset : new String[]{"Buy only one!", "Buy a stack!", "Fill my inventory!"}) {
-            BazaarPages.Item it = BazaarFlipMenus.item(page, preset);
-            if (it == null) {
-                continue;
-            }
-            long amount = BazaarFlipMenus.loreAmount(it.lore());
+        for (BazaarPages.Item it : BazaarPages.amountPresets(page)) {
+            long amount = BazaarPages.presetAmount(it);
             double price = BazaarFlipMenus.lorePrice(it.lore());
             if (amount == want) {
                 exact = it;

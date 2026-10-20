@@ -28,7 +28,8 @@ import java.util.regex.Pattern;
  *       with {@code Buy price: # coins} / {@code Sell price: # coins}; also {@code (1/3) Oddities ➜ Reforge Stones}); the
  *       product page (Buy Instantly, Sell Instantly, the product, Create Buy Order, Create Sell Offer); {@code <Item> ➜
  *       Instant Buy} (Buy only one!, Buy a stack!, Fill my inventory!, Custom Amount); the buy order amount (Get me a
- *       stack!, A big stack!, One thousand!, Custom Amount) and price (Same as Top Order, Top Order +0.1, 5% of Spread,
+ *       stack!, A big stack!, One thousand!, Custom Amount; killer560's client, 2026-10-20: Buy only one!, Buy 4!, Buy
+ *       32!, Custom Amount - see {@link #AMOUNT_PRESETS}) and price (Same as Top Order, Top Order +0.1, 5% of Spread,
  *       Custom Price) steps, Confirm Buy Order (Buy Order), the sell offer price step (Same as Best Offer, Best Offer
  *       -0.1, 10% of Spread, Custom Price), Confirm Sell Offer (Sell Offer), and Sell Inventory Now's {@code Are you
  *       sure?} (Selling whole inventory, Cancel).</li>
@@ -258,6 +259,88 @@ public final class BazaarPages {
         return false;
     }
 
+    // ---- quantity presets ("How many do you want?" and Instant Buy) ---------------------------------------------------
+
+    /**
+     * Named quantity presets. The buy order step showed "Get me a stack!", "A big stack!", "One thousand!" (wiki);
+     * on 2026-10-20 killer560's client showed it as "Buy only one!", "Buy 4!", "Buy 32!" beside Custom Amount, so the
+     * Instant Buy names and the "Buy N!" shape ({@link #BUY_N}) are presets on both pages.
+     */
+    public static final List<String> AMOUNT_PRESETS = List.of("Get me a stack!", "A big stack!", "One thousand!",
+            "Buy only one!", "Buy a stack!", "Fill my inventory!");
+    /** "Buy 4!", "Buy 32!", "Buy 1,024!": a preset whose name states its amount. */
+    static final Pattern BUY_N = Pattern.compile("^Buy ([\\d,]{1,9})!$");
+    /** "Amount: 2,304x" on a preset's lore. */
+    public static final Pattern LORE_AMOUNT = Pattern.compile("^Amount: ([\\d,]{1,12})x?$");
+
+    /** Whether {@code name} is a quantity preset (Custom Amount is not one). */
+    public static boolean isAmountPreset(String name) {
+        return name != null && (AMOUNT_PRESETS.contains(name) || BUY_N.matcher(name).matches());
+    }
+
+    private static boolean anyAmountPreset(List<Item> items) {
+        for (Item it : items) {
+            if (isAmountPreset(it.name())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The "Amount: Nx" line of a lore, or -1. */
+    public static long loreAmount(List<String> lore) {
+        for (String line : lore) {
+            Matcher m = LORE_AMOUNT.matcher(line);
+            if (m.matches()) {
+                return Long.parseLong(m.group(1).replace(",", ""));
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The amount a preset buys: its lore's "Amount: Nx" line when it has one; otherwise what its name states
+     * ("Buy only one!" = 1, "Buy 32!" = 32); otherwise -1 (never guessed from the stack count or the slot).
+     */
+    public static long presetAmount(Item it) {
+        if (it == null || !isAmountPreset(it.name())) {
+            return -1;
+        }
+        long lore = loreAmount(it.lore());
+        if (lore > 0) {
+            return lore;
+        }
+        if (it.name().equals("Buy only one!")) {
+            return 1;
+        }
+        Matcher m = BUY_N.matcher(it.name());
+        return m.matches() ? Long.parseLong(m.group(1).replace(",", "")) : -1;
+    }
+
+    /** Every quantity preset on the page, in slot order. */
+    public static List<Item> amountPresets(Page page) {
+        List<Item> out = new ArrayList<>();
+        for (Item it : page.content()) {
+            if (isAmountPreset(it.name())) {
+                out.add(it);
+            }
+        }
+        return out;
+    }
+
+    /** The preset buying exactly {@code amount}, or null (the caller then uses Custom Amount). */
+    public static Item exactAmountPreset(Page page, long amount) {
+        if (amount < 1) {
+            return null;
+        }
+        for (Item it : amountPresets(page)) {
+            if (presetAmount(it) == amount) {
+                return it;
+            }
+        }
+        return null;
+    }
+
     static Kind kindOf(String title, List<Item> items) {
         if (ORDERS_TITLE.matcher(title).matches()) {
             return Kind.ORDERS;
@@ -266,8 +349,7 @@ public final class BazaarPages {
             case "Order options":
                 return nameContains(items, "Cancel Order") ? Kind.ORDER_OPTIONS : Kind.UNKNOWN;
             case "How many do you want?":
-                return has(items, "Custom Amount") && hasAny(items, "Get me a stack!", "A big stack!", "One thousand!")
-                        ? Kind.ORDER_AMOUNT : Kind.UNKNOWN;
+                return has(items, "Custom Amount") && anyAmountPreset(items) ? Kind.ORDER_AMOUNT : Kind.UNKNOWN;
             case "How much do you want to pay?":
                 return has(items, "Custom Price") && hasAny(items, "Same as Top Order", "Top Order +0.1")
                         ? Kind.ORDER_PRICE : Kind.UNKNOWN;
@@ -292,8 +374,7 @@ public final class BazaarPages {
             return priced(items) >= 1 ? Kind.SEARCH : Kind.UNKNOWN;
         }
         if (INSTANT_BUY_TITLE.matcher(title).matches()) {
-            return has(items, "Custom Amount") && hasAny(items, "Buy only one!", "Buy a stack!", "Fill my inventory!")
-                    ? Kind.INSTANT_BUY : Kind.UNKNOWN;
+            return has(items, "Custom Amount") && anyAmountPreset(items) ? Kind.INSTANT_BUY : Kind.UNKNOWN;
         }
         if (instantBuyCut(title)) {
             // Cut before the arrow (a product name of 29+ characters): only the items can say what it is, so the

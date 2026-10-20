@@ -180,20 +180,12 @@ public final class BazaarFlipMenus {
         return room;
     }
 
-    private static final java.util.regex.Pattern LORE_AMOUNT =
-            java.util.regex.Pattern.compile("^Amount: ([\\d,]{1,12})x?$");
     private static final java.util.regex.Pattern LORE_PRICE =
             java.util.regex.Pattern.compile("^(?:Price|Total|Cost): ([\\d,]{1,15}(?:\\.\\d{1,2})?) coins?$");
 
-    /** "Amount: 2,304x" off an instant-buy option, or -1 when the lore has no such line. */
+    /** "Amount: 2,304x" off an instant-buy option, or -1 when the lore has no such line ({@link BazaarPages#loreAmount}). */
     public static long loreAmount(List<String> lore) {
-        for (String line : lore) {
-            java.util.regex.Matcher m = LORE_AMOUNT.matcher(line);
-            if (m.matches()) {
-                return Long.parseLong(m.group(1).replace(",", ""));
-            }
-        }
-        return -1;
+        return BazaarPages.loreAmount(lore);
     }
 
     /** "Price: 80,627 coins" off an instant-buy option, or -1 when the lore has no such line. */
