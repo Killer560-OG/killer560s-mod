@@ -50,6 +50,15 @@ public final class LeapRunMemory {
     private static final int SETTLE_TICKS = 20;
 
     private static int pendingTicks = -1;
+    /** The party read at the last settle, and how many reads this run start has taken. A snapshot that is still changing
+     *  (the tab list fills in after Mort's line) must not count anyone as having left: the rules below only act once two
+     *  reads agree (killer560, 2026-10-20: picks reset after a Hub setup, when the party was read before everyone was in). */
+    private static List<String> lastRead;
+    private static int reads;
+    /** Reads taken at most before a run's party is taken as it is (about 10 s of tab-list refreshes). */
+    private static final int MAX_READS = 20;
+    /** Ticks between the tab-list re-reads while the party is still changing. */
+    private static final int REREAD_TICKS = 10;
     private static volatile String lastOutcome = "";
     private static volatile int runsProcessed = 0;
 
@@ -65,6 +74,8 @@ public final class LeapRunMemory {
         String plain = ChatObserver.strip(message);
         if (plain != null && plain.contains("[NPC] Mort: ") && RUN_START.matcher(plain.trim()).matches()) {
             pendingTicks = 0;
+            lastRead = null;
+            reads = 0;
         }
     }
 
@@ -78,6 +89,8 @@ public final class LeapRunMemory {
         pendingTicks = -1;
         if (!DungeonState.isInDungeon() || DungeonState.isRoomSim() || DungeonState.isSimOverrideActive()) {
             lastOutcome = "skipped: not a real dungeon run";
+            lastRead = null;
+            reads = 0;
             return;
         }
         List<String> party = PartyTracker.teammatesInLeapOrder();
@@ -85,6 +98,22 @@ public final class LeapRunMemory {
             lastOutcome = "skipped: no teammates known";
             return;
         }
+        reads++;
+        boolean stable = party.equals(lastRead);
+        lastRead = party;
+        if (!stable && reads < MAX_READS) {
+            // Still changing: read again shortly, and decide only on a snapshot two reads agree on.
+            pendingTicks = SETTLE_TICKS - REREAD_TICKS;
+            return;
+        }
+        if (!stable) {
+            lastOutcome = "party never settled after " + reads + " reads - no picks changed this run";
+            lastRead = null;
+            reads = 0;
+            return;
+        }
+        lastRead = null;
+        reads = 0;
         onRunStart(party, LeapMenuFeature.playingClass());
     }
 
