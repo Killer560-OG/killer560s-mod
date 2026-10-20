@@ -272,8 +272,9 @@ final class AutoBlaze {
                 // chain's stands all dropping at once (several listed, none shot), which this cannot be.
                 // killer560, 2026-10-19: "if you have shot every mob then it is done" - the last shot's kill counts however many
                 // were listed, so a room whose blazes all fell to our volleys is done at once.
-                boolean ourKill = currentTarget != null && currentTarget.isRemoved()
-                        && VOLLEY.struck();
+                // killer560, 2026-10-19: the 23:06 run waited 30 ticks on a last blaze whose volley the client never saw an
+                // arrow of, so the struck test is dropped: the target being gone with the list empty is the kill.
+                boolean ourKill = currentTarget != null && currentTarget.isRemoved();
                 if (!ourKill
                         && emptyTicks < DONE_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag)) {
                     // The list also goes empty for a moment when a failed chain's stands are replaced, so the room
