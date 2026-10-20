@@ -80,6 +80,8 @@ public final class ModPaths {
         t.put("autosecret", "dungeons/autosecret");
         // Auto Trap's trap routes (killer560smod-autotrap.json).
         t.put("autotrap", "dungeons/autotrap");
+        // The always-on map logger's skull log (killer560smod-maplog-<time>.log).
+        t.put("maplog", "dungeons/maplog");
 
         t.put("breakeraura", "dungeons/breakeraura");
         t.put("dungeonbreaker", "dungeons/breakeraura");
