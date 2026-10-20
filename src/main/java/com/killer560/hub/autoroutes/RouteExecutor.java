@@ -467,6 +467,14 @@ public final class RouteExecutor {
         return AutoRoutesConfig.getInstance().isLegitMode() ? null : p -> turnBodyToward(player, Vec3.atCenterOf(p));
     }
     private static BlockPos boomTarget;
+    /** The block (and face) a boom node's recorded look meets from the node's own standing eye - the block it was recorded
+     *  on - or null when that look meets nothing in reach. Set in PREP, aimed at from wherever the eye is on each send. */
+    private static BlockPos boomPlanned;
+    private static Direction boomPlannedFace;
+    private static Vec3 boomPlannedHit;
+    /** The look the last boom send went out along (the recorded one, or one from this eye onto {@link #boomPlanned}). */
+    private static float boomAimYaw;
+    private static float boomAimPitch;
     // ---- crypt ----
     /** The held slot before a crypt node swapped to its weapon, put back when it is done. */
     private static int cryptSlotBefore = -1;
@@ -2014,6 +2022,9 @@ public final class RouteExecutor {
         blockWaitTicks = 0;
         blockWaitSaid = false;
         boomTarget = null;
+        boomPlanned = null;
+        boomPlannedFace = null;
+        boomPlannedHit = null;
         boomBefore.clear();
         cryptSlotBefore = -1;
         releaseUse(Minecraft.getInstance());
@@ -4735,7 +4746,12 @@ public final class RouteExecutor {
                     String.format(Locale.ROOT, "%.2f", node.pitch),
                     AutoRoutesConfig.getInstance().isLegitMode() ? "legit" : "obvious");
             select(client, player, slot);
-            aimAt(node);
+            planBoom(client, player, node);
+            if (boomHitFromHere(client, player, node) != null) {
+                aimAt(boomAimYaw, boomAimPitch, node);
+            } else {
+                aimAt(node);
+            }
             step = Step.AIM;
             stepTicks = 0;
         }
@@ -4745,7 +4761,8 @@ public final class RouteExecutor {
                         nodeTag(node), stepTicks);
                 return;
             }
-            BlockHitResult hit = blockInSight(client, player, node, 4.5);
+            BlockHitResult hit = AutoRoutesConfig.getInstance().isLegitMode() ? blockInSight(client, player, node, 4.5)
+                    : boomHitFromHere(client, player, node);
             if (hit == null) {
                 // Nothing in reach along the recorded look: on a stack of booms that is usually the wall an earlier
                 // boom (or an earlier run) already blew. Nothing to blow is not a reason to strand the rest of the
@@ -4777,8 +4794,8 @@ public final class RouteExecutor {
                 // ABORT with face DOWN - vanilla's stopDestroyBlock always says DOWN (javap, 26.1.2). The ABORT used
                 // to carry the struck face, and GrimAC's PositionBreakB then flagged every later dig until one came
                 // from that face (2026-10-05, 62-argrim: a boom's EAST abort, then six breaker digs flagged).
-                turnBody(player, player.getYRot() + Mth.wrapDegrees(RouteCoords.toRealYaw(frame, node.yaw)
-                        - player.getYRot()), node.pitch);
+                turnBody(player, player.getYRot() + Mth.wrapDegrees(boomAimYaw - player.getYRot()),
+                        Mth.clamp(boomAimPitch, -90f, 90f));
                 sendBoomTap(client, player, boomTarget, hit.getDirection());
             }
             player.swing(InteractionHand.MAIN_HAND);
@@ -4859,6 +4876,87 @@ public final class RouteExecutor {
     /** The hotbar slot of a Superboom (infinite or plain), or -1 - the boom node's own lookup. */
     public static int superboomSlot(LocalPlayer player) {
         return ItemIdentity.findHotbarSlotById(player, BOOM_IDS);
+    }
+
+    /**
+     * The block a boom node was recorded on: its recorded look from the node's own STANDING eye (a node is added with
+     * {@code /ar add boom}, typed with the chat open, so never sneaking). The superboom acts on the block the dig names,
+     * and Hypixel blows what lies within 3 of THAT block, so the block must not depend on how he happens to stand.
+     * Until 2026-10-20 the look was cast from the live eye: sneaking (the sneak held from the warp before, 0.35 lower)
+     * or 0.05 up on a landing tick, a shallow look met the floor a block short. His Museum #11 (27 degrees down, killer560
+     * Mod Only Test 2026-10-20 09:55:55): from the sneaking eye -167, 68, -163 and nothing blew; fired standing at 09:56:14,
+     * -166, 68, -163 and 30 blocks went. The second boom of a stack is the one that fires with the warp's sneak still held.
+     */
+    private static void planBoom(Minecraft client, LocalPlayer player, RouteNode node) {
+        boomPlanned = null;
+        boomPlannedFace = null;
+        boomPlannedHit = null;
+        Vec3 at = RouteCoords.toReal(frame, node.relativePos());
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(false), at.z);
+        BlockHitResult b = clipAlong(client, player, eye, RouteCoords.toRealYaw(frame, node.yaw), node.pitch);
+        if (b != null) {
+            boomPlanned = b.getBlockPos().immutable();
+            boomPlannedFace = b.getDirection();
+            boomPlannedHit = b.getLocation();
+        }
+        Vec3 live = player.getEyePosition();
+        LOGGER.info("[AutoRoutes] Node #{} BOOM: recorded look from the node's standing eye {} meets {} - the live eye {} is "
+                        + "{} above it", route.indexOf(node) + 1, fmt(eye),
+                boomPlanned == null ? "nothing within 4.5" : boomPlanned.toShortString() + " ("
+                        + client.level.getBlockState(boomPlanned).getBlock().getName().getString() + ", face "
+                        + boomPlannedFace + ")", fmt(live), String.format(Locale.ROOT, "%.2f", live.y - eye.y));
+    }
+
+    /**
+     * Where a boom goes from the eye he has now, and the look it goes along ({@link #boomAimYaw}/{@link #boomAimPitch}):
+     * the recorded look when from here it still meets {@link #boomPlanned}; else a look from here onto that block (the
+     * recorded hit point, then its face's centre and corners); else, when nothing from here meets it, the dig still names
+     * that block with the recorded face (a dig is not judged by line of sight: testkit 54). With no planned block it is
+     * the recorded look from here, as before.
+     */
+    private static BlockHitResult boomHitFromHere(Minecraft client, LocalPlayer player, RouteNode node) {
+        float recYaw = RouteCoords.toRealYaw(frame, node.yaw);
+        boomAimYaw = recYaw;
+        boomAimPitch = node.pitch;
+        Vec3 eye = player.getEyePosition();
+        BlockHitResult along = clipAlong(client, player, eye, recYaw, node.pitch);
+        if (boomPlanned == null || (along != null && along.getBlockPos().equals(boomPlanned))) {
+            return along;
+        }
+        List<Vec3> points = new ArrayList<>();
+        if (boomPlannedHit != null) {
+            points.add(boomPlannedHit);
+        }
+        Vec3 c = Vec3.atCenterOf(boomPlanned);
+        Vec3 n = new Vec3(boomPlannedFace.getStepX(), boomPlannedFace.getStepY(), boomPlannedFace.getStepZ());
+        Vec3 faceC = c.add(n.scale(0.5));
+        points.add(faceC);
+        for (double u : new double[]{-0.35, 0.35}) {
+            for (double v : new double[]{-0.35, 0.35}) {
+                Vec3 off = n.x != 0 ? new Vec3(0, u, v) : n.y != 0 ? new Vec3(u, 0, v) : new Vec3(u, v, 0);
+                points.add(faceC.add(off));
+            }
+        }
+        for (Vec3 p : points) {
+            TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, p.subtract(n.scale(0.01)));
+            BlockHitResult h = clipAlong(client, player, eye, r.yaw(), r.pitch());
+            if (h != null && h.getBlockPos().equals(boomPlanned)) {
+                boomAimYaw = r.yaw();
+                boomAimPitch = r.pitch();
+                return h;
+            }
+        }
+        TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, faceC);
+        boomAimYaw = r.yaw();
+        boomAimPitch = r.pitch();
+        return new BlockHitResult(faceC, boomPlannedFace, boomPlanned, false);
+    }
+
+    private static BlockHitResult clipAlong(Minecraft client, LocalPlayer player, Vec3 eye, float yaw, float pitch) {
+        Vec3 look = TeleportUtils.getLook(yaw, pitch).scale(4.5);
+        HitResult hit = client.level.clip(new ClipContext(eye, eye.add(look), ClipContext.Block.OUTLINE,
+                ClipContext.Fluid.NONE, player));
+        return hit instanceof BlockHitResult b && hit.getType() == HitResult.Type.BLOCK ? b : null;
     }
 
     /** Ticks a boom that changed nothing waits: the measured round trip ({@link
