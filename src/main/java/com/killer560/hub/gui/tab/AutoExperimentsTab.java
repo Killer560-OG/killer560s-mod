@@ -99,6 +99,37 @@ public class AutoExperimentsTab extends BaseTab {
                     c.save();
                     btn.setMessage(skipSerumText());
                 }).bounds(contentX, y, half, 20).build());
+        // killer560, 2026-10-19: a T7 book or the Nadeshiko Dye comes before anything else.
+        widgets.add(SettingsButtonWidget.builder(t7FirstText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSuperpairsT7First(!c.isSuperpairsT7First());
+                    c.save();
+                    btn.setMessage(t7FirstText());
+                }).bounds(contentX + half + GAP, y, half, 20).build());
+        y += 24;
+        // killer560, 2026-10-19: hold back rewards worth up to the slider's value until the board is known.
+        widgets.add(SettingsButtonWidget.builder(exploreFirstText(), btn -> {
+                    ExperimentsConfig c = ExperimentsConfig.getInstance();
+                    c.setSuperpairsExploreFirst(!c.isSuperpairsExploreFirst());
+                    c.save();
+                    btn.setMessage(exploreFirstText());
+                }).bounds(contentX, y, half, 20).build());
+        double skipRange = ExperimentsConfig.MAX_SUPERPAIRS_SKIP_VALUE - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE;
+        widgets.add(new ThemedSliderButton(contentX + half + GAP, y, half, 20, skipValueText(),
+                (cfg.getSuperpairsSkipValueCoins() - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE) / skipRange) {
+            @Override
+            protected void updateMessage() {
+                setMessage(skipValueText());
+            }
+
+            @Override
+            protected void applyValue() {
+                ExperimentsConfig c = ExperimentsConfig.getInstance();
+                c.setSuperpairsSkipValueCoins(ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE + this.value * skipRange);
+                c.save();
+                this.value = (c.getSuperpairsSkipValueCoins() - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE) / skipRange;
+            }
+        });
         y += 24;
 
         // Adaptive Timeout extends Superpairs' confirm wait by however long the server stalls (see
@@ -320,6 +351,21 @@ public class AutoExperimentsTab extends BaseTab {
     private static Component skipSerumText() {
         return Component.literal("Skip Metaphysical Serums: "
                 + (ExperimentsConfig.getInstance().isSkipMetaphysicalSerums() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component t7FirstText() {
+        return Component.literal("T7 Drops First: "
+                + (ExperimentsConfig.getInstance().isSuperpairsT7First() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component exploreFirstText() {
+        return Component.literal("Explore Before Claiming: "
+                + (ExperimentsConfig.getInstance().isSuperpairsExploreFirst() ? "§aON" : "§cOFF"));
+    }
+
+    private static Component skipValueText() {
+        return Component.literal(String.format("Hold Back Up To: §b%,.0f coins",
+                ExperimentsConfig.getInstance().getSuperpairsSkipValueCoins()));
     }
 
     private static Component skipGuardianText() {

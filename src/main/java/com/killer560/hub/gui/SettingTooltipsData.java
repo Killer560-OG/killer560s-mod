@@ -236,6 +236,9 @@ final class SettingTooltipsData {
         d.put("adaptive timeout", "While the server lags, the bot waits that much longer for a Superpairs click to land (cheat build, Autonomous mode).");
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");
         d.put("skip metaphysical serums", "Superpairs leaves Metaphysical Serums for the very end, only if clicks remain (cheat build, Autonomous mode).");
+        d.put("t7 drops first", "Superpairs claims a T7 book (an enchant at its max of VII) or the Nadeshiko Dye before anything else, and claims nothing else until it has it. Off by default (cheat build, Autonomous mode).");
+        d.put("explore before claiming", "Superpairs leaves rewards worth up to Hold Back Up To until the board is known, then goes back for them; anything worth more is claimed at once. Off by default (cheat build, Autonomous mode).");
+        d.put("hold back up to", "With Explore Before Claiming: rewards worth this many coins or less wait until the board is known. 0-3,000,000 in 100,000 steps, 1,000,000 by default.");
         d.put("auto-swap to guardian pet", "Before a run, equips your best Guardian pet via /pets (cheat build, Autonomous mode).");
         d.put("stop at", "When to leave Chronomatron and Ultrasequencer: Max Clicks or Max XP (cheat build, Autonomous mode).");
         d.put("auto experimentation table/click delay", "Least time between two of the bot's clicks, 150-1000 ms in 50 ms steps, 400 by default (cheat build only).");

@@ -46,6 +46,14 @@ public final class ExperimentsConfig {
     public static final int MAX_AUTO_RENEW_COUNT = 3;
     public static final double MIN_TITANIC_MAX_PRICE = 0;
     public static final double MAX_TITANIC_MAX_PRICE = 3_000_000;
+    // killer560, 2026-10-19: Explore Before Claiming, its value threshold, and T7 Drops First. All off by default,
+    // so a default install plays Superpairs exactly as before.
+    public static final boolean DEFAULT_SUPERPAIRS_EXPLORE_FIRST = false;
+    public static final boolean DEFAULT_SUPERPAIRS_T7_FIRST = false;
+    public static final double MIN_SUPERPAIRS_SKIP_VALUE = 0;
+    public static final double MAX_SUPERPAIRS_SKIP_VALUE = 3_000_000;
+    public static final double SUPERPAIRS_SKIP_VALUE_STEP = 100_000;
+    public static final double DEFAULT_SUPERPAIRS_SKIP_VALUE = 1_000_000;
     /** First Click Delay had no ceiling while it was a typed box; the slider that replaced it (2026-10-04)
      *  needs one. 3s is three times the default, and a saved value above it loads clamped. */
     public static final int MAX_FIRST_CLICK_DELAY_MS = 3000;
@@ -77,6 +85,15 @@ public final class ExperimentsConfig {
     private boolean skipGuardianPets = DEFAULT_SKIP_GUARDIAN_PETS;
     /** Never pair a Metaphysical Serum - killer560, 2026-10-18 ("dodge just like it does for the other dodge settings"). */
     private boolean skipMetaphysicalSerums = DEFAULT_SKIP_METAPHYSICAL_SERUMS;
+    /** Superpairs leaves every reward worth no more than {@link #superpairsSkipValueCoins} until the board is known
+     *  (the same point the skipped kinds wait for), then goes back for them - killer560, 2026-10-19. */
+    private boolean superpairsExploreFirst = DEFAULT_SUPERPAIRS_EXPLORE_FIRST;
+    /** With {@link #superpairsExploreFirst}: a reward worth more than this is claimed at once. 0-3,000,000 in steps
+     *  of 100,000. */
+    private double superpairsSkipValueCoins = DEFAULT_SUPERPAIRS_SKIP_VALUE;
+    /** A T7 book (an enchant at its true max of VII, Enchant Colours' Perfect tier) or the Nadeshiko Dye is claimed
+     *  before anything else, and nothing else is claimed until it is - killer560, 2026-10-19. */
+    private boolean superpairsT7First = DEFAULT_SUPERPAIRS_T7_FIRST;
     private int delayMs = DEFAULT_DELAY_MS;
     /** The AUTOMATION ("Auto E-Table"): the mod opens Chronomatron/Ultrasequencer, picks the highest tier
      *  itself, clicks the puzzles, claims rewards and buys renews, so the whole thing can be left running
@@ -179,6 +196,10 @@ public final class ExperimentsConfig {
             cfg.skipGrandExpBottles = ConfigJson.getBool(obj, "skipGrandExpBottles", DEFAULT_SKIP_GRAND_EXP_BOTTLES);
             cfg.skipGuardianPets = ConfigJson.getBool(obj, "skipGuardianPets", DEFAULT_SKIP_GUARDIAN_PETS);
             cfg.skipMetaphysicalSerums = ConfigJson.getBool(obj, "skipMetaphysicalSerums", DEFAULT_SKIP_METAPHYSICAL_SERUMS);
+            cfg.superpairsExploreFirst = ConfigJson.getBool(obj, "superpairsExploreFirst", DEFAULT_SUPERPAIRS_EXPLORE_FIRST);
+            cfg.superpairsSkipValueCoins = snapSkipValue(
+                    ConfigJson.getDouble(obj, "superpairsSkipValueCoins", DEFAULT_SUPERPAIRS_SKIP_VALUE));
+            cfg.superpairsT7First = ConfigJson.getBool(obj, "superpairsT7First", DEFAULT_SUPERPAIRS_T7_FIRST);
             cfg.delayMs = clampInt(obj, "delayMs", DEFAULT_DELAY_MS, MIN_CLICK_DELAY_MS, MAX_DELAY_MS);
             cfg.autonomousMode = ConfigJson.getBool(obj, "autonomousMode", false);
             cfg.firstClickDelayMs = clampInt(obj, "firstClickDelayMs", DEFAULT_FIRST_CLICK_DELAY_MS,
@@ -247,6 +268,9 @@ public final class ExperimentsConfig {
             obj.addProperty("skipGrandExpBottles", skipGrandExpBottles);
             obj.addProperty("skipGuardianPets", skipGuardianPets);
             obj.addProperty("skipMetaphysicalSerums", skipMetaphysicalSerums);
+            obj.addProperty("superpairsExploreFirst", superpairsExploreFirst);
+            obj.addProperty("superpairsSkipValueCoins", superpairsSkipValueCoins);
+            obj.addProperty("superpairsT7First", superpairsT7First);
             obj.addProperty("delayMs", delayMs);
             obj.addProperty("autonomousMode", autonomousMode);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
@@ -305,6 +329,40 @@ public final class ExperimentsConfig {
 
     public void setSkipMetaphysicalSerums(boolean v) {
         this.skipMetaphysicalSerums = v;
+    }
+
+    public boolean isSuperpairsExploreFirst() {
+        return superpairsExploreFirst;
+    }
+
+    public void setSuperpairsExploreFirst(boolean v) {
+        this.superpairsExploreFirst = v;
+    }
+
+    public double getSuperpairsSkipValueCoins() {
+        return superpairsSkipValueCoins;
+    }
+
+    /** Clamped to 0..3,000,000 and snapped to the nearest 100,000. */
+    public void setSuperpairsSkipValueCoins(double v) {
+        this.superpairsSkipValueCoins = snapSkipValue(v);
+    }
+
+    /** {@code v} clamped to 0..3,000,000 and snapped to a multiple of 100,000; NaN gives the default. */
+    public static double snapSkipValue(double v) {
+        if (Double.isNaN(v)) {
+            return DEFAULT_SUPERPAIRS_SKIP_VALUE;
+        }
+        double snapped = Math.round(v / SUPERPAIRS_SKIP_VALUE_STEP) * SUPERPAIRS_SKIP_VALUE_STEP;
+        return Math.max(MIN_SUPERPAIRS_SKIP_VALUE, Math.min(MAX_SUPERPAIRS_SKIP_VALUE, snapped));
+    }
+
+    public boolean isSuperpairsT7First() {
+        return superpairsT7First;
+    }
+
+    public void setSuperpairsT7First(boolean v) {
+        this.superpairsT7First = v;
     }
 
     public boolean isSuperpairsValuableOnly() {

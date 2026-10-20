@@ -639,6 +639,32 @@ public final class ExperimentsProfitTracker {
         return toIdToken(name);
     }
 
+    /** The coin value of one of the Superpairs reward named {@code name} (colour codes stripped; a book as its enchant,
+     *  "Power VII"), priced exactly as a claimed reward is, or null when it cannot be priced (prices not loaded yet,
+     *  an XP tile, an unknown name). For {@link ExperimentSolver}'s Explore Before Claiming threshold. */
+    static Double unitPriceOf(String name) {
+        if (name == null) {
+            return null;
+        }
+        String n = LEVEL_PREFIX.matcher(name.trim()).replaceFirst("").trim();
+        Matcher prefix = COUNT_PREFIX.matcher(n);
+        Matcher suffix = COUNT_SUFFIX.matcher(n);
+        if (prefix.matches()) {
+            n = prefix.group(2).trim();
+        } else if (suffix.matches()) {
+            n = suffix.group(1).trim();
+        }
+        if (n.isEmpty() || ENCHANTING_EXP.matcher(n).find()) {
+            return null;
+        }
+        try {
+            String id = resolveId(n);
+            return id == null ? null : priceOf(n, id);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     private static Double priceOf(String name, String id) {
         RngSource source = id.startsWith("PET_") ? RngSource.AH : RngSource.BAZAAR;
         Long price = RngMeterEngine.PRICES.getPrice(new RngItem("Experiments", name, id, source, 0L, false));

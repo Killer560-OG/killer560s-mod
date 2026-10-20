@@ -1120,9 +1120,10 @@ final class ExperimentSolver {
         return null;
     }
 
-    /** Neither plain XP nor a kind he skips: books, Titanic bottles, items, pets other than Guardians. */
+    /** Neither plain XP nor a kind he skips nor held back by Explore Before Claiming ({@link #isLowValueDeferred}):
+     *  books, Titanic bottles, items, pets other than Guardians. */
     private static boolean isMoney(Cell cell) {
-        return !isSuperpairsXpTile(cell) && !isUserSkipped(cell);
+        return !isSuperpairsXpTile(cell) && !isUserSkipped(cell) && !isLowValueDeferred(cell);
     }
 
     /**
@@ -1151,6 +1152,10 @@ final class ExperimentSolver {
         if (remaining == 1 && reveal != null) {
             superpairsRevealAttempted.add(reveal);
             return OptionalInt.of(reveal);
+        }
+        OptionalInt t7 = t7FirstClick(board, reveal);
+        if (t7.isPresent()) {
+            return t7;
         }
         OptionalInt money = matchKnownPair(board, ExperimentSolver::isMoney, "money");
         if (money.isPresent()) {
@@ -1195,13 +1200,19 @@ final class ExperimentSolver {
         Integer powerup = board.deducedPowerup();
         if (powerup != null && powerup.equals(reveal)) {
             int deferredPairs = countKnownPairs(board, ExperimentSolver::isUserSkipped)
-                    + countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile);
+                    + countKnownPairs(board, ExperimentSolver::isSuperpairsXpTile)
+                    + countKnownPairs(board, ExperimentSolver::isLowValueDeferred);
             if (remaining < 0 || remaining - 1 >= 2 * deferredPairs) {
                 LOGGER.info("Superpairs: slot {} is the last unknown tile and every known tile is paired - it can only "
                         + "be a powerup; turning it over", powerup);
                 superpairsRevealAttempted.add(powerup);
                 return OptionalInt.of(powerup);
             }
+        }
+        // Explore Before Claiming: the money it held back goes first, most valuable first.
+        OptionalInt lowValueMatch = matchBestLowValuePair(board);
+        if (lowValueMatch.isPresent()) {
+            return lowValueMatch;
         }
         OptionalInt skippedMatch = matchSkippedPair(board);
         if (skippedMatch.isPresent()) {
@@ -1232,6 +1243,19 @@ final class ExperimentSolver {
      */
     private OptionalInt secondClickOfTurn(int open, Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
         Cell openCell = bySlot.get(open);
+        // T7 Drops First: a T7 drop is known and the open tile is something else - claim nothing. Turn a new tile
+        // over (it may be the T7's partner), or with none left close the turn on the T7 tile itself.
+        Integer t7Reveal = nextExploreSlot(bySlot);
+        Integer t7Slot = t7First() && !isT7Drop(openCell) ? activeT7(board, t7Reveal) : null;
+        if (t7Slot != null) {
+            if (t7Reveal != null) {
+                superpairsRevealAttempted.add(t7Reveal);
+                return OptionalInt.of(t7Reveal);
+            }
+            LOGGER.info("Superpairs: T7 Drops First - slot {} is turned over but '{}' (slot {}) comes first; closing the "
+                    + "turn on it", open, knownSuperpairsCells.get(t7Slot).name(), t7Slot);
+            return OptionalInt.of(t7Slot);
+        }
         String key = pairKey(openCell);
         Integer partner = null;
         // Queued slots count here: a tile of the open one's kind can only match it, so a pair that failed once
@@ -1287,6 +1311,93 @@ final class ExperimentSolver {
 
     private boolean logOnce(String what) {
         return !superpairsLoggedOnce.add(what);
+    }
+
+    /**
+     * T7 Drops First (killer560, 2026-10-19): the covered, unqueued T7 tile ({@link #isT7Drop}) to focus, or null.
+     * Snake order, a kind whose pair is already known first. Only while the T7 can still be had: its pair is known,
+     * a new tile is left to turn over ({@code reveal}), or it is the only single and one unknown tile is left (that
+     * tile is its partner). Otherwise null, so a T7 whose partner cannot be found never stalls the board.
+     */
+    private Integer activeT7(BoardFacts board, Integer reveal) {
+        if (!t7First()) {
+            return null;
+        }
+        Map<String, Integer> firstOfKind = new HashMap<>();
+        Integer single = null;
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            if (!board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot)) continue;
+            Cell known = knownSuperpairsCells.get(slot);
+            if (!isT7Drop(known)) continue;
+            Integer first = firstOfKind.putIfAbsent(pairKey(known), slot);
+            if (first != null) {
+                return first;
+            }
+            if (single == null) {
+                single = slot;
+            }
+        }
+        if (single == null) {
+            return null;
+        }
+        String key = pairKey(knownSuperpairsCells.get(single));
+        boolean deducible = board.consistent() && board.unknown.size() == 1 && board.singles.size() == 1
+                && board.singleKeys.contains(key);
+        return reveal != null || deducible ? single : null;
+    }
+
+    /**
+     * A turn's first click under T7 Drops First: a known T7 pair is queued; a lone known T7 tile is turned over, so the
+     * turn's second click can only claim the T7 (its partner when known, else a new tile that may be it). Empty when the
+     * setting is off or no T7 is in play.
+     */
+    private OptionalInt t7FirstClick(BoardFacts board, Integer reveal) {
+        Integer slot = activeT7(board, reveal);
+        if (slot == null) {
+            return OptionalInt.empty();
+        }
+        Cell t7 = knownSuperpairsCells.get(slot);
+        OptionalInt pair = matchKnownPair(board, c -> pairKey(c).equals(pairKey(t7)), "T7");
+        if (pair.isPresent()) {
+            return pair;
+        }
+        if (!logOnce("t7-focus:" + pairKey(t7))) {
+            LOGGER.info("Superpairs: T7 Drops First - '{}' at slot {} is claimed before anything else", t7.name(), slot);
+        }
+        return OptionalInt.of(slot);
+    }
+
+    /** Explore Before Claiming's held-back money: the known pair worth the most coins, queued like any pair. */
+    private OptionalInt matchBestLowValuePair(BoardFacts board) {
+        Map<String, List<Integer>> byKey = new java.util.LinkedHashMap<>();
+        for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+            Cell cell = knownSuperpairsCells.get(slot);
+            if (cell == null || queuedPairSlots.contains(slot) || !board.coveredKnown.contains(slot)
+                    || !isLowValueDeferred(cell)) continue;
+            byKey.computeIfAbsent(pairKey(cell), k -> new ArrayList<>()).add(slot);
+        }
+        List<Integer> best = null;
+        double bestValue = -1;
+        for (List<Integer> group : byKey.values()) {
+            if (group.size() < 2) continue;
+            double value = coinValue(knownSuperpairsCells.get(group.get(0)));
+            if (value > bestValue) {
+                bestValue = value;
+                best = group;
+            }
+        }
+        if (best == null) {
+            return OptionalInt.empty();
+        }
+        int first = best.get(0);
+        int second = best.get(1);
+        queuedPairSlots.add(first);
+        queuedPairSlots.add(second);
+        pairClicks.add(second);
+        superpairsPairFirstSlot = first;
+        LOGGER.info("Superpairs: board known, collecting held-back pair slot {} with slot {} (name='{}', {} coins)",
+                first, second, knownSuperpairsCells.get(first).name(), Math.round(bestValue));
+        return OptionalInt.of(first);
     }
 
     /** Known, covered, unqueued pairs whose kind passes {@code kind}. */
@@ -1504,6 +1615,15 @@ final class ExperimentSolver {
     private OptionalInt armedTarget(Map<Integer, Cell> bySlot, BoardFacts board, boolean valuableOnly) {
         String openKey = board.open.size() == 1 ? pairKey(bySlot.get(board.open.get(0))) : null;
         Integer reveal = nextExploreSlot(bySlot);
+        // T7 Drops First: the automatic match claims the T7 whatever else is known.
+        if (t7First()) {
+            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+                if (board.coveredKnown.contains(slot) && !queuedPairSlots.contains(slot)
+                        && isT7Drop(knownSuperpairsCells.get(slot))) {
+                    return OptionalInt.of(slot);
+                }
+            }
+        }
         OptionalInt best = bestKnownSingleTarget(valuableOnly, board, openKey);
         if (best.isPresent()) {
             boolean openPartner = openKey != null && pairKey(knownSuperpairsCells.get(best.getAsInt())).equals(openKey);
@@ -1515,6 +1635,18 @@ final class ExperimentSolver {
             return OptionalInt.of(reveal);
         }
         if (deferredMayGo(board, true)) {
+            Integer bestLow = null;
+            for (int slot : SUPERPAIRS_SNAKE_ORDER) {
+                Cell cell = knownSuperpairsCells.get(slot);
+                if (cell == null || !board.coveredKnown.contains(slot) || queuedPairSlots.contains(slot)
+                        || !isLowValueDeferred(cell)) continue;
+                if (bestLow == null || coinValue(cell) > coinValue(knownSuperpairsCells.get(bestLow))) {
+                    bestLow = slot;
+                }
+            }
+            if (bestLow != null) {
+                return OptionalInt.of(bestLow);
+            }
             for (int slot : SUPERPAIRS_SNAKE_ORDER) {
                 if (board.coveredKnown.contains(slot) && !queuedPairSlots.contains(slot) && isUserSkipped(knownSuperpairsCells.get(slot))) {
                     return OptionalInt.of(slot);
@@ -1617,6 +1749,127 @@ final class ExperimentSolver {
         return cfg.isSkipMetaphysicalSerums() && name.contains("Metaphysical Serum");
     }
 
+    /** The Superpairs drop the T7 rule counts as T7 besides the books: the Experimentation Table's mega-rare dye
+     *  (rngmeter/RngItemData EXPERIMENTATION_TABLE "Tier 5", DYE_NADESHIKO; armourdye/HypixelDyes; the wiki's
+     *  Nadeshiko Dye page lists Superpairs at Supreme, Transcendent and Metaphysical as its only source). */
+    static final String T7_DYE_NAME = "Nadeshiko Dye";
+
+    private static boolean t7First() {
+        return ExperimentsConfig.getInstance().isSuperpairsT7First();
+    }
+
+    /** The enchant on a book tile as printed ("Power VII"), from its name or lore; null for anything else. */
+    private static String enchantText(Cell cell) {
+        String name = SECTION_CODE.matcher(cell.name()).replaceAll("").trim();
+        java.util.regex.Matcher wrapped = BOOK_WRAPPER.matcher(name);
+        if (wrapped.matches()) {
+            String inner = wrapped.group(1).trim();
+            return ENCHANT_LINE.matcher(inner).matches() ? inner : null;
+        }
+        if (!name.toLowerCase(Locale.ROOT).startsWith("enchanted book")) {
+            return ENCHANT_LINE.matcher(name).matches() ? name : null;
+        }
+        if (cell.lore() == null) {
+            return null;
+        }
+        for (String line : cell.lore().split("\n")) {
+            String stripped = SECTION_CODE.matcher(line).replaceAll("").trim();
+            if (ENCHANT_LINE.matcher(stripped).matches()) {
+                return stripped;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A T7 drop (killer560, 2026-10-19): a book whose enchant is at its true max and that max is VII - the level Enchant
+     * Colours paints Perfect ({@code EnchantColorsDefaults.TIERS}, level >= maxLevel) - or the {@link #T7_DYE_NAME}.
+     * Max-V enchants (Life Steal V, Chance V, Drain V) are Perfect too but are not T7, so they are left out.
+     */
+    static boolean isT7Drop(Cell cell) {
+        if (cell == null || cell.name() == null) {
+            return false;
+        }
+        if (SECTION_CODE.matcher(cell.name()).replaceAll("").contains(T7_DYE_NAME)) {
+            return true;
+        }
+        String enchant = enchantText(cell);
+        if (enchant == null) {
+            return false;
+        }
+        java.util.regex.Matcher m = ENCHANT_LINE.matcher(enchant);
+        if (!m.matches()) {
+            return false;
+        }
+        String levelText = m.group(2);
+        int level = Character.isDigit(levelText.charAt(0)) ? Integer.parseInt(levelText) : romanLevel(levelText);
+        String key = m.group(1).toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        int[] tier = com.killer560.hub.enchantcolors.EnchantColorsDefaults.TIERS.get(key);
+        return tier != null && tier[1] >= 7 && level >= tier[1];
+    }
+
+    /** "VII" -> 7 for the at most seven numerals {@link #ENCHANT_LINE} allows. Here rather than the profit tracker's
+     *  copy so the T7 test needs no tracker (whose class setup reads the config folder). */
+    private static int romanLevel(String roman) {
+        int total = 0;
+        int prev = 0;
+        for (int i = roman.length() - 1; i >= 0; i--) {
+            int v = switch (roman.charAt(i)) {
+                case 'I' -> 1;
+                case 'V' -> 5;
+                case 'X' -> 10;
+                case 'L' -> 50;
+                case 'C' -> 100;
+                default -> 0;
+            };
+            total += v < prev ? -v : v;
+            prev = Math.max(prev, v);
+        }
+        return total;
+    }
+
+    /** Coin values by pair key, for the Explore Before Claiming threshold. Only real prices are kept, so a tile
+     *  read before the prices arrived is priced again later. Cleared with every board. */
+    private static final Map<String, Double> VALUE_CACHE = new HashMap<>();
+
+    /** One of this reward's coin value ({@link ExperimentsProfitTracker#unitPriceOf}), 0 when it cannot be priced. */
+    static double coinValue(Cell cell) {
+        String key = pairKey(cell);
+        Double cached = VALUE_CACHE.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        String enchant = enchantText(cell);
+        Double price = ExperimentsProfitTracker.unitPriceOf(
+                enchant != null ? enchant : SECTION_CODE.matcher(cell.name()).replaceAll("").trim());
+        if (price == null) {
+            return 0;
+        }
+        VALUE_CACHE.put(key, price);
+        return price;
+    }
+
+    /**
+     * Explore Before Claiming (killer560, 2026-10-19: ignore what it would grab "until it has seen enough of the board
+     * to know everything on it", then go back for it): a reward worth no more than the threshold waits exactly like a
+     * skipped kind ({@link #deferredMayGo}), and is collected before the skipped kinds and XP at the end. Worth more
+     * than the threshold, it is money as before. A T7 drop never waits while T7 Drops First is on. An unpriced reward
+     * counts as 0 coins.
+     */
+    static boolean isLowValueDeferred(Cell cell) {
+        if (cell == null || cell.name() == null) {
+            return false;
+        }
+        ExperimentsConfig cfg = ExperimentsConfig.getInstance();
+        if (!cfg.isSuperpairsExploreFirst() || isSuperpairsXpTile(cell) || isUserSkipped(cell)) {
+            return false;
+        }
+        if (cfg.isSuperpairsT7First() && isT7Drop(cell)) {
+            return false;
+        }
+        return coinValue(cell) <= cfg.getSuperpairsSkipValueCoins();
+    }
+
     /** "Powerup for next click!" - the lore of Instant Find, the one powerup that matches the next click. */
     private static boolean armsNextClick(Cell cell) {
         return cell.lore() != null && cell.lore().toLowerCase(Locale.ROOT).contains("next click");
@@ -1630,6 +1883,10 @@ final class ExperimentSolver {
      *  click and got paired ahead of real rewards. Kept separate from isDyeFamilyItem because Ultrasequencer
      *  uses that one for its notes. */
     private static boolean isSuperpairsXpTile(Cell cell) {
+        // The Nadeshiko Dye is a dye item and would read as XP below; with T7 Drops First on it is a T7 drop.
+        if (t7First() && SECTION_CODE.matcher(cell.name()).replaceAll("").contains(T7_DYE_NAME)) {
+            return false;
+        }
         // By NAME first: every XP tile is named "<n>k Enchanting Exp", whatever item draws it. Cocoa beans
         // (the brown dye) were missed by the item check, so a 25k XP pair was treated as valuable, paired
         // first and took the Instant Find match (2026-10-01 09:20 run).
@@ -1664,6 +1921,7 @@ final class ExperimentSolver {
         superpairsClickedAtMs.clear();
         superpairsTwoOpenSinceMs = 0;
         superpairsLoggedOnce.clear();
+        VALUE_CACHE.clear();
         superpairsTwoOpenWarned = false;
         superpairsAwaitingConfirmSlot = null;
         superpairsAwaitingConfirmPriorCell = null;
