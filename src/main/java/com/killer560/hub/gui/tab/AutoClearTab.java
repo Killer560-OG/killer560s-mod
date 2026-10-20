@@ -175,6 +175,14 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(secretOrderText(cfg));
         }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
+        w.add(SettingsButtonWidget.cycling(roomPlanText(cfg), (btn, dir) -> {
+            cfg.setRoomPlan(SettingsButtonWidget.step(cfg.getRoomPlan(), dir));
+            cfg.save();
+            btn.setMessage(roomPlanText(cfg));
+        }).bounds(contentX, y[0], half, 20).build());
+        toggle(w, contentX + half + GAP, y[0], right, "Skip Unneeded Secrets", cfg::isSkipUnneededSecrets,
+                cfg::setSkipUnneededSecrets);
+        y[0] += ROW;
 
         toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
         toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
@@ -234,6 +242,10 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
 
     private static Component secretOrderText(AutoSecretConfig cfg) {
         return Component.literal("Room Order: §e" + cfg.getSecretOrder().label());
+    }
+
+    private static Component roomPlanText(AutoSecretConfig cfg) {
+        return Component.literal("Room Plan: §e" + cfg.getRoomPlan().label());
     }
 
     private static Component runText() {

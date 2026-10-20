@@ -325,6 +325,9 @@ public final class AutoSecretFeature {
         lastRoomName = null;
         secreted.clear();
         revisited.clear();
+        planSaid.clear();
+        skippedSecrets.clear();
+        pendingSecret = null;
         puzzleHoldSaid = null;
         puzzleHoldRoom = null;
         puzzleHoldsSaid.clear();
@@ -797,8 +800,19 @@ public final class AutoSecretFeature {
         }
         double percent = DungeonInfoFeature.secretsFoundPercent();
         if (percent >= 100.0 && !pilot) {
-            stop("all secrets found (" + fmtPercent(percent) + "%)", true);
-            return true;
+            // Every room must be cleared too (300 needs them): with a mob room still to clear and Auto Clear on it carries
+            // on - the endgame then takes the clears (and puzzles) and ends with "nothing left to do". Until 2026-10-20 it
+            // stopped here and left them (sim floors with mobs: 15-16 rooms uncleared on two floors of four).
+            if (AutoSecretConfig.getInstance().isAutoClearRooms() && AutoClearFeature.isAvailable()
+                    && unclearedMobRoomLeft()) {
+                if (planSaid.add("all-secrets")) {
+                    LOGGER.info("[AutoSecret] every secret found ({}%) - carrying on for the rooms still to clear",
+                            fmtPercent(percent));
+                }
+            } else {
+                stop("all secrets found (" + fmtPercent(percent) + "%)", true);
+                return true;
+            }
         }
         if (client.player.isDeadOrDying()) {
             stop("you died", true);
@@ -977,6 +991,9 @@ public final class AutoSecretFeature {
             return;
         }
         if (decideIceFill(layout, rooms, dist)) {
+            return;
+        }
+        if (decideClearHere(layout, rooms, here)) {
             return;
         }
         if (decideInstaClear(layout, rooms, dist, here)) {
@@ -1209,6 +1226,9 @@ public final class AutoSecretFeature {
             LOGGER.info("[AutoSecret] Quiz: question 1 opens in {} tick(s) - Ice Fill meanwhile", left);
             return true;
         }
+        if (left > 0 && quizGapClearHere(layout, rooms, quiz, left)) {
+            return true;
+        }
         if (left > 0) {
             RoomStatus.Room pick = quizGapRoom(layout, rooms, dist, quiz, left);
             if (pick != null && goSecret(layout, pick, dist, "-", "-")) {
@@ -1225,6 +1245,54 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] Quiz: question {} opens in {} tick(s) - back to the Quiz",
                 com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), left);
         return goToQuiz(layout, quiz);
+    }
+
+    /** Ticks kept in hand when a clear fills a Quiz gap (the clear's estimate is a straight-line one). */
+    static final int QUIZ_GAP_CLEAR_SPARE_TICKS = 20;
+
+    /**
+     * Fastest Total between two Quiz answers: the room he just secreted in a gap, still uncleared, is cleared now when
+     * the clear and the trip back to the Quiz fit in the ticks left (by {@link AutoClearFeature#estimateClear}, with
+     * {@link #QUIZ_GAP_CLEAR_SPARE_TICKS} in hand) - else it waits for a later visit, as before.
+     */
+    private static boolean quizGapClearHere(DungeonLayout layout, List<RoomStatus.Room> rooms, RoomStatus.Room quiz,
+                                            long left) {
+        Minecraft client = Minecraft.getInstance();
+        int here = layout.currentRoom();
+        if (!fastestTotal() || client.player == null || here < 0 || here == quiz.room() || leaveWaitRoom != null) {
+            return false;
+        }
+        RoomStatus.Room r = null;
+        for (RoomStatus.Room x : rooms) {
+            if (x.room() == here) {
+                r = x;
+            }
+        }
+        if (r == null || !needsClear(layout, r) || secretsPending(r)) {
+            return false;
+        }
+        double[] est = AutoClearFeature.estimateClear(client.player.position(), r.name());
+        if (est == null) {
+            return false;
+        }
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        BlockPos q = spot != null ? spot : DungeonLayout.cellCenter(quiz.mainTile());
+        double back = AutoClearFeature.etherTicks(new net.minecraft.world.phys.Vec3(est[1], est[2], est[3]),
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(q.above()));
+        boolean fits = est[0] + back + QUIZ_GAP_CLEAR_SPARE_TICKS <= left;
+        LOGGER.info(String.format(Locale.US, "[AutoSecret] Quiz: %d tick(s) to the next question; clearing %s here ~%.0f"
+                + " + back to the Quiz ~%.0f - %s", left, r.name(), est[0], back, fits ? "fits, clearing it now"
+                : "does not fit"));
+        if (!fits) {
+            return false;
+        }
+        LOGGER.info("[AutoSecret] clear here: {} - between two Quiz answers, before he goes back", r.name());
+        clearsDone.add(r.name());
+        target = r.name();
+        targetRoomId = r.room();
+        status = "Clearing " + r.name() + " (Quiz gap)";
+        arrived(Trip.CLEAR);
+        return true;
     }
 
     /** He stands on Auto Quiz's answer spot (or a block from it). */
@@ -1496,13 +1564,30 @@ public final class AutoSecretFeature {
                 routed.add(r);
             }
         }
-        List<RoomStatus.Room> order = tourOrder(layout, routed);
+        routed = skipUnneeded(layout, rooms, routed);
+        // Fastest Total: the rooms with nothing left but a clear are stops on the same tour (not the endgame's, one by
+        // one once every secret is done) - while there are secrets left to tour; after that the endgame clears them.
+        List<RoomStatus.Room> clearOnly = routed.isEmpty() ? List.of() : clearOnlyRooms(layout, rooms, dist, routed);
+        List<Stop> order = tourOrder(layout, routed, clearOnly);
         if (order == null) {
             return true;   // the trips from here are being searched (a few ticks at most)
         }
-        publishPlan(order, dist);   // the Progress HUD shows the tour order it will actually take
-        for (RoomStatus.Room r : order) {
-            if (goSecret(layout, r, dist, describe(open), blockedText)) {
+        List<RoomStatus.Room> secretOrder = new ArrayList<>();
+        for (Stop s : order) {
+            if (!s.clear()) {
+                secretOrder.add(s.room());
+            }
+        }
+        publishPlan(secretOrder, dist);   // the Progress HUD shows the tour order it will actually take
+        for (Stop s : order) {
+            if (s.clear()) {
+                goClear(layout, s.room(), dist, "clear stop (its turn on the tour, Fastest Total): ");
+                return true;
+            }
+            if (decideClearFirst(layout, s.room())) {
+                return true;
+            }
+            if (goSecret(layout, s.room(), dist, describe(open), blockedText)) {
                 return true;
             }
         }
@@ -1558,23 +1643,62 @@ public final class AutoSecretFeature {
      * room worth its unfound secrets. Null while the trips from here are still being searched (at most
      * {@link #TOUR_WAIT_TICKS}; a trip planned ahead from here is taken at once).
      */
-    private static List<RoomStatus.Room> tourOrder(DungeonLayout layout, List<RoomStatus.Room> routed) {
+    /** One stop of Auto Secret's tour: a room's secrets (its route), or - Fastest Total - a room's clear alone. */
+    record Stop(RoomStatus.Room room, boolean clear) {
+    }
+
+    private static List<Stop> stops(List<RoomStatus.Room> rooms, boolean clear) {
+        List<Stop> out = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            out.add(new Stop(r, clear));
+        }
+        return out;
+    }
+
+    private static List<Stop> tourOrder(DungeonLayout layout, List<RoomStatus.Room> routed, List<RoomStatus.Room> clearOnly) {
         Minecraft client = Minecraft.getInstance();
-        if (routed.size() <= 1 || client.player == null) {
+        if (routed.size() + clearOnly.size() <= 1 || client.player == null) {
             tourWaitTicks = 0;
-            return routed;
+            List<Stop> out = stops(pendingFirst(routed), false);
+            out.addAll(stops(clearOnly, true));
+            return out;
         }
         List<RoomTour.Site> sites = new ArrayList<>();
-        List<RoomStatus.Room> withSite = new ArrayList<>();
-        List<RoomStatus.Room> rest = new ArrayList<>();
+        List<Stop> withSite = new ArrayList<>();
+        List<Stop> rest = new ArrayList<>();
         for (RoomStatus.Room r : routed) {
             RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
             if (s == null) {
-                rest.add(r);
+                rest.add(new Stop(r, false));
             } else {
                 sites.add(new RoomTour.Site(s.key(), s.arrive(), s.tile(), s.exact(), s.leave(), s.weight(), 0));
-                withSite.add(r);
+                withSite.add(new Stop(r, false));
             }
+        }
+        for (RoomStatus.Room r : clearOnly) {
+            BlockPos c = DungeonLayout.cellCenter(r.mainTile());
+            sites.add(new RoomTour.Site(CLEAR_KEY + Autopilot.keyOf(r), c, r.mainTile(), false,
+                    net.minecraft.world.phys.Vec3.atBottomCenterOf(c), 0, 0));
+            withSite.add(new Stop(r, true));
+        }
+        if (pendingSecret != null) {
+            // The second half of a room it cleared first (decideClearFirst): its route now, whatever the tour says.
+            for (int i = 0; i < withSite.size(); i++) {
+                Stop s = withSite.get(i);
+                if (!s.clear() && s.room().name().equals(pendingSecret)) {
+                    LOGGER.info("[AutoSecret] {}: cleared first - its route goes now", pendingSecret);
+                    List<Stop> out = new ArrayList<>();
+                    out.add(s);
+                    for (Stop o : withSite) {
+                        if (o != s) {
+                            out.add(o);
+                        }
+                    }
+                    out.addAll(rest);
+                    return out;
+                }
+            }
+            pendingSecret = null;
         }
         net.minecraft.world.phys.Vec3 from = client.player.position();
         String ahead = RoomTour.aheadPick(from);
@@ -1628,12 +1752,393 @@ public final class AutoSecretFeature {
                 RoomTour.describe(sites, idx), Math.round(TourPlanner.travel(idx, m.fromHere(), m.between())),
                 choice.proven() ? "proven optimal" : "not proven yet", choice.method(),
                 RoomTour.compare(m, idx, RoomTour.byWeight(m), "most unfound first"), aheadNote);
-        List<RoomStatus.Room> out = new ArrayList<>();
+        List<Stop> out = new ArrayList<>();
         for (int i : idx) {
             out.add(withSite.get(i));
         }
         out.addAll(rest);
+        logPlan(layout, from, out, sites, idx, withSite);
         return out;
+    }
+
+    /** A clear-only stop's site key: the room's key with this in front (never a room's own key). */
+    private static final String CLEAR_KEY = "clear:";
+
+    /** The room cleared first whose route must go next (Fastest Total), or null. */
+    private static String pendingSecret;
+
+    private static List<RoomStatus.Room> pendingFirst(List<RoomStatus.Room> routed) {
+        if (pendingSecret == null) {
+            return routed;
+        }
+        List<RoomStatus.Room> out = new ArrayList<>();
+        for (RoomStatus.Room r : routed) {
+            if (r.name().equals(pendingSecret)) {
+                out.add(0, r);
+            } else {
+                out.add(r);
+            }
+        }
+        if (out.isEmpty() || !out.get(0).name().equals(pendingSecret)) {
+            pendingSecret = null;
+        }
+        return out;
+    }
+
+    // ------------------------------------------------------------------------------------------- Fastest Total
+
+    /**
+     * The Room Plan is Fastest Total and Auto Clear can take rooms (killer560, 2026-10-19: "It doesn't need to clear a room
+     * first or secret it first; it can do either, or skip secreting a room it deems slow to secret in exchange for
+     * clearing or secreting other rooms, so it can get 300 faster").
+     */
+    private static boolean fastestTotal() {
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        return cfg.getRoomPlan() == AutoSecretConfig.RoomPlan.FASTEST_TOTAL && cfg.isAutoClearRooms()
+                && AutoClearFeature.isAvailable();
+    }
+
+    /** A mob room the map shows uncleared that Auto Clear has not been sent to this run. */
+    private static boolean needsClear(DungeonLayout layout, RoomStatus.Room r) {
+        return !r.cleared() && !"Unknown".equals(r.name()) && !clearsDone.contains(r.name())
+                && !r.isType("PUZZLE") && !r.isType("TRAP") && !r.isType("BLOOD") && !r.isType("ENTRANCE")
+                && !r.isType("FAIRY") && AutoClearFeature.isMobRoom(layout, r.room());
+    }
+
+    /** A mob room the map shows uncleared that Auto Clear has not been sent to yet (anywhere on the map). */
+    private static boolean unclearedMobRoomLeft() {
+        DungeonLayout layout = DungeonLayout.capture();
+        for (RoomStatus.Room r : RoomStatus.rooms()) {
+            if (needsClear(layout, r)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Its secrets are still to take through its route (it has one, and unfound secrets, and it is not skipped). */
+    private static boolean secretsPending(RoomStatus.Room r) {
+        if (!eligibleForSecrets(r) || skippedSecrets.contains(r.name())) {
+            return false;
+        }
+        Route route = RouteStore.getInstance().forRoom(r.name());
+        return route != null && route.startNode() != null;
+    }
+
+    /**
+     * Fastest Total: the room he stands in, once its secrets are done with (its route ran, it has none to take, or they
+     * are not needed), is cleared before he leaves it - the trip back into it later is what this saves. A finished
+     * route's last-node wait (its last secrets registering) runs first. @return true when it is clearing it (or waiting
+     * to)
+     */
+    private static boolean decideClearHere(DungeonLayout layout, List<RoomStatus.Room> rooms, int here) {
+        if (here < 0 || !fastestTotal()) {
+            return false;
+        }
+        RoomStatus.Room r = null;
+        for (RoomStatus.Room x : rooms) {
+            if (x.room() == here) {
+                r = x;
+            }
+        }
+        if (r == null || !needsClear(layout, r) || secretsPending(r)) {
+            return false;
+        }
+        if (leaveWaitRoom != null) {
+            status = "Waiting for the last secrets of " + leaveWaitRoom + ", then clearing " + r.name();
+            return true;
+        }
+        LOGGER.info("[AutoSecret] clear here: {} - {}, so Auto Clear clears it before he leaves (no trip back into it)",
+                r.name(), secreted.contains(r.name()) ? "its route is done" : skippedSecrets.contains(r.name())
+                        ? "its secrets are not needed" : "it has no secrets to route");
+        clearsDone.add(r.name());
+        target = r.name();
+        targetRoomId = r.room();
+        status = "Clearing " + r.name();
+        note(ModChat.text("Clearing "), ModChat.value(r.name()));
+        arrived(Trip.CLEAR);
+        return true;
+    }
+
+    /** Fastest Total: a clear this much cheaper by the estimate than the route-first order is worth going first. */
+    static final double CLEAR_FIRST_MARGIN_TICKS = 4.0;
+
+    /**
+     * Fastest Total, before going to {@code r}'s route: secrets first (the route, then the clear from where it ends) or
+     * the clear first (from here, then the trip to the start node), by {@link AutoClearFeature#estimateClear} over the
+     * room's starred mobs in sight. Mobs not in sight yet: secrets first. Logged either way. @return true when it is
+     * clearing first
+     */
+    private static boolean decideClearFirst(DungeonLayout layout, RoomStatus.Room r) {
+        Minecraft client = Minecraft.getInstance();
+        if (!fastestTotal() || client.player == null || !needsClear(layout, r) || r.name().equals(pendingSecret)) {
+            return false;
+        }
+        AutoRoutesFeature.RoomRoute rr = AutoRoutesFeature.roomRoute(layout, r.room());
+        BlockPos goal = rr == null ? null : rr.goal();
+        net.minecraft.world.phys.Vec3 end = rr == null ? null : rr.predictedEnd();
+        if (goal == null || end == null) {
+            return false;
+        }
+        net.minecraft.world.phys.Vec3 here = client.player.position();
+        net.minecraft.world.phys.Vec3 start = net.minecraft.world.phys.Vec3.atBottomCenterOf(goal.above());
+        double[] fromHere = AutoClearFeature.estimateClear(here, r.name());
+        double[] fromEnd = AutoClearFeature.estimateClear(end, r.name());
+        if (fromHere == null || fromEnd == null) {
+            if (planSaid.add("first:" + r.name())) {
+                LOGGER.info("[AutoSecret] plan for {}: secrets first - its starred mobs are not in sight to price a clear"
+                        + " first", r.name());
+            }
+            return false;
+        }
+        double toStart = AutoClearFeature.etherTicks(here, start);
+        double secretFirst = toStart + fromEnd[0];
+        net.minecraft.world.phys.Vec3 clearEnd = new net.minecraft.world.phys.Vec3(fromHere[1], fromHere[2], fromHere[3]);
+        double clearFirst = fromHere[0] + AutoClearFeature.etherTicks(clearEnd, start);
+        boolean first = clearFirst + CLEAR_FIRST_MARGIN_TICKS < secretFirst;
+        LOGGER.info(String.format(Locale.US, "[AutoSecret] plan for %s (%d mob(s) in sight): %s - clear first ~%.0f ticks"
+                        + " (clear from here %.0f + trip to the start node %.0f) vs secrets first ~%.0f (trip to the start"
+                        + " node %.0f + clear from the route's end %.0f), the route itself the same either way", r.name(),
+                (int) fromHere[4], first ? "CLEAR FIRST" : "secrets first", clearFirst, fromHere[0], clearFirst - fromHere[0],
+                secretFirst, toStart, fromEnd[0]));
+        if (!first) {
+            return false;
+        }
+        LOGGER.info("[AutoSecret] clear first: {} - Auto Clear, then its route", r.name());
+        pendingSecret = r.name();
+        clearsDone.add(r.name());
+        target = r.name();
+        targetRoomId = r.room();
+        status = "Clearing " + r.name() + " first";
+        note(ModChat.text("Clearing "), ModChat.value(r.name()), ModChat.dim(" first"));
+        // Auto Clear goes to the mobs itself (straight to the block that reaches them, no trip into the room first).
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        handToAutoClear();
+        return true;
+    }
+
+    /** Plan lines said once a run (by key), so a decision repeated every tick logs once. */
+    private static final Set<String> planSaid = new HashSet<>();
+    /** Rooms whose secrets Fastest Total leaves out for now (an S+ does not need them); recomputed every decision. */
+    private static final Set<String> skippedSecrets = new HashSet<>();
+
+    /**
+     * Fastest Total's clear-only stops: uncleared mob rooms it can reach with nothing left to route (or whose secrets are
+     * left out), other than the one he stands in (its clear is {@link #decideClearHere}'s) and the routed rooms (cleared
+     * in the same visit).
+     */
+    private static List<RoomStatus.Room> clearOnlyRooms(DungeonLayout layout, List<RoomStatus.Room> rooms,
+                                                       Map<Integer, Integer> dist, List<RoomStatus.Room> routed) {
+        if (!fastestTotal()) {
+            return List.of();
+        }
+        int here = layout.currentRoom();
+        List<RoomStatus.Room> out = new ArrayList<>();
+        for (RoomStatus.Room r : rooms) {
+            if (r.room() == here || !dist.containsKey(r.room()) || !needsClear(layout, r) || routed.contains(r)) {
+                continue;
+            }
+            if (secretsPending(r) && !skippedSecrets.contains(r.name())) {
+                continue;   // held (the room before blood) or behind the tour's own rules: its clear goes with its route
+            }
+            out.add(r);
+        }
+        return out;
+    }
+
+    /**
+     * Fastest Total with Skip Unneeded Secrets: of the routed rooms, the cheapest set whose unfound secrets still cover
+     * what an S+ needs (the Score Calculator's need, {@link AutopilotScore#usefulSecrets}, which keeps a margin of one);
+     * the rest are left out for now. A room's price is its route's work, and - when it needs no clear visit anyway - the
+     * trip to it and on (twice the trip from the nearest other stop). Every decision prices it again, so a short count
+     * (a route that missed one) brings a left-out room back. No reading from the calculator: nothing is left out.
+     */
+    private static List<RoomStatus.Room> skipUnneeded(DungeonLayout layout, List<RoomStatus.Room> rooms,
+                                                      List<RoomStatus.Room> routed) {
+        skippedSecrets.clear();
+        if (routed.isEmpty() || !fastestTotal() || !AutoSecretConfig.getInstance().isSkipUnneededSecrets()
+                || com.killer560.hub.scorecalc.ScoreCalculatorFeature.currentResult() == null) {
+            return routed;
+        }
+        AutopilotScore.State s = Autopilot.scoreState(layout, rooms);
+        if (s.currentTotal() < 0 || s.totalSecrets() <= 0) {
+            return routed;
+        }
+        int need = AutopilotScore.usefulSecrets(s);
+        int have = 0;
+        for (RoomStatus.Room r : routed) {
+            have += Math.max(0, r.unfound());
+        }
+        if (need >= have) {
+            return routed;
+        }
+        int n = routed.size();
+        double[] cost = new double[n];
+        int[] gain = new int[n];
+        Minecraft client = Minecraft.getInstance();
+        List<net.minecraft.world.phys.Vec3> starts = new ArrayList<>();
+        for (RoomStatus.Room r : routed) {
+            AutoRoutesFeature.RoomRoute rr = AutoRoutesFeature.roomRoute(layout, r.room());
+            starts.add(rr == null || rr.goal() == null ? null
+                    : net.minecraft.world.phys.Vec3.atBottomCenterOf(rr.goal().above()));
+        }
+        for (int i = 0; i < n; i++) {
+            RoomStatus.Room r = routed.get(i);
+            gain[i] = Math.max(0, r.unfound());
+            Route route = RouteStore.getInstance().forRoom(r.name());
+            cost[i] = routeWorkTicks(route);
+            if (!needsClear(layout, r) && starts.get(i) != null) {
+                double near = client.player == null ? Double.MAX_VALUE
+                        : AutoClearFeature.etherTicks(client.player.position(), starts.get(i));
+                for (int j = 0; j < n; j++) {
+                    if (j != i && starts.get(j) != null) {
+                        near = Math.min(near, AutoClearFeature.etherTicks(starts.get(j), starts.get(i)));
+                    }
+                }
+                cost[i] += near == Double.MAX_VALUE ? 0 : 2 * near;
+            }
+        }
+        boolean[] keep = cheapestCover(cost, gain, need);
+        if (keep == null) {
+            return routed;
+        }
+        List<RoomStatus.Room> out = new ArrayList<>();
+        List<String> left = new ArrayList<>();
+        double saved = 0;
+        for (int i = 0; i < n; i++) {
+            RoomStatus.Room r = routed.get(i);
+            if (keep[i]) {
+                out.add(r);
+            } else {
+                skippedSecrets.add(r.name());
+                left.add(String.format(Locale.US, "%s (%d unfound, ~%.0f ticks)", r.name(), gain[i], cost[i]));
+                saved += cost[i];
+            }
+        }
+        String key = "skip:" + String.join(",", left) + "|" + need;
+        if (!left.isEmpty() && planSaid.add(key)) {
+            LOGGER.info(String.format(Locale.US, "[AutoSecret] skipping the secrets of %s - the S+ needs %d more (with a"
+                            + " margin of %d; %d of %d found, bonus %d, score %d), the rooms kept hold %d of the %d"
+                            + " routed; ~%.0f ticks saved", String.join(", ", left), need, AutopilotScore.SECRET_MARGIN,
+                    s.secretsFound(), s.totalSecrets(), s.bonus(), s.currentTotal(), kept(gain, keep), have, saved));
+        }
+        return out;
+    }
+
+    private static int kept(int[] gain, boolean[] keep) {
+        int t = 0;
+        for (int i = 0; i < gain.length; i++) {
+            if (keep[i]) {
+                t += gain[i];
+            }
+        }
+        return t;
+    }
+
+    /**
+     * The cheapest set of items whose gains add up to at least {@code need} (a 0/1 knapsack over the count, capped at
+     * {@code need}). @return which to keep, or null when even all of them fall short
+     */
+    static boolean[] cheapestCover(double[] cost, int[] gain, int need) {
+        int n = cost.length;
+        double[][] best = new double[n + 1][need + 1];
+        boolean[][] took = new boolean[n + 1][need + 1];
+        int[][] prev = new int[n + 1][need + 1];
+        for (double[] row : best) {
+            java.util.Arrays.fill(row, Double.MAX_VALUE);
+        }
+        best[0][0] = 0;
+        for (int i = 0; i < n; i++) {
+            for (int c = 0; c <= need; c++) {
+                if (best[i][c] == Double.MAX_VALUE) {
+                    continue;
+                }
+                if (best[i][c] < best[i + 1][c]) {
+                    best[i + 1][c] = best[i][c];
+                    took[i + 1][c] = false;
+                    prev[i + 1][c] = c;
+                }
+                int nc = Math.min(need, c + Math.max(0, gain[i]));
+                if (best[i][c] + cost[i] < best[i + 1][nc]) {
+                    best[i + 1][nc] = best[i][c] + cost[i];
+                    took[i + 1][nc] = true;
+                    prev[i + 1][nc] = c;
+                }
+            }
+        }
+        if (best[n][need] == Double.MAX_VALUE) {
+            return null;
+        }
+        boolean[] keep = new boolean[n];
+        int c = need;
+        for (int i = n; i > 0; i--) {
+            keep[i - 1] = took[i][c];
+            c = prev[i][c];
+        }
+        return keep;
+    }
+
+    /**
+     * The plan's estimate beside the old one's, once per new order (killer560, 2026-10-19: "Print the estimate for the
+     * chosen plan and for the best alternative in the log"): Fastest Total's tour - its trips, every routed room's clear
+     * in the same visit - against Secrets Then Clears, the same secret rooms in the same order and then every uncleared
+     * room again, nearest first, from where the last route ends. Trips at Auto Clear's etherwarp price
+     * ({@link AutoClearFeature#etherTicks}), straight lines; route work and clear work are the same in both and left out.
+     */
+    private static void logPlan(DungeonLayout layout, net.minecraft.world.phys.Vec3 from, List<Stop> order,
+                                List<RoomTour.Site> sites, int[] idx, List<Stop> withSite) {
+        if (!fastestTotal()) {
+            return;
+        }
+        double mine = 0;
+        double old = 0;
+        net.minecraft.world.phys.Vec3 at = from;
+        net.minecraft.world.phys.Vec3 oldAt = from;
+        List<net.minecraft.world.phys.Vec3> clearsLater = new ArrayList<>();
+        int inPlace = 0;
+        StringBuilder names = new StringBuilder();
+        for (int i : idx) {
+            RoomTour.Site s = sites.get(i);
+            Stop st = withSite.get(i);
+            net.minecraft.world.phys.Vec3 in = net.minecraft.world.phys.Vec3.atBottomCenterOf(s.arrive().above());
+            mine += AutoClearFeature.etherTicks(at, in);
+            at = s.leave();
+            names.append(names.length() == 0 ? "" : " > ").append(st.clear() ? "clear " : "").append(st.room().name());
+            if (st.clear()) {
+                clearsLater.add(in);
+                continue;
+            }
+            old += AutoClearFeature.etherTicks(oldAt, in);
+            oldAt = s.leave();
+            if (needsClear(layout, st.room())) {
+                inPlace++;
+                BlockPos c = DungeonLayout.cellCenter(st.room().mainTile());
+                clearsLater.add(net.minecraft.world.phys.Vec3.atBottomCenterOf(c));
+            }
+        }
+        // Secrets Then Clears: the uncleared rooms afterwards, nearest first.
+        List<net.minecraft.world.phys.Vec3> left = new ArrayList<>(clearsLater);
+        while (!left.isEmpty()) {
+            net.minecraft.world.phys.Vec3 next = null;
+            double bestT = Double.MAX_VALUE;
+            for (net.minecraft.world.phys.Vec3 v : left) {
+                double t = AutoClearFeature.etherTicks(oldAt, v);
+                if (t < bestT) {
+                    bestT = t;
+                    next = v;
+                }
+            }
+            old += bestT;
+            oldAt = next;
+            left.remove(next);
+        }
+        String key = "plan:" + names;
+        if (planSaid.add(key)) {
+            LOGGER.info(String.format(Locale.US, "[AutoSecret] plan (Fastest Total): %s - ~%.0f ticks of trips, %d clear(s) in"
+                            + " the same visit as the route; Secrets Then Clears: ~%.0f ticks of trips (%d room(s) entered"
+                            + " again to clear) - ~%.0f ticks saved", names, mine, inPlace, old, clearsLater.size(),
+                    old - mine));
+        }
     }
 
     /**
@@ -1914,12 +2419,15 @@ public final class AutoSecretFeature {
     }
 
     private static void goClear(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        goClear(layout, r, dist, pilot ? "autopilot: " : "Blood First: ");
+    }
+
+    private static void goClear(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist, String label) {
         clearsDone.add(r.name());
         target = r.name();
         targetRoomId = r.room();
         status = "Going to clear " + r.name();
-        LOGGER.info("[AutoSecret] {}clear {} ({} room(s) away) - Auto Clear", pilot ? "autopilot: " : "Blood First: ",
-                r.name(), dist.get(r.room()));
+        LOGGER.info("[AutoSecret] {}clear {} ({} room(s) away) - Auto Clear", label, r.name(), dist.get(r.room()));
         note(ModChat.text("Clearing "), ModChat.value(r.name()));
         if (layout.currentRoom() == r.room()) {
             arrived(Trip.CLEAR);
@@ -1965,6 +2473,30 @@ public final class AutoSecretFeature {
             }
         }
         puzzles.sort(Comparator.comparingInt(r -> dist.get(r.room())));
+        // Fastest Total: puzzles and clears are one list, nearest first (an uncleared room next door before a puzzle across
+        // the map, then back), instead of every puzzle first and the clears after.
+        if (fastestTotal() && cfg.isAutoClearRooms()) {
+            RoomStatus.Room nearClear = null;
+            for (RoomStatus.Room r : rooms) {
+                if (dist.containsKey(r.room()) && needsClear(layout, r)
+                        && (nearClear == null || dist.get(r.room()) < dist.get(nearClear.room()))) {
+                    nearClear = r;
+                }
+            }
+            int nearPuzzle = Integer.MAX_VALUE;
+            for (RoomStatus.Room p : puzzles) {
+                if (!RoomStatus.teammateInside(p.cells())) {
+                    nearPuzzle = Math.min(nearPuzzle, dist.get(p.room()));
+                }
+            }
+            if (nearClear != null && dist.get(nearClear.room()) < nearPuzzle) {
+                LOGGER.info("[AutoSecret] endgame: uncleared room {} ({} room(s) away) before the puzzles (nearest {} away)"
+                        + " - Auto Clear (Fastest Total)", nearClear.name(), dist.get(nearClear.room()),
+                        nearPuzzle == Integer.MAX_VALUE ? "-" : String.valueOf(nearPuzzle));
+                goClear(layout, nearClear, dist, "endgame (Fastest Total): ");
+                return;
+            }
+        }
         for (RoomStatus.Room r : puzzles) {
             puzzlesDone.add(r.name());
             if (RoomStatus.teammateInside(r.cells())) {
@@ -2053,6 +2585,17 @@ public final class AutoSecretFeature {
      * visited once more for them, nearest first. Each room is sent back to at most once.
      */
     private static boolean goBackForMissed(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (fastestTotal() && AutoSecretConfig.getInstance().isSkipUnneededSecrets()
+                && com.killer560.hub.scorecalc.ScoreCalculatorFeature.currentResult() != null) {
+            AutopilotScore.State s = Autopilot.scoreState(layout, rooms);
+            if (s.currentTotal() >= 0 && s.totalSecrets() > 0 && AutopilotScore.usefulSecrets(s) <= 0) {
+                if (planSaid.add("goBack")) {
+                    LOGGER.info("[AutoSecret] endgame: no going back for missed secrets - the S+ needs no more ({} of {}"
+                            + " found, score {})", s.secretsFound(), s.totalSecrets(), s.currentTotal());
+                }
+                return false;
+            }
+        }
         RoomStatus.Room best = null;
         int bestDist = Integer.MAX_VALUE;
         for (RoomStatus.Room r : rooms) {
@@ -2559,7 +3102,13 @@ public final class AutoSecretFeature {
         if (solved || phaseTicks > AutoSecretConfig.getInstance().getPuzzleWaitSeconds() * 20) {
             LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target, solved ? "done" : "moving on",
                     phaseTicks);
-            setPhase(Phase.SETTLE);
+            if (solved) {
+                // The map (or the auto) already says it is done: the next decision now, not after a settle.
+                permitLeaveHere();
+                setPhase(Phase.DECIDE);
+            } else {
+                setPhase(Phase.SETTLE);
+            }
         }
     }
 
@@ -2591,9 +3140,12 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] handing {} to Auto Clear", room);
         AutoClearFeature.clearRoom(room, () -> Minecraft.getInstance().execute(() -> {
             if (id == runId && phase == Phase.AUTO_CLEAR) {
-                LOGGER.info("[AutoSecret] Auto Clear cleared {} - back to secrets", room);
+                LOGGER.info("[AutoSecret] Auto Clear cleared {} - back to secrets (tick {})", room, ClearExecutor.clientTick());
                 note(ModChat.good("Cleared "), ModChat.value(room), ModChat.dim(" - back to secrets"));
-                setPhase(Phase.SETTLE);
+                // Auto Clear ended on the map's own clear: nothing to settle (the 10-tick SETTLE before 2026-10-20 was
+                // half a second of standing still after every room). The room is done with, so the map may path out.
+                permitLeaveHere();
+                setPhase(Phase.DECIDE);
             }
         }), why -> Minecraft.getInstance().execute(() -> {
             if (id == runId && phase == Phase.AUTO_CLEAR) {

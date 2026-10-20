@@ -2070,6 +2070,50 @@ public final class AutoClearFeature {
         coverKey = key.toString();
         coverAge = 0;
         long t0 = System.nanoTime();
+        Cover cover = cover(list, weapon);
+        List<Long> keys = cover.keys();
+        long[] covers = cover.covers();
+        double[][] spots = cover.spots();
+        double[] from = {player.getX(), player.getY(), player.getZ()};
+        double[][] mobAt = new double[list.size()][];
+        for (int j = 0; j < list.size(); j++) {
+            mobAt[j] = new double[]{list.get(j).getX(), list.get(j).getY(), list.get(j).getZ()};
+        }
+        long[] trimmed = cover.trimmed();
+        int n = cover.reachable();
+        RepositionPlanner.Plan plan = RepositionPlanner.plan(trimmed, n, spots, from, 20_000_000L);
+        List<BlockPos> order = new java.util.ArrayList<>();
+        List<Set<Integer>> reach = new java.util.ArrayList<>();
+        if (plan != null) {
+            for (int i : plan.spots()) {
+                order.add(BlockPos.of(keys.get(i)));
+                Set<Integer> mobIds = new HashSet<>();
+                for (int j = 0; j < list.size(); j++) {
+                    if ((covers[i] & (1L << j)) != 0) {
+                        mobIds.add(list.get(j).getId());
+                    }
+                }
+                reach.add(mobIds);
+            }
+        }
+        coverSpots = order;
+        coverMobs = reach;
+        int old = RepositionPlanner.nearestMobFirst(covers, list.size(), spots, mobAt, from);
+        LOGGER.info(String.format(Locale.US, "[AutoClear] reposition plan for %s: %d block(s) reach all %d reachable starred"
+                        + " mob(s)%s (nearest mob first would take %d); %d candidate block(s), %.1f ms: %s", roomName,
+                order.size(), n, plan != null && plan.exact() ? ", fewest proved" : "", old, covers.length,
+                (System.nanoTime() - t0) / 1e6, describePlan(order, reach)));
+    }
+
+    /**
+     * The standing blocks round {@code list}'s mobs that the weapon reaches at least one of them from, each with the mobs
+     * it reaches ({@code covers}, bit j = mob j), their feet positions, and the masks renumbered over only the mobs some
+     * block reaches ({@code trimmed}, {@code reachable} of them) - what {@link RepositionPlanner} plans over.
+     */
+    private record Cover(List<Long> keys, long[] covers, double[][] spots, long[] trimmed, int reachable) {
+    }
+
+    private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon) {
         java.util.Map<Long, Long> masks = new java.util.LinkedHashMap<>();
         for (int i = 0; i < list.size(); i++) {
             AABB box = list.get(i).getBoundingBox();
@@ -2114,11 +2158,6 @@ public final class AutoClearFeature {
             covers[i] = masks.get(keys.get(i));
             spots[i] = new double[]{p.getX() + 0.5, p.getY() + 1.0, p.getZ() + 0.5};
         }
-        double[] from = {player.getX(), player.getY(), player.getZ()};
-        double[][] mobAt = new double[list.size()][];
-        for (int j = 0; j < list.size(); j++) {
-            mobAt[j] = new double[]{list.get(j).getX(), list.get(j).getY(), list.get(j).getZ()};
-        }
         // Only the mobs some block reaches are planned for; the rest keep the per-mob search (and its skip).
         long reached = 0;
         for (long c : covers) {
@@ -2144,28 +2183,76 @@ public final class AutoClearFeature {
             }
             n = k;
         }
-        RepositionPlanner.Plan plan = RepositionPlanner.plan(trimmed, n, spots, from, 20_000_000L);
-        List<BlockPos> order = new java.util.ArrayList<>();
-        List<Set<Integer>> reach = new java.util.ArrayList<>();
-        if (plan != null) {
-            for (int i : plan.spots()) {
-                order.add(BlockPos.of(keys.get(i)));
-                Set<Integer> mobIds = new HashSet<>();
-                for (int j = 0; j < list.size(); j++) {
-                    if ((covers[i] & (1L << j)) != 0) {
-                        mobIds.add(list.get(j).getId());
-                    }
-                }
-                reach.add(mobIds);
+        return new Cover(keys, covers, spots, trimmed, n);
+    }
+
+    /** Ticks a held use takes to kill once he stands where it reaches (the turn tick, then the use). */
+    static final int ESTIMATE_USE_TICKS = 2;
+
+    /**
+     * Auto Secret's Fastest Total plan (killer560, 2026-10-19: "It doesn't need to clear a room first or secret it first;
+     * it can do either"): about how long a clear of {@code room}'s starred mobs IN SIGHT takes from {@code from} - the
+     * fewest standing blocks that reach them all (the cover the clear itself plans), nearest first, each an etherwarp
+     * priced as this class prices one ({@link #ETHER_FIXED_TICKS} + {@link #ETHER_TICKS_PER_WARP} a warp) and a use; one
+     * use and no move when {@code from} already reaches every one. Mobs no block reaches are left out, as the clear's own
+     * plan leaves them to the per-mob search.
+     *
+     * @return {ticks, end x, end y, end z, mobs}, or null when none of the room's starred mobs is in sight
+     */
+    public static double[] estimateClear(Vec3 from, String room) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || from == null || room == null) {
+            return null;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        int id = AutoClearTargets.roomByName(layout, room);
+        if (id < 0) {
+            return null;
+        }
+        List<Entity> mobs = new java.util.ArrayList<>();
+        for (Entity mob : MobEspFeature.starredMobs(client)) {
+            if (layout.roomAtWorld(mob.getX(), mob.getZ()) == id && mob.isAlive()) {
+                mobs.add(mob);
             }
         }
-        coverSpots = order;
-        coverMobs = reach;
-        int old = RepositionPlanner.nearestMobFirst(covers, list.size(), spots, mobAt, from);
-        LOGGER.info(String.format(Locale.US, "[AutoClear] reposition plan for %s: %d block(s) reach all %d reachable starred"
-                        + " mob(s)%s (nearest mob first would take %d); %d candidate block(s), %.1f ms: %s", roomName,
-                order.size(), n, plan != null && plan.exact() ? ", fewest proved" : "", old, covers.length,
-                (System.nanoTime() - t0) / 1e6, describePlan(order, reach)));
+        if (mobs.isEmpty()) {
+            return null;
+        }
+        List<Entity> list = mobs.size() > 63 ? mobs.subList(0, 63) : mobs;
+        AutoClearConfig.Weapon weapon = AutoClearConfig.getInstance().getWeapon();
+        boolean all = true;
+        for (Entity e : list) {
+            all &= reaches(weapon, from, e.getBoundingBox());
+        }
+        if (all) {
+            return new double[]{ESTIMATE_USE_TICKS, from.x, from.y, from.z, list.size()};
+        }
+        Cover cover = cover(list, weapon);
+        RepositionPlanner.Plan plan = cover.reachable() == 0 ? null : RepositionPlanner.plan(cover.trimmed(),
+                cover.reachable(), cover.spots(), new double[]{from.x, from.y, from.z}, 3_000_000L);
+        if (plan == null || plan.spots().length == 0) {
+            return null;
+        }
+        double hop = Math.max(1.0, ClearExecutor.hopRange());
+        double ticks = 0;
+        double[] at = {from.x, from.y, from.z};
+        for (int i : plan.spots()) {
+            double[] s = cover.spots()[i];
+            double d = Math.sqrt((s[0] - at[0]) * (s[0] - at[0]) + (s[1] - at[1]) * (s[1] - at[1])
+                    + (s[2] - at[2]) * (s[2] - at[2]));
+            ticks += ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * Math.max(1, Math.ceil(d / hop)) + ESTIMATE_USE_TICKS;
+            at = s;
+        }
+        return new double[]{ticks, at[0], at[1], at[2], list.size()};
+    }
+
+    /** An etherwarp trip's ticks between two points as {@link #estimateClear} prices one (0 within a block and a half). */
+    public static double etherTicks(Vec3 a, Vec3 b) {
+        double d = a.distanceTo(b);
+        if (d < 1.5) {
+            return 0;
+        }
+        return ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * Math.max(1, Math.ceil(d / Math.max(1.0, ClearExecutor.hopRange())));
     }
 
     private static String describePlan(List<BlockPos> order, List<Set<Integer>> reach) {

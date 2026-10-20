@@ -834,6 +834,11 @@ final class Autopilot {
     }
 
     /** The run's score inputs: the score calculator's, with the map filling anything it has not read yet. */
+    /** The run's score state as the planner reads it (Auto Secret's Fastest Total asks what an S+ still needs). */
+    static AutopilotScore.State scoreState(DungeonLayout layout, List<RoomStatus.Room> rooms) {
+        return state(layout, rooms);
+    }
+
     private static AutopilotScore.State state(DungeonLayout layout, List<RoomStatus.Room> rooms) {
         ScoreCalculator.Result res = ScoreCalculatorFeature.currentResult();
         ScoreCalculator.Inputs in = ScoreCalculatorFeature.currentInputs();

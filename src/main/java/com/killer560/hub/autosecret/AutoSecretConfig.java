@@ -113,6 +113,33 @@ public final class AutoSecretConfig {
 
     private SecretOrder secretOrder = SecretOrder.LEAST_ETHERWARPS;
 
+    /**
+     * How Auto Secret fits the room clears in with the secrets (killer560, 2026-10-19: "It doesn't need to clear a room
+     * first or secret it first; it can do either, or skip secreting a room it deems slow to secret in exchange for
+     * clearing or secreting other rooms, so it can get 300 faster").
+     */
+    public enum RoomPlan {
+        /** Each room's clear goes in the same visit as its secrets, before or after them by the estimated ticks; a room
+         *  with nothing but a clear is a stop on the tour like any other. */
+        FASTEST_TOTAL("Fastest Total"),
+        /** Every room's secrets first, then the uncleared rooms nearest first (the order before 2026-10-20). */
+        SECRETS_THEN_CLEARS("Secrets Then Clears");
+
+        private final String label;
+
+        RoomPlan(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private RoomPlan roomPlan = RoomPlan.FASTEST_TOTAL;
+    /** Fastest Total: leave out the secrets an S+ does not need (by the Score Calculator), slowest first. */
+    private boolean skipUnneededSecrets = true;
+
     private int autopilotKey = KeyUtil.NONE;
     private RunMode runMode = RunMode.SOLO;
     /** First push the Blood Rush Split path until the blood door is open, then the rest. */
@@ -175,6 +202,13 @@ public final class AutoSecretConfig {
                 } else if ("FEWEST_WARPS".equals(so)) {
                     cfg.secretOrder = SecretOrder.LEAST_ETHERWARPS;
                 }
+                String rp = ConfigJson.getString(o, "roomPlan", cfg.roomPlan.name());
+                for (RoomPlan m : RoomPlan.values()) {
+                    if (m.name().equals(rp)) {
+                        cfg.roomPlan = m;
+                    }
+                }
+                cfg.skipUnneededSecrets = ConfigJson.getBool(o, "skipUnneededSecrets", cfg.skipUnneededSecrets);
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
                 cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
@@ -205,6 +239,8 @@ public final class AutoSecretConfig {
             o.addProperty("bloodFirst", bloodFirst);
             o.addProperty("secretBloodFirst", secretBloodFirst.name());
             o.addProperty("secretOrder", secretOrder.name());
+            o.addProperty("roomPlan", roomPlan.name());
+            o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
             o.addProperty("doPuzzles", doPuzzles);
             o.addProperty("statusHud", statusHud);
             o.addProperty("keyBaseRange", keyBaseRange);
@@ -256,6 +292,12 @@ public final class AutoSecretConfig {
 
     public SecretOrder getSecretOrder() { return secretOrder; }
     public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.LEAST_ETHERWARPS : v; }
+
+    public RoomPlan getRoomPlan() { return roomPlan; }
+    public void setRoomPlan(RoomPlan v) { roomPlan = v == null ? RoomPlan.FASTEST_TOTAL : v; }
+
+    public boolean isSkipUnneededSecrets() { return skipUnneededSecrets; }
+    public void setSkipUnneededSecrets(boolean v) { skipUnneededSecrets = v; }
 
     public boolean isDoPuzzles() { return doPuzzles; }
     public void setDoPuzzles(boolean v) { doPuzzles = v; }
