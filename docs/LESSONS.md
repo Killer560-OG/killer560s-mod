@@ -477,6 +477,16 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   wall. The sim's own board matched the capture, so it named the room on main too; testkit 1018-waterboard-predict-board
   mirrors the board planes first (main: 0 placements standing, as on Hypixel; `RoomPredictor.disagreements` lists what a
   placement disagreed on).
+- **Predictive Rooms' speed was the sweep cadence and its one wrong name a soft match** (testkit 1020-predict-matrix,
+  2026-10-20: every doorway of 15 sim floors from 2-27 blocks back, the predictor ticked from a given eye through
+  `RoomPredictor.tickFrom`, variants paired through `tune`). Sweeping every 2/1 ticks, a second focus round (1024 extra rays)
+  and 20 seen / 15 matched took a name from 8.0 ticks mean to 2.2 and the furthest named from 14.0 to 19.0 blocks back.
+  The sim's blocks ARE the captures, so a clean matrix never names wrong; `tune("TEST_NOISE", 0.05)` reads that share of seen
+  blocks as random others, and it alone found Water Board named on Mines (4-6 glances a run, on main too): its board planes'
+  palette matches any stone, so with Mines ruled out by noise they made up Water Board's matches. Soft matches no longer
+  count towards MIN_MATCHES. The comparison budget charged every seen block in a candidate's span, ruled out or not, so
+  more rays queued ticks of work that took a few (1018-predict-hypixel-fresh named at tick 20: 3506 placements, 1712 seen);
+  it now charges a compared block 1, a block in another tile 1/16, and nothing after a candidate is ruled out.
 - A `@Inject` at HEAD of a `ClientPacketListener.handleX` runs TWICE per packet: first on the Netty thread, where
   `PacketUtils.ensureRunningOnSameThread` re-queues the packet and throws, then on the render thread (javap, 26.1.2 and 26.2).
   The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke, as SkyHanni does.

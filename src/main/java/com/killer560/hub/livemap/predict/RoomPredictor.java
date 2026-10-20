@@ -62,9 +62,17 @@ public final class RoomPredictor {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-livemap");
 
-    static final int SAMPLE_EVERY_TICKS = 4;
+    // Not final: testkit 1020-predict-matrix sweeps them through {@link #tune} on the same floors, paired. Nothing in the
+    // mod writes them.
+    /**
+     * Ticks between sweeps; while the previous sweep met an unopened room, {@link #SAMPLE_WHILE_SEEING_TICKS}. They were
+     * 4 and 2 until 2026-10-20, and most of a glance's time to a name was the wait for the next sweep (testkit
+     * 1020-predict-matrix: mean tick to a name 8.0 with them on 2026-10-20's main, 2.2 with these and the focus round and
+     * thresholds below).
+     */
+    static int SAMPLE_EVERY_TICKS = 2;
     /** The sweep interval while the previous sweep met an unopened room ({@link #FOCUS_MAX_RAYS}). */
-    static final int SAMPLE_WHILE_SEEING_TICKS = 2;
+    static int SAMPLE_WHILE_SEEING_TICKS = 1;
     private static boolean lastSweepProductive = false;
     static final int RAYS_X = 24;
     static final int RAYS_Y = 14;
@@ -75,7 +83,7 @@ public final class RoomPredictor {
      * air short of nearly all of it and the tile never reached {@link #MIN_EVIDENCE}. 96 covers two whole tiles ahead
      * from anywhere in the tile he stands in (31 + 2 x 32). A ray still records only the first block it meets.
      */
-    static final double RAY_RANGE = 96.0;
+    static double RAY_RANGE = 96.0;
     /**
      * Seen blocks a tile needs before anything is said about it. It was 120 until 2026-10-18, and that was why Predictive
      * Rooms "doesnt work" on Hypixel (to-do item 22): a player glancing through a doorway as he passes gives a tile 50-120
@@ -85,11 +93,16 @@ public final class RoomPredictor {
      * name safe is that every other room, at every turn and anchor, has been ruled out ({@link #decide}) and that the one
      * left has matched {@link #MIN_MATCHES} blocks, not a count of blocks seen.
      */
-    static final int MIN_EVIDENCE = 40;
-    /** Blocks every placement still standing must have matched before its room is named. */
-    static final int MIN_MATCHES = 30;
-    static final int MISMATCH_FLOOR = 3;
-    static final double MISMATCH_RATE = 0.04;
+    static int MIN_EVIDENCE = 20;
+    /**
+     * Blocks every placement still standing must have matched before its room is named: 30 (and 40 seen) until
+     * 2026-10-20. 1020-predict-matrix found no wrong name at 20 and 15, on clean floors or with 5% or 8% of seen blocks
+     * read as random others (the way a Hypixel room differs from its capture) - once a {@link Candidate#soft} match
+     * stopped counting here ({@link #SOFT_COUNTS}), which was the one way a wrong name got through.
+     */
+    static int MIN_MATCHES = 15;
+    static int MISMATCH_FLOOR = 3;
+    static double MISMATCH_RATE = 0.04;
     /** Blocks from a tile's edge that are never compared: its wall and doorways. */
     static final int EDGE = 2;
     static final int MAX_OBSERVATIONS = 80_000;
@@ -136,6 +149,8 @@ public final class RoomPredictor {
         /** {@link #volatilePalette} of this room, or null. */
         final java.util.BitSet volatilePalette;
         int matches;
+        /** Seen blocks inside a {@link #VOLATILE} box that are one of the blocks the moving parts are made of. */
+        int soft;
         int mismatches;
         int cursor;
         boolean dead;
@@ -221,17 +236,36 @@ public final class RoomPredictor {
         if (!RoomDatabase.isReady()) {
             RoomDatabase.ensureLoading();
         }
-        // Every other tick while the last sweep found a room he can see into, so a glance gathers its blocks twice as
-        // fast; every fourth otherwise, which is nearly always (2026-10-18, killer560 wants a name near instantly).
+        step(client, client.player.getEyePosition(), client.player.getViewVector(1.0f));
+    }
+
+    /** One tick's work, seen from {@code eye} looking along {@code view}. */
+    private static void step(Minecraft client, Vec3 eye, Vec3 view) {
+        // Every tick while the last sweep found a room he can see into, every other tick otherwise (2026-10-20; was 2
+        // and 4: killer560 wants a name near instantly).
         if (++ticks >= (lastSweepProductive ? SAMPLE_WHILE_SEEING_TICKS : SAMPLE_EVERY_TICKS)) {
             ticks = 0;
-            sample(client);
+            sample(client, eye, view);
         }
         evaluate();
         if (dirty) {
             dirty = false;
             decide();
         }
+    }
+
+    /**
+     * Test hook: one client tick of the predictor exactly as {@link #tick} runs it, but seen from {@code eye} looking
+     * along {@code view} (the player is not moved, and the enabled setting is not read). Returns the nanoseconds it took.
+     * For testkit 1020-predict-matrix, which glances into every room of many floors from many distances.
+     */
+    public static long tickFrom(Minecraft client, Vec3 eye, Vec3 view) {
+        long t0 = System.nanoTime();
+        if (!RoomLibrary.isReady() || client.level == null) {
+            return 0;
+        }
+        step(client, eye, view.normalize());
+        return System.nanoTime() - t0;
     }
 
     /** Forgets everything seen: a new floor or a new world. */
@@ -242,6 +276,9 @@ public final class RoomPredictor {
         }
         Arrays.fill(LOGGED_RULED_OUT, false);
         loggedFull = false;
+        ticks = 0;
+        lastSweepProductive = false;
+        sampleSeed = 0;
         obsCount = 0;
         OBS_INDEX.clear();
         Arrays.fill(EVIDENCE, 0);
@@ -256,10 +293,8 @@ public final class RoomPredictor {
     // ------------------------------------------------------------------------------------------------- seeing
 
     /** One sweep of rays across his view. Only the first block each ray hits is read. */
-    static void sample(Minecraft client) {
+    static void sample(Minecraft client, Vec3 eye, Vec3 f) {
         lastSweepProductive = false;
-        Vec3 eye = client.player.getEyePosition();
-        Vec3 f = client.player.getViewVector(1.0f);
         Vec3 right = f.cross(new Vec3(0, 1, 0));
         if (right.lengthSqr() < 1.0e-6) {
             right = new Vec3(1, 0, 0);
@@ -287,7 +322,7 @@ public final class RoomPredictor {
         boolean anyTarget = false;
         for (int tz = 0; tz < TILES; tz++) {
             for (int tx = 0; tx < TILES; tx++) {
-                boolean t = tx < floor[0] && tz < floor[1] && isTarget(client, tz * 2 * DungeonLayout.GRID + tx * 2);
+                boolean t = tx < floor[0] && tz < floor[1] && isTarget(eye, tz * 2 * DungeonLayout.GRID + tx * 2);
                 if (!t && BY_TILE[tz * TILES + tx] != null && !REPORTED[tz * TILES + tx]) {
                     reportClosed(tz * TILES + tx);
                 }
@@ -331,27 +366,110 @@ public final class RoomPredictor {
         // the grid's spacing apart. Until 2026-10-18 the slot got only its handful a sweep, and the 40 blocks a name
         // needs took seconds to gather (killer560: about 20 s after he stopped in a corridor, and he wants it near
         // instant). The extra rays go only where the room is already known to show, so a sweep that sees no unopened
-        // room casts none, and at most {@link #FOCUS_MAX_RAYS} more however much of one it sees.
+        // room casts none, and at most {@link #FOCUS_MAX_RAYS} more however much of one it sees. Since 2026-10-20 a second
+        // round ({@link #FOCUS_LEVELS}) puts eight more a ninth of the spacing apart round each extra ray that met the
+        // room: a doorway 14-27 blocks off is a slot a few extra rays wide, and this round is most of what reaches it.
         double du = 2.0 / RAYS_X / 3.0;
         double dv = 2.0 / RAYS_Y / 3.0;
         int extra = 0;
-        for (int k = 0; k < productive && extra + 8 <= FOCUS_MAX_RAYS; k++) {
-            double u0 = FOCUS_SEEDS[k * 2];
-            double v0 = FOCUS_SEEDS[k * 2 + 1];
-            for (int a = -1; a <= 1; a++) {
-                for (int b = -1; b <= 1; b++) {
-                    if (a != 0 || b != 0) {
-                        castRay(client, eye, f, right, up, tanH, tanV, u0 + a * du, v0 + b * dv, floor);
-                        extra++;
+        double[] seeds = FOCUS_SEEDS;
+        double[] next = FOCUS_NEXT;
+        int count = productive;
+        for (int level = 1; level <= FOCUS_LEVELS && count > 0; level++) {
+            int nextCount = 0;
+            boolean deeper = level < FOCUS_LEVELS;
+            for (int k = 0; k < count && extra + 8 <= FOCUS_MAX_RAYS; k++) {
+                double u0 = seeds[k * 2];
+                double v0 = seeds[k * 2 + 1];
+                for (int a = -1; a <= 1; a++) {
+                    for (int b = -1; b <= 1; b++) {
+                        if (a != 0 || b != 0) {
+                            double u = u0 + a * du;
+                            double v = v0 + b * dv;
+                            if (castRay(client, eye, f, right, up, tanH, tanV, u, v, floor) >= 0 && deeper
+                                    && nextCount < next.length / 2) {
+                                next[nextCount * 2] = u;
+                                next[nextCount * 2 + 1] = v;
+                                nextCount++;
+                            }
+                            extra++;
+                        }
                     }
                 }
             }
+            double[] swap = seeds;
+            seeds = next;
+            next = swap;
+            count = nextCount;
+            du /= 3;
+            dv /= 3;
         }
     }
 
-    /** Extra rays a sweep may cast round the grid rays that met an unopened room ({@link #sample}). */
-    static final int FOCUS_MAX_RAYS = 336;
-    private static final double[] FOCUS_SEEDS = new double[2 * (FOCUS_MAX_RAYS / 8)];
+    /** Extra rays a sweep may cast round the grid rays that met an unopened room ({@link #sample}): 336 until 2026-10-20. */
+    static int FOCUS_MAX_RAYS = 1024;
+    /** Rounds of extra rays: 1 is the eight round each grid ray; 2 adds eight a third as far round each of those that
+     *  met the room, and so on, all within {@link #FOCUS_MAX_RAYS}. 1 until 2026-10-20. */
+    static int FOCUS_LEVELS = 2;
+    /** Room for {@link #FOCUS_MAX_RAYS} up to 2048 (testkit tuning). */
+    private static final double[] FOCUS_SEEDS = new double[2 * (2048 / 8)];
+    private static final double[] FOCUS_NEXT = new double[2 * (2048 / 8)];
+    /** Test only, 0 outside testkit 1020-predict-matrix: the share of seen blocks {@link #record} reads as another. */
+    static double TEST_NOISE = 0;
+    /**
+     * Whether {@link Candidate#soft} matches count towards {@link #MIN_MATCHES}. They did until 2026-10-20, and
+     * 1020-predict-matrix with 5-8% of seen blocks read as other blocks named Water Board on a Mines tile in 1-12
+     * glances a run: Mines was ruled out by the noise, and Water Board's board planes, whose blocks match whatever
+     * stone a look meets there, made up its matches. Off, it names Water Board as often as before.
+     */
+    static boolean SOFT_COUNTS = false;
+    /** Test only: the comparison budget as it was before 2026-10-20, every block in a span charged ({@link #evaluate}). */
+    static boolean LEGACY_WORK = false;
+
+    /**
+     * Test hook: sets one tunable by its field name (testkit 1020-predict-matrix runs every variant on the same floors);
+     * {@code "defaults"} puts every one back as shipped. Returns the tuning now in force, as {@link #tuning} prints it.
+     */
+    public static String tune(String key, double value) {
+        switch (key) {
+            case "defaults" -> {
+                SAMPLE_EVERY_TICKS = 2;
+                SAMPLE_WHILE_SEEING_TICKS = 1;
+                RAY_RANGE = 96.0;
+                MIN_EVIDENCE = 20;
+                MIN_MATCHES = 15;
+                MISMATCH_FLOOR = 3;
+                MISMATCH_RATE = 0.04;
+                FOCUS_MAX_RAYS = 1024;
+                FOCUS_LEVELS = 2;
+                TEST_NOISE = 0;
+                SOFT_COUNTS = false;
+                LEGACY_WORK = false;
+            }
+            case "LEGACY_WORK" -> LEGACY_WORK = value != 0;
+            case "SAMPLE_EVERY_TICKS" -> SAMPLE_EVERY_TICKS = Math.max(1, (int) value);
+            case "SAMPLE_WHILE_SEEING_TICKS" -> SAMPLE_WHILE_SEEING_TICKS = Math.max(1, (int) value);
+            case "RAY_RANGE" -> RAY_RANGE = value;
+            case "MIN_EVIDENCE" -> MIN_EVIDENCE = (int) value;
+            case "MIN_MATCHES" -> MIN_MATCHES = (int) value;
+            case "MISMATCH_FLOOR" -> MISMATCH_FLOOR = (int) value;
+            case "MISMATCH_RATE" -> MISMATCH_RATE = value;
+            case "FOCUS_MAX_RAYS" -> FOCUS_MAX_RAYS = Math.max(0, Math.min(2048, (int) value));
+            case "FOCUS_LEVELS" -> FOCUS_LEVELS = Math.max(0, Math.min(4, (int) value));
+            case "TEST_NOISE" -> TEST_NOISE = Math.max(0, Math.min(1, value));
+            case "SOFT_COUNTS" -> SOFT_COUNTS = value != 0;
+            default -> throw new IllegalArgumentException("no tunable " + key);
+        }
+        return tuning();
+    }
+
+    /** Test hook: the tunables in force. */
+    public static String tuning() {
+        return "every " + SAMPLE_EVERY_TICKS + "/" + SAMPLE_WHILE_SEEING_TICKS + " ticks, rays " + RAYS_X + "x" + RAYS_Y
+                + " +" + FOCUS_MAX_RAYS + " in " + FOCUS_LEVELS + " level(s), range " + RAY_RANGE + ", evidence "
+                + MIN_EVIDENCE + ", matches " + MIN_MATCHES + ", mismatch " + MISMATCH_FLOOR + "+" + MISMATCH_RATE
+                + (SOFT_COUNTS ? ", soft matches counted" : "") + (LEGACY_WORK ? ", legacy work budget" : "") + (TEST_NOISE > 0 ? ", TEST NOISE " + TEST_NOISE : "");
+    }
     /** This sweep's grid rays that met a tile being looked into: screen position and tile. */
     private static final double[] HIT_U = new double[RAYS_X * RAYS_Y];
     private static final double[] HIT_V = new double[RAYS_X * RAYS_Y];
@@ -431,7 +549,7 @@ public final class RoomPredictor {
             }
             alive++;
             behind += c.cursor < obsCount ? 1 : 0;
-            fewestMatches = Math.min(fewestMatches, c.matches);
+            fewestMatches = Math.min(fewestMatches, c.matches + (SOFT_COUNTS ? c.soft : 0));
             if (names.size() < 4) {
                 names.add(c.room.name);
             }
@@ -487,6 +605,20 @@ public final class RoomPredictor {
         }
         String id = BuiltInRegistries.BLOCK.getKey(client.level.getBlockState(pos).getBlock()).toString();
         int block = blockId(id);
+        if (TEST_NOISE > 0 && !ignored(block)) {
+            // Test only (testkit 1020-predict-matrix): a fixed share of seen blocks read as some other block, the way a
+            // Hypixel room differs from its capture, picked by position so every variant sees the same noise.
+            long h = key * 0x9E3779B97F4A7C15L;
+            h ^= h >>> 29;
+            h *= 0xBF58476D1CE4E5B9L;
+            h ^= h >>> 32;
+            if ((h & 0xFFFF) < TEST_NOISE * 65536) {
+                int other = (int) ((h >>> 16) & 0x7FFFFFFF) % BLOCK_NAMES.size();
+                if (other != block && !ignored(other)) {
+                    block = other;
+                }
+            }
+        }
         if (obsCount == obsPos.length) {
             int n = obsPos.length * 2;
             obsPos = Arrays.copyOf(obsPos, n);
@@ -518,13 +650,13 @@ public final class RoomPredictor {
     }
 
     /** A tile is worth looking at when the held map does not show it opened and he is not standing in it. */
-    private static boolean isTarget(Minecraft client, int gridIdx) {
+    private static boolean isTarget(Vec3 eye, int gridIdx) {
         if (HeldMap.available() && HeldMap.roomOpened(gridIdx)) {
             return false;
         }
         // Inside the tile's own 31 blocks; standing in the doorway gap between two tiles is in neither.
         BlockPos c = DungeonLayout.cellCenter(gridIdx);
-        return !(Math.abs(client.player.getX() - (c.getX() + 0.5)) < 15.5 && Math.abs(client.player.getZ() - (c.getZ() + 0.5)) < 15.5);
+        return !(Math.abs(eye.x - (c.getX() + 0.5)) < 15.5 && Math.abs(eye.z - (c.getZ() + 0.5)) < 15.5);
     }
 
     // ------------------------------------------------------------------------------------------------- candidates
@@ -606,11 +738,25 @@ public final class RoomPredictor {
             if (c.dead || c.cursor >= obsCount) {
                 continue;
             }
-            int end = Math.min(obsCount, c.cursor + Math.max(1, WORK_PER_TICK - work));
-            for (int i = c.cursor; i < end; i++) {
+            // The budget counts what a candidate really does (2026-10-20): a seen block in one of its tiles is one unit,
+            // one elsewhere, which costs a bit test, a sixteenth, and a candidate ruled out stops counting where it was
+            // ruled out. It charged every block in the span, ruled out or not, so 3506 placements over 1712 seen blocks
+            // (two tiles' rooms at once, 96-block rays) queued 24 ticks of "work" that took a few, and 1018-predict-
+            // hypixel-fresh's room was named at tick 20 instead of 1-2.
+            int budget = Math.max(1, WORK_PER_TICK - work);
+            int end = LEGACY_WORK ? Math.min(obsCount, c.cursor + budget) : obsCount;
+            int compared = 0;
+            int skipped = 0;
+            int i = c.cursor;
+            for (; i < end; i++) {
+                if (!LEGACY_WORK && compared + (skipped >> 4) >= budget) {
+                    break;
+                }
                 if ((c.tiles & (1L << obsTile[i])) == 0) {
+                    skipped++;
                     continue;
                 }
+                compared++;
                 int observed = obsBlock[i];
                 if (ignored(observed)) {
                     continue;
@@ -623,7 +769,7 @@ public final class RoomPredictor {
                     // A puzzle's moving part: its arrangement differs run to run, the blocks it is made of do not. One
                     // of those blocks agrees with the room; anything else says nothing (never a mismatch).
                     if (c.volatilePalette != null && c.volatilePalette.get(observed)) {
-                        c.matches++;
+                        c.soft++;
                     }
                     continue;
                 }
@@ -634,14 +780,14 @@ public final class RoomPredictor {
                     c.matches++;
                 } else {
                     c.mismatches++;
-                    if (c.mismatches > MISMATCH_FLOOR + MISMATCH_RATE * (c.matches + c.mismatches)) {
+                    if (c.mismatches > MISMATCH_FLOOR + MISMATCH_RATE * (c.matches + c.soft + c.mismatches)) {
                         c.dead = true;
                         break;
                     }
                 }
             }
-            work += end - c.cursor;
-            c.cursor = c.dead ? obsCount : end;
+            work += LEGACY_WORK ? end - c.cursor : Math.max(1, compared + (skipped >> 4));
+            c.cursor = c.dead ? obsCount : LEGACY_WORK ? end : i;
             dirty = true;
             if (work >= WORK_PER_TICK) {
                 return;
@@ -832,7 +978,7 @@ public final class RoomPredictor {
             int fewestMatches = Integer.MAX_VALUE;
             for (Candidate c : standing) {
                 names.add(c.room.name);
-                fewestMatches = Math.min(fewestMatches, c.matches);
+                fewestMatches = Math.min(fewestMatches, c.matches + (SOFT_COUNTS ? c.soft : 0));
             }
             if (names.size() != 1 || fewestMatches < MIN_MATCHES) {
                 continue;
@@ -1022,7 +1168,7 @@ public final class RoomPredictor {
         }
         for (Candidate c : BY_TILE[t]) {
             if (!c.dead) {
-                out.add(c.key() + " " + c.matches + "/" + c.mismatches);
+                out.add(c.key() + " " + (c.matches + c.soft) + "/" + c.mismatches);
             }
         }
         return out;
