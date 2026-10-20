@@ -219,6 +219,17 @@ public final class WeaponReach {
                 }
             }
         }
+        if (best == null) {
+            // Straight down at his own feet: what the room's plan and standSpot count on ("a bat fired straight down at
+            // his own feet"). The fan above stops 45 degrees off the line to the mob, so on a planned block whose mob sat
+            // behind a wall nothing here matched the plan, and the mob was skipped as out of reach while he stood on the
+            // very block chosen to reach it (Balcony, 2026-10-19 22:14:39: 46 ticks idle, then two roams).
+            float yaw = player.getYRot();
+            Vec3 impact = batImpact(level, player, eye, TeleportUtils.getLook(yaw, 90f));
+            if (sceptreHits(impact, mob)) {
+                best = new Aim(yaw, 90f, null, "Guided Bat at his feet");
+            }
+        }
         return best;
     }
 

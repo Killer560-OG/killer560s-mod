@@ -1232,6 +1232,20 @@ public final class AutoClearFeature {
         }
         BlockPos planned = coverSpotFor(target);
         BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        if (planned != null && BlockPos.containing(feet).below().equals(planned)) {
+            // The room's plan is rebuilt at most every COVER_REPLAN_TICKS while a mob walks, so on the tick he lands on
+            // the planned block it can still name that block for a mob that has walked out of its reach. Skipping the mob
+            // there cost Balcony 8 s on 2026-10-19 (22:14:39-46: skipped, 46 ticks idle, two roams, back to this block).
+            // A block that reaches it NOW goes first; only with none is the mob skipped as before.
+            BlockPos fresh = WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+            coverIds = null;   // the plan is stale: rebuilt on the next decision
+            if (fresh != null && !fresh.equals(planned)) {
+                LOGGER.info("[AutoClear] {} walked out of reach of the planned block {} - etherwarping to {} instead of"
+                        + " skipping it", targetName, planned.toShortString(), fresh.toShortString());
+                planned = null;
+                spot = fresh;
+            }
+        }
         if (spot == null) {
             skippedMobs.add(targetId);
             ModChat.log(CHAT, ModChat.bad("Skipping "), ModChat.value(targetName),
@@ -1241,14 +1255,17 @@ public final class AutoClearFeature {
         }
         if (BlockPos.containing(feet).below().equals(spot)) {
             // Standing on the spot already and still out of reach (the mob moved): skip rather than loop.
+            LOGGER.info("[AutoClear] skipped {} at {}: standing on {} and no aim from here reaches it", targetName,
+                    target.blockPosition().toShortString(), spot.toShortString());
             skippedMobs.add(targetId);
             targetId = -1;
             return;
         }
+        final BlockPos goal = spot;
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPath(spot, null);
+            ClearExecutor.etherPath(goal, null);
             return true;
         });
         if (phase == Phase.TRAVEL) {
@@ -1256,7 +1273,7 @@ public final class AutoClearFeature {
             // through here again next tick, and used to log the same etherwarp twice.
             repositions++;
             LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
-                    target.blockPosition().toShortString(), spot.toShortString(), etherTicks, cachedHops,
+                    target.blockPosition().toShortString(), goal.toShortString(), etherTicks, cachedHops,
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
         }
