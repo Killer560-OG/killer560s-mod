@@ -1,6 +1,7 @@
 package com.killer560.hub.pathfinding.mixin;
 
 import com.killer560.hub.pathfinding.AutoWalker;
+import com.killer560.hub.pathfinding.ShortWalk;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
 import net.minecraft.world.entity.player.Input;
@@ -27,6 +28,18 @@ public abstract class PathWalkInputMixin extends ClientInput {
     @Inject(method = "tick", at = @At("TAIL"), require = 0)
     private void killer560smod$pathWalkInput(CallbackInfo ci) {
         AutoWalker.onMixinApplied();
+        ShortWalk.onMixinApplied();
+        if (ShortWalk.isDriving()) {
+            // Auto Clear's short walks (ShortWalk): the same record rewrite, with his own sneak kept.
+            boolean f = ShortWalk.wantForward();
+            boolean b = ShortWalk.wantBack();
+            boolean l = ShortWalk.wantLeft();
+            boolean r = ShortWalk.wantRight();
+            this.keyPresses = new Input(f, b, l, r, ShortWalk.wantJump(), this.keyPresses.shift(),
+                    ShortWalk.wantSprint());
+            this.moveVector = new Vec2((l ? 1f : 0f) - (r ? 1f : 0f), (f ? 1f : 0f) - (b ? 1f : 0f)).normalized();
+            return;
+        }
         if (!AutoWalker.isSessionActive()) {
             return;
         }

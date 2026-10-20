@@ -9,6 +9,7 @@ import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.mobesp.MobEspFeature;
+import com.killer560.hub.pathfinding.ShortWalk;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.BodyAim;
 import com.killer560.hub.util.FeatureGuard;
@@ -54,6 +55,10 @@ import java.util.function.Consumer;
  *       launch plus flight at {@link WeaponReach#BAT_BLOCKS_PER_TICK}. With the Hyperion as the weapon it is taken when a
  *       sceptre is in the hotbar and it beats both of the above; with the sceptre as the weapon a far bat is weighed
  *       against etherwarping onto the mob's block and firing down.</li>
+ *   <li><b>A walk</b> (since 2026-10-19, Walk When Faster) - sprinting, stepping and jumping over the loaded blocks
+ *       ({@link ShortWalk}: the pathfinding package's planner, terrain and key model), to the same block an etherwarp
+ *       would go to, ending the tick the weapon reaches the mob. Taken only when its estimate is strictly under the
+ *       etherwarp chain's; a walk that gets stuck etherwarps instead. Roam trips choose the same way.</li>
  * </ul>
  * "sometimes etherwarping isn't worth it and instead it should just hype towards the mobs" - so a near mob with an open
  * line gets hops, a far or walled-off one an etherwarp chain.
@@ -97,7 +102,7 @@ public final class AutoClearFeature {
     static final int MAX_PATH_FAILURES = 4;
 
     private enum Phase {
-        IDLE, RELEASE, TRAVEL, HOP, ATTACK
+        IDLE, RELEASE, TRAVEL, HOP, ATTACK, WALK
     }
 
     private static boolean running = false;
@@ -282,6 +287,9 @@ public final class AutoClearFeature {
         noMobTicks = 0;
         pathFailures = 0;
         hopsOffFor = -1;
+        walkOffFor = -1;
+        walkDecisionKey = null;
+        walkDecisionPlan = null;
         travelStarted = false;
         skippedRooms.clear();
         skippedMobs.clear();
@@ -349,6 +357,7 @@ public final class AutoClearFeature {
         running = false;
         bodyWanted = false;
         releaseUse(client);
+        endWalk("Auto Clear stopped");
         if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
             ClearExecutor.cancel();
         }
@@ -413,6 +422,7 @@ public final class AutoClearFeature {
         if (McCompat.screen(client) != null || com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
             // A screen (chat, a chest) or an Auto Routes route: wait, holding nothing.
             releaseUse(client);
+            abandonWalk(McCompat.screen(client) != null ? "a screen opened" : "Auto Routes started");
             action = McCompat.screen(client) != null ? "waiting (a screen is open)" : "waiting (Auto Routes is running)";
             if (com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
                 // The route's own warps are its business (it judges their landings itself), not corrections of ours.
@@ -424,6 +434,7 @@ public final class AutoClearFeature {
             // An auto puzzle is moving him (killer560, 2026-10-14): wait, holding nothing, and start no trip until it
             // is done. Its warps and teleports are its own, not corrections of ours.
             releaseUse(client);
+            abandonWalk(com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working");
             action = "waiting (" + com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working)";
             positionPacketsSeen = positionPackets;
             return;
@@ -442,6 +453,9 @@ public final class AutoClearFeature {
     }
 
     private static void step(Minecraft client, LocalPlayer player) {
+        if (phase == Phase.WALK && stepWalk(client, player)) {
+            return;
+        }
         if (phase == Phase.TRAVEL) {
             // Auto Clear's own trips (etherPathFast) end on the tick the server confirms the last landing, not ~9 ticks
             // later: Auto Routes asks this too, and whichever asks first ends it.
@@ -453,41 +467,9 @@ public final class AutoClearFeature {
             }
             phase = Phase.IDLE;
             planKey = Long.MIN_VALUE;
-            if (keyTrip) {
-                // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
-                keyTrip = false;
-                if (travelStarted && ClearExecutor.lastPathFailed() && keyId >= 0) {
-                    LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
-                    keysTried.add(keyId);
-                    keyId = -1;
-                }
-                travelStarted = false;
+            if (!tripEnded(player, ClearExecutor.lastPathFailed())) {
+                return;
             }
-            if (roamTrip) {
-                // A roam trip's failure costs its spot (already counted), not one of the room's tries.
-                roamTrip = false;
-                if (travelStarted && ClearExecutor.lastPathFailed()) {
-                    LOGGER.info("[AutoClear] roam: the trip to spot {} in {} failed - looking from here", roamSpotsTried,
-                            roomName);
-                } else {
-                    LOGGER.info("[AutoClear] roam: at spot {} in {} ({}) - looking for starred mobs for {} ticks",
-                            roamSpotsTried, roomName, fmt(player.position()), ROAM_LOOK_TICKS);
-                }
-                noMobTicks = 0;
-                travelStarted = false;
-            }
-            if (travelStarted && ClearExecutor.lastPathFailed()) {
-                pathFailures++;
-                LOGGER.info("[AutoClear] trip {} failed ({} of {})", action, pathFailures, MAX_PATH_FAILURES);
-                if (pathFailures >= MAX_PATH_FAILURES) {
-                    giveUpRoom("no etherwarp path (" + pathFailures + " tries)");
-                    return;
-                }
-            }
-            if (travelStarted && doorTarget >= 0 && !ClearExecutor.lastPathFailed()) {
-                doorTripDone = doorTarget;   // the map took him as close to the door as it goes
-            }
-            travelStarted = false;
         }
         if (phase == Phase.RELEASE) {
             if (BODY.isHeld()) {
@@ -516,6 +498,51 @@ public final class AutoClearFeature {
             }
         }
         decide(client, player);
+    }
+
+    /**
+     * The end of a trip (an Interactive Map trip, or a walk standing in for one): a key or roam trip's bookkeeping, a
+     * failed trip counted against the room, a door trip noted as done.
+     * @return false when the room was given up on (nothing more to do this tick)
+     */
+    private static boolean tripEnded(LocalPlayer player, boolean failed) {
+        if (keyTrip) {
+            // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
+            keyTrip = false;
+            if (travelStarted && failed && keyId >= 0) {
+                LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
+                keysTried.add(keyId);
+                keyId = -1;
+            }
+            travelStarted = false;
+        }
+        if (roamTrip) {
+            // A roam trip's failure costs its spot (already counted), not one of the room's tries.
+            roamTrip = false;
+            if (travelStarted && failed) {
+                LOGGER.info("[AutoClear] roam: the trip to spot {} in {} failed - looking from here", roamSpotsTried,
+                        roomName);
+            } else {
+                LOGGER.info("[AutoClear] roam: at spot {} in {} ({}) - looking for starred mobs for {} ticks",
+                        roamSpotsTried, roomName, fmt(player.position()), ROAM_LOOK_TICKS);
+            }
+            noMobTicks = 0;
+            travelStarted = false;
+        }
+        if (travelStarted && failed) {
+            pathFailures++;
+            LOGGER.info("[AutoClear] trip {} failed ({} of {})", action, pathFailures, MAX_PATH_FAILURES);
+            if (pathFailures >= MAX_PATH_FAILURES) {
+                giveUpRoom("no etherwarp path (" + pathFailures + " tries)");
+                travelStarted = false;
+                return false;
+            }
+        }
+        if (travelStarted && doorTarget >= 0 && !failed) {
+            doorTripDone = doorTarget;   // the map took him as close to the door as it goes
+        }
+        travelStarted = false;
+        return true;
     }
 
     private static void decide(Minecraft client, LocalPlayer player) {
@@ -1037,6 +1064,7 @@ public final class AutoClearFeature {
         roamLookedFrom.clear();
         roamSpots = null;
         seenMobs.clear();
+        walkOffRoam = false;
     }
 
     // ---- mobs that left the client's view alive (killer560, 2026-10-19: "the clear was still really unoptimal") ----
@@ -1202,11 +1230,13 @@ public final class AutoClearFeature {
         final BlockPos spot = best;
         final double separation = bestD;
         action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
-        startTrip(client, player, () -> {
-            ClearExecutor.etherPathFast(spot, null);
-            return true;
-        });
-        if (phase != Phase.TRAVEL) {
+        if (!walkInsteadOfTrip(client, player, spot, null, "roam spot " + (roamSpotsTried + 1) + " in " + roomName)) {
+            startTrip(client, player, () -> {
+                ClearExecutor.etherPathFast(spot, null);
+                return true;
+            });
+        }
+        if (phase != Phase.TRAVEL && phase != Phase.WALK) {
             return true;   // the body goes back first (Phase.RELEASE); this comes through again next tick
         }
         roamTrip = true;
@@ -1269,11 +1299,13 @@ public final class AutoClearFeature {
             }
             final BlockPos spot = stand;
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
-            startTrip(client, player, () -> {
-                ClearExecutor.etherPathFast(spot, null);
-                return true;
-            });
-            if (phase != Phase.TRAVEL) {
+            if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")")) {
+                startTrip(client, player, () -> {
+                    ClearExecutor.etherPathFast(spot, null);
+                    return true;
+                });
+            }
+            if (phase != Phase.TRAVEL && phase != Phase.WALK) {
                 return true;   // the body goes back first (Phase.RELEASE); this comes through again next tick
             }
             roamTrip = true;
@@ -1465,6 +1497,10 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
+        if (walkInsteadOfTrip(client, player, spot, feetAt -> reaches(cfg.getWeapon(), feetAt, box),
+                targetName + " at " + target.blockPosition().toShortString())) {
+            return;
+        }
         final BlockPos goal = spot;
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
@@ -1632,6 +1668,170 @@ public final class AutoClearFeature {
         return cachedPreferEther;
     }
 
+    // ---- walking against etherwarping (killer560, 2026-10-19: "make sure auto clear knows it can run and jump and
+    // stuff if needed if that is somehow faster") ----
+
+    /** A goal further than this in a straight line is never walked (an etherwarp chain is always faster there). */
+    static final double WALK_MAX_BLOCKS = 20.0;
+
+    /** The walk running (Phase.WALK): for a mob (ends the moment the weapon reaches it) or to a roam spot. */
+    private static boolean walkForMob = false;
+    private static String walkWhat = "";
+    /** A walk toward this mob got stuck: etherwarp to it from now on. */
+    private static int walkOffFor = -1;
+    /** A roam walk in this room got stuck: roam by etherwarp for the rest of the room. */
+    private static boolean walkOffRoam = false;
+    /** The last walk-or-etherwarp decision, so it is worked out (and logged) once per plan: start block, goal, what. */
+    private static String walkDecisionKey = null;
+    private static ShortWalk.Plan walkDecisionPlan = null;
+    private static int walks = 0;
+
+    /** For the testkit: walks Auto Clear chose over an etherwarp, ever (only goes up). */
+    public static int walks() {
+        return walks;
+    }
+
+    /**
+     * Whether walking to {@code spot} (the block to stand ON) beats the Interactive Map's etherwarp chain there, and if so
+     * starts the walk (Phase.WALK). Both estimates are in ticks in the style of the others: the chain is
+     * {@link #ETHER_FIXED_TICKS} + {@link #ETHER_TICKS_PER_WARP} a warp (straight distance over the hop range, at least
+     * one); the walk is {@link ShortWalk#plan}'s - {@link ShortWalk#START_TICKS}, the way's length up to the first
+     * point from which {@code doneAt} accepts his feet (the whole way when null) at his real sprinting top speed, and
+     * {@link ShortWalk#JUMP_TICKS} per step up. Strictly faster only, so a tie etherwarps as before. Worked out and logged
+     * once per plan (his block, the goal and what it is for).
+     * @return true when a walk was started
+     */
+    private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
+                                             java.util.function.Predicate<Vec3> doneAt, String what) {
+        AutoClearConfig cfg = AutoClearConfig.getInstance();
+        if (!cfg.isWalkWhenFaster() || !player.onGround() || !ShortWalk.mixinApplied()
+                || (doneAt != null ? walkOffFor == targetId : walkOffRoam)) {
+            return false;
+        }
+        Vec3 feet = player.position();
+        if (doneAt != null && doneAt.test(feet)) {
+            return false;   // already where a walk would end: walking cannot help (the aim from here is what failed)
+        }
+        Vec3 goalFeet = new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5);
+        double straight = feet.distanceTo(goalFeet);
+        int warps = Math.max(1, (int) Math.ceil(straight / ClearExecutor.hopRange()));
+        int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
+        String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what;
+        if (!key.equals(walkDecisionKey)) {
+            walkDecisionKey = key;
+            walkDecisionPlan = null;
+            if (straight > WALK_MAX_BLOCKS) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: etherwarp ~%d ticks (%d warp(s)); walk not"
+                        + " planned - %.1f blocks away, over %.0f", what, etherTicks, warps, straight, WALK_MAX_BLOCKS));
+            } else {
+                long t0 = System.nanoTime();
+                ShortWalk.Plan plan = ShortWalk.plan(client.level, player, spot.above(), doneAt);
+                double ms = (System.nanoTime() - t0) / 1e6;
+                boolean walk = plan != null && plan.ticks() < etherTicks;
+                walkDecisionPlan = walk ? plan : null;
+                LOGGER.info(String.format(Locale.US, "[AutoClear] move to %s: walk %s vs etherwarp ~%d ticks (%d warp(s),"
+                                + " %.1f blocks straight) - %s (%.1f ms)", what,
+                        plan == null ? "none (no way on foot)" : "~" + plan.ticks() + " ticks (" + plan.describe() + ")",
+                        etherTicks, warps, straight, walk ? "walking" : "etherwarp", ms));
+            }
+        }
+        ShortWalk.Plan plan = walkDecisionPlan;
+        if (plan == null) {
+            return false;
+        }
+        walkDecisionKey = null;   // taken: the next decision is a fresh one
+        walkDecisionPlan = null;
+        walkForMob = doneAt != null;
+        walkWhat = what;
+        walkDoneAt = doneAt;
+        ShortWalk.start(plan, "Auto Clear");
+        phase = Phase.WALK;
+        bodyWanted = true;   // the body is turned along the way from the next tick on, the camera held
+        travelStarted = true;
+        walks++;
+        action = "walking to " + what + " (~" + plan.ticks() + " ticks vs etherwarp ~" + etherTicks + ")";
+        if (walkForMob) {
+            stepWalk(client, player);   // the first keys go in this same tick's input, not the next
+        }
+        return true;
+    }
+
+    private static java.util.function.Predicate<Vec3> walkDoneAt = null;
+
+    /**
+     * One tick of Phase.WALK, driven by his real position ({@link ShortWalk#tick}): the body turned toward the way with
+     * the camera held (as for every other aim), the keys through {@code PathWalkInputMixin}. A walk for a mob ends the
+     * tick he stands where the weapon reaches it (the attack goes the same tick); a walk that gets stuck or knocked off
+     * its way ends and the same goal is etherwarped to instead.
+     * @return true while the walk owns this tick
+     */
+    private static boolean stepWalk(Minecraft client, LocalPlayer player) {
+        if (!ShortWalk.isActive()) {
+            phase = Phase.IDLE;
+            planKey = Long.MIN_VALUE;
+            return false;
+        }
+        if (walkForMob) {
+            Entity target = targetId < 0 ? null : client.level.getEntity(targetId);
+            if (target == null || !target.isAlive()) {
+                endWalk("the mob is gone");
+                phase = Phase.IDLE;
+                planKey = Long.MIN_VALUE;
+                travelStarted = false;
+                return false;
+            }
+            if (player.onGround() && walkDoneAt != null && walkDoneAt.test(player.position())) {
+                endWalk("in reach of " + targetName);
+                phase = Phase.IDLE;
+                planKey = Long.MIN_VALUE;
+                travelStarted = false;
+                return false;
+            }
+        }
+        bodyWanted = true;
+        float pitch = Mth.clamp(player.getXRot(), -90f, 90f);
+        ShortWalk.Status status = ShortWalk.tick(client.level, player, yaw -> BODY.turn(player, yaw, pitch));
+        if (status == ShortWalk.Status.WALKING) {
+            return true;
+        }
+        boolean failed = status != ShortWalk.Status.ARRIVED;
+        endWalk(status.name().toLowerCase(Locale.ROOT).replace('_', ' '));
+        phase = Phase.IDLE;
+        planKey = Long.MIN_VALUE;
+        if (failed) {
+            if (walkForMob) {
+                walkOffFor = targetId;
+            } else {
+                walkOffRoam = true;
+            }
+            LOGGER.info("[AutoClear] the walk to {} ended {} at {} - etherwarping instead", walkWhat, status, fmt(player.position()));
+        }
+        if (walkForMob) {
+            travelStarted = false;
+            return false;
+        }
+        tripEnded(player, failed);
+        return false;
+    }
+
+    private static void endWalk(String why) {
+        if (ShortWalk.isActive()) {
+            ShortWalk.stop(why);
+        }
+    }
+
+    /** Something else needs him (a screen, a route, a puzzle, a correction): the walk ends, the plan starts over. */
+    private static void abandonWalk(String why) {
+        if (phase != Phase.WALK) {
+            return;
+        }
+        endWalk(why);
+        phase = Phase.IDLE;
+        planKey = Long.MIN_VALUE;
+        roamTrip = false;   // its spot was counted when it was taken
+        travelStarted = false;
+    }
+
     private static void travelToRoom(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {
         releaseUse(client);
         if (!AutoClearUtils.canPath(layout)) {
@@ -1793,6 +1993,7 @@ public final class AutoClearFeature {
         LOGGER.info("[AutoClear] server correction #{}: {} -> {} during {} - replanning", corrections,
                 before == null ? "?" : fmt(before), fmt(at), phase);
         releaseUse(client);
+        abandonWalk("server correction - planning again from where it put him");
         phase = Phase.IDLE;
         planKey = Long.MIN_VALUE;
     }

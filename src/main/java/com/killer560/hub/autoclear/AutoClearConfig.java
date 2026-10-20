@@ -69,6 +69,8 @@ public final class AutoClearConfig {
     private int mobTimeoutTicks = 160;
     /** Go for a Wither Key that drops during a clear before going on (killer560, 2026-10-19). */
     private boolean pickUpKeys = true;
+    /** Walk (sprint, jump) to a mob or a room spot when that is estimated faster than etherwarping (killer560, 2026-10-19). */
+    private boolean walkWhenFaster = true;
 
     private AutoClearConfig() {
     }
@@ -92,6 +94,7 @@ public final class AutoClearConfig {
                 cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
                 cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
                 cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
+                cfg.walkWhenFaster = ConfigJson.getBool(o, "walkWhenFaster", cfg.walkWhenFaster);
                 // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
                 // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
             } catch (Exception e) {
@@ -112,6 +115,7 @@ public final class AutoClearConfig {
             o.addProperty("hyperionHops", hyperionHops);
             o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
             o.addProperty("pickUpKeys", pickUpKeys);
+            o.addProperty("walkWhenFaster", walkWhenFaster);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -140,6 +144,9 @@ public final class AutoClearConfig {
 
     public boolean isPickUpKeys() { return pickUpKeys; }
     public void setPickUpKeys(boolean v) { pickUpKeys = v; }
+
+    public boolean isWalkWhenFaster() { return walkWhenFaster; }
+    public void setWalkWhenFaster(boolean v) { walkWhenFaster = v; }
 
     public int getMobTimeoutTicks() { return mobTimeoutTicks; }
     public void setMobTimeoutTicks(int v) {
