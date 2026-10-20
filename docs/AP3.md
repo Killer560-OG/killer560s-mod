@@ -70,3 +70,8 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   trigger box out (`boxYaw`), so `clearUnusedFields` swaps width and length for an east/west yaw when it drops the yaw.
   The route planner had always read a Path box as X = width, Z = length whatever its yaw, so a non-square Path box at an
   east/west yaw was planned 90 degrees off its drawn box until then.
+- The route planner runs headless: `Ap3RoutePlanner`, `Ap3RouteMath`, `Ap3RouteCollide`, `Ap3DiscretePlanner` and
+  `Ap3AlignMath` import nothing from Minecraft and compile with plain `javac`. Only the world snapshot
+  (`Ap3RouteRunner.Snap`) needs a `ClientLevel`; a port of it over a room capture's blocks (capture index = route-relative
+  + margin 1 for New Trap, captured unturned) replayed the New Trap path pair on 2026-10-20: 15 ticks at speed 400 and 600,
+  and a tick-by-tick search of the same model found no walk in 14 (and found 15 when allowed, the control).
