@@ -87,10 +87,69 @@ public final class TourPlanner {
      * ticks, which are a warp count times a constant ({@code RoomTour}), so least travel is fewest warps. Exact (branch and
      * bound) inside {@code budgetNanos}; past it, the nearest-room-next order improved by moving single rooms.
      */
+    /** Up to this many rooms the least-travel order is exact by Held-Karp, whatever the time budget (killer560, 2026-10-19:
+     *  "make sure min etherwarp is actually using the fewest"). 2^14 subsets x 14 ends is a few million steps. */
+    static final int HELD_KARP_MAX = 14;
+
+    /** Exact least-travel tour over every subset of rooms with each room last (Held-Karp dynamic programming). */
+    static Result heldKarp(double[] fromHere, double[][] between) {
+        int n = fromHere.length;
+        int full = 1 << n;
+        double[][] dp = new double[full][n];
+        int[][] parent = new int[full][n];
+        for (int m = 0; m < full; m++) {
+            java.util.Arrays.fill(dp[m], Double.POSITIVE_INFINITY);
+            java.util.Arrays.fill(parent[m], -1);
+        }
+        for (int i = 0; i < n; i++) {
+            dp[1 << i][i] = fromHere[i];
+        }
+        for (int mask = 1; mask < full; mask++) {
+            for (int last = 0; last < n; last++) {
+                double cur = dp[mask][last];
+                if (cur == Double.POSITIVE_INFINITY) {
+                    continue;
+                }
+                for (int next = 0; next < n; next++) {
+                    if ((mask & (1 << next)) != 0) {
+                        continue;
+                    }
+                    int nm = mask | (1 << next);
+                    double c = cur + between[last][next];
+                    if (c < dp[nm][next]) {
+                        dp[nm][next] = c;
+                        parent[nm][next] = last;
+                    }
+                }
+            }
+        }
+        int fm = full - 1;
+        int end = 0;
+        for (int i = 1; i < n; i++) {
+            if (dp[fm][i] < dp[fm][end]) {
+                end = i;
+            }
+        }
+        int[] order = new int[n];
+        int mask = fm;
+        int at = end;
+        for (int k = n - 1; k >= 0; k--) {
+            order[k] = at;
+            int p = parent[mask][at];
+            mask &= ~(1 << at);
+            at = p;
+        }
+        double t = travel(order, fromHere, between);
+        return new Result(order, t, t, true);
+    }
+
     public static Result shortest(double[] fromHere, double[][] between, long budgetNanos) {
         int n = fromHere.length;
         if (n == 0) {
             return new Result(new int[0], 0, 0, true);
+        }
+        if (n <= HELD_KARP_MAX) {
+            return heldKarp(fromHere, between);
         }
         boolean[] used = new boolean[n];
         int[] best = new int[n];
