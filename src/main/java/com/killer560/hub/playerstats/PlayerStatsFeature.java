@@ -267,7 +267,12 @@ public final class PlayerStatsFeature {
      * every line. Only reads; the line itself is not changed here (see {@link #actionBarReplacement}).
      */
     public static void onActionBar(Component message) {
-        if (message == null || message == lastRead || !PlayerStatsConfig.getInstance().isEnabled()) {
+        if (message == null || message == lastRead) {
+            return;
+        }
+        // Read before the enabled gate: an etherwarp route needs to know about an empty mana bar even with the HUD off.
+        noteManaShort(message.getString());
+        if (!PlayerStatsConfig.getInstance().isEnabled()) {
             return;
         }
         lastRead = message;
@@ -276,6 +281,27 @@ public final class PlayerStatsFeature {
         } catch (RuntimeException e) {
             // Packet path (ALLOW_GAME and setOverlayMessage): a throw here would disconnect him from Hypixel.
         }
+    }
+
+    /** Set while the action bar reads NOT ENOUGH MANA (Hypixel puts that in place of the mana figure); cleared by the next
+     *  line that carries a mana figure. An Aspect of the Void cast then fails on the server, and a route that keeps casting
+     *  waits out a refusal each time (killer560, 2026-10-19: a Secret run ran dry near its end). */
+    private static volatile boolean manaShort;
+    /** Mana an Aspect of the Void costs (its lore in roomsim/SimItemLore). */
+    public static final long AOTV_MANA = 50;
+
+    private static void noteManaShort(String raw) {
+        if (raw.contains("NOT ENOUGH MANA")) {
+            manaShort = true;
+        } else if (MANA_REGEX.matcher(raw).find()) {
+            manaShort = false;
+        }
+    }
+
+    /** True while an Aspect of the Void would fail for lack of mana: the action bar says so, or the last mana figure is
+     *  under its cost. Etherwarp holds on this (no use is sent into a refusal). */
+    public static boolean manaTooLowForAotv() {
+        return manaShort || manaCur >= 0 && manaCur < AOTV_MANA;
     }
 
     private static void read(String raw) {

@@ -326,6 +326,7 @@ public final class AutoSecretFeature {
         runId++;
         lastRoomName = null;
         secreted.clear();
+        revisited.clear();
         puzzleHoldSaid = null;
         puzzleHoldRoom = null;
         puzzleHoldsSaid.clear();
@@ -906,7 +907,7 @@ public final class AutoSecretFeature {
         // leave it missing a secret because it is so unoptimal to do." A room whose route ran to its end this run -
         // by this run, an earlier one of Auto Secret's, or by hand - is never a secret target again.
         for (String routed : com.killer560.hub.autoroutes.RouteRunMemory.routedRooms()) {
-            if (secreted.add(routed)) {
+            if (!revisited.contains(routed) && secreted.add(routed)) {
                 LOGGER.info("[AutoSecret] {}: its route already ran to the end this run - every secret counts as got",
                         routed);
             }
@@ -2031,7 +2032,48 @@ public final class AutoSecretFeature {
                 return;
             }
         }
+        if (goBackForMissed(layout, rooms, dist)) {
+            return;
+        }
         stop("nothing left to do - over to you", false);
+    }
+
+    /** Rooms sent back to once each, for a secret their route ended without (see {@link #goBackForMissed}). */
+    private static final Set<String> revisited = new HashSet<>();
+
+    /**
+     * killer560, 2026-10-19: "if it gets to the end of a run for the auto clearer, has done puzzles and everything and not
+     * enough secrets are collected go back to rooms it thinks it missed a secret in." Once the rest of the floor is done,
+     * a room whose route ended with secrets still uncounted (the route ran to its end, so it was skipped as "got") is
+     * visited once more for them, nearest first. Each room is sent back to at most once.
+     */
+    private static boolean goBackForMissed(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        RoomStatus.Room best = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (RoomStatus.Room r : rooms) {
+            if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
+                    || !dist.containsKey(r.room())) {
+                continue;
+            }
+            int[] counted = roomCount(r.name());
+            if (counted == null || counted[0] >= counted[1]) {
+                continue;
+            }
+            int d = dist.get(r.room());
+            if (d < bestDist) {
+                best = r;
+                bestDist = d;
+            }
+        }
+        if (best == null) {
+            return false;
+        }
+        revisited.add(best.name());
+        secreted.remove(best.name());
+        LOGGER.info("[AutoSecret] endgame: {} ended its route short of its secrets - going back for them ({} room(s) away)",
+                best.name(), bestDist);
+        note(ModChat.text("Going back for the missed secrets in "), ModChat.value(best.name()));
+        return goSecret(layout, best, dist, best.name(), "none");
     }
 
     // ------------------------------------------------------------------------------------------- wither doors

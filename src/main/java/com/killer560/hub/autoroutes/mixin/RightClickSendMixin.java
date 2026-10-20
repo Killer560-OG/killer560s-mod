@@ -26,6 +26,19 @@ public abstract class RightClickSendMixin {
     @Inject(method = "send", at = @At("HEAD"), require = 0)
     private void killer560smod$rightClickTap(Packet<?> packet, CallbackInfo ci) {
         try {
+            if (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundInteractPacket
+                    || packet instanceof net.minecraft.network.protocol.game.ServerboundSwingPacket) {
+                // Anything that acts on the world (a dig, a swap, a use, a click, a swing): Auto Routes starts its next node
+                // in the same tick only when nothing of the kind went this tick (RouteExecutor.actionPacketsSent).
+                com.killer560.hub.autoroutes.RouteExecutor.onActionPacket();
+            }
+            if (packet instanceof net.minecraft.network.protocol.game.ServerboundClientTickEndPacket) {
+                // The click-gap clock: the server judges a use against a click by the client ticks between them.
+                com.killer560.hub.autoroutes.RouteExecutor.onTickEndSent();
+            }
             if (packet instanceof ServerboundMovePlayerPacket || packet instanceof ServerboundUseItemOnPacket
                     || packet instanceof ServerboundUseItemPacket) {
                 Minecraft mc = Minecraft.getInstance();
@@ -36,8 +49,11 @@ public abstract class RightClickSendMixin {
                     RightClick.onMove(mc.player, move);
                 } else if (packet instanceof ServerboundUseItemOnPacket useOn) {
                     RightClick.onUseOn(mc.player, useOn);
+                    com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, useOn.getHand());
                 } else {
                     RightClick.onUse(mc.player, (ServerboundUseItemPacket) packet);
+                    com.killer560.hub.autoroutes.RouteExecutor.onItemUseSent(mc.player,
+                            ((ServerboundUseItemPacket) packet).getHand());
                 }
                 if (!(packet instanceof ServerboundMovePlayerPacket)) {
                     // A use of ours as it leaves the client: what a sceptre BAT node counts its first downward uses by (the sim's

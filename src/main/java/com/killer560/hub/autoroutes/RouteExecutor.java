@@ -767,6 +767,10 @@ public final class RouteExecutor {
         chainAfterLanding = false;
         landingConfirmed = false;
         execTicks = 0;
+        // A route most often starts on the map's warp landing (the start node arms on that tick, no hold): a boom there
+        // gets the landing-tick retry too.
+        lastLandingAt = 0;
+        boomSentAt = Long.MIN_VALUE / 2;
         secretMetAt = -1;
         secretMetNode = null;
         secretGapWhy.setLength(0);
@@ -903,6 +907,21 @@ public final class RouteExecutor {
      * block the auto routes"). A position packet a round trip or so after it is his own teleport, not a server correction:
      * {@link #checkCorrections} then carries on exactly as before but without the correction alarm.
      */
+    /** {@link com.killer560.hub.util.ActionGate#currentTick} of the last dig, swap, use, block or entity click or swing
+     *  that left this client (anyone's): see {@link #quietThisTick}. */
+    private static volatile long lastActionPacketTick = Long.MIN_VALUE;
+
+    /** From the send tap ({@code RightClickSendMixin}): a packet that acts on the world is leaving. */
+    public static void onActionPacket() {
+        lastActionPacketTick = com.killer560.hub.util.ActionGate.currentTick();
+    }
+
+    /** Nothing that acts on the world has left this client in this client tick so far - so a node can start now without
+     *  putting a second swap, use or dig beside one already sent this tick (one item use per tick, GrimAC BadPacketsA/J). */
+    static boolean quietThisTick() {
+        return lastActionPacketTick != com.killer560.hub.util.ActionGate.currentTick();
+    }
+
     public static void onUseSent() {
         if (!running || routeUsing) {
             return;
@@ -1493,21 +1512,6 @@ public final class RouteExecutor {
             if (activeNode != null) {
                 clearMovement();
                 tickAction(client, player);
-                if (running && activeNode == null && chainAfterLanding) {
-                    // The server's position packet just put him on the landing (handled before this tick began, and
-                    // vanilla answered it with its teleport accept and a position packet of its own), so the next node
-                    // goes NOW: the rest of the stack, else whatever the walk step fires - the landing re-fire's node, or
-                    // the next node he stands in. One warp per tick at zero ping, instead of landing + settle + a tick.
-                    chainAfterLanding = false;
-                    clearMovement();
-                    LOGGER.info("[AutoRoutes] server-confirmed landing - the next node goes this same tick ({}) at tick {}",
-                            !stackQueue.isEmpty() ? "stacked " + nodeTag(stackQueue.peek()) : "walk step", execTicks);
-                    if (!stackQueue.isEmpty()) {
-                        beginAction(stackQueue.poll());
-                    } else {
-                        tickWalk(client, player);
-                    }
-                }
             } else if (!stackQueue.isEmpty()) {
                 // The next node of the stack, now the one before it has finished and settled.
                 clearMovement();
@@ -1515,6 +1519,24 @@ public final class RouteExecutor {
             } else {
                 tickWalk(client, player);
             }
+            // A node finished this tick and the next may go NOW (settleAfter): after a server-confirmed landing (handled
+            // before this tick began, and vanilla answered it with its teleport accept and a position packet of its own),
+            // or - obvious mode, killer560 2026-10-19: "zero delay ever" - after any node that sent nothing this tick (a
+            // breaker or boom whose block update just came, a path arrival, a kill counted). The rest of the stack, else
+            // whatever the walk step fires: the landing re-fire's node, or the next node he stands in. Bounded: a stack of
+            // nodes that each finish at once (arrivals, turns) runs through in one tick, but never more than CHAIN_MAX.
+            for (int chained = 0; running && activeNode == null && chainAfterLanding && chained < CHAIN_MAX; chained++) {
+                chainAfterLanding = false;
+                clearMovement();
+                LOGGER.info("[AutoRoutes] {} - the next node goes this same tick ({}) at tick {}", chainWhy,
+                        !stackQueue.isEmpty() ? "stacked " + nodeTag(stackQueue.peek()) : "walk step", execTicks);
+                if (!stackQueue.isEmpty()) {
+                    beginAction(stackQueue.poll());
+                } else {
+                    tickWalk(client, player);
+                }
+            }
+            chainAfterLanding = false;
         } catch (Exception e) {
             LOGGER.error("[AutoRoutes] Playback error at tick {} in node {} step {} ({} tick(s) in step)", execTicks,
                     nodeTag(activeNode), step, stepTicks, e);
@@ -1937,6 +1959,8 @@ public final class RouteExecutor {
         nodeActed = false;
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
+        breakerSentAt.clear();
+        boomRetried = false;
         breakerObsidian.clear();
         obsidianDigPos = null;
         breakerReady = false;
@@ -2115,12 +2139,32 @@ public final class RouteExecutor {
     private static void settleAfter(boolean landed, AutoRoutesConfig cfg) {
         boolean warpNext = landed && plannedInPlace && plannedNext != null
                 && (plannedNext.type == RouteNode.Type.ETHERWARP || plannedNext.type == RouteNode.Type.PATH);
+        if (!cfg.isLegitMode()) {
+            // killer560, 2026-10-19: "It never waits after a chest or after an item for any reason ... Zero delay ever."
+            // The Interact Delay held every transition but warp-into-warp 2 ticks (494 times in his 2026-10-19 logs, 988
+            // ticks), though every node already waits for the server's own answer before it finishes (a landing, the
+            // broken blocks, the boom's change, the kill). The next node goes on this same tick when nothing acting on the
+            // world has left this tick (one swap / use / dig set per tick), else on the next one. The old reason for it - a
+            // breaker fired on a landing tick broke nothing on the dedicated server (62-argrim-play, 2026-10-06, never
+            // traced) - is now covered where it can go wrong: the breaker digs again whatever is still standing a round
+            // trip on (tickBreaker), and a boom that changed nothing digs once more before it calls the wall open.
+            settleTicks = 0;
+            chainAfterLanding = warpNext || quietThisTick();
+            chainWhy = warpNext ? "server-confirmed landing" : "node done with nothing sent this tick";
+            return;
+        }
         chainAfterLanding = warpNext;
+        chainWhy = "server-confirmed landing";
         settleTicks = warpNext ? 0 : cfg.getInteractDelayTicks();
         if (settleTicks > 0) {
-            noteSecretGap("Interact Delay setting " + settleTicks + " tick(s) before the next node");
+            noteSecretGap("Interact Delay setting " + settleTicks + " tick(s) before the next node (legit mode)");
         }
     }
+
+    /** Most nodes {@link #tick} starts in one tick after the one it was ticking finishes. */
+    private static final int CHAIN_MAX = 8;
+    /** Why the chain in {@link #tick} goes on this tick (for its log line). */
+    private static String chainWhy = "";
 
     /**
      * After every node: does the route hold sneak until the next one ({@link #forceSneak})? The next node is the one
@@ -2487,7 +2531,7 @@ public final class RouteExecutor {
             return false;
         }
         if (step == Step.AIM) {
-            return blockWaitTicks > 0 || pickWaitBlock != null || lineWaitTicks > 0;
+            return blockWaitTicks > 0 || pickWaitBlock != null || lineWaitTicks > 0 || warpAimHoldTicks > 0;
         }
         return step == Step.CONFIRM && !teleportPacketSeen && stepTicks > warpRoundTripTicks();
     }
@@ -2793,6 +2837,63 @@ public final class RouteExecutor {
         }
     }
 
+    /** Path hops whose look was turned to inside the landing's own teleport answer - read by the testkit. */
+    private static int answerTurns;
+
+    public static int answerTurns() {
+        return answerTurns;
+    }
+
+    /**
+     * From {@code mixin/RightClickTeleportMixin}, on the client thread, as a server position packet is about to be applied
+     * - before vanilla answers it with its accept and a position-and-look packet. While a path hop is in flight with a
+     * block click unpaired (util/RightClick), the next hop's use must go along a look the server has heard, and the
+     * in-flight turn in {@link #tickWarp} only gets to run on a tick between the use and the landing: a landing one tick
+     * after its use (most of them on Hypixel) came back before it, so the next hop sat a turn tick ({@code waited 1
+     * tick(s) for the server to hear its look}: 25 times in his 17:43 log). Turning the body here, to exactly the look
+     * {@link #loadHop} will work out from this landing, puts that look in the teleport answer itself, which GrimAC takes as
+     * no tick packet (it checks nothing there, testkit UseRotationWatch) and a 1.8 server takes as his look - so the hop goes
+     * on the landing tick and its use, its look and the tick's movement packet all agree. Only for this hop's own landing
+     * (within {@link #LANDING_TOLERANCE} of the planned feet), obvious mode, a next hop to fly.
+     */
+    public static void beforeTeleportAnswer(LocalPlayer player, Vec3 target) {
+        RouteNode node = activeNode;
+        if (!running || node == null || node.type != RouteNode.Type.PATH || step != Step.CONFIRM || player == null
+                || target == null || warpLanding == null || node.pathHops == null || hopIndex < 0
+                || hopIndex + 1 >= node.pathHops.size() || AutoRoutesConfig.getInstance().isLegitMode()
+                || !com.killer560.hub.util.RightClick.unpaired() || target.distanceTo(warpLanding) > LANDING_TOLERANCE) {
+            return;
+        }
+        RouteNode.PathHop h = node.pathHops.get(hopIndex + 1);
+        float yaw = RouteCoords.toRealYaw(frame, h.yaw());
+        float pitch = h.pitch();
+        Vec3 origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
+        BlockPos hopTarget = RouteCoords.toRealBlock(frame, h.target());
+        Vec3 eye = new Vec3(target.x, target.y + TeleportUtils.eyeHeight(true), target.z);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        // reaimIfMoved's own choice, from the spot the landing puts him on.
+        if (!(target.distanceTo(origin) <= REAIM_EPSILON
+                && TeleportUtils.holdsOn(eye, yaw, Mth.clamp(pitch, -90f, 90f), range, hopTarget))) {
+            TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, hopTarget, range);
+            if (rot == null) {
+                rot = TeleportUtils.exactEtherwarpDirection(eye, hopTarget, range);
+            }
+            if (rot != null) {
+                yaw = rot.yaw();
+                pitch = rot.pitch();
+            }
+        }
+        if (com.killer560.hub.util.RightClick.heard(player, yaw, pitch)) {
+            return;
+        }
+        turnBody(player, player.getYRot() + Mth.wrapDegrees(yaw - player.getYRot()), Mth.clamp(pitch, -90f, 90f));
+        answerTurns++;
+        LOGGER.info("[AutoRoutes] path hop {} landing: body turned to hop {}'s look ({} / {}) inside the teleport answer - "
+                        + "a block click is unpaired, so the server hears that look before hop {}'s use", hopIndex + 1,
+                hopIndex + 2, String.format(Locale.US, "%.2f", Mth.wrapDegrees(yaw)), String.format(Locale.US, "%.2f", pitch),
+                hopIndex + 2);
+    }
+
     /** {@link #reaimIfMoved}: the look is right from where he stands (unchanged). */
     private static final int AIM_OK = 0;
     /** {@link #reaimIfMoved}: he moved and the look was worked out again from here. */
@@ -2934,6 +3035,9 @@ public final class RouteExecutor {
         if (step == Step.PREP) {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
+            warpClickGapTicks = 0;
+            clickGapSaid = false;
+            warpAimHoldTicks = 0;
             warpRetries = 0;
             warpForced = false;
             int slot = ItemIdentity.findEtherwarpSlot(player);
@@ -3074,18 +3178,38 @@ public final class RouteExecutor {
                     warpAimFrom = at;
                 }
             }
-            if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
-                warpTurnFirstTicks++;
-                logHold("turnfirst:" + traceIndex(node), "Etherwarp ({}): waiting for the server to hear the look first "
-                        + "(a block click is unpaired), {} tick(s) so far", what, warpTurnFirstTicks);
-                return false;
-            }
+            // A block that was not there when the node was placed, standing in its line: his rule is to wait for it to
+            // move (newBlockInLine), not to aim round it - so this goes before the landing check below.
             if (hopIndex < 0 && !warpForced && newBlockInLine(client, player, node)) {
                 if (!takeSkipClick(client)) {
                     return false; // no time limit (his rule): only his click sends it past the block
                 }
                 forceWarpPastHold(node, "block " + (lineWaitBlock == null ? "?" : lineWaitBlock.toShortString())
                         + " in its line", lineWaitTicks);
+            }
+            if (!warpForced && !aimLandsOnTarget(client, player, node, what)) {
+                // killer560, 2026-10-19: "No node may ever Etherwarp wrong." The look about to go does not land on the
+                // planned block from where he stands, and none that does could be found: nothing is sent (sneak held). The
+                // same test runs every tick, so it goes the tick a look lands (he settles, a block moves); his left click
+                // sends it as it is. Before turnFirst, so a look replaced here is the one the server is told.
+                if (!running || activeNode != node || !takeSkipClick(client)) {
+                    return false;
+                }
+                forceWarpPastHold(node, "no look from here lands on " + warpTarget.toShortString(), warpAimHoldTicks);
+            }
+            if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
+                warpTurnFirstTicks++;
+                logHold("turnfirst:" + traceIndex(node), "Etherwarp ({}): waiting for the server to hear the look first "
+                        + "(a block click is unpaired), {} tick(s) so far", what, warpTurnFirstTicks);
+                return false;
+            }
+            if (com.killer560.hub.playerstats.PlayerStatsFeature.manaTooLowForAotv()) {
+                logHold("mana:" + traceIndex(node), "Etherwarp ({}): held - not enough mana for Aspect of the Void (the "
+                        + "action bar says so); the use goes once mana is back", what);
+                return false;
+            }
+            if (clickGapHolds(player, node, what)) {
+                return false;
             }
             if (spendStaleClickFirst(client, player)) {
                 warpTurnFirstTicks++;
@@ -3111,6 +3235,7 @@ public final class RouteExecutor {
                     + (warpPacedTicks > 0 ? " (paced " + warpPacedTicks + " tick(s) by Etherwarps Per Second)" : "")
                     + (warpTurnFirstTicks > 0 ? " (waited " + warpTurnFirstTicks + " tick(s) for the server to hear its "
                     + "look - a block click was unpaired)" : "")
+                    + (warpClickGapTicks > 0 ? " (click-gap hold " + warpClickGapTicks + " tick(s))" : "")
                     + " (sneak " + (hopIndex > 0 ? "held from the last warp" : sneakReadyAge == awaitDoneAge ? "already held"
                     : "went out in the firing tick's input packet") + ", "
                     + ItemIdentity.skyblockId(player.getMainHandItem()) + ")");
@@ -3125,7 +3250,8 @@ public final class RouteExecutor {
             // A block click is unpaired on the server (util/RightClick): while this hop is in flight the body already turns
             // to the NEXT hop's look - its use has gone and its own look was reported last tick - so the server has heard
             // that look by the time he lands and the next hop goes on the landing tick, not one later.
-            if (stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < node.pathHops.size()
+            boolean landedNow = landed(player, warpLanding);
+            if (!landedNow && stepTicks >= 1 && hopIndex >= 0 && hopIndex + 1 < node.pathHops.size()
                     && !AutoRoutesConfig.getInstance().isLegitMode() && com.killer560.hub.util.RightClick.unpaired()) {
                 RouteNode.PathHop next = node.pathHops.get(hopIndex + 1);
                 float nextYaw = RouteCoords.toRealYaw(frame, next.yaw());
@@ -3136,11 +3262,12 @@ public final class RouteExecutor {
                             Mth.clamp(next.pitch(), -90f, 90f));
                 }
             }
-            if (landed(player, warpLanding)) {
+            if (landedNow) {
                 LOGGER.info("[AutoRoutes] Etherwarp: landed at {} {} tick(s) after the use ({} from firing)",
                         fmt(player.position()), stepTicks, actionAge);
                 if (teleportPacketSeen) {
                     noteLandingTicks(stepTicks);
+                    lastLandingAt = execTicks;
                 }
                 noteSecretGap((hopIndex >= 0 ? "hop " + (hopIndex + 1) + " " : "") + "landed " + stepTicks
                         + " tick(s) after its use");
@@ -3245,6 +3372,200 @@ public final class RouteExecutor {
             }
         }
         return false;
+    }
+
+    /**
+     * Ticks between a block click made with the item a warp uses and that warp's use: at least this many (2 = the click at
+     * tick N, the use at N+2). Measured on Hypixel (Mod Only Test and Untested Cheat, 2026-10-19, every warp with an unpaired
+     * AOTV click before it): one tick after the click 45 of 69 warps got no teleport at all, two ticks after 1 of 7, three or
+     * more 0 of about 250; after a click made with a different item (Dungeon Breaker, Superboom) 3 of 3 landed one tick on.
+     * Each refusal then cost the refused-warp wait (7-10 ticks with this jar, up to 22 before). QUOI holds every node 2 ticks
+     * after a secret click ({@code AutoRoutes.kt:148-151, 217}) and RSA resumes at N+2 ({@code AutoRoutes.java:183, 393,
+     * 472}). So the second tick is the first one Hypixel reliably takes: "the first physically possible tick".
+     */
+    static final long CLICK_TO_WARP_TICKS = 2;
+    /** Warps held for {@link #CLICK_TO_WARP_TICKS} since launch, and the ticks they spent - read by the testkit. */
+    private static int clickGapHolds;
+    private static int clickGapHeldTicks;
+    /** The warp under way has already logged its click-gap hold, and the ticks it was held. */
+    private static boolean clickGapSaid;
+    private static int warpClickGapTicks;
+
+    /**
+     * For the other etherwarp runner, the Interactive Map and Auto Clear path ({@code ClearExecutor}): true while a block
+     * click made with the item in hand is still inside the click-to-warp gap, so its warp waits the same two ticks. The
+     * map's first warp went one tick after its own click, Hypixel dropped it, and the path failed (2026-10-19 log).
+     */
+    public static boolean clickGapPending(LocalPlayer player) {
+        String clicked = itemClickKey;
+        long since = (long) tickEndsSent - itemClickAtTickEnds;
+        return clicked != null && since < CLICK_TO_WARP_TICKS && clicked.equals(heldItemKey(player));
+    }
+
+    public static int clickGapHolds() {
+        return clickGapHolds;
+    }
+
+    public static int clickGapHeldTicks() {
+        return clickGapHeldTicks;
+    }
+
+    /**
+     * True (send nothing this tick) while the unpaired block click before this warp was made with the same item the warp
+     * uses less than {@link #CLICK_TO_WARP_TICKS} ago. Sneak and body turn carry on meanwhile, so the hold costs only the
+     * tick itself. Obvious and legit mode alike: the server's answer does not depend on the camera.
+     */
+    private static boolean clickGapHolds(LocalPlayer player, RouteNode node, String what) {
+        String clicked = itemClickKey;
+        long since = (long) tickEndsSent - itemClickAtTickEnds;
+        if (clicked == null || since >= CLICK_TO_WARP_TICKS) {
+            return false;
+        }
+        String held = heldItemKey(player);
+        if (clicked == null || !clicked.equals(held)) {
+            return false;
+        }
+        clickGapHeldTicks++;
+        warpClickGapTicks++;
+        if (!clickGapSaid) {
+            clickGapSaid = true;
+            clickGapHolds++;
+            LOGGER.info("[AutoRoutes] Etherwarp ({}): held {} tick(s) - a block click with {} went {} tick(s) ago, and on "
+                            + "Hypixel a warp one tick after a click with the same item gets no teleport (45 of 69 on "
+                            + "2026-10-19); the use goes {} ticks after the click (click-gap hold)", what,
+                    CLICK_TO_WARP_TICKS - since, held, since, CLICK_TO_WARP_TICKS);
+        }
+        noteSecretGap("click-gap hold: " + since + " tick(s) since a click with " + held);
+        return true;
+    }
+
+    /** Ticks the warp under way has been held because no look from his spot lands on its block; warps so held, ever. */
+    private static int warpAimHoldTicks;
+    private static int aimHolds;
+    /** Looks replaced at the send because the chosen one would have landed elsewhere - read by the testkit. */
+    private static int aimFixes;
+
+    public static int aimHolds() {
+        return aimHolds;
+    }
+
+    public static int aimFixes() {
+        return aimFixes;
+    }
+
+    /**
+     * The last check before an etherwarp's use (obvious mode, where the look is the packet's own): the client's own
+     * etherwarp trace ({@code TeleportUtils.getEtherPos}, the one the planner proves hops with) from his sneaking eye along
+     * {@link #warpYaw}/{@link #warpPitch} must stop on {@link #warpTarget}. If it does not - the saved look fired after
+     * {@link #stepOntoWarpSpot} gave up, a legit look, a resend after he moved - a look from here that lands (and holds
+     * within the planner's margin, else lands exactly) replaces it; with none, false: the warp is held. A warp with no
+     * planned block, legit mode, or a target in a chunk the client does not have is not judged here (true).
+     */
+    private static boolean aimLandsOnTarget(Minecraft client, LocalPlayer player, RouteNode node, String what) {
+        if (warpTarget == null || client.level == null || AutoRoutesConfig.getInstance().isLegitMode()
+                || !client.level.isLoaded(warpTarget)) {
+            return true;
+        }
+        Vec3 at = player.position();
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
+        TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, warpYaw, Mth.clamp(warpPitch, -90f, 90f), range);
+        if (landsOnPlanned(shot)) {
+            if (warpAimHoldTicks > 0) {
+                LOGGER.info("[AutoRoutes] Etherwarp ({}): a look from {} lands on {} again after {} tick(s) held - warping",
+                        what, fmt(at), warpTarget.toShortString(), warpAimHoldTicks);
+            }
+            warpAimHoldTicks = 0;
+            return true;
+        }
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, warpTarget, range);
+        if (rot == null) {
+            rot = TeleportUtils.exactEtherwarpDirection(eye, warpTarget, range);
+        }
+        if (rot != null) {
+            TeleportUtils.RaycastResult check = TeleportUtils.getEtherPos(eye, rot.yaw(), rot.pitch(), range);
+            if (landsOnPlanned(check)) {
+                LOGGER.warn("[AutoRoutes] Etherwarp ({}): the look {} / {} from {} would land {} - not on {}; sending {} / {} "
+                                + "instead, which does", what, String.format(Locale.US, "%.2f", Mth.wrapDegrees(warpYaw)),
+                        String.format(Locale.US, "%.2f", warpPitch), fmt(at),
+                        shot.pos() == null ? "nowhere" : "on " + shot.pos().toShortString(), warpTarget.toShortString(),
+                        String.format(Locale.US, "%.2f", rot.yaw()), String.format(Locale.US, "%.2f", rot.pitch()));
+                warpYaw = player.getYRot() + Mth.wrapDegrees(rot.yaw() - player.getYRot());
+                warpPitch = rot.pitch();
+                warpAimFrom = at;
+                aimFixes++;
+                warpAimHoldTicks = 0;
+                return true;
+            }
+        }
+        if (warpAimHoldTicks++ == 0) {
+            aimHolds++;
+            LOGGER.warn("[AutoRoutes] Etherwarp ({}): no look from {} lands on {} (the planned one would land {}) - held, "
+                            + "sneak down, until one does; a left click sends it as it is", what, fmt(at),
+                    warpTarget.toShortString(), shot.pos() == null ? "nowhere" : "on " + shot.pos().toShortString());
+            AutoRoutesFeature.note(ModChat.text("Etherwarp held: "), ModChat.dim("no look from here lands on "
+                    + warpTarget.toShortString() + ". Left click to send it anyway."));
+        }
+        noteSecretGap("held: no look from here lands on the planned block");
+        return false;
+    }
+
+    /**
+     * The click-gap clock, in the server's own terms: client tick ends ({@code client_tick_end} packets) that have left this
+     * client, and the count when the last block click made with an item in hand left, with that item. A click sent at the
+     * start of tick N, or between N-1 and N, or from N-1's end handlers, all reach the server inside tick N; the use is
+     * judged by the tick ends between them. The first use of the same item after the click clears it (that use is the one
+     * the click could cost). From the send tap ({@code RightClickSendMixin}), client thread.
+     */
+    private static volatile int tickEndsSent;
+    private static volatile int itemClickAtTickEnds = Integer.MIN_VALUE / 2;
+    private static volatile String itemClickKey;
+
+    public static void onTickEndSent() {
+        tickEndsSent++;
+    }
+
+    public static void onBlockClickSent(LocalPlayer player, InteractionHand hand) {
+        if (player == null) {
+            return;
+        }
+        ItemStack stack = player.getItemInHand(hand);
+        itemClickKey = stack.isEmpty() ? null : itemKey(stack);
+        itemClickAtTickEnds = tickEndsSent;
+    }
+
+    public static void onItemUseSent(LocalPlayer player, InteractionHand hand) {
+        if (player != null && itemClickKey != null && itemClickKey.equals(itemKey(player.getItemInHand(hand)))) {
+            itemClickKey = null;
+        }
+    }
+
+    private static String itemKey(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return "an empty hand";
+        }
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(stack);
+        return id != null ? id : stack.getItem().toString();
+    }
+
+    /** The client's etherwarp trace stops on the planned block - or on the block standing in it (a carpet, snow, a slab
+     *  half: the recorded feet put {@link #warpTarget} under it), which lands him on the same spot. */
+    private static boolean landsOnPlanned(TeleportUtils.RaycastResult shot) {
+        BlockPos p = shot == null || !shot.succeeded() ? null : shot.pos();
+        if (p == null || p.getX() != warpTarget.getX() || p.getZ() != warpTarget.getZ()) {
+            return false;
+        }
+        if (p.getY() == warpTarget.getY()) {
+            return true;
+        }
+        var level = Minecraft.getInstance().level;
+        return p.getY() == warpTarget.getY() + 1 && level != null
+                && !level.getBlockState(p).isCollisionShapeFullBlock(level, p);
+    }
+
+    /** What {@code util/RightClick} names the held item by (its Skyblock id, else the vanilla item, else empty hand). */
+    private static String heldItemKey(LocalPlayer player) {
+        return itemKey(player.getMainHandItem());
     }
 
     /** Landings (path hops and etherwarp nodes) that put him on a block other than the planned one - read by the testkit. */
@@ -4287,6 +4608,7 @@ public final class RouteExecutor {
                         ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, target, Direction.DOWN));
             }
             player.swing(InteractionHand.MAIN_HAND);
+            boomSentAt = execTicks;
             LOGGER.info("[AutoRoutes] Node #{} BOOM: START+ABORT dig sent at {} ({}) face {} from {} at tick {} - watching "
                             + "{} block(s) within {} for a change", route.indexOf(node) + 1, boomTarget.toShortString(),
                     client.level.getBlockState(boomTarget).getBlock().getName().getString(), hit.getDirection(),
@@ -4316,6 +4638,19 @@ public final class RouteExecutor {
                         nodeTag(node), changedCount, boomBefore.size(),
                         boomTarget == null ? "?" : boomTarget.toShortString(), boomSettleTicks(), serverLagTicks());
                 finishAction();
+            } else if (stepTicks >= boomSettleTicks() + serverLagTicks() && !boomRetried
+                    && boomSentAt - lastLandingAt <= BOOM_LANDING_TICKS) {
+                // Sent on (or right after) a landing tick, now that no settle holds a node after a landing: if the server
+                // did not take it, "nothing changed" would read as "nothing left to blow" and the route would go on past a
+                // shut wall. So once, it goes again from here before that is believed. 38 of 92 booms changed nothing in
+                // his 2026-10-19 logs (earlier booms of a stack), so this is only for the landing-tick case.
+                boomRetried = true;
+                LOGGER.info("[AutoRoutes] Boom ({}): nothing changed {} tick(s) after a boom sent {} tick(s) after a landing - "
+                        + "sending it once more before calling the wall open", nodeTag(node), stepTicks,
+                        boomSentAt - lastLandingAt);
+                noteSecretGap("boom changed nothing - sent once more (it went on a landing tick)");
+                step = Step.AIM;
+                stepTicks = 0;
             } else if (stepTicks >= boomSettleTicks() + serverLagTicks()) {
                 // Nothing within reach of the hit changed once the server had a round trip to answer: the crypt or
                 // wall is already open (the stack's earlier boom, or an earlier run), so there was nothing left to
@@ -4460,7 +4795,10 @@ public final class RouteExecutor {
             // the eye sees, because GrimAC checks both (RotationBreak, PositionBreakA). The first block goes on
             // the firing tick (stepTicks is 0 there), right behind the held-item packet.
             boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
-            int delay = Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks());
+            // Multi Break off: one block a tick in obvious mode (QUOI's and RSA's own pace, BreakerNode.kt / BreakNode.java),
+            // one per Interact Delay in legit mode as before.
+            int delay = AutoRoutesConfig.getInstance().isLegitMode()
+                    ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
             if (!multi && stepTicks % delay != 0) {
                 return;
             }
@@ -4517,6 +4855,7 @@ public final class RouteExecutor {
                     logActed(node, multi ? " (multi break)" : "");
                 }
                 breakerSent.add(pos);
+                breakerSentAt.put(pos.immutable(), execTicks);
                 if (!multi) {
                     player.swing(InteractionHand.MAIN_HAND);
                     if (!breakerQueue.isEmpty()) {
@@ -4594,14 +4933,25 @@ public final class RouteExecutor {
                 return;
             }
             int gone = 0;
+            int awayNow = 0;
+            Vec3 confirmEye = player.getEyePosition();
             for (BlockPos pos : breakerSent) {
                 if (client.level.getBlockState(pos).isAir()) {
                     gone++;
+                } else if (com.killer560.hub.util.BlockHits.boxDistanceSq(confirmEye, pos) > BREAKER_RANGE_SQ) {
+                    awayNow++; // he moved out of its reach (a fall): the linger digs it as it comes back into reach
                 }
             }
-            if (gone == breakerSent.size()) {
-                LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break", gone, stepTicks);
+            if (gone + awayNow == breakerSent.size()) {
+                LOGGER.info("[AutoRoutes] Breaker: all {} block(s) gone {} tick(s) after the last break{}", gone, stepTicks,
+                        awayNow == 0 ? "" : " (" + awayNow + " more out of reach now - left to the linger)");
                 finishAction();
+            } else if (redigStanding(client, player, node)) {
+                // A dig the server did not take (a block still standing a round trip after its dig): sent again. The
+                // route never moves on past a standing block (killer560, 2026-10-19: "No Dungeon Breaker block may ever
+                // be left unbroken"); RSA's BreakNode re-mines whatever still stands every tick (BreakNode.java:100).
+                logHold("breakredig:" + traceIndex(node), "node {} DUNGEON_BREAKER: re-dug a block still standing a round "
+                        + "trip after its dig ({} of {} gone, {} tick(s))", nodeTag(node), gone, breakerSent.size(), stepTicks);
             } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
                 StringBuilder standing = new StringBuilder();
                 for (BlockPos pos : breakerSent) {
@@ -4613,17 +4963,89 @@ public final class RouteExecutor {
                         + "standing: {}", gone, breakerSent.size(), stepTicks, BREAKER_TIMEOUT, serverLagTicks(), standing);
                 RouteTrace.timeout(traceIndex(node), "DUNGEON_BREAKER", gone + " of " + breakerSent.size()
                         + " sent block(s) gone", stepTicks, player.position());
-                if (gone == 0) {
-                    stop("dungeon breaker didn't break the blocks");
-                } else {
-                    LOGGER.info("[AutoRoutes] Breaker: {} of {} blocks broke - continuing", gone, breakerSent.size());
-                    finishAction();
-                }
+                // Never moves on with a block of its own still standing in reach (it used to "continue" once one had
+                // broken): a stop names the block, so the route can be fixed, where carrying on left it in the way.
+                stop(gone == 0 ? "dungeon breaker didn't break the blocks"
+                        : "dungeon breaker left " + (breakerSent.size() - gone - awayNow) + " block(s) standing: " + standing);
             } else {
                 logHold("breakconfirm:" + traceIndex(node), "node {} DUNGEON_BREAKER: {} of {} sent block(s) gone, {} of {} "
                         + "tick(s)", nodeTag(node), gone, breakerSent.size(), stepTicks, BREAKER_TIMEOUT);
             }
         }
+    }
+
+    /** {@link #execTicks} of the last server-confirmed landing and of the boom node's last send; the boom node has sent
+     *  its one retry. */
+    private static long lastLandingAt = Long.MIN_VALUE / 2;
+    private static long boomSentAt = Long.MIN_VALUE / 2;
+    private static boolean boomRetried;
+    /** A boom sent within this many ticks of a landing is sent once more if it changed nothing. */
+    private static final int BOOM_LANDING_TICKS = 2;
+
+    /** When each block of the breaker node was last dug ({@link #execTicks}), for {@link #redigStanding}. */
+    private static final Map<BlockPos, Long> breakerSentAt = new HashMap<>();
+    /** Digs sent again because the block still stood a round trip on - read by the testkit. */
+    private static int breakerRedigs;
+
+    public static int breakerRedigs() {
+        return breakerRedigs;
+    }
+
+    /**
+     * The breaker node's sent blocks that still stand, in reach, a round trip after their dig: dug again (the server's
+     * answer is the broken block, not a timer - a dig it never took leaves the block there, as a dig sent on a landing tick
+     * did on the dedicated server in 2026-10-06's 62-argrim-play). The wait is the eaten-use round trip
+     * ({@code RightClick.eatenRetryTicks}: 1.5 measured round trips + 2) plus any server stall, so a dig the server is
+     * still answering is never sent twice. Obsidian is left to its own dig ({@code ObsidianDig}).
+     *
+     * @return true when a dig went this tick
+     */
+    private static boolean redigStanding(Minecraft client, LocalPlayer player, RouteNode node) {
+        long wait = com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks();
+        Vec3 eye = player.getEyePosition();
+        List<BlockPos> again = new ArrayList<>();
+        for (BlockPos pos : breakerSent) {
+            Long at = breakerSentAt.get(pos);
+            if (at == null || execTicks - at <= wait || !client.level.isLoaded(pos)
+                    || client.level.getBlockState(pos).isAir()
+                    || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
+                    || com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))
+                    || com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) > BREAKER_RANGE_SQ) {
+                continue;
+            }
+            again.add(pos);
+        }
+        if (again.isEmpty()) {
+            return false;
+        }
+        int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
+        int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
+        if (charges == null || charges[0] <= 0) {
+            logHold("redigcharges:" + traceIndex(node), "node {} DUNGEON_BREAKER: {} block(s) still standing but {} - "
+                    + "waiting", nodeTag(node), again.size(), slot < 0 ? "no Dungeon Breaker in the hotbar" : "no charges");
+            return false;
+        }
+        select(client, player, slot);
+        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraMultiBreak();
+        int sent = 0;
+        for (BlockPos pos : again) {
+            if (sent >= charges[0] || (!multi && sent > 0)) {
+                break;
+            }
+            if (sent == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {
+                turnBodyToward(player, Vec3.atCenterOf(pos));
+            }
+            LOGGER.info("[AutoRoutes] Breaker: {} ({}) still standing {} tick(s) after its dig (round trip {}) - digging it "
+                            + "again", pos.toShortString(), client.level.getBlockState(pos).getBlock().getName().getString(),
+                    execTicks - breakerSentAt.get(pos), wait);
+            sendBreak(client, player, pos);
+            breakerSentAt.put(pos, execTicks);
+            breakerRedigs++;
+            sent++;
+        }
+        player.swing(InteractionHand.MAIN_HAND);
+        noteSecretGap("re-dug " + sent + " breaker block(s) the server had not broken");
+        return true;
     }
 
     // ------------------------------------------------------------------------------------------- helpers

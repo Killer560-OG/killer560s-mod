@@ -1989,6 +1989,18 @@ public final class ClearExecutor {
         }
         final float yaw = reaim != null ? reaim[0] : yaw0;
         final float pitch = reaim != null ? reaim[1] : pitch0;
+        // A block click with the item this warp uses went under two ticks ago: Hypixel drops a warp one tick after such a
+        // click (45 of 69 on 2026-10-19), so the hop waits, as Auto Routes' click-gap hold does.
+        if (com.killer560.hub.playerstats.PlayerStatsFeature.manaTooLowForAotv()) {
+            waitReason = "mana (not enough for Aspect of the Void - the action bar says so)";
+            pendingHeldTicks++;
+            return;
+        }
+        if (com.killer560.hub.autoroutes.RouteExecutor.clickGapPending(player)) {
+            waitReason = "the click-gap (a block click with this item went under two ticks ago)";
+            pendingHeldTicks++;
+            return;
+        }
         if (com.killer560.hub.util.RightClick.mustTurnFirst(player, serverFeet, yaw, pitch, "[Path] Warp")) {
             BODY.turn(player, yaw, pitch);
             waitReason = "the server hearing the hop's look first (a block click is unpaired)";

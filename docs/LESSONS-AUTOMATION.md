@@ -610,6 +610,21 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   took 2-4. It now goes past `RouteExecutor.refusedRetryTicks()` (2x the slowest of the last 5 landings + 2, or
   `eatenRetryTicks`), up to twice per warp, and `retryAim` resends the same look when no other holds (it used to send
   nothing: Pedestal #3, 16:15:55, waited for his left click). Each secret await logs "secret gap: ..." when the next node fires.
+- **On Hypixel a use one client tick after a block click made with the SAME item gets no teleport about two times in
+  three** (ar-1019, every AOTV warp with an unpaired AOTV click before it in his 2026-10-19 Mod Only Test and Untested
+  Cheat logs): 1 tick after, 45 of 69 refused; 2 ticks, 1 of 7; 3+, 0 of ~250; after a Dungeon Breaker or Superboom click,
+  3 of 3 landed one tick on. Every K=1 case had a fresh sneak, but 19 of 19 fresh-sneak warps with no click landed, and the
+  server ray met nothing in every refusal, so it is neither the sneak nor the 1.8 pairing above; the cause is NOT known.
+  QUOI (`interactDelay = 2`) and RSA (`lastBlockC08 = 2`) both resume at N+2. `RouteExecutor.clickGapHolds` sends the
+  warp two client tick ends after such a click (counted from `client_tick_end` packets, the server's own clock); the
+  testkit's `HypixelClickThenUse` plays the rule (96-ar-1019-clickgap: main ignored the warp and retried, 7 ticks; fixed 3).
+  `ar1019-refusals.py` in killer560s-mod-logs rebuilds the table from any log.
+- **The Interact Delay was a fixed wait on every node transition but warp-into-warp** (494 times, 988 ticks, in his
+  2026-10-19 logs). Obvious mode now has none: the next node goes the same tick when nothing acting on the world left this
+  tick (`RouteExecutor.quietThisTick`, fed by `RightClickSendMixin`), else the next. What it guarded is now checked against
+  the server: the breaker digs again whatever still stands a round trip on and never moves on past a standing block, and a
+  boom sent within 2 ticks of a landing that changed nothing goes once more. 96-ar-1019-nosettle: landing to breaker dig
+  3 -> 0 ticks, breaker to boom 5 -> 2, boom to warp 5 -> 2. Legit mode keeps the delay.
 - **62-argrim-chain's 20/s pace is the server's answer time.** The same jar read 1.00 and 1.18-1.55 ticks per warp an hour
   apart on a busy machine, base fcba4045 included, and every slow warp still went on its landing's tick; there was no
   regressing commit. The case judges 20/s against the round trip it measures (testkit fullclear-1016).

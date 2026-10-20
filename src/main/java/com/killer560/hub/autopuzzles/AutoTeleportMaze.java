@@ -122,6 +122,8 @@ final class AutoTeleportMaze {
 
     private static FinishStage finishStage = FinishStage.NONE;
     private static long finishStageStartMs = 0L;
+    /** Where he stood last tick while stepping on the end pad: a jump of more than 1.5 blocks in one tick is the pad's teleport. */
+    private static Vec3 finishLastPos;
     /** util/ServerLag readings taken with finishStageStartMs and walkStartMs: a server stall never runs a wait for a
      *  pad's teleport out (2026-10-15). */
     private static long finishStageLag = 0L;
@@ -659,6 +661,7 @@ final class AutoTeleportMaze {
         LOGGER.info("[AutoPuzzles] TeleportMaze: walking to the only pad in the centre cell, the end pad at {}",
                 pad == null ? "(room rotation not known)" : AutoPuzzleUtil.fmt(pad));
         finishStage = FinishStage.STEP_ON_END_PAD;
+        finishLastPos = null;
         finishStageStartTick = nowTick();
         finishStageStartMs = System.currentTimeMillis();
         finishStageLag = com.killer560.hub.util.ServerLag.mark();
@@ -778,7 +781,12 @@ final class AutoTeleportMaze {
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         BlockPos pad = cr == null ? null
                 : PuzzleCoords.real(END_PAD_RELATIVE[0], END_PAD_RELATIVE[1], END_PAD_RELATIVE[2], cr);
-        boolean sentOut = pad == null || player.position().distanceToSqr(Vec3.atCenterOf(pad)) > SENT_OUT_SQ;
+        // A jump of more than a block and a half in one tick is the pad's teleport, however near the pad it lands: the exit
+        // can land six blocks back in the room (21:09 run, 2026-10-19), and the walk toward the pad then ran him back in.
+        Vec3 here = player.position();
+        boolean jumped = finishLastPos != null && here.distanceTo(finishLastPos) > 1.5;
+        finishLastPos = here;
+        boolean sentOut = pad == null || jumped || here.distanceToSqr(Vec3.atCenterOf(pad)) > SENT_OUT_SQ;
         boolean timedOut = com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > FINISH_WALK_TIMEOUT_MS;
         if (sentOut || timedOut) {
             if (timedOut && !sentOut) {

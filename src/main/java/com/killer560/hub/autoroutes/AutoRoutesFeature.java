@@ -777,12 +777,17 @@ public final class AutoRoutesFeature {
         LOGGER.info("[AutoRoutes] Start-node warp to {} (rotation {}, clay {},{}): start #{} ({}), goal {} (node block {}),"
                         + " first action {} so hold after landing={} tick={}", frame.roomName(), frame.rotation(),
                 frame.clayX(), frame.clayZ(), route.indexOf(start) + 1, start.type, goal.toShortString(),
-                below.toShortString(), first.type, warpFirst ? "none" : "interact delay", AwaitEvents.now());
+                below.toShortString(), first.type, warpFirst || !cfg.isLegitMode() ? "none" : "interact delay (legit)",
+                AwaitEvents.now());
         ClearExecutor.etherPathArrive(goal, () -> {
             ClearExecutor.setExternalOwner(false);
             externalTeleport = false;
             latchedNode = null; // landing ON the start node must arm it
-            arrivalHoldTicks = warpFirst ? 0 : AutoRoutesConfig.getInstance().getInteractDelayTicks();
+            // Obvious mode holds nothing (killer560, 2026-10-19: "the very next tick the start node goes off"): a breaker
+            // or boom start node re-sends what the server did not take (RouteExecutor.tickBreaker / tickBoom), which is
+            // the only thing the old interact-delay hold guarded. Legit mode keeps the delay.
+            arrivalHoldTicks = warpFirst || !AutoRoutesConfig.getInstance().isLegitMode() ? 0
+                    : AutoRoutesConfig.getInstance().getInteractDelayTicks();
             LOGGER.info("[AutoRoutes] Start-node warp landed: latch cleared, arrival hold {} tick(s), tick={}",
                     arrivalHoldTicks, AwaitEvents.now());
         });
