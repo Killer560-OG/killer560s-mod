@@ -106,6 +106,10 @@ public final class AnvilBooks {
         t.put("feather_falling", Set.copyOf(feather));
         t.put("overload", range(2, 5));
         t.put("tabasco", range(3, 3));                   // "Combining Tabasco II Books"
+        // Rejuvenate (2026-10-20): its wiki page says the book "can be combined on an Anvil up to Rejuvenate V"
+        // (I-III drop from Catacombs chests, IV-V only by combining). The Armor table names only the dungeon chest as
+        // its source, so it was missed and his Rejuvenate I books combined nothing.
+        t.put("rejuvenate", range(2, 5));
         t.put("ice_cold", range(2, 5));
         t.put("pesterminator", range(2, 5));             // VI is an item, not two V books
         t.put("reflection", range(2, 5));

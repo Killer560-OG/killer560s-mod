@@ -215,6 +215,9 @@ public final class AutoAnvilFeature {
                 }
                 int[] pair = AnvilBooks.pickPair(candidates, budget);
                 if (pair == null) {
+                    if (combined == 0) {
+                        LOGGER.info("[AutoAnvil] no pair to combine; books in the inventory: {}", booksSeen(menu));
+                    }
                     finish(client);
                     return;
                 }
@@ -421,6 +424,32 @@ public final class AutoAnvilFeature {
             out.add(new AnvilBooks.Candidate(i, book));
         }
         return out;
+    }
+
+    /** For the log when nothing pairs: every enchanted-book item in the inventory and why it is or is not usable. */
+    private static String booksSeen(AbstractContainerMenu menu) {
+        List<String> out = new ArrayList<>();
+        for (int i = TOP_SLOTS; i < menu.slots.size(); i++) {
+            ItemStack stack = menu.getSlot(i).getItem();
+            if (stack.isEmpty() || stack.getItem() != Items.ENCHANTED_BOOK) {
+                continue;
+            }
+            AnvilBooks.Book book = readBook(stack);
+            String what;
+            if (book == null) {
+                CompoundTag tag = extraAttributes(stack);
+                what = "not a single-enchant book (count " + stack.getCount() + ", data "
+                        + (tag == null ? "none" : tag.keySet()) + ")";
+            } else if (ItemProtect.isProtectedItem(stack)) {
+                what = book + " protected by Item Protect";
+            } else if (book.combined() == null) {
+                what = book + " has no anvil result";
+            } else {
+                what = book + " " + book.extras();
+            }
+            out.add(i + ": " + what);
+        }
+        return out.isEmpty() ? "none" : String.join("; ", out);
     }
 
     private static AnvilBooks.Book bookIn(AbstractContainerMenu menu, int slot) {
