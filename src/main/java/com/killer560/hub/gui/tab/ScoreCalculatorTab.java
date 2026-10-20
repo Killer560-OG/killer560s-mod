@@ -76,12 +76,8 @@ public class ScoreCalculatorTab extends BaseTab {
         // ---- Formula ----
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Formula", false), font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(paulLabel(cfg), btn -> {
-                    cfg.setPaulMode(cfg.getPaulMode().next());
-                    cfg.save();
-                    btn.setMessage(paulLabel(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setPaulMode(cfg.getPaulMode().previous());
+        widgets.add(SettingsButtonWidget.cycling(paulLabel(cfg), (btn, dir) -> {
+                    cfg.setPaulMode(dir > 0 ? cfg.getPaulMode().next() : cfg.getPaulMode().previous());
                     cfg.save();
                     btn.setMessage(paulLabel(cfg));
                 }).bounds(contentX, y, colW, 18).build());

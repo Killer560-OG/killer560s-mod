@@ -45,12 +45,8 @@ public class EtherwarpTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(styleText(cfg), btn -> {
-                    cfg.setStyle(cfg.getStyle().next());
-                    cfg.save();
-                    btn.setMessage(styleText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setStyle(cfg.getStyle().previous());
+        widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
+                    cfg.setStyle(dir > 0 ? cfg.getStyle().next() : cfg.getStyle().previous());
                     cfg.save();
                     btn.setMessage(styleText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());

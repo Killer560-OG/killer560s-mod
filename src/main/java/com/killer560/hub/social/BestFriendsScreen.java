@@ -96,13 +96,8 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
 
-        addRenderableWidget(SettingsButtonWidget.builder(fit(sortText(cfg), sortBoxW), btn -> {
-            cfg.setSortMode(cfg.getSortMode().next());
-            cfg.save();
-            btn.setMessage(fit(sortText(cfg), sortBoxW));
-            refilter();
-        }).secondaryPress(btn -> {
-            cfg.setSortMode(cfg.getSortMode().previous());
+        addRenderableWidget(SettingsButtonWidget.cycling(fit(sortText(cfg), sortBoxW), (btn, dir) -> {
+            cfg.setSortMode(dir > 0 ? cfg.getSortMode().next() : cfg.getSortMode().previous());
             cfg.save();
             btn.setMessage(fit(sortText(cfg), sortBoxW));
             refilter();

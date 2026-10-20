@@ -50,11 +50,8 @@ public final class ProfitScopeBar {
             if (field == ProfitScope.Field.ACCOUNT) {
                 String text = font.plainSubstrByWidth(ProfitScope.accountLabel(), each - 6);
                 boolean picked = cfg.getPickedAccount() != null || cfg.getShow() == ProfitConfig.Show.THIS_ACCOUNT;
-                adder.accept(SettingsButtonWidget.builder(Component.literal((picked ? "§6" : "§f") + text), btn -> {
-                            ProfitScope.cycleAccount(keys.get(), 1);
-                            onChange.run();
-                        }).secondaryPress(btn -> {
-                            ProfitScope.cycleAccount(keys.get(), -1);
+                adder.accept(SettingsButtonWidget.cycling(Component.literal((picked ? "§6" : "§f") + text), (btn, dir) -> {
+                            ProfitScope.cycleAccount(keys.get(), dir);
                             onChange.run();
                         }).bounds(bx, y, each, HEIGHT).build());
             } else if (field == ProfitScope.Field.MOD_PROFILE && cfg.isPerProfile()) {
@@ -65,11 +62,8 @@ public final class ProfitScopeBar {
             } else {
                 String text = font.plainSubstrByWidth(ProfitScope.label(field, filter), each - 6);
                 boolean picked = field.get(filter) != null;
-                adder.accept(SettingsButtonWidget.builder(Component.literal((picked ? "§6" : "§f") + text), btn -> {
-                            field.cycle(filter, keys.get(), 1);
-                            onChange.run();
-                        }).secondaryPress(btn -> {
-                            field.cycle(filter, keys.get(), -1);
+                adder.accept(SettingsButtonWidget.cycling(Component.literal((picked ? "§6" : "§f") + text), (btn, dir) -> {
+                            field.cycle(filter, keys.get(), dir);
                             onChange.run();
                         }).bounds(bx, y, each, HEIGHT).build());
             }

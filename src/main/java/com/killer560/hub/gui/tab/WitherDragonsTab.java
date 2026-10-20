@@ -45,12 +45,8 @@ public class WitherDragonsTab extends BaseTab {
 
         if (cfg.isEnabled()) {
             toggle(w, contentX, y[0], half, "Spawn Timers", cfg::isDragonTimer, cfg::setDragonTimer, cfg);
-            w.add(SettingsButtonWidget.builder(cycleLabel("Timer Style", cfg.getTimerStyle().label), btn -> {
-                        cfg.setTimerStyle(cfg.getTimerStyle().next());
-                        cfg.save();
-                        btn.setMessage(cycleLabel("Timer Style", cfg.getTimerStyle().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setTimerStyle(cfg.getTimerStyle().previous());
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Timer Style", cfg.getTimerStyle().label), (btn, dir) -> {
+                        cfg.setTimerStyle(dir > 0 ? cfg.getTimerStyle().next() : cfg.getTimerStyle().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Timer Style", cfg.getTimerStyle().label));
                     }).bounds(colB, y[0], half, 18).build());
@@ -65,24 +61,16 @@ public class WitherDragonsTab extends BaseTab {
             y[0] += 22;
 
             toggle(w, contentX, y[0], half, "Dragon Title", cfg::isDragonTitle, cfg::setDragonTitle, cfg);
-            w.add(SettingsButtonWidget.builder(cycleLabel("Title For", cfg.getTitleMode().label), btn -> {
-                        cfg.setTitleMode(cfg.getTitleMode().next());
-                        cfg.save();
-                        btn.setMessage(cycleLabel("Title For", cfg.getTitleMode().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setTitleMode(cfg.getTitleMode().previous());
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Title For", cfg.getTitleMode().label), (btn, dir) -> {
+                        cfg.setTitleMode(dir > 0 ? cfg.getTitleMode().next() : cfg.getTitleMode().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Title For", cfg.getTitleMode().label));
                     }).bounds(colB, y[0], half, 18).build());
             y[0] += 22;
 
             toggle(w, contentX, y[0], half, "Title Sound", cfg::isTitleSound, cfg::setTitleSound, cfg);
-            w.add(SettingsButtonWidget.builder(cycleLabel("Dragon Names", cfg.getNameStyle().label), btn -> {
-                        cfg.setNameStyle(cfg.getNameStyle().next());
-                        cfg.save();
-                        btn.setMessage(cycleLabel("Dragon Names", cfg.getNameStyle().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setNameStyle(cfg.getNameStyle().previous());
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Dragon Names", cfg.getNameStyle().label), (btn, dir) -> {
+                        cfg.setNameStyle(dir > 0 ? cfg.getNameStyle().next() : cfg.getNameStyle().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Dragon Names", cfg.getNameStyle().label));
                     }).bounds(colB, y[0], half, 18).build());
@@ -107,24 +95,16 @@ public class WitherDragonsTab extends BaseTab {
             w.add(powerSlider(cfg, colB, y[0], half, false));
             y[0] += 22;
 
-            w.add(SettingsButtonWidget.builder(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label), btn -> {
-                        cfg.setSoloDebuff(cfg.getSoloDebuff().next());
-                        cfg.save();
-                        btn.setMessage(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setSoloDebuff(cfg.getSoloDebuff().previous());
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label), (btn, dir) -> {
+                        cfg.setSoloDebuff(dir > 0 ? cfg.getSoloDebuff().next() : cfg.getSoloDebuff().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Purple Solo Debuff", cfg.getSoloDebuff().label));
                     }).bounds(contentX, y[0], half, 18).build());
             toggle(w, colB, y[0], half, "Solo Debuff On All Splits", cfg::isSoloDebuffOnAll, cfg::setSoloDebuffOnAll, cfg);
             y[0] += 22;
 
-            w.add(SettingsButtonWidget.builder(cycleLabel("Your Class", cfg.getClassOverride().label), btn -> {
-                        cfg.setClassOverride(cfg.getClassOverride().next());
-                        cfg.save();
-                        btn.setMessage(cycleLabel("Your Class", cfg.getClassOverride().label));
-                    }).secondaryPress(btn -> {
-                        cfg.setClassOverride(cfg.getClassOverride().previous());
+            w.add(SettingsButtonWidget.cycling(cycleLabel("Your Class", cfg.getClassOverride().label), (btn, dir) -> {
+                        cfg.setClassOverride(dir > 0 ? cfg.getClassOverride().next() : cfg.getClassOverride().previous());
                         cfg.save();
                         btn.setMessage(cycleLabel("Your Class", cfg.getClassOverride().label));
                     }).bounds(contentX, y[0], half, 18).build());

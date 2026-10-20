@@ -35,14 +35,10 @@ public class ItemRarityTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(styleLabel(cfg), btn -> {
-                    cfg.setStyle(cfg.getStyle().next());
+        widgets.add(SettingsButtonWidget.cycling(styleLabel(cfg), (btn, dir) -> {
+                    cfg.setStyle(dir > 0 ? cfg.getStyle().next() : cfg.getStyle().previous());
                     cfg.save();
                     requestRebuild.run(); // Outline Width only shows for the Outline style
-                }).secondaryPress(btn -> {
-                    cfg.setStyle(cfg.getStyle().previous());
-                    cfg.save();
-                    requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
 

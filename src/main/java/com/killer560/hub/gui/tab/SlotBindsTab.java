@@ -68,12 +68,8 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
 
         int half = (contentWidth - 8) / 2;
         int col2 = contentX + half + 8;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label), btn -> {
-                    cfg.setOverlayMode(cfg.getOverlayMode().next());
-                    cfg.save();
-                    btn.setMessage(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label));
-                }).secondaryPress(btn -> {
-                    cfg.setOverlayMode(cfg.getOverlayMode().previous());
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label), (btn, dir) -> {
+                    cfg.setOverlayMode(dir > 0 ? cfg.getOverlayMode().next() : cfg.getOverlayMode().previous());
                     cfg.save();
                     btn.setMessage(Component.literal("Show Binds: §b" + cfg.getOverlayMode().label));
                 }).bounds(contentX, y, half, 18).build());

@@ -56,28 +56,19 @@ public class AutoKickTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 SectionHeaders.header("Action", false), Minecraft.getInstance().font));
         y += 16;
-        widgets.add(SettingsButtonWidget.builder(timeModeText(cfg.getTimeMode()), btn -> {
-                    cycleTimeMode(cfg, 1);
-                    btn.setMessage(timeModeText(cfg.getTimeMode()));
-                }).secondaryPress(btn -> {
-                    cycleTimeMode(cfg, -1);
+        widgets.add(SettingsButtonWidget.cycling(timeModeText(cfg.getTimeMode()), (btn, dir) -> {
+                    cycleTimeMode(cfg, dir);
                     btn.setMessage(timeModeText(cfg.getTimeMode()));
                 }).bounds(contentX, y, colW, 18).build());
         y += 22;
         // The Fixed Floor row only matters (and only shows) when the Floor Source is Fixed.
-        widgets.add(SettingsButtonWidget.builder(floorSourceText(cfg.getFloorSource()), btn -> {
-                    cycleFloorSource(cfg, 1);
-                    requestRebuild.run();
-                }).secondaryPress(btn -> {
-                    cycleFloorSource(cfg, -1);
+        widgets.add(SettingsButtonWidget.cycling(floorSourceText(cfg.getFloorSource()), (btn, dir) -> {
+                    cycleFloorSource(cfg, dir);
                     requestRebuild.run();
                 }).bounds(contentX, y, colW, 18).build());
         if (cfg.getFloorSource() == FloorSource.FIXED) {
-            widgets.add(SettingsButtonWidget.builder(fixedFloorText(cfg.getQueueFloor()), btn -> {
-                        cycleFixedFloor(cfg, 1);
-                        btn.setMessage(fixedFloorText(cfg.getQueueFloor()));
-                    }).secondaryPress(btn -> {
-                        cycleFixedFloor(cfg, -1);
+            widgets.add(SettingsButtonWidget.cycling(fixedFloorText(cfg.getQueueFloor()), (btn, dir) -> {
+                        cycleFixedFloor(cfg, dir);
                         btn.setMessage(fixedFloorText(cfg.getQueueFloor()));
                     }).bounds(colBX, y, colW, 18).build());
         }

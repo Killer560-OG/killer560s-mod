@@ -33,13 +33,9 @@ public class ModChatTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(
-                Component.literal("Room: " + cfg.getRoomMode().label), btn -> {
-                    cfg.setRoomMode(cfg.getRoomMode().next());
-                    cfg.save();
-                    btn.setMessage(Component.literal("Room: " + cfg.getRoomMode().label));
-                }).secondaryPress(btn -> {
-                    cfg.setRoomMode(cfg.getRoomMode().previous());
+        widgets.add(SettingsButtonWidget.cycling(
+                Component.literal("Room: " + cfg.getRoomMode().label), (btn, dir) -> {
+                    cfg.setRoomMode(dir > 0 ? cfg.getRoomMode().next() : cfg.getRoomMode().previous());
                     cfg.save();
                     btn.setMessage(Component.literal("Room: " + cfg.getRoomMode().label));
                 }).bounds(contentX, y, 220, 18).build());

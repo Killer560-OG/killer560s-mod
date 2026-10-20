@@ -87,24 +87,14 @@ public class StorageSearchScreen extends Screen implements MenuThemedScreen {
         searchBox.setResponder(text -> refilter());
         addRenderableWidget(searchBox);
 
-        sortButton = SettingsButtonWidget.builder(sortText(cfg), btn -> {
-            cfg.setSortMode(cfg.getSortMode().next());
-            cfg.save();
-            btn.setMessage(sortText(cfg));
-            refilter();
-        }).secondaryPress(btn -> {
-            cfg.setSortMode(cfg.getSortMode().previous());
+        sortButton = SettingsButtonWidget.cycling(sortText(cfg), (btn, dir) -> {
+            cfg.setSortMode(dir > 0 ? cfg.getSortMode().next() : cfg.getSortMode().previous());
             cfg.save();
             btn.setMessage(sortText(cfg));
             refilter();
         }).bounds(panelX + 6 + boxW + 4, panelY + 36, sortW, 18).build();
-        sourceButton = SettingsButtonWidget.builder(sourceText(cfg), btn -> {
-            cfg.setSourceFilter(cfg.getSourceFilter().next());
-            cfg.save();
-            btn.setMessage(sourceText(cfg));
-            refilter();
-        }).secondaryPress(btn -> {
-            cfg.setSourceFilter(cfg.getSourceFilter().previous());
+        sourceButton = SettingsButtonWidget.cycling(sourceText(cfg), (btn, dir) -> {
+            cfg.setSourceFilter(dir > 0 ? cfg.getSourceFilter().next() : cfg.getSourceFilter().previous());
             cfg.save();
             btn.setMessage(sourceText(cfg));
             refilter();

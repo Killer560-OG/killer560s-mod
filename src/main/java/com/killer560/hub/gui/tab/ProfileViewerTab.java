@@ -42,12 +42,8 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 28;
 
-        widgets.add(SettingsButtonWidget.builder(sourceText(cfg), btn -> {
-                    cfg.setSource(cfg.getSource().next());
-                    cfg.save();
-                    btn.setMessage(sourceText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setSource(cfg.getSource().previous());
+        widgets.add(SettingsButtonWidget.cycling(sourceText(cfg), (btn, dir) -> {
+                    cfg.setSource(dir > 0 ? cfg.getSource().next() : cfg.getSource().previous());
                     cfg.save();
                     btn.setMessage(sourceText(cfg));
                 }).bounds(contentX, y, colW, 18).build());

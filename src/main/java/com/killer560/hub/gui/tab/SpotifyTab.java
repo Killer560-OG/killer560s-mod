@@ -54,12 +54,9 @@ public class SpotifyTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                 com.killer560.hub.gui.SectionHeaders.header("Chat Lyrics", false), Minecraft.getInstance().font));
         y += 14;
-        widgets.add(SettingsButtonWidget.builder(destText(), btn -> {
-                    SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.next();
-                    SpotifyLyricsFeature.saveConfig();
-                    btn.setMessage(destText());
-                }).secondaryPress(btn -> {
-                    SpotifyLyricsFeature.chatDestination = SpotifyLyricsFeature.chatDestination.previous();
+        widgets.add(SettingsButtonWidget.cycling(destText(), (btn, dir) -> {
+                    SpotifyLyricsFeature.chatDestination = dir > 0 ? SpotifyLyricsFeature.chatDestination.next()
+                            : SpotifyLyricsFeature.chatDestination.previous();
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(destText());
                 }).bounds(contentX, y, half, 20).build());
@@ -70,12 +67,9 @@ public class SpotifyTab extends BaseTab {
                 }).bounds(contentX + half + 8, y, half, 20).build());
         y += 24;
 
-        widgets.add(SettingsButtonWidget.builder(profanityText(), btn -> {
-                    SpotifyLyricsFeature.profanityLevel = SpotifyLyricsFeature.profanityLevel.next();
-                    SpotifyLyricsFeature.saveConfig();
-                    btn.setMessage(profanityText());
-                }).secondaryPress(btn -> {
-                    SpotifyLyricsFeature.profanityLevel = SpotifyLyricsFeature.profanityLevel.previous();
+        widgets.add(SettingsButtonWidget.cycling(profanityText(), (btn, dir) -> {
+                    SpotifyLyricsFeature.profanityLevel = dir > 0 ? SpotifyLyricsFeature.profanityLevel.next()
+                            : SpotifyLyricsFeature.profanityLevel.previous();
                     SpotifyLyricsFeature.saveConfig();
                     btn.setMessage(profanityText());
                 }).bounds(contentX, y, contentWidth, 20).build());

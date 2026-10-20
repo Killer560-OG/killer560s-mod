@@ -75,12 +75,8 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
         // talk have an option to go to allchat as well". Cycles ChatDestination - the same enum, in the same
         // order, that the Spotify lyrics feature's own destination button cycles - left-click forward,
         // right-click back, which is how every other cycling button in this menu behaves.
-        widgets.add(SettingsButtonWidget.builder(sendToText(cfg), btn -> {
-                    cfg.setChatDestination(cfg.getChatDestination().next());
-                    cfg.save();
-                    btn.setMessage(sendToText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setChatDestination(cfg.getChatDestination().previous());
+        widgets.add(SettingsButtonWidget.cycling(sendToText(cfg), (btn, dir) -> {
+                    cfg.setChatDestination(dir > 0 ? cfg.getChatDestination().next() : cfg.getChatDestination().previous());
                     cfg.save();
                     btn.setMessage(sendToText(cfg));
                 }).bounds(contentX, y, contentWidth, 18).build());

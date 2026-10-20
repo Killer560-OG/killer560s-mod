@@ -33,8 +33,8 @@ public class StreamerModeTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Option: " + StreamerMode.option().label), btn -> {
-                    StreamerMode.setOption(StreamerMode.option().next());
+        widgets.add(SettingsButtonWidget.cycling(Component.literal("Option: " + StreamerMode.option().label), (btn, dir) -> {
+                    StreamerMode.setOption(SettingsButtonWidget.step(StreamerMode.option(), dir));
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 18).build());
         return widgets;

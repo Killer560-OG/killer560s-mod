@@ -40,12 +40,8 @@ public class BestFriendsTab extends BaseTab {
             return widgets;
         }
 
-        widgets.add(SettingsButtonWidget.builder(sortText(cfg), btn -> {
-                    cfg.setSortMode(cfg.getSortMode().next());
-                    cfg.save();
-                    btn.setMessage(sortText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setSortMode(cfg.getSortMode().previous());
+        widgets.add(SettingsButtonWidget.cycling(sortText(cfg), (btn, dir) -> {
+                    cfg.setSortMode(dir > 0 ? cfg.getSortMode().next() : cfg.getSortMode().previous());
                     cfg.save();
                     btn.setMessage(sortText(cfg));
                 }).bounds(contentX, y, colW, 18).build());

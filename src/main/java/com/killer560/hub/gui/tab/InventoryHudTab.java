@@ -52,12 +52,8 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(colBX, y, colW, 18).build());
         y += 22;
 
-        widgets.add(SettingsButtonWidget.builder(backgroundText(cfg), btn -> {
-                    cfg.setBackground(cfg.getBackground().next());
-                    cfg.save();
-                    btn.setMessage(backgroundText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setBackground(cfg.getBackground().previous());
+        widgets.add(SettingsButtonWidget.cycling(backgroundText(cfg), (btn, dir) -> {
+                    cfg.setBackground(dir > 0 ? cfg.getBackground().next() : cfg.getBackground().previous());
                     cfg.save();
                     btn.setMessage(backgroundText(cfg));
                 }).bounds(contentX, y, colW, 18).build());
@@ -100,12 +96,8 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
                     cfg.save();
                     btn.setMessage(onOff("Hide in Screens", cfg.isHideInScreens()));
                 }).bounds(contentX, y, colW, 18).build());
-        widgets.add(SettingsButtonWidget.builder(visibilityText(cfg), btn -> {
-                    cfg.setVisibility(cfg.getVisibility().next());
-                    cfg.save();
-                    requestRebuild.run();
-                }).secondaryPress(btn -> {
-                    cfg.setVisibility(cfg.getVisibility().previous());
+        widgets.add(SettingsButtonWidget.cycling(visibilityText(cfg), (btn, dir) -> {
+                    cfg.setVisibility(dir > 0 ? cfg.getVisibility().next() : cfg.getVisibility().previous());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(colBX, y, colW, 18).build());

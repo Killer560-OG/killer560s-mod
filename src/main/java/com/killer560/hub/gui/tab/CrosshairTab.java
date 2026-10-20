@@ -317,12 +317,8 @@ public class CrosshairTab extends BaseTab {
     /** A dropdown-style cycling row: left click forward, right click back. */
     private static AbstractWidget cycle(String label, Supplier<String> value, IntConsumer step,
                                         CustomCrosshairConfig cfg, Runnable rebuild, int x, int y, int width) {
-        return SettingsButtonWidget.builder(Component.literal(label + ": " + value.get()), btn -> {
-            step.accept(1);
-            cfg.save();
-            rebuild.run();
-        }).secondaryPress(btn -> {
-            step.accept(-1);
+        return SettingsButtonWidget.cycling(Component.literal(label + ": " + value.get()), (btn, dir) -> {
+            step.accept(dir);
             cfg.save();
             rebuild.run();
         }).bounds(x, y, width, ROW).build();

@@ -50,7 +50,8 @@ public class AutoExperimentsTab extends BaseTab {
         }
         ExperimentsConfig cfg = ExperimentsConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.cycling(autoText(), (btn, dir) -> {
+        // An ON/OFF switch, not a cycling setting: a click flips it either way.
+        widgets.add(SettingsButtonWidget.builder(autoText(), btn -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
                     c.setAutonomousMode(!c.isAutonomousMode());
                     c.save();
@@ -160,14 +161,9 @@ public class AutoExperimentsTab extends BaseTab {
 
         // The Emergency Cancel Key went on 2026-10-13 (killer560): any key, click or scroll of his stops a run now,
         // and chat names which (ExperimentsFeature.stopOnPlayerInput). Stop At has the row to itself.
-        widgets.add(SettingsButtonWidget.builder(stopStrategyText(), btn -> {
+        widgets.add(SettingsButtonWidget.cycling(stopStrategyText(), (btn, dir) -> {
                     ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setStopStrategy(c.getStopStrategy().next());
-                    c.save();
-                    btn.setMessage(stopStrategyText());
-                }).secondaryPress(btn -> {
-                    ExperimentsConfig c = ExperimentsConfig.getInstance();
-                    c.setStopStrategy(c.getStopStrategy().previous());
+                    c.setStopStrategy(dir > 0 ? c.getStopStrategy().next() : c.getStopStrategy().previous());
                     c.save();
                     btn.setMessage(stopStrategyText());
                 }).bounds(contentX, y, contentWidth, 20).build());

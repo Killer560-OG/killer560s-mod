@@ -58,6 +58,8 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
 
     private final OnPress onPress;
     private final OnPress onSecondaryPress;
+    /** Built through {@link #cycling}: a setting that steps through values (a right-click handler alone is not one). */
+    private final boolean cycling;
     private final boolean primary;
     private final boolean danger;
     /**
@@ -80,11 +82,12 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return "B|" + p.look() + "|" + p.label();
     }
 
-    private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean primary,
-            boolean danger, Boolean toggled, int x, int y, int width, int height) {
+    private SettingsButtonWidget(Component message, OnPress onPress, OnPress onSecondaryPress, boolean cycling,
+            boolean primary, boolean danger, Boolean toggled, int x, int y, int width, int height) {
         super(x, y, width, height, message);
         this.onPress = onPress;
         this.onSecondaryPress = onSecondaryPress;
+        this.cycling = cycling;
         this.primary = primary;
         this.danger = danger;
         this.toggled = toggled;
@@ -121,7 +124,9 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
      * {@link #isCycling()} names them all (the testkit's 806 walks the menu by it).
      */
     public static Builder cycling(Component message, OnStep onStep) {
-        return new Builder(message, b -> onStep.onStep(b, 1)).secondaryPress(b -> onStep.onStep(b, -1));
+        Builder b = new Builder(message, w -> onStep.onStep(w, 1)).secondaryPress(w -> onStep.onStep(w, -1));
+        b.cycling = true;
+        return b;
     }
 
     /** The constant {@code dir} steps away from {@code current} in declaration order, wrapping at both ends. */
@@ -147,15 +152,17 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         return Math.round((min + idx * step) * 1e6) / 1e6;
     }
 
-    /** True for a button that steps through values (built with a right-click handler). Read by the testkit. */
+    /** True for a button that steps through values (built with {@link #cycling}). A plain button with a right-click
+     *  handler of its own (Door Keys' colour rows: right click sets Auto) is not one. Read by the testkit. */
     public boolean isCycling() {
-        return onSecondaryPress != null;
+        return cycling;
     }
 
     public static final class Builder {
         private final Component message;
         private final OnPress onPress;
         private OnPress onSecondaryPress;
+        private boolean cycling;
         private boolean primary;
         private boolean danger;
         private Boolean toggled;
@@ -209,7 +216,7 @@ public final class SettingsButtonWidget extends AbstractWidget implements MenuAn
         }
 
         public SettingsButtonWidget build() {
-            return new SettingsButtonWidget(message, onPress, onSecondaryPress, primary, danger, toggled, x, y, width,
+            return new SettingsButtonWidget(message, onPress, onSecondaryPress, cycling, primary, danger, toggled, x, y, width,
                     height);
         }
     }

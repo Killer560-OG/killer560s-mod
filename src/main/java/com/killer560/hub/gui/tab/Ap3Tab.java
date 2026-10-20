@@ -155,12 +155,8 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
 
         header(w, contentX, y, contentWidth, "Chat");
         toggleCell(w, contentX, y[0], half, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
-        w.add(SettingsButtonWidget.builder(messageDetailText(cfg), btn -> {
-                    cfg.setMessageDetail(cfg.getMessageDetail().next());
-                    cfg.save();
-                    btn.setMessage(messageDetailText(cfg));
-                }).secondaryPress(btn -> {
-                    cfg.setMessageDetail(cfg.getMessageDetail().previous());
+        w.add(SettingsButtonWidget.cycling(messageDetailText(cfg), (btn, dir) -> {
+                    cfg.setMessageDetail(dir > 0 ? cfg.getMessageDetail().next() : cfg.getMessageDetail().previous());
                     cfg.save();
                     btn.setMessage(messageDetailText(cfg));
                 }).bounds(contentX + half + GAP, y[0], Math.max(1, contentWidth - half - GAP), ROW).build());
