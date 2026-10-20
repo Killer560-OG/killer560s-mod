@@ -56,6 +56,42 @@ public final class DungeonKeys {
         return Math.max(0.0, base) + KEY_RANGE_BONUS;
     }
 
+    /** Stay this far inside the pickup range: the landing is a block, the range a measurement of feet. */
+    public static final double STAND_MARGIN = 0.75;
+
+    /**
+     * The landing block (etherwarpable, inside the dungeon) whose feet position is within {@code reach} of the key and
+     * nearest to {@code from} - the shortest warp that still puts the key in range. Null when none is. Client thread.
+     * Auto Secret's key trips and Auto Clear's (2026-10-19) both stand here.
+     */
+    public static net.minecraft.core.BlockPos standWithin(net.minecraft.world.phys.Vec3 key, double reach,
+                                                          net.minecraft.world.phys.Vec3 from) {
+        int r = (int) Math.ceil(reach);
+        net.minecraft.core.BlockPos centre = net.minecraft.core.BlockPos.containing(key);
+        net.minecraft.core.BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                for (int dy = -4; dy <= 3; dy++) {
+                    net.minecraft.core.BlockPos p = centre.offset(dx, dy, dz);
+                    net.minecraft.world.phys.Vec3 feet = new net.minecraft.world.phys.Vec3(p.getX() + 0.5, p.getY() + 1.0,
+                            p.getZ() + 0.5);
+                    if (feet.distanceTo(key) > reach) {
+                        continue;
+                    }
+                    double toHim = feet.distanceToSqr(from);
+                    if (toHim >= bestD || !com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpable(p)
+                            || !com.killer560.hub.livemap.autoclear.TeleportUtils.underCover(p)) {
+                        continue;
+                    }
+                    bestD = toHim;
+                    best = p.immutable();
+                }
+            }
+        }
+        return best;
+    }
+
     /** A key on the ground: its entity id, where it is, and which key. */
     public record Dropped(int id, double x, double y, double z, boolean blood) {
     }

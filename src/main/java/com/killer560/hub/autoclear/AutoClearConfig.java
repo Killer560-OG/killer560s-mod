@@ -67,6 +67,8 @@ public final class AutoClearConfig {
     private boolean hyperionHops = true;
     /** How long one mob is attacked without dying before it is skipped. Ticks. */
     private int mobTimeoutTicks = 160;
+    /** Go for a Wither Key that drops during a clear before going on (killer560, 2026-10-19). */
+    private boolean pickUpKeys = true;
 
     private AutoClearConfig() {
     }
@@ -89,6 +91,7 @@ public final class AutoClearConfig {
                 cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
                 cfg.hyperionHops = ConfigJson.getBool(o, "hyperionHops", cfg.hyperionHops);
                 cfg.setMobTimeoutTicks(ConfigJson.getInt(o, "mobTimeoutTicks", cfg.mobTimeoutTicks));
+                cfg.pickUpKeys = ConfigJson.getBool(o, "pickUpKeys", cfg.pickUpKeys);
                 // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
                 // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
             } catch (Exception e) {
@@ -108,6 +111,7 @@ public final class AutoClearConfig {
             o.addProperty("keybind", keybind);
             o.addProperty("hyperionHops", hyperionHops);
             o.addProperty("mobTimeoutTicks", mobTimeoutTicks);
+            o.addProperty("pickUpKeys", pickUpKeys);
             Files.writeString(CONFIG_PATH, GSON.toJson(o), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -133,6 +137,9 @@ public final class AutoClearConfig {
 
     public boolean isHyperionHops() { return hyperionHops; }
     public void setHyperionHops(boolean v) { hyperionHops = v; }
+
+    public boolean isPickUpKeys() { return pickUpKeys; }
+    public void setPickUpKeys(boolean v) { pickUpKeys = v; }
 
     public int getMobTimeoutTicks() { return mobTimeoutTicks; }
     public void setMobTimeoutTicks(int v) {

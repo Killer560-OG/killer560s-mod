@@ -281,6 +281,9 @@ public final class AutoClearFeature {
         skippedRooms.clear();
         skippedMobs.clear();
         doorTarget = -1;
+        keyId = -1;
+        keyTrip = false;
+        keysTried.clear();
         roomsCleared = 0;
         runStartMs = System.currentTimeMillis();
         mobsKilled = 0;
@@ -432,6 +435,16 @@ public final class AutoClearFeature {
             }
             phase = Phase.IDLE;
             planKey = Long.MIN_VALUE;
+            if (keyTrip) {
+                // A trip to a dropped key is the key's business: its failure is not the room's (pathFailures).
+                keyTrip = false;
+                if (travelStarted && ClearExecutor.lastPathFailed() && keyId >= 0) {
+                    LOGGER.info("[AutoClear] key: the trip to the Wither Key #{} failed - leaving it", keyId);
+                    keysTried.add(keyId);
+                    keyId = -1;
+                }
+                travelStarted = false;
+            }
             if (travelStarted && ClearExecutor.lastPathFailed()) {
                 pathFailures++;
                 LOGGER.info("[AutoClear] trip {} failed ({} of {})", action, pathFailures, MAX_PATH_FAILURES);
@@ -478,6 +491,12 @@ public final class AutoClearFeature {
         bodyWanted = false;
         DungeonLayout layout = DungeonLayout.capture();
         AutoClearConfig cfg = AutoClearConfig.getInstance();
+
+        // ---- a dropped Wither Key first: the door it opens is the way on (before "room cleared" - the key often
+        // drops from the room's last mob, and a single-room clear would hand back with it lying there) ----
+        if (cfg.isPickUpKeys() && pickUpKey(client, player, layout)) {
+            return;
+        }
 
         // ---- the room ----
         int room = AutoClearTargets.roomByName(layout, roomName);
@@ -789,6 +808,150 @@ public final class AutoClearFeature {
         doorCooldown = 20;
         action = "opening the wither door";
         LOGGER.info("[AutoClear] clicked wither door {} at {} with the key", door, target.toShortString());
+    }
+
+    // ---- dropped Wither Keys (killer560, 2026-10-19: "if a Wither Key drops ... walk to it and pick it up before going
+    // on, so the wither door can be opened") ----
+
+    /** Keys further than this from him are left to Auto Secret / Autopilot (or him): a detour across the map is not "on
+     *  the way". A key stand is only tracked by the client within its entity range anyway. */
+    static final double KEY_SEARCH_RANGE = 40.0;
+    /** Ticks to stand in pickup range of a key before calling the try failed (Auto Secret's KEY_WAIT_TICKS). */
+    static final int KEY_WAIT_TICKS = 40;
+    /** Within this many blocks a key vanishing from the client means it was taken (Auto Secret's KEY_GONE_NEAR). */
+    static final double KEY_GONE_NEAR = 12.0;
+
+    /** The key stand being gone for, or -1. */
+    private static int keyId = -1;
+    /** The trip under way (Phase.TRAVEL) is to the key: its failure is not a failure of the room. */
+    private static boolean keyTrip = false;
+    /** A trip to this key has finished: out of range after it means the map cannot get closer, so it is left. */
+    private static boolean keyTripDone = false;
+    private static int keyWaitTicks = 0;
+    private static long keyWaitLag = 0L;
+    private static int keyCountBefore = 0;
+    private static double keyLastDist = -1;
+    /** Keys tried and not picked up this run: never gone for again (no loop on a key in a wall). */
+    private static final Set<Integer> keysTried = new HashSet<>();
+
+    /**
+     * Goes for a Wither Key lying within {@link #KEY_SEARCH_RANGE}: Auto Secret's key trip ({@code goKey}) - an
+     * Interactive Map etherwarp onto the block nearest to him within the pickup range
+     * ({@link com.killer560.hub.doorkeys.DungeonKeys#standWithin}, Key Base Range + 5 less a margin), then standing there
+     * until the server picks it up. The key is taken when the team's count goes up
+     * ({@link com.killer560.hub.doorkeys.DungeonKeys#witherKeys}: sidebar, else the pickup chat lines) or the stand goes
+     * while he is near it. Bounded: one trip, {@link #KEY_WAIT_TICKS} in range, then the key is left for this run.
+     * @return true while the key owns this tick (nothing else is decided)
+     */
+    private static boolean pickUpKey(Minecraft client, LocalPlayer player, DungeonLayout layout) {
+        double range = com.killer560.hub.autosecret.AutoSecretConfig.getInstance().keyPickupRange();
+        if (keyId >= 0) {
+            Entity e = client.level.getEntity(keyId);
+            boolean counted = com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > keyCountBefore;
+            if (counted || e == null || e.isRemoved()) {
+                double gone = Math.max(KEY_GONE_NEAR, range + 4.0);
+                if (counted || (keyLastDist >= 0 && keyLastDist <= gone)) {
+                    LOGGER.info(String.format(Locale.US, "[AutoClear] key: Wither Key #%d picked up (%s), %.2f blocks"
+                                    + " from it the tick before; team now %d wither key(s); chat: %s", keyId,
+                            counted ? "the team's count went up" : "the key left the world", keyLastDist,
+                            com.killer560.hub.doorkeys.DungeonKeys.witherKeys(),
+                            com.killer560.hub.doorkeys.DungeonKeys.lastPickupLine()));
+                    ModChat.log(CHAT, ModChat.good("Wither Key"), ModChat.dim(" picked up"));
+                } else {
+                    // Gone from the client far off is not picked up: it left tracking range.
+                    LOGGER.info(String.format(Locale.US, "[AutoClear] key: Wither Key #%d left the client's view %.1f"
+                            + " blocks away - not counted as picked up", keyId, keyLastDist));
+                }
+                keyId = -1;
+                return false;
+            }
+            keyLastDist = player.position().distanceTo(e.position());
+        } else {
+            com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
+            double bestD = KEY_SEARCH_RANGE;
+            for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k
+                    : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
+                if (k.blood() || keysTried.contains(k.id())) {
+                    continue;
+                }
+                double d = player.position().distanceTo(new Vec3(k.x(), k.y(), k.z()));
+                if (d < bestD) {
+                    bestD = d;
+                    best = k;
+                }
+            }
+            if (best == null) {
+                return false;
+            }
+            keyId = best.id();
+            keyTripDone = false;
+            keyWaitTicks = 0;
+            keyCountBefore = com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
+            keyLastDist = bestD;
+            releaseUse(client);
+            ModChat.log(CHAT, ModChat.text("Picking up the "), ModChat.value("Wither Key"),
+                    ModChat.dim(String.format(Locale.US, " (%.1f blocks away)", bestD)));
+            LOGGER.info(String.format(Locale.US, "[AutoClear] key: a Wither Key #%d lies at %.1f %.1f %.1f, %.1f blocks"
+                            + " away (pickup range %.1f; team has %d) - going for it before %s", keyId, best.x(), best.y(),
+                    best.z(), bestD, range, keyCountBefore, roomName == null ? "the next room" : roomName));
+        }
+        releaseUse(client);
+        Entity stand = client.level.getEntity(keyId);
+        Vec3 keyPos = stand.position();
+        double reach = Math.max(1.0, range - com.killer560.hub.doorkeys.DungeonKeys.STAND_MARGIN);
+        if (keyLastDist <= reach) {
+            action = "waiting for the Wither Key pickup";
+            if (++keyWaitTicks == 1) {
+                keyWaitLag = com.killer560.hub.util.ServerLag.mark();
+                LOGGER.info(String.format(Locale.US, "[AutoClear] key: %.2f blocks from Wither Key #%d, inside the %.1f"
+                        + " reach - waiting for the pickup", keyLastDist, keyId, reach));
+            }
+            if (keyWaitTicks > KEY_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(keyWaitLag)) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] key: Wither Key #%d still lying there after %d ticks"
+                        + " %.2f blocks away - leaving it", keyId, keyWaitTicks, keyLastDist));
+                ModChat.log(CHAT, ModChat.bad("The Wither Key was not picked up"),
+                        ModChat.dim(String.format(Locale.US, " from %.1f blocks - going on", keyLastDist)));
+                keysTried.add(keyId);
+                keyId = -1;
+                return false;
+            }
+            return true;
+        }
+        if (keyTripDone) {
+            LOGGER.info(String.format(Locale.US, "[AutoClear] key: the trip ended %.2f blocks from Wither Key #%d (reach"
+                    + " %.1f) - the map gets no closer, leaving it", keyLastDist, keyId, reach));
+            keysTried.add(keyId);
+            keyId = -1;
+            return false;
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before the trip to the Wither Key";
+            return true;
+        }
+        BlockPos goal = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
+        if (goal == null) {
+            goal = TeleportUtils.nearestEtherwarpable(BlockPos.containing(keyPos));
+        }
+        if (goal == null) {
+            LOGGER.info("[AutoClear] key: no block to stand on near Wither Key #{} - leaving it", keyId);
+            keysTried.add(keyId);
+            keyId = -1;
+            return false;
+        }
+        final BlockPos stand0 = goal;
+        action = "etherwarp to the Wither Key";
+        startTrip(client, player, () -> {
+            ClearExecutor.etherPath(stand0, null);
+            return true;
+        });
+        if (phase == Phase.TRAVEL) {
+            keyTrip = true;
+            keyTripDone = true;
+            LOGGER.info(String.format(Locale.US, "[AutoClear] key: trip to Wither Key #%d, standing on %s (%.1f from the"
+                    + " key)", keyId, stand0.toShortString(),
+                    keyPos.distanceTo(new Vec3(stand0.getX() + 0.5, stand0.getY() + 1.0, stand0.getZ() + 0.5))));
+        }
+        return true;
     }
 
     private static void roomDoneWithoutMap() {

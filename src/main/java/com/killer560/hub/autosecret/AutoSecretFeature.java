@@ -1820,37 +1820,10 @@ public final class AutoSecretFeature {
     }
 
     /** Stay this far inside the pickup range: the landing is a block, the range a measurement of feet. */
-    private static final double KEY_RANGE_MARGIN = 0.75;
+    private static final double KEY_RANGE_MARGIN = com.killer560.hub.doorkeys.DungeonKeys.STAND_MARGIN;
 
-    /**
-     * The landing block (etherwarpable, inside the dungeon) whose feet position is within {@code reach} of the key and
-     * nearest to {@code from} - the shortest warp that still puts the key in range. Null when none is.
-     */
     private static BlockPos standWithin(net.minecraft.world.phys.Vec3 key, double reach, net.minecraft.world.phys.Vec3 from) {
-        int r = (int) Math.ceil(reach);
-        BlockPos centre = BlockPos.containing(key);
-        BlockPos best = null;
-        double bestD = Double.MAX_VALUE;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                for (int dy = -4; dy <= 3; dy++) {
-                    BlockPos p = centre.offset(dx, dy, dz);
-                    net.minecraft.world.phys.Vec3 feet = new net.minecraft.world.phys.Vec3(p.getX() + 0.5, p.getY() + 1.0,
-                            p.getZ() + 0.5);
-                    if (feet.distanceTo(key) > reach) {
-                        continue;
-                    }
-                    double toHim = feet.distanceToSqr(from);
-                    if (toHim >= bestD || !com.killer560.hub.livemap.autoclear.TeleportUtils.etherwarpable(p)
-                            || !com.killer560.hub.livemap.autoclear.TeleportUtils.underCover(p)) {
-                        continue;
-                    }
-                    bestD = toHim;
-                    best = p.immutable();
-                }
-            }
-        }
-        return best;
+        return com.killer560.hub.doorkeys.DungeonKeys.standWithin(key, reach, from);
     }
 
     private static void beginKeyWait() {
