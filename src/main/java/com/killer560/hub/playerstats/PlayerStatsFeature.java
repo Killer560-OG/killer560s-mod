@@ -293,9 +293,30 @@ public final class PlayerStatsFeature {
     private static void noteManaShort(String raw) {
         if (raw.contains("NOT ENOUGH MANA")) {
             manaShort = true;
-        } else if (MANA_REGEX.matcher(raw).find()) {
-            manaShort = false;
+            manaSeen = 0;
+            return;
         }
+        Matcher m = MANA_REGEX.matcher(raw);
+        if (m.find()) {
+            manaShort = false;
+            manaSeen = num(m.group(1));
+            manaSeenMax = num(m.group(2));
+        }
+    }
+
+    /** The last mana figure on the action bar, read with the HUD off too (0 while it says NOT ENOUGH MANA); -1 unseen. */
+    private static volatile long manaSeen = -1;
+    private static volatile long manaSeenMax = -1;
+
+    /** The mana the action bar last showed, whether or not the stat HUD is on: 0 while it reads NOT ENOUGH MANA, -1 before
+     *  any figure. Auto Clear spaces its bats with it when mana runs low. */
+    public static long manaNow() {
+        return manaSeen;
+    }
+
+    /** The maximum mana the action bar last showed, -1 before any figure. */
+    public static long manaMaxNow() {
+        return manaSeenMax;
     }
 
     /** True while an Aspect of the Void would fail for lack of mana: the action bar says so, or the last mana figure is

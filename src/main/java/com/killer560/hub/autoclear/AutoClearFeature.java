@@ -432,6 +432,7 @@ public final class AutoClearFeature {
         if (!running) {
             return;
         }
+        noteBatSent(player);
         try {
             step(client, player);
         } catch (RuntimeException e) {
@@ -1361,6 +1362,7 @@ public final class AutoClearFeature {
             cachedBat = null;
             cachedBatTicks = -2;
             cachedPreferEther = null;
+            cachedAttackFlight = -1;
         }
         if (cachedAttack != null) {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
@@ -1370,6 +1372,15 @@ public final class AutoClearFeature {
                     || !sceptreSlowerThanEther(client, player, target, box, cfg)) {
                 WeaponReach.Aim aim = weapon == AutoClearConfig.Weapon.HYPERION
                         ? WeaponReach.hyperionInPlace(player, feet) : cachedAttack;
+                if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE) {
+                    if (cachedAttackFlight < 0) {
+                        cachedAttackFlight = WeaponReach.batTicks(client.level, player, player.getEyePosition(), aim);
+                    }
+                    holdingBatFlight = cachedAttackFlight;
+                    if (waitForBatInFlight(client)) {
+                        return;
+                    }
+                }
                 action = aim.what() + " -> " + targetName;
                 aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
                 return;
@@ -1387,6 +1398,10 @@ public final class AutoClearFeature {
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
         if (weapon == AutoClearConfig.Weapon.HYPERION && hyperionBatWins(client, player, target, box, etherTicks,
                 canHop ? hypeTicks : Integer.MAX_VALUE)) {
+            holdingBatFlight = cachedBatTicks;
+            if (waitForBatInFlight(client)) {
+                return;
+            }
             action = "Guided Bat -> " + targetName + " (~" + cachedBatTicks + " ticks vs etherwarp ~"
                     + (etherTicks + HYPERION_KILL_TICKS) + (canHop && cachedHops > 0 ? ", hops ~" + hypeTicks : "") + ")";
             aimAndHold(client, player, AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId(),
@@ -1466,6 +1481,71 @@ public final class AutoClearFeature {
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
         }
+    }
+
+    // ---- bats when mana runs low (2026-10-19 log: the bar read NOT ENOUGH MANA 21 times between 22:15:21 and 22:15:56,
+    // and two of Altar's etherwarp trips stalled on it - 22:15:26-28 and 22:15:35-37, each ending in "warp never landed"
+    // and a second plan; the held sceptre use sends a bat every 4 ticks while the first is still ~20 ticks from the mob,
+    // 168 mana each by that log's action bar) ----
+
+    /** Below this share of his maximum mana, one bat at a time per mob: the next waits until the last should have hit. */
+    static final double LOW_MANA_SHARE = 0.25;
+    /** After a bat's predicted flight, this long for its hit to reach the client before another is sent. */
+    static final int BAT_HIT_GRACE_TICKS = 2;
+
+    /** Flight of the in-place sceptre aim for the current plan key, -1 not worked out. */
+    private static int cachedAttackFlight = -1;
+    /** Flight of the bat the use key is about to send (set before each sceptre hold). */
+    private static int holdingBatFlight = -1;
+    /** The last bat of ours: the ClearExecutor tick it left, its mob, its predicted flight. */
+    private static long batSentTick = Long.MIN_VALUE;
+    private static int batTarget = -1;
+    private static int batFlight = 0;
+    private static int itemUsesSeen = -1;
+    private static int manaWaitLoggedFor = -1;
+
+    /** Each running tick: a bare use that left while our sceptre use was held is our bat (the last tick sent it). */
+    private static void noteBatSent(LocalPlayer player) {
+        int uses = com.killer560.hub.util.RightClick.itemUsesSent();
+        if (uses != itemUsesSeen) {
+            if (itemUsesSeen >= 0 && useHeld && targetId >= 0
+                    && ItemIdentity.matches(player.getMainHandItem(), AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId())) {
+                batSentTick = ClearExecutor.clientTick() - 1;
+                batTarget = targetId;
+                batFlight = Math.max(1, holdingBatFlight);
+            }
+            itemUsesSeen = uses;
+        }
+    }
+
+    /**
+     * With mana under {@link #LOW_MANA_SHARE} of his maximum (the action bar, {@link
+     * com.killer560.hub.playerstats.PlayerStatsFeature#manaNow}), a bat is not sent at a mob while the last one sent at it
+     * is still due to land: the use key goes up, the body stays on the aim, and the next bat goes once the first should
+     * have hit. Above it, or with no mana figure seen, the held use repeats every 4 ticks as always.
+     * @return true while it waits this tick
+     */
+    private static boolean waitForBatInFlight(Minecraft client) {
+        long mana = com.killer560.hub.playerstats.PlayerStatsFeature.manaNow();
+        long max = com.killer560.hub.playerstats.PlayerStatsFeature.manaMaxNow();
+        if (mana < 0 || max <= 0 || mana >= max * LOW_MANA_SHARE || batTarget != targetId) {
+            return false;
+        }
+        long since = ClearExecutor.clientTick() - batSentTick;
+        if (since > batFlight + BAT_HIT_GRACE_TICKS) {
+            return false;
+        }
+        releaseUse(client);
+        bodyWanted = true;
+        action = String.format(Locale.US, "waiting for the bat at %s (%d of ~%d ticks; mana %d/%d is low)", targetName,
+                since, batFlight, mana, max);
+        if (manaWaitLoggedFor != targetId) {
+            manaWaitLoggedFor = targetId;
+            LOGGER.info(String.format(Locale.US, "[AutoClear] mana %d/%d is under %.0f%%: one bat at a time at %s - the next"
+                    + " goes once this one should have hit (~%d ticks)", mana, max, LOW_MANA_SHARE * 100, targetName,
+                    batFlight + BAT_HIT_GRACE_TICKS));
+        }
+        return true;
     }
 
     // ---- bat travel against etherwarping (killer560, 2026-10-19) ----
