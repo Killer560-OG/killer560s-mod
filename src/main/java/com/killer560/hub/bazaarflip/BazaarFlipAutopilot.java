@@ -227,6 +227,11 @@ final class BazaarFlipAutopilot {
         boughtCoins = 0;
         lastWaitWhy = "";
         chatWarning = null;
+        cooldownAskedMs = 0L;
+        cooldownSeenAtMs = 0L;
+        cooldownUntilMs = 0L;
+        lastPlacement = null;
+        lastPlacementCounted = false;
     }
 
     /**
@@ -242,8 +247,56 @@ final class BazaarFlipAutopilot {
     /** Set from the chat thread, acted on by the next tick. */
     private static volatile String chatWarning;
 
+    /**
+     * Hypixel's order cooldown (killer560's chat, 2026-10-20 00:39: "[Bazaar] Placing orders is on cooldown for up to 1
+     * minute!", shown "(x2)" by Chat Tidy when it came twice). Anchored on "[Bazaar] " at the very start like
+     * {@link #BAZAAR_WARNING}, and bounded. Not a refusal that stops the session: it pauses it.
+     */
+    static final Pattern ORDER_COOLDOWN = Pattern.compile("^\\[Bazaar\\] Placing orders is on cooldown(?=.{0,80}$).{0,80}$");
+    /** The cooldown's "up to N minute(s)" figure, bounded to three digits so the parse cannot overflow. */
+    static final Pattern COOLDOWN_MINUTES = Pattern.compile("\\bup to (\\d{1,3}) minutes?\\b");
+    /** Longest pause one cooldown line can ask for, whatever it says. */
+    static final long MAX_COOLDOWN_MS = 5 * 60_000L;
+    /** Pause when the line names no number. */
+    static final long DEFAULT_COOLDOWN_MS = 60_000L;
+    /** A buy order "placed" this close before a cooldown line was the attempt Hypixel refused. */
+    private static final long COOLDOWN_REFUSAL_WINDOW_MS = STEP_TIMEOUT_MS;
+
+    /** Set from the chat thread (how long, and when the line came), acted on by the next tick. */
+    private static volatile long cooldownAskedMs;
+    private static volatile long cooldownSeenAtMs;
+    /** No new decision before this (wall clock), from the server's own cooldown line. 0: not paused. */
+    private static long cooldownUntilMs;
+    /** The last placement the session counted, so a cooldown that refused it can take it back. */
+    private static Pending lastPlacement;
+    private static boolean lastPlacementCounted;
+
+    /** The pause one cooldown line asks for: its "up to N minute(s)", 1 to 5 minutes, 1 minute when it has no number. */
+    static long cooldownMs(String line) {
+        Matcher m = COOLDOWN_MINUTES.matcher(line);
+        if (!m.find()) {
+            return DEFAULT_COOLDOWN_MS;
+        }
+        try {
+            long minutes = Long.parseLong(m.group(1));
+            return Math.max(DEFAULT_COOLDOWN_MS, Math.min(MAX_COOLDOWN_MS, minutes * 60_000L));
+        } catch (NumberFormatException e) {
+            return DEFAULT_COOLDOWN_MS;
+        }
+    }
+
+    private static void notePlacement(Pending p, boolean counted) {
+        lastPlacement = p;
+        lastPlacementCounted = counted;
+    }
+
     /** Colour-stripped chat while the autopilot runs (BazaarFlipFeature forwards it). Every pattern anchored. */
     static void onChatLine(String line) {
+        if (ORDER_COOLDOWN.matcher(line).matches()) {
+            cooldownSeenAtMs = System.currentTimeMillis();
+            cooldownAskedMs = cooldownMs(line);
+            return;
+        }
         if (BAZAAR_WARNING.matcher(line).matches() || COMMANDS_TOO_FAST.matcher(line).matches()) {
             chatWarning = line;
             return;
@@ -272,6 +325,12 @@ final class BazaarFlipAutopilot {
         if (warning != null) {
             chatWarning = null;
             fail("Hypixel said \"" + warning + "\"");
+            return;
+        }
+        long asked = cooldownAskedMs;
+        if (asked > 0) {
+            cooldownAskedMs = 0L;
+            onCooldown(client, asked, cooldownSeenAtMs, now);
             return;
         }
         if (expect == Expect.NONE) {
@@ -367,7 +426,53 @@ final class BazaarFlipAutopilot {
 
     // ---- deciding -------------------------------------------------------------------------------------------------------
 
+    /**
+     * Hypixel put order placing on cooldown: the attempt it refused is dropped without counting (a relist's second half is
+     * kept for after the pause), and nothing new is decided until the line's own "up to N minutes" has passed since it
+     * arrived. Said once per pause; a second line during the pause only moves the end later if it asks for later.
+     */
+    private static void onCooldown(Minecraft client, long askedMs, long seenAtMs, long now) {
+        long seen = seenAtMs > 0 ? seenAtMs : now;
+        long until = seen + askedMs;
+        boolean already = cooldownUntilMs > now;
+        cooldownUntilMs = Math.max(cooldownUntilMs, until);
+        String refused = null;
+        if (action instanceof FlipAction.PlaceBuyOrder || action instanceof FlipAction.PlaceSellOffer
+                || action instanceof FlipAction.InstaBuy || action instanceof FlipAction.InstaSell) {
+            refused = describe(action);
+            if (currentRelists >= 0 && (action instanceof FlipAction.PlaceBuyOrder || action instanceof FlipAction.PlaceSellOffer)) {
+                followUp = action; // the cancel half already went through: place it again after the pause
+                followUpRelists = currentRelists;
+            }
+            closeMenu(client);
+            done("refused by Hypixel's order cooldown: " + refused);
+        } else if (lastPlacement != null && lastPlacement.buy() && seen - lastPlacement.atMs() <= COOLDOWN_REFUSAL_WINDOW_MS
+                && pending.remove(lastPlacement)) {
+            // The buy order "went through" (its page closed) but Hypixel refused it: it never reaches Manage Orders.
+            refused = "buy order for " + lastPlacement.name();
+            if (lastPlacementCounted && placed > 0) {
+                placed--;
+            }
+        }
+        lastPlacement = null;
+        idleUntilMs = 0L;
+        LOGGER.info("[BazaarFlip] Autopilot paused by Hypixel's order cooldown for {} s{}", askedMs / 1000,
+                refused == null ? "" : " (refused, not counted: " + refused + ")");
+        if (!already) {
+            ModChat.log(CHAT, ModChat.text("Hypixel put order placing on cooldown - "),
+                    ModChat.dim(String.format(Locale.US, "pausing %d s, then carrying on.", askedMs / 1000)));
+        }
+    }
+
     private static void decideNext(Minecraft client, long now) {
+        if (cooldownUntilMs > 0) {
+            if (now < cooldownUntilMs) {
+                return; // Hypixel's order cooldown: nothing new until it has passed
+            }
+            cooldownUntilMs = 0L;
+            LOGGER.info("[BazaarFlip] Autopilot order cooldown over - carrying on");
+            ModChat.log(CHAT, ModChat.dim("Order cooldown over - carrying on."));
+        }
         if (followUp != null) {
             currentRelists = followUpRelists;
             FlipAction next = followUp;
@@ -403,6 +508,9 @@ final class BazaarFlipAutopilot {
         }
         FlipPricing.Answers answers = BazaarAdvisorFeature.answers(BazaarAdvisorConfig.getInstance());
         FlipPricing.Lookups look = BazaarAdvisorFeature.lookups(client.player == null ? null : client.player.inventoryMenu);
+        if (!answers.instaBuy() && products != volumeLoggedFor) {
+            logUnknownVolume(products);
+        }
         FlipAction next = FlipAutopilot.decide(new FlipAutopilot.Situation(products, purse, holdings, costBasis, orders,
                 answers, look, limits, placed, avoid));
         if (next instanceof FlipAction.Wait w) {
@@ -432,6 +540,26 @@ final class BazaarFlipAutopilot {
             }
         }
         begin(next, now);
+    }
+
+    /** The snapshot whose unknown volumes were last logged (once per snapshot, not per decision). */
+    private static List<BazaarProduct> volumeLoggedFor;
+
+    /** Logs the products a buy order cannot be ranked for: no instant-sell volume in the API, so they count as filling
+     *  nothing and never win on margin (FlipPricing.expectedBuyOrderFillsPerDay). */
+    private static void logUnknownVolume(List<BazaarProduct> products) {
+        volumeLoggedFor = products;
+        List<String> unknown = new ArrayList<>();
+        for (BazaarProduct p : products) {
+            if (!FlipPricing.instaSellVolumeKnown(p)) {
+                unknown.add(p.productId());
+            }
+        }
+        if (!unknown.isEmpty()) {
+            LOGGER.info("[BazaarFlip] Autopilot: {} of {} products have no instant-sell volume (sellMovingWeek) - counted as "
+                            + "filling nothing for buy orders: {}{}", unknown.size(), products.size(),
+                    String.join(", ", unknown.subList(0, Math.min(20, unknown.size()))), unknown.size() > 20 ? ", ..." : "");
+        }
     }
 
     private static boolean isSale(FlipAction a) {
@@ -612,10 +740,12 @@ final class BazaarFlipAutopilot {
             done("insta-sold " + delta + " " + s.name());
         } else if (action instanceof FlipAction.PlaceSellOffer s) {
             takeHolding(s.productId(), delta);
-            pending.add(new Pending(false, s.name(), System.currentTimeMillis(), Math.max(0, currentRelists)));
+            Pending p = new Pending(false, s.name(), System.currentTimeMillis(), Math.max(0, currentRelists));
+            pending.add(p);
             if (currentRelists < 0) {
                 placed++;
             }
+            notePlacement(p, currentRelists < 0);
             ordersReadAtMs = 0L;
             closeMenu(client);
             done("listed " + delta + " " + s.name() + " at " + s.price());
@@ -624,10 +754,12 @@ final class BazaarFlipAutopilot {
 
     private static void onPageChanged(Minecraft client, Expect was, int arrived) {
         if (action instanceof FlipAction.PlaceBuyOrder b) {
-            pending.add(new Pending(true, b.name(), System.currentTimeMillis(), Math.max(0, currentRelists)));
+            Pending p = new Pending(true, b.name(), System.currentTimeMillis(), Math.max(0, currentRelists));
+            pending.add(p);
             if (currentRelists < 0) {
                 placed++;
             }
+            notePlacement(p, currentRelists < 0);
             ordersReadAtMs = 0L; // read Manage Orders before the next decision: it must see this order
             closeMenu(client);
             done("buy order for " + b.amount() + " " + b.name());
@@ -772,6 +904,13 @@ final class BazaarFlipAutopilot {
                 if (it == null) {
                     fail("unknown menu: no Top Order +0.1 on " + BazaarFlipMenus.describe(screen));
                     return;
+                }
+                // When the top order is already one of the session's own (a second offer on the product, or a relist
+                // after its sibling), match it with Same as Top Order: the session never outbids itself.
+                BazaarPages.Item same = BazaarFlipMenus.item(page, "Same as Top Order");
+                double samePrice = same == null ? -1 : lorePerUnit(same.lore());
+                if (samePrice > 0 && ownBuyAt(b.productId(), samePrice)) {
+                    it = same;
                 }
                 double live = lorePerUnit(it.lore());
                 double sale = saleEach(client, b.productId());
@@ -1307,6 +1446,18 @@ final class BazaarFlipAutopilot {
             }
         }
         return 0;
+    }
+
+    /** Whether one of the session's own open buy orders on the product bids this price (as Manage Orders last showed). */
+    private static boolean ownBuyAt(String productId, double price) {
+        for (FlipOrder o : orders) {
+            // mine drops an order the moment it is cancelled, so a relist never "matches" the order it replaced.
+            if (o.ours() && o.buy() && mine.containsKey(o.key()) && productId != null && productId.equals(o.productId())
+                    && Math.abs(o.price() - price) <= FlipAutopilot.PRICE_EPS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static double lorePerUnit(List<String> lore) {

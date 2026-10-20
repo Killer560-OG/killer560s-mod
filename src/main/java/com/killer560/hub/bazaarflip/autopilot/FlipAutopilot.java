@@ -28,7 +28,9 @@ import java.util.Set;
  *       {@link Limits#minRelistAgeMs} old - or <b>cancel</b> them when the new price no longer pays or the order has been
  *       relisted {@link Limits#maxRelistsPerOrder} times (a price war).</li>
  *   <li><b>Open</b> a new position on the best product the advisor's model picks, skipping products the session already
- *       has an order or stock in: an Insta Buy, or a buy order sized by the purse share, the expected fills and the cap.</li>
+ *       has a sell offer or stock in: an Insta Buy, or a buy order sized by the purse share, the expected fills and the cap.
+ *       A product the session already bids on gets more buy orders, at the same price as its own, until they cover the
+ *       day's expected fills or number {@link #offersFor} (at most {@link #MAX_OFFERS_PER_PRODUCT}).</li>
  *   <li>Otherwise <b>wait</b>, or <b>stop</b> when nothing is open and nothing more may be opened.</li>
  * </ol>
  *
@@ -40,10 +42,15 @@ import java.util.Set;
  */
 public final class FlipAutopilot {
 
-    /** Orders on a side at which a top order's expected share of the flow halves. */
-    public static final double COMPETITION_HALF = 25.0;
+    /** Orders on a side at which a top order's expected share of the flow halves (the pricing model's). */
+    public static final double COMPETITION_HALF = FlipPricing.COMPETITION_HALF;
     /** Floor of {@link #fillShare}. */
-    public static final double MIN_FILL_SHARE = 0.05;
+    public static final double MIN_FILL_SHARE = FlipPricing.MIN_FILL_SHARE;
+    /**
+     * Most buy orders the session keeps open on one product at once (killer560, 2026-10-20: "at most 5"). How many it
+     * actually puts up follows the product's daily fills, {@link #offersFor}.
+     */
+    public static final int MAX_OFFERS_PER_PRODUCT = 5;
     /** A price this close to the best counts as matching it (Hypixel prices to 0.1). */
     public static final double PRICE_EPS = 0.05;
 
@@ -139,14 +146,25 @@ public final class FlipAutopilot {
 
     /** The share of a side's daily flow an order at the top of that side can expect. */
     public static double fillShare(BazaarProduct p, boolean buyOrder) {
-        // Hypixel's names are the instant trader's: sellOrders counts the BUY ORDERS, buyOrders the SELL OFFERS.
-        int competitors = buyOrder ? p.sellOrders() : p.buyOrders();
-        return Math.max(MIN_FILL_SHARE, 1.0 / (1.0 + Math.max(0, competitors) / COMPETITION_HALF));
+        return FlipPricing.fillShare(p, buyOrder);
     }
 
     /** Units a top buy order is expected to fill per day. */
     public static double expectedBuyFillsPerDay(BazaarProduct p) {
-        return FlipPricing.buyOrderFillsPerDay(p) * fillShare(p, true);
+        return FlipPricing.expectedBuyOrderFillsPerDay(p);
+    }
+
+    /**
+     * How many buy orders the session puts up on one product: enough orders of {@code unitsPerOrder} to cover what the
+     * product fills in the hold window, at most {@link #MAX_OFFERS_PER_PRODUCT}. Under one fill in the window: none.
+     */
+    public static int offersFor(double fillsPerDay, double holdDays, long unitsPerOrder) {
+        long fillable = (long) Math.floor(Math.max(0, fillsPerDay) * holdDays);
+        if (fillable < 1 || unitsPerOrder < 1) {
+            return 0;
+        }
+        long n = (fillable + unitsPerOrder - 1) / unitsPerOrder;
+        return (int) Math.max(1, Math.min(MAX_OFFERS_PER_PRODUCT, n));
     }
 
     /** Units a top sell offer is expected to sell per day. */
@@ -295,7 +313,10 @@ public final class FlipAutopilot {
             if (!outbid && !o.expired()) {
                 continue;
             }
-            double newPrice = round1(o.buy() ? best + FlipPricing.TICK : best - FlipPricing.TICK);
+            // The best bid may be the session's own (another of its orders on this product, relisted first): match it
+            // instead of outbidding it, so the session's orders never bid against each other.
+            double newPrice = round1(o.buy() ? (ourBuyAt(s, o, best) ? best : best + FlipPricing.TICK)
+                    : best - FlipPricing.TICK);
             if (o.relists() >= lim.maxRelistsPerOrder()) {
                 return new FlipAction.Cancel(o, "relisted " + o.relists() + " times - a price war, giving up on it");
             }
@@ -315,6 +336,17 @@ public final class FlipAutopilot {
                     "outbid (%.1f against the best %.1f)", o.price(), best));
         }
         return null;
+    }
+
+    /** Whether another of the session's buy orders on {@code o}'s product bids {@code price}. */
+    private static boolean ourBuyAt(Situation s, FlipOrder o, double price) {
+        for (FlipOrder other : s.orders()) {
+            if (other != o && other.ours() && other.buy() && other.productId() != null
+                    && other.productId().equals(o.productId()) && Math.abs(other.price() - price) <= PRICE_EPS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** What one unit nets when sold the way the answers say. */
@@ -351,10 +383,20 @@ public final class FlipAutopilot {
             return null;
         }
         Set<String> busy = new HashSet<>(s.avoid() == null ? Set.of() : s.avoid());
+        // The session's buy orders per product: a product with some may still get more, up to offersFor (buy orders only).
+        Map<String, Integer> ourBuys = new HashMap<>();
+        Map<String, Long> ourUnfilled = new HashMap<>();
+        Map<String, Double> ourTopBid = new HashMap<>();
         double npcCommitted = 0;
         for (FlipOrder o : s.orders()) {
             if (o.ours()) {
-                busy.add(o.productId());
+                if (o.buy() && !ans.instaBuy() && o.productId() != null) {
+                    ourBuys.merge(o.productId(), 1, Integer::sum);
+                    ourUnfilled.merge(o.productId(), o.unfilled(), Long::sum);
+                    ourTopBid.merge(o.productId(), o.price(), Math::max);
+                } else {
+                    busy.add(o.productId());
+                }
                 if (o.buy() && ans.npc()) {
                     Double npc = s.lookups().npcPrice(o.productId());
                     npcCommitted += npc == null ? 0 : npc * o.amount();
@@ -394,9 +436,28 @@ public final class FlipAutopilot {
             }
         };
         double budget = ans.instaBuy() ? spendable / (1 + INSTANT_BUY_QUOTE_MARGIN) : spendable * lim.maxSpendFraction();
-        // Buy orders: a product is only worth an order if a meaningful part of it can fill in the hold window.
-        FlipPricing.Pick pick = FlipPricing.best(s.products(), ans, look, budget, id -> busy.contains(id)
-                || (!ans.instaBuy() && byId.get(id) != null && expectedBuyFillsPerDay(byId.get(id)) * lim.maxHoldDays() < 1));
+        // Buy orders: a product is only worth an order if a meaningful part of it can fill in the hold window, and one the
+        // session already bids on gets another order only while its orders are fewer than offersFor and leave part of
+        // the day's fills uncovered.
+        FlipPricing.Pick pick = FlipPricing.best(s.products(), ans, look, budget, id -> {
+            if (busy.contains(id)) {
+                return true;
+            }
+            BazaarProduct bp = byId.get(id);
+            if (ans.instaBuy() || bp == null) {
+                return false;
+            }
+            double fills = expectedBuyFillsPerDay(bp);
+            if (fills * lim.maxHoldDays() < 1) {
+                return true;
+            }
+            int have = ourBuys.getOrDefault(id, 0);
+            if (have == 0) {
+                return false;
+            }
+            long left = (long) Math.floor(fills * lim.maxHoldDays()) - ourUnfilled.getOrDefault(id, 0L);
+            return left < 1 || have >= offersFor(fills, lim.maxHoldDays(), unitsPerOrder(bp, budget, lim));
+        });
         if (pick == null) {
             return null;
         }
@@ -417,14 +478,40 @@ public final class FlipAutopilot {
             return new FlipAction.InstaBuy(pick.productId(), pick.name(), units, pick.buy(), String.format(Locale.US,
                     "best flip: +%.1f each (%.2f%%)", pick.profitEach(), pick.profitPercent()));
         }
-        long fillable = (long) Math.floor(expectedBuyFillsPerDay(p) * lim.maxHoldDays());
-        units = Math.min(units, fillable);
+        double fills = expectedBuyFillsPerDay(p);
+        long fillable = (long) Math.floor(fills * lim.maxHoldDays());
+        int have = ourBuys.getOrDefault(pick.productId(), 0);
+        // What the session's orders on it do not already cover of the day's fills.
+        units = Math.min(units, fillable - ourUnfilled.getOrDefault(pick.productId(), 0L));
+        double price = round1(pick.buy());
+        Double ourTop = ourTopBid.get(pick.productId());
+        if (ourTop != null && ourTop >= p.topBuyOrderPrice() - PRICE_EPS) {
+            price = round1(ourTop); // the best bid is already the session's: match it, never outbid its own order
+        }
+        // Two orders with the same product, price and amount would read as one in Manage Orders: keep the amounts apart.
+        for (FlipOrder o : s.orders()) {
+            if (o.ours() && o.buy() && units > 1 && o.productId() != null && o.productId().equals(pick.productId())
+                    && Math.abs(o.price() - price) <= PRICE_EPS && o.amount() == units) {
+                units--;
+            }
+        }
         if (units < 1) {
             return null;
         }
-        return new FlipAction.PlaceBuyOrder(pick.productId(), pick.name(), round1(pick.buy()), units,
-                String.format(Locale.US, "best flip: +%.1f each (%.2f%%), ~%,d fill a day", pick.profitEach(),
-                        pick.profitPercent(), (long) expectedBuyFillsPerDay(p)));
+        int offers = offersFor(fills, lim.maxHoldDays(), unitsPerOrder(p, budget, lim));
+        return new FlipAction.PlaceBuyOrder(pick.productId(), pick.name(), price, units,
+                String.format(Locale.US, "best flip: +%.1f each (%.2f%%), ~%,d fill a day, ~%,.0f expected today, offer %d of %d",
+                        pick.profitEach(), pick.profitPercent(), (long) fills, pick.expectedProfit(), have + 1,
+                        Math.max(offers, have + 1)));
+    }
+
+    /** Units one buy order on {@code p} may take: the purse share at the bid, and Hypixel's per-order cap. */
+    static long unitsPerOrder(BazaarProduct p, double budget, Limits lim) {
+        double bid = FlipPricing.buyPrice(p, false);
+        if (bid <= 0) {
+            return 0;
+        }
+        return Math.min(lim.maxOrderUnits(), (long) Math.floor(budget / bid));
     }
 
     private static boolean hasOrder(Situation s, String productId, boolean buy) {

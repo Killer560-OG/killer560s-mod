@@ -30,8 +30,9 @@ import java.util.Locale;
  * inventory room, a Buy Order only by the purse (as high as possible); both are capped by the purse, and NPC sales by the
  * daily NPC limit. <b>How much sells</b>: the Bazaar's weekly volume on the side you sell into, divided by seven, is what
  * sells in a day, so the expected profit counts only the units that can be sold within one day - a big stack of a product
- * nobody buys ranks low. The ranking is that expected profit (Total profit per inventory) or the profit percentage (Best
- * profit percentage).
+ * nobody buys ranks low. A Buy Order also counts only what FILLS in a day (the instant-sell volume at its share, see
+ * {@link FlipPricing}). The ranking is that expected profit (Total profit per inventory) or the profit percentage (Best
+ * profit percentage; for a Buy Order the day's profit over the coins it ties up).
  */
 public final class BazaarAdvisorFeature {
 
