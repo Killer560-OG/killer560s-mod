@@ -576,7 +576,10 @@ public final class BloodCampFeature {
         // comes sooner after the last than the held weapon's cooldown (util/AttackCooldown).
         int cooldown = com.killer560.hub.util.AttackCooldown.intervalTicks(client);
         lastCooldownTicks = cooldown;
-        boolean cooldownReady = now - lastClickTick >= cooldown;
+        // A click stamped on an earlier game clock (another world or server, where getGameTime started lower) reads as a
+        // negative gap for thousands of ticks, which held every click: -4404 of 7 in the 2026-10-19 log. A stamp ahead of
+        // the clock is stale, so the cooldown is ready.
+        boolean cooldownReady = now < lastClickTick || now - lastClickTick >= cooldown;
         boolean neverMiss = cfg.isNeverMiss();
         // ---- The kill timer (killer560, 2026-10-18: "Blood just attacked for triggerbot before the kill timer went
         // off"): no Blood Camp attack - Trigger Bot, Aura or a click between hits - before the Kill Popup's "KILL",
