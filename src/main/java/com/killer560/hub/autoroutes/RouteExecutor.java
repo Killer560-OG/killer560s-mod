@@ -798,6 +798,7 @@ public final class RouteExecutor {
         nodeCarry = Integer.MAX_VALUE;
         earlySkipClickAt = Long.MIN_VALUE / 2;
         refireHoldAt = null;
+        secretLeftThisRun = false;
         AwaitEvents.begin(client);
         landedFrom = null;
         arrivalChain = false;
@@ -886,7 +887,14 @@ public final class RouteExecutor {
         completions++;
         lastCompletedRoom = route.roomName();
         lastCompletedTick = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick();
-        RouteRunMemory.routeCompleted(route.roomName());
+        if (secretLeftThisRun) {
+            // An await was let go on a refused click (refusedClickLetGo): the room is NOT fully secreted, so Auto Secret
+            // and Autopilot must not count it so.
+            LOGGER.info("[AutoRoutes] run memory: {}'s route ran to the end with a secret left (a refused click) - not "
+                    + "counted as fully secreted", route.roomName());
+        } else {
+            RouteRunMemory.routeCompleted(route.roomName());
+        }
         LOGGER.info("[AutoRoutes] Route \"{}\" complete", route.roomName());
         stop(null); // logged above, never said (killer560, 2026-10-16: "remove the auto routes ... complete lines")
     }
@@ -2716,6 +2724,8 @@ public final class RouteExecutor {
 
     /** When an empty-hand use node began holding its click for the world border to lift (ms), or -1. */
     private static long useBorderHoldSinceMs = -1;
+    /** An await of this route run was let go on a refused click: its completion does not mark the room fully secreted. */
+    private static boolean secretLeftThisRun;
     /** Secret Aura's give-up count when the active await began (its give-ups since are this await's). */
     private static int awaitGaveUpBase;
     /** His own refused secret clicks (no Secret Aura retry coming) after which a waiting await lets go. */
@@ -2752,6 +2762,7 @@ public final class RouteExecutor {
                 leap);
         AutoRoutesFeature.chatBad("Node #" + index + ": a secret click never registered (" + what + "; " + leap
                 + ") - going on without it, " + have + "/" + Math.max(1, node.awaitAmount) + " secrets.");
+        secretLeftThisRun = true;
         return true;
     }
 

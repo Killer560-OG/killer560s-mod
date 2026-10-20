@@ -745,3 +745,10 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
 - **Chest rule** (killer560): `autoclear/ChestClearRule`, fed by `RouteRunMemory.gotSecret`. A mob room's chest grabbed under
   Auto Clear or Auto Secret counts it cleared 3 s on; not cleared on the map 30 s on, it is returned once (Auto Secret drops
   it from `clearsDone`). Testkit 1020-sim-chestclear.
+- **A Shadow Assassin's leap refuses block clicks CLIENT-side** (killer560, 2026-10-20: a route froze on a chest). Hypixel's
+  leap is a `ClientboundInitializeBorderPacket` that leaves him outside the client's border, and `useItemOn` returns FAIL
+  before sending anything for a block outside it (javap, both versions; QUOI `fixInteract` and RSM `WorldBorderFix` bypass
+  that check - this mod does not). Secret Aura booked each FAIL as an attempt and gave the chest up, so an await sat at 0
+  for ever. It now holds while `util/ShadowAssassinLeap.refuses` (clicks when the border lifts, 5 s ceiling), and an
+  await lets go uncounted once a click was refused and none is coming (that route run then does not mark the room fully
+  secreted). Sim: `roomsim/SimShadowAssassinLeap`; testkit 96-ar-1020-saleap / -letgo.
