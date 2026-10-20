@@ -76,7 +76,13 @@ public final class AutoSellConfig {
             // A file from before the tick setting has minDelayMs/maxDelayMs (150-350 ms); those are not carried over.
             cfg.setMinTicks(ConfigJson.getInt(obj, "minTicks", cfg.minTicks));
             cfg.setMaxTicks(ConfigJson.getInt(obj, "maxTicks", cfg.maxTicks));
-            cfg.screenTitlePattern = validPatternOrDefault(ConfigJson.getString(obj, "screenTitlePattern", cfg.screenTitlePattern));
+            // killer560, 2026-10-19: the old default "(?i).*sell.*" is saved in files from before "trade" was added, and it
+            // refused the /trades screen. A saved copy of the old default moves to the new one; any other pattern is kept.
+            String savedPattern = ConfigJson.getString(obj, "screenTitlePattern", cfg.screenTitlePattern);
+            if ("(?i).*sell.*".equals(savedPattern)) {
+                savedPattern = DEFAULT_SCREEN_TITLE_PATTERN;
+            }
+            cfg.screenTitlePattern = validPatternOrDefault(savedPattern);
             readIdentities(obj, "sellIdentities", cfg.sellIdentities);
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
             cfg.toggleKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "toggleKeyCode", cfg.toggleKeyCode));
