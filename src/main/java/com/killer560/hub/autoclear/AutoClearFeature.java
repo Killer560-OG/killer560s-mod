@@ -50,6 +50,10 @@ import java.util.function.Consumer;
  *   <li><b>An etherwarp chain</b> - the Interactive Map's planner and runner ({@link ClearExecutor#etherPath}) onto a
  *       block from which the weapon reaches the mob ({@link WeaponReach#standSpot}). Cost: the runner's fixed
  *       overhead (search, sneak, the 9-tick arrival settle - {@link #ETHER_FIXED_TICKS}) plus about two ticks a warp.</li>
+ *   <li><b>A Spirit Sceptre bat from where he stands</b> (since 2026-10-19) - no move at all, but the bat has to fly:
+ *       launch plus flight at {@link WeaponReach#BAT_BLOCKS_PER_TICK}. With the Hyperion as the weapon it is taken when a
+ *       sceptre is in the hotbar and it beats both of the above; with the sceptre as the weapon a far bat is weighed
+ *       against etherwarping onto the mob's block and firing down.</li>
  * </ul>
  * "sometimes etherwarping isn't worth it and instead it should just hype towards the mobs" - so a near mob with an open
  * line gets hops, a far or walled-off one an etherwarp chain.
@@ -1165,20 +1169,24 @@ public final class AutoClearFeature {
                     ? (WeaponReach.hyperionHits(feet, box) ? WeaponReach.hyperionInPlace(player, feet) : null)
                     : WeaponReach.sceptreAim(client.level, player, player.getEyePosition(), box);
             cachedHops = -2;   // computed only if a move is needed
+            cachedBat = null;
+            cachedBatTicks = -2;
+            cachedPreferEther = null;
         }
         if (cachedAttack != null) {
-            WeaponReach.Aim aim = weapon == AutoClearConfig.Weapon.HYPERION
-                    ? WeaponReach.hyperionInPlace(player, feet) : cachedAttack;
-            action = aim.what() + " -> " + targetName;
-            aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
-            return;
+            // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
+            // the plan's block and firing down. Never second-guessed once its use is held (no flip-flop mid-flight).
+            boolean held = useHeld && phase == Phase.ATTACK;
+            if (weapon != AutoClearConfig.Weapon.SPIRIT_SCEPTRE || held
+                    || !sceptreSlowerThanEther(client, player, target, box, cfg)) {
+                WeaponReach.Aim aim = weapon == AutoClearConfig.Weapon.HYPERION
+                        ? WeaponReach.hyperionInPlace(player, feet) : cachedAttack;
+                action = aim.what() + " -> " + targetName;
+                aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
+                return;
+            }
         }
-        // ---- a move is needed ----
-        releaseUse(client);
-        if (!player.onGround()) {
-            action = "landing";
-            return;
-        }
+        // ---- a move is needed (or, with the Hyperion, a Spirit Sceptre bat from here) ----
         boolean canHop = cfg.isHyperionHops() && hopsOffFor != targetId
                 && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
         if (cachedHops == -2) {
@@ -1188,6 +1196,19 @@ public final class AutoClearFeature {
         int warps = Math.max(1, (int) Math.ceil(dist / ClearExecutor.hopRange()));
         int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
+        if (weapon == AutoClearConfig.Weapon.HYPERION && hyperionBatWins(client, player, target, box, etherTicks,
+                canHop ? hypeTicks : Integer.MAX_VALUE)) {
+            action = "Guided Bat -> " + targetName + " (~" + cachedBatTicks + " ticks vs etherwarp ~"
+                    + (etherTicks + HYPERION_KILL_TICKS) + (canHop && cachedHops > 0 ? ", hops ~" + hypeTicks : "") + ")";
+            aimAndHold(client, player, AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId(),
+                    AutoClearConfig.Weapon.SPIRIT_SCEPTRE.label(), cachedBat, Phase.ATTACK);
+            return;
+        }
+        releaseUse(client);
+        if (!player.onGround()) {
+            action = "landing";
+            return;
+        }
         if (canHop && hypeTicks <= etherTicks) {
             WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
@@ -1239,6 +1260,90 @@ public final class AutoClearFeature {
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
         }
+    }
+
+    // ---- bat travel against etherwarping (killer560, 2026-10-19) ----
+
+    /** After an etherwarp chain with the Hyperion, the in-place Wither Impact still needs its turn tick before the use. */
+    static final int HYPERION_KILL_TICKS = 1;
+
+    /** The sceptre bat from where he stands for the current plan key: its aim, and its cost in ticks (-2 not worked
+     *  out yet, -1 none: no sceptre in the hotbar or no bat from here reaches). */
+    private static WeaponReach.Aim cachedBat = null;
+    private static int cachedBatTicks = -2;
+    /** Sceptre weapon: whether etherwarping onto the mob's block and firing down beats the bat from here (null: not
+     *  worked out for this plan key). */
+    private static Boolean cachedPreferEther = null;
+
+    /** The hotbar slot of a Spirit Sceptre (any star level), quietly: -1 when there is none. */
+    private static int sceptreSlot(LocalPlayer player) {
+        for (int slot = 0; slot <= 8; slot++) {
+            if (ItemIdentity.matches(player.getInventory().getItem(slot), AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId())) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Hyperion as the weapon, the mob out of the blast: whether a Spirit Sceptre bat from where he stands kills it
+     * sooner than the move would. The bat costs a swap tick when the sceptre is not in hand, its launch tick and its
+     * flight ({@link WeaponReach#batTicks}, {@link WeaponReach#BAT_BLOCKS_PER_TICK}); the etherwarp costs the chain
+     * ({@code etherTicks}) plus {@link #HYPERION_KILL_TICKS}; hops cost {@code hypeTicks} (a hop landing in reach kills).
+     * Strictly cheaper only, so a tie keeps the Hyperion. Worked out once per plan key.
+     */
+    private static boolean hyperionBatWins(Minecraft client, LocalPlayer player, Entity target, AABB box, int etherTicks,
+                                           int hypeTicks) {
+        if (cachedBatTicks == -2) {
+            int slot = sceptreSlot(player);
+            cachedBat = slot < 0 ? null : WeaponReach.sceptreAim(client.level, player, player.getEyePosition(), box);
+            cachedBatTicks = cachedBat == null ? -1
+                    : WeaponReach.batTicks(client.level, player, player.getEyePosition(), cachedBat)
+                    + (player.getInventory().getSelectedSlot() == slot ? 0 : 1);
+            if (cachedBat != null) {
+                boolean wins = cachedBatTicks < etherTicks + HYPERION_KILL_TICKS && cachedBatTicks < hypeTicks;
+                LOGGER.info("[AutoClear] cost for {} at {}: bat from here ~{} ticks ({} b/t), etherwarp ~{} ticks, hops {}"
+                                + " - {}", targetName, target.blockPosition().toShortString(), cachedBatTicks,
+                        WeaponReach.BAT_BLOCKS_PER_TICK, etherTicks + HYPERION_KILL_TICKS,
+                        hypeTicks == Integer.MAX_VALUE ? "none" : "~" + hypeTicks,
+                        wins ? "the Spirit Sceptre" : "the Hyperion");
+            }
+        }
+        return cachedBat != null && cachedBatTicks < etherTicks + HYPERION_KILL_TICKS && cachedBatTicks < hypeTicks;
+    }
+
+    /**
+     * Spirit Sceptre as the weapon, a bat from here reaching the mob: whether etherwarping onto the plan's block for it
+     * (else {@link WeaponReach#standSpot}) and firing down ({@link WeaponReach#batDownTicks}) is strictly faster than the
+     * bat's flight from here. Worked out once per plan key; only a bat longer than the cheapest possible one-warp trip
+     * is ever looked at, so a near mob never costs the block search.
+     */
+    private static boolean sceptreSlowerThanEther(Minecraft client, LocalPlayer player, Entity target, AABB box,
+                                                  AutoClearConfig cfg) {
+        if (cachedPreferEther != null) {
+            return cachedPreferEther;
+        }
+        cachedPreferEther = false;
+        Vec3 eye = player.getEyePosition();
+        int batTicks = WeaponReach.batTicks(client.level, player, eye, cachedAttack);
+        int down = WeaponReach.batDownTicks(player);
+        if (batTicks <= ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP + down) {
+            return false;
+        }
+        BlockPos planned = coverSpotFor(target);
+        BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        if (spot == null || BlockPos.containing(player.position()).below().equals(spot)) {
+            return false;
+        }
+        double d = player.position().distanceTo(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
+        int warps = Math.max(1, (int) Math.ceil(d / ClearExecutor.hopRange()));
+        int ether = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps + down;
+        cachedPreferEther = ether < batTicks;
+        LOGGER.info("[AutoClear] cost for {} at {}: bat from here ~{} ticks ({} b/t), etherwarp onto {} and fire down ~{}"
+                        + " ticks - {}", targetName, target.blockPosition().toShortString(), batTicks,
+                WeaponReach.BAT_BLOCKS_PER_TICK, spot.toShortString(), ether,
+                cachedPreferEther ? "etherwarp" : "the bat from here");
+        return cachedPreferEther;
     }
 
     private static void travelToRoom(Minecraft client, LocalPlayer player, DungeonLayout layout, int room) {

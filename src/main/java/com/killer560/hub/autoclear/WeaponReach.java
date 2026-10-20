@@ -151,6 +151,27 @@ public final class WeaponReach {
         return impact;
     }
 
+    /**
+     * Blocks a Guided Bat flies a tick, for Auto Clear's trip costs (killer560, 2026-10-19: a bat kill has a travel
+     * time). UNMEASURED on Hypixel - the wiki gives the bat no speed - so this is the sim's {@code SimSpiritSceptre.SPEED},
+     * set by killer560's feel on 2026-10-04 ("a hair slower" than 1.2). A Hypixel measurement replaces it.
+     */
+    public static final double BAT_BLOCKS_PER_TICK = 1.02;
+    /** Ticks from the decision to the bat leaving the hand: the body turns on one tick and the use goes out the next,
+     *  from a rotation a movement packet has reported (Auto Clear's aimAndHold). */
+    public static final int BAT_LAUNCH_TICKS = 1;
+
+    /** Ticks a bat fired from {@code eye} along {@code aim} takes to go off: launch, then its flight to the impact. */
+    public static int batTicks(Level level, Player player, Vec3 eye, Aim aim) {
+        Vec3 impact = batImpact(level, player, eye, TeleportUtils.getLook(aim.yaw(), aim.pitch()));
+        return BAT_LAUNCH_TICKS + (int) Math.ceil(eye.distanceTo(impact) / BAT_BLOCKS_PER_TICK);
+    }
+
+    /** Ticks a bat fired straight down at his own feet takes to go off (the sceptre's shot from a {@link #standSpot}). */
+    public static int batDownTicks(Player player) {
+        return BAT_LAUNCH_TICKS + (int) Math.ceil(player.getEyeHeight() / BAT_BLOCKS_PER_TICK);
+    }
+
     public static boolean sceptreHits(Vec3 impact, AABB mob) {
         double r = SCEPTRE_RADIUS - MARGIN;
         return mob.distanceToSqr(impact) <= r * r;
