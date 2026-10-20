@@ -2745,6 +2745,7 @@ public final class AutoClearFeature {
      * (its tag health then); a doomed mob's death is counted here, since the target had already moved on from it.
      */
     private static void mobDied(int id, Seen s) {
+        RoomClock.death(s.room());
         BatLog b = batLogs.remove(id);
         Flight f = doomed.remove(id);
         long now = ClearExecutor.clientTick();

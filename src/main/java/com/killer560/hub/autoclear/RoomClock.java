@@ -61,6 +61,7 @@ final class RoomClock {
             end("left for " + name);
         }
         room = name;
+        lastDeath = -1;
         startTick = ClearExecutor.clientTick();
         lastTick = startTick - 1;
         buckets.clear();
@@ -108,6 +109,16 @@ final class RoomClock {
         }
     }
 
+    /** The tick (from the clock's start) the last starred mob of this room was seen dying, -1 none yet. */
+    private static long lastDeath = -1;
+
+    /** A starred mob counted for {@code mobRoom} was seen dying (by anything: a bat, a splash, the doomed one). */
+    static void death(String mobRoom) {
+        if (room != null && room.equals(mobRoom)) {
+            lastDeath = ClearExecutor.clientTick() - startTick;
+        }
+    }
+
     /** A trip (an etherwarp chain or a walk) inside the clear started, priced at {@code priced} ticks (-1: not priced). */
     static void tripStarted(String what, int priced) {
         if (room == null) {
@@ -147,10 +158,13 @@ final class RoomClock {
         for (Map.Entry<String, Integer> e : buckets.entrySet()) {
             sb.append(", ").append(e.getKey()).append(' ').append(e.getValue());
         }
-        LOGGER.info(String.format(Locale.US, "[AutoClear] room time: %s %d ticks (%s): trips %d"
-                        + " (%d ticks, %d warp use(s)), weapon uses %d, kills %d%s", room, total, how, trips, tripTicks,
-                tripWarps, weaponUses, kills, sb));
+        // "last death": when the room's last starred mob was seen dying, from the clock's start - the rest is the wait for
+        // the map's clear (Hypixel's map, the sim's 10-tick room check).
+        LOGGER.info(String.format(Locale.US, "[AutoClear] room time: %s %d ticks (%s; last death %d): trips %d"
+                        + " (%d ticks, %d warp use(s)), weapon uses %d, kills %d%s", room, total, how, lastDeath, trips,
+                tripTicks, tripWarps, weaponUses, kills, sb));
         room = null;
+        lastDeath = -1;
         startTick = -1;
         tripStart = -1;
     }
