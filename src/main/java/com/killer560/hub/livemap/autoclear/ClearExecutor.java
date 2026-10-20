@@ -323,6 +323,18 @@ public final class ClearExecutor {
         etherPath(to, -1, complete);
     }
 
+    /**
+     * {@link #etherPath} (the planner's landing, near allowed) that ends on the confirmed last landing as
+     * {@link #etherPathArrive} does, with no ~9-tick arrival settle - for a caller that asks {@link #finishArrivalEarly}
+     * every tick. Auto Clear's trips onto a mob's block (2026-10-19): every one of them waited the settle out before the
+     * bat could go, 9 of the 14-16 ticks a one-to-three-warp trip took in that day's log.
+     */
+    public static void etherPathFast(BlockPos to, Runnable complete) {
+        goalExact = false;
+        goalFastArrival = true;
+        etherPath(to, -1, complete);
+    }
+
     /** Set by {@link #etherPathExact}, read by every {@link #plan} for that goal (replans too). */
     private static boolean goalExact = false;
     /** Set by {@link #etherPathArrive}: this goal ends on its confirmed landing, with no arrival settle. */

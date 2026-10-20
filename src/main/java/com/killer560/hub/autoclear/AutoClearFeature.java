@@ -49,7 +49,7 @@ import java.util.function.Consumer;
  *       held-use cycle per hop (vanilla repeats a held use every 4 ticks).</li>
  *   <li><b>An etherwarp chain</b> - the Interactive Map's planner and runner ({@link ClearExecutor#etherPath}) onto a
  *       block from which the weapon reaches the mob ({@link WeaponReach#standSpot}). Cost: the runner's fixed
- *       overhead (search, sneak, the 9-tick arrival settle - {@link #ETHER_FIXED_TICKS}) plus about two ticks a warp.</li>
+ *       overhead (search, sneak, the last landing's answer - {@link #ETHER_FIXED_TICKS}) plus about two ticks a warp.</li>
  *   <li><b>A Spirit Sceptre bat from where he stands</b> (since 2026-10-19) - no move at all, but the bat has to fly:
  *       launch plus flight at {@link WeaponReach#BAT_BLOCKS_PER_TICK}. With the Hyperion as the weapon it is taken when a
  *       sceptre is in the hotbar and it beats both of the above; with the sceptre as the weapon a far bat is weighed
@@ -78,10 +78,11 @@ public final class AutoClearFeature {
 
     /**
      * The Interactive Map runner's fixed cost of a trip, in ticks: the background search hands back a tick or two later,
-     * the first warp waits for the sneak to reach the server, and after the last landing {@code ClearExecutor.onTickEnd}
-     * waits for the server's answer and then 9 more ticks before it calls the trip done.
+     * the first warp waits for the sneak to reach the server, and the trip ends on the server's answer to the last
+     * landing ({@code ClearExecutor.etherPathFast}). It was 14 while every trip also waited the ~9-tick arrival settle;
+     * the 2026-10-19 log had one-to-three-warp trips at 14-16 ticks with it, so about 5 without.
      */
-    static final int ETHER_FIXED_TICKS = 14;
+    static final int ETHER_FIXED_TICKS = 5;
     /** Ticks per warp of a chain once it is going (ClearExecutor issues one hop a tick and waits on the server). */
     static final int ETHER_TICKS_PER_WARP = 2;
     /** A held use repeats every 4 ticks (vanilla {@code rightClickDelay}, javap 26.1.2 and 26.2 - LESSONS). */
@@ -441,6 +442,11 @@ public final class AutoClearFeature {
 
     private static void step(Minecraft client, LocalPlayer player) {
         if (phase == Phase.TRAVEL) {
+            // Auto Clear's own trips (etherPathFast) end on the tick the server confirms the last landing, not ~9 ticks
+            // later: Auto Routes asks this too, and whichever asks first ends it.
+            if (ClearExecutor.isBusy() && !ClearExecutor.finishArrivalEarly(client)) {
+                return;
+            }
             if (ClearExecutor.isBusy()) {
                 return;
             }
@@ -981,7 +987,7 @@ public final class AutoClearFeature {
         final BlockPos stand0 = goal;
         action = "etherwarp to the Wither Key";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPath(stand0, null);
+            ClearExecutor.etherPathFast(stand0, null);
             return true;
         });
         if (phase == Phase.TRAVEL) {
@@ -1196,7 +1202,7 @@ public final class AutoClearFeature {
         final double separation = bestD;
         action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPath(spot, null);
+            ClearExecutor.etherPathFast(spot, null);
             return true;
         });
         if (phase != Phase.TRAVEL) {
@@ -1263,7 +1269,7 @@ public final class AutoClearFeature {
             final BlockPos spot = stand;
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
             startTrip(client, player, () -> {
-                ClearExecutor.etherPath(spot, null);
+                ClearExecutor.etherPathFast(spot, null);
                 return true;
             });
             if (phase != Phase.TRAVEL) {
@@ -1448,7 +1454,7 @@ public final class AutoClearFeature {
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
-            ClearExecutor.etherPath(goal, null);
+            ClearExecutor.etherPathFast(goal, null);
             return true;
         });
         if (phase == Phase.TRAVEL) {
@@ -1685,8 +1691,11 @@ public final class AutoClearFeature {
             return;
         }
         positionPacketsSeen = packets;
-        if (ClearExecutor.isBusy()) {
-            return;   // the trip's own landings, or a correction it judges itself (above)
+        if (ClearExecutor.isBusy() || ClearExecutor.lastFastArrivalTick() == ClearExecutor.clientTick()) {
+            // The trip's own landings, or a correction it judges itself (above). A trip that ended on its confirmed
+            // landing THIS tick (finishArrivalEarly, asked by Auto Routes before this ran) is not busy any more, but the
+            // packet just counted is still that landing, not a correction.
+            return;
         }
         Vec3 at = player.position();
         Vec3 before = posBeforePacket;
