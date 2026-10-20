@@ -371,6 +371,7 @@ public final class AutoClearFeature {
 
     private static void stopQuietly() {
         Minecraft client = Minecraft.getInstance();
+        RoomClock.end("the run ended");
         running = false;
         bodyWanted = false;
         releaseUse(client);
@@ -441,6 +442,7 @@ public final class AutoClearFeature {
             releaseUse(client);
             abandonWalk(McCompat.screen(client) != null ? "a screen opened" : "Auto Routes started");
             action = McCompat.screen(client) != null ? "waiting (a screen is open)" : "waiting (Auto Routes is running)";
+            RoomClock.tick("waiting", false);
             if (com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
                 // The route's own warps are its business (it judges their landings itself), not corrections of ours.
                 positionPacketsSeen = positionPackets;
@@ -454,6 +456,7 @@ public final class AutoClearFeature {
             abandonWalk(com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working");
             action = "waiting (" + com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working)";
             positionPacketsSeen = positionPackets;
+            RoomClock.tick("waiting", false);
             return;
         }
         checkPositionPackets(client, player);
@@ -461,12 +464,73 @@ public final class AutoClearFeature {
             return;
         }
         noteBatSent(player);
+        tickKind = null;
         try {
             step(client, player);
         } catch (RuntimeException e) {
             LOGGER.warn("[AutoClear] tick failed", e);
             stop("internal error: " + e);
         }
+        if (running) {
+            clockTick();
+        }
+    }
+
+    // ---- where a room's ticks go (RoomClock) ----
+
+    /** What this tick did, when the phase alone does not say (a swap, a turn); null otherwise. Reset every tick. */
+    private static String tickKind = null;
+    /** The estimate (ticks) the trip or walk about to start was chosen on, -1 when it was not priced. */
+    private static int tripPrice = -1;
+
+    private static void clockTick() {
+        boolean moving = phase == Phase.TRAVEL || phase == Phase.WALK;
+        if (RoomClock.running()) {
+            if (moving && !RoomClock.tripOpen()) {
+                RoomClock.tripStarted(action, tripPrice);
+                tripPrice = -1;
+            } else if (!moving && phase != Phase.RELEASE && RoomClock.tripOpen()) {
+                RoomClock.tripEnded(ClearExecutor.lastPathFailed());
+            }
+        }
+        RoomClock.tick(clockBucket(), moving);
+    }
+
+    private static String clockBucket() {
+        switch (phase) {
+            case TRAVEL:
+                return roamTrip ? "roam trips" : keyTrip || quizTrip || doorTarget >= 0 ? "other trips" : "trips";
+            case WALK:
+                return roamTrip ? "roam walks" : "walks";
+            case HOP:
+                return "hops";
+            case RELEASE:
+                return "release";
+            case ATTACK:
+                if (useHeld) {
+                    return "firing";
+                }
+                break;
+            default:
+                break;
+        }
+        if (tickKind != null) {
+            return tickKind;
+        }
+        String a = action == null ? "" : action;
+        if (a.startsWith("waiting for the bat") || a.startsWith("bat in flight")) {
+            return "bat waits";
+        }
+        if (a.startsWith("looking for starred mobs")) {
+            return "looking";
+        }
+        if (a.startsWith("landing") || a.startsWith("waiting to land")) {
+            return "landing";
+        }
+        if (a.startsWith("roaming")) {
+            return "roam trips";
+        }
+        return "other";
     }
 
     private static void step(Minecraft client, LocalPlayer player) {
@@ -587,6 +651,7 @@ public final class AutoClearFeature {
         int room = AutoClearTargets.roomByName(layout, roomName);
         if (room >= 0 && AutoClearTargets.isCleared(layout, room)) {
             roomsCleared++;
+            RoomClock.end("cleared");
             LOGGER.info("[AutoClear] room cleared: {}{}", roomName, AutoClearTargets.isClearedOnMap(layout, room) ? ""
                     : " (its secret chest was grabbed - killer560's chest rule: " + ChestClearRule.describe() + ")");
             if (singleRoom != null) {
@@ -624,6 +689,7 @@ public final class AutoClearFeature {
             if (previous == null || !previous.isAlive()) {
                 mobsKilled++;
                 killsInRoom++;
+                RoomClock.kill();
                 LOGGER.info("[AutoClear] {} in {} is dead ({} starred kill(s) this run)", targetName, roomName, mobsKilled);
                 targetId = -1;
             }
@@ -632,6 +698,9 @@ public final class AutoClearFeature {
             return;
         }
         List<Entity> mobs = starredIn(client, layout, room);
+        if (!mobs.isEmpty() || layout.currentRoom() == room) {
+            RoomClock.start(roomName);
+        }
         if (mobs.isEmpty()) {
             targetId = -1;
             targetName = "";
@@ -2015,6 +2084,7 @@ public final class AutoClearFeature {
 
     private static void roomDoneWithoutMap() {
         roomsCleared++;
+        RoomClock.end("done without a map");
         LOGGER.info("[AutoClear] room done without a map: {} ({} starred kill(s), none left in sight)", roomName,
                 killsInRoom);
         if (singleRoom != null) {
@@ -2029,6 +2099,7 @@ public final class AutoClearFeature {
     private static void giveUpRoom(String why) {
         say(ModChat.bad("Giving up on "), ModChat.value(String.valueOf(roomName)), ModChat.dim(" - " + why));
         LOGGER.info("[AutoClear] gave up on {}: {}", roomName, why);
+        RoomClock.end("gave up: " + why);
         lastReason = roomName + ": " + why;
         lastReasonMs = System.currentTimeMillis();
         if (singleRoom != null) {
@@ -2407,6 +2478,7 @@ public final class AutoClearFeature {
             return;
         }
         final BlockPos goal = spot;
+        tripPrice = etherTicks;
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
@@ -2691,6 +2763,7 @@ public final class AutoClearFeature {
             mobsKilled++;
             if (s.room() != null && s.room().equals(roomName)) {
                 killsInRoom++;
+                RoomClock.kill();
             }
             LOGGER.info("[AutoClear] one-tap: {} died {} ticks after its bat (flight ~{}) ({} starred kill(s) this run)",
                     f.name(), now - f.sent(), f.flight(), mobsKilled);
@@ -2951,6 +3024,7 @@ public final class AutoClearFeature {
         }
         walkDecisionKey = null;   // taken: the next decision is a fresh one
         walkDecisionPlan = null;
+        tripPrice = plan.ticks();
         walkForMob = doneAt != null && !forDoor;
         walkForDoor = forDoor;
         walkWhat = what;
@@ -3176,6 +3250,7 @@ public final class AutoClearFeature {
         if (player.getInventory().getSelectedSlot() != slot) {
             releaseUse(client);
             select(client, player, slot);
+            tickKind = "swap";
             return false;
         }
         bodyWanted = true;
@@ -3185,6 +3260,7 @@ public final class AutoClearFeature {
             releaseUse(client);
             BODY.turn(player, yaw, pitch);
             phase = Phase.IDLE;
+            tickKind = "turning";
             return false;
         }
         phase = next;
