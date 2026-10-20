@@ -52,6 +52,8 @@ public abstract class LiveMapPacketListenerMixin {
             com.killer560.hub.autoroutes.RouteExecutor.onServerPositionPacket();
             // Auto Clear: tells its own hops' landings from a server correction (which it never stops on).
             com.killer560.hub.autoclear.AutoClearFeature.onServerPositionPacket();
+            // /test: a correction ends the bat measurement (said in chat as every correction is).
+            com.killer560.hub.autoclear.BatTest.onServerPositionPacket();
             // Insta-clear recorder: the next room entry came by teleport (etherwarp, AOTV, leap), not on foot.
             com.killer560.hub.autosecret.InstaClearTracker.onServerPositionPacket();
         } catch (RuntimeException e) {

@@ -43,6 +43,10 @@ public abstract class HeldUsePickMixin {
             // Auto Clear holds the use key with the body turned and the camera held, by the same rule.
             hit = com.killer560.hub.autoclear.AutoClearFeature.heldUsePick(self);
         }
+        if (hit == null) {
+            // /test's one held use per shot, by the same rule.
+            hit = com.killer560.hub.autoclear.BatTest.heldUsePick(self);
+        }
         if (hit != null) {
             self.hitResult = hit;
             self.crosshairPickEntity = null;

@@ -52,6 +52,8 @@ public abstract class RightClickSendMixin {
                     com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, useOn.getHand());
                 } else {
                     RightClick.onUse(mc.player, (ServerboundUseItemPacket) packet);
+                    // A Spirit Sceptre use: its bat is logged from here to its hit (autoclear/BatLog).
+                    com.killer560.hub.autoclear.BatLog.onUseSent(mc.player, (ServerboundUseItemPacket) packet);
                     com.killer560.hub.autoroutes.RouteExecutor.onItemUseSent(mc.player,
                             ((ServerboundUseItemPacket) packet).getHand());
                 }

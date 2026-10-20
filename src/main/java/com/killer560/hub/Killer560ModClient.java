@@ -275,6 +275,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoroutes.AutoRoutesKeybinds.register();
         com.killer560.hub.autoroutes.AutoRoutesEditInput.register();
         com.killer560.hub.autoclear.AutoClearFeature.register();
+        // Every Spirit Sceptre bat's life (log only, both builds) and /test, the bat measurement (cheat build).
+        com.killer560.hub.autoclear.BatLog.register();
+        com.killer560.hub.autoclear.BatTest.register();
         com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoclear.AutoClearConfig.getInstance().isEnabledRaw());
         com.killer560.hub.autosecret.AutoSecretFeature.register();
         com.killer560.hub.autotrap.AutoTrap.register();

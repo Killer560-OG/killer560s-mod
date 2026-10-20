@@ -1850,11 +1850,14 @@ public final class AutoClearFeature {
                 if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE) {
                     if (cachedAttackFlight < 0) {
                         cachedAttackFlight = WeaponReach.batTicks(client.level, player, player.getEyePosition(), aim);
+                        logBatDecision(target, box, aim, cachedAttackFlight, held ? "its use is already held"
+                                : "a bat from here reaches it and no etherwarp is faster");
                     }
                     holdingBatFlight = cachedAttackFlight;
                     if (waitForBatInFlight(client)) {
                         return;
                     }
+                    BatLog.expectTarget(targetId);
                 }
                 action = aim.what() + " -> " + targetName;
                 aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
@@ -1879,6 +1882,7 @@ public final class AutoClearFeature {
             }
             action = "Guided Bat -> " + targetName + " (~" + cachedBatTicks + " ticks vs etherwarp ~"
                     + (etherTicks + HYPERION_KILL_TICKS) + (canHop && cachedHops > 0 ? ", hops ~" + hypeTicks : "") + ")";
+            BatLog.expectTarget(targetId);
             aimAndHold(client, player, AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId(),
                     AutoClearConfig.Weapon.SPIRIT_SCEPTRE.label(), cachedBat, Phase.ATTACK);
             return;
@@ -1959,7 +1963,41 @@ public final class AutoClearFeature {
                     target.blockPosition().toShortString(), goal.toShortString(), etherTicks, cachedHops,
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
+            double toGoal = feet.distanceTo(new Vec3(goal.getX() + 0.5, goal.getY() + 1.0, goal.getZ() + 0.5));
+            int goalWarps = Math.max(1, (int) Math.ceil(toGoal / ClearExecutor.hopRange()));
+            String whyNoBat;
+            if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE) {
+                whyNoBat = cachedAttack == null ? "no bat from here reaches it (no aim within "
+                        + WeaponReach.SCEPTRE_PLAN_RANGE + " blocks whose 6-block blast covers it)"
+                        : "etherwarping onto " + goal.toShortString() + " and firing down is faster than the bat from here"
+                        + " (~" + WeaponReach.batTicks(client.level, player, player.getEyePosition(), cachedAttack)
+                        + " ticks)";
+            } else {
+                whyNoBat = cachedBat == null ? (sceptreSlot(player) < 0 ? "no Spirit Sceptre in the hotbar"
+                        : "no sceptre bat from here reaches it") : "the bat from here (~" + cachedBatTicks
+                        + " ticks) is not faster than the etherwarp (~" + (etherTicks + HYPERION_KILL_TICKS) + ")";
+            }
+            BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: etherwarp%s onto %s (%.1f blocks,"
+                            + " %d warp(s), ~%d ticks; weapon %s, %.1f blocks from it) - not a bat: %s", targetName, targetId,
+                    target.blockPosition().toShortString(), goalWarps == 1 ? " (a one-tap warp)" : "", goal.toShortString(),
+                    toGoal, goalWarps, ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * goalWarps, weapon,
+                    Math.sqrt(box.distanceToSqr(player.getEyePosition())), whyNoBat));
         }
+    }
+
+    /** One {@code [Bat] decision} line for a bat Auto Clear chose: the mob, the aim, the distance and the flight. */
+    private static void logBatDecision(Entity target, AABB box, WeaponReach.Aim aim, int flight, String why) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        Vec3 eye = player.getEyePosition();
+        TeleportUtils.Rotation direct = TeleportUtils.getDirection(eye, box.getCenter());
+        BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: bat from here (%s), look %.2f/%.2f,"
+                        + " off the mob by %+.1f/%+.1f deg, %.1f blocks, flight ~%d ticks at %.2f b/t - %s", targetName,
+                target.getId(), target.blockPosition().toShortString(), aim.what(), aim.yaw(), aim.pitch(),
+                Mth.wrapDegrees(aim.yaw() - direct.yaw()), aim.pitch() - direct.pitch(), eye.distanceTo(box.getCenter()),
+                flight, WeaponReach.BAT_BLOCKS_PER_TICK, why));
     }
 
     // ---- bats when mana runs low (2026-10-19 log: the bar read NOT ENOUGH MANA 19 times between 22:15:21 and 22:15:56,
@@ -2323,6 +2361,13 @@ public final class AutoClearFeature {
                         WeaponReach.BAT_BLOCKS_PER_TICK, etherTicks + HYPERION_KILL_TICKS,
                         hypeTicks == Integer.MAX_VALUE ? "none" : "~" + hypeTicks,
                         wins ? "the Spirit Sceptre" : "the Hyperion");
+                BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (Hyperion weapon): %s - bat"
+                                + " from here ~%d ticks (swap %d, launch %d, %.1f blocks at %.2f b/t) vs etherwarp ~%d, hops %s",
+                        targetName, target.getId(), target.blockPosition().toShortString(),
+                        wins ? "a sceptre bat" : "no bat", cachedBatTicks,
+                        player.getInventory().getSelectedSlot() == slot ? 0 : 1, WeaponReach.BAT_LAUNCH_TICKS,
+                        Math.sqrt(box.distanceToSqr(player.getEyePosition())), WeaponReach.BAT_BLOCKS_PER_TICK,
+                        etherTicks + HYPERION_KILL_TICKS, hypeTicks == Integer.MAX_VALUE ? "none" : "~" + hypeTicks));
             }
         }
         return cachedBat != null && cachedBatTicks < etherTicks + HYPERION_KILL_TICKS && cachedBatTicks < hypeTicks;
@@ -2359,6 +2404,12 @@ public final class AutoClearFeature {
                         + " ticks - {}", targetName, target.blockPosition().toShortString(), batTicks,
                 WeaponReach.BAT_BLOCKS_PER_TICK, spot.toShortString(), ether,
                 cachedPreferEther ? "etherwarp" : "the bat from here");
+        BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (sceptre weapon): %s - bat from here"
+                        + " ~%d ticks (%.1f blocks at %.2f b/t) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
+                        + " ~%d ticks (fixed %d + %d a warp + down %d)", targetName, target.getId(),
+                target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batTicks,
+                Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK, warps == 1 ? " (one-tap warp)" : "",
+                spot.toShortString(), d, warps, ether, ETHER_FIXED_TICKS, ETHER_TICKS_PER_WARP, down));
         return cachedPreferEther;
     }
 

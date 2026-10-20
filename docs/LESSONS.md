@@ -502,3 +502,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   have a blue roof stripe crossing a tile join, so the per-tile fallback (room not fully on the map yet) took a join for the
   corner and put routes and waypoints a tile off; the map never re-checks a found rotation (2026-10-19). `RoomDatabase.
   findRotationAndCorner` now needs air one block outward on both axes (all 133 real markers in `rooms/` have it).
+- **A client sees an entity's server position only in bursts, and `InterpolationHandler.position()` is not it between them.** It
+  returns the DRAWN position once the lerp steps run out (javap 26.1.2), and a vanilla bat flaps on the client in between, so
+  BatLog's first sim run summed those steps and read 0.53-0.84 b/t for a bat flying 1.02, and "curved" for straight shots
+  (2026-10-20). Keep the last target yourself, sample only new positions, and fit speed over them (`autoclear/BatLog`).
