@@ -1485,7 +1485,10 @@ public final class AutoClearFeature {
         final BlockPos stand0 = goal;
         action = "etherwarp to the Wither Key";
         startTrip(client, player, () -> {
-            tripTo(stand0);
+            // The trip ends on the first landing in range should the warps to the stand pass one (etherPathWithin).
+            ClearExecutor.etherPathWithin(stand0, keyPos, reach, true, null);
+            lastTripGoal = stand0.immutable();
+            sameGoalTrips = 1;
             return true;
         });
         if (phase == Phase.TRAVEL) {

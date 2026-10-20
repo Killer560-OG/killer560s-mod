@@ -296,6 +296,7 @@ public final class ClearExecutor {
     public static void etherPath(BlockPos to, Runnable complete) {
         goalExact = false;
         goalFastArrival = false;
+        trimGoal = null;
         etherPath(to, -1, complete);
     }
 
@@ -308,6 +309,7 @@ public final class ClearExecutor {
     public static void etherPathExact(BlockPos to, Runnable complete) {
         goalExact = true;
         goalFastArrival = false;
+        trimGoal = null;
         etherPath(to, -1, complete);
     }
 
@@ -320,6 +322,7 @@ public final class ClearExecutor {
     public static void etherPathArrive(BlockPos to, Runnable complete) {
         goalExact = true;
         goalFastArrival = true;
+        trimGoal = null;
         etherPath(to, -1, complete);
     }
 
@@ -332,7 +335,46 @@ public final class ClearExecutor {
     public static void etherPathFast(BlockPos to, Runnable complete) {
         goalExact = false;
         goalFastArrival = true;
+        trimGoal = null;
         etherPath(to, -1, complete);
+    }
+
+    /**
+     * {@link #etherPath} to {@code to} that ends at the first planned landing whose feet are within {@code reach} of
+     * {@code point}, should the plan pass one before it gets to {@code to}. A dropped key's trip (Auto Secret): its stand is
+     * the block in pickup range nearest to him in a straight line, and the warps there can come through the key's own spot
+     * first - 142-sim-autopilot2 (2026-10-20) took the key 0.05 from it on warp 10 of 11, and warp 11 was a warp for nothing.
+     * Replans and in-flight improvements to the same goal are cut the same way. {@code fast}: ends on the confirmed last
+     * landing, as {@link #etherPathFast} does (Auto Clear's key trip).
+     */
+    public static void etherPathWithin(BlockPos to, Vec3 point, double reach, boolean fast, Runnable complete) {
+        goalExact = false;
+        goalFastArrival = fast;
+        trimGoal = to.immutable();
+        trimPoint = point;
+        trimReach = reach;
+        etherPath(to, -1, complete);
+    }
+
+    /** {@link #etherPathWithin}'s goal, point and reach; the cut applies only while {@link #goalTo} is that goal. */
+    private static BlockPos trimGoal;
+    private static Vec3 trimPoint;
+    private static double trimReach;
+
+    /** {@code list} up to the first landing within {@link #trimReach} of {@link #trimPoint}, for that goal; else as is. */
+    private static List<ClearNode> trimmedForGoal(List<ClearNode> list) {
+        if (trimGoal == null || list == null || !trimGoal.equals(goalTo)) {
+            return list;
+        }
+        for (int j = 1; j < list.size(); j++) {
+            if (list.get(j).pos.distanceTo(trimPoint) <= trimReach) {
+                LOGGER.info("[Path] warp {} of {} lands {} from {} (within {}) - the trip ends there", j, list.size(),
+                        String.format(java.util.Locale.ROOT, "%.2f", list.get(j).pos.distanceTo(trimPoint)), fmt(trimPoint),
+                        String.format(java.util.Locale.ROOT, "%.2f", trimReach));
+                return new ArrayList<>(list.subList(0, j));
+            }
+        }
+        return list;
     }
 
     /** Set by {@link #etherPathExact}, read by every {@link #plan} for that goal (replans too). */
@@ -348,6 +390,7 @@ public final class ClearExecutor {
     public static void etherPathToTile(BlockPos to, int tileIdx, Runnable complete) {
         goalExact = false;
         goalFastArrival = false;
+        trimGoal = null;
         etherPath(to, tileIdx, complete);
     }
 
@@ -1112,7 +1155,7 @@ public final class ClearExecutor {
         for (EtherwarpPathfinder.Node n : better) {
             swapped.add(ClearNode.toEther(n));
         }
-        nodes = swapped;
+        nodes = trimmedForGoal(swapped);
         LOGGER.info("[Path] improved the rest of the trip in flight: from warp {}, {} warp(s) instead of {} (found in {}"
                 + " ms)", k + 1, better.size(), left, String.format(java.util.Locale.ROOT, "%.0f", ms));
     }
@@ -1125,7 +1168,7 @@ public final class ClearExecutor {
         if (syncDelay != 0) {
             finishSettleNow();
         }
-        nodes = new ArrayList<>(path);
+        nodes = new ArrayList<>(trimmedForGoal(path));
         position = null;
         pendingInteract = null;
         onComplete = complete;
@@ -1268,6 +1311,7 @@ public final class ClearExecutor {
     public static void cancel() {
         eatenHop = null;
         goalFastArrival = false;
+        trimGoal = null;
         if (awaiting != null) {
             awaiting = null;
             pathPending = false;

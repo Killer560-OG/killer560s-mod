@@ -1076,7 +1076,9 @@ public final class AutoRoutesFeature {
         }
         if (!frame.roomName().equals(lastRoom)) {
             RouteExecutor.clearBreakerLinger("room change");
-            if (lastRoom != null && RouteExecutor.isRunning()) {
+            // A trap route walking him out goes on past the map's edge: Auto Trap ends it once he is clear of the
+            // room by its margin (RouteExecutor.trapExitPending), where the server no longer has him in the trap.
+            if (lastRoom != null && RouteExecutor.isRunning() && !RouteExecutor.trapExitPending()) {
                 RouteExecutor.stop("left the room");
             }
             lastRoom = frame.roomName();
