@@ -72,6 +72,7 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
     private void useLast() {
         BazaarAdvisorConfig cfg = BazaarAdvisorConfig.getInstance();
         ModChat.send("Bazaar Advisor", ModChat.text("Using last answers: "), ModChat.value(cfg.summary()));
+        BazaarAdvisorConfig.markAnsweredThisBoot();
         onClose();
     }
 
@@ -91,6 +92,7 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
             return;
         }
         ModChat.send("Bazaar Advisor", ModChat.text("Setup saved: "), ModChat.value(cfg.summary()));
+        BazaarAdvisorConfig.markAnsweredThisBoot();
         if (!cfg.isEnabled()) {
             ModChat.send("Bazaar Advisor", ModChat.dim("The advisor is off - turn it on in Items > Bazaar Advisor."));
         }

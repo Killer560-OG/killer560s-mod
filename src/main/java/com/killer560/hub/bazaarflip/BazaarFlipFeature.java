@@ -331,6 +331,12 @@ public final class BazaarFlipFeature {
         if (client.player == null || client.level == null) {
             return "not in a world.";
         }
+        if (!com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.answeredThisBoot()) {
+            // Not answered since the game started: ask again rather than flip on answers from an earlier boot.
+            client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client,
+                    new com.killer560.hub.bazaaradvisor.BazaarAdvisorSetupScreen()));
+            return "answer the advisor's questions first - they are asked again each time the game starts.";
+        }
         Double purse = readPurse();
         if (purse == null) {
             return "couldn't read your purse off the scoreboard, and every size and failsafe here depends on"

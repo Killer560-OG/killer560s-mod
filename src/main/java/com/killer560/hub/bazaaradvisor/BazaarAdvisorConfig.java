@@ -77,6 +77,19 @@ public final class BazaarAdvisorConfig {
     private BazaarAdvisorConfig() {
     }
 
+    /** Whether the advisor's questions were answered (saved or "Use last") since the game started. The Bazaar Flipper asks
+     *  again every boot until they are (killer560, 2026-10-20: "if i havent set my bazaar flipping preferences on this boot
+     *  then it needs to ask me again"). Not saved: it is per boot by design. */
+    private static volatile boolean answeredThisBoot;
+
+    public static boolean answeredThisBoot() {
+        return answeredThisBoot;
+    }
+
+    public static void markAnsweredThisBoot() {
+        answeredThisBoot = true;
+    }
+
     public static BazaarAdvisorConfig getInstance() {
         if (instance == null) {
             load();
