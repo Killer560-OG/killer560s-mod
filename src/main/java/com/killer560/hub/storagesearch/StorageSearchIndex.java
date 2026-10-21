@@ -272,9 +272,10 @@ public final class StorageSearchIndex {
                 }
                 // Chests sort by real distance; everything else keeps its order behind them, since "how far away"
                 // is meaningless for a backpack.
+                BlockPos here = player.blockPosition();
                 list.sort(Comparator.comparingDouble(e -> {
                     BlockPos pos = e.chestPos();
-                    return pos == null ? Double.MAX_VALUE : player.blockPosition().distSqr(pos);
+                    return pos == null ? Double.MAX_VALUE : here.distSqr(pos);
                 }));
             }
         }
