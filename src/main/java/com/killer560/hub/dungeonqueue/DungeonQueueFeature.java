@@ -117,6 +117,7 @@ public final class DungeonQueueFeature {
             lastLevel = client.level;
             disableRequeue = false;
             requeuedThisRun = false;
+            pendingTicks = -1; // a requeue armed in the old world must not fire in the next one (e.g. left to the lobby within the delay)
         }
         if (pendingTicks < 0) {
             return;
