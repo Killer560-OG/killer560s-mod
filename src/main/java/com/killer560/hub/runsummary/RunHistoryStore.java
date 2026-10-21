@@ -284,16 +284,19 @@ public final class RunHistoryStore {
     }
 
     private static void saveAsync() {
-        JsonObject root = new JsonObject();
-        root.addProperty("version", FILE_VERSION);
-        JsonArray array = new JsonArray();
-        for (RunRecord r : RUNS) {
-            array.add(r.toJson());
-        }
-        root.add("runs", array);
-        String json = GSON.toJson((JsonElement) root);
+        // Callers hold the class lock. Only the list is copied here (records are immutable); building and printing
+        // up to 500 runs' JSON happens on the writer thread, not on the client tick that finished the run.
+        List<RunRecord> snapshot = List.copyOf(RUNS);
         WRITER.submit(() -> {
             try {
+                JsonObject root = new JsonObject();
+                root.addProperty("version", FILE_VERSION);
+                JsonArray array = new JsonArray();
+                for (RunRecord r : snapshot) {
+                    array.add(r.toJson());
+                }
+                root.add("runs", array);
+                String json = GSON.toJson((JsonElement) root);
                 Files.createDirectories(DIR);
                 Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
                 Files.writeString(tmp, json, StandardCharsets.UTF_8);

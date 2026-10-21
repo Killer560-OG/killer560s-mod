@@ -12,7 +12,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
@@ -68,6 +67,7 @@ public final class AutoI4Feature {
 
     private static final Pattern DEVICE_DONE = Pattern.compile("^(\\w{3,16}) completed a device! \\(\\d/\\d\\)");
     private static final AABB STAND_BOX = new AABB(56, 118, 40, 76, 140, 58);
+    private static final String NOT_HOLDING_BOW = "not holding a bow";
     private static final long RESHOOT_AFTER_MS = 1000L;
     private static final float ALREADY_AIMED_TOLERANCE_DEG = 1f;
     // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
@@ -181,10 +181,6 @@ public final class AutoI4Feature {
         return abilityHoldUntilMs > System.currentTimeMillis();
     }
 
-    static long abilityHoldRemainingMs() {
-        return Math.max(0L, abilityHoldUntilMs - System.currentTimeMillis());
-    }
-
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
         if (plain == null) {
@@ -218,11 +214,11 @@ public final class AutoI4Feature {
         }
         trackSelectedSlot(player, tickNow);
         String gate = gateReason(client, cfg, player);
-        if ((gate.isEmpty() || gate.startsWith("not holding a bow")) && maybeSwapToWeapon(cfg, player, tickNow)) {
+        if ((gate.isEmpty() || NOT_HOLDING_BOW.equals(gate)) && maybeSwapToWeapon(cfg, player, tickNow)) {
             gate = gateReason(client, cfg, player);
         }
         boolean running = gate.isEmpty();
-        boolean pauseOnly = !running && (gate.startsWith("not holding a bow") || gate.equals("a screen is open"));
+        boolean pauseOnly = !running && (NOT_HOLDING_BOW.equals(gate) || gate.equals("a screen is open"));
         if (!running && !pauseOnly) {
             if (wasRunning) {
                 // Left the device, leapt, disconnected, or turned it off - the next attempt starts clean.
@@ -295,7 +291,7 @@ public final class AutoI4Feature {
             return "not on device";
         }
         if (!player.getMainHandItem().is(Items.BOW)) {
-            return "not holding a bow (held " + I4SensorsFeature.itemDesc(player.getMainHandItem()) + ")";
+            return NOT_HOLDING_BOW; // a constant: the old "(held ...)" text rebuilt the held stack's name every tick
         }
         return "";
     }
@@ -660,15 +656,15 @@ public final class AutoI4Feature {
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
         Shot shot = currentShot;
-        boolean settled = false;
-        long elapsed = 0L;
-        if (shot != null) {
-            elapsed = now - shot.startedAtMs;
-            settled = !cfg.isAutoI4Rotate() || progress(shot, now) >= 1.0;
-        }
+        boolean settled = shot != null && (!cfg.isAutoI4Rotate() || progress(shot, now) >= 1.0);
         // Clicking only once the device has started, holding the bow, with no menu open.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
                 || now < nextClickAtMs) {
+            return;
+        }
+        if (shot == null && !cfg.isAutoI4Rotate()) {
+            // No Rotate sends nothing without a shot, so it must not use up a cadence slot on one: the slot made the first
+            // shot at the next light wait out up to a whole click interval.
             return;
         }
         if (shot != null && settled && !cfg.isAutoI4Rotate() && !fireNoRotate(client, player, shot)) {
@@ -682,8 +678,8 @@ public final class AutoI4Feature {
                 player.setXRot(shot.targetPitch);
                 // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
                 com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
-                InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-                onFired(client, shot, "Rotate", result, elapsed);
+                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                onFired(shot);
             }
             currentShot = null;
             if (!shotQueue.isEmpty()) {
@@ -713,12 +709,12 @@ public final class AutoI4Feature {
             return false;
         }
         com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
-        InteractionResult result = client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
-        onFired(client, shot, "No Rotate", result, 0L);
+        client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        onFired(shot);
         return true;
     }
 
-    private static void onFired(Minecraft client, Shot shot, String mode, InteractionResult result, long aimMs) {
+    private static void onFired(Shot shot) {
         if (shot.target.equals(activeTarget) || (activeTarget != null && covers(shot.aimPoint, activeTarget))) {
             lastShotAtActiveMs = System.currentTimeMillis();
         }

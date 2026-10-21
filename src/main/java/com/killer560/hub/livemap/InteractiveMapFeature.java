@@ -529,7 +529,7 @@ public final class InteractiveMapFeature {
             }
             List<String> inside = new ArrayList<>();
             for (MapPlayer p : players) {
-                int[] cell = LiveMapFeature.gridCellFor(new net.minecraft.world.phys.Vec3(p.worldX(), 70, p.worldZ()));
+                int[] cell = LiveMapFeature.gridCellFor(new net.minecraft.world.phys.Vec3(p.worldX(), 0.0, p.worldZ()));
                 if (cells.contains(cell[0] + cell[1] * LiveMapFeature.GRID)) {
                     inside.add(p.name());
                 }

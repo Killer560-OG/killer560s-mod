@@ -60,6 +60,7 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
     private int statusY;
     private int scrollRow;
     private List<String> names = List.of();
+    private String folderLabel = "";
     /** What is typed in the name box - kept across rebuilds (a failed create must not wipe it). */
     private String newName = "";
     /** The last outcome, drawn under the list: red for a refusal, green for a switch / create / delete. */
@@ -73,6 +74,8 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
     @Override
     protected void init() {
         names = BreakerAuraStore.listConfigNames();
+        // Once per rebuild: directory() creates the folder (file I/O), and the label is drawn every frame.
+        folderLabel = BreakerAuraStore.directory().getFileName().toString() + "/";
         int maxScroll = Math.max(0, names.size() - MAX_VISIBLE);
         scrollRow = Math.max(0, Math.min(maxScroll, scrollRow));
         int visible = Math.min(MAX_VISIBLE, names.size());
@@ -153,7 +156,7 @@ public class BreakerAuraConfigScreen extends Screen implements MenuThemedScreen 
         ScreenChrome.titleCentred(graphics, this.title.getString(), panelX + panelW / 2, panelY + 6, true);
         String where = names.size() > MAX_VISIBLE
                 ? String.format(Locale.US, "%d files - scroll", names.size())
-                : BreakerAuraStore.directory().getFileName().toString() + "/";
+                : folderLabel;
         ScreenChrome.centered(graphics, where, panelX + panelW / 2, panelY + 17, MenuStyle.DIM);
         if (!status.isEmpty()) {
             ScreenChrome.text(graphics, status, panelX + PAD, statusY + 2, MenuStyle.TXT);

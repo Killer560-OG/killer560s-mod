@@ -4848,18 +4848,6 @@ public final class AutoClearFeature {
         return out;
     }
 
-    public static int roomsClearedThisRun() {
-        return roomsCleared;
-    }
-
-    public static int correctionsThisRun() {
-        return corrections;
-    }
-
-    public static Set<String> skippedRoomsThisRun() {
-        return Set.copyOf(skippedRooms);
-    }
-
     // ---- read by the shared status HUD (autosecret.AutoStatusHud, killer560 2026-10-15: "make it the same hud for all
     // the auto clears") - Auto Clear has no HUD of its own any more ----
 

@@ -104,6 +104,11 @@ public final class SpiritBearTracker {
     }
 
     public static void reset(String reason) {
+        // Every state below changes only inside tick(), which counts a tick first; ThornFeature calls this each tick
+        // while the counter is off in the boss room, and a fresh ring array per tick was pure garbage.
+        if (tickCount == 0 && activeRing == null) {
+            return;
+        }
         ringState = new Boolean[M4_RING.length];
         activeRing = null;
         kills = 0;
@@ -291,7 +296,7 @@ public final class SpiritBearTracker {
 
     /** NoammAddons F4Features: a Player entity whose name starts with "spirit bear" (case-insensitive). */
     static boolean isSpiritBear(Entity entity) {
-        return entity instanceof Player p && p.getName().getString().toLowerCase(Locale.ROOT).startsWith("spirit bear");
+        return entity instanceof Player p && p.getName().getString().regionMatches(true, 0, "spirit bear", 0, 11);
     }
 
     /** Anything in the arena that can die and isn't a player (bear / teammates), a name-tag stand, or Thorn (a Ghast). */

@@ -51,9 +51,9 @@ public final class RngMeterOverlay {
     // §7/ 1M" line, since there "XP" trails the fraction rather than immediately preceding it with
     // a colon.
     // The CURRENT side may be abbreviated too ("Experimental XP: 1.2M/5M"): it used to accept digits and commas only.
-    private static final Pattern DUNGEON_SCORE_LINE = Pattern.compile("(?:XP|Score):\\s*[\\d,]+(?:\\.\\d+)?[kKmMbB]?\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)");
+    private static final Pattern DUNGEON_SCORE_LINE = Pattern.compile("(?:XP|Score):\\s*\\d[\\d,]*(?:\\.\\d+)?[kKmMbB]?\\s*/\\s*(\\d[\\d,]*(?:\\.\\d+)?[kKmM]?)");
     private static final Pattern PROGRESS_LABEL_LINE = Pattern.compile("^Progress:");
-    private static final Pattern BARE_FRACTION_LINE = Pattern.compile("^([\\d,]+)\\s*/\\s*([\\d,]+(?:\\.\\d+)?[kKmM]?)$");
+    private static final Pattern BARE_FRACTION_LINE = Pattern.compile("^(\\d[\\d,]*)\\s*/\\s*(\\d[\\d,]*(?:\\.\\d+)?[kKmM]?)$");
     /** How often an open RNG Meter page is scanned again after its first commit (see {@link #rescanCommitted}). */
     private static final long RESCAN_MS = 250L;
     private static long lastRescanAtMs = 0L;
@@ -137,12 +137,12 @@ public final class RngMeterOverlay {
              *  the preview shows the same number of sample rows the real one shows at most. */
             @Override
             public int width() {
-                return rankingSize(PREVIEW_ROWS, PREVIEW_SELECTED)[0];
+                return previewSize()[0];
             }
 
             @Override
             public int height() {
-                return rankingSize(PREVIEW_ROWS, PREVIEW_SELECTED)[1];
+                return previewSize()[1];
             }
 
             @Override
@@ -202,10 +202,11 @@ public final class RngMeterOverlay {
 
     public static void onContainerScreenRender(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics) {
         try {
-            if (!RngMeterConfig.getInstance().isEnabled()) {
+            // The title test is a memoised flag read; the gate is not, and every container screen asks every frame.
+            if (!isRngTitle(screen.getTitle())) {
                 return;
             }
-            if (!isRngTitle(screen.getTitle())) {
+            if (!RngMeterConfig.getInstance().isEnabled()) {
                 return;
             }
             String title = memoTitleText;
@@ -238,7 +239,18 @@ public final class RngMeterOverlay {
             renderRanking(graphics, 0, 0, title, shown, committedSelected);
             graphics.pose().popMatrix();
         } catch (Exception e) {
-            LOGGER.error("Failed to render RNG Meter overlay", e);
+            logThrottled("Failed to render RNG Meter overlay", e);
+        }
+    }
+
+    private static long lastErrorLogMs = 0L;
+
+    /** Logs a failure at most every 5 s: a draw or tooltip that throws throws every frame, which flooded the log. */
+    public static void logThrottled(String what, Exception e) {
+        long now = System.currentTimeMillis();
+        if (now - lastErrorLogMs >= 5_000L) {
+            lastErrorLogMs = now;
+            LOGGER.error(what, e);
         }
     }
 
@@ -694,6 +706,20 @@ public final class RngMeterOverlay {
         for (RankLine line : rankingLines(rows, selected)) {
             graphics.text(font, line.text(), x, y + line.dy(), line.color());
         }
+    }
+
+    /** The sample panel's size per price-line state (none / fetching / no data): the rows and selected drop never change. */
+    private static final int[][] PREVIEW_SIZE = new int[3][];
+
+    private static int[] previewSize() {
+        HypixelMarketPrices prices = RngMeterEngine.PRICES;
+        int state = prices.isRefreshing() ? 1 : prices.getLastRefreshedAtMs() == 0 ? 2 : 0;
+        int[] size = PREVIEW_SIZE[state];
+        if (size == null) {
+            size = rankingSize(PREVIEW_ROWS, PREVIEW_SELECTED);
+            PREVIEW_SIZE[state] = size;
+        }
+        return size;
     }
 
     /** {width, height} of the ranking panel for these rows - what renderRanking draws, measured. */

@@ -192,7 +192,7 @@ public final class P3NavFeature {
             if (terminal ? !wantTerminals : (!device || !wantDevices)) {
                 continue;
             }
-            int standSection = terminal ? terminalSection(stand) : deviceSection(stand.position());
+            int standSection = sectionOf(stand, terminal);
             if (standSection == 0 || (onlyCurrent && standSection != section)) {
                 continue;
             }
@@ -228,6 +228,29 @@ public final class P3NavFeature {
                 : NOT_ACTIVATED.equals(name) ? KIND_DEVICE : KIND_NONE;
         STAND_KINDS.put(custom, kind);
         return kind;
+    }
+
+    // Which section a stand belongs to, per stand (fps pass 2026-10-21): terminalSection scanned up to 17 table positions
+    // and deviceSection built a String key for its log set, for every stand, every frame. The answer depends only on where
+    // the stand is, so it is kept with the position it was worked out at and redone only if the stand has moved.
+    // Render thread only; emptied on a new level or past 1024 entries.
+    private static final java.util.Map<ArmorStand, double[]> SECTION_CACHE = new java.util.IdentityHashMap<>();
+    private static Object sectionCacheLevel;
+
+    private static int sectionOf(ArmorStand stand, boolean terminal) {
+        Object level = stand.level();
+        if (level != sectionCacheLevel || SECTION_CACHE.size() > 1024) {
+            SECTION_CACHE.clear();
+            sectionCacheLevel = level;
+        }
+        Vec3 pos = stand.position();
+        double[] known = SECTION_CACHE.get(stand);
+        if (known != null && known[0] == pos.x && known[1] == pos.y && known[2] == pos.z && (known[4] != 0.0) == terminal) {
+            return (int) known[3];
+        }
+        int section = terminal ? terminalSection(stand) : deviceSection(pos);
+        SECTION_CACHE.put(stand, new double[]{pos.x, pos.y, pos.z, section, terminal ? 1.0 : 0.0});
+        return section;
     }
 
     /** TerminalESP.kt lines 52-57: a stand within 1.5 (squared) of a listed position belongs to that section. */

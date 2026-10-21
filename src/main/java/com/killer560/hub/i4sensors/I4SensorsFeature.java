@@ -3,7 +3,6 @@ package com.killer560.hub.i4sensors;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -35,8 +34,8 @@ import java.util.Locale;
  * class only diffed the standing platform (QUOI's pre4Box) and never watched the target wall at all.
  * <p>
  * Nothing here clicks, rotates, or changes anything. It is always on (no toggle) whenever the player is near
- * the device on hypixel.net or p3sim.net. {@link #ticksSinceStormDeath()} counts client ticks since Storm's
- * death line, so it lines up directly with Noamm's server-tick timings.
+ * the device on hypixel.net or p3sim.net. The i4 timeline counts client ticks since Storm's death line, so it lines
+ * up directly with Noamm's server-tick timings.
  */
 public final class I4SensorsFeature {
 
@@ -133,12 +132,6 @@ public final class I4SensorsFeature {
         return near;
     }
 
-    /** Client ticks since Storm's death line this world, or -1 if it hasn't been seen. Stands in for Noamm's
-     *  server-tick counter (this mod has no server-tick source) - equal to it without lag. */
-    static int ticksSinceStormDeath() {
-        return stormDeathClientTick < 0 ? -1 : clientTick - stormDeathClientTick;
-    }
-
     /**
      * Whether Auto i4 may prefire before the device's first target lights (killer560, 2026-10-06: "prefiring dev is
      * something that it needs to do as well a little bit before it starts"). P3 - and the device - starts at Goldor's
@@ -179,31 +172,36 @@ public final class I4SensorsFeature {
         return tag.contains("id") ? tag.getStringOr("id", "") : "";
     }
 
-    static boolean isOnDungeonServer(Minecraft client) {
-        if (client.getCurrentServer() == null) {
-            return false;
+    // The server address checks run every tick (and on every chat line); lower-casing the address each time allocated
+    // a string for nothing, so the answers are kept for as long as the connection's address string is the same object.
+    private static String cachedIp = null;
+    private static boolean cachedHypixelOrSim = false;
+    private static boolean cachedP3sim = false;
+
+    private static void refreshServer(Minecraft client) {
+        net.minecraft.client.multiplayer.ServerData server = client.getCurrentServer();
+        String raw = server == null ? null : server.ip;
+        if (raw == cachedIp) {
+            return;
         }
-        String ip = client.getCurrentServer().ip.toLowerCase(Locale.ROOT);
-        return ip.contains("hypixel.net") || ip.contains("p3sim.net");
+        cachedIp = raw;
+        String ip = raw == null ? "" : raw.toLowerCase(Locale.ROOT);
+        cachedP3sim = ip.contains("p3sim.net");
+        cachedHypixelOrSim = ip.contains("hypixel.net") || cachedP3sim;
+    }
+
+    static boolean isOnDungeonServer(Minecraft client) {
+        refreshServer(client);
+        return cachedHypixelOrSim;
+    }
+
+    static boolean isOnP3Sim(Minecraft client) {
+        refreshServer(client);
+        return cachedP3sim;
     }
 
     static String blockId(BlockState state) {
         return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
-    }
-
-    static String itemDesc(ItemStack stack) {
-        if (stack.isEmpty()) {
-            return "empty";
-        }
-        String skyblockId = null;
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data != null) {
-            CompoundTag tag = data.copyTag();
-            skyblockId = tag.contains("id") ? tag.getStringOr("id", null) : null;
-        }
-        return BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath()
-                + (skyblockId != null ? " sb=" + skyblockId : "")
-                + " \"" + ChatFormatting.stripFormatting(stack.getHoverName().getString()) + "\"";
     }
 
     static String fmt(Vec3 v) {

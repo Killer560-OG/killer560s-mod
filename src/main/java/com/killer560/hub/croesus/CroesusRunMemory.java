@@ -383,6 +383,7 @@ final class CroesusRunMemory {
     }
 
     static synchronized void load() {
+        flushWrites();
         loaded = true;
         RUNS.clear();
         PAGES.clear();
@@ -491,10 +492,35 @@ final class CroesusRunMemory {
                 pages.add(o);
             }
             obj.add("pages", pages);
-            Files.createDirectories(PATH.getParent());
-            Files.writeString(PATH, new GsonBuilder().setPrettyPrinting().create().toJson(obj), StandardCharsets.UTF_8);
+            String json = new GsonBuilder().setPrettyPrinting().create().toJson(obj);
+            // The write itself goes to a writer thread: a save is triggered from the render path (a page read, a claim seen),
+            // and a disk write there is a frame hitch. One thread keeps the writes in order; load() waits for it.
+            WRITER.submit(() -> {
+                try {
+                    Files.createDirectories(PATH.getParent());
+                    Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
+                    Files.writeString(tmp, json, StandardCharsets.UTF_8);
+                    Files.move(tmp, PATH, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception e) {
+                    LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
+                }
+            });
         } catch (Exception e) {
             LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
+        }
+    }
+
+    private static final java.util.concurrent.ExecutorService WRITER = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-croesus-runs-writer");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /** Returns once every write queued so far is on disk (a restart's read must see the last save). */
+    private static void flushWrites() {
+        try {
+            WRITER.submit(() -> { }).get(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception ignored) {
         }
     }
 

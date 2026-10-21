@@ -27,10 +27,6 @@ public enum AimSituation {
         this.label = label;
     }
 
-    public boolean isDragon() {
-        return ordinal() >= P5_RED.ordinal();
-    }
-
     /** @return whether this situation is "live" for the given tracker phase (ANY is always live). */
     public boolean activeIn(Floor7Tracker.Phase phase) {
         return switch (this) {

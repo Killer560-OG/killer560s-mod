@@ -62,6 +62,8 @@ public final class RunStatsTracker {
 
     private static volatile List<PlayerRunStats> lastRun = List.of();
     private static boolean snapshotTaken = false;
+    /** Bumped by every {@link #resetRun}; a secrets lookup that finishes after a reset belongs to the old run. */
+    private static volatile int runGeneration = 0;
 
     private RunStatsTracker() {
     }
@@ -77,6 +79,7 @@ public final class RunStatsTracker {
         SECRETS_BEFORE.clear();
         SECRETS_AFTER.clear();
         snapshotTaken = false;
+        runGeneration++;
         RunStatsBridge.reset();
     }
 
@@ -227,12 +230,13 @@ public final class RunStatsTracker {
 
     private static void fetchSecrets(String name, Map<String, Long> into) {
         String key = key(name);
+        int generation = runGeneration;
         ProfileViewerApi.resolve(name)
                 .thenCompose(player -> ProfileViewerApi.fetchAux(ProfileViewerApi.AuxKind.PLAYER,
                         player.uuid().toString(), true))
                 .thenAccept(aux -> {
                     Long secrets = treasureHunter(aux.data());
-                    if (secrets != null) {
+                    if (secrets != null && generation == runGeneration) {
                         into.put(key, secrets);
                     }
                 })

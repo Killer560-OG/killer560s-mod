@@ -42,8 +42,9 @@ public final class TerminalTriggerbotFeature {
     private static final Set<Integer> clicked = new HashSet<>();
 
     private static int pendingEntityId = -1;
-    private static long triggerAtMs = 0L;
-    private static long lastClickMs = 0L;
+    /** The client tick ({@link ActionGate#currentTick}) the pending click is due on; delays are whole ticks. */
+    private static long triggerAtTick = 0L;
+    private static long lastClickTick = Long.MIN_VALUE / 4;
     private static Object lastLevel = null;
 
     private TerminalTriggerbotFeature() {
@@ -80,25 +81,25 @@ public final class TerminalTriggerbotFeature {
             pendingEntityId = -1;
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastClickMs < cfg.getCooldownMs()) {
+        long now = ActionGate.currentTick();
+        if (now - lastClickTick < ActionGate.delayTicks(cfg.getCooldownMs())) {
             return;
         }
 
         TerminalStands.Hit hit = TerminalStands.raycast(client.level, player, cfg.getRange(),
-                client.getDeltaTracker().getGameTimeDeltaPartialTick(true));
+                1.0f);
         if (hit == null || clicked.contains(hit.stand().getId())) {
             pendingEntityId = -1;
             return;
         }
         int id = hit.stand().getId();
         if (pendingEntityId != id) {
-            // Crosshair just landed on this one: start its delay.
+            // Crosshair just landed on this one: start its delay (0 ms clicks on this same tick). The test uses
+            // the camera as it is now (1.0), the rotation the tick's movement packet will report.
             pendingEntityId = id;
-            triggerAtMs = now + cfg.getDelayMs();
-            return;
+            triggerAtTick = now + ActionGate.delayTicks(cfg.getDelayMs());
         }
-        if (now < triggerAtMs) {
+        if (now < triggerAtTick) {
             return;
         }
         // Mod-wide one-interaction-per-tick gate, checked after the delay has elapsed but before anything is
@@ -111,7 +112,7 @@ public final class TerminalTriggerbotFeature {
                 InteractionHand.MAIN_HAND);
         player.swing(InteractionHand.MAIN_HAND);
         clicked.add(id);
-        lastClickMs = now;
+        lastClickTick = now;
         pendingEntityId = -1;
     }
 }

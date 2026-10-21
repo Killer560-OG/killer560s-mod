@@ -78,9 +78,9 @@ public final class Ap3Renderer {
                 }
             }
             if (cfg.isShowLabels() && playerPos.distanceTo(real) <= LABEL_DISTANCE) {
-                // 1-based through the chain's own helper, same as /ap3 list, /ap3 delete and the tab - the number
-                // on the label has to be the number you can type (AutoRoutesRenderer does the same).
-                String text = label(cfg, chain.numberOf(node), node);
+                // 1-based, the same number as Ap3Chain#numberOf (nodes are compared by identity, so it IS index + 1)
+                // without its linear search for every node on every frame; same as /ap3 list, /ap3 delete and the tab.
+                String text = label(cfg, i + 1, node);
                 if (!text.isEmpty()) {
                     int stack = stackIndex(nodes, i);
                     double lift = stack * STACK_STEP * Math.max(0.5f, cfg.getLabelScale());
@@ -91,8 +91,8 @@ public final class Ap3Renderer {
         }
         if (cfg.isShowPlannedPath()) {
             // The route the optimiser actually plans to run, tick by tick - not the straight chain line.
-            List<Vec3> path = Ap3RouteRunner.plannedPath(playerPos.y + 0.1);
-            if (path.size() >= 2) {
+            Vec3[] path = Ap3RouteRunner.plannedPath(playerPos.y + 0.1); // cached per plan, never changed after
+            if (path.length >= 2) {
                 WorldRenderUtils.renderLineStrip(ctx, path, 1.0f, 0.70f, 0.28f, 0.9f, Math.max(1f, thickness));
             }
         }

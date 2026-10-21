@@ -49,21 +49,12 @@ public final class RoomStatus {
             String type = g.entry != null && g.entry.type != null ? g.entry.type.toUpperCase(java.util.Locale.ROOT) : "";
             int secrets = g.entry != null ? g.entry.secrets : 0;
             int state = MapPainter.visibleState(g);
-            int found = 0;
-            if (g.entry != null && secrets > 0) {
-                String label = MapPainter.secretsText(g);
-                int slash = label.indexOf('/');
-                if (slash > 0) {
-                    try {
-                        found = Integer.parseInt(label.substring(0, slash));
-                    } catch (NumberFormatException ignored) {
-                        found = 0;
-                    }
-                }
-            }
+            int found = g.entry != null && secrets > 0 ? MapPainter.foundSecretsCount(g) : 0;
+            // The arrays are the group's own, shared: no caller writes to them (they only iterate), and a new group is
+            // built whenever the layout changes, so copying them on every call bought nothing.
             out.add(new Room(gid, name, type, secrets, Math.max(0, secrets - found),
                     state == DungeonMapScanner.STATE_GREEN || state == DungeonMapScanner.STATE_CLEARED,
-                    state == DungeonMapScanner.STATE_FAILED, g.mainIdx, g.tiles.clone(), g.cells.clone()));
+                    state == DungeonMapScanner.STATE_FAILED, g.mainIdx, g.tiles, g.cells));
         }
         return out;
     }

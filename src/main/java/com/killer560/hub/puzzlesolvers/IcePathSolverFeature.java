@@ -38,6 +38,9 @@ public final class IcePathSolverFeature {
     private static final boolean[][] board = new boolean[BOARD_SIZE][BOARD_SIZE];
     private static int[] silverfishCell = null;
     private static List<Vec3> path = new ArrayList<>();
+    /** Render cache: the line (path shifted to block tops) for the {@code path} list it was built from. */
+    private static List<Vec3> linePath = null;
+    private static List<Vec3> line = new ArrayList<>();
     private static Silverfish silverfish = null;
     private static Vec3 lastPos = Vec3.ZERO;
     private static int stillTicks = 0;
@@ -270,16 +273,8 @@ public final class IcePathSolverFeature {
             }
         }
         // QUOI keeps the previous path when no solution exists.
-        int walls = 0;
-        for (boolean[] row : board) {
-            for (boolean cellIsWall : row) {
-                if (cellIsWall) {
-                    walls++;
-                }
-            }
-        }
         sayOnce("no route from row " + start[0] + " col " + start[1] + " to the exit - the board read "
-                + walls + " wall(s) at relative y 67. A board that reads 0 or 289 is not being read at all.");
+                + countWalls() + " wall(s) at relative y 67. A board that reads 0 or 289 is not being read at all.");
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -290,9 +285,13 @@ public final class IcePathSolverFeature {
         if (points.isEmpty()) {
             return;
         }
-        List<Vec3> line = new ArrayList<>(points.size());
-        for (Vec3 p : points) {
-            line.add(p.add(0.5, 1.0, 0.5));
+        if (points != linePath) {
+            List<Vec3> built = new ArrayList<>(points.size());
+            for (Vec3 p : points) {
+                built.add(p.add(0.5, 1.0, 0.5));
+            }
+            line = built;
+            linePath = points;
         }
         SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.ICE_PATH, context, line, 0.33f, 1.0f, 0.33f, 1f, 3f);
         if (IcePathSolverConfig.getInstance().isShowNextBox() && points.size() > 2) {

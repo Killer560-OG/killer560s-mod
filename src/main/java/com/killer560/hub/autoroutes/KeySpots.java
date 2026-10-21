@@ -73,6 +73,31 @@ public final class KeySpots {
         return out;
     }
 
+    private static final BlockPos[] NO_SPOTS = new BlockPos[0];
+    private static RouteCoords.Frame tickFrame;
+    private static int tickShift;
+    private static BlockPos[] tickSpots = NO_SPOTS;
+
+    /**
+     * {@link #spots} for the per-tick scan, kept while the room and the sim's height shift stay the same: nearly every
+     * room has no key spot, and this ran a list, a database lookup and a loop for it every tick of a clear. A room the
+     * database cannot name yet is not remembered (it may load a moment later).
+     */
+    private static BlockPos[] tickSpots(RouteCoords.Frame frame) {
+        int shift = com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        if (frame.equals(tickFrame) && shift == tickShift) {
+            return tickSpots;
+        }
+        RoomEntry entry = RoomDatabase.lookupByName(frame.roomName());
+        BlockPos[] found = spots(frame).toArray(NO_SPOTS);
+        if (entry != null) {
+            tickFrame = frame;
+            tickShift = shift;
+            tickSpots = found;
+        }
+        return found;
+    }
+
     /** Every client tick: a key head standing on one of this room's spots marks it for the run. */
     static void tick(Minecraft client) {
         if (client.level == null) {
@@ -83,7 +108,7 @@ public final class KeySpots {
         if (frame == null) {
             return;
         }
-        for (BlockPos s : spots(frame)) {
+        for (BlockPos s : tickSpots(frame)) {
             if (client.level.isLoaded(s) && com.killer560.hub.secrets.SecretsFeature.isRedstoneKey(client.level, s)) {
                 if (SEEN.add(s.asLong())) {
                     LOGGER.info("[AutoRoutes] key spots: key head seen at {} in {} - marked for this run", s.toShortString(),

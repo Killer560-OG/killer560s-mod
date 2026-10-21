@@ -5,12 +5,10 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.ModChat;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 
 import java.util.EnumSet;
@@ -66,10 +64,21 @@ public final class AutoUltFeature {
             tabClass = null;
             pendingUltTrigger = null;
         }
-        if (!CheatUtilsConfig.getInstance().isAutoUltEnabled() || !DungeonState.isInDungeon()) {
+        CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
+        if (!cfg.isAutoUltEnabled() || !DungeonState.isInDungeon()) {
+            // A queued ult must not outlive the moment it was decided in: switched off, or out of the dungeon, it
+            // used to sit there (the budget only counts down below) and go out whenever the gate next let it.
+            pendingUltTrigger = null;
             return;
         }
         firePendingUlt(client);
+        // With a class override set the tab list is never read (effectiveClass returns the override first).
+        if ("AUTO".equalsIgnoreCase(cfg.getUltClassOverride())) {
+            rescanTabClass(client);
+        }
+    }
+
+    private static void rescanTabClass(Minecraft client) {
         if (--classScanCooldown <= 0) {
             classScanCooldown = 40;
             DungeonClass found = scanTabClass(client);

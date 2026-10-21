@@ -68,7 +68,7 @@ public final class AutoWalker {
     private static final double FALLEN_BELOW = 2.2;
     private static final int MAX_RESCUES_PER_TARGET = 8;
 
-    private static boolean sessionActive;
+    private static volatile boolean sessionActive;
     private static int positionPacketsSeen;
     private static boolean walking;
     private static boolean mixinApplied;
@@ -340,6 +340,9 @@ public final class AutoWalker {
 
     /** Hypixel's death chat line (see {@link #HYPIXEL_DEATH}). */
     private static void onChat(net.minecraft.network.chat.Component message) {
+        if (!sessionActive) {
+            return; // every chat line passes here; onDeath ignores one outside a session anyway
+        }
         String plain = com.killer560.hub.util.ChatObserver.strip(message).trim();
         if (HYPIXEL_DEATH.matcher(plain).matches()) {
             Minecraft.getInstance().execute(() -> onDeath("death message"));
@@ -723,44 +726,9 @@ public final class AutoWalker {
      * {@code (wantX, wantZ)}. Holding the previous combination is preferred a little, so the keys do not flutter.
      */
     private static void chooseKeys(WalkPhysics.Model model, float bodyYaw, double wantX, double wantZ, boolean sprintOk) {
-        int bestCombo = 0;
-        boolean bestSprint = false;
-        double bestScore = Double.MAX_VALUE;
-        for (int c = 0; c < WalkPhysics.KEYS.length; c++) {
-            int fw = WalkPhysics.KEYS[c][0];
-            int st = WalkPhysics.KEYS[c][1];
-            for (int s = 0; s < 2; s++) {
-                boolean sprint = s == 1;
-                if (sprint && (!sprintOk || fw <= 0)) {
-                    continue;
-                }
-                double[] dir = WalkPhysics.keyDirection(fw, st, bodyYaw);
-                double push = model.push(sprint);
-                double mx = model.vx + dir[0] * push;
-                double mz = model.vz + dir[1] * push;
-                double ex = mx - wantX;
-                double ez = mz - wantZ;
-                double score = ex * ex + ez * ez;
-                // Faster than wanted costs more than slower: at Skyblock 600 one key is a 0.6-block push, so a tie
-                // between "too fast" and "too slow" decided the wrong way slid him onto the soul (testkit
-                // 1017-fairy-overshoot: rest 0.05 from it, aiming for 1.6).
-                double wantLen = Math.sqrt(wantX * wantX + wantZ * wantZ);
-                if (wantLen > 1.0e-6 && (mx * wantX + mz * wantZ) / wantLen > wantLen) {
-                    score *= 3.0;
-                }
-                if (c != lastCombo) {
-                    score += 0.0004;
-                }
-                if (fw != 1) {
-                    score += 0.00005;
-                }
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestCombo = c;
-                    bestSprint = sprint;
-                }
-            }
-        }
+        int chosen = WalkPhysics.chooseCombo(model, bodyYaw, wantX, wantZ, sprintOk, lastCombo);
+        int bestCombo = chosen >> 1;
+        boolean bestSprint = (chosen & 1) != 0;
         lastCombo = bestCombo;
         int fw = WalkPhysics.KEYS[bestCombo][0];
         int st = WalkPhysics.KEYS[bestCombo][1];
@@ -1203,11 +1171,5 @@ public final class AutoWalker {
 
     public static String lastRescue() {
         return lastRescue;
-    }
-
-    static void announceStop(String feature, String reason) {
-        if (reason != null && PathfindingConfig.getInstance().isChatFeedback()) {
-            ModChat.send(feature, ModChat.bad("Stopped"), ModChat.dim(" - " + reason));
-        }
     }
 }

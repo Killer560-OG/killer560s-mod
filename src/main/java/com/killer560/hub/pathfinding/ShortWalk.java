@@ -265,41 +265,9 @@ public final class ShortWalk {
 
     /** {@code AutoWalker.chooseKeys}'s rule: the key combination whose next move comes closest to the wanted one. */
     private static void chooseKeys(WalkPhysics.Model model, float bodyYaw, double wantX, double wantZ, boolean sprintOk) {
-        int bestCombo = 0;
-        boolean bestSprint = false;
-        double bestScore = Double.MAX_VALUE;
-        double wantLen = Math.sqrt(wantX * wantX + wantZ * wantZ);
-        for (int c = 0; c < WalkPhysics.KEYS.length; c++) {
-            int fw = WalkPhysics.KEYS[c][0];
-            int st = WalkPhysics.KEYS[c][1];
-            for (int s = 0; s < 2; s++) {
-                boolean sprint = s == 1;
-                if (sprint && (!sprintOk || fw <= 0)) {
-                    continue;
-                }
-                double[] dir = WalkPhysics.keyDirection(fw, st, bodyYaw);
-                double push = model.push(sprint);
-                double mx = model.vx + dir[0] * push;
-                double mz = model.vz + dir[1] * push;
-                double ex = mx - wantX;
-                double ez = mz - wantZ;
-                double score = ex * ex + ez * ez;
-                if (wantLen > 1.0e-6 && (mx * wantX + mz * wantZ) / wantLen > wantLen) {
-                    score *= 3.0;   // too fast costs more than too slow
-                }
-                if (c != lastCombo) {
-                    score += 0.0004;
-                }
-                if (fw != 1) {
-                    score += 0.00005;
-                }
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestCombo = c;
-                    bestSprint = sprint;
-                }
-            }
-        }
+        int chosen = WalkPhysics.chooseCombo(model, bodyYaw, wantX, wantZ, sprintOk, lastCombo);
+        int bestCombo = chosen >> 1;
+        boolean bestSprint = (chosen & 1) != 0;
         lastCombo = bestCombo;
         int fw = WalkPhysics.KEYS[bestCombo][0];
         int st = WalkPhysics.KEYS[bestCombo][1];

@@ -81,10 +81,12 @@ public final class TerminalQolFeature {
 
     // ---- drop key ----
     private static boolean dropKeySwapped = false;
+    /** The real Drop key's name while the swap is live (the config's copy is what survives a crash; this one
+     *  survives the config instance being replaced by a profile load). */
+    private static String realDropKeyName = "";
 
     // ---- gui scale ----
     private static boolean guiScaleApplied = false;
-    private static int appliedGuiScale = -1;
 
     private static boolean registered = false;
 
@@ -152,11 +154,6 @@ public final class TerminalQolFeature {
             return null;
         }
         return TerminalType.match(rawTitle);
-    }
-
-    /** @return the terminal currently open, or null. Public so the settings GUI / future features can ask. */
-    public static TerminalType getOpenTerminal() {
-        return currentType;
     }
 
     // ------------------------------------------------------------------ Terminal Protection
@@ -337,6 +334,7 @@ public final class TerminalQolFeature {
         boolean wanted = cfg.isDropKeyEnabled() && currentType != null;
         if (wanted && !dropKeySwapped) {
             String realKey = client.options.keyDrop.saveString();
+            realDropKeyName = realKey;
             cfg.setSavedDropKeyName(realKey);
             cfg.save();
             client.options.keyDrop.setKey(keyFor(cfg.getDropKeyCode()));
@@ -347,10 +345,16 @@ public final class TerminalQolFeature {
     }
 
     private static void restoreDropKey(Minecraft client, TerminalQolConfig cfg) {
+        // The config's copy is empty when a profile was applied while the swap was live (TerminalQolConfig.load
+        // replaced the instance); the field kept at swap time still knows the real key.
         String saved = cfg.getSavedDropKeyName();
+        if (saved.isEmpty()) {
+            saved = realDropKeyName;
+        }
         if (!saved.isEmpty() && client.options != null) {
             client.options.keyDrop.setKey(InputConstants.getKey(saved));
         }
+        realDropKeyName = "";
         cfg.setSavedDropKeyName("");
         cfg.save();
         dropKeySwapped = false;
@@ -403,10 +407,8 @@ public final class TerminalQolFeature {
                 applyScale(client, window, target);
             }
             guiScaleApplied = true;
-            appliedGuiScale = target;
         } else if (guiScaleApplied) {
             guiScaleApplied = false;
-            appliedGuiScale = -1;
             // Recomputed from the live option rather than remembered, so a scale the player changed in Video
             // Settings while a terminal was open is still honoured when it closes.
             int vanilla = window.calculateScale(client.options.guiScale().get(), client.isEnforceUnicode());
@@ -422,10 +424,5 @@ public final class TerminalQolFeature {
         if (screen != null) {
             screen.resize(window.getGuiScaledWidth(), window.getGuiScaledHeight());
         }
-    }
-
-    /** Diagnostic only - the GUI scale currently forced by this feature, or -1. */
-    public static int getAppliedGuiScale() {
-        return appliedGuiScale;
     }
 }

@@ -10,19 +10,13 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
@@ -123,6 +117,58 @@ public final class AutoPuzzlesFeature {
         }
     }
 
+    // What the last dispatcher line was built from, so a tick in the same state builds no string at all (the line used
+    // to be concatenated every tick of a dungeon run, only to be thrown away as equal).
+    private static boolean noteInDungeon;
+    private static boolean noteInBoss;
+    private static String noteRoom;
+    private static boolean noteAutoOn;
+    private static boolean noteMaster;
+    private static boolean noteValid;
+
+    private static void noteDispatch(boolean inDungeon, boolean inBoss, String roomName) {
+        AutoPuzzlesConfig cfg = AutoPuzzlesConfig.getInstance();
+        boolean master = cfg.isAutoPuzzlesMasterEnabled();
+        boolean autoOn = autoIsOn(roomName);
+        if (noteValid && dispatchLogged != null && inDungeon == noteInDungeon && inBoss == noteInBoss
+                && java.util.Objects.equals(roomName, noteRoom) && autoOn == noteAutoOn && master == noteMaster) {
+            return;
+        }
+        noteValid = true;
+        noteInDungeon = inDungeon;
+        noteInBoss = inBoss;
+        noteRoom = roomName;
+        noteAutoOn = autoOn;
+        noteMaster = master;
+        String owner = autoFor(roomName);
+        logDispatch(!inDungeon ? "idle - not in a dungeon"
+                : inBoss ? "idle - in the boss"
+                : roomName == null ? "idle - the live map has no room for where he stands"
+                : owner == null ? "room '" + roomName + "' - no puzzle auto for it"
+                : "room '" + roomName + "' - " + owner + (master ? "" : " (Auto Puzzles master switch off or not in Skyblock)"));
+    }
+
+    /** Whether the toggle of the auto that owns {@code roomName} is on (false for a room with none). */
+    private static boolean autoIsOn(String roomName) {
+        if (roomName == null) {
+            return false;
+        }
+        AutoPuzzlesConfig c = AutoPuzzlesConfig.getInstance();
+        return switch (roomName) {
+            case QUIZ_ROOM -> c.isAutoQuizEnabled();
+            case WEIRDOS_ROOM -> c.isAutoWeirdosEnabled();
+            case "Water Board" -> c.isAutoWaterEnabled();
+            case "Teleport Maze" -> c.isAutoTeleportMazeEnabled();
+            case "Boulder" -> c.isAutoBoulderEnabled();
+            case "Tic Tac Toe" -> c.isAutoTicTacToeEnabled();
+            case "Ice Fill" -> c.isAutoIceFillEnabled();
+            case "Ice Path" -> c.isAutoIcePathEnabled();
+            case "Creeper Beams" -> c.isAutoBeamsEnabled();
+            case "Higher Blaze", "Lower Blaze" -> c.isAutoBlazeEnabled();
+            default -> false;
+        };
+    }
+
     /** Auto Ice Fill's own "done" (the finish tile is packed ice), for Auto Secret waiting on it in the room. */
     public static boolean isIceFillDone() {
         return AutoIceFill.isDone();
@@ -211,15 +257,7 @@ public final class AutoPuzzlesFeature {
         boolean inBoss = LiveMapFeature.isInBoss();
         RoomEntry room = inDungeon && !inBoss ? LiveMapFeature.currentRoomEntry() : null;
         String roomName = room != null ? room.name : null;
-        {
-            String owner = autoFor(roomName);
-            logDispatch(!inDungeon ? "idle - not in a dungeon"
-                    : inBoss ? "idle - in the boss"
-                    : roomName == null ? "idle - the live map has no room for where he stands"
-                    : owner == null ? "room '" + roomName + "' - no puzzle auto for it"
-                    : "room '" + roomName + "' - " + owner + (AutoPuzzlesConfig.getInstance().isAutoPuzzlesMasterEnabled()
-                    ? "" : " (Auto Puzzles master switch off or not in Skyblock)"));
-        }
+        noteDispatch(inDungeon, inBoss, roomName);
         tickQuiz(client, QUIZ_ROOM.equals(roomName));
         AutoWeirdos.tick(client, WEIRDOS_ROOM.equals(roomName));
         // QUOI puzzle autos (each gates on its own toggle + room name and never acts on pre-world solver data).
@@ -347,7 +385,7 @@ public final class AutoPuzzlesFeature {
         // Right-clicking the pillar itself does nothing in either the sim or a real dungeon, so this asks the
         // solver which button to press and falls back to the pillar only if the room has none.
         BlockPos click = quizClick;
-        if (!interactBlockNoRotate(client, click)) {
+        if (!AutoPuzzleUtil.interactBlock(client, click)) {
             LOGGER.warn("[AutoPuzzles] Quiz: no clickable shape at {} (state={}) - not clicking this question",
                     click, client.level.getBlockState(click));
             return;
@@ -475,44 +513,4 @@ public final class AutoPuzzlesFeature {
         quizBlockerLogged = null;
     }
 
-    // ------------------------------------------------------------------
-    // Shared
-    // ------------------------------------------------------------------
-
-    /**
-     * No-rotate block interact: the {@code SimonSaysFeature#sendNoRotateInteract} precedent
-     * ({@code gameMode.useItemOn} with a synthetic {@link BlockHitResult}, camera untouched), but with QUOI's
-     * {@code BlockPos.getHitResult()} face/hit-vector - the ray from the eyes to the block shape's centre
-     * clipped against the real shape, so the face and hit point are ones a real click from here could produce.
-     * Callers are already behind the cheat-build-gated config getters.
-     *
-     * @return false (nothing sent) if the block has no shape at all (QUOI skips those too)
-     */
-    private static boolean interactBlockNoRotate(Minecraft client, BlockPos pos) {
-        BlockState state = client.level.getBlockState(pos);
-        VoxelShape shape = state.getShape(client.level, pos);
-        if (shape.isEmpty()) {
-            LOGGER.info("[AutoPuzzles] Quiz: click refused - {} at {} has no shape tick={}", state.getBlock(),
-                    pos.toShortString(), nowTick());
-            return false;
-        }
-        Vec3 eyes = client.player.getEyePosition();
-        Vec3 centre = shape.bounds().getCenter().add(pos.getX(), pos.getY(), pos.getZ());
-        Vec3 dir = centre.subtract(eyes).normalize();
-        Vec3 end = eyes.add(dir.scale(eyes.distanceTo(centre) + 1.5));
-        BlockHitResult hit = shape.clip(eyes, end, pos);
-        if (hit == null) {
-            // Only reached when the ray misses the outline entirely. These two paths ALREADY clip from the eye
-            // above, which is the thing that matters (see BlockHits and the PositionPlace measurement of
-            // 2026-09-28) - so this last-resort centre is fine where it is and was deliberately left alone.
-            hit = new BlockHitResult(centre, Direction.getApproximateNearest(eyes.subtract(centre)), pos, false);
-        }
-        LOGGER.info("[AutoPuzzles] Quiz: click sent: {} at {} face={} hit={} eye={} tick={}", state.getBlock(),
-                pos.toShortString(), hit.getDirection(), String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f",
-                        hit.getLocation().x, hit.getLocation().y, hit.getLocation().z),
-                String.format(java.util.Locale.ROOT, "%.2f,%.2f,%.2f", eyes.x, eyes.y, eyes.z), nowTick());
-        client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
-        client.player.swing(InteractionHand.MAIN_HAND);
-        return true;
-    }
 }

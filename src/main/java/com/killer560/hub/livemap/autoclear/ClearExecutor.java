@@ -770,12 +770,6 @@ public final class ClearExecutor {
         return pathPending && awaiting == null;
     }
 
-    /** Whether a path planned ahead is waiting for {@code to}. */
-    public static boolean hasPreplanFor(BlockPos to, int tileIdx) {
-        Preplan p = preplan;
-        return p != null && (tileIdx >= 0 ? p.tileIdx() == tileIdx : p.tileIdx() < 0 && p.to().equals(to));
-    }
-
     /**
      * Runs the path planned ahead for this goal, if there is one and it still starts where he stands: within a third of a
      * block of its start as planned, or else with its first warp aimed again from where he really is at the same landing

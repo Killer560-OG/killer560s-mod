@@ -90,11 +90,11 @@ public final class SecretWaypointsFeature {
                            float r, float g, float b, float a, BlockPos pos, Kind kind, String label) {
     }
 
+    /** How far the prince box sits below its tomb, in blocks. */
+    private static final double PRINCE_DROP = 0.5;
     /** Secrets already taken in this run (block positions from the room database) - their waypoints are gone
      *  (killer560, 2026-09-21: "if I click/get a secret then that waypoint should disappear"). Cleared on leaving
      *  the dungeon. */
-    /** How far the prince box sits below its tomb, in blocks. */
-    private static final double PRINCE_DROP = 0.5;
     private static final java.util.Set<BlockPos> COLLECTED = new java.util.HashSet<>();
     /** Item entities lying at an ITEM waypoint, by entity id, to notice one being picked up (see {@link #watchPickups}). */
     private static final java.util.Map<Integer, WatchedItem> WATCHED_ITEMS = new java.util.HashMap<>();
@@ -103,8 +103,6 @@ public final class SecretWaypointsFeature {
 
     private static boolean wasInDungeon = false;
     private static int lastGeneration = 0;
-
-    /** Interactive map per-room toggles (room names): shown while the feature is off, hidden while it is on. */
 
     /** The per-tick snapshot the render path walks. Never rebuilt from inside a frame. */
     private static final List<Waypoint> CACHED = new ArrayList<>();
@@ -255,8 +253,21 @@ public final class SecretWaypointsFeature {
             return;
         }
         var player = client.player;
-        AABB around = player.getBoundingBox().inflate(8.0);
         watchItems(client);
+        // No bat waypoint standing means a dying bat has nothing to hide (markCollected matches only a BAT waypoint),
+        // so the entity query is skipped; most rooms have none.
+        boolean anyBat = false;
+        for (Waypoint w : CACHED) {
+            if (w.kind() == Kind.BAT && !COLLECTED.contains(w.pos())) {
+                anyBat = true;
+                break;
+            }
+        }
+        if (!anyBat) {
+            NEAR_BATS.clear();
+            return;
+        }
+        AABB around = player.getBoundingBox().inflate(8.0);
         // Bats: a bat that flies out of range also leaves the entity list, so only a bat actually seen DYING
         // counts (its death animation keeps it around client-side for a moment) - once per bat.
         java.util.Map<Integer, net.minecraft.world.phys.Vec3> bats = SCRATCH_BATS;

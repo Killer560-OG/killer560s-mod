@@ -26,6 +26,8 @@ public final class RouteStore {
     private static final Path PATH =
             ModPaths.config("killer560smod-waypointroutes-routes.json");
 
+    private static final AsyncFileWriter WRITER = new AsyncFileWriter(PATH);
+
     private static List<Route> routes;
 
     private RouteStore() {
@@ -83,34 +85,45 @@ public final class RouteStore {
     }
 
     public static void load() {
+        AsyncFileWriter.flush(); // a save queued just before (profile apply) must reach the disk first
         routes = new ArrayList<>();
         if (!Files.exists(PATH)) {
             return;
         }
+        boolean damaged = false;
         try {
             JsonObject root = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
             if (!root.has("routes")) {
                 return;
             }
             for (JsonElement el : root.getAsJsonArray("routes")) {
-                JsonObject obj = el.getAsJsonObject();
-                Route route = new Route(str(obj, "id", null), str(obj, "name", "Route"));
-                route.color = obj.has("color") ? obj.get("color").getAsInt() : Route.DEFAULT_COLOR;
-                route.setRadius(obj.has("radius") ? obj.get("radius").getAsDouble() : Route.DEFAULT_RADIUS);
-                route.loop = !obj.has("loop") || obj.get("loop").getAsBoolean();
-                if (obj.has("points")) {
-                    for (JsonElement pe : obj.getAsJsonArray("points")) {
-                        JsonObject p = pe.getAsJsonObject();
-                        route.points.add(new Route.Point(p.get("x").getAsInt(), p.get("y").getAsInt(),
-                                p.get("z").getAsInt(), str(p, "label", "")));
+                // One bad route must not drop the ones after it.
+                try {
+                    JsonObject obj = el.getAsJsonObject();
+                    Route route = new Route(str(obj, "id", null), str(obj, "name", "Route"));
+                    route.color = obj.has("color") ? obj.get("color").getAsInt() : Route.DEFAULT_COLOR;
+                    route.setRadius(obj.has("radius") ? obj.get("radius").getAsDouble() : Route.DEFAULT_RADIUS);
+                    route.loop = !obj.has("loop") || obj.get("loop").getAsBoolean();
+                    if (obj.has("points")) {
+                        for (JsonElement pe : obj.getAsJsonArray("points")) {
+                            JsonObject p = pe.getAsJsonObject();
+                            route.points.add(new Route.Point(p.get("x").getAsInt(), p.get("y").getAsInt(),
+                                    p.get("z").getAsInt(), str(p, "label", "")));
+                        }
                     }
+                    routes.add(route);
+                } catch (RuntimeException routeError) {
+                    damaged = true;
+                    LOGGER.warn("[WaypointRoutes] Skipped an unreadable route", routeError);
                 }
-                routes.add(route);
             }
         } catch (Exception e) {
+            damaged = true;
+            LOGGER.warn("[WaypointRoutes] Failed to load routes file ({} route(s) recovered)", routes.size(), e);
+        }
+        if (damaged) {
             // Review fix (2026-09-15): every later mutation calls save(), which would silently overwrite the
             // unreadable file with only what parsed so far - keep a copy of the original first.
-            LOGGER.warn("[WaypointRoutes] Failed to load routes file ({} route(s) recovered), backing it up", routes.size(), e);
             try {
                 Files.copy(PATH, PATH.resolveSibling("killer560smod-waypointroutes-routes.broken-"
                         + System.currentTimeMillis() + ".json"));
@@ -122,7 +135,6 @@ public final class RouteStore {
 
     public static void save() {
         try {
-            Files.createDirectories(PATH.getParent());
             JsonArray arr = new JsonArray();
             for (Route route : all()) {
                 JsonObject obj = new JsonObject();
@@ -147,7 +159,7 @@ public final class RouteStore {
             }
             JsonObject root = new JsonObject();
             root.add("routes", arr);
-            Files.writeString(PATH, GSON.toJson(root), StandardCharsets.UTF_8);
+            WRITER.write(GSON.toJson(root)); // serialised here (a snapshot), written off the render thread
         } catch (Exception e) {
             LOGGER.warn("[WaypointRoutes] Failed to save routes file", e);
         }

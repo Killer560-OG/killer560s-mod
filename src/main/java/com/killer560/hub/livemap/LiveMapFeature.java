@@ -117,7 +117,8 @@ public final class LiveMapFeature {
     private static boolean groupsDirty = true;
     /** Per-room secrets found, from the action bar's "x/y Secrets" (NoammAddons' ActionBarParser). */
     private static final Map<String, Integer> foundSecretsByRoom = new HashMap<>();
-    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d+)/(\\d+) Secrets");
+    private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d{1,4})/(\\d{1,4}) Secrets");
+    private static final Pattern COLOUR_CODE = Pattern.compile("§.");
 
     // Boss room bounds per floor 1..7 - copied verbatim from NoammAddons' own (26.1.2 upstream)
     // LocationUtils.bossRoomBounds; {x1, y1, z1, x2, y2, z2}, min/max normalized by AABB's constructor.
@@ -219,7 +220,12 @@ public final class LiveMapFeature {
         InteractiveMapFeature.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) {
-                onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
+                // A raw GAME listener runs on the packet path: a throw here disconnects him from Hypixel.
+                try {
+                    onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
+                } catch (RuntimeException e) {
+                    LOGGER.warn("[MapScan] action bar parse failed", e);
+                }
             }
         });
     }
@@ -958,7 +964,7 @@ public final class LiveMapFeature {
             return;
         }
         // Legacy "§76/10 Secrets" would otherwise read as 76 found.
-        Matcher m = ACTION_BAR_SECRETS.matcher(text.replaceAll("§.", ""));
+        Matcher m = ACTION_BAR_SECRETS.matcher(COLOUR_CODE.matcher(text).replaceAll(""));
         if (!m.find()) {
             return;
         }

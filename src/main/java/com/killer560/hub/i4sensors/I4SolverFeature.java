@@ -15,7 +15,6 @@ import net.minecraft.world.phys.AABB;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import com.killer560.hub.compat.McBlocks;
@@ -84,9 +83,7 @@ public final class I4SolverFeature {
         if (client.player == null || client.level == null || !I4SensorsFeature.isNearDevice()) {
             return "not near i4";
         }
-        boolean p3sim = client.getCurrentServer() != null
-                && client.getCurrentServer().ip.toLowerCase(Locale.ROOT).contains("p3sim.net");
-        if (!p3sim && !DungeonState.isF7OrM7()) {
+        if (!I4SensorsFeature.isOnP3Sim(client) && !DungeonState.isF7OrM7()) {
             return "not in F7/M7";
         }
         return "";
@@ -140,19 +137,37 @@ public final class I4SolverFeature {
         }
     }
 
-    private static void maskWall(Minecraft client) {
-        BlockState black = McBlocks.BLACK_CONCRETE.defaultBlockState();
-        BlockState air = Blocks.AIR.defaultBlockState();
+    // The wall's gap blocks and the layer of glass in front of it, built once: this check runs every tick the solver is active.
+    private static final BlockPos[] WALL_GAPS;
+    private static final BlockPos[] FRONT_LAYER;
+
+    static {
+        List<BlockPos> gaps = new java.util.ArrayList<>();
+        List<BlockPos> front = new java.util.ArrayList<>();
         for (int x = MASK_MIN_X; x <= MASK_MAX_X; x++) {
             for (int y = MASK_MIN_Y; y <= MASK_MAX_Y; y++) {
                 BlockPos wall = new BlockPos(x, y, WALL_Z);
                 if (!I4SensorsFeature.DEV_BLOCKS.contains(wall)) {
-                    mask(client, wall, black);
+                    gaps.add(wall);
                 }
-                BlockPos front = new BlockPos(x, y, FRONT_Z);
-                if (I4SensorsFeature.blockId(client.level.getBlockState(front)).contains("glass")) {
-                    mask(client, front, air);
-                }
+                front.add(new BlockPos(x, y, FRONT_Z));
+            }
+        }
+        WALL_GAPS = gaps.toArray(new BlockPos[0]);
+        FRONT_LAYER = front.toArray(new BlockPos[0]);
+    }
+
+    private static void maskWall(Minecraft client) {
+        BlockState black = McBlocks.BLACK_CONCRETE.defaultBlockState();
+        BlockState air = Blocks.AIR.defaultBlockState();
+        for (BlockPos wall : WALL_GAPS) {
+            mask(client, wall, black);
+        }
+        for (BlockPos front : FRONT_LAYER) {
+            BlockState state = client.level.getBlockState(front);
+            // Air is the common answer once the glass is hidden, so it skips the registry-name lookup.
+            if (!state.isAir() && I4SensorsFeature.blockId(state).contains("glass")) {
+                mask(client, front, air);
             }
         }
     }
@@ -182,8 +197,8 @@ public final class I4SolverFeature {
     }
 
     private static void render(LevelRenderContext context) {
-        if (!wasActive || !gate(Minecraft.getInstance()).isEmpty()) {
-            return;
+        if (!wasActive) {
+            return; // the tick keeps this current; re-running the whole gate every frame only rebuilt strings
         }
         // Hit targets: filled orange (killer560: "you can keep the correct highlight orange").
         for (BlockPos pos : hits) {
@@ -199,11 +214,12 @@ public final class I4SolverFeature {
         net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
         for (BlockPos pos : dev) {
             if (hits.contains(pos) || level == null
-                    || I4SensorsFeature.blockId(level.getBlockState(pos)).equals("emerald_block")) {
+                    || level.getBlockState(pos).is(Blocks.EMERALD_BLOCK)) {
                 continue;
             }
             WorldRenderUtils.renderFilledBox(context, new AABB(pos).inflate(0.02), 0.72f, 0.2f, 1f, 0.7f);
         }
+        float[] rgba = WorldRenderUtils.argbToFloats(I4SensorsConfig.getInstance().getSolverColor());
         for (int row = 0; row < 3; row++) {
             boolean col0 = !hits.contains(dev.get(row * 3));
             boolean col1 = !hits.contains(dev.get(row * 3 + 1));
@@ -215,19 +231,18 @@ public final class I4SolverFeature {
             // a manual player just needs to see which gap to aim at, so the marker sits at the block's center.
             double y = 130.5 - 2.0 * row;
             if (left) {
-                dot(context, 67.5, y);
+                dot(context, 67.5, y, rgba);
             }
             if (right) {
-                dot(context, 65.5, y);
+                dot(context, 65.5, y, rgba);
             }
         }
     }
 
-    private static void dot(LevelRenderContext context, double x, double y) {
+    private static void dot(LevelRenderContext context, double x, double y, float[] rgba) {
         // Just in front of the wall's front face (z 50) so it isn't hidden inside the blocks.
         // Filled circle (2026-09-14, killer560: "make the prediction markers circles"), no border. The render helper only
         // draws boxes, so the disc is stacked thin horizontal slices whose widths follow the circle's chord.
-        float[] rgba = WorldRenderUtils.argbToFloats(I4SensorsConfig.getInstance().getSolverColor());
         double sliceHeight = (DOT_HALF * 2) / CIRCLE_SLICES;
         for (int i = 0; i < CIRCLE_SLICES; i++) {
             double y0 = y - DOT_HALF + i * sliceHeight;

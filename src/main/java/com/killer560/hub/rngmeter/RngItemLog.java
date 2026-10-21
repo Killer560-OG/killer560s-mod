@@ -67,15 +67,28 @@ public final class RngItemLog {
         return LOG.getOrDefault(group, Map.of());
     }
 
+    /**
+     * Writes happen on one background thread: merge() runs on the render thread (a menu commit or a rescan that found
+     * something new), and a pretty-printed JSON write there is file I/O in the middle of a frame. The map is copied
+     * here, under the lock, so the writer never sees a half-merged log; writes queue in order, so the last one wins.
+     */
+    private static final java.util.concurrent.ExecutorService WRITER = java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-rngmeter-log-writer");
+        t.setDaemon(true);
+        return t;
+    });
+
     private static void save() {
-        try {
-            Files.createDirectories(PATH.getParent());
-            Map<String, Object> sorted = new TreeMap<>();
-            for (var entry : LOG.entrySet()) {
-                sorted.put(entry.getKey(), new TreeMap<>(entry.getValue()));
-            }
-            Files.writeString(PATH, GSON.toJson(sorted), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
+        Map<String, Object> sorted = new TreeMap<>();
+        for (var entry : LOG.entrySet()) {
+            sorted.put(entry.getKey(), new TreeMap<>(entry.getValue()));
         }
+        WRITER.execute(() -> {
+            try {
+                Files.createDirectories(PATH.getParent());
+                Files.writeString(PATH, GSON.toJson(sorted), StandardCharsets.UTF_8);
+            } catch (Exception ignored) {
+            }
+        });
     }
 }

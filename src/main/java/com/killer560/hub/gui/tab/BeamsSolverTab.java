@@ -22,14 +22,14 @@ public class BeamsSolverTab extends BaseTab {
         int y = contentY;
         BeamsSolverConfig cfg = BeamsSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Creeper Beams Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Creeper Beams Solver", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 

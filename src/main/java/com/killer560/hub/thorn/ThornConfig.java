@@ -316,7 +316,7 @@ public final class ThornConfig {
     public void setStunSpotColor(int v) { stunSpotColor = v; }
 
     /** Read-only view; mutate through {@link #addStunSpot} / {@link #removeLastStunSpot} (then {@link #save()}). */
-    public List<StunSpot> getStunSpots() { return List.copyOf(stunSpotList); }
+    public List<StunSpot> getStunSpots() { return java.util.Collections.unmodifiableList(stunSpotList); }
 
     public void addStunSpot(StunSpot spot) {
         if (spot != null) {

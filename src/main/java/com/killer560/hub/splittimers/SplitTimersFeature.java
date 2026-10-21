@@ -508,12 +508,6 @@ public final class SplitTimersFeature {
         return first < 0 ? 0L : run.timeMs[first];
     }
 
-    /** Milliseconds elapsed since {@link #getRunStartedAtMs()}, or 0 if no run is in progress. */
-    public static long getElapsedMs() {
-        long startedAt = getRunStartedAtMs();
-        return startedAt <= 0L ? 0L : System.currentTimeMillis() - startedAt;
-    }
-
     /** The plain name of the segment currently in progress - e.g. "Terminals" from Goldor's "Who dares trespass"
      *  line until "The Core entrance is opening!". Null if no segment is running. */
     public static String getCurrentSegmentLabel() {
@@ -573,9 +567,31 @@ public final class SplitTimersFeature {
          * split block is a sample M7 run, so the whole layout can be positioned before a run.
          */
         private static List<Line> layout() {
+            // width(), height() and render() each ask for the layout every frame; build it once per ~8 ms (times show
+            // to 0.01 s) on the render thread instead of three times.
+            long nanos = System.nanoTime();
+            boolean editor = inEditor();
+            if (editor == cachedEditor && nanos - cachedAtNanos < LAYOUT_CACHE_NANOS && Minecraft.getInstance().isSameThread()) {
+                return cachedLayout;
+            }
+            List<Line> built = buildLayout(editor);
+            if (Minecraft.getInstance().isSameThread()) {
+                cachedLayout = built;
+                cachedEditor = editor;
+                cachedAtNanos = nanos;
+            }
+            return built;
+        }
+
+        private static final long LAYOUT_CACHE_NANOS = 8_000_000L;
+        private static List<Line> cachedLayout = List.of();
+        private static boolean cachedEditor;
+        private static long cachedAtNanos = Long.MIN_VALUE / 2;
+
+        private static List<Line> buildLayout(boolean editor) {
             List<Line> out = new ArrayList<>();
             int lineY = 0;
-            List<String> rows = inEditor() ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
+            List<String> rows = editor ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
             for (String row : rows) {
                 out.add(new Line(row, 0, lineY));
                 lineY += ROW_HEIGHT;

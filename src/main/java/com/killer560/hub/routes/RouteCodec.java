@@ -30,6 +30,13 @@ public final class RouteCodec {
     private static final String SKYTILS_PREFIX = "<Skytils-Waypoint-Data>(V";
     private static final String SKYBLOCKER_PREFIX = "[Skyblocker";
     private static final int MAX_INFLATED_BYTES = 8 * 1024 * 1024;
+    /** Raw clipboard text cap (before any decode), so a huge paste never reaches the regex/base64/JSON steps. */
+    private static final int MAX_CLIPBOARD_CHARS = 16 * 1024 * 1024;
+    /** An 8 MB list could hold ~100k waypoints; every one is drawn each frame, so an import is bounded. */
+    public static final int MAX_POINTS_PER_ROUTE = 2000;
+    public static final int MAX_ROUTES = 64;
+    private static final int MAX_NAME_CHARS = 48;
+    private static final int MAX_LABEL_CHARS = 48;
 
     private RouteCodec() {
     }
@@ -37,15 +44,19 @@ public final class RouteCodec {
     public record Imported(String name, Integer color, List<Route.Point> points) {
     }
 
-    public record Result(List<Imported> routes, String error) {
+    /** {@code truncated}: the import hit {@link #MAX_POINTS_PER_ROUTE} / {@link #MAX_ROUTES} and dropped the rest. */
+    public record Result(List<Imported> routes, String error, boolean truncated) {
         static Result fail(String error) {
-            return new Result(List.of(), error);
+            return new Result(List.of(), error, false);
         }
     }
 
     public static Result parse(String clipboard) {
         if (clipboard == null || clipboard.isBlank()) {
             return Result.fail("Clipboard is empty.");
+        }
+        if (clipboard.length() > MAX_CLIPBOARD_CHARS) {
+            return Result.fail("Clipboard is too large to be a waypoint list.");
         }
         String text = clipboard.trim();
         if (text.startsWith(SKYBLOCKER_PREFIX)) {
@@ -63,8 +74,9 @@ public final class RouteCodec {
             }
             JsonElement root = JsonParser.parseString(text);
             List<Imported> routes = new ArrayList<>();
+            boolean[] truncated = {false};
             if (root.isJsonArray()) {
-                Imported single = fromArray("Imported Route", root.getAsJsonArray());
+                Imported single = fromArray("Imported Route", root.getAsJsonArray(), truncated);
                 if (!single.points().isEmpty()) {
                     routes.add(single);
                 }
@@ -72,29 +84,37 @@ public final class RouteCodec {
                 JsonObject obj = root.getAsJsonObject();
                 if (obj.has("categories")) {
                     for (JsonElement cat : obj.getAsJsonArray("categories")) {
+                        if (routes.size() >= MAX_ROUTES) {
+                            truncated[0] = true;
+                            break;
+                        }
                         JsonObject c = cat.getAsJsonObject();
                         if (!c.has("waypoints")) {
                             continue;
                         }
-                        Imported imported = fromArray(string(c, "name", "Imported Route"), c.getAsJsonArray("waypoints"));
+                        Imported imported = fromArray(string(c, "name", "Imported Route"), c.getAsJsonArray("waypoints"), truncated);
                         if (!imported.points().isEmpty()) {
                             routes.add(imported);
                         }
                     }
                 } else if (obj.has("waypoints")) {
-                    Imported imported = fromArray(string(obj, "name", "Imported Route"), obj.getAsJsonArray("waypoints"));
+                    Imported imported = fromArray(string(obj, "name", "Imported Route"), obj.getAsJsonArray("waypoints"), truncated);
                     if (!imported.points().isEmpty()) {
                         routes.add(imported);
                     }
                 }
             }
-            return routes.isEmpty() ? Result.fail("No waypoints found in clipboard.") : new Result(routes, null);
-        } catch (Exception e) {
+            return routes.isEmpty() ? Result.fail("No waypoints found in clipboard.") : new Result(routes, null, truncated[0]);
+        } catch (Exception | StackOverflowError e) {
             return Result.fail("Clipboard isn't a recognized waypoint list.");
         }
     }
 
-    private static Imported fromArray(String name, JsonArray array) {
+    private static String clip(String s, int max) {
+        return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    private static Imported fromArray(String name, JsonArray array, boolean[] truncated) {
         record Entry(Route.Point point, Integer order) {
         }
         List<Entry> entries = new ArrayList<>();
@@ -125,16 +145,21 @@ public final class RouteCodec {
                 color = colorOf(o);
             }
             entries.add(new Entry(new Route.Point((int) Math.floor(o.get("x").getAsDouble()),
-                    (int) Math.floor(o.get("y").getAsDouble()), (int) Math.floor(o.get("z").getAsDouble()), label), order));
+                    (int) Math.floor(o.get("y").getAsDouble()), (int) Math.floor(o.get("z").getAsDouble()),
+                    clip(label, MAX_LABEL_CHARS)), order));
         }
         if (allOrdered && !entries.isEmpty()) {
             entries.sort((a, b) -> Integer.compare(a.order(), b.order())); // List.sort is stable
         }
         List<Route.Point> points = new ArrayList<>();
         for (Entry e : entries) {
+            if (points.size() >= MAX_POINTS_PER_ROUTE) {
+                truncated[0] = true;
+                break;
+            }
             points.add(e.point());
         }
-        return new Imported(name, color, points);
+        return new Imported(clip(name, MAX_NAME_CHARS), color, points);
     }
 
     private static Integer colorOf(JsonObject o) {

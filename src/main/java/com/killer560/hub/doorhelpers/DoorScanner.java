@@ -30,7 +30,8 @@ public final class DoorScanner {
 
     public record Door(int x, int z, DoorType type) {
         public BlockPos basePos() {
-            return new BlockPos(x, 69, z);
+            // Hypixel's floor height, moved with the sim's floor (zero on Hypixel).
+            return new BlockPos(x, 69 + com.killer560.hub.livemap.DungeonLayout.simYOffset(), z);
         }
     }
 
@@ -67,6 +68,9 @@ public final class DoorScanner {
             return;
         }
         ticksUntilScan = RESCAN_TICKS;
+        // Every height below is Hypixel's; the sim builds the floor shifted (DungeonLayout.simYOffset, zero on Hypixel),
+        // and read at the bare heights its doors were never found (so Blood Rush's opener had nothing to click).
+        int off = com.killer560.hub.livemap.DungeonLayout.simYOffset();
         BlockPos.MutableBlockPos mutable = new BlockPos.MutableBlockPos();
         for (int gx = 0; gx < GRID; gx++) {
             for (int gz = 0; gz < GRID; gz++) {
@@ -84,12 +88,13 @@ public final class DoorScanner {
                 if (!com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, wx, wz)) {
                     continue;
                 }
-                int height = topLayer(client, mutable, wx, wz);
-                if (height <= 0) {
+                int height = topLayer(client, mutable, wx, wz, off);
+                if (height == Integer.MIN_VALUE) {
                     continue;
                 }
+                height -= off;
                 if (height == 73 || height == 74 || height == 81 || height == 82) {
-                    Block block = client.level.getBlockState(mutable.set(wx, 69, wz)).getBlock();
+                    Block block = client.level.getBlockState(mutable.set(wx, 69 + off, wz)).getBlock();
                     DoorType type = block == Blocks.COAL_BLOCK ? DoorType.WITHER
                             : block == McBlocks.RED_TERRACOTTA ? DoorType.BLOOD
                             : block == Blocks.INFESTED_CHISELED_STONE_BRICKS ? DoorType.ENTRANCE
@@ -104,11 +109,12 @@ public final class DoorScanner {
     }
 
     /**
-     * The highest non-air block in this column between y 0 and 255, or 0 when there is none.
+     * The highest non-air block in this column in Hypixel's y 1..255 band (shifted by {@code off} in the sim), or
+     * {@link Integer#MIN_VALUE} when there is none.
      *
      * <p>Section-first, rather than a block-by-block walk down from 255. A door's roof is at 73-82, so the old
      * loop threw away about 175 reads per cell before it reached anything - and a cell over open void read all
-     * 256 and returned 0, which the caller does NOT cache (a 0 means "nothing there yet", so the cell stays
+     * 256 and returned nothing, which the caller does NOT cache (it means "nothing there yet", so the cell stays
      * unresolved), so every empty cell was re-swept from the top every RESCAN_TICKS, forever. An 11x11 grid
      * with both this scanner and WitherDoorScanner registered paid that twice a tick-pair.
      *
@@ -116,7 +122,7 @@ public final class DoorScanner {
      * the whole empty top of the world in one test each. Reading through the section also skips the
      * chunk lookup the level-level getBlockState would redo for every single y.
      */
-    private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z) {
+    private static int topLayer(Minecraft client, BlockPos.MutableBlockPos mutable, int x, int z, int off) {
         net.minecraft.world.level.chunk.LevelChunk chunk = client.level.getChunk(x >> 4, z >> 4);
         net.minecraft.world.level.chunk.LevelChunkSection[] sections = chunk.getSections();
         int top = Math.min(chunk.getHighestFilledSectionIndex(), sections.length - 1);
@@ -126,14 +132,14 @@ public final class DoorScanner {
                 continue;
             }
             int base = client.level.getSectionYFromSectionIndex(i) << 4;
-            // Same 0..255 window the old loop used, so a world with a negative min Y still reports what it did.
-            for (int y = Math.min(base + 15, 255); y >= Math.max(base, 0); y--) {
+            // Hypixel's 1..255 band (y 0 never held a roof), moved with the sim's floor.
+            for (int y = Math.min(base + 15, 255 + off); y >= Math.max(base, 1 + off); y--) {
                 if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
                     return y;
                 }
             }
         }
-        return 0;
+        return Integer.MIN_VALUE;
     }
 
     /** QUOI {@code OdonDoor.locked}, except that a door whose chunk is not loaded keeps its last real reading (see

@@ -54,7 +54,7 @@ public final class FastLeapFeature {
     private static final AABB MIDDLE_BOX = new AABB(47.0, 64.0, 69.0, 62.0, 75.0, 84.0);
 
     private static final Set<String> STORM_CRUSH_MESSAGES = Set.of("[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!");
-    private static final Pattern DOOR_OPEN_REGEX = Pattern.compile("^(?:\\[[^]]+] )?(\\w+) opened a (?:WITHER|Blood) door!");
+    private static final Pattern DOOR_OPEN_REGEX = Pattern.compile("^(?:\\[[^]]{1,32}] )?([A-Za-z0-9_]{1,16}) opened a (?:WITHER|Blood) door!");
 
     private static long lastClick = 0L;
     private static int arghCount = 0;
@@ -153,7 +153,7 @@ public final class FastLeapFeature {
         // QUOI TickEvent.End relic trigger (based on NoammAddons M7Relics)
         if (cfg.isLeapAuto(LeapGroup.RELIC) && !pickedUpRelic && isInRelic()) {
             ItemStack relic = player.getInventory().getItem(8);
-            if (ChatObserver.strip(relic.getHoverName().getString()).contains("Relic")) {
+            if (!relic.isEmpty() && ChatObserver.strip(relic.getHoverName().getString()).contains("Relic")) {
                 pickedUpRelic = true;
                 LOGGER.info("[FastLeap] Relic picked up -> relic leap");
                 leapToConfigured(LeapTarget.RELIC);

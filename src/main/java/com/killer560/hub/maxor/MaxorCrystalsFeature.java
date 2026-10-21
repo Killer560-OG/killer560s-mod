@@ -124,6 +124,7 @@ public final class MaxorCrystalsFeature {
     public static void reset() {
         SEEN_CRYSTALS.clear();
         HIGHLIGHT_BOXES.clear();
+        alertShown = false;
         pickupTimeMs = 0L;
         tickTimer = -1;
         activeCrystals = 0;
@@ -198,8 +199,10 @@ public final class MaxorCrystalsFeature {
             reset();
         }
         if (client.player == null || client.level == null) {
+            alertShown = false;
             return;
         }
+        refreshAlert(client);
         refreshHighlightBoxes(client);
         if (pickupTimeMs == 0L) {
             if (!SEEN_CRYSTALS.isEmpty()) {
@@ -251,6 +254,21 @@ public final class MaxorCrystalsFeature {
                 HIGHLIGHT_BOXES.add(entity.getBoundingBox());
             }
         }
+    }
+
+    /** Whether the unplaced-crystal warning is up; recomputed once per client tick, because the HUD asks for its rows three
+     *  times a frame (width, height, draw) and each ask used to read the inventory and build the log line. */
+    private static boolean alertShown = false;
+
+    private static void refreshAlert(Minecraft client) {
+        if (!MaxorConfig.getInstance().isPlaceAlertEnabled()) {
+            alertShown = false;
+            return;
+        }
+        boolean p1 = inP1();
+        boolean holding = holdingUnplacedCrystal();
+        CrystalsHud.logAlertChecks(client, p1, holding);
+        alertShown = p1 && holding;
     }
 
     /** Marks every End Crystal currently in the world as already seen (called when the stopwatch arms). */
@@ -354,7 +372,7 @@ public final class MaxorCrystalsFeature {
         private static String lastAlertCheck = "";
 
         /** Writes the alert's inputs to the log whenever they change: the phase, the slot-9 item, and the verdict. */
-        private static void logAlertChecks(Minecraft client, boolean p1, boolean holding) {
+        static void logAlertChecks(Minecraft client, boolean p1, boolean holding) {
             ItemStack slot = client.player == null ? ItemStack.EMPTY
                     : client.player.getInventory().getItem(CRYSTAL_HOTBAR_SLOT);
             String check = "inF7Boss=" + Floor7Tracker.inF7Boss() + " phase=" + Floor7Tracker.getPhase()
@@ -392,13 +410,8 @@ public final class MaxorCrystalsFeature {
                     out.add(crystalLine);
                 }
             }
-            if (cfg.isPlaceAlertEnabled()) {
-                boolean p1 = inP1();
-                boolean holding = holdingUnplacedCrystal();
-                logAlertChecks(client, p1, holding);
-                if (p1 && holding) {
-                    out.add("§e⚠ §bCrystal §e⚠");
-                }
+            if (alertShown && cfg.isPlaceAlertEnabled()) {
+                out.add("§e⚠ §bCrystal §e⚠");
             }
             if (cfg.isActiveCounterEnabled() && totalCrystals > 0) {
                 out.add("§6Active: §e" + activeCrystals + "§7/§e" + totalCrystals);

@@ -11,7 +11,6 @@ import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Wither Doors' Fairy Door (cheat build). killer560, 2026-10-07: "For wither doors it should also show the door between
@@ -101,7 +100,8 @@ public final class FairyDoor {
         if (room >= 0) {
             lastRoom = room;
         }
-        int fairy = findFairy(layout);
+        // The Fairy room is looked up on the path cadence (or while none is known), not every tick: the scan allocates.
+        int fairy = fairyRoom >= 0 && fairyRoom < layout.roomCount() && ticksToPath > 1 ? fairyRoom : findFairy(layout);
         fairyRoom = fairy;
         if (fairy >= 0 && checkEntered(client, layout, fairy)) {
             return;
@@ -237,7 +237,7 @@ public final class FairyDoor {
         for (int r = 0; r < layout.roomCount(); r++) {
             var entry = layout.entry(r);
             if (entry != null && entry.type != null) {
-                if ("FAIRY".equals(entry.type.toUpperCase(Locale.ROOT))) {
+                if ("FAIRY".equalsIgnoreCase(entry.type)) {
                     return r;
                 }
                 continue;

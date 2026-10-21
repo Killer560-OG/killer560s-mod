@@ -125,11 +125,6 @@ final class RewardChest {
         return finished;
     }
 
-    /** How many reward chests this run opened. */
-    int openedCount() {
-        return opened.size();
-    }
-
     /** The puzzle is solved: start claiming. Idempotent. */
     void start() {
         if (active || finished) {
