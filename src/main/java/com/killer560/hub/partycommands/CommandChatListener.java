@@ -2,7 +2,6 @@ package com.killer560.hub.partycommands;
 
 import com.killer560.hub.partycommands.PartyCommandsConfig.Channel;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -55,6 +54,8 @@ final class CommandChatListener {
     private static void onMessage(Component message) {
         try {
             if (!PartyCommandsConfig.getInstance().isEnabled()) {
+                // Lines are not read while off (or outside Skyblock), so a leader learnt earlier may be stale.
+                PartyLeaderTracker.resetIfSet();
                 return;
             }
             String raw = com.killer560.hub.util.ChatObserver.strip(message).trim();
@@ -62,6 +63,9 @@ final class CommandChatListener {
                 return;   // no command line is this long; never run the patterns over a wall of text
             }
             PartyCommandsFeature.onServerLine(raw);
+            if (raw.indexOf('!') < 0) {
+                return;   // a command line has a "!" in it; skip the five channel patterns for every other line
+            }
             Matcher m;
             Channel channel;
             if ((m = PARTY_REGEX.matcher(raw)).matches()) {
