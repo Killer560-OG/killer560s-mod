@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *  snapshot), the disk write runs on one shared daemon thread, and a burst of saves (a slider drag, typing a
  *  name) collapses into the newest one. {@link #flush()} waits for queued writes, so a load that follows a save
  *  never reads a stale file. */
-final class AsyncFileWriter {
+public final class AsyncFileWriter {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-routes");
     private static final ExecutorService IO = Executors.newSingleThreadExecutor(r -> {
@@ -53,8 +53,10 @@ final class AsyncFileWriter {
         }
     }
 
-    /** Blocks (at most two seconds) until every write queued so far has reached the disk. */
-    static void flush() {
+    /** Blocks (at most two seconds) until every write queued so far has reached the disk. Profiles call it before
+     *  copying live files, so a queued save is neither missed by the profile being left nor written over the one
+     *  being applied, and it lands before the game quits. */
+    public static void flush() {
         try {
             IO.submit(() -> { }).get(2, TimeUnit.SECONDS);
         } catch (Exception ignored) {

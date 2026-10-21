@@ -1206,6 +1206,8 @@ public final class ProfileManager {
 
     /** Copies every live setting file newer than the active profile's copy into it. Safe to call from any thread. */
     public static synchronized void syncActiveProfile() {
+        // Waypoint Routes writes its files off the render thread: let a queued save reach the disk before copying.
+        com.killer560.hub.routes.AsyncFileWriter.flush();
         String active = getActiveProfile();
         Path dir = active == null ? null : PROFILES_DIR.resolve(sanitize(active));
         if (dir == null || !Files.isDirectory(dir)) {
