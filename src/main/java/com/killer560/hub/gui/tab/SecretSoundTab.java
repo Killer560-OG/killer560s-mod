@@ -60,8 +60,11 @@ public class SecretSoundTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                cfg.secretSoundVolume = Math.round(this.value * 10) / 10f;
-                cfg.save();
+                float v = Math.round(this.value * 10) / 10f;
+                if (v != cfg.secretSoundVolume) { // a drag fires this per mouse move; write the file only on a real step
+                    cfg.secretSoundVolume = v;
+                    cfg.save();
+                }
             }
         });
         w.add(new ThemedSliderButton(colB, y, half, 18, pitchLabel(cfg), cfg.secretSoundPitch / 2.0) {
@@ -72,8 +75,11 @@ public class SecretSoundTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                cfg.secretSoundPitch = Math.round(this.value * 20) / 10f;
-                cfg.save();
+                float p = Math.round(this.value * 20) / 10f;
+                if (p != cfg.secretSoundPitch) {
+                    cfg.secretSoundPitch = p;
+                    cfg.save();
+                }
             }
         });
 

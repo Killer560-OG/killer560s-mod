@@ -156,14 +156,14 @@ public final class SecretSound {
     }
 
     static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null) {
+        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null || !DungeonState.isInDungeon()) {
             return;
         }
         checkItemEntity(level.getEntity(packet.getItemId()));
     }
 
     static void onRemoveEntities(ClientboundRemoveEntitiesPacket packet, ClientLevel level) {
-        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null) {
+        if (!DungeonAlertsConfig.getInstance().secretSoundEnabled || level == null || !DungeonState.isInDungeon()) {
             return;
         }
         packet.getEntityIds().forEach(id -> checkItemEntity(level.getEntity(id)));
@@ -177,11 +177,11 @@ public final class SecretSound {
         if (!DungeonState.isInDungeon() || DungeonAlertsFeature.inBoss()) {
             return;
         }
+        if (client.player.distanceToSqr(item) > 36) {
+            return; // cheap test first: most removed items are far away, and the name below builds a string
+        }
         String name = ChatFormatting.stripFormatting(item.getItem().getHoverName().getString());
         if (name == null || !DUNGEON_ITEM_DROPS.contains(name)) {
-            return;
-        }
-        if (client.player.distanceToSqr(item) > 36) {
             return;
         }
         onSecret(SecretType.ITEM, item.blockPosition());
