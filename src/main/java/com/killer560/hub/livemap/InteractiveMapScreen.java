@@ -137,7 +137,25 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
     private float ppu() {
         int[] p = panel();
         float fit = (p[2] - p[0] - 12) / (float) MapPainter.MAP_UNITS;
-        return Math.min(basePpu(), fit) * MapPainter.floorFit(LiveMapFeature.groupsView())[0] * zoom;
+        refreshFit();
+        return Math.min(basePpu(), fit) * fitScale * zoom;
+    }
+
+    /** The grid extent and the floor-fit scale, recomputed once a client tick instead of on every ppu()/origin call
+     *  (each walked all 121 scanned cells, a dozen times a frame). The rooms only change on a tick, and the hover,
+     *  the click and the drawing all read this one copy, so they cannot disagree. */
+    private int fitTick = Integer.MIN_VALUE;
+    private int[] fitExtent = {0, 0, MapPainter.MAP_UNITS, MapPainter.MAP_UNITS};
+    private float fitScale = 1f;
+
+    private void refreshFit() {
+        int tick = LiveMapFeature.tickCount();
+        if (tick != fitTick) {
+            fitTick = tick;
+            List<LiveMapFeature.RoomGroup> groups = LiveMapFeature.groupsView();
+            fitExtent = MapPainter.gridExtent(groups);
+            fitScale = MapPainter.floorFit(groups)[0];
+        }
     }
 
     /** The shown part of the grid ({@link MapPainter#gridExtent}) is centred in the panel, so a 4x5 or 6x5 floor
@@ -145,14 +163,16 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
      *  is the origin of grid unit 0, which is what {@link #cellAt} and every drawing call measure from. */
     private float originX() {
         int[] p = panel();
-        int[] e = MapPainter.gridExtent(LiveMapFeature.groupsView());
-        return (p[0] + p[2]) / 2f - (e[0] + e[2] / 2f) * ppu() + panX;
+        float ppu = ppu();
+        int[] e = fitExtent;
+        return (p[0] + p[2]) / 2f - (e[0] + e[2] / 2f) * ppu + panX;
     }
 
     private float originY() {
         int[] p = panel();
-        int[] e = MapPainter.gridExtent(LiveMapFeature.groupsView());
-        return (p[1] + p[3]) / 2f - (e[1] + e[3] / 2f) * ppu() + panY;
+        float ppu = ppu();
+        int[] e = fitExtent;
+        return (p[1] + p[3]) / 2f - (e[1] + e[3] / 2f) * ppu + panY;
     }
 
     /** @return grid index of the cell under a screen point, or -1. */
@@ -282,24 +302,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     private static boolean inside(int[] p, double x, double y) {
         return x >= p[0] && y >= p[1] && x < p[2] && y < p[3];
-    }
-
-    // killer560, 2026-09-20: "remove the current-room colour changer" - the room you're standing in no longer gets
-    // a separate tinted highlight, so this no longer takes a "current" flag at all.
-    private void drawRoom(GuiGraphicsExtractor graphics, LiveMapFeature.RoomGroup group, int gid, boolean hovered,
-                          LiveMapConfig cfg, float ox, float oy, float ppu) {
-        int color = MapPainter.roomColor(group, cfg);
-        if (hovered) {
-            color = MapPainter.multiply(color, 1.15f);
-        }
-        MapPainter.drawRoom(graphics, group, gid, color, ox, oy, ppu);
-        // The map says nothing about secret waypoints any more - killer560 (2026-09-27): "Do not have the map
-        // show the waypoints loaded or anything just the pathing waypoints I asked you to build that the
-        // interactive map will follow." The orange per-room outline meant "waypoints are on for just this room",
-        // which was the readout for a toggle that no longer exists. Only the hover outline is left.
-        if (hovered) {
-            MapPainter.outlineGroup(graphics, group, gid, 0xB4FFFFFF, ox, oy, ppu);
-        }
     }
 
     /**
