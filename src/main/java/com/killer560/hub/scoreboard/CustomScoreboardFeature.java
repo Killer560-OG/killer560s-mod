@@ -400,6 +400,21 @@ public final class CustomScoreboardFeature {
     /** SkyHanni's {@code UnknownLinesHandler.handleUnknownLines}, minus its error reporting. */
     private static List<String> computeUnknownLines() {
         List<String> sidebar = ScoreboardData.sidebar();
+        // A pure function of the sidebar, which reads the same on most rebuilds: skip the ~100 patterns per line (twice)
+        // when it has not changed.
+        if (unknownFor != null && unknownFor.equals(sidebar)) {
+            return unknownResult;
+        }
+        List<String> result = scanUnknownLines(sidebar);
+        unknownFor = sidebar;
+        unknownResult = result;
+        return result;
+    }
+
+    private static List<String> unknownFor;
+    private static List<String> unknownResult = Collections.emptyList();
+
+    private static List<String> scanUnknownLines(List<String> sidebar) {
         List<String> out = new ArrayList<>();
         for (String raw : sidebar) {
             String line = ScoreboardData.removeResets(raw);
@@ -725,6 +740,9 @@ public final class CustomScoreboardFeature {
      *  expire by the clock, so a board with one is re-measured each millisecond). {@link #publish} keeps the list
      *  object when a rebuild changed nothing, so this measures once per real change (2026-10-15). */
     private static List<ScoreboardLine> widthLines;
+    /** Each line's own width, for {@link #widthLines} (valid only while {@link #widthTimed} is false): a centered or
+     *  right-aligned line (the title is centered by default) needs it every frame. */
+    private static int[] widthEach;
     private static Font widthFont;
     private static long widthAtMs;
     private static boolean widthTimed;
@@ -737,11 +755,15 @@ public final class CustomScoreboardFeature {
         }
         int w = 0;
         boolean timed = false;
+        int[] each = new int[lines.size()];
+        int i = 0;
         for (ScoreboardLine line : lines) {
-            w = Math.max(w, lineWidth(font, line, now));
+            each[i] = lineWidth(font, line, now);
+            w = Math.max(w, each[i++]);
             timed |= line.popup() != null;
         }
         if (Minecraft.getInstance().isSameThread()) {
+            widthEach = each;
             widthLines = lines;
             widthFont = font;
             widthAtMs = now;
@@ -749,6 +771,16 @@ public final class CustomScoreboardFeature {
             widthValue = w;
         }
         return w;
+    }
+
+    /** {@link #lineWidth} of {@code lines.get(index)}, from the list's last measure when it is still valid (call after
+     *  {@link #contentWidth} for the same list). */
+    private static int lineWidthAt(Font font, List<ScoreboardLine> lines, int index, ScoreboardLine line, long now) {
+        int[] each = widthEach;
+        if (lines == widthLines && font == widthFont && !widthTimed && each != null && index < each.length) {
+            return each[index];
+        }
+        return lineWidth(font, line, now);
     }
 
     private static int contentHeight(Font font, List<ScoreboardLine> lines, CustomScoreboardConfig cfg) {
@@ -864,8 +896,8 @@ public final class CustomScoreboardFeature {
             // Only a centered or right-aligned line needs its own width (a font measure per line per frame otherwise).
             int lx = switch (line.align()) {
                 case LEFT -> textX;
-                case CENTER -> textX + (blockW - lineWidth(font, line, now)) / 2;
-                case RIGHT -> textX + blockW - lineWidth(font, line, now);
+                case CENTER -> textX + (blockW - lineWidthAt(font, lines, i, line, now)) / 2;
+                case RIGHT -> textX + blockW - lineWidthAt(font, lines, i, line, now);
             };
             int ly = y + b + pad + i * lineStep;
             g.text(font, line.text(), lx, ly, 0xFFFFFFFF, cfg.isTextShadow());
@@ -984,8 +1016,12 @@ public final class CustomScoreboardFeature {
         // the HUD on (95-fps-bench JFR, 2026-10-05) - about 300 fills a frame for a default board.
         int runStart = -1;
         int runA = 0, runB = 0, runColor = 0;
+        // Only a gradient border changes colour from row to row; the others are one colour, looked up once (the menu
+        // palette lookup is synchronized and was repeated for every one of the border's rows, every frame).
+        boolean rowColours = cfg.getBorderStyle() != CustomScoreboardConfig.BorderStyle.MENU && cfg.isBorderGradient();
+        int flatColour = rowColours ? 0 : borderColor(cfg, 0, h, now);
         for (int row = 0; row < h; row++) {
-            int color = borderColor(cfg, row, h, now);
+            int color = rowColours ? borderColor(cfg, row, h, now) : flatColour;
             if (alphaMul < 1f) {
                 color = Math.round((color >>> 24) * alphaMul) << 24 | (color & 0xFFFFFF);
             }
