@@ -27,11 +27,8 @@ public final class GifTextureUtil {
             int dstY = h - 1 - y;
             for (int x = 0; x < w; x++) {
                 int px = argb[row + x];
-                int a = (px >>> 24) & 0xFF;
-                int r = (px >>> 16) & 0xFF;
-                int g = (px >>> 8) & 0xFF;
-                int b = px & 0xFF;
-                image.setPixelABGR(x, dstY, (a << 24) | (b << 16) | (g << 8) | r);
+                // ARGB -> ABGR: keep alpha and green, swap red and blue.
+                image.setPixelABGR(x, dstY, (px & 0xFF00FF00) | ((px & 0xFF) << 16) | ((px >>> 16) & 0xFF));
             }
         }
     }

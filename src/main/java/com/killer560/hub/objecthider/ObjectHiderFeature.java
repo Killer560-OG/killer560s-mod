@@ -342,6 +342,12 @@ public final class ObjectHiderFeature {
                 found.add(new double[] {stand.getX(), stand.getY() + 2.0, stand.getZ()});
             }
         }
+        if (found.isEmpty()) {
+            if (orbPositions.length != 0) {
+                orbPositions = new double[0][];
+            }
+            return;
+        }
         orbPositions = found.toArray(new double[0][]);
     }
 
@@ -380,7 +386,7 @@ public final class ObjectHiderFeature {
         // QUOI 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
         // max distance. "Click Through" is deliberately not ported: that changes which entity your clicks
         // hit, i.e. interaction/raycasting, not rendering - out of scope for a client-side render hider.
-        if (cfg.isHidePlayers() && entity instanceof RemotePlayer
+        if (entity instanceof RemotePlayer && cfg.isHidePlayers()
                 && (!cfg.isHidePlayersDungeonOnly() || inDungeon)
                 && (!cfg.isHidePlayersBossOnly() || LiveMapFeature.isInBoss())
                 && withinHidePlayersDistance(entity, cfg, client)) {
@@ -661,7 +667,9 @@ public final class ObjectHiderFeature {
 
     /** Devonian {@code HideWitherKing.kt} - the arena box the King's armor stands / witch particles live in. */
     private static boolean isWitherKingArea(double y, double z) {
-        return y >= 9.0 && y <= 25.0 && z <= 45.0;
+        // The sim shifts the whole floor vertically (SimAltitude), so the box moves with it.
+        double rel = y - com.killer560.hub.livemap.DungeonLayout.simYOffset();
+        return rel >= 9.0 && rel <= 25.0 && z <= 45.0;
     }
 
     private static boolean isMasterSeven() {

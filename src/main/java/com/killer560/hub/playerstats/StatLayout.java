@@ -216,6 +216,27 @@ public final class StatLayout {
         return out;
     }
 
+    // inOrder for every area, rebuilt only when the config's areas or orders can have changed (layoutVersion bumps on
+    // every move, order change and load): the layout is built each frame and used to sort five lists of map lookups.
+    private static PlayerStatsConfig orderedCfg;
+    private static int orderedVersion = -1;
+    private static List<List<Readout>> ordered = List.of();
+
+    /** {@link #inOrder} for {@code area}, shared and read-only. */
+    private static List<Readout> orderedCached(PlayerStatsConfig cfg, Area area) {
+        int version = PlayerStatsConfig.layoutVersion();
+        if (orderedCfg != cfg || orderedVersion != version) {
+            List<List<Readout>> built = new ArrayList<>();
+            for (Area a : Area.values()) {
+                built.add(List.copyOf(inOrder(cfg, a)));
+            }
+            ordered = built;
+            orderedCfg = cfg;
+            orderedVersion = version;
+        }
+        return ordered.get(area.ordinal());
+    }
+
     /** Called once per frame by the HUD layer and the HUD editor: values and vanilla rows may have changed. */
     public static void newFrame() {
         frame++;
@@ -244,7 +265,8 @@ public final class StatLayout {
 
     /** Where {@code r} draws now, or null when the layout does not place it (Custom, off, nothing to show, Hidden). */
     public static Placed placed(Readout r) {
-        if (!predefined()) {
+        // A readout that is off is never placed (compute skips it), so it must not be the one that builds the layout.
+        if (!predefined() || !PlayerStatsConfig.getInstance().isReadoutOn(r)) {
             return null;
         }
         Layout l = current();
@@ -348,7 +370,7 @@ public final class StatLayout {
         Layout out = new Layout();
         for (Area a : Area.values()) {
             List<Readout> list = new ArrayList<>();
-            for (Readout r : inOrder(cfg, a)) {
+            for (Readout r : orderedCached(cfg, a)) {
                 if (r == exclude || r == moving || !cfg.isReadoutOn(r)) {
                     continue;
                 }
