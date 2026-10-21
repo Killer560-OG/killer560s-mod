@@ -41,29 +41,58 @@ public final class PetsMenuScanner {
     private static final Pattern LEVEL_PREFIX = Pattern.compile("^\\[Lvl (\\d+)]\\s*(.*)$");
     private static final int PLAYER_INVENTORY_SLOTS = 36;
 
-    private static int lastScannedContainerId = -1;
+    /** The container screen last judged, and whether its title said Pets. A screen's title never changes (a page
+     *  turn is a new screen object), so the regex runs once per screen instead of every tick in every chest. */
+    private static AbstractContainerScreen<?> judgedScreen = null;
+    private static boolean judgedIsPets = false;
+    /** The stack each container slot held when it was last scanned: a slot whose stack is the same object has not
+     *  been touched by a slot packet, so its petInfo JSON and skin are not parsed again every tick. */
+    private static ItemStack[] scannedStacks = new ItemStack[0];
 
     private PetsMenuScanner() {
+    }
+
+    /** Drops the cached screen so a closed menu is not kept alive while the feature is off. */
+    static void reset() {
+        if (judgedScreen == null) {
+            return;
+        }
+        judgedScreen = null;
+        judgedIsPets = false;
+        scannedStacks = new ItemStack[0];
     }
 
     /** Called every client tick by {@link PetWheelFeature}; no-ops unless Pet Wheel is enabled and the real
      *  Pets screen is the one currently open - this package touches nothing while the feature is off. */
     public static void tick(Minecraft client) {
         if (!(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
-            lastScannedContainerId = -1;
+            if (judgedScreen != null) {
+                reset();
+            }
             return;
         }
-        Matcher title = PETS_TITLE.matcher(screen.getTitle().getString());
-        if (!title.matches()) {
-            lastScannedContainerId = -1;
+        if (screen != judgedScreen) {
+            judgedScreen = screen;
+            judgedIsPets = PETS_TITLE.matcher(screen.getTitle().getString()).matches();
+            scannedStacks = new ItemStack[0];
+        }
+        if (!judgedIsPets) {
             return;
         }
         List<Slot> slots = screen.getMenu().slots;
         int containerSlots = Math.max(0, slots.size() - PLAYER_INVENTORY_SLOTS);
+        if (scannedStacks.length != containerSlots) {
+            scannedStacks = new ItemStack[containerSlots];
+        }
         boolean changed = false;
         PetWheelConfig cfg = PetWheelConfig.getInstance();
         for (int i = 0; i < containerSlots; i++) {
-            PetEntry entry = scanSlot(slots.get(i).getItem());
+            ItemStack stack = slots.get(i).getItem();
+            if (stack == scannedStacks[i]) {
+                continue;
+            }
+            scannedStacks[i] = stack;
+            PetEntry entry = scanSlot(stack);
             if (entry != null && cfg.recordSeenPet(entry)) {
                 changed = true;
             }
@@ -71,7 +100,6 @@ public final class PetsMenuScanner {
         if (changed) {
             cfg.save();
         }
-        lastScannedContainerId = screen.getMenu().containerId;
     }
 
     /** @return a {@link PetEntry} for a real pet head slot, or null (empty slot, not a pet head, or - Next
