@@ -88,7 +88,16 @@ public final class SpotifyLyricsFeature {
         //
         // Affordable because the window handle is cached in SpotifyDesktopSource and the process-id lookup for
         // five seconds, so a poll that finds nothing new is two syscalls.
-        SCHEDULER.scheduleAtFixedRate(SpotifyLyricsFeature::tick, 250, POLL_MS, TimeUnit.MILLISECONDS);
+        SCHEDULER.scheduleAtFixedRate(SpotifyLyricsFeature::safeTick, 250, POLL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    /** A throw out of a scheduleAtFixedRate task silently cancels every later run, so nothing may escape tick(). */
+    private static void safeTick() {
+        try {
+            tick();
+        } catch (Throwable t) {
+            LOGGER.warn("Spotify poll tick failed: {}", String.valueOf(t));
+        }
     }
 
     // ---- Config persistence ----
@@ -203,7 +212,48 @@ public final class SpotifyLyricsFeature {
             return;
         }
 
+        // A lyric line can arrive within a fraction of a second of the last one (fast verses); never send chat faster
+        // than once a second. Track-change announcements are exempt, and a dropped line is simply not sent.
+        long now = System.currentTimeMillis();
+        if (!isTrackChange && !inSim && now - lastSendMs < MIN_SEND_GAP_MS) {
+            return;
+        }
+        lastSendMs = now;
         sendToChat(applyProfanityFilter(lyric), inSim);
+    }
+
+    /** Fewest milliseconds between two lyric lines sent to a chat. */
+    private static final long MIN_SEND_GAP_MS = 1000;
+    private static volatile long lastSendMs = 0;
+
+    /** Hypixel and the vanilla packet accept at most 256 characters; a command and illegal characters are not allowed. */
+    private static final int MAX_CHAT_CHARS = 256;
+
+    /**
+     * What may go to a chat: no section signs or control characters (the server kicks for them), no leading slash
+     * (with the plain destination a lyric starting with "/" would run as a command), and short enough that the
+     * prefix plus the line fits the 256-character limit (a longer string makes the packet encoder throw).
+     */
+    static String chatSafe(String message, String prefix) {
+        StringBuilder sb = new StringBuilder(message.length());
+        for (int i = 0; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c == '§' || c < 32 || c == 127) {
+                c = ' ';
+            }
+            sb.append(c);
+        }
+        String s = sb.toString().strip();
+        int start = 0;
+        while (start < s.length() && s.charAt(start) == '/') {
+            start++;
+        }
+        s = s.substring(start).strip();
+        int max = Math.max(0, MAX_CHAT_CHARS - prefix.length());
+        if (s.length() > max) {
+            s = s.substring(0, max).strip();
+        }
+        return s;
     }
 
     /** What the Spotify HUD draws: the last poll's state, safe to read from the render thread. */
@@ -221,9 +271,13 @@ public final class SpotifyLyricsFeature {
         return DESKTOP.available() ? "" : DESKTOP.unavailableReason();
     }
 
-    private static void sendToChat(String message, boolean localOnly) {
+    private static void sendToChat(String raw, boolean localOnly) {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
+            return;
+        }
+        String message = chatSafe(raw, localOnly ? "" : chatDestination.prefix);
+        if (message.isEmpty()) {
             return;
         }
         if (localOnly) {
@@ -238,7 +292,12 @@ public final class SpotifyLyricsFeature {
             return;
         }
         String full = chatDestination.prefix + message;
-        client.execute(() -> client.player.connection.sendChat(full));
+        client.execute(() -> {
+            // client.player was read on the poll thread; it may be gone by the time this runs on the main thread.
+            if (client.player != null) {
+                client.player.connection.sendChat(full);
+            }
+        });
     }
 
     // ---- Profanity filter ----

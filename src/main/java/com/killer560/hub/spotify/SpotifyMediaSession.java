@@ -107,7 +107,7 @@ public final class SpotifyMediaSession {
 
     private volatile Timeline latest;
     private volatile Cover cover;
-    private Process process;
+    private volatile Process process;
     private long nextStartMs;
     private int failures;
     private boolean hookAdded;
@@ -203,6 +203,9 @@ public final class SpotifyMediaSession {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = in.readLine()) != null) {
+                if (process != p) {
+                    break;   // stopped (or replaced) while this line was in flight: it must not repopulate latest/cover
+                }
                 long now = System.currentTimeMillis();
                 Timeline t = parse(line, now);
                 setState(t != null ? "reading Spotify" : line.startsWith("N") ? "no Spotify session" : "read failed");
@@ -230,7 +233,9 @@ public final class SpotifyMediaSession {
         } catch (Exception ignored) {
             // the process ended; ensureRunning restarts it
         } finally {
-            latest = null;
+            if (process == p || process == null) {
+                latest = null;   // a replacement reader's readings are not this one's to clear
+            }
             setState("ended");
         }
     }
