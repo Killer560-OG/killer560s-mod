@@ -161,10 +161,6 @@ public final class BatLog {
             return batId < 0 || endTick < 0 ? -1 : (int) (endTick - useTick);
         }
 
-        public double flownBlocks() {
-            return flown;
-        }
-
         /**
          * Blocks a tick while the client saw it fly, without the round trip: a least-squares line through each position
          * update the server sent (distance along the flight's line against the tick it arrived). A server sends an

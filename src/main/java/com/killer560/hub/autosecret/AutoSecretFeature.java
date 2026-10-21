@@ -1178,13 +1178,6 @@ public final class AutoSecretFeature {
         return false;
     }
 
-    /** For the testkit: the room Auto Secret holds for last on the current floor, by name, or null. */
-    public static String preBloodRoomName() {
-        DungeonLayout layout = DungeonLayout.capture();
-        int room = preBloodRoom(layout, RoomStatus.rooms());
-        return room < 0 ? null : layout.name(room);
-    }
-
     private static boolean eligibleForSecrets(RoomStatus.Room r) {
         // Trap rooms only through Auto Trap (killer560, 2026-10-06: "it will use auto trap to do trap rooms").
         return !"Unknown".equals(r.name()) && !r.isType("PUZZLE") && !r.isType("BLOOD")
