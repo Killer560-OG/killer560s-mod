@@ -1602,6 +1602,16 @@ public final class MapPainter {
         if (entry.secrets == 0) {
             return "0";
         }
+        return foundSecretsCount(group) + "/" + entry.secrets;
+    }
+
+    /** The "found" half of {@link #secretsText} as a number (0 where that label shows no "found/total"), so a caller
+     *  that wants the count does not format the label and parse it back. */
+    static int foundSecretsCount(LiveMapFeature.RoomGroup group) {
+        RoomEntry entry = group.entry;
+        if (entry == null || entry.secrets <= 0 || !identityRevealed(group)) {
+            return 0;
+        }
         int found = LiveMapFeature.foundSecrets(entry.name);
         if (visibleState(group) == DungeonMapScanner.STATE_GREEN) {
             found = entry.secrets;
@@ -1616,7 +1626,7 @@ public final class MapPainter {
                 found = Math.max(found, fact.value().found());
             }
         }
-        return (found < 0 ? 0 : found) + "/" + entry.secrets;
+        return found < 0 ? 0 : found;
     }
 
     /** Checkmarks / secrets / room names over the rooms. Style is
