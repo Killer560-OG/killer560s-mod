@@ -78,9 +78,10 @@ public class MenuThemeTab extends BaseTab {
                 Minecraft.getInstance().font));
         y += 16;
         int[] colours = cfg.activeColours();
+        int[] presetColours = cfg.getTheme() == MenuTheme.CUSTOM ? cfg.getCustomBase().base() : colours;
         for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
             int argb = colours[slot.ordinal()];
-            int preset = cfg.getTheme() == MenuTheme.CUSTOM ? cfg.getCustomBase().base()[slot.ordinal()] : argb;
+            int preset = presetColours[slot.ordinal()];
             widgets.add(SettingsButtonWidget.builder(ColorSwatch.label(slot.label, argb), btn -> {
                         Minecraft client = Minecraft.getInstance();
                         McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), slot.label, argb, preset,
@@ -179,7 +180,7 @@ public class MenuThemeTab extends BaseTab {
         return Component.literal("Menu Theme: §6" + shown);
     }
 
-    /** The next (dir +1) or previous (-1) theme, Amber - Dark - Light - Custom, wrapping; saved. */
+    /** The next (dir +1) or previous (-1) theme, Amber - Dark - Light - Ocean - Green - Custom, wrapping; saved. */
     public static void step(int dir) {
         MenuConfig cfg = MenuConfig.getInstance();
         cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));

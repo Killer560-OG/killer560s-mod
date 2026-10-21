@@ -75,8 +75,10 @@ public enum MenuTheme {
         return ScreenThemes.colours(screenId);
     }
 
-    /** The presets only (Custom excluded). */
+    private static final MenuTheme[] PRESETS = {AMBER, DARK, LIGHT, OCEAN, GREEN};
+
+    /** The presets only (Custom excluded). One shared array (screen colour lookups run every frame): do not modify it. */
     public static MenuTheme[] presets() {
-        return new MenuTheme[]{AMBER, DARK, LIGHT, OCEAN, GREEN};
+        return PRESETS;
     }
 }
