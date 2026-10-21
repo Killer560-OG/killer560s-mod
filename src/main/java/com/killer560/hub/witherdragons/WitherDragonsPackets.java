@@ -65,7 +65,10 @@ public final class WitherDragonsPackets {
     }
 
     private static void p5TabFooter(ClientboundTabListPacket packet) {
-        P5State.onTabFooter(packet.footer());
+        // Only dragon priority reads the blessings P5State parses; skip the footer string and two regex scans otherwise.
+        if (WitherDragonsFeature.trackingActive()) {
+            P5State.onTabFooter(packet.footer());
+        }
     }
 
     private static void blessingsTabFooter(ClientboundTabListPacket packet) {

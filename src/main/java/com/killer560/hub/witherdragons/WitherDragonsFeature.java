@@ -218,12 +218,14 @@ public final class WitherDragonsFeature {
 
     /** Odin {@code handleSpawnPacket}. */
     static void onParticles(ClientboundLevelParticlesPacket p) {
-        if (!trackingActive() || !P5State.inP5()) {
-            return;
-        }
+        // The packet's own fields first: almost every particle in every world fails them, and they cost nothing
+        // beside trackingActive()'s config reads and inP5()'s state lookups (FPS sweep, 2026-10-21).
         if (p.getCount() != 20 || p.getY() != 19.0 || p.getParticle().getType() != ParticleTypes.FLAME
                 || p.getXDist() != 2f || p.getYDist() != 3f || p.getZDist() != 2f || p.getMaxSpeed() != 0f
                 || p.getX() % 1 != 0.0 || p.getZ() % 1 != 0.0) {
+            return;
+        }
+        if (!trackingActive() || !P5State.inP5()) {
             return;
         }
         int spawned = 0;

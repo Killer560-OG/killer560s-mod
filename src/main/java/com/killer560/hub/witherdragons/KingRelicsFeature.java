@@ -171,6 +171,12 @@ public final class KingRelicsFeature {
         if (!P5State.inP5()) {
             return;
         }
+        // heldRelic() reads every inventory slot's custom data (a tag copy each) - 20 times a second. A relic cannot be
+        // held before Necron's line starts P5, and once all five are placed none matters unless a click is pending.
+        if (p5StartTick == 0L || (pendingRelic == null && PLACED.size() == KingRelic.values().length)) {
+            currentRelic = null;
+            return;
+        }
         currentRelic = heldRelic();
         if (pendingRelic != null) {
             if (currentRelic != pendingRelic) {
