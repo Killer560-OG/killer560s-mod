@@ -8,8 +8,8 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 /** Smooth Teleport settings - see {@link com.killer560.hub.smoothtp.SmoothTeleport}. Visual only, so both builds. */
 public class SmoothTeleportTab extends BaseTab {
@@ -27,8 +27,9 @@ public class SmoothTeleportTab extends BaseTab {
         int y = contentY;
 
         widgets.add(SettingsButtonWidget.builder(onOff("Smooth Teleport", cfg.isEnabledRaw()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabledRaw());
-                    cfg.save();
+                    SmoothTeleportConfig live = SmoothTeleportConfig.getInstance();
+                    live.setEnabled(!live.isEnabledRaw());
+                    live.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
@@ -41,37 +42,43 @@ public class SmoothTeleportTab extends BaseTab {
                 (cfg.getDurationMs() - SmoothTeleportConfig.MIN_DURATION_MS) / (double) SPAN) {
             @Override
             protected void updateMessage() {
-                setMessage(durationText(cfg));
+                setMessage(durationText(SmoothTeleportConfig.getInstance()));
             }
 
             @Override
             protected void applyValue() {
                 // Steps of 10 ms.
                 int ms = SmoothTeleportConfig.MIN_DURATION_MS + (int) Math.round(this.value * SPAN / 10.0) * 10;
-                cfg.setDurationMs(ms);
-                cfg.save();
+                SmoothTeleportConfig live = SmoothTeleportConfig.getInstance();
+                live.setDurationMs(ms);
+                live.save();
             }
         });
         y += 22;
 
-        widgets.add(toggle(contentX, y, contentWidth, "Etherwarp", cfg::isEtherwarp, cfg::setEtherwarp));
+        widgets.add(toggle(contentX, y, contentWidth, "Etherwarp", SmoothTeleportConfig::isEtherwarp,
+                SmoothTeleportConfig::setEtherwarp));
         y += 22;
-        widgets.add(toggle(contentX, y, contentWidth, "Instant Transmission", cfg::isInstantTransmission,
-                cfg::setInstantTransmission));
+        widgets.add(toggle(contentX, y, contentWidth, "Instant Transmission",
+                SmoothTeleportConfig::isInstantTransmission, SmoothTeleportConfig::setInstantTransmission));
         y += 22;
-        widgets.add(toggle(contentX, y, contentWidth, "Wither Impact", cfg::isWitherImpact, cfg::setWitherImpact));
+        widgets.add(toggle(contentX, y, contentWidth, "Wither Impact", SmoothTeleportConfig::isWitherImpact,
+                SmoothTeleportConfig::setWitherImpact));
         y += 22;
-        widgets.add(toggle(contentX, y, contentWidth, "Other Teleports", cfg::isOtherTeleports,
-                cfg::setOtherTeleports));
+        widgets.add(toggle(contentX, y, contentWidth, "Other Teleports", SmoothTeleportConfig::isOtherTeleports,
+                SmoothTeleportConfig::setOtherTeleports));
         return widgets;
     }
 
-    private static AbstractWidget toggle(int x, int y, int width, String label, BooleanSupplier get,
-                                         Consumer<Boolean> set) {
-        return SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {
-            set.accept(!get.getAsBoolean());
-            SmoothTeleportConfig.getInstance().save();
-            btn.setMessage(onOff(label, get.getAsBoolean()));
+    /** Acts on the live config each press: a profile apply replaces the instance this tab was built with. */
+    private static AbstractWidget toggle(int x, int y, int width, String label,
+                                         Predicate<SmoothTeleportConfig> get,
+                                         BiConsumer<SmoothTeleportConfig, Boolean> set) {
+        return SettingsButtonWidget.builder(onOff(label, get.test(SmoothTeleportConfig.getInstance())), btn -> {
+            SmoothTeleportConfig live = SmoothTeleportConfig.getInstance();
+            set.accept(live, !get.test(live));
+            live.save();
+            btn.setMessage(onOff(label, get.test(live)));
         }).bounds(x, y, width, 18).build();
     }
 

@@ -98,11 +98,21 @@ public final class SmoothTeleport {
 
     /** From {@code SmoothTpOutboundMixin}, for every packet this client sends. Read-only. */
     public static void onPacketSent(Packet<?> packet) {
+        if (!(packet instanceof ServerboundUseItemPacket) && !(packet instanceof ServerboundUseItemOnPacket)) {
+            return;
+        }
         InteractionHand hand;
         Vec3 look;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) {
+            return;
+        }
+        if (!SmoothTeleportConfig.getInstance().isEnabled()) {
+            // Off: no look vector, no tag copy. (PENDING is emptied on the next position packet.)
+            if (mc.isSameThread() && !PENDING.isEmpty()) {
+                PENDING.clear();
+            }
             return;
         }
         if (packet instanceof ServerboundUseItemPacket use) {
@@ -116,11 +126,6 @@ public final class SmoothTeleport {
             return;
         }
         if (!mc.isSameThread()) {
-            return;
-        }
-        SmoothTeleportConfig cfg = SmoothTeleportConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            PENDING.clear();
             return;
         }
         ItemStack held = player.getItemInHand(hand);

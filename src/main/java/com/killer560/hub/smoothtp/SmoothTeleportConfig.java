@@ -15,7 +15,8 @@ import java.nio.file.Path;
  * Persisted Smooth Teleport settings - see {@link SmoothTeleport} for what the glide is and is not allowed to touch.
  *
  * <p>Off by default, like every new feature. The duration's default and range are Skyblocker 6.9.1's "Smooth AOTE"
- * ({@code maximumAddedLag}: 100 ms, slider 0-500); ours starts at 50 because a 0 ms glide is just the feature off.
+ * ({@code maximumAddedLag}: 100 ms, slider 0-500); ours starts at 100 and bottoms out at 50 because a 0 ms glide is
+ * just the feature off.
  * The per-teleport toggles default ON so turning the master switch on is enough.
  */
 public final class SmoothTeleportConfig {
