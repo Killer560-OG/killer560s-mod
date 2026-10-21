@@ -2941,6 +2941,14 @@ public final class RouteExecutor {
         }
         if (hopIndex < 0) {
             if (!route.isPathSource(node)) {
+                // An arrival is only real where he stands. Node #14 was stacked on #1's tile and "arrived" 24 blocks away
+                // (22:10:48 in the Mod Only Test run), so the route walked on into its bat node from the wrong place.
+                double off = player.position().distanceTo(RouteCoords.toReal(frame, node.relativePos()));
+                if (off > LANDING_TOLERANCE) {
+                    stop("not at path #" + (route.indexOf(node) + 1) + " - "
+                            + (Math.round(off * 10) / 10.0) + " blocks away");
+                    return;
+                }
                 logActed(node, " (path arrival)");
                 finishAction();
                 return;
@@ -5167,6 +5175,22 @@ public final class RouteExecutor {
         return com.killer560.hub.util.ServerLag.ticksSince(stepLag);
     }
 
+    /**
+     * Is {@code pos} the first block the eye's ray meets? The same test {@code ForeignBreakerProbe} reports on, aimed at
+     * the block centre the dig itself is aimed at, so the breaker never sends a dig the probe would call blocked.
+     */
+    private static boolean inSight(Minecraft client, LocalPlayer player, BlockPos pos) {
+        BlockHitResult hit = client.level.clip(new ClipContext(player.getEyePosition(), Vec3.atCenterOf(pos),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos);
+    }
+
+    /** Was {@code pos} dug within {@link #DIG_SETTLE_TICKS} ticks? Then the dig is still on its way, not a block to send. */
+    private static boolean dugRecently(Minecraft client, BlockPos pos) {
+        Long t = lastDugAt.get(pos);
+        return t != null && client.level.getGameTime() - t < DIG_SETTLE_TICKS;
+    }
+
     public static int boomSettleTicks() {
         int ping = 0;
         Minecraft client = Minecraft.getInstance();
@@ -5366,6 +5390,15 @@ public final class RouteExecutor {
                     LOGGER.info("[AutoRoutes] Breaker: obsidian {} queued - dug alone after the burst, held until the"
                             + " server breaks it", pos.toShortString());
                     continue;
+                }
+                // In reach is not enough: a dig through a wall is the same as a dig nobody can see. The multi-break
+                // sent three in one tick on 22:10:47 with two of them behind the wall (the probe's line of sight).
+                if (!inSight(client, player, pos)) {
+                    LOGGER.info("[AutoRoutes] Breaker block {} not in sight - skipped", pos);
+                    continue;
+                }
+                if (dugRecently(client, pos)) {
+                    continue; // the linger (or this node a tick ago) has it already; the client still shows it
                 }
                 if (sentNow == 0 && !AutoRoutesConfig.getInstance().isLegitMode()) {
                     // Look at the (first) block this tick breaks, as a dig is always aimed (GrimAC RotationBreak).
@@ -5680,6 +5713,11 @@ public final class RouteExecutor {
     private static RouteNode lingerNode;
     private static final List<BlockPos> lingerBlocks = new ArrayList<>();
     private static final java.util.Map<BlockPos, Integer> lingerSentAt = new java.util.HashMap<>();
+    /** The game tick each block's last dig went out, from either the node or the linger. A block the client still shows
+     *  for a few ticks after a dig would otherwise get a second START on the server's air (GrimAC AirLiquidBreak, 62-argrim-1013). */
+    private static final java.util.Map<BlockPos, Long> lastDugAt = new java.util.HashMap<>();
+    /** Ticks after a dig before the same block is dug again by anyone (the dig itself takes a few ticks to show). */
+    private static final int DIG_SETTLE_TICKS = 4;
     private static net.minecraft.client.multiplayer.ClientLevel lingerLevel;
     private static int lingerTicks;
     private static boolean lingerSaid;
@@ -5769,7 +5807,9 @@ public final class RouteExecutor {
             if (sent != null && lingerTicks - sent < LINGER_RESEND_TICKS) {
                 continue;
             }
-            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ) {
+            // In sight as well as in reach: a walled block waits here until it is visible, as the node's own breaker does.
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ && inSight(client, player, pos)
+                    && !dugRecently(client, pos)) {
                 inReach.add(pos);
             }
         }
@@ -5834,6 +5874,7 @@ public final class RouteExecutor {
                     pos.toShortString());
             return; // the one place a breaker node's dig goes out: never a Fairy room or a guarded secret
         }
+        lastDugAt.put(pos, client.level.getGameTime());
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
         // a block's top can carry: GrimAC PositionBreakA flagged and cancelled every breaker block above the feet
         // (2026-10-05, 62-argrim), so those blocks never broke.
