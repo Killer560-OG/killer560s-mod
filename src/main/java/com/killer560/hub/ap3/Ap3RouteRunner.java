@@ -195,24 +195,42 @@ final class Ap3RouteRunner {
     }
 
     /** The path the current plan follows, for the renderer; empty when there is nothing planned. */
-    static List<Vec3> plannedPath(double y) {
+    static Vec3[] plannedPath(double y) {
         Ap3RoutePlanner.Plan p = plan;
         if (p == null || planStart == null || planModel == null || p.steps.length == 0) {
-            return List.of();
+            return NO_PATH;
+        }
+        Ap3RoutePlanner.Terrain terrain = snapshot;
+        // The same plan on the same start, model and terrain draws the same line: re-simulating every step of it on
+        // every frame was the cost (the planned path is shown by default). Keyed on object identity.
+        if (drawnPlan == p && drawnStart == planStart && drawnModel == planModel && drawnTerrain == terrain) {
+            return drawnPath;
         }
         // Drawn at the heights the plan actually runs at, so a staircase shows as a line going up it.
-        List<Vec3> out = new ArrayList<>(p.steps.length + 1);
+        Vec3[] out = new Vec3[p.steps.length + 1];
         Ap3RouteMath.RouteState s = planStart.copy();
-        Ap3RoutePlanner.Terrain terrain = snapshot;
-        out.add(new Vec3(s.x, s.y + 0.1, s.z));
+        out[0] = new Vec3(s.x, s.y + 0.1, s.z);
         Ap3RouteCollide.Shapes world = terrain == null ? Ap3RouteMath.FLAT_GROUND : terrain.shapes();
+        int n = 1;
         for (Ap3RoutePlanner.Step st : p.steps) {
             // The same move the plan was built on, so the drawn line goes up a staircase exactly where the run will.
             Ap3RouteMath.step(s, st.keys(), st.yaw(), st.jump(), st.sprint(), planModel, world);
-            out.add(new Vec3(s.x, s.y + 0.1, s.z));
+            out[n++] = new Vec3(s.x, s.y + 0.1, s.z);
         }
+        drawnPlan = p;
+        drawnStart = planStart;
+        drawnModel = planModel;
+        drawnTerrain = terrain;
+        drawnPath = out;
         return out;
     }
+
+    private static Ap3RoutePlanner.Plan drawnPlan;
+    private static Object drawnStart;
+    private static Object drawnModel;
+    private static Object drawnTerrain;
+    private static final Vec3[] NO_PATH = new Vec3[0];
+    private static Vec3[] drawnPath = NO_PATH;
 
     // ---- driving ------------------------------------------------------------------------------------------------
 
