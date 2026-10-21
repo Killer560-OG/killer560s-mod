@@ -320,8 +320,12 @@ public final class SpiritLeapOverlayFeature {
             // Only while no single-slot packet has landed since: then the slots are exactly that packet's.
             fullPacket = lastContainerPacketFull;
         }
-        int known = PartyTracker.teammates().size();
-        boolean complete = !state.settled && known > 0 && headCount(items) >= known;
+        // Only before the first accept: once settled, "complete" is moot, so skip the per-frame teammate list.
+        boolean complete = false;
+        if (!state.settled) {
+            int known = PartyTracker.teammates().size();
+            complete = known > 0 && headCount(items) >= known;
+        }
         if (anyHead && (fullPacket || complete)) {
             List<LeapTarget> fresh = readTargets(containerScreen);
             if (!fresh.isEmpty()) {

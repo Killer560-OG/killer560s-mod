@@ -44,11 +44,6 @@ public enum LeapOrderMode {
         return label;
     }
 
-    public LeapOrderMode next() {
-        LeapOrderMode[] all = values();
-        return all[(ordinal() + 1) % all.length];
-    }
-
     public static LeapOrderMode byName(String name) {
         if (name != null) {
             for (LeapOrderMode m : values()) {
