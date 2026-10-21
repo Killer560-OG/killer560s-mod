@@ -832,9 +832,4 @@ final class AutoWeirdos {
         seenRefusals = 0;
         retries = 0;
     }
-
-    /** Test aid: weirdos talked to in this room. */
-    public static int talkedCount() {
-        return talked.size();
-    }
 }
