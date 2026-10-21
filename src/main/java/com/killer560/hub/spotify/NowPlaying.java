@@ -7,8 +7,8 @@ package com.killer560.hub.spotify;
  * @param artist     the performer, or "" when the source cannot separate it from the title
  * @param title      the track title - blank unless {@code kind} is {@link Kind#TRACK}
  * @param positionMs how far into the track playback is, or null when the source cannot say. The desktop
- *                   window title carries no clock, so it is always null there and the lyric timer runs its
- *                   own stopwatch from the moment the track changed. A Spotify login is what would fill it in.
+ *                   window title carries no clock, so it is always null here; the real position comes from
+ *                   {@link SpotifyMediaSession} instead, which {@link LyricsEngine} reads beside this.
  */
 public record NowPlaying(Kind kind, String artist, String title, Long positionMs) {
 

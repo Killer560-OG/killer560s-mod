@@ -21,10 +21,9 @@ import java.util.Set;
  *
  * <h2>What it cannot do</h2>
  *
- * <p>A window title carries no clock, so there is no playback position: the lyric timer still keys off the
- * moment the title changed, the same way the Last.fm path does. It is much closer to the truth though - the
- * title flips within a frame of the track changing, where Last.fm takes several seconds - so the offset
- * slider that used to need about 5 s of compensation wants roughly zero here.
+ * <p>A window title carries no clock, so there is no playback position here: the title flips within a frame of
+ * the track changing, which starts the lyric clock, and the position, length and cover come from
+ * {@link SpotifyMediaSession} (Windows' media controls) when that reader runs. It also names only the first artist.
  *
  * <p>It also cannot see a phone or a web player: this is the desktop app on this PC only. That is what
  * {@link #available()} reports, so the tab can say "Spotify is not running" instead of showing nothing.

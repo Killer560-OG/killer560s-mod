@@ -1,12 +1,20 @@
 package com.killer560.hub.spotify;
 
+import com.killer560.hub.gui.OverlayPalette;
+import com.killer560.hub.gui.OverlayThemes;
+import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 
+import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,38 +22,36 @@ import java.util.List;
  * Spotify HUD: a now-playing panel, moved and scaled in Edit HUD like every other element (id {@value #ELEMENT_ID},
  * drawn in game by {@code hud/HudInGameRenderer}).
  *
- * <p>Shows a cover tile, the title and artist, elapsed / total time with a progress bar, and the lyric line being sung
- * with the current word highlighted. Everything comes from {@link LyricsEngine.Snapshot}, which the lyrics poll thread
- * publishes whole; this class only reads it, so nothing here touches the network, Windows or a lock. The clock is run
- * from the snapshot's two parts on every frame, so the highlight moves smoothly instead of on the 250 ms poll.
+ * <p>Shows the cover, the title and artist, elapsed / total time with a progress bar, and the lyric line being sung
+ * with the current word lit. Everything comes from {@link LyricsEngine.Snapshot}, which the lyrics poll thread
+ * publishes whole, and the cover's PNG bytes from {@link SpotifyMediaSession}; this class only reads them, so nothing
+ * here touches the network, Windows, a process or a lock. The clock is run from the snapshot's two parts on every
+ * frame, so the highlight moves smoothly instead of on the 250 ms poll; while paused both parts are frozen, and the held
+ * line is drawn without the moving highlight.
  *
- * <p>Cover art: the Spotify window title (the only thing read from the app) carries no picture, and lrclib has none,
- * so the tile is a themed placeholder with a note. The total time is lrclib's {@code duration} for the matched lyrics.
+ * <p>Look (killer560, 2026-10-20: "make the HUD feel custom to the mod"): the mod menu's own frame - ScreenChrome's
+ * accent ring around MenuStyle's bevel (outline, panel gradient, light top-left and dark bottom-right edges) - and its
+ * slider track for the progress bar (recessed track, the played part in the accent gradient), all in the menu theme's
+ * colours from {@link OverlayThemes#menu()}, so the panel follows the theme he picked. The word being sung is the bright
+ * accent on an accent-tinted chip with an underline.
  *
- * <p>Colours are the mod's existing HUD ones: Inventory HUD's panel {@code 0x101010} and border {@code 0xCC6600}
- * (InventoryHudFeature), its slot grey {@code 0x262626} for the bar track and cover tile, the Listing Helper's
- * {@code 0xD0} panel alpha, and Real Time's light orange {@code 0xFFA040} (RealTimeConfig) for the word being sung.
+ * <p>Cover art and the total time come from Spotify via Windows' media controls when that reader runs; without it the
+ * tile is a note and the total is the lyrics' lrclib length.
  */
 public final class SpotifyHud implements HudElement {
 
     public static final String ELEMENT_ID = "spotify_hud";
     public static final SpotifyHud INSTANCE = new SpotifyHud();
 
-    private static final int PANEL_BG = 0xD0101010;
-    private static final int BORDER = 0xFFCC6600;
-    private static final int TRACK = 0xFF262626;
-    private static final int ACCENT = 0xFFFFA040;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GREY = 0xFFAAAAAA;
-    private static final int DARK_GREY = 0xFF777777;
-
     private static final int W = 200;
-    private static final int PAD = 4;
+    private static final int PAD = 5;
     private static final int COVER = 32;
-    private static final int BAR_Y = 40;
-    private static final int LYRIC_Y = 46;
-    private static final int ROW_H = 10;
+    private static final int BAR_Y = 42;
+    private static final int LYRIC_Y = 50;
+    private static final int ROW_H = 11;
     private static final int LYRIC_ROWS = 2;
+
+    private static final Identifier COVER_ID = Identifier.fromNamespaceAndPath("killer560smod", "spotify/cover");
 
     private SpotifyHud() {
     }
@@ -77,7 +83,7 @@ public final class SpotifyHud implements HudElement {
 
     @Override
     public int height() {
-        return SpotifyHudConfig.getInstance().isShowLyrics() ? LYRIC_Y + LYRIC_ROWS * ROW_H + PAD : BAR_Y + 2 + PAD;
+        return SpotifyHudConfig.getInstance().isShowLyrics() ? LYRIC_Y + LYRIC_ROWS * ROW_H + PAD - 2 : BAR_Y + 4 + PAD;
     }
 
     @Override
@@ -94,7 +100,7 @@ public final class SpotifyHud implements HudElement {
         DEMO = new LyricsEngine.Snapshot(NowPlaying.Kind.TRACK, "Artist", "Song Title", DEMO_PLAYED_MS, 0, 215,
                 List.of(new LyricsEngine.LyricLine(71.0, demoLine, LyricTiming.parse(demoLine, 71.0)),
                         new LyricsEngine.LyricLine(76.0, "and this one is next", LyricTiming.parse("and this one is next", 76.0))),
-                true);
+                true, false, 0, true);
     }
 
     @Override
@@ -116,121 +122,244 @@ public final class SpotifyHud implements HudElement {
         if (paused && cfg.isHideWhenPaused() && !editor) {
             return;
         }
+        OverlayPalette p = OverlayThemes.menu();
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         int h = height();
-
-        // Panel: dark fill with a one-pixel orange border.
-        graphics.fill(x, y, x + W, y + h, PANEL_BG);
-        graphics.fill(x, y, x + W, y + 1, BORDER);
-        graphics.fill(x, y + h - 1, x + W, y + h, BORDER);
-        graphics.fill(x, y + 1, x + 1, y + h - 1, BORDER);
-        graphics.fill(x + W - 1, y + 1, x + W, y + h - 1, BORDER);
-
-        // Cover tile (placeholder: see the class doc).
-        int cx = x + PAD;
-        int cy = y + PAD;
-        graphics.fill(cx, cy, cx + COVER, cy + COVER, TRACK);
-        graphics.fill(cx, cy, cx + COVER, cy + 1, BORDER);
-        graphics.fill(cx, cy + COVER - 1, cx + COVER, cy + COVER, BORDER);
-        graphics.fill(cx, cy + 1, cx + 1, cy + COVER - 1, BORDER);
-        graphics.fill(cx + COVER - 1, cy + 1, cx + COVER, cy + COVER - 1, BORDER);
-        graphics.pose().pushMatrix();
-        try {
-            graphics.pose().translate(cx + COVER / 2f, cy + COVER / 2f);
-            graphics.pose().scale(2f, 2f);
-            String note = "♪";
-            graphics.text(font, note, -font.width(note) / 2, -4, ACCENT, true);
-        } finally {
-            graphics.pose().popMatrix();
-        }
-
-        // Title, artist, time.
-        int tx = cx + COVER + 6;
-        int textW = x + W - PAD - tx;
         boolean ad = snap.kind() == NowPlaying.Kind.AD;
-        graphics.text(font, fit(font, ad ? "Advertisement" : snap.title(), textW), tx, y + 6, WHITE, true);
-        if (!ad && !snap.artist().isEmpty()) {
-            graphics.text(font, fit(font, snap.artist(), textW), tx, y + 17, GREY, true);
-        }
+
         long now = System.currentTimeMillis();
-        double elapsed = editor && snap == DEMO ? DEMO_PLAYED_MS / 1000.0 : snap.elapsedSeconds(now);
+        double elapsed = snap == DEMO ? DEMO_PLAYED_MS / 1000.0 : snap.elapsedSeconds(now);
         double total = snap.durationSeconds();
         if (total > 0) {
             elapsed = Math.min(elapsed, total);
         }
-        String time = clock(elapsed) + (total > 0 ? " / " + clock(total) : "") + (paused ? "  Paused" : "");
-        graphics.text(font, time, tx, y + 28, paused ? DARK_GREY : ACCENT, true);
 
-        // Progress bar across the panel, under the cover.
+        // ---- every fill first, as one batch: frame, cover tile, progress bar, the sung word's chip ----
+        GuiRects r = GuiRects.begin(graphics);
+        int hilite = p.light() ? 0x90FFFFFF : 0x1CFFFFFF;
+        int shade = p.light() ? 0x28000000 : 0x80000000;
+        // ScreenChrome.frame: accent ring, then MenuStyle.bevel's outline, gradient and edges.
+        r.outline(x - 1, y - 1, W + 2, h + 2, p.border());
+        r.outline(x, y, W, h, p.outline());
+        r.gradient(x + 1, y + 1, x + W - 1, y + h - 1, OverlayPalette.alpha(p.panel(), 0xE8),
+                OverlayPalette.alpha(p.panelDeep(), 0xE8));
+        r.fill(x + 1, y + 1, x + W - 1, y + 2, hilite);
+        r.fill(x + 1, y + 2, x + 2, y + h - 1, hilite);
+        r.fill(x + 1, y + h - 2, x + W - 1, y + h - 1, shade);
+        r.fill(x + W - 2, y + 2, x + W - 1, y + h - 2, shade);
+
+        // Cover tile: a recessed well with an accent edge; the picture (or a note) goes on top after the batch.
+        int cx = x + PAD;
+        int cy = y + PAD;
+        r.outline(cx - 1, cy - 1, COVER + 2, COVER + 2, p.border());
+        r.fill(cx, cy, cx + COVER, cy + COVER, p.well());
+
+        // Progress bar: MenuStyle.sliderTrack's recessed track, the played part in the accent gradient with a bright
+        // leading edge.
         int bx0 = x + PAD;
         int bx1 = x + W - PAD;
-        graphics.fill(bx0, y + BAR_Y, bx1, y + BAR_Y + 2, TRACK);
+        int by = y + BAR_Y;
+        r.outline(bx0, by, bx1 - bx0, 4, p.outline());
+        r.fill(bx0 + 1, by + 1, bx1 - 1, by + 3, p.well());
         if (total > 0) {
-            int filled = (int) Math.round((bx1 - bx0) * Math.max(0, Math.min(1, elapsed / total)));
+            int filled = (int) Math.round((bx1 - bx0 - 2) * Math.max(0, Math.min(1, elapsed / total)));
             if (filled > 0) {
-                graphics.fill(bx0, y + BAR_Y, bx0 + filled, y + BAR_Y + 2, BORDER);
+                int top = paused ? p.accentDeep() : p.accentHover();
+                int bottom = paused ? OverlayPalette.alpha(p.accentDeep(), 0xFF) : p.accent();
+                r.gradient(bx0 + 1, by + 1, bx0 + 1 + filled, by + 3, top, bottom);
+                if (!paused) {
+                    r.fill(bx0 + filled, by, bx0 + 1 + filled, by + 4, 0xFFFFFFFF);
+                }
             }
         }
 
-        if (cfg.isShowLyrics()) {
-            drawLyrics(graphics, font, snap, elapsed, cfg.isWordHighlight(), x + PAD, y + LYRIC_Y, W - 2 * PAD, ad);
+        LyricPlan plan = cfg.isShowLyrics() && !ad
+                ? planLyrics(font, snap, elapsed, cfg.isWordHighlight() && !paused, x + PAD, y + LYRIC_Y, W - 2 * PAD)
+                : null;
+        if (plan != null && plan.chip != null) {
+            int[] c = plan.chip;
+            r.fill(c[0] - 2, c[1] - 1, c[2] + 2, c[1] + 9, OverlayPalette.alpha(p.accent(), 0x48));
+            r.fill(c[0] - 1, c[1] + 9, c[2] + 1, c[1] + 10, p.accent());
+        }
+        r.submit();
+
+        // ---- the cover picture, or the note ----
+        Identifier art = ad ? null : coverTexture(snap);
+        if (art != null) {
+            graphics.blit(RenderPipelines.GUI_TEXTURED, art, cx, cy, 0f, 0f, COVER, COVER, coverW, coverH, coverW, coverH,
+                    0xFFFFFFFF);
+        } else {
+            graphics.pose().pushMatrix();
+            try {
+                graphics.pose().translate(cx + COVER / 2f, cy + COVER / 2f);
+                graphics.pose().scale(2f, 2f);
+                String note = "♪";
+                graphics.text(font, note, -font.width(note) / 2, -4, p.accent(), true);
+            } finally {
+                graphics.pose().popMatrix();
+            }
+        }
+
+        // ---- title, artist, time ----
+        int tx = cx + COVER + 6;
+        int textW = x + W - PAD - tx;
+        graphics.text(font, fit(font, ad ? "Advertisement" : snap.title(), textW), tx, y + 6, p.textHover(), true);
+        if (!ad && !snap.artist().isEmpty()) {
+            graphics.text(font, fit(font, snap.artist(), textW), tx, y + 17, p.dim(), true);
+        }
+        String time = clock(elapsed) + (total > 0 ? " / " + clock(total) : "");
+        graphics.text(font, time, tx, y + 28, paused ? p.dim() : p.accentHover(), true);
+        if (paused) {
+            String label = "Paused";
+            graphics.text(font, label, x + W - PAD - font.width(label), y + 28, p.faint(), true);
+        }
+
+        if (cfg.isShowLyrics() && !ad) {
+            drawLyrics(graphics, font, snap, plan, paused, p, x + PAD, y + LYRIC_Y, W - 2 * PAD);
         }
         if (!editor) {
             HudSeen.markDrawn(id());
         }
     }
 
-    private static void drawLyrics(GuiGraphicsExtractor graphics, Font font, LyricsEngine.Snapshot snap,
-                                   double elapsed, boolean highlight, int lx, int ly, int lw, boolean ad) {
-        if (ad) {
-            return;
-        }
+    /** What the lyric rows will draw, worked out before the fill batch so the sung word's chip goes under its text. */
+    private static final class LyricPlan {
+        LyricsEngine.LyricLine line;
+        int lineIdx;
+        int sung = -1;
+        List<int[]> rows = List.of();
+        int firstRow;
+        /** {x0, y, x1} of the word being sung, or null. */
+        int[] chip;
+    }
+
+    private static LyricPlan planLyrics(Font font, LyricsEngine.Snapshot snap, double elapsed, boolean highlight,
+                                        int lx, int ly, int lw) {
+        LyricPlan plan = new LyricPlan();
         if (snap.lines().isEmpty()) {
-            String msg = snap.lyricsAnswered() ? "No synced lyrics for this song" : "Looking up lyrics...";
-            graphics.text(font, msg, lx, ly, DARK_GREY, true);
-            return;
+            return plan;
         }
-        int lineIdx = snap.lineAt(elapsed);
-        LyricsEngine.LyricLine line = lineIdx < 0 ? null : snap.lines().get(lineIdx);
-        if (line == null || line.parsed().words().isEmpty()) {
-            // Before the first line, or an empty LRC line (an instrumental break): show the next line coming up.
-            graphics.text(font, "♪", lx, ly, DARK_GREY, true);
-            LyricsEngine.LyricLine next = lineIdx + 1 < snap.lines().size() ? snap.lines().get(lineIdx + 1) : null;
-            if (next != null && !next.text().isEmpty()) {
-                graphics.text(font, fit(font, clean(next.text()), lw), lx, ly + ROW_H, DARK_GREY, true);
-            }
-            return;
+        plan.lineIdx = snap.lineAt(elapsed);
+        plan.line = plan.lineIdx < 0 ? null : snap.lines().get(plan.lineIdx);
+        if (plan.line == null || plan.line.parsed().words().isEmpty()) {
+            return plan;
         }
-        List<String> words = line.parsed().words();
-        int sung = highlight ? LyricTiming.wordAt(line.parsed(), line.timeSeconds(), snap.lineEnd(lineIdx), elapsed)
-                : -1;
-        List<int[]> rows = wrap(font, snap.lines(), lineIdx, words, lw);
+        List<String> words = plan.line.parsed().words();
+        int at = LyricTiming.wordAt(plan.line.parsed(), plan.line.timeSeconds(), snap.lineEnd(plan.lineIdx), elapsed);
+        plan.sung = highlight ? at : -1;
+        // Paused: hold the line where it was, rows and all; only the moving highlight goes.
+        plan.rows = wrap(font, snap.lines(), plan.lineIdx, words, lw);
         int currentRow = 0;
-        for (int r = 0; r < rows.size(); r++) {
-            if (sung >= rows.get(r)[0]) {
+        for (int r = 0; r < plan.rows.size(); r++) {
+            if (at >= plan.rows.get(r)[0]) {
                 currentRow = r;
             }
         }
-        int firstRow = Math.max(0, Math.min(currentRow, rows.size() - LYRIC_ROWS));
+        plan.firstRow = Math.max(0, Math.min(currentRow, plan.rows.size() - LYRIC_ROWS));
+        if (plan.sung >= 0) {
+            int space = font.width(" ");
+            int drawn = 0;
+            for (int r = plan.firstRow; r < plan.rows.size() && drawn < LYRIC_ROWS; r++, drawn++) {
+                int[] row = plan.rows.get(r);
+                int wx = lx;
+                for (int i = row[0]; i < row[1]; i++) {
+                    int ww = font.width(clean(words.get(i)));
+                    if (i == plan.sung) {
+                        plan.chip = new int[]{wx, ly + drawn * ROW_H, wx + ww};
+                    }
+                    wx += ww + space;
+                }
+            }
+        }
+        return plan;
+    }
+
+    private static void drawLyrics(GuiGraphicsExtractor graphics, Font font, LyricsEngine.Snapshot snap, LyricPlan plan,
+                                   boolean paused, OverlayPalette p, int lx, int ly, int lw) {
+        if (snap.lines().isEmpty()) {
+            if (snap.versionMismatch()) {
+                graphics.text(font, fit(font, "Lyrics found are for another version", lw), lx, ly, p.dim(), true);
+                String detail = snap.mismatchSeconds() > 0
+                        ? "lyrics " + clock(snap.mismatchSeconds()) + ", Spotify " + clock(snap.durationSeconds())
+                        : "none is Spotify's length";
+                graphics.text(font, fit(font, detail, lw), lx, ly + ROW_H, p.faint(), true);
+                return;
+            }
+            String msg = snap.lyricsAnswered() ? "No synced lyrics for this song" : "Looking up lyrics...";
+            graphics.text(font, msg, lx, ly, p.faint(), true);
+            return;
+        }
+        if (plan == null || plan.line == null || plan.line.parsed().words().isEmpty()) {
+            // Before the first line, or an empty LRC line (an instrumental break): show the next line coming up.
+            int idx = plan == null ? -1 : plan.lineIdx;
+            graphics.text(font, "♪", lx, ly, p.accent(), true);
+            LyricsEngine.LyricLine next = idx + 1 < snap.lines().size() ? snap.lines().get(idx + 1) : null;
+            if (next != null && !next.text().isEmpty()) {
+                graphics.text(font, fit(font, clean(next.text()), lw), lx, ly + ROW_H, p.faint(), true);
+            }
+            return;
+        }
+        List<String> words = plan.line.parsed().words();
         int space = font.width(" ");
         int drawn = 0;
-        for (int r = firstRow; r < rows.size() && drawn < LYRIC_ROWS; r++, drawn++) {
-            int[] row = rows.get(r);
+        for (int r = plan.firstRow; r < plan.rows.size() && drawn < LYRIC_ROWS; r++, drawn++) {
+            int[] row = plan.rows.get(r);
             int wx = lx;
             for (int i = row[0]; i < row[1]; i++) {
                 String word = clean(words.get(i));
-                int colour = !highlight ? WHITE : i < sung ? WHITE : i == sung ? ACCENT : GREY;
+                int colour;
+                if (paused) {
+                    colour = p.text();                                    // held, nothing moving
+                } else if (plan.sung < 0) {
+                    colour = p.textHover();                               // Word Highlight off
+                } else {
+                    colour = i < plan.sung ? p.textHover() : i == plan.sung ? p.accentHover() : p.faint();
+                }
                 graphics.text(font, word, wx, ly + drawn * ROW_H, colour, true);
                 wx += font.width(word) + space;
             }
         }
-        if (drawn < LYRIC_ROWS && lineIdx + 1 < snap.lines().size()) {
-            String next = snap.lines().get(lineIdx + 1).text();
+        if (drawn < LYRIC_ROWS && plan.lineIdx + 1 < snap.lines().size()) {
+            String next = snap.lines().get(plan.lineIdx + 1).text();
             if (!next.isEmpty()) {
-                graphics.text(font, fit(font, clean(next), lw), lx, ly + drawn * ROW_H, DARK_GREY, true);
+                graphics.text(font, fit(font, clean(next), lw), lx, ly + drawn * ROW_H, p.faint(), true);
             }
         }
+    }
+
+    // ---- cover texture: render thread only ----
+    private static int coverSeq = -1;
+    private static boolean coverRegistered;
+    private static String coverKey = "";
+    private static int coverW = 64;
+    private static int coverH = 64;
+
+    /** The cover for the track on the snapshot, uploaded once per new picture, or null for the placeholder. */
+    private static Identifier coverTexture(LyricsEngine.Snapshot snap) {
+        SpotifyMediaSession.Cover c = SpotifyLyricsFeature.cover();
+        if (c == null) {
+            return null;
+        }
+        if (c.seq() != coverSeq) {
+            coverSeq = c.seq();
+            try {
+                NativeImage image = NativeImage.read(new ByteArrayInputStream(c.png()));
+                coverW = image.getWidth();
+                coverH = image.getHeight();
+                DynamicTexture texture = new DynamicTexture(() -> "killer560smod spotify cover", image);
+                texture.upload();
+                Minecraft.getInstance().getTextureManager().register(COVER_ID, texture);
+                coverRegistered = true;
+                coverKey = c.title();
+            } catch (Exception e) {
+                coverRegistered = false;
+            }
+        }
+        if (!coverRegistered || !coverKey.equalsIgnoreCase(snap.title())) {
+            return null;   // the picture is another track's (the new one's is not in yet)
+        }
+        return COVER_ID;
     }
 
     // One wrap per line, not per frame: the rows only change when the line (or the lyrics) does. Render thread only.

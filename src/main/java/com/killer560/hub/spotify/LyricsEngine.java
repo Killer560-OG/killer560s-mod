@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 public final class LyricsEngine {
 
     private static final String LRCLIB_URL = ModNet.url("lrclib", "https://lrclib.net/api/search");
+    private static final String LRCLIB_GET_URL = ModNet.url("lrclib", "https://lrclib.net/api/get");
     private static final Pattern LRC_LINE = Pattern.compile("\\[(\\d+):(\\d+\\.\\d+)](.*)");
 
     private final HttpClient http = HttpClient.newBuilder()
@@ -45,33 +46,56 @@ public final class LyricsEngine {
     private long transitionMessageUntilMs = 0;
 
     /**
-     * The lyric clock, which stops when Spotify does.
+     * The lyric clock, which stops when Spotify does and follows Spotify's own position when Windows reports it.
      *
      * <p>killer560 (2026-09-30): "is it possible to make it so you no longer need the delay since it reads
      * automatically for when the lyrics come out." Yes, and the offset slider is gone. It only ever existed to
      * compensate for Last.fm taking about five seconds to report a track change; the window title flips within
      * a frame of the track actually changing, so the right offset is zero.
      *
-     * <p>What still has to be handled is PAUSING, and that is what these two fields do: {@code playingSinceMs}
-     * is when playback last resumed and {@code playedMs} is everything before that. A paused Spotify shows
-     * "Spotify Premium" in its title, so the pause is visible and the clock can stop instead of running on -
-     * without which a two-minute pause would leave every later line two minutes early for the rest of the song.
-     *
-     * <p>The one case this cannot get right is SEEKING, or starting the mod part-way through a track: a window
-     * title carries no playback position, so the stopwatch begins when the title was first seen. A Spotify
-     * login would supply a real position and fix it; nothing short of that can.
+     * <p>A paused Spotify shows "Spotify Premium" in its title, so the pause is visible and the clock stops instead of
+     * running on. SEEKING, and starting the game part-way through a track, the window title cannot show; since
+     * 2026-10-20 {@link SpotifyMediaSession} reads Spotify's real position from Windows' media controls and
+     * {@link PlaybackClock#follow} snaps the clock to it on any jump over a second. Without that reader (not Windows, or
+     * the API missing) the clock is the stopwatch from the track change, as before.
      */
-    private Long playingSinceMs = null;
-    private long playedMs = 0;
+    private final PlaybackClock clock = new PlaybackClock();
+    /**
+     * Wall time of the last track change or resume this engine saw. A media-session reading Spotify took before it is
+     * about the time before (a paused position, or the last song's), so it is not believed until a newer one arrives.
+     */
+    private long lastEventMs = 0;
+    /** Whether the clock has been set from Spotify's real position at least once on this track. */
+    private boolean positionFromSpotify = false;
 
     /** The current track's artist and title, kept through a pause so the HUD can still name it. */
     private String lastArtist = "";
     private String lastTitle = "";
     private boolean lastWasAd = false;
-    /** lrclib's {@code duration} for the current track in seconds, or 0 when it gave none. */
+    /** Spotify's own length for the current track (media session), seconds, or 0 when unknown. */
+    private double spotifyDurationSeconds = 0;
+    /** The chosen lyrics' lrclib {@code duration} in seconds, or 0 when it gave none. */
     private double durationSeconds = 0;
     /** Whether lrclib has answered for the current track (with or without lyrics). */
     private boolean lyricsAnswered = false;
+    /** Every lrclib version of the current track with synced lyrics, best name match first. */
+    private List<Candidate> candidates = List.of();
+    /** lrclib had synced lyrics, but none of them is the length Spotify says this recording is. */
+    private boolean versionMismatch = false;
+    /** The nearest wrong-version length, seconds, for the HUD's note (0 when none). */
+    private double mismatchSeconds = 0;
+    /** Whether the by-duration lookup has already been tried for this track. */
+    private boolean durationLookupTried = false;
+
+    /**
+     * How far lrclib's length may be from Spotify's and still be the same recording. A remix, a radio edit or a version
+     * with a different feature differs by more; the same recording's two listings agree to about a second.
+     */
+    static final double SAME_VERSION_SECONDS = 2.0;
+
+    /** One lrclib listing with synced lyrics. */
+    record Candidate(String artist, String title, double durationSeconds, List<LyricLine> lines) {
+    }
 
     /** {@code parsed} carries the line's words and, for an enhanced-LRC line, each word's start. */
     public record LyricLine(double timeSeconds, String text, LyricTiming.Parsed parsed) {
@@ -82,14 +106,20 @@ public final class LyricsEngine {
      * The clock is kept as its two parts, so the HUD can run it on every frame for a smooth word highlight
      * instead of stepping on the 250 ms poll.
      *
-     * @param playingSinceMs wall time playback last resumed, or 0 while paused
-     * @param lines          the synced lyric lines (immutable), empty while unknown or when lrclib had none
+     * @param playingSinceMs     wall time playback last resumed, or 0 while paused
+     * @param durationSeconds    the track's length: Spotify's own when known, else the lyrics' lrclib length, else 0
+     * @param lines              the synced lyric lines (immutable), empty while unknown, when lrclib had none, or when
+     *                           they are for another version of the song
+     * @param versionMismatch    lrclib had synced lyrics, but only for recordings of a different length than Spotify's
+     * @param mismatchSeconds    the nearest such length (seconds), for the HUD's note
+     * @param positionFromSpotify the clock was set from Spotify's real position (false: a stopwatch from the track change)
      */
     public record Snapshot(NowPlaying.Kind kind, String artist, String title, long playedMs, long playingSinceMs,
-                           double durationSeconds, List<LyricLine> lines, boolean lyricsAnswered) {
+                           double durationSeconds, List<LyricLine> lines, boolean lyricsAnswered,
+                           boolean versionMismatch, double mismatchSeconds, boolean positionFromSpotify) {
 
         public static final Snapshot NONE =
-                new Snapshot(NowPlaying.Kind.PAUSED, "", "", 0, 0, 0, List.of(), false);
+                new Snapshot(NowPlaying.Kind.PAUSED, "", "", 0, 0, 0, List.of(), false, false, 0, false);
 
         /** Seconds played of this track at wall time {@code nowMs}, pauses excluded. */
         public double elapsedSeconds(long nowMs) {
@@ -102,15 +132,7 @@ public final class LyricsEngine {
 
         /** Index of the line being sung at {@code seconds}, or -1 before the first. */
         public int lineAt(double seconds) {
-            int idx = -1;
-            for (int i = 0; i < lines.size(); i++) {
-                if (lines.get(i).timeSeconds() <= seconds) {
-                    idx = i;
-                } else {
-                    break;
-                }
-            }
-            return idx;
+            return LyricTiming.lineAt(i -> lines.get(i).timeSeconds(), lines.size(), seconds);
         }
 
         /** Where line {@code i} ends: the next line's start, else the track's end, else NaN. */
@@ -137,8 +159,105 @@ public final class LyricsEngine {
         }
         NowPlaying.Kind shown = kind == NowPlaying.Kind.PAUSED ? kind
                 : (lastWasAd ? NowPlaying.Kind.AD : NowPlaying.Kind.TRACK);
-        snapshot = new Snapshot(shown, lastArtist, lastWasAd ? "" : lastTitle, playedMs,
-                playingSinceMs == null ? 0 : playingSinceMs, durationSeconds, syncedLyrics, lyricsAnswered);
+        double length = spotifyDurationSeconds > 0 ? spotifyDurationSeconds : durationSeconds;
+        snapshot = new Snapshot(shown, lastArtist, lastWasAd ? "" : lastTitle, clock.playedMs(), clock.sinceMs(),
+                length, syncedLyrics, lyricsAnswered, versionMismatch, mismatchSeconds, positionFromSpotify);
+    }
+
+    /**
+     * Picks which lrclib version's lines are used (caller holds the lock).
+     *
+     * <p>killer560 (2026-10-20): the HUD said 3:59 for a song Spotify plays as 4:06 - "Rosa Walton, Hallie Coggins" on
+     * Spotify, but the lyrics matched were another recording's, whose lines fall at other times. Neither the window
+     * title nor Windows' media session gives the full artist list (both say only "Rosa Walton", checked 2026-10-20), so
+     * the LENGTH is what tells two recordings apart: a version is used only when its title matches, its artist list
+     * contains Spotify's artist, and its length is within {@link #SAME_VERSION_SECONDS} of Spotify's. With no such
+     * version the lines are dropped and the HUD says why. Without Spotify's length (no media session) the best name
+     * match is used as before, since there is nothing to check it against.
+     */
+    private void choose() {
+        List<LyricLine> lines = List.of();
+        double length = 0;
+        boolean mismatch = false;
+        double nearest = 0;
+        if (!candidates.isEmpty()) {
+            if (spotifyDurationSeconds <= 0) {
+                lines = candidates.get(0).lines();
+                length = candidates.get(0).durationSeconds();
+            } else {
+                Candidate pick = pickVersion(candidates, lastArtist, lastTitle, spotifyDurationSeconds);
+                if (pick != null) {
+                    lines = pick.lines();
+                    length = pick.durationSeconds();
+                } else {
+                    mismatch = true;
+                    double best = Double.MAX_VALUE;
+                    for (Candidate c : candidates) {
+                        double d = Math.abs(c.durationSeconds() - spotifyDurationSeconds);
+                        if (c.durationSeconds() > 0 && d < best) {
+                            best = d;
+                            nearest = c.durationSeconds();
+                        }
+                    }
+                }
+            }
+        }
+        syncedLyrics = lines;
+        if (length > 0 || !candidates.isEmpty()) {
+            durationSeconds = length;
+        }
+        versionMismatch = mismatch;
+        mismatchSeconds = nearest;
+    }
+
+    /** The first candidate (best name match first) that is the same recording as Spotify's, or null. */
+    static Candidate pickVersion(List<Candidate> candidates, String artist, String title, double spotifySeconds) {
+        for (Candidate c : candidates) {
+            if (c.durationSeconds() <= 0 || Math.abs(c.durationSeconds() - spotifySeconds) > SAME_VERSION_SECONDS) {
+                continue;
+            }
+            if (!sameTitle(c.title(), title) || !artistListHas(c.artist(), artist)) {
+                continue;
+            }
+            return c;
+        }
+        return null;
+    }
+
+    private static boolean sameTitle(String listed, String want) {
+        return want == null || want.isBlank() || (listed != null && listed.trim().equalsIgnoreCase(want.trim()));
+    }
+
+    /**
+     * Whether lrclib's artist credit (which may list several: "A, B", "A & B", "A feat. B", "A x B") names every artist
+     * Spotify gave. Spotify's local sources give only the first, so this cannot reject a listing for an extra artist.
+     */
+    static boolean artistListHas(String listed, String want) {
+        if (want == null || want.isBlank()) {
+            return true;
+        }
+        if (listed == null) {
+            return false;
+        }
+        java.util.Set<String> have = splitArtists(listed);
+        for (String a : splitArtists(want)) {
+            if (!have.contains(a)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static java.util.Set<String> splitArtists(String credit) {
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (String part : credit.toLowerCase(java.util.Locale.ROOT)
+                .split("\\s*(?:,|&|;|/|\\bfeat\\.?|\\bft\\.?|\\bfeaturing\\b|\\bwith\\b|\\sx\\s|\\band\\b)\\s*")) {
+            String p = part.trim();
+            if (!p.isEmpty()) {
+                out.add(p);
+            }
+        }
+        return out;
     }
 
     /**
@@ -150,20 +269,23 @@ public final class LyricsEngine {
      * I'm listening to ___" instead. Which one fired is exposed via {@link #isCurrentLyricTransition()} so the
      * caller can detect a track-change message without depending on its exact wording.
      */
-    public synchronized void poll(SpotifyDesktopSource source, boolean fullLyricsMode) {
+    public synchronized void poll(SpotifyDesktopSource source, SpotifyMediaSession session, boolean fullLyricsMode) {
         if (source == null) {
             return;
         }
         try {
             NowPlaying nowPlaying = source.fetch();
             long now = System.currentTimeMillis();
+            SpotifyMediaSession.Timeline timeline = session == null ? null : session.latest(now);
 
             if (nowPlaying.kind() == NowPlaying.Kind.PAUSED) {
                 // The clock stops; the track is REMEMBERED. Forgetting it would announce the same song again
                 // as a brand new track every time he paused and un-paused.
-                if (playingSinceMs != null) {
-                    playedMs += now - playingSinceMs;
-                    playingSinceMs = null;
+                clock.pause(now);
+                // A scrub while paused: Spotify's paused position is believed, so the line shown is where it resumes.
+                if (timeline != null && !lastWasAd && timeline.paused() && timeline.matches(lastArtist, lastTitle)
+                        && timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
+                    follow(timeline, now);
                 }
                 currentLyric = "";
                 currentIsTransition = false;
@@ -176,6 +298,7 @@ public final class LyricsEngine {
             String title = isAd ? AD_TITLE : nowPlaying.title();
 
             if (!trackKey.equals(lastTrackKey)) {
+                boolean firstTrack = lastTrackKey == null;
                 if (lastTrackKey != null) {
                     currentLyric = fullLyricsMode
                             ? "And that was " + lastTrackTitle + ", now playing " + title
@@ -195,9 +318,17 @@ public final class LyricsEngine {
                 lastTitle = isAd ? "" : nowPlaying.title();
                 lastWasAd = isAd;
                 durationSeconds = 0;
+                spotifyDurationSeconds = 0;
                 lyricsAnswered = isAd;
-                playedMs = 0;
-                playingSinceMs = now;
+                candidates = List.of();
+                versionMismatch = false;
+                mismatchSeconds = 0;
+                durationLookupTried = false;
+                positionFromSpotify = false;
+                // The first track of the session may have been playing for minutes: any reading about it is
+                // believed. After a real change, only a reading Spotify took since the change is.
+                lastEventMs = firstTrack ? 0 : now;
+                clock.start(now);
                 syncedLyrics = List.of();
                 // Fetched OFF this thread, because the clock is already running.
                 //
@@ -211,8 +342,33 @@ public final class LyricsEngine {
                 }
                 SpotifyLyricsFeature.LOGGER.info("Now playing: artist='{}' title='{}'",
                         nowPlaying.artist(), title);
-            } else if (playingSinceMs == null) {
-                playingSinceMs = now;   // resumed after a pause, same track
+            } else if (!clock.running()) {
+                clock.resume(now);   // resumed after a pause, same track: on from the same position
+                lastEventMs = now;
+            }
+
+            // Spotify's own clock, when Windows reports it for this track: its length, a pause the title has not
+            // shown yet, and its position, which corrects the stopwatch after a scrub or a late start.
+            boolean pausedBySession = false;
+            if (!isAd && timeline != null && timeline.matches(nowPlaying.artist(), nowPlaying.title())) {
+                double length = timeline.endMs() > 0 ? timeline.endMs() / 1000.0 : 0;
+                if (length > 0 && Math.abs(length - spotifyDurationSeconds) > 0.01) {
+                    spotifyDurationSeconds = length;
+                    choose();
+                }
+                if (timeline.paused()) {
+                    clock.pause(now);
+                    pausedBySession = true;
+                } else if (timeline.playing() && timeline.updatedMs() >= lastEventMs - EVENT_SLACK_MS) {
+                    follow(timeline, now);
+                }
+                maybeLookUpByLength(trackKey, nowPlaying.artist(), nowPlaying.title());
+            }
+            if (pausedBySession) {
+                currentLyric = "";
+                currentIsTransition = false;
+                publish(NowPlaying.Kind.PAUSED);
+                return;
             }
 
             if (transitionMessageUntilMs != 0 && now >= transitionMessageUntilMs) {
@@ -228,12 +384,9 @@ public final class LyricsEngine {
             // synced lyrics - especially bad for Song-Title-Only mode, where the transition message is the
             // ONLY thing that mode ever sends.
             if (transitionMessageUntilMs == 0 && !syncedLyrics.isEmpty()) {
-                // A source that knows the real playback position is believed over the stopwatch. Nothing
-                // supplies one yet - a window title has no clock - so this is the branch a Spotify login
-                // would light up.
-                double elapsed = (nowPlaying.positionMs() != null
-                        ? nowPlaying.positionMs() / 1000.0
-                        : elapsedSeconds(now)) + SEND_LEAD_SECONDS;
+                // The clock already follows Spotify's real position when the media session gives one, so a
+                // scrub back re-sends the line now being sung and a scrub into a gap sends nothing.
+                double elapsed = clock.elapsedMs(now) / 1000.0 + SEND_LEAD_SECONDS;
                 currentLyric = currentLyricAt(elapsed);
                 currentIsTransition = false;
             }
@@ -275,25 +428,70 @@ public final class LyricsEngine {
             Fetched fetched = fetchLyrics(artist, title);
             synchronized (this) {
                 if (forTrackKey.equals(lastTrackKey)) {
-                    syncedLyrics = fetched.lines();
+                    candidates = fetched.candidates();
                     durationSeconds = fetched.durationSeconds();
                     lyricsAnswered = true;
+                    choose();
                     publish(snapshot.kind());
-                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} synced line(s)", title, fetched.lines().size());
+                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}': {} version(s) with synced lines, using {} line(s){}",
+                            title, candidates.size(), syncedLyrics.size(), versionMismatch ? " (none is Spotify's length)" : "");
                 }
             }
         });
     }
 
-    /** What lrclib gave for one track: its synced lines (immutable, maybe empty) and its length (0 = unknown). */
-    private record Fetched(List<LyricLine> lines, double durationSeconds) {
-        static final Fetched NOTHING = new Fetched(List.of(), 0);
+    /**
+     * When the search found no version of Spotify's length, asks lrclib once for that exact length ({@code /api/get}
+     * matches the duration itself), since the search returns only its first twenty listings. Caller holds the lock.
+     */
+    private void maybeLookUpByLength(String forTrackKey, String artist, String title) {
+        if (durationLookupTried || !lyricsAnswered || spotifyDurationSeconds <= 0
+                || pickVersion(candidates, artist, title, spotifyDurationSeconds) != null) {
+            return;
+        }
+        durationLookupTried = true;
+        long seconds = Math.round(spotifyDurationSeconds);
+        LYRIC_FETCH.submit(() -> {
+            Candidate found = fetchByLength(artist, title, seconds);
+            synchronized (this) {
+                if (found != null && forTrackKey.equals(lastTrackKey)) {
+                    List<Candidate> more = new ArrayList<>(candidates);
+                    more.add(found);
+                    candidates = List.copyOf(more);
+                    choose();
+                    publish(snapshot.kind());
+                    SpotifyLyricsFeature.LOGGER.info("Lyrics for '{}' at {} s: {}", title, seconds,
+                            versionMismatch ? "still not Spotify's version" : "found Spotify's version");
+                }
+            }
+        });
     }
 
-    /** Playing time on this track, with any paused stretches excluded. */
-    private double elapsedSeconds(long now) {
-        long total = playedMs + (playingSinceMs == null ? 0 : now - playingSinceMs);
-        return total / 1000.0;
+    /** Snaps the clock to Spotify's position on a jump. Caller holds the lock. */
+    private void follow(SpotifyMediaSession.Timeline timeline, long now) {
+        long before = clock.elapsedMs(now);
+        long real = timeline.positionAt(now);
+        if (clock.follow(real, now) && positionFromSpotify) {
+            SpotifyLyricsFeature.LOGGER.info("Spotify position jumped {} -> {}", mmss(before),
+                    mmss(real));
+        }
+        positionFromSpotify = true;
+    }
+
+    private static String mmss(long ms) {
+        long s = Math.max(0, ms / 1000);
+        return (s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
+    }
+
+    /**
+     * How much older than the last track change or resume a media-session reading may be and still be believed: the
+     * title is read every 250 ms, so the change is seen a little after Spotify made it.
+     */
+    private static final long EVENT_SLACK_MS = 1000;
+
+    /** What lrclib gave for one track: every version with synced lines, and the first listing's length (0 = unknown). */
+    private record Fetched(List<Candidate> candidates, double durationSeconds) {
+        static final Fetched NOTHING = new Fetched(List.of(), 0);
     }
 
     public synchronized String getCurrentLyric() {
@@ -341,25 +539,69 @@ public final class LyricsEngine {
             // (2026-09-30) it returned 20 results, all with synced lyrics. Taking the first one that happened
             // to have lyrics meant the choice between them was whatever order the server replied in, and a
             // remix's timings do not fit the album version at all.
-            JsonObject match = pick(results, artist, title, true);
-            if (match == null) {
-                match = pick(results, artist, title, false);
+            //
+            // Every listing with synced lyrics is kept, exact matches first, so that once Spotify's own length is
+            // known (media session) the one of the right length can be chosen - see choose().
+            List<Candidate> exact = new ArrayList<>();
+            List<Candidate> rest = new ArrayList<>();
+            for (JsonElement el : results) {
+                JsonObject obj = el.getAsJsonObject();
+                Candidate c = candidate(obj);
+                if (c == null) {
+                    continue;
+                }
+                (same(obj, "trackName", title) && same(obj, "artistName", artist) ? exact : rest).add(c);
             }
-            if (match == null) {
-                match = results.get(0).getAsJsonObject();
-            }
-            double duration = duration(match);
-            if (!match.has("syncedLyrics") || match.get("syncedLyrics").isJsonNull()) {
+            exact.addAll(rest);
+            double duration = exact.isEmpty() ? duration(results.get(0).getAsJsonObject()) : exact.get(0).durationSeconds();
+            if (exact.isEmpty()) {
                 SpotifyLyricsFeature.LOGGER.info(
                         "lrclib had {} result(s) for artist='{}' title='{}' but none had synced lyrics",
                         results.size(), artist, title);
-                return new Fetched(List.of(), duration);
             }
-
-            return new Fetched(List.copyOf(parseLrc(match.get("syncedLyrics").getAsString())), duration);
+            return new Fetched(List.copyOf(exact), duration);
         } catch (Exception e) {
             SpotifyLyricsFeature.LOGGER.warn("lrclib search threw for artist='{}' title='{}': {}", artist, title, e.toString());
             return Fetched.NOTHING;
+        }
+    }
+
+    /** One listing as a {@link Candidate}, or null when it has no synced lyrics. */
+    private Candidate candidate(JsonObject obj) {
+        if (!obj.has("syncedLyrics") || obj.get("syncedLyrics").isJsonNull()) {
+            return null;
+        }
+        List<LyricLine> lines = List.copyOf(parseLrc(obj.get("syncedLyrics").getAsString()));
+        if (lines.isEmpty()) {
+            return null;
+        }
+        return new Candidate(text(obj, "artistName"), text(obj, "trackName"), duration(obj), lines);
+    }
+
+    private static String text(JsonObject obj, String key) {
+        try {
+            return obj.has(key) && !obj.get(key).isJsonNull() ? obj.get(key).getAsString() : "";
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** lrclib's {@code /api/get}, which matches a recording by artist, title and length (within two seconds). */
+    private Candidate fetchByLength(String artist, String title, long seconds) {
+        try {
+            String url = LRCLIB_GET_URL + "?artist_name=" + urlEncode(artist) + "&track_name=" + urlEncode(title)
+                    + "&duration=" + seconds;
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(java.time.Duration.ofSeconds(10)).GET().build();
+            HttpResponse<String> response = ModNet.send(http, request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                return null;   // 404: lrclib has no recording of that length
+            }
+            JsonElement body = JsonParser.parseString(response.body());
+            return body.isJsonObject() ? candidate(body.getAsJsonObject()) : null;
+        } catch (Exception e) {
+            SpotifyLyricsFeature.LOGGER.warn("lrclib get threw for artist='{}' title='{}': {}", artist, title, e.toString());
+            return null;
         }
     }
 
@@ -374,26 +616,6 @@ public final class LyricsEngine {
             // not a number: unknown length
         }
         return 0;
-    }
-
-    /**
-     * The best result with synced lyrics: {@code exact} requires the artist and title to match what Spotify
-     * reported, ignoring case and surrounding space.
-     */
-    private static JsonObject pick(JsonArray results, String artist, String title, boolean exact) {
-        for (JsonElement el : results) {
-            JsonObject obj = el.getAsJsonObject();
-            if (!obj.has("syncedLyrics") || obj.get("syncedLyrics").isJsonNull()) {
-                continue;
-            }
-            if (!exact) {
-                return obj;
-            }
-            if (same(obj, "trackName", title) && same(obj, "artistName", artist)) {
-                return obj;
-            }
-        }
-        return null;
     }
 
     private static boolean same(JsonObject obj, String key, String want) {

@@ -57,6 +57,8 @@ public final class SpotifyLyricsFeature {
 
     private static final LyricsEngine ENGINE = new LyricsEngine();
     private static final SpotifyDesktopSource DESKTOP = new SpotifyDesktopSource();
+    /** Spotify's position, length, pause state and cover from Windows' media controls (a background helper). */
+    private static final SpotifyMediaSession MEDIA = new SpotifyMediaSession();
 
     /** How often the Spotify window is read. See the scheduling call for why it is this small. */
     private static final long POLL_MS = 250;
@@ -159,9 +161,11 @@ public final class SpotifyLyricsFeature {
         // the whole session even with the feature disabled (2026-09-16 audit).
         // The Spotify HUD reads the same poll, so it runs while either is on; only chat sending needs Send Lyrics To Chat.
         if (!enabled && !SpotifyHudConfig.getInstance().isHudEnabled()) {
+            MEDIA.stop();   // no helper process while nothing reads it
             return;
         }
-        ENGINE.poll(DESKTOP, fullLyrics);
+        MEDIA.ensureRunning();
+        ENGINE.poll(DESKTOP, MEDIA, fullLyrics);
         if (!enabled) {
             return;
         }
@@ -205,6 +209,11 @@ public final class SpotifyLyricsFeature {
     /** What the Spotify HUD draws: the last poll's state, safe to read from the render thread. */
     public static LyricsEngine.Snapshot snapshot() {
         return ENGINE.snapshot();
+    }
+
+    /** The current track's cover from Windows' media controls, or null; any thread. */
+    public static SpotifyMediaSession.Cover cover() {
+        return MEDIA.cover();
     }
 
     /** Why Spotify cannot be read right now, or an empty string when it can (nothing to show then). */
