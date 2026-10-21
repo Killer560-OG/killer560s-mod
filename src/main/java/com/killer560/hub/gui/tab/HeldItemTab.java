@@ -146,7 +146,10 @@ public class HeldItemTab extends BaseTab {
                 snapped = Math.max(min, Math.min(max, snapped));
                 // Round away float noise (e.g. 0.30000001) so the saved JSON and label stay clean.
                 float factor = (float) Math.pow(10, decimals);
-                setter.accept(Math.round(snapped * factor) / factor + 0f); // + 0f turns -0.0 into 0.0
+                float rounded = Math.round(snapped * factor) / factor + 0f; // + 0f turns -0.0 into 0.0
+                // A drag calls this on every mouse move; only a changed step needs a write to disk.
+                if (rounded == getter.get()) return;
+                setter.accept(rounded);
                 cfg.save();
             }
         };
