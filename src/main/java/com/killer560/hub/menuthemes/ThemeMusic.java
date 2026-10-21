@@ -59,6 +59,10 @@ public final class ThemeMusic {
     /** The title screen has been shown since the last world: the out-of-world menus after it are "the main menu". */
     private static boolean titleSeen;
     private static boolean registered;
+    private static String resolvedChoice;
+    private static MenuTheme resolvedTheme;
+    private static int resolvedVersion = Integer.MIN_VALUE;
+    private static Track resolvedTrack;
 
     // testkit evidence (the test client is muted, so the engine's answer is what proves the track was handed over)
     private static volatile int starts;
@@ -126,6 +130,9 @@ public final class ThemeMusic {
         for (Bundled b : BUNDLED) {
             out.add(BUNDLED_PREFIX + b.id());
         }
+        for (String f : ThemeMusicFiles.imported()) {
+            out.add(ThemeMusicFiles.IMPORT_PREFIX + f);
+        }
         return out;
     }
 
@@ -149,18 +156,29 @@ public final class ThemeMusic {
             Bundled b = find(id.substring(BUNDLED_PREFIX.length()));
             return b == null ? "Off" : b.label();
         }
+        if (id.startsWith(ThemeMusicFiles.IMPORT_PREFIX)) {
+            return ThemeMusicFiles.label(id);
+        }
         return id;
     }
 
-    /** The event a choice plays for {@code theme}, or null for nothing. */
-    static Identifier resolve(MenuTheme theme, String id) {
+    /** What a choice plays: a bundled event, or an imported file under its stream key. */
+    record Track(Identifier id, boolean imported) {
+    }
+
+    /** The track a choice plays for {@code theme}, or null for nothing (Off, Custom's own, an imported file that is gone). */
+    static Track resolve(MenuTheme theme, String id) {
         if (id == null || ThemeExtrasConfig.MUSIC_THEME.equals(id)) {
             Bundled own = themeTrack(theme);
-            return own == null ? null : own.event();
+            return own == null ? null : new Track(own.event(), false);
         }
         if (id.startsWith(BUNDLED_PREFIX)) {
             Bundled b = find(id.substring(BUNDLED_PREFIX.length()));
-            return b == null ? null : b.event();
+            return b == null ? null : new Track(b.event(), false);
+        }
+        if (id.startsWith(ThemeMusicFiles.IMPORT_PREFIX)) {
+            java.nio.file.Path file = ThemeMusicFiles.fileOf(id);
+            return file == null ? null : new Track(ThemeMusicFiles.keyFor(file), true);
         }
         return null;
     }
@@ -195,13 +213,20 @@ public final class ThemeMusic {
             return;
         }
         ThemeExtrasConfig cfg = ThemeExtrasConfig.getInstance();
-        Identifier want = null;
+        Track want = null;
         String key = null;
         if (cfg.isMusicOn() && onMainMenu(mc)) {
             MenuTheme theme = MainMenuLook.current().theme();
             String choice = cfg.getMusic(theme);
-            want = resolve(theme, choice);
-            key = want == null ? null : want.toString();
+            // An imported file is looked up (a stat) only when the wanted choice changes, not every tick.
+            if (!choice.equals(resolvedChoice) || theme != resolvedTheme || ThemeExtrasConfig.version() != resolvedVersion) {
+                resolvedTrack = resolve(theme, choice);
+                resolvedChoice = choice;
+                resolvedTheme = theme;
+                resolvedVersion = ThemeExtrasConfig.version();
+            }
+            want = resolvedTrack;
+            key = want == null ? null : want.id().toString();
         } else {
             onMainMenu(mc); // keeps titleSeen right while the switch is off
         }
@@ -239,7 +264,7 @@ public final class ThemeMusic {
         if (!key.equals(failedKey)) {
             failedKey = null;
         }
-        ThemeMusicInstance next = new ThemeMusicInstance(want);
+        ThemeMusicInstance next = new ThemeMusicInstance(want.id(), want.imported());
         // The vanilla menu music stops the moment a theme track takes over; the mixin keeps it from starting again.
         mc.getMusicManager().stopPlaying();
         Object result = sounds.play(next);
@@ -260,6 +285,11 @@ public final class ThemeMusic {
             sounds.stop(old);
             stops++;
         }
+    }
+
+    /** Looks the wanted track up again on the next tick (a file was just imported, perhaps over one of the same name). */
+    public static void forgetResolved() {
+        resolvedVersion = Integer.MIN_VALUE;
     }
 
     /** True while a theme track is playing: vanilla's MusicManager stays quiet. */

@@ -83,8 +83,31 @@ public final class ThemeExtrasSettings {
             }
         }.steps(stops));
         y += 24;
-        widgets.add(new StringWidget(x, y, w, 12, Component.literal("§7Plays on the main menu, which shows "
-                + MainMenuLook.current().theme().label + " now."), font));
+        int half = (w - 4) / 2;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Import Music"), btn -> {
+                    MenuTheme theme = editing();
+                    ThemeMusicFiles.importClipboardAsync(Minecraft.getInstance().keyboardHandler.getClipboard(),
+                            id -> Minecraft.getInstance().execute(() -> {
+                                if (id != null) {
+                                    ThemeExtrasConfig c = ThemeExtrasConfig.getInstance();
+                                    c.setMusic(theme, id);
+                                    c.save();
+                                    ThemeMusic.forgetResolved();
+                                }
+                                rebuildIfOpen(requestRebuild);
+                            }));
+                    requestRebuild.run(); // shows "Importing..."
+                }).bounds(x, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Music Folder"), btn -> {
+                    try {
+                        ExternalOpen.path(ThemeMusicFiles.folder());
+                    } catch (Exception ignored) {
+                    }
+                }).bounds(x + w - half, y, half, 18).build());
+        y += 22;
+        String musicStatus = ThemeMusicFiles.lastImport();
+        widgets.add(new StringWidget(x, y, w, 12, Component.literal(musicStatus != null ? musicStatus
+                : "§7Plays on the main menu, which shows " + MainMenuLook.current().theme().label + " now."), font));
         y += 16;
 
         // ---- Theme Font ----
@@ -107,7 +130,6 @@ public final class ThemeExtrasSettings {
                     btn.setMessage(backgroundText());
                 }).bounds(x, y, w, 20).build());
         y += 24;
-        int half = (w - 4) / 2;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Import Background"), btn -> {
                     MenuTheme theme = editing();
                     ThemeBackgrounds.importClipboardAsync(Minecraft.getInstance().keyboardHandler.getClipboard(),
