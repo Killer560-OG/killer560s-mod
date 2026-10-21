@@ -389,11 +389,4 @@ public final class NameChangerFeature {
     private static String baseName(NameChangerConfig cfg) {
         return cfg.isRandomizedName() ? colorize(cfg.getRandomBaseName().trim()) : "";
     }
-
-    /** Number of distinct other players collected this session (for the settings tab). */
-    public static int seenPlayerCount() {
-        synchronized (SEEN_PLAYERS) {
-            return SEEN_PLAYERS.size();
-        }
-    }
 }
