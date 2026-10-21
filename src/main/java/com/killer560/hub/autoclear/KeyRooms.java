@@ -181,10 +181,21 @@ public final class KeyRooms {
         if (path == null) {
             return -1;
         }
+        // The guards are worked out once for the whole path (each one is a pass over the doors and a distance search),
+        // not once per room on it: this runs every decision tick of a trip.
+        List<Guard> guards = null;
         for (DungeonMapPathfinder.RoomStep step : path) {
             int r = step.room();
-            if (r != from && r != to && mustNotWarpInto(layout, r)) {
-                return r;
+            if (r == from || r == to || entered(layout, r)) {
+                continue;
+            }
+            if (guards == null) {
+                guards = guards(layout);
+            }
+            for (Guard g : guards) {
+                if (g.room() == r) {
+                    return r;
+                }
             }
         }
         return -1;
