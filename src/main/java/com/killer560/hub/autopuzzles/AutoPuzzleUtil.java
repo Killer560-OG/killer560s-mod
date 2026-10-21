@@ -300,9 +300,10 @@ public final class AutoPuzzleUtil {
         if (lore == null) {
             return false;
         }
+        String want = needle.toLowerCase(java.util.Locale.ROOT);
         for (Component line : lore.lines()) {
             String s = ChatFormatting.stripFormatting(line.getString());
-            if (s != null && s.toLowerCase(java.util.Locale.ROOT).contains(needle.toLowerCase(java.util.Locale.ROOT))) {
+            if (s != null && s.toLowerCase(java.util.Locale.ROOT).contains(want)) {
                 return true;
             }
         }
@@ -644,12 +645,6 @@ public final class AutoPuzzleUtil {
     // ------------------------------------------------------------------ chest secrets (killer560, 2026-09-27)
 
     /**
-     * Nearest CHEST/TRAPPED_CHEST within {@code rangeSq} of the player's eyes, or null. Same block-type scan
-     * {@link com.killer560.hub.cheatutils.SecretAuraFeature} uses, but self-contained: this is for autos (Boulder /
-     * Teleport Maze / Tic Tac Toe / Higher-Lower) that must aura a chest of their own "even if secret aura is off"
-     * (killer560, Auto Boulder). Never depends on Secret Aura being enabled or on its done-tracking.
-     */
-    /**
      * The block reach the server actually enforces, squared.
      *
      * <p>Every puzzle auto carried its own constant - 36.0 (6.0 blocks) in Blaze, Boulder, Teleport Maze,
@@ -664,6 +659,12 @@ public final class AutoPuzzleUtil {
             com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH
                     * com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
 
+    /**
+     * Nearest CHEST/TRAPPED_CHEST within {@code rangeSq} of the player's eyes, or null. Same block-type scan
+     * {@link com.killer560.hub.cheatutils.SecretAuraFeature} uses, but self-contained: this is for autos (Boulder /
+     * Teleport Maze / Tic Tac Toe / Higher-Lower) that must aura a chest of their own "even if secret aura is off"
+     * (killer560, Auto Boulder). Never depends on Secret Aura being enabled or on its done-tracking.
+     */
     public static BlockPos nearestChest(Minecraft client, LocalPlayer player, double rangeSq) {
         Vec3 eye = player.getEyePosition();
         double range = Math.sqrt(rangeSq);
