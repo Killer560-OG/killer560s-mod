@@ -319,23 +319,25 @@ public final class ChunkCacheManager {
         if (!active || !(level instanceof ClientLevel)) {
             return level.getChunk(x, z, status, load);
         }
-        if (Thread.currentThread() == clientThread) {
-            boolean previous = clientBypass;
-            clientBypass = true;
-            try {
-                return level.getChunk(x, z, status, load);
-            } finally {
-                clientBypass = previous;
-            }
-        }
-        boolean[] flag = BYPASS.get();
-        boolean previous = flag[0];
-        flag[0] = true;
+        boolean previous = setBypass(true);
         try {
             return level.getChunk(x, z, status, load);
         } finally {
-            flag[0] = previous;
+            setBypass(previous);
         }
+    }
+
+    /** Sets this thread's bypass flag (plain field on the client thread, ThreadLocal elsewhere); returns the old value. */
+    private static boolean setBypass(boolean value) {
+        if (Thread.currentThread() == clientThread) {
+            boolean previous = clientBypass;
+            clientBypass = value;
+            return previous;
+        }
+        boolean[] flag = BYPASS.get();
+        boolean previous = flag[0];
+        flag[0] = value;
+        return previous;
     }
 
     /** Vanilla-only lookup for {@code ChunkSource.hasChunk} - see {@code ChunkCacheChunkSourceMixin}. */
@@ -343,22 +345,11 @@ public final class ChunkCacheManager {
         if (!active || !(source instanceof net.minecraft.client.multiplayer.ClientChunkCache)) {
             return source.getChunk(x, z, status, load);
         }
-        if (Thread.currentThread() == clientThread) {
-            boolean previous = clientBypass;
-            clientBypass = true;
-            try {
-                return source.getChunk(x, z, status, load);
-            } finally {
-                clientBypass = previous;
-            }
-        }
-        boolean[] flag = BYPASS.get();
-        boolean previous = flag[0];
-        flag[0] = true;
+        boolean previous = setBypass(true);
         try {
             return source.getChunk(x, z, status, load);
         } finally {
-            flag[0] = previous;
+            setBypass(previous);
         }
     }
 
@@ -430,22 +421,11 @@ public final class ChunkCacheManager {
         if (!active || !(level instanceof ClientLevel)) {
             return level.getChunk(x, z);
         }
-        if (Thread.currentThread() == clientThread) {
-            boolean previous = clientBypass;
-            clientBypass = true;
-            try {
-                return level.getChunk(x, z);
-            } finally {
-                clientBypass = previous;
-            }
-        }
-        boolean[] flag = BYPASS.get();
-        boolean previous = flag[0];
-        flag[0] = true;
+        boolean previous = setBypass(true);
         try {
             return level.getChunk(x, z);
         } finally {
-            flag[0] = previous;
+            setBypass(previous);
         }
     }
 

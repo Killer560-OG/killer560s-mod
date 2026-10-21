@@ -56,8 +56,12 @@ public class ChunkCacheTab extends BaseTab {
                 // 100-chunk steps
                 int chunks = (int) Math.round((ChunkCacheConfig.MIN_CHUNKS + this.value * range) / 100.0) * 100;
                 ChunkCacheConfig c = ChunkCacheConfig.getInstance();
+                int before = c.getMaxChunks();
                 c.setMaxChunks(chunks);
-                c.save();
+                // A drag fires this every mouse move; the value only changes once per 100-chunk step.
+                if (c.getMaxChunks() != before) {
+                    c.save();
+                }
             }
         });
         y += 24;
