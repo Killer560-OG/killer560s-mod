@@ -132,15 +132,7 @@ public final class EtherwarpOverlayFeature {
             lastOutcome = "no etherwarp item";
             return;
         }
-        // Read the id off the tag getEtherwarpData already copied (2026-09-20, FPS pass): the old
-        // getSkyblockId(mainHand) helper deep-copied the held item's whole NBT a second time, every
-        // frame an etherwarp item was in hand. That helper had no other caller and is gone.
-        String diagItemId = etherData.contains("id") ? etherData.getStringOr("id", null) : null;
-        boolean isConduit = ETHERWARP_CONDUIT_ID.equals(diagItemId);
-        if (!client.player.isShiftKeyDown() && !isConduit) {
-            lastOutcome = "not sneaking";
-            return;
-        }
+        // (Not sneaking with anything but the bare conduit already returned above, so no second sneak test is needed.)
 
         double distance = 57.0 + etherData.getIntOr("tuned_transmission", 0);
         EtherPos etherPos = getEtherPos(client.level, client.player.position(), client.player, distance);
