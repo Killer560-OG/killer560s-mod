@@ -63,9 +63,12 @@ public class ClickSoundsTab extends BaseTab {
             protected void applyValue() {
                 ClickSoundConfig cfg = ClickSoundConfig.getInstance();
                 // 100% to 500% in steps of 5 (killer560, 2026-10-18: the slider starts at 100%).
+                float before = cfg.getVolume();
                 cfg.setVolume(ClickSoundConfig.MIN_VOLUME
                         + Math.round(this.value * (ClickSoundConfig.MAX_VOLUME - ClickSoundConfig.MIN_VOLUME) * 20) / 20f);
-                cfg.save();
+                if (cfg.getVolume() != before) {
+                    cfg.save();   // a drag calls this every mouse move; write the file only when a step changes
+                }
             }
         });
         y += 24;

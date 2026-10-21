@@ -107,9 +107,23 @@ public final class ClickSounds {
         return PRESETS;
     }
 
+    /** The import folder's path, resolved once: {@code ModPaths.config} and {@code createDirectories} stat the disk, and
+     *  {@link #make} runs on the render thread for every click and sound effect. A vanished file is caught by the
+     *  {@code isRegularFile} check there, so the folder itself need not be re-checked per sound. */
+    private static volatile Path importDirPath;
+
+    private static Path importDirPath() {
+        Path dir = importDirPath;
+        if (dir == null) {
+            dir = ModPaths.config("killer560smod-menu-clicksounds");
+            importDirPath = dir;
+        }
+        return dir;
+    }
+
     /** The folder imported sound files live in (created on demand). */
     public static Path importDir() {
-        Path dir = ModPaths.config("killer560smod-menu-clicksounds");
+        Path dir = importDirPath();
         try {
             Files.createDirectories(dir);
         } catch (IOException e) {
@@ -192,7 +206,7 @@ public final class ClickSounds {
         float pitch = at == null ? 1.0f : pitchOf(at);
         if (id.startsWith(IMPORT_PREFIX)) {
             String name = id.substring(IMPORT_PREFIX.length());
-            Path dir = importDir().normalize();
+            Path dir = importDirPath().normalize();
             Path file = dir.resolve(name).normalize();
             if (!dir.equals(file.getParent()) || !Files.isRegularFile(file)) {
                 return null;
@@ -237,7 +251,7 @@ public final class ClickSounds {
         }
         if (id.startsWith(IMPORT_PREFIX)) {
             String name = id.substring(IMPORT_PREFIX.length());
-            Path dir = importDir().normalize();
+            Path dir = importDirPath().normalize();
             Path file = dir.resolve(name).normalize();
             return dir.equals(file.getParent()) && Files.isRegularFile(file);
         }
