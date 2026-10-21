@@ -23,7 +23,6 @@ import com.killer560.hub.util.ModLog;
 
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -433,22 +432,6 @@ public final class ArmourDye {
         EquipmentSlot slot = slotOf(stack);
         return slot == EquipmentSlot.HEAD || slot == EquipmentSlot.CHEST
                 || slot == EquipmentSlot.LEGS || slot == EquipmentSlot.FEET;
-    }
-
-    /** The four armour pieces the player is wearing, helmet first; empty slots are {@link ItemStack#EMPTY}. */
-    public static List<ItemStack> wornArmour(net.minecraft.world.entity.player.Player player) {
-        if (player == null) {
-            return List.of();
-        }
-        try {
-            return List.of(
-                    player.getItemBySlot(EquipmentSlot.HEAD),
-                    player.getItemBySlot(EquipmentSlot.CHEST),
-                    player.getItemBySlot(EquipmentSlot.LEGS),
-                    player.getItemBySlot(EquipmentSlot.FEET));
-        } catch (Exception e) {
-            return List.of();
-        }
     }
 
     private static void note(Exception e) {
