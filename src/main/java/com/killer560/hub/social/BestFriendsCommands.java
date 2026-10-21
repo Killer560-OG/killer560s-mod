@@ -4,9 +4,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
 
-/** {@code /bestfriends} - opens the Party Time Tracker menu ({@link BestFriendsScreen}). No alias registered
- *  (unlike {@code /log}/{@code /runlog}) since the brief only names this one command - see "Needs his
- *  answer" in the staging notes for whether he'd want a short one too (e.g. {@code /bf}). */
+/** {@code /bestfriends} (alias {@code /bf}) - opens the Party Time Tracker menu ({@link BestFriendsScreen}). */
 public final class BestFriendsCommands {
 
     private BestFriendsCommands() {

@@ -213,6 +213,9 @@ public final class BestFriendsTracker {
             if (floor != null && !floor.isBlank()) {
                 lastFloorWhileInDungeon = floor;
             }
+        } else if (wasInDungeon && lastFloorWhileInDungeon != null && SESSION_NAMES.isEmpty()) {
+            // A solo run credits nobody, so it neither logs nor rewrites the file.
+            lastFloorWhileInDungeon = null;
         } else if (wasInDungeon && lastFloorWhileInDungeon != null) {
             String floor = lastFloorWhileInDungeon;
             for (Map.Entry<UUID, String> entry : SESSION_NAMES.entrySet()) {
@@ -230,6 +233,10 @@ public final class BestFriendsTracker {
      *  periodic checkpoint. Stops all accrual outright (rejoining starts fresh segments). */
     private static void onDisconnect() {
         pendingDisconnect = false;
+        // Reset the run state even when nobody was partied (a solo leave from a dungeon): left set, the next
+        // party in the hub would be credited with a run it never played.
+        wasInDungeon = false;
+        lastFloorWhileInDungeon = null;
         if (SESSION_START.isEmpty()) {
             return;
         }
@@ -237,8 +244,6 @@ public final class BestFriendsTracker {
         flushAll(at, System.currentTimeMillis());
         SESSION_START.clear();
         SESSION_NAMES.clear();
-        wasInDungeon = false;
-        lastFloorWhileInDungeon = null;
         BestFriendsStore.saveAsync();
     }
 }
