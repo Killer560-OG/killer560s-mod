@@ -1,9 +1,7 @@
 package com.killer560.hub.rngmeter;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Predicate;
 
 /** Shared, process-lifetime price cache so re-opening the RNG Meter screen doesn't refetch. */
@@ -15,25 +13,6 @@ public final class RngMeterEngine {
     }
 
     public record RankedItem(RngItem item, Long price, Double coinsPerPity, int rank) {
-    }
-
-    /** Distinct group names (floor/area) within a category, in first-seen order. */
-    public static List<String> groupsOf(List<RngItem> items) {
-        Set<String> seen = new LinkedHashSet<>();
-        for (RngItem item : items) {
-            seen.add(item.group());
-        }
-        return List.copyOf(seen);
-    }
-
-    /** Items in one group (e.g. one dungeon floor), ranked by coins-per-pity descending. */
-    public static List<RankedItem> rankGroup(List<RngItem> items, String group) {
-        return rank(items, item -> item.group().equals(group));
-    }
-
-    /** Items across every group whose name starts with {@code groupPrefix} (e.g. all Enderman tiers), ranked together. */
-    public static List<RankedItem> rankGroupPrefix(List<RngItem> items, String groupPrefix) {
-        return rank(items, item -> item.group().startsWith(groupPrefix));
     }
 
     /** Ranks every item given, with no group filtering - for a live-scanned menu's own item list. */
