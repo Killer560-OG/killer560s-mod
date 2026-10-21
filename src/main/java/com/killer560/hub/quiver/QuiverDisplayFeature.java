@@ -54,30 +54,39 @@ public final class QuiverDisplayFeature {
         }
         Player player = client.player;
         ItemStack found = null;
+        String count = null;
         // Real 36-slot hotbar+main-inventory bound, same convention already established elsewhere in
         // this mod (e.g. AutoLeapFeature's own bounded slot search) - Inventory#items is private in
-        // this version, getItem(int) is the real public accessor.
+        // this version, getItem(int) is the real public accessor. The first feather/arrow that really
+        // carries the "Arrows Remaining" line wins: a plain Feather earlier in the bag must not hide the quiver.
         for (int i = 0; i < 36; i++) {
             ItemStack stack = player.getInventory().getItem(i);
             if (isQuiverItem(stack)) {
-                found = stack;
-                break;
+                count = readArrowsRemaining(stack);
+                if (count != null) {
+                    found = stack;
+                    break;
+                }
             }
         }
         if (found == null && isQuiverItem(player.getOffhandItem())) {
-            found = player.getOffhandItem();
+            count = readArrowsRemaining(player.getOffhandItem());
+            if (count != null) {
+                found = player.getOffhandItem();
+            }
         }
         if (found == null) {
             cachedName = null;
             cachedCount = null;
             return;
         }
-        String count = readArrowsRemaining(found);
-        if (count == null) {
-            return;
+        // Only rebuild the name string when the count moved; the HUD text is cached on these two references.
+        if (cachedName == null || !count.equals(cachedCount)) {
+            cachedName = found.getHoverName().getString();
         }
-        cachedName = found.getHoverName().getString();
-        cachedCount = count;
+        if (!count.equals(cachedCount)) {
+            cachedCount = count;
+        }
         checkLowAlert(client, count);
     }
 
@@ -163,8 +172,22 @@ public final class QuiverDisplayFeature {
         public int width() {
             // The drawn text (2026-10-07 box audit: it was a fixed 150); 150 before the quiver has been read.
             String text = text();
-            return text == null ? 150 : Minecraft.getInstance().font.width(text);
+            if (text == null) {
+                return 150;
+            }
+            if (text != widthText) {
+                widthText = text;
+                widthPx = Minecraft.getInstance().font.width(text);
+            }
+            return widthPx;
         }
+
+        private static String widthText = null;
+        private static int widthPx = 0;
+        private static String builtText = null;
+        private static String builtName = null;
+        private static String builtCount = null;
+        private static boolean builtShowName = false;
 
         @Override
         public int height() {
@@ -176,9 +199,19 @@ public final class QuiverDisplayFeature {
             if (cachedCount == null) {
                 return null;
             }
-            // Plain text, drawn in the Text Color setting (formatting codes would override it).
-            return (QuiverDisplayConfig.getInstance().isShowName() && cachedName != null
-                    ? net.minecraft.ChatFormatting.stripFormatting(cachedName) + " x" : "x") + cachedCount;
+            // Plain text, drawn in the Text Color setting (formatting codes would override it). Rebuilt only
+            // when the name, count or Show Item Name changed, so the per-frame path allocates nothing.
+            boolean showName = QuiverDisplayConfig.getInstance().isShowName();
+            String name = cachedName;
+            String count = cachedCount;
+            if (builtText == null || name != builtName || count != builtCount || showName != builtShowName) {
+                builtText = (showName && name != null
+                        ? net.minecraft.ChatFormatting.stripFormatting(name) + " x" : "x") + count;
+                builtName = name;
+                builtCount = count;
+                builtShowName = showName;
+            }
+            return builtText;
         }
 
         @Override
