@@ -106,8 +106,11 @@ public final class AutoSellFeature {
         return running;
     }
 
-    /** Starts a session against whatever screen is open RIGHT NOW - never opens or navigates to one itself.
-     *  @return null on success, else the reason it refused (so the command can print it). */
+    /** The last screen object looked at, so its label is built once per screen and not every tick. */
+    private static Object lastSeenObject;
+    /** The screen whose title the sell pattern refused, and the pattern that refused it. */
+    private static AbstractContainerScreen<?> refusedScreen;
+    private static String refusedPattern;
     /** The last screen Auto Sell logged as open, so the log names each one once. */
     private static String lastSeenScreen = "";
     /** The last container title Auto Sell refused, so the log names it once. */
@@ -121,7 +124,14 @@ public final class AutoSellFeature {
         // killer560, 2026-10-19: /trades still never sold. Say what screen is open, once per class and title, so the log
         // shows whether it is a container at all and what it is called.
         Object open = McCompat.screen(client);
-        if (open != null) {
+        if (open == null) {
+            lastSeenObject = null;
+            refusedScreen = null;
+            return;
+        }
+        // The same screen object is open for many ticks: work out its label and title match once, not every tick.
+        if (open != lastSeenObject) {
+            lastSeenObject = open;
             String shown = open.getClass().getName() + " \"" + (open instanceof net.minecraft.client.gui.screens.Screen sc
                     ? ChatFormatting.stripFormatting(sc.getTitle().getString()).trim() : "") + "\"";
             if (!shown.equals(lastSeenScreen)) {
@@ -130,6 +140,9 @@ public final class AutoSellFeature {
             }
         }
         if (!(open instanceof AbstractContainerScreen<?> screen)) {
+            return;
+        }
+        if (screen == refusedScreen && cfg.getScreenTitlePattern().equals(refusedPattern)) {
             return;
         }
         // killer560, 2026-10-20: an item added to the list while the Trades menu is open is sold in that menu
@@ -141,6 +154,8 @@ public final class AutoSellFeature {
         String title = titleOf(screen);
         if (!compileOrDefault(cfg.getScreenTitlePattern()).matcher(title).matches()) {
             // killer560, 2026-10-19: the /trades menu was never sold to. Said once per title, so the real one shows in the log.
+            refusedScreen = screen;
+            refusedPattern = cfg.getScreenTitlePattern();
             if (!title.equals(lastRefusedTitle)) {
                 lastRefusedTitle = title;
                 LOGGER.info("[AutoSell] screen title \"{}\" does not match the sell pattern '{}' - not selling in it",
@@ -292,12 +307,23 @@ public final class AutoSellFeature {
         return ChatFormatting.stripFormatting(screen.getTitle().getString()).trim();
     }
 
+    private static String compiledSource;
+    private static Pattern compiled;
+
+    /** The compiled pattern, kept until the setting changes (it is asked for every tick a container is open). */
     private static Pattern compileOrDefault(String pattern) {
-        try {
-            return Pattern.compile(pattern);
-        } catch (PatternSyntaxException e) {
-            return Pattern.compile(AutoSellConfig.DEFAULT_SCREEN_TITLE_PATTERN);
+        if (pattern.equals(compiledSource)) {
+            return compiled;
         }
+        Pattern p;
+        try {
+            p = Pattern.compile(pattern);
+        } catch (PatternSyntaxException e) {
+            p = Pattern.compile(AutoSellConfig.DEFAULT_SCREEN_TITLE_PATTERN);
+        }
+        compiled = p;
+        compiledSource = pattern;
+        return p;
     }
 
     /** Client ticks to wait before the next sell click: uniform from the configured min to max, both 1..10 (never 0). */
