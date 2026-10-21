@@ -41,6 +41,12 @@ public final class MageBeamFeature {
         final long createdTick;
         final long createdMs;
         long updateTick;
+        // The body's faces and the core line, rebuilt only when the beam grew or the shape/width changed, not every frame.
+        private List<Vec3[]> quads;
+        private Vec3[] core;
+        private int quadsPoints = -1;
+        private int quadsShape;
+        private float quadsWidth;
 
         Beam(Vec3 point, long tick) {
             points.add(point);
@@ -55,6 +61,17 @@ public final class MageBeamFeature {
 
         Vec3 max() {
             return points.get(points.size() - 1);
+        }
+
+        List<Vec3[]> quads(int shape, float widthBlocks) {
+            if (quads == null || quadsPoints != points.size() || quadsShape != shape || quadsWidth != widthBlocks) {
+                quads = beamQuads(min(), max(), shape, widthBlocks);
+                core = new Vec3[]{min(), max()};
+                quadsPoints = points.size();
+                quadsShape = shape;
+                quadsWidth = widthBlocks;
+            }
+            return quads;
         }
 
         boolean inLine(Vec3 point) {
@@ -122,6 +139,8 @@ public final class MageBeamFeature {
         float[] rgba = WorldRenderUtils.argbToFloats(cfg.getMageBeamColor());
         long durationMs = cfg.getMageBeamDurationTicks() * 50L;
         long now = System.currentTimeMillis();
+        int shape = cfg.getMageBeamShape();
+        float widthBlocks = cfg.getMageBeamWidth() * DungeonExtrasConfig.BEAM_WIDTH_BLOCKS;
         for (Beam beam : BEAMS) {
             if (beam.points.size() < MIN_POINTS) {
                 continue;
@@ -140,10 +159,9 @@ public final class MageBeamFeature {
             // low width still reads at range, where a 5cm solid is under a pixel wide.
             // 2026-10-18: "should not rotate as I run around it" - the body used to be one quad turned to face the
             // camera, so it swung round with every step. It is now fixed to the beam (see beamQuads).
-            renderBeamBody(context, beam.min(), beam.max(), rgba[0], rgba[1], rgba[2], alpha,
-                    cfg.getMageBeamWidth() * DungeonExtrasConfig.BEAM_WIDTH_BLOCKS, cfg.getMageBeamShape());
-            WorldRenderUtils.renderLineStrip(context, List.of(beam.min(), beam.max()),
-                    rgba[0], rgba[1], rgba[2], alpha, 2f);
+            renderBeamBody(context, beam.quads(shape, widthBlocks), rgba[0], rgba[1], rgba[2], alpha);
+            // beam.core is only replaced, never changed, so the render callback may read it later in the frame (26.2).
+            WorldRenderUtils.renderLineStrip(context, beam.core, rgba[0], rgba[1], rgba[2], alpha, 2f);
         }
     }
 
@@ -186,9 +204,8 @@ public final class MageBeamFeature {
     }
 
     /** Draws {@link #beamQuads} with both windings, so face culling can't hide a side. */
-    private static void renderBeamBody(LevelRenderContext context, Vec3 start, Vec3 end,
-                                       float r, float g, float b, float a, float widthBlocks, int shape) {
-        final List<Vec3[]> quads = beamQuads(start, end, shape, widthBlocks);
+    private static void renderBeamBody(LevelRenderContext context, List<Vec3[]> quads,
+                                       float r, float g, float b, float a) {
         if (quads.isEmpty()) {
             return;
         }
