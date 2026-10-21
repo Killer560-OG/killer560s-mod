@@ -16,10 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *  mixin in this package uses - {@code EffectsInInventory#extractRenderState} is the one place that
  *  draws the panel; cancelling it is equivalent to there being no active effects at all, purely visual.
  *  <p>
- *  Deliberately independent of {@link InventoryThemeConfig#isEnabled()} (the reskin's own on/off) -
- *  killer560 asked for this as its own setting, so it keeps working with the reskin off. OFF by default
- *  (see {@link InventoryThemeConfig#isHidePotionEffects()}) so nothing changes for anyone until they
- *  turn it on. {@code require = 0} so a future MC update that restructures this just leaves the panel
+ *  Since 2026-10-18 it is no longer a setting of its own: the panel is hidden whenever the Inventory Theme is on
+ *  ({@link InventoryThemeConfig#isHidePotionEffects()} is {@link InventoryThemeConfig#isEnabled()}), on every screen
+ *  that shows one, Hypixel Only or not. {@code require = 0} so a future MC update that restructures this just leaves the panel
  *  showing instead of crashing. */
 @Mixin(EffectsInInventory.class)
 public abstract class InventoryThemeHideEffectsMixin {
