@@ -217,6 +217,11 @@ public final class MelodyTrackerFeature {
      *  and formats. A row's label string is rebuilt only when its name or percent actually changed, so a
      *  teammate who isn't moving costs one string compare per tick, not one allocation. */
     private static void rebuildRows() {
+        // Nothing reads the rows while the HUD is off, so skip the teammate walk and the per-name lowercase lookup.
+        if (!MelodyHudConfig.getInstance().isHudEnabledRaw()) {
+            rowCount = 0;
+            return;
+        }
         int n = 0;
         for (String mate : PartyTracker.teammates()) {
             if (n >= ROWS.length) {
