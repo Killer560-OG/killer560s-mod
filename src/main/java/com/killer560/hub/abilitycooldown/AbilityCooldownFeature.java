@@ -4,6 +4,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -71,7 +72,10 @@ public final class AbilityCooldownFeature {
             return InteractionResult.PASS;
         });
 
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AbilityCooldownState.reset());
+        // DISCONNECT runs on the Netty thread while the render thread reads the timer map, so it only raises a
+        // flag; the next client tick clears (a client.execute task can be dropped by a pause-menu leave).
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AbilityCooldownState.requestReset());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> AbilityCooldownState.drainReset());
     }
 
     /**
@@ -159,6 +163,9 @@ public final class AbilityCooldownFeature {
         }
 
         private static List<Line> lines() {
+            if (AbilityCooldownState.isIdle()) {
+                return List.of();
+            }
             AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
             java.util.List<Line> out = new java.util.ArrayList<>();
             for (ItemAbility ability : AbilityCooldownState.running()) {

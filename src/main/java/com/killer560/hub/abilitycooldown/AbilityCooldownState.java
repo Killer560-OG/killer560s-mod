@@ -89,6 +89,20 @@ public final class AbilityCooldownState {
         lastActionBarAbility = "";
     }
 
+    private static volatile boolean resetRequested;
+
+    /** Safe from any thread (the DISCONNECT listener runs on Netty's): the render thread clears on its next tick. */
+    static void requestReset() {
+        resetRequested = true;
+    }
+
+    static void drainReset() {
+        if (resetRequested) {
+            resetRequested = false;
+            reset();
+        }
+    }
+
     /** Called from Fabric's use-item / use-block events: "you personally clicked something just now". */
     static void noteItemClick() {
         lastItemClickMs = System.currentTimeMillis();
@@ -132,8 +146,16 @@ public final class AbilityCooldownState {
         return Math.max(0L, end - System.currentTimeMillis());
     }
 
+    /** True while nothing has fired this session, so the HUD has no rows and can skip building any. */
+    static boolean isIdle() {
+        return ENDS_AT.isEmpty();
+    }
+
     /** Abilities currently counting down, soonest-ready first. */
     public static List<ItemAbility> running() {
+        if (ENDS_AT.isEmpty()) {
+            return List.of();
+        }
         AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
         List<ItemAbility> out = new ArrayList<>();
         for (ItemAbility a : ItemAbility.values()) {
@@ -243,8 +265,6 @@ public final class AbilityCooldownState {
         String path = id.getPath();
         float pitch = packet.getPitch();
         float volume = packet.getVolume();
-        ItemStack held = heldItem();
-        String heldId = skyblockId(held);
 
         switch (path) {
             case "entity.zombie_villager.cure" -> {
@@ -252,7 +272,7 @@ public final class AbilityCooldownState {
                 // 2026-09-21: "remove shadow warp, wither shield and implosion from that list" - the three
                 // individual scrolls are no longer timed on their own, only the full combo.
                 if (eq(pitch, 0.6984127f) && eq(volume, 1f)) {
-                    if (hasAllWitherComboScrolls(held)) {
+                    if (hasAllWitherComboScrolls(heldItem())) {
                         sound(ItemAbility.WITHER_IMPACT);
                     }
                 } else if (eq(pitch, 1.8888888f) && eq(volume, 0.7f)) {
@@ -279,7 +299,7 @@ public final class AbilityCooldownState {
                 if (eq(pitch, 0.61904764f) && eq(volume, 1f)) {
                     sound(ItemAbility.GYROKINETIC_WAND_LEFT);
                 }
-                if (ItemAbility.SHADOW_FURY.matchesItem(heldId)) {
+                if (ItemAbility.SHADOW_FURY.matchesItem(heldId())) {
                     sound(ItemAbility.SHADOW_FURY);
                 }
             }
@@ -300,6 +320,7 @@ public final class AbilityCooldownState {
             }
             case "entity.ghast.hurt" -> {
                 if (eq(volume, 1f) && pitch >= 1.6f && pitch <= 1.7f) {
+                    String heldId = heldId();
                     if (ItemAbility.VOODOO_DOLL.matchesItem(heldId)) {
                         sound(ItemAbility.VOODOO_DOLL);
                     } else if (ItemAbility.VOODOO_DOLL_WILTED.matchesItem(heldId)) {
@@ -366,12 +387,13 @@ public final class AbilityCooldownState {
             }
             case "block.lever.click" -> {
                 if (eq(pitch, 0.84126985f) && eq(volume, 0.5f)
-                        && ItemAbility.TOTEM_OF_CORRUPTION.matchesItem(heldId)) {
+                        && ItemAbility.TOTEM_OF_CORRUPTION.matchesItem(heldId())) {
                     sound(ItemAbility.TOTEM_OF_CORRUPTION);
                 }
             }
             case "entity.firework_rocket.launch" -> {
                 if (eq(pitch, 1f) && eq(volume, 3f)) {
+                    String heldId = heldId();
                     if (ItemAbility.ALERT_FLARE.matchesItem(heldId)) {
                         sound(ItemAbility.ALERT_FLARE);
                     } else if (ItemAbility.SOS_FLARE.matchesItem(heldId)) {
@@ -384,6 +406,7 @@ public final class AbilityCooldownState {
                 // death sound is per-variant, so it is matched the same way ragaxe/RagAxeState matches
                 // Ragnarock's cast sound - against every WolfSoundVariant's own death sound.
                 if (eq(volume, 0.5f) && isWolfDeath(id)) {
+                    String heldId = heldId();
                     if (ItemAbility.WEIRD_TUBA.matchesItem(heldId)) {
                         sound(ItemAbility.WEIRD_TUBA);
                     } else if (ItemAbility.WEIRDER_TUBA.matchesItem(heldId)) {
@@ -398,6 +421,12 @@ public final class AbilityCooldownState {
 
     private static boolean eq(float a, float b) {
         return Math.abs(a - b) < 1.0e-4f;
+    }
+
+    /** The main-hand Skyblock id, read only by the sound branches that need it: copying the item's custom_data tag
+     *  for every sound packet of the game was a per-sound allocation for nothing. */
+    private static String heldId() {
+        return skyblockId(heldItem());
     }
 
     private static ItemStack heldItem() {
