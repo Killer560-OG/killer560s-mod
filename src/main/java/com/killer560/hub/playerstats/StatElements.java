@@ -199,6 +199,11 @@ public final class StatElements {
         drawnRects[i + 3] = pose.m11() * (y + h) + pose.m21();
     }
 
+    /** Whether any readout has drawn this frame (the held-item name has nothing to hide under otherwise). */
+    public static boolean anyDrawn() {
+        return drawnCount > 0;
+    }
+
     /** Whether any readout drawn this frame overlaps the GUI-unit box {@code [x0,x1) x [y0,y1)}. */
     public static boolean drawnOver(float x0, float y0, float x1, float y1) {
         for (int k = 0; k < drawnCount; k++) {
@@ -309,7 +314,32 @@ public final class StatElements {
     /** Width in its own units of what text readout {@code r} draws (its label in the editor while it has no value). */
     static int textWidth(Readout r, boolean preview) {
         String t = text(r, preview);
-        return t == null ? 1 : Math.max(1, Minecraft.getInstance().font.width(t));
+        return t == null ? 1 : measured(r, t);
+    }
+
+    // The width of each text readout's string, measured once per string and font (a frame asks for it from the layout, the
+    // element's box and the noted draw rect, and an off readout in the editor's label path asks for it too). Strings
+    // are rebuilt only when a value changes (liveTextCached), so identity is the key. Render thread.
+    private static final String[] widthSource = new String[Readout.values().length];
+    private static net.minecraft.client.gui.Font widthFont;
+    private static final int[] widthValue = new int[Readout.values().length];
+
+    private static int measured(Readout r, String t) {
+        Minecraft mc = Minecraft.getInstance();
+        net.minecraft.client.gui.Font font = mc.font;
+        if (!mc.isSameThread()) {
+            return Math.max(1, font.width(t));
+        }
+        int i = r.ordinal();
+        if (widthFont != font) {
+            java.util.Arrays.fill(widthSource, null);
+            widthFont = font;
+        }
+        if (widthSource[i] != t) {
+            widthValue[i] = Math.max(1, font.width(t));
+            widthSource[i] = t;
+        }
+        return widthValue[i];
     }
 
     /** True for an id this class registered - {@code HudInGameRenderer} draws these. */
@@ -384,8 +414,7 @@ public final class StatElements {
                 return barWidthNow();
             }
             // The drawn readout (2026-10-07 box audit: it was a fixed 90); its label when there is no value yet.
-            String text = text(r, true);
-            return Math.max(1, Minecraft.getInstance().font.width(text));
+            return textWidth(r, true);
         }
 
         /** The bar's length now: the Predefined layout's share of its area, else its own length. */
@@ -588,12 +617,7 @@ public final class StatElements {
                 if (p == null) {
                     return null;
                 }
-                float progress = p.experienceProgress;
-                if (Float.isNaN(progress)) {
-                    progress = 0f;
-                }
-                progress = Math.max(0f, Math.min(1f, progress));
-                cur = Math.round(1000.0 * progress);
+                cur = Math.round(1000.0 * xpProgress(p));
                 max = 1000;
                 a = p.experienceLevel;
                 d = null;
@@ -612,7 +636,7 @@ public final class StatElements {
         if (valueText[i] == null || keyA[i] != a || keyB[i] != max || keyC[i] != cur || keyD[i] != d) {
             valueText[i] = switch (r) {
                 case DEFENCE_BAR -> fmt(a) + " (" + String.format(Locale.US, "%.1f", cur / 10.0) + "%)";
-                case XP_BAR -> xpLabel(new float[]{a, cur / 1000f});
+                case XP_BAR -> xpLabel(a, cur / 1000f);
                 case OTHER_BAR -> fmt(cur) + "/" + fmt(max) + PlayerStatsFeature.otherIcon;
                 default -> fmt(cur) + "/" + fmt(max);
             };
@@ -751,12 +775,12 @@ public final class StatElements {
                 b = PlayerStatsFeature.vitalityMax;
             }
             case XP_TEXT -> {
-                float[] xp = xp();
-                if (xp == null) {
+                net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+                if (p == null) {
                     return null;
                 }
-                a = (long) xp[0];
-                b = Float.floatToIntBits(xp[1]);
+                a = p.experienceLevel;
+                b = Float.floatToIntBits(xpProgress(p));
             }
             default -> {
                 a = PlayerStatsFeature.otherCur;
@@ -794,8 +818,8 @@ public final class StatElements {
             case VITALITY_TEXT -> PlayerStatsFeature.vitalityCur < 0 ? null
                     : "Vitality " + fmt(PlayerStatsFeature.vitalityCur) + "/" + fmt(PlayerStatsFeature.vitalityMax);
             case XP_TEXT -> {
-                float[] xp = xp();
-                yield xp == null ? null : xpLabel(xp);
+                net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
+                yield p == null ? null : xpLabel(p.experienceLevel, xpProgress(p));
             }
             default -> PlayerStatsFeature.otherCur < 0 ? null
                     : fmt(PlayerStatsFeature.otherCur) + "/" + fmt(PlayerStatsFeature.otherMax)
@@ -804,23 +828,19 @@ public final class StatElements {
         return text;
     }
 
-    /** {level, progress 0..1} from the client's own player, or null with no player. Progress is clamped: it is
-     *  whatever the server sent, and a server repurposing the bar can send anything. */
-    private static float[] xp() {
-        net.minecraft.world.entity.player.Player p = Minecraft.getInstance().player;
-        if (p == null) {
-            return null;
-        }
+    /** The client player's experience progress, 0..1. Clamped: it is whatever the server sent, and a server repurposing
+     *  the bar can send anything. */
+    private static float xpProgress(net.minecraft.world.entity.player.Player p) {
         float progress = p.experienceProgress;
         if (Float.isNaN(progress)) {
             progress = 0f;
         }
-        return new float[]{p.experienceLevel, Math.max(0f, Math.min(1f, progress))};
+        return Math.max(0f, Math.min(1f, progress));
     }
 
     /** "Level 30 (45%)": the level number the vanilla bar shows over itself, and how far the bar is filled. */
-    private static String xpLabel(float[] xp) {
-        return "Level " + fmt((long) xp[0]) + " (" + Math.round(xp[1] * 100f) + "%)";
+    private static String xpLabel(long level, float progress) {
+        return "Level " + fmt(level) + " (" + Math.round(progress * 100f) + "%)";
     }
 
     private static String fmt(long v) {

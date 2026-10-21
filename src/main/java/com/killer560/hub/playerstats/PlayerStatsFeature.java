@@ -167,6 +167,9 @@ public final class PlayerStatsFeature {
     /** Frames the held-item name layer ran and was hidden / handed to vanilla - testkit evidence of which path ran. */
     public static volatile long heldNameHiddenFrames;
     public static volatile long heldNameShownFrames;
+    /** The held item's name as last measured, and its width: a steady name is measured once, not every frame. Render thread. */
+    private static Component heldNameSource;
+    private static int heldNameWidth;
 
     /**
      * Whether vanilla's held-item name is skipped this frame: always, never, or (the default) only where it would land on
@@ -188,11 +191,20 @@ public final class PlayerStatsFeature {
         if (!PlayerStatsConfig.getInstance().isEnabled()) {
             return false;
         }
+        // Nothing drawn this frame to cover: no need to look at the held item at all (this runs every frame).
+        if (!StatElements.anyDrawn()) {
+            return false;
+        }
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.player == null) {
             return false;
         }
-        int w = mc.font.width(mc.player.getMainHandItem().getHoverName());
+        net.minecraft.network.chat.Component name = mc.player.getMainHandItem().getHoverName();
+        if (name != heldNameSource) {
+            heldNameSource = name;
+            heldNameWidth = mc.font.width(name);
+        }
+        int w = heldNameWidth;
         int x = (graphics.guiWidth() - w) / 2;
         int y = graphics.guiHeight() - 59;
         if (mc.gameMode != null && !mc.gameMode.canHurtPlayer()) {
@@ -270,12 +282,13 @@ public final class PlayerStatsFeature {
         if (message == null || message == lastRead) {
             return;
         }
+        // Marked first, so the second sighting of the same line (ALLOW_GAME, then setOverlayMessage) is skipped with the HUD off too.
+        lastRead = message;
         // Read before the enabled gate: an etherwarp route needs to know about an empty mana bar even with the HUD off.
         noteManaShort(message.getString());
         if (!PlayerStatsConfig.getInstance().isEnabled()) {
             return;
         }
-        lastRead = message;
         try {
             read(message.getString());
         } catch (RuntimeException e) {
@@ -322,7 +335,7 @@ public final class PlayerStatsFeature {
     /** True while an Aspect of the Void would fail for lack of mana: the action bar says so, or the last mana figure is
      *  under its cost. Etherwarp holds on this (no use is sent into a refusal). */
     public static boolean manaTooLowForAotv() {
-        return manaShort || manaCur >= 0 && manaCur < AOTV_MANA;
+        return manaShort || manaSeen >= 0 && manaSeen < AOTV_MANA;
     }
 
     private static void read(String raw) {
@@ -382,6 +395,10 @@ public final class PlayerStatsFeature {
      */
     private static void logActionBar(String raw) {
         try {
+            // A release jar drops INFO: skip building the escaped text for a line nobody will see.
+            if (!LOGGER.isInfoEnabled()) {
+                return;
+            }
             long now = System.nanoTime();
             boolean changed = !raw.equals(lastLogText);
             if (!changed && now - lastLogNanos < LOG_EVERY_NANOS) {
@@ -445,12 +462,16 @@ public final class PlayerStatsFeature {
         for (Pattern p : STRIP) {
             left = p.matcher(left).replaceAll("");
         }
-        if (left.replaceAll("\u00A7.", "").isBlank()) {
+        if (COLOUR_CODE.matcher(left).replaceAll("").isBlank()) {
             return null;
         }
         // Hypixel separates segments with runs of spaces; removing some leaves wide gaps, so close them up.
-        return Component.literal(left.replaceAll(" {2,}", "     ").trim());
+        return Component.literal(SPACE_RUN.matcher(left).replaceAll("     ").trim());
     }
+
+    // Compiled once: String.replaceAll compiled both on every stripped action-bar line.
+    private static final Pattern COLOUR_CODE = Pattern.compile("\u00A7.");
+    private static final Pattern SPACE_RUN = Pattern.compile(" {2,}");
 
     /** True while the mixin is re-sending a stripped line, so it is not processed (or read) a second time. */
     public static boolean isResending() {
