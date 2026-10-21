@@ -134,6 +134,11 @@ public final class AutoAnvilFeature {
     }
 
     private static void tickUnsafe(Minecraft client) {
+        // Off and idle (the usual state): skip the title read and string strip below, which would otherwise run on
+        // every tick any container is open. A stale finished id is still cleared by the check underneath.
+        if (containerId == -1 && finishedContainerId == -1 && !AutoAnvilConfig.getInstance().isEnabled()) {
+            return;
+        }
         AbstractContainerScreen<?> screen = McCompat.screen(client) instanceof AbstractContainerScreen<?> s ? s : null;
         boolean anvil = screen != null && isAnvil(screen);
         if (containerId != -1) {
