@@ -61,38 +61,42 @@ public final class LoadoutKeybindsFeature {
         if (code == -1 || client.gameMode == null || client.player == null) {
             return false;
         }
+        LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
+        // Which bind this is comes first (a few int compares); the title regex runs only for a key that is bound,
+        // not on every key press in every container screen.
+        boolean next = code == cfg.getNextPageKey();
+        boolean previous = !next && code == cfg.getPreviousPageKey();
+        int keyIndex = -1;
+        if (!next && !previous) {
+            for (int i = 0; i < LOADOUT_SLOTS.length; i++) {
+                if (cfg.getSlotKey(i) == code) {
+                    keyIndex = i;
+                    break;
+                }
+            }
+            if (keyIndex == -1) {
+                return false;
+            }
+        }
         Matcher matcher = LOADOUT_TITLE.matcher(containerScreen.getTitle().getString());
         if (!matcher.find()) {
             return false;
         }
         int current = Integer.parseInt(matcher.group(1));
         int total = Integer.parseInt(matcher.group(2));
-        LoadoutKeybindsConfig cfg = LoadoutKeybindsConfig.getInstance();
         int slot;
-        {
-            if (code == cfg.getNextPageKey()) {
-                if (current >= total) {
-                    return false;
-                }
-                slot = 44;
-            } else if (code == cfg.getPreviousPageKey()) {
-                if (current <= 1) {
-                    return false;
-                }
-                slot = 17;
-            } else {
-                int keyIndex = -1;
-                for (int i = 0; i < LOADOUT_SLOTS.length; i++) {
-                    if (cfg.getSlotKey(i) == code) {
-                        keyIndex = i;
-                        break;
-                    }
-                }
-                if (keyIndex == -1) {
-                    return false;
-                }
-                slot = LOADOUT_SLOTS[keyIndex];
+        if (next) {
+            if (current >= total) {
+                return false;
             }
+            slot = 44;
+        } else if (previous) {
+            if (current <= 1) {
+                return false;
+            }
+            slot = 17;
+        } else {
+            slot = LOADOUT_SLOTS[keyIndex];
         }
         if (LoadoutSwapper.isBusy()) {
             // An "Open, Swap, Close" is driving this menu: swallow his bound key rather than send a second click.
