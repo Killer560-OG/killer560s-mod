@@ -1176,6 +1176,17 @@ public final class AutoRoutesFeature {
             // fires again until he steps off every node, which clears the stop, and back on.
             return false;
         }
+        // Most tiles hold no breaker node: say so without the sorted stack list (this runs every tick he stands in a node).
+        boolean anyBreaker = false;
+        for (RouteNode n : route.nodes()) {
+            if (n.type == RouteNode.Type.DUNGEON_BREAKER && !n.breakerBlocks.isEmpty() && (n == inside || n.sameTile(inside))) {
+                anyBreaker = true;
+                break;
+            }
+        }
+        if (!anyBreaker) {
+            return false;
+        }
         boolean latched = inside == latchedNode || inside.sameTile(latchedNode) || RouteExecutor.justFinished();
         for (RouteNode n : route.stackOf(inside)) {
             if (n.type != RouteNode.Type.DUNGEON_BREAKER || n.breakerBlocks.isEmpty()) {
@@ -1299,21 +1310,30 @@ public final class AutoRoutesFeature {
         // need not be the one latched - "/ar add" latches the node it just placed, which on an occupied tile is
         // the second one there, and comparing nodes fired the whole tile under him the moment chat closed.
         if (inside == latchedNode || inside.sameTile(latchedNode)) {
-            gate("in node #" + (route.indexOf(inside) + 1) + " but latched (just placed it, or the last run "
-                    + "started / ended here) - step off and back on [latched #" + (route.indexOf(latchedNode) + 1)
-                    + ", justFinished=" + RouteExecutor.justFinished() + ", stoppedByUser="
-                    + RouteExecutor.wasStoppedByUser() + ", startOnly=" + startOnly + "]");
+            if (standingGateChanged(1, route, inside, startOnly)) {
+                gate("in node #" + (route.indexOf(inside) + 1) + " but latched (just placed it, or the last run "
+                        + "started / ended here) - step off and back on [latched #" + (route.indexOf(latchedNode) + 1)
+                        + ", justFinished=" + RouteExecutor.justFinished() + ", stoppedByUser="
+                        + RouteExecutor.wasStoppedByUser() + ", startOnly=" + startOnly + "]");
+                standingGateText = lastGate;
+            }
             return; // still standing where the last run started / ended
         }
         if (RouteExecutor.justFinished()) {
-            gate("in node #" + (route.indexOf(inside) + 1) + " where the last run finished - latched");
+            if (standingGateChanged(2, route, inside, startOnly)) {
+                gate("in node #" + (route.indexOf(inside) + 1) + " where the last run finished - latched");
+                standingGateText = lastGate;
+            }
             // Latch where the route ended without starting anything: otherwise the last node's action runs
             // a second time the moment it finishes (2026-09-16 review).
             latchedNode = inside;
             return;
         }
         if (RouteExecutor.wasStoppedByUser()) {
-            gate("in node #" + (route.indexOf(inside) + 1) + " after you stopped the route - walk clear first");
+            if (standingGateChanged(3, route, inside, startOnly)) {
+                gate("in node #" + (route.indexOf(inside) + 1) + " after you stopped the route - walk clear first");
+                standingGateText = lastGate;
+            }
             // The player took the controls back while standing inside a node. Re-arming here would mean
             // every W tap stops the route and every release restarts it (2026-09-16 review) - they have to
             // walk clear of the route first.
@@ -1381,6 +1401,37 @@ public final class AutoRoutesFeature {
             lastGate = state;
             LOGGER.info("[AutoRoutes] Arming: {} (tick {})", state, AwaitEvents.now());
         }
+    }
+
+    /** The standing-in-a-node gate text last logged and the inputs it was built from: standing latched in a node used to
+     *  build its several-concat text (and a list indexOf or two) every tick only for {@link #gate} to find it unchanged. */
+    private static String standingGateText;
+    private static int standingGateKind;
+    private static RouteNode standingGateInside;
+    private static RouteNode standingGateLatched;
+    private static boolean standingGateFinished;
+    private static boolean standingGateStopped;
+    private static boolean standingGateStartOnly;
+    private static int standingGateCount;
+
+    /** True when that gate's text has to be built and logged: its inputs changed, or another gate was logged since. */
+    private static boolean standingGateChanged(int kind, Route route, RouteNode inside, boolean startOnly) {
+        boolean finished = RouteExecutor.justFinished();
+        boolean stopped = RouteExecutor.wasStoppedByUser();
+        int count = route.nodes().size();
+        if (standingGateText != null && lastGate == standingGateText && kind == standingGateKind
+                && inside == standingGateInside && latchedNode == standingGateLatched && finished == standingGateFinished
+                && stopped == standingGateStopped && startOnly == standingGateStartOnly && count == standingGateCount) {
+            return false;
+        }
+        standingGateKind = kind;
+        standingGateInside = inside;
+        standingGateLatched = latchedNode;
+        standingGateFinished = finished;
+        standingGateStopped = stopped;
+        standingGateStartOnly = startOnly;
+        standingGateCount = count;
+        return true;
     }
 
     private static String lastRefireKey;
