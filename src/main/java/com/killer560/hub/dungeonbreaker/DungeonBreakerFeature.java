@@ -3,11 +3,9 @@ package com.killer560.hub.dungeonbreaker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
@@ -134,6 +132,13 @@ public final class DungeonBreakerFeature {
                     target.getBlock().getName().getString(), charges, tick);
             return;
         }
+        // Obsidian is dug over time on the server, never in one START (see ObsidianDig): predicting air for it left a
+        // ghost hole until the server's next update (killer560, 2026-10-19), so a manual click leaves it to the server.
+        if (ObsidianDig.isObsidian(target)) {
+            logOnce("obsidian " + p, "[Breaker] zero ping skipped: pos={} charges={} tick={} - obsidian is dug over time,"
+                    + " the server's answer decides", p, charges, tick);
+            return;
+        }
         // Real raycast validation, ported directly from QUOI's own real clip check - only ever clears the
         // exact position the player is genuinely looking at right now, never trusting the position alone.
         HitResult clip = client.level.clip(new ClipContext(
@@ -180,11 +185,6 @@ public final class DungeonBreakerFeature {
     }
 
     private static String getSkyblockId(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return null;
-        }
-        CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack); // read-only, no deep copy (fps-auto-1015)
-        return tag.contains("id") ? tag.getStringOr("id", null) : null;
+        return com.killer560.hub.autoroutes.ItemIdentity.skyblockId(stack); // read-only view, no deep copy
     }
 }

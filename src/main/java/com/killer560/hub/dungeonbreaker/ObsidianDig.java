@@ -101,10 +101,6 @@ public final class ObsidianDig {
         return pos != null;
     }
 
-    public BlockPos pos() {
-        return pos;
-    }
-
     /**
      * Sends the dig's START for {@code at} (which must be obsidian, loaded and in reach; the caller has already chosen
      * it, spent its charge and put the breaker in the hand). {@code aim}, when not null, turns the body to the block
