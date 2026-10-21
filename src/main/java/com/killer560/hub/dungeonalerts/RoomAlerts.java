@@ -182,7 +182,7 @@ final class RoomAlerts {
 
         @Override
         public int width() {
-            // Wider than the old named-room text ("Water Board") to fit "<room> Secrets Done!"/"<room> Cleared!".
+            // Wide enough for "Secrets Done!" and "Room Cleared!".
             return 160;
         }
 

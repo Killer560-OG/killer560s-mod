@@ -43,6 +43,10 @@ public final class DungeonAlertsPackets {
     }
 
     public static void onBlockUpdate(ClientboundBlockUpdatePacket packet) {
+        // Only Terracotta Timer reads block updates: with it off, skip the gate and guard on every block packet.
+        if (!DungeonAlertsConfig.getInstance().terracottaEnabled) {
+            return;
+        }
         guard("blockUpdate", DungeonAlertsPackets::terracottaBlock, packet);
     }
 
