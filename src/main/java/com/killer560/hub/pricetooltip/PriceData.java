@@ -164,20 +164,12 @@ public final class PriceData {
         return v == null || v <= 0 ? 0 : v;
     }
 
-    public static int itemCount() {
-        return items.size();
-    }
-
     public static int bazaarCount() {
         return bazaarBuy.size();
     }
 
     public static int lowestBinCount() {
         return lowestBin.size();
-    }
-
-    public static int averageCount(int days) {
-        return (days <= 1 ? average1 : average3).size();
     }
 
     public static long pricesFetchedAt() {
