@@ -88,6 +88,8 @@ public final class EnchantColorsConfig {
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
             instance = new EnchantColorsConfig();
+            // A profile switch that leaves no file must not keep serving tooltips cached under the old colours.
+            EnchantColorsFeature.clearCache();
             return;
         }
         try {
