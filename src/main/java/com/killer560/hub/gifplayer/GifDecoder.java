@@ -23,6 +23,9 @@ import java.util.Locale;
  */
 public final class GifDecoder {
 
+    /** Upper bound on all decoded frames of one GIF together. */
+    private static final long MAX_DECODED_BYTES = 768L * 1024 * 1024;
+
     public record Frame(int[] argb, int delayMs) {
     }
 
@@ -72,6 +75,12 @@ public final class GifDecoder {
             BufferedImage restoreSnapshot = null;
 
             int frameCount = reader.getNumImages(true);
+            // Every frame is kept as a full int[] canvas: refuse a GIF that would not fit in memory instead of
+            // throwing OutOfMemoryError out of the decode.
+            if ((long) screenWidth * screenHeight * 4L * frameCount > MAX_DECODED_BYTES) {
+                throw new IOException("GIF too large to hold in memory (" + screenWidth + "x" + screenHeight + ", "
+                        + frameCount + " frames): " + file);
+            }
             for (int i = 0; i < frameCount; i++) {
                 if (pendingRect != null) {
                     switch (pendingDisposal) {
