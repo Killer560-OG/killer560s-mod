@@ -5,7 +5,6 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.cheatutils.CheatUtils;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.ChatFormatting;
@@ -104,11 +103,8 @@ public final class WitherDoorsFeature {
             com.killer560.hub.util.WorldRenderUtils.initThroughWalls();
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WitherDoorsFeature.tick", WitherDoorsFeature::tick));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) {
-                onChat(com.killer560.hub.util.ChatObserver.strip(message));
-            }
-        });
+        // Through ChatObserver, which catches a throw per listener: a raw GAME listener that throws drops the connection.
+        com.killer560.hub.util.ChatObserver.subscribe(message -> onChat(com.killer560.hub.util.ChatObserver.strip(message)));
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(WitherDoorsFeature::onWorldRender);
         LOGGER.debug("[WitherDoors] Registered (cheatBuild={})", BuildVariant.CHEAT_FEATURES_ENABLED);
     }
