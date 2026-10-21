@@ -56,10 +56,6 @@ public final class HeldItemConfig {
         public float rotY = 0f;
         public float rotZ = 0f;
 
-        public boolean isIdentity() {
-            return scale == 1.0f && x == 0f && y == 0f && z == 0f && rotX == 0f && rotY == 0f && rotZ == 0f;
-        }
-
         public void reset() {
             scale = 1.0f;
             x = y = z = 0f;
