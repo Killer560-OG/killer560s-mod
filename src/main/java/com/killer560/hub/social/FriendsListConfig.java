@@ -193,8 +193,16 @@ public final class FriendsListConfig {
 
     /** Read-only snapshot in Hypixel's own last-seen listing order. */
     public List<Friend> friends() {
-        return List.copyOf(friends.values());
+        List<Friend> snap = snapshot;
+        if (snap == null) {
+            snap = List.copyOf(friends.values());
+            snapshot = snap;
+        }
+        return snap;
     }
+
+    /** The screen reads the list every frame; the copy is rebuilt only when a sync replaces the list. */
+    private List<Friend> snapshot;
 
     public Friend byName(String name) {
         return name == null ? null : friends.get(name.toLowerCase(Locale.US));
@@ -241,6 +249,7 @@ public final class FriendsListConfig {
         }
         friends.clear();
         friends.putAll(next);
+        snapshot = null;
         everSynced = true;
         lastSyncedAtMs = now;
         lastSyncTruncated = truncated;
