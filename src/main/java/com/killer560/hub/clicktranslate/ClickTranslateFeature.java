@@ -75,12 +75,17 @@ public final class ClickTranslateFeature {
         if (!ClickTranslateConfig.getInstance().isEnabled()) {
             return message;
         }
-        String plain = ChatFormatting.stripFormatting(message.getString());
-        if (plain == null || plain.isBlank() || !isPlayerLine(plain)) {
+        // Runs on the packet path for every chat line: a throw here would disconnect him, so nothing escapes.
+        try {
+            String plain = ChatFormatting.stripFormatting(message.getString());
+            if (plain == null || plain.isBlank() || !isPlayerLine(plain)) {
+                return message;
+            }
+            ClickEvent clickEvent = new ClickEvent.Custom(TRANSLATE_ID, Optional.of(StringTag.valueOf(plain)));
+            return Component.empty().append(message).withStyle(style -> style.withClickEvent(clickEvent));
+        } catch (RuntimeException e) {
             return message;
         }
-        ClickEvent clickEvent = new ClickEvent.Custom(TRANSLATE_ID, Optional.of(StringTag.valueOf(plain)));
-        return Component.empty().append(message).withStyle(style -> style.withClickEvent(clickEvent));
     }
 
     /** @return true if {@code style}'s click event was one of ours and has been fully handled. */

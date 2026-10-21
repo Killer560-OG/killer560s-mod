@@ -66,6 +66,11 @@ public final class ClickTranslateConfig {
         return enabled && com.killer560.hub.util.SkyblockGate.allows();
     }
 
+    /** The saved switch alone, without the Skyblock gate: what the settings tab shows and flips. */
+    public boolean isEnabledSetting() {
+        return enabled;
+    }
+
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }

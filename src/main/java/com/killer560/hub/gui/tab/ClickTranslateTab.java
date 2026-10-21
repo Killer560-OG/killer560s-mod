@@ -41,7 +41,7 @@ public class ClickTranslateTab extends BaseTab {
 
         widgets.add(SettingsButtonWidget.builder(enabledText(), btn -> {
                     ClickTranslateConfig cfg = ClickTranslateConfig.getInstance();
-                    cfg.setEnabled(!cfg.isEnabled());
+                    cfg.setEnabled(!cfg.isEnabledSetting());
                     cfg.save();
                     btn.setMessage(enabledText());
                 }).bounds(contentX, y, 220, 20).build());
@@ -118,7 +118,7 @@ public class ClickTranslateTab extends BaseTab {
 
     private static Component enabledText() {
         return Component.literal("Click Translate Enabled: "
-                + (ClickTranslateConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
+                + (ClickTranslateConfig.getInstance().isEnabledSetting() ?"§aON" : "§cOFF"));
     }
 
     private static Component languageText() {
