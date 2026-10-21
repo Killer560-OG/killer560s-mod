@@ -117,7 +117,9 @@ public final class SimAbilities {
         // placed TNT: every sim item is a reskinned vanilla one, so vanilla's place-block handling has to be kept
         // off it on BOTH sides. killer560 (2026-09-30): "For superboom if i right click it then it actually places
         // the block and it shouldnt".
-        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> player instanceof ServerPlayer sp
+        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> SimDoors.isDoorBlock(hitResult.getBlockPos())
+                ? InteractionResult.PASS   // a shut door's click is the door's (SimDoors), as Hypixel opens it with any item
+                : player instanceof ServerPlayer sp
                 ? onServerUse(sp, hand, hitResult)
                 : onClientUse(player, hand, hitResult));
         // Every block click the server takes, whoever answers it (SimSecrets, SimRoomLevers... answer chests and levers

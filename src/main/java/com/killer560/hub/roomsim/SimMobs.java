@@ -324,6 +324,7 @@ public final class SimMobs {
         }
         com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
         java.util.Map<String, Boolean> allDead = new java.util.HashMap<>();
+        java.util.Map<String, double[]> anyAt = new java.util.HashMap<>();
         for (java.util.Map.Entry<UUID, double[]> e : STARRED_AT.entrySet()) {
             double[] p = e.getValue();
             int room = layout.roomAtWorld(p[0], p[2]);
@@ -333,10 +334,12 @@ public final class SimMobs {
             }
             boolean dead = STARRED_DEAD.contains(e.getKey());
             allDead.merge(name, dead, Boolean::logicalAnd);
+            anyAt.put(name, p);
         }
         for (java.util.Map.Entry<String, Boolean> e : allDead.entrySet()) {
             if (e.getValue() && SimRoomState.markCleared(e.getKey())) {
                 SimScore.roomCleared();
+                SimKeyRoom.onClearedByKills(e.getKey(), anyAt.get(e.getKey()));
                 com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room cleared: {} (every starred mob"
                         + " in it is dead)", e.getKey());
             }

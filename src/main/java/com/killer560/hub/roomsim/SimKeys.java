@@ -53,6 +53,7 @@ public final class SimKeys {
 
     static void register() {
         ServerTickEvents.END_SERVER_TICK.register(SimKeys::tick);
+        SimKeyRoom.register();
         // A right click on a key's stand would take its head off (vanilla armour-stand swap). Refused on the server
         // only, so the client sends exactly what it would send on Hypixel.
         net.fabricmc.fabric.api.event.player.UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
@@ -135,6 +136,7 @@ public final class SimKeys {
     }
 
     public static void clear() {
+        SimKeyRoom.disarm();
         DROPPED.clear();
         witherKeys = 0;
         bloodKey = false;
