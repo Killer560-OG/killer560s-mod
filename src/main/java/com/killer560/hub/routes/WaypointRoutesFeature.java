@@ -3,7 +3,6 @@ package com.killer560.hub.routes;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -134,6 +133,10 @@ public final class WaypointRoutesFeature {
                 ModChat.text(totalPoints == 1 ? " point" : " points"),
                 ModChat.text(result.routes().size() > 1 ? " into " + result.routes().size() + " routes, active: " : " as "),
                 ModChat.value(first.name), ModChat.dim(" (" + SkyblockArea.label(key) + ")"));
+        if (result.truncated()) {
+            ModChat.send(CHAT, ModChat.bad("Too big - kept the first " + RouteCodec.MAX_POINTS_PER_ROUTE
+                    + " points of a route and the first " + RouteCodec.MAX_ROUTES + " routes."));
+        }
     }
 
     public static void exportToClipboard(Route route) {
