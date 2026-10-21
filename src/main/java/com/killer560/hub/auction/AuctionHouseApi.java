@@ -190,7 +190,8 @@ public final class AuctionHouseApi {
         // so skip this cycle instead of paging ~44 pages and decoding up to ~43,000 items for nobody.
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || !com.killer560.hub.util.SkyblockGate.allows()) {
-            SCHEDULER.schedule(AuctionHouseApi::runAutoScanCycle, AUTO_RESCAN_MINUTES, TimeUnit.MINUTES);
+            // Look again soon, not in a full rescan period: the first scan should follow him into Skyblock.
+            SCHEDULER.schedule(AuctionHouseApi::runAutoScanCycle, 30, TimeUnit.SECONDS);
             return;
         }
         refreshAsync().whenComplete((v, e) ->

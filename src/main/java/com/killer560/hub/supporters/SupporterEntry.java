@@ -29,7 +29,8 @@ import java.util.UUID;
 record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation,
                       TrailSpec trail, String mob) {
 
-    private static final int MAX_RAW_NAME = 128;
+    // Room for 32 visible characters each carrying several &-codes; only a far longer name is rejected.
+    private static final int MAX_RAW_NAME = 1024;
 
     SupporterEntry {
         mob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);

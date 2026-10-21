@@ -245,7 +245,8 @@ public final class ExperimentsProfitTracker {
             }
             // matches(), not find(): these are Hypixel's own whole lines, and another player's chat line that merely
             // contains the text must not log a bonus charge or a claim.
-            String whole = text.trim();
+            // Colour codes off first: a leading code on Hypixel's line would make matches() miss it.
+            String whole = com.killer560.hub.util.ChatObserver.strip(text);
             Matcher charge = BONUS_CHARGE.matcher(whole);
             if (charge.matches()) {
                 int bits = switch (Integer.parseInt(charge.group(1))) {
