@@ -50,7 +50,6 @@ public final class DiscordRpcFeature {
     private static long startedAtMs;
     private static long lastSentMs;
     private static String activeApplicationId = "";
-    private static DiscordRpcPresence.Key lastSentKey;
 
     private DiscordRpcFeature() {
     }
@@ -75,7 +74,6 @@ public final class DiscordRpcFeature {
 
     /** Applies a settings change immediately instead of waiting out the 15 s rate-limit window. */
     public static void onSettingsChanged() {
-        lastSentKey = null;
         lastSentMs = 0L;
     }
 
@@ -105,11 +103,15 @@ public final class DiscordRpcFeature {
             // A new application id means a whole new Discord app - drop the old connection first.
             activeApplicationId = appId;
             startedAtMs = System.currentTimeMillis();
-            lastSentKey = null;
-            lastSentMs = 0L;
+                lastSentMs = 0L;
             enqueue(new Job(appId, null, true));
         }
 
+        long now = System.currentTimeMillis();
+        if (now - lastSentMs < MIN_UPDATE_INTERVAL_MS) {
+            return; // rechecked next second; the newest text wins when the window opens
+        }
+        // Built only when a send is due (once per window), not every second inside it.
         DiscordRpcPresence.Key key;
         try {
             key = DiscordRpcPresence.current(cfg);
@@ -117,16 +119,11 @@ public final class DiscordRpcFeature {
             // Never let presence building take the client tick down with it.
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastSentMs < MIN_UPDATE_INTERVAL_MS) {
-            return; // rechecked next second; the newest text wins when the window opens
-        }
         // Re-send on a steady heartbeat even when the text hasn't changed. Discord's own game detection sees the
         // Minecraft process and keeps replacing our presence with a plain "Minecraft" entry (killer560, 2026-09-16:
         // "I can see it show up for a second then the minecraft overrides it"); re-asserting every window keeps the
         // mod's presence on top without the user having to unregister Minecraft in Discord's settings. 15s is
         // Discord's own SET_ACTIVITY rate limit, so this is the fastest allowed re-assert.
-        lastSentKey = key;
         lastSentMs = now;
         enqueue(new Job(appId, DiscordRpcPresence.toActivity(key, startedAtMs), false));
     }
@@ -172,7 +169,6 @@ public final class DiscordRpcFeature {
             thread.interrupt();
         }
         activeApplicationId = "";
-        lastSentKey = null;
         lastSentMs = 0L;
         status = "Off";
         LOGGER.info("[DiscordRPC] Stopped ({}).", reason);
@@ -188,7 +184,9 @@ public final class DiscordRpcFeature {
         long nextAttemptAt = 0L;
 
         try {
-            while (running) {
+            // The identity check keeps a worker stuck in a pipe read from rejoining the queue after stop() and
+            // start() have already given the job to a newer worker.
+            while (running && worker == Thread.currentThread()) {
                 Job job;
                 try {
                     job = QUEUE.poll(1, TimeUnit.SECONDS);
@@ -206,8 +204,7 @@ public final class DiscordRpcFeature {
                     nextAttemptAt = 0L;
                     continue;
                 }
-                // A queued job only ever exists because the presence text changed, which is exactly the
-                // "next state change" that earns a retry after we gave up.
+                // Every queued job (one per 15 s window) earns a retry after we gave up.
                 if (gaveUp) {
                     gaveUp = false;
                     attempts = 0;
