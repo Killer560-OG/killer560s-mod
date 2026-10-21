@@ -303,6 +303,10 @@ public final class AutoClearFeature {
         keyId = -1;
         keyTrip = false;
         keysTried.clear();
+        keyWalkFails.clear();
+        keyEntrySaid.clear();
+        walkForKeyRoom = -1;
+        keyRoomTrip = false;
         resetQuiz();
         resetRoam();
         midasFor = null;
@@ -411,6 +415,8 @@ public final class AutoClearFeature {
         if (player == null) {
             return;
         }
+        // Every tick, running or not (Auto Secret reads it too): the rooms he has stood in, for the key-room rule.
+        KeyRooms.observe(client);
         // Held while the last decision aimed (a turn waiting for its use, a held use, a hop in flight).
         BODY.tick(player, running && bodyWanted);
         if (!running) {
@@ -612,6 +618,16 @@ public final class AutoClearFeature {
                 keyId = -1;
             }
             travelStarted = false;
+            // He is no longer where a trip to the door left him (the key dropped after he got there: testkit
+            // 1020-sim-ac-keyroom stopped "out of reach from where the map put you" on the way back).
+            doorTripDone = -1;
+        }
+        if (keyRoomTrip) {
+            // A trip to a key room's door is not the trip to the wither door (openDoor's "arrived").
+            keyRoomTrip = false;
+            if (!failed) {
+                travelStarted = false;
+            }
         }
         if (roamTrip) {
             // A roam trip's failure costs its spot (already counted), not one of the room's tries.
@@ -689,6 +705,12 @@ public final class AutoClearFeature {
             targetId = -1;
             resetRoam();
             ModChat.log(CHAT, ModChat.text("Room: "), ModChat.value(roomName));
+        }
+
+        // ---- a room holding the key to a shut door, nobody in it yet: in on foot through its door, never by etherwarp
+        // (killer560, 2026-10-20: an insta clear there loses the key) - the room itself, or one a trip to it crosses ----
+        if (keyRoomEntry(client, player, layout, room)) {
+            return;
         }
 
         // ---- the mob ----
@@ -1503,6 +1525,12 @@ public final class AutoClearFeature {
         // (2026-10-07, testkit 131: "trip to wither door" and "Already there" on every tick, never a click).
         boolean arrived = doorTripDone == door;
         if (!inReach && !arrived) {
+            // The approach is in the room in front of the door - the one its key drops in. Nobody in it yet: in on foot.
+            for (KeyRooms.Guard g : KeyRooms.guards(layout)) {
+                if (g.door() == door && keyRoomEntry(client, player, layout, g.room())) {
+                    return;
+                }
+            }
             if (!AutoClearUtils.canPath(layout, true)) {
                 action = "waiting to land before the trip to the wither door";
                 return;
@@ -3458,6 +3486,7 @@ public final class AutoClearFeature {
         tripPrice = plan.ticks();
         walkForMob = doneAt != null && !forDoor;
         walkForDoor = forDoor;
+        walkForKeyRoom = -1;
         walkWhat = what;
         walkDoneAt = doneAt;
         ShortWalk.start(plan, "Auto Clear");
@@ -3506,6 +3535,17 @@ public final class AutoClearFeature {
                 return false;
             }
         }
+        if (walkForKeyRoom >= 0 && walkDoneAt != null && walkDoneAt.test(player.position())) {
+            // Inside the key room on foot: it counts as entered (KeyRooms.observe), and the clear goes on as anywhere.
+            LOGGER.info("[AutoClear] key room: walked into {} at {} - clearing it by its mobs", walkWhat,
+                    fmt(player.position()));
+            endWalk("in the key room");
+            phase = Phase.IDLE;
+            planKey = Long.MIN_VALUE;
+            walkForKeyRoom = -1;
+            travelStarted = false;
+            return false;
+        }
         if (walkForDoor && walkDoneAt != null && player.onGround() && walkDoneAt.test(player.position())) {
             // The door is in reach: the walk has done what a trip to it does (doorTripDone), and the click goes now.
             endWalk("in reach of the wither door");
@@ -3525,6 +3565,18 @@ public final class AutoClearFeature {
         endWalk(status.name().toLowerCase(Locale.ROOT).replace('_', ' '));
         phase = Phase.IDLE;
         planKey = Long.MIN_VALUE;
+        if (walkForKeyRoom >= 0) {
+            // Never an etherwarp instead (that is the insta clear this walk is there to avoid): the next decision walks
+            // again from where he is, and after KEY_WALK_TRIES failed walks the room is given up (keyRoomEntry).
+            if (failed) {
+                int n = keyWalkFails.merge(walkWhat, 1, Integer::sum);
+                LOGGER.info("[AutoClear] key room: the walk into {} ended {} at {} ({} of {})", walkWhat, status,
+                        fmt(player.position()), n, KEY_WALK_TRIES);
+            }
+            walkForKeyRoom = -1;
+            travelStarted = false;
+            return false;
+        }
         if (failed) {
             if (walkForDoor) {
                 walkOffDoor = true;
@@ -3557,6 +3609,7 @@ public final class AutoClearFeature {
         endWalk(why);
         phase = Phase.IDLE;
         planKey = Long.MIN_VALUE;
+        walkForKeyRoom = -1;
         roamTrip = false;   // its spot was counted when it was taken
         travelStarted = false;
     }
@@ -3615,6 +3668,224 @@ public final class AutoClearFeature {
         action = "etherwarp to " + roomName;
         LOGGER.info("[AutoClear] trip to room {} (tile {})", roomName, chosen);
         startTrip(client, player, () -> AutoClearUtils.pathToRoom(layout, room, chosen, 0));
+    }
+
+    // ---- key rooms (killer560, 2026-10-20: "for any auto clear it needs to be very careful about etherwarping into the
+    // room before any unopened wither door too early or too fast. Any room before a wither door is insta cleared, then you
+    // can no longer get a wither key.") - the rule and its evidence are in KeyRooms ----
+
+    /** Walks (and trips to the door) into a key room that failed, by room name; at {@link #KEY_WALK_TRIES} it is given up. */
+    private static final java.util.Map<String, Integer> keyWalkFails = new java.util.HashMap<>();
+    static final int KEY_WALK_TRIES = 4;
+    /** The walk running goes into this key room, -1 when the walk is not one. */
+    private static int walkForKeyRoom = -1;
+    /** The trip under way is to a key room's door (keyRoomEntry), not to a wither door. */
+    private static boolean keyRoomTrip = false;
+    /** Key rooms the "walking in" line was logged for this run. */
+    private static final Set<String> keyEntrySaid = new HashSet<>();
+    /** Within this many blocks (level) of the door's gap the walk in starts; farther, an etherwarp to the near side. */
+    static final double KEY_WALK_FROM = 8.0;
+    /** The near-side stand is this many blocks back from the door's gap, the walk's goal this many past it. */
+    static final int KEY_STAND_BACK = 4;
+    static final int KEY_GOAL_IN = 5;
+    private static int keyWalkIns = 0;
+    private static int keyApproachTrips = 0;
+
+    /** For the testkit: walks into a key room started, ever. */
+    public static int keyRoomWalkIns() {
+        return keyWalkIns;
+    }
+
+    /** For the testkit: etherwarp trips to a key room's door (its near side), ever. */
+    public static int keyRoomApproachTrips() {
+        return keyApproachTrips;
+    }
+
+    /**
+     * {@code target} (the room picked, or the room in front of a wither door) - or the first room a map trip to it would
+     * cross - is a {@link KeyRooms} room nobody has been in: he goes in on foot through its door, never by etherwarp. Far
+     * from the door, an exact etherwarp onto the near side ({@link #KEY_STAND_BACK} blocks back from its gap, in the room
+     * before it); within {@link #KEY_WALK_FROM}, a walk that ends the tick his feet are inside the room. Once he has stood
+     * in it, it counts as entered and everything goes on as for any room (its mobs killed, so the key drops).
+     * @return true when this tick went to it
+     */
+    private static boolean keyRoomEntry(Minecraft client, LocalPlayer player, DungeonLayout layout, int target) {
+        int here = layout.currentRoom();
+        int room = KeyRooms.mustNotWarpInto(layout, target) ? target
+                : KeyRooms.unenteredKeyRoomOnTheWay(layout, here, target);
+        if (room < 0 || KeyRooms.inside(layout, room, player.getX(), player.getZ())) {
+            return false;
+        }
+        String name = layout.name(room);
+        int door = -1;
+        int before = -1;
+        if (here >= 0 && here != room) {
+            List<DungeonMapPathfinder.RoomStep> path = DungeonMapPathfinder.findPath(layout, here, room, false);
+            if (path != null && path.size() >= 2) {
+                DungeonMapPathfinder.RoomStep last = path.get(path.size() - 2);
+                door = last.door();
+                before = last.room();
+            }
+        }
+        if (door < 0) {
+            door = nearestOpenDoorOf(layout, room, player.position());
+        }
+        int cell = door < 0 ? -1 : KeyRooms.sideCell(layout, door, room);
+        if (cell < 0) {
+            return keyEntryFailed(name, "no open door into it on the map");
+        }
+        if (keyWalkFails.getOrDefault(name, 0) >= KEY_WALK_TRIES) {
+            return keyEntryFailed(name, KEY_WALK_TRIES + " tries to walk in failed");
+        }
+        if (keyEntrySaid.add(name)) {
+            KeyRooms.Guard g = KeyRooms.guardOf(layout, room);
+            LOGGER.info("[AutoClear] key room: {} {} and nobody has been in it - in on foot through door {}, no etherwarp"
+                    + " into it{}", name, KeyRooms.describe(g), door, room == target ? "" : " (on the way to "
+                    + layout.name(target) + ")");
+            ModChat.log(CHAT, ModChat.text("Walking into "), ModChat.value(name), ModChat.dim(" - the key is in it"));
+        }
+        int dx = cell % DungeonLayout.GRID - door % DungeonLayout.GRID;
+        int dz = cell / DungeonLayout.GRID - door / DungeonLayout.GRID;
+        BlockPos gap = DungeonLayout.doorBlock(door).below();   // the doorway's floor block
+        double toDoor = Math.hypot(player.getX() - (gap.getX() + 0.5), player.getZ() - (gap.getZ() + 0.5));
+        releaseUse(client);
+        if (toDoor <= KEY_WALK_FROM && player.onGround() && ShortWalk.mixinApplied()) {
+            BlockPos goal = keyStand(layout, room, true, gap.offset(dx * KEY_GOAL_IN, 0, dz * KEY_GOAL_IN));
+            if (goal == null) {
+                return keyEntryFailed(name, "no floor to walk to past door " + door);
+            }
+            final int keyRoom = room;
+            java.util.function.Predicate<Vec3> in = feet -> KeyRooms.inside(layout, keyRoom, feet.x, feet.z);
+            ShortWalk.Plan plan = ShortWalk.plan(client.level, player, goal.above(), in);
+            if (plan == null) {
+                int n = keyWalkFails.merge(name, 1, Integer::sum);
+                LOGGER.info("[AutoClear] key room: no way on foot from {} into {} ({} of {})", fmt(player.position()), name,
+                        n, KEY_WALK_TRIES);
+                action = "no way on foot into " + name;
+                return true;
+            }
+            tripPrice = plan.ticks();
+            walkForMob = false;
+            walkForDoor = false;
+            walkForKeyRoom = room;
+            walkWhat = name;
+            walkDoneAt = in;
+            ShortWalk.start(plan, "Auto Clear");
+            phase = Phase.WALK;
+            bodyWanted = true;
+            travelStarted = true;
+            walks++;
+            keyWalkIns++;
+            action = "walking into " + name + " (the key is in it)";
+            LOGGER.info(String.format(Locale.US, "[AutoClear] key room: walking into %s from %s (%.1f blocks from door %d,"
+                    + " ~%d ticks, %s)", name, fmt(player.position()), toDoor, door, plan.ticks(), plan.describe()));
+            stepWalk(client, player);   // the first keys this tick
+            return true;
+        }
+        if (!AutoClearUtils.canPath(layout)) {
+            action = "waiting to land before the trip to " + name + "'s door";
+            return true;
+        }
+        BlockPos stand = keyStand(layout, before >= 0 ? before : -1, false,
+                gap.offset(-dx * KEY_STAND_BACK, 0, -dz * KEY_STAND_BACK), room);
+        if (stand == null) {
+            return keyEntryFailed(name, "no block to stand on in front of door " + door);
+        }
+        action = "etherwarp to " + name + "'s door (walking in from there)";
+        final BlockPos goal = stand;
+        startTrip(client, player, () -> {
+            ClearExecutor.etherPathExact(goal, null);
+            return true;
+        });
+        if (phase == Phase.TRAVEL) {
+            keyRoomTrip = true;
+            keyApproachTrips++;
+            // Each try counts against the room (a trip, or a walk that failed), so a trip that keeps ending somewhere
+            // other than the door cannot go on for ever: one trip and one walk is a normal way in.
+            keyWalkFails.merge(name, 1, Integer::sum);
+            LOGGER.info(String.format(Locale.US, "[AutoClear] key room: trip to %s's door %d - standing on %s, %d blocks"
+                    + " back on the near side (%.1f blocks from the door now)", name, door, goal.toShortString(),
+                    KEY_STAND_BACK, toDoor));
+        }
+        return true;
+    }
+
+    /** Gives up on getting into a key room on foot. Never an etherwarp in instead. @return true (the tick is spent) */
+    private static boolean keyEntryFailed(String keyRoom, String why) {
+        String reason = "the key room " + keyRoom + " cannot be walked into (" + why + ") and an etherwarp into it could"
+                + " insta clear it and lose the key";
+        if (roomName != null) {
+            giveUpRoom(reason);
+        } else {
+            stop(reason);
+        }
+        return true;
+    }
+
+    /** The open door of {@code room} nearest to {@code at} (its other side a room), or -1. */
+    private static int nearestOpenDoorOf(DungeonLayout layout, int room, Vec3 at) {
+        int best = -1;
+        double bestD = Double.MAX_VALUE;
+        int[][] dirs = {{0, -1}, {0, 1}, {1, 0}, {-1, 0}};
+        for (int t : layout.tiles(room)) {
+            int x = t % DungeonLayout.GRID;
+            int z = t / DungeonLayout.GRID;
+            for (int[] d : dirs) {
+                int nx = x + d[0] * 2;
+                int nz = z + d[1] * 2;
+                if (nx < 0 || nx > 10 || nz < 0 || nz > 10) {
+                    continue;
+                }
+                int door = (z + d[1]) * DungeonLayout.GRID + (x + d[0]);
+                int next = layout.roomOfCell(nz * DungeonLayout.GRID + nx);
+                if (!layout.isDoor(door) || layout.isLocked(door) || next < 0 || next == room) {
+                    continue;
+                }
+                BlockPos p = DungeonLayout.doorBlock(door);
+                double dd = at.distanceToSqr(p.getX() + 0.5, at.y, p.getZ() + 0.5);
+                if (dd < bestD) {
+                    bestD = dd;
+                    best = door;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
+     * A block to stand on near {@code around} (within 3 across, 4 up or down): inside {@code room} when {@code in}, else
+     * outside {@code avoid} (and inside {@code room} when it is a room). Nearest first.
+     */
+    private static BlockPos keyStand(DungeonLayout layout, int room, boolean in, BlockPos around, int... avoid) {
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        for (int dx = -3; dx <= 3; dx++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                for (int dy = -4; dy <= 4; dy++) {
+                    m.set(around.getX() + dx, around.getY() + dy, around.getZ() + dz);
+                    double x = m.getX() + 0.5;
+                    double z = m.getZ() + 0.5;
+                    if (in ? !KeyRooms.inside(layout, room, x, z)
+                            : (room >= 0 && !KeyRooms.inside(layout, room, x, z))) {
+                        continue;
+                    }
+                    boolean bad = false;
+                    for (int a : avoid) {
+                        bad |= a >= 0 && KeyRooms.inside(layout, a, x, z);
+                    }
+                    if (bad || !TeleportUtils.landable(m)) {
+                        continue;
+                    }
+                    double d = dx * dx + dz * dz + dy * dy * 0.5;
+                    if (d < bestD) {
+                        bestD = d;
+                        best = m.immutable();
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     /** The block the last trip onto a block was asked for (for {@link #tripTo}). */

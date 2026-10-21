@@ -57,6 +57,8 @@ public final class SimDoors {
      * consistent with this orientation, or this class needs extending first.
      */
     private static final int DOOR_WIDTH = 3;
+    private static final net.minecraft.resources.Identifier DOOR_PHASE =
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "sim_doors");
     private static final int DOOR_HEIGHT = 4;
 
     /** The item id {@link SimItems} and everything else in this mod reads back via CUSTOM_DATA "id". */
@@ -109,6 +111,11 @@ public final class SimDoors {
 
     /** Reverse lookup so a right-click on any one of a door's blocks finds the whole door in O(1). */
     private static final Map<BlockPos, Door> BLOCK_INDEX = new ConcurrentHashMap<>();
+
+    /** A shut door's block: a click on it is the door's, never an ability's (SimAbilities skips it). */
+    static boolean isDoorBlock(BlockPos pos) {
+        return pos != null && BLOCK_INDEX.containsKey(pos);
+    }
 
     /** Doors currently mid-open: door -> ticks remaining until the BARRIER blocks are removed. */
     private static final Map<Door, Integer> PENDING = new ConcurrentHashMap<>();
@@ -342,7 +349,11 @@ public final class SimDoors {
      */
     public static void register() {
         SimKeys.register();
-        UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> {
+        // Before the default phase: a door click with an ability item in hand (Auto Clear clicks with whatever it holds,
+        // as on Hypixel, where the key is the team's, not an item) went to SimAbilities first, which fired a Hyperion
+        // Wither Impact into the door instead (testkit 1020-sim-ac-keyroom, 2026-10-20: 12 clicks, the door stayed shut).
+        UseBlockCallback.EVENT.addPhaseOrdering(DOOR_PHASE, net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        UseBlockCallback.EVENT.register(DOOR_PHASE, (player, level, hand, hitResult) -> {
             Minecraft client = Minecraft.getInstance();
             // level.isClientSide(): this event also fires server-side; without this check the door would
             // try to open twice per real click, exactly the double-fire AbilityCooldownFeature's own

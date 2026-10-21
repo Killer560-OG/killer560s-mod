@@ -131,6 +131,8 @@ public final class AutoSecretFeature {
     private static final Set<String> secreted = new HashSet<>();
     private static final Set<String> noRouteSaid = new HashSet<>();
     private static final Set<String> instaTried = new HashSet<>();
+    /** Key rooms (and their door) the "insta clear skipped" line was logged for this run. */
+    private static final Set<String> instaKeySaid = new HashSet<>();
     private static final Set<String> puzzlesDone = new HashSet<>();
     private static final Set<String> clearsDone = new HashSet<>();
     private static final Map<String, Integer> tripFailures = new HashMap<>();
@@ -333,6 +335,7 @@ public final class AutoSecretFeature {
         puzzleHoldsSaid.clear();
         noRouteSaid.clear();
         instaTried.clear();
+        instaKeySaid.clear();
         puzzlesDone.clear();
         clearsDone.clear();
         tripFailures.clear();
@@ -1578,6 +1581,16 @@ public final class AutoSecretFeature {
             if (InstaClearTracker.knownEntries(r.name()).isEmpty()) {
                 continue;
             }
+            com.killer560.hub.autoclear.KeyRooms.Guard guard = com.killer560.hub.autoclear.KeyRooms.guardOf(layout, r.room());
+            if (guard != null) {
+                // killer560, 2026-10-20: "Any room before a wither door is insta cleared, then you can no longer get a
+                // wither key." Its key drops at its last starred death, so it is cleared by its mobs (Auto Clear) instead.
+                if (instaKeySaid.add(r.name() + "|" + guard.door())) {
+                    LOGGER.info("[InstaClear] skipped {}: it {} - an insta clear would lose the key", r.name(),
+                            com.killer560.hub.autoclear.KeyRooms.describe(guard));
+                }
+                continue;
+            }
             instaTried.add(r.name());
             List<RoomStatus.Room> froms = new ArrayList<>();
             for (RoomStatus.Room f : rooms) {
@@ -2291,6 +2304,21 @@ public final class AutoSecretFeature {
             }
             return false;
         }
+        // The warp to its start node must not be the first entry into a room holding a key (killer560, 2026-10-20): that
+        // room is cleared first, by Auto Clear walking in, when it can take rooms.
+        int here = layout.currentRoom();
+        int key = com.killer560.hub.autoclear.KeyRooms.mustNotWarpInto(layout, r.room()) ? r.room()
+                : com.killer560.hub.autoclear.KeyRooms.unenteredKeyRoomOnTheWay(layout, here, r.room());
+        if (key >= 0 && key != here && AutoSecretConfig.getInstance().isAutoClearRooms() && AutoClearFeature.isAvailable()) {
+            for (RoomStatus.Room k : RoomStatus.rooms()) {
+                if (k.room() == key && needsClear(layout, k)) {
+                    LOGGER.info("[AutoSecret] key room: {} before the route of {} - its key drops at its last starred death",
+                            k.name(), r.name());
+                    goClear(layout, k, dist, "key room: ");
+                    return true;
+                }
+            }
+        }
         target = r.name();
         targetRoomId = r.room();
         LOGGER.info("[AutoSecret] target {}: {} unfound, {} room(s) away; open {}; behind a closed door {}", r.name(),
@@ -2621,11 +2649,29 @@ public final class AutoSecretFeature {
         status = "Going to clear " + r.name();
         LOGGER.info("[AutoSecret] {}clear {} ({} room(s) away) - Auto Clear", label, r.name(), dist.get(r.room()));
         note(ModChat.text("Clearing "), ModChat.value(r.name()));
-        if (layout.currentRoom() == r.room()) {
+        if (layout.currentRoom() == r.room() || keyRoomOnTheWay(layout, r.room())) {
             arrived(Trip.CLEAR);
             return;
         }
         pathToRoom(layout, r, Trip.CLEAR);
+    }
+
+    /**
+     * A {@link com.killer560.hub.autoclear.KeyRooms} room nobody has been in is {@code room} or on the map trip to it: no
+     * map trip goes there (an etherwarp in can insta clear it and lose the key - killer560, 2026-10-20); Auto Clear is
+     * handed the room where he stands and walks in through the door itself.
+     */
+    private static boolean keyRoomOnTheWay(DungeonLayout layout, int room) {
+        int here = layout.currentRoom();
+        int key = com.killer560.hub.autoclear.KeyRooms.mustNotWarpInto(layout, room) ? room
+                : com.killer560.hub.autoclear.KeyRooms.unenteredKeyRoomOnTheWay(layout, here, room);
+        if (key < 0 || key == here) {
+            return false;
+        }
+        LOGGER.info("[AutoSecret] key room: {} {} and nobody has been in it - Auto Clear walks in{}", layout.name(key),
+                com.killer560.hub.autoclear.KeyRooms.describe(com.killer560.hub.autoclear.KeyRooms.guardOf(layout, key)),
+                key == room ? "" : " on the way to " + layout.name(room));
+        return true;
     }
 
     private static void goPuzzle(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
@@ -2755,7 +2801,7 @@ public final class AutoSecretFeature {
             note(ModChat.text("Going to the uncleared room "), ModChat.value(r.name()),
                     ModChat.dim(handOff ? " - Auto Clear clears it" : ""));
             Trip t = handOff ? Trip.CLEAR : Trip.FINAL;
-            if (layout.currentRoom() == r.room()) {
+            if (layout.currentRoom() == r.room() || handOff && keyRoomOnTheWay(layout, r.room())) {
                 arrived(t);
                 return;
             }

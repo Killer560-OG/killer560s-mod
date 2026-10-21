@@ -3390,3 +3390,10 @@ Testkit: `1020-sim-ac-speed` (Auto Clear's ticks per room on whole floors with l
 the sim's bats leave the look by up to `SPREAD` (0.06 an axis) and fly 1.02 a tick to ~29.6 blocks, so a 20-block
 straight shot misses a lone mob in open space (Auto Clear now refuses such aims); a stand block can leave him in a pit
 no etherwarp leaves (Tomioka, `acs/codes-stuck.txt`: the base jar gave up 10 rooms from it).
+
+## Key rooms (2026-10-20, autoclear-keys-1020)
+
+- `SimKeyRoom.armForTest(room)` (test aid only; nothing happens unarmed): judged on the server from the server player's
+  positions, the room's first entry by a jump over 2.5 blocks in a tick insta clears it (cleared, mobs standing, key
+  lost); a first entry on foot leaves it to clear at its last starred death, when its Wither Key drops there
+  (`SimKeys.drop`). Generated floors still drop no keys.

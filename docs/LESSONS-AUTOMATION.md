@@ -818,3 +818,16 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
   and the wait for the landing's answer stay.
 - Sim floor 1 of `killer560s-mod-logs/acs/codes-stuck.txt` (Tomioka) leaves a stand block with no etherwarp out: the base
   jar gave up 10 rooms there ("no etherwarp path (4 tries)", every one from the same spot); the new plan does not stand there.
+
+## Key rooms (autoclear-keys-1020)
+
+- **The room in front of a shut wither door holds its key, and an insta clear loses it** (killer560). The tracker's
+  evidence (insta-clear.json, 2026-10-20): etherwarp into an UNDISCOVERED room insta clears 13 of 15, UNOPENED 15 of 74,
+  DISCOVERED 1 of 75; the five walk-in "insta" clears flipped 3.6-12.5 s later (kills), every real one in 150-900 ms. So
+  `autoclear/KeyRooms` rooms are walked into, never warped into, until entered. Testkit 1020-sim-ac-keyroom (with a
+  control that turns the rule off and must lose the key).
+- A trip that moves him after a door trip finished must clear `doorTripDone`: a key that dropped after he reached the
+  door sent him off for it, and back at the door `openDoor` read "arrived" and stopped "out of reach from where the map
+  put you".
+- In the sim a wither-door click with an ability item in hand went to `SimAbilities` (a Wither Impact into the door) before
+  `SimDoors`; the door now takes the click in an earlier phase and the ability skips door blocks.
