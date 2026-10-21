@@ -26,6 +26,14 @@ import net.minecraft.client.multiplayer.ClientLevel;
  * second (or not at all) would otherwise read as permanently lagging, so there it reads 0 and every timeout is
  * unchanged. A world change drops that trust until the new world pings at the full rate again. One stall counts at
  * most {@link #MAX_STALL_MS}: a server that simply stopped pinging must not hold every wait open forever.
+ * <p>
+ * Two measures. The wall-clock one ({@link #lagMs}, {@link #msSince}, {@link #serverMsSince}) is for waits timed in
+ * ms. Waits counted in CLIENT ticks ({@link #ticksSince}, {@link #expectedDelayTicks}) get only the part of a gap the
+ * client spent ticking with no ping: a gap the client itself did not tick through (a client hitch, a frame slower than a
+ * tick, the testkit's lockstep recorder) has cost such a wait no ticks, so it owes it none. Before (1915-video-autosecret,
+ * 2026-10-20): the recorder took ~150 ms per tick, every one-tick gap read as a 100 ms stall, and the Interactive Map's
+ * eaten-hop resend ({@code ClearExecutor.tickEatenHop}, a few ticks) was pushed out by the full 600-tick cap - he stood
+ * still for 30 s outside Ice Fill until Auto Secret's trip timeout ended it. {@link #mark} carries both readings.
  */
 public final class ServerLag {
 
@@ -38,7 +46,12 @@ public final class ServerLag {
     public static final int MAX_EXTENSION_TICKS = (int) (MAX_STALL_MS / NOMINAL_TICK_MS);
 
     private static long accumulatedLagMs = 0L;
+    /** The tick-bounded measure: each stall counted at most up to the client ticks that ended without a ping. */
+    private static long accumulatedTickLagMs = 0L;
     private static long lastPingMs = 0L;
+    /** Client ticks ended (END_CLIENT_TICK), and the count at the last ping. */
+    private static long clientTicks = 0L;
+    private static long lastPingTick = 0L;
     private static boolean trusted = false;
     private static boolean registered = false;
     private static ClientLevel lastLevel = null;
@@ -59,6 +72,9 @@ public final class ServerLag {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ServerLag", client -> {
+            synchronized (ServerLag.class) {
+                clientTicks++;
+            }
             if (client.level != lastLevel) {
                 lastLevel = client.level;
                 untrust();
@@ -68,6 +84,7 @@ public final class ServerLag {
 
     private static synchronized void reset() {
         accumulatedLagMs = 0L;
+        accumulatedTickLagMs = 0L;
         untrust();
     }
 
@@ -88,11 +105,21 @@ public final class ServerLag {
             if (gap > STALL_THRESHOLD_MS) {
                 long stall = Math.min(MAX_STALL_MS, gap - NOMINAL_TICK_MS);
                 accumulatedLagMs += stall;
-                stallsSeen++;
-                longestStallMs = Math.max(longestStallMs, stall);
+                long ticked = Math.min(stall, tickedWithoutPingMs());
+                accumulatedTickLagMs += ticked;
+                if (ticked > 0) {
+                    stallsSeen++;
+                    longestStallMs = Math.max(longestStallMs, ticked);
+                }
             }
         }
         lastPingMs = now;
+        lastPingTick = clientTicks;
+    }
+
+    /** The client ticks that ended since the last ping beyond the one a ping is due in, as ms. */
+    private static long tickedWithoutPingMs() {
+        return Math.max(0L, clientTicks - lastPingTick - 1) * NOMINAL_TICK_MS;
     }
 
     /** @return total server stall this connection in ms, counting a stall still in progress; 0 while the
@@ -110,14 +137,30 @@ public final class ServerLag {
         return gap > STALL_THRESHOLD_MS ? Math.min(MAX_STALL_MS, gap - NOMINAL_TICK_MS) : 0L;
     }
 
-    /** A reading to measure a wait's lag from: take it when the wait starts, or whenever it makes progress. */
-    public static long mark() {
-        return lagMs();
+    /** The tick-bounded total ({@link #ticksSince}), counting a stall still in progress. */
+    private static synchronized long tickLagMs() {
+        return accumulatedTickLagMs + Math.min(stallNowMs(), tickedWithoutPingMs());
     }
+
+    /**
+     * A reading to measure a wait's lag from: take it when the wait starts, or whenever it makes progress. It packs both
+     * measures (the tick-bounded one in the high 32 bits, the wall-clock one in the low 32, ms - 49 days each), so a
+     * stored mark serves {@link #ticksSince} and {@link #msSince} alike; it is only ever handed back to them.
+     */
+    public static synchronized long mark() {
+        return (Math.min(tickLagMs(), MASK) << 32) | Math.min(lagMs(), MASK);
+    }
+
+    private static final long MASK = 0xFFFFFFFFL;
 
     /** @return how long the server has stalled since {@code mark}, in ms, at most {@link #MAX_STALL_MS}. */
     public static long msSince(long mark) {
-        return Math.max(0L, Math.min(MAX_STALL_MS, lagMs() - mark));
+        return Math.max(0L, Math.min(MAX_STALL_MS, Math.min(lagMs(), MASK) - (mark & MASK)));
+    }
+
+    /** {@link #msSince} on the tick-bounded measure. */
+    private static long tickMsSince(long mark) {
+        return Math.max(0L, Math.min(MAX_STALL_MS, Math.min(tickLagMs(), MASK) - (mark >>> 32)));
     }
 
     /**
@@ -135,13 +178,13 @@ public final class ServerLag {
      * {@code ticks > TIMEOUT + ServerLag.ticksSince(mark)} is exactly {@code ticks > TIMEOUT} on a server that keeps time.
      */
     public static int ticksSince(long mark) {
-        long ms = msSince(mark);
+        long ms = tickMsSince(mark);
         return ms <= 0L ? 0 : (int) Math.min(MAX_EXTENSION_TICKS, (ms + NOMINAL_TICK_MS - 1) / NOMINAL_TICK_MS);
     }
 
     /** The expected extra server delay right now, in ticks: the stall in progress (0 while the server keeps time). */
     public static synchronized int expectedDelayTicks() {
-        long ms = stallNowMs();
+        long ms = Math.min(stallNowMs(), tickedWithoutPingMs());
         return ms <= 0L ? 0 : (int) ((ms + NOMINAL_TICK_MS - 1) / NOMINAL_TICK_MS);
     }
 
