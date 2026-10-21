@@ -23,7 +23,9 @@ public class PathStopKeyMixin {
     private void killer560smod$fairyStopOnKey(long window, int action, KeyEvent event, CallbackInfo ci) {
         if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
                 && !Minecraft.getInstance().options.keyTogglePerspective.matches(event)) {
-            AutoWalker.onPlayerInput("the " + InputConstants.Type.KEYSYM.getOrCreate(event.key()).getDisplayName().getString()
+            // The key's name is only for the stop line: spared on every press outside a session.
+            AutoWalker.onPlayerInput(!AutoWalker.isSessionActive() ? ""
+                    : "the " + InputConstants.Type.KEYSYM.getOrCreate(event.key()).getDisplayName().getString()
                     + " key", event.key());
         }
     }
