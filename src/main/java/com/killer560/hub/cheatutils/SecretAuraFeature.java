@@ -567,7 +567,6 @@ public final class SecretAuraFeature {
         }
     }
 
-    /** @return "chest"/"lever"/"essence"/"redstoneKey"/"redstoneNode"/"bossLever" when the aura may click it, else null. */
     /** Every block {@link #classify} can answer for. A superset is fine; missing one would hide a secret. */
     private static boolean mayClassify(BlockState state) {
         Block block = state.getBlock();
@@ -612,6 +611,7 @@ public final class SecretAuraFeature {
         return may;
     }
 
+    /** @return "chest"/"lever"/"essence"/"redstoneKey"/"redstoneNode"/"bossLever" when the aura may click it, else null. */
     private static String classify(Minecraft client, CheatUtilsConfig cfg, BlockPos pos, BlockState state,
                                    boolean inBoss, boolean leversAllowed, boolean chestsAllowed) {
         Block block = state.getBlock();
@@ -819,9 +819,24 @@ public final class SecretAuraFeature {
         long now = System.currentTimeMillis();
         String best = null;
         double bestDist = Double.MAX_VALUE;
-        for (BlockPos pos : BlockPos.betweenClosed(
-                BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange),
-                BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange))) {
+        BlockPos min = BlockPos.containing(eye.x - maxRange, eye.y - maxRange, eye.z - maxRange);
+        BlockPos max = BlockPos.containing(eye.x + maxRange, eye.y + maxRange, eye.z + maxRange);
+        // The tick's own section prefilter, and the block first: Auto Secret and a route's await ask this every tick, and
+        // it used to box a Long per block of the cube for the done-set before reading what the block was.
+        int sx0 = min.getX() >> 4;
+        int sy0 = min.getY() >> 4;
+        int sz0 = min.getZ() >> 4;
+        int nsy = (max.getY() >> 4) - sy0 + 1;
+        int nsz = (max.getZ() >> 4) - sz0 + 1;
+        boolean[] sectionMay = sectionsThatMayHold(client.level, sx0, sy0, sz0, (max.getX() >> 4) - sx0 + 1, nsy, nsz);
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            if (!sectionMay[(((pos.getX() >> 4) - sx0) * nsy + ((pos.getY() >> 4) - sy0)) * nsz + ((pos.getZ() >> 4) - sz0)]) {
+                continue;
+            }
+            BlockState state = client.level.getBlockState(pos);
+            if (!mayClassify(state)) {
+                continue;
+            }
             long key = pos.asLong();
             if (done.contains(key)) {
                 continue;
@@ -835,7 +850,6 @@ public final class SecretAuraFeature {
                     && (a.count() >= MAX_ATTEMPTS || now - a.lastMs() < RETRY_AFTER_MS - RETRY_SOON_MS)) {
                 continue;   // clicked, and no re-try coming soon
             }
-            BlockState state = client.level.getBlockState(pos);
             String kind = classify(client, cfg, pos, state, false, leversAllowed, chestsAllowed);
             if (kind == null) {
                 continue;
