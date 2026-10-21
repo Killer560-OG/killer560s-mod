@@ -39,6 +39,10 @@ final class WeightPage {
     void reset() {
         cachedProfile = null;
         cached = null;
+        rowsA = null;
+        rowsAList = null;
+        rowsB = null;
+        rowsBList = null;
     }
 
     private SkyblockWeight.Both weights(SbProfile p) {
@@ -204,7 +208,33 @@ final class WeightPage {
     private record Row(SkyblockWeight.Group group, SkyblockWeight.Part part) {
     }
 
-    private static List<Row> rows(SkyblockWeight.Result r) {
+    // Built once per Result (the draw asks for them several times a frame).
+    private SkyblockWeight.Result rowsA;
+    private List<Row> rowsAList;
+    private SkyblockWeight.Result rowsB;
+    private List<Row> rowsBList;
+
+    private List<Row> rows(SkyblockWeight.Result r) {
+        if (r == rowsA) {
+            return rowsAList;
+        }
+        if (r == rowsB) {
+            return rowsBList;
+        }
+        // Both systems are drawn every frame, so a miss refills the older slot (A first, then B).
+        if (rowsA == null || rowsB != null) {
+            rowsA = r;
+            rowsAList = buildRows(r);
+            rowsB = null;
+            rowsBList = null;
+            return rowsAList;
+        }
+        rowsB = r;
+        rowsBList = buildRows(r);
+        return rowsBList;
+    }
+
+    private static List<Row> buildRows(SkyblockWeight.Result r) {
         List<Row> out = new ArrayList<>();
         for (SkyblockWeight.Group grp : List.of(r.skills(), r.slayers(), r.dungeons())) {
             out.add(new Row(grp, null));
