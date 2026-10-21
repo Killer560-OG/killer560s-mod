@@ -108,11 +108,6 @@ public final class MuseumDonations {
         }
     }
 
-    /** The museum as known now (testkit), or null. */
-    public static Set<String> donated() {
-        return donated;
-    }
-
     /** Sets your museum's donated ids directly (the testkit, and the fetch above). */
     public static void setDonated(Set<String> ids) {
         donated = ids;

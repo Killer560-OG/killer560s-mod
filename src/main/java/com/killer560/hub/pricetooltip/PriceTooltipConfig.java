@@ -60,7 +60,6 @@ public final class PriceTooltipConfig {
 
     public static final int MIN_REFRESH_MINUTES = 1;
     public static final int MAX_REFRESH_MINUTES = 30;
-    public static final int[] AVERAGE_DAYS = {1, 3};
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-pricetooltip.json");
