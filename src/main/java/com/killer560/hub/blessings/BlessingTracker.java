@@ -38,7 +38,7 @@ public final class BlessingTracker {
             return;
         }
         String text = ChatFormatting.stripFormatting(footer.getString());
-        if (text == null) {
+        if (text == null || !text.contains("Blessing of ")) {
             return;
         }
         for (Blessing blessing : Blessing.values()) {

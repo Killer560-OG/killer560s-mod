@@ -34,7 +34,7 @@ public enum Blessing {
     Blessing(String displayName, int defaultColor) {
         this.displayName = displayName;
         this.defaultColor = defaultColor;
-        this.pattern = Pattern.compile("Blessing of " + displayName + " ([IVXLC]+)");
+        this.pattern = Pattern.compile("Blessing of " + displayName + " ([IVXLC]{1,8})");
     }
 
     public String displayName() {
