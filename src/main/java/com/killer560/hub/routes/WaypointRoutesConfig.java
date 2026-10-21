@@ -30,6 +30,8 @@ public final class WaypointRoutesConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-waypointroutes.json");
 
+    private static final AsyncFileWriter WRITER = new AsyncFileWriter(CONFIG_PATH);
+
     private static WaypointRoutesConfig instance;
 
     private boolean enabled = false;
@@ -63,6 +65,7 @@ public final class WaypointRoutesConfig {
     }
 
     private static void load0() {
+        AsyncFileWriter.flush(); // a save queued just before (profile apply) must reach the disk first
         WaypointRoutesConfig cfg = new WaypointRoutesConfig();
         instance = cfg;
         if (!Files.exists(CONFIG_PATH)) {
@@ -95,7 +98,6 @@ public final class WaypointRoutesConfig {
 
     public void save() {
         try {
-            Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
             for (int i = 0; i < KEY_JSON.length; i++) {
@@ -115,7 +117,7 @@ public final class WaypointRoutesConfig {
             JsonObject active = new JsonObject();
             activeByArea.forEach(active::addProperty);
             obj.add("activeByArea", active);
-            Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
+            WRITER.write(GSON.toJson(obj)); // serialised here (a snapshot), written off the render thread
         } catch (Exception ignored) {
         }
     }
