@@ -130,11 +130,4 @@ public final class LegacyText {
         }
         return out.toString();
     }
-
-    /** Rebuilds a lore line, keeping the original line component's own root style so a rebuilt line that
-     *  happens NOT to start with a colour code still inherits whatever the tooltip gave it. */
-    public static Component rebuild(Component original, String legacy) {
-        Style root = original == null ? Style.EMPTY : original.getStyle();
-        return Component.empty().withStyle(root).append(Component.literal(legacy));
-    }
 }

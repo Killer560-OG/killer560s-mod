@@ -69,9 +69,6 @@ import java.util.regex.Pattern;
  */
 public final class EnchantColorsFeature {
 
-    /** Gate: the whole line is nothing but {@code Name Level} entries, optionally comma-separated, optionally
-     *  with a trailing {@code §8<number>} stacking counter. Adapted from SkyHanni's
-     *  {@code enchantmentExclusivePattern}. Must NOT match e.g. {@code §7by §c10% §7per hit, capped at}. */
     private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 
     /** The Perfect tier's chroma (killer560, 2026-10-13: "waterfalls the color from top left to bottom right in a
@@ -81,6 +78,9 @@ public final class EnchantColorsFeature {
      *  tab's Chroma Speed / Chroma Size, synced on every {@link #recolor}. */
     private static final ChromaWave.Spec PERFECT_CHROMA = ChromaWave.rainbowSpec(EnchantColorsDefaults.PERFECT);
 
+    /** Gate: the whole line is nothing but {@code Name Level} entries, optionally comma-separated, optionally
+     *  with a trailing {@code §8<number>} stacking counter. Adapted from SkyHanni's
+     *  {@code enchantmentExclusivePattern}. Must NOT match e.g. {@code §7by §c10% §7per hit, capped at}. */
     private static final Pattern ENCHANT_LINE = Pattern.compile(
             "^(?:(?:§.)*[A-Za-z][A-Za-z '-]+ (?:[IVXLCDM]+|[0-9]+)"
                     + "(?:(?:§r)?, |$| (?:§r)?§8\\d{1,3}(?:[,.]\\d{1,3})*[kKmMbB]?))+$");
@@ -146,7 +146,7 @@ public final class EnchantColorsFeature {
         if (stripped == null) {
             stripped = name;
         }
-        String collapsed = stripped.replace(' ', ' ').trim();
+        String collapsed = stripped.trim();
         // Pattern hoisted (2026-09-20, FPS pass): String.replaceAll compiles its regex on every call, and
         // this runs for every lore line of every tooltip, every frame that tooltip is on screen.
         return WHITESPACE_RUN.matcher(collapsed).replaceAll(" ").toLowerCase(Locale.ROOT);
