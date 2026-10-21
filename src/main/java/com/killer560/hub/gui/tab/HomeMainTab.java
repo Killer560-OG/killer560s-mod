@@ -88,7 +88,29 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 HudConfig cfg = HudConfig.getInstance();
                 cfg.setGlobalScale(HudConfig.MIN_GLOBAL_SCALE + (float) this.value * span);
-                cfg.save();
+                unsaved = true; // written once on release / key, not on every drag tick (the file holds every HUD position)
+            }
+
+            @Override
+            public void onRelease(net.minecraft.client.input.MouseButtonEvent event) {
+                super.onRelease(event);
+                saveIfChanged();
+            }
+
+            @Override
+            public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+                boolean handled = super.keyPressed(event);
+                saveIfChanged();
+                return handled;
+            }
+
+            private boolean unsaved;
+
+            private void saveIfChanged() {
+                if (unsaved) {
+                    unsaved = false;
+                    HudConfig.getInstance().save();
+                }
             }
         });
         y += 26;
