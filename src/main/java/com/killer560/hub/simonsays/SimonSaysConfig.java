@@ -515,9 +515,10 @@ public final class SimonSaysConfig {
         this.autoRestartEnabled = autoRestartEnabled;
     }
 
-    /** -1 when unset, or on the legit build (cheat-gated like the other start-button clicks). */
+    /** -1 when unset, on the legit build (cheat-gated like the other start-button clicks), or with Auto Simon Says switched
+     *  off as a whole: the key clicks the start button, so it stands down with the rest (it did not before 2026-10-21). */
     public int getRestartKeyCode() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? restartKeyCode : -1;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled ? restartKeyCode : -1;
     }
 
     public void setRestartKeyCode(int restartKeyCode) {
