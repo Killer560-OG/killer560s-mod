@@ -187,7 +187,11 @@ public class FullBlockTab extends BaseTab {
 
             @Override
             protected void applyValue() {
-                set.accept((int) Math.round(this.value * 100.0));
+                int pct = (int) Math.round(this.value * 100.0);
+                if (pct == get.getAsInt()) {
+                    return; // a drag fires this per mouse event; only a changed percentage is worth a file write
+                }
+                set.accept(pct);
                 SecretsConfig.getInstance().save();
             }
         });
@@ -203,11 +207,6 @@ public class FullBlockTab extends BaseTab {
     private static Component masterText() {
         return Component.literal("Full Block: " + (SecretsConfig.getInstance().isMasterEnabled() ? "§aON" : "§cOFF"));
     }
-
-
-
-
-
 
     private static Component dungeonsOnlyText() {
         return Component.literal("Dungeons Only: " + (SecretsConfig.getInstance().isDungeonsOnly() ? "§aON" : "§cOFF"));
