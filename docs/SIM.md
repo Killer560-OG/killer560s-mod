@@ -3368,3 +3368,25 @@ over 20 with gold under it), not by coordinates.
 `SimMiniboss` places minibosses as `ServerPlayer`s: every sim miniboss was healed and teleported at each death, so none
 could ever die (King Midas "died" eleven times in 8 s under the Hyperion). It now skips `SimMiniboss.isPlaced`.
 Testkit 131-sim-midas-1020 (sim) and 62-argrim-1020-midas (GrimAC) cover it.
+
+## Live mobs and the trap room counted cleared (2026-10-20, autoclear-speed-1020)
+
+Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked for: `/simlive <per tile> [health]
+[walk]`, `/simlive off`, `/simlive trap on|off`, or `SimLiveMobs.configure` / `setTrapCleared` from the testkit.
+
+- **Live mobs**: at GO every mob room (database NORMAL, RARE, CHAMPION) gets N starred zombies and skeletons a tile on
+  open floor, at spots seeded by the map code and the room's name (one floor gets the same mobs every run), each of the
+  given health (a sim bat blast does 30, Wither Impact 10,000), walking on a random stroll with `walk` (no target, no
+  attack). A CHAMPION room's first spot is a starred Lost Adventurer or Shadow Assassin (the real player-entity form)
+  at three times that health. Each live mob's star tag follows it and shows its health as it drops (Hypixel's do), so
+  Mob ESP and Auto Clear's one-tap call read what they would there. Clear-on-entry is off while it is on: a room clears
+  when its last starred mob dies. Log: `[Sim] live mobs placed: N starred mob(s) in M mob room(s) ...`.
+- **Trap cleared**: the trap room places no secrets, and at GO it is marked cleared (score and map, green) and credited
+  with every secret the room database gives it (`SimScore.creditRoomSecrets`), as if Auto Trap had done it - so the score
+  reads what it will once Auto Trap is hooked up. Log: `[Sim] trap room <name> counted cleared with its N secret(s)`.
+
+Testkit: `1020-sim-ac-speed` (Auto Clear's ticks per room on whole floors with live mobs, `-PacsHp`, `-PacsWalk`) and
+`1020-sim-300` (Dungeon Autopilot Solo to 300 with the trap counted). Sim behaviours found on the way, not changed:
+the sim's bats leave the look by up to `SPREAD` (0.06 an axis) and fly 1.02 a tick to ~29.6 blocks, so a 20-block
+straight shot misses a lone mob in open space (Auto Clear now refuses such aims); a stand block can leave him in a pit
+no etherwarp leaves (Tomioka, `acs/codes-stuck.txt`: the base jar gave up 10 rooms from it).

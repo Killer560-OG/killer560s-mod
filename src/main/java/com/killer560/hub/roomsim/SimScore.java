@@ -71,6 +71,7 @@ public final class SimScore {
         batsKilled = 0;
         secretsFound = 0;
         FOUND_BY_ROOM.clear();
+        COUNTED_ONCE.clear();
         deaths = 0;
         roomsCleared = 0;
         secretsTotal = mapSecretTotal;
@@ -162,6 +163,22 @@ public final class SimScore {
 
     public static synchronized void roomCleared() {
         roomsCleared++;
+    }
+
+    /** Rooms counted by {@link #countRoomOnce} this floor. */
+    private static final java.util.Set<String> COUNTED_ONCE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Counts {@code room} as a completed room once a floor (a solved puzzle, which no mob death or entry ever counted -
+     * so the sim's "Completed Rooms" never reached a floor's total and a Solo 300 could not be read; autoclear-speed-1020).
+     * @return true when this call counted it
+     */
+    public static synchronized boolean countRoomOnce(String room) {
+        if (room == null || !COUNTED_ONCE.add(room)) {
+            return false;
+        }
+        roomsCleared++;
+        return true;
     }
 
     public static synchronized void died() {

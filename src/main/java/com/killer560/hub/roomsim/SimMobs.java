@@ -213,6 +213,35 @@ public final class SimMobs {
             roomClearTicks = 0;
             markEnteredRoomCleared(client);
             markClearedRooms();
+            countOtherRooms(client);
+        }
+    }
+
+    /**
+     * The rooms no mob death counts (autoclear-speed-1020: the sim's "Completed Rooms" read 15/23 on a floor with every mob
+     * room and the trap done, so a Solo 300 could never be read): a solved puzzle ({@code SimPuzzles.isRoomComplete}) is
+     * counted once, and - with clear-on-entry off, as live mobs have it - the Entrance and a Fairy room once he has been
+     * in them, which clear-on-entry would have counted. Client thread, with the room checks.
+     */
+    private static void countOtherRooms(Minecraft client) {
+        if (!SimRun.hasStarted() || client.player == null) {
+            return;
+        }
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        int here = layout.roomAtWorld(client.player.getX(), client.player.getZ());
+        for (int i = 0; i < layout.roomCount(); i++) {
+            String name = layout.name(i);
+            com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(i);
+            if (name == null || entry == null || entry.type == null) {
+                continue;
+            }
+            String type = entry.type.toUpperCase(java.util.Locale.ROOT);
+            boolean count = type.equals("PUZZLE") ? com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(name)
+                    : !clearRoomsOnEntry && i == here && (type.equals("ENTRANCE") || type.equals("FAIRY"));
+            if (count && SimScore.countRoomOnce(name)) {
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room counted: {} ({})", name,
+                        type.equals("PUZZLE") ? "its puzzle is solved" : "he has been in it");
+            }
         }
     }
 
