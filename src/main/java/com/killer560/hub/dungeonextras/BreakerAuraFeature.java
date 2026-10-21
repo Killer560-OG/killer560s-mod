@@ -142,8 +142,9 @@ public final class BreakerAuraFeature {
             return "not in a dungeon";
         }
         if (!inBoss()) {
-            return "not in a boss (bossPhase=" + DungeonState.isBossPhaseActive() + ", mapBoss="
-                    + com.killer560.hub.livemap.LiveMapFeature.isInBoss() + ")";
+            // A constant, not a concatenation: this runs every tick while the aura is on in a dungeon outside a boss,
+            // and inBoss() false already means both flags are false.
+            return "not in a boss (bossPhase=false, mapBoss=false)";
         }
         return "active";
     }
@@ -371,7 +372,12 @@ public final class BreakerAuraFeature {
                     ModChat.value(client.level.getBlockState(pos).getBlock().getName().getString()));
             return;
         }
-        store.addPick(k);
+        if (!store.addPick(k)) {
+            // Only the cap can refuse here (the key is well-formed and was not picked): say so instead of "Picked".
+            ModChat.send("Breaker Aura", ModChat.text("Pick limit reached ("), ModChat.value(String.valueOf(BreakerAuraStore.MAX_PICKED)),
+                    ModChat.text(") - unpick a block first."));
+            return;
+        }
         store.save();
         ModChat.send("Breaker Aura", ModChat.text("Picked "),
                 ModChat.value(pos.getX() + ", " + pos.getY() + ", " + pos.getZ()),
@@ -927,12 +933,13 @@ public final class BreakerAuraFeature {
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
             String blockName = level.getBlockState(pos).getBlock().getName().getString(); // before any prediction
-            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || standsOn(player, pos));
+            boolean stands = standsOn(player, pos);
+            breakBlock(invoker, level, pos, hit.getDirection(), cfg.isBreakerAuraZeroPing() || stands);
             LOGGER.info("[BreakerAura] START_DESTROY_BLOCK sent: pos={} block={} face={} seq={} boxDist={} reach={}"
                             + " zeroPing={} standsOn={} predictedAir={} charges={} available={} #{} of {} this tick tick={}",
                     pos.toShortString(), blockName, hit.getDirection(), lastSentSeq,
                     fmt2(Math.sqrt(eyeToBlockSq(player.getEyePosition(), pos))), fmt2(reach),
-                    cfg.isBreakerAuraZeroPing(), standsOn(player, pos), lastSentPredicted, charges,
+                    cfg.isBreakerAuraZeroPing(), stands, lastSentPredicted, charges,
                     available - sent, sent + 1, Math.min(allowed, order.size()),
                     com.killer560.hub.util.SessionRecorderSink.tick());
             if (SENT_WATCH.size() < 256) {
@@ -1058,6 +1065,11 @@ public final class BreakerAuraFeature {
         Vec3 eye = player.getEyePosition();
         double reachSq = reach * reach;
         for (BlockPos pos : selectedBlocks()) {
+            // Reach first: plain arithmetic, so a few thousand saved picks across the floor cost no world lookups
+            // on a tick (this runs every tick, twice while the hand is being armed).
+            if (eyeToBlockSq(eye, pos) > reachSq) {
+                continue;
+            }
             if (level.isLoaded(pos) && level.getBlockState(pos).isAir()) {
                 // QUOI: `if (level.getBlockState(targetBlock).isAir) { activeBreakerBlocks.remove(targetBlock) }`.
                 // A pick that has been broken stops being a target - but it stays SAVED, because his picks are a
@@ -1066,9 +1078,6 @@ public final class BreakerAuraFeature {
             }
             if (RECENT.containsKey(pos)) {
                 continue; // tried a moment ago; give the server time to answer
-            }
-            if (eyeToBlockSq(eye, pos) > reachSq) {
-                continue;
             }
             if (!isValidTarget(level, pos)) {
                 continue;
@@ -1152,16 +1161,29 @@ public final class BreakerAuraFeature {
         if (lore == null) {
             return 0;
         }
+        // The lore object is immutable and replaced whole when the server changes it, so the same object means the same
+        // answer: this is read up to twice a tick per breaker, and each read was a regex over every lore line.
+        if (lore == lastLore) {
+            return lastLoreParsed;
+        }
+        int parsed = 0;
         for (Component line : lore.lines()) {
             Matcher m = CHARGES_PATTERN.matcher(line.getString());
             if (m.find()) {
                 try {
-                    return Integer.parseInt(m.group(1));
+                    parsed = Integer.parseInt(m.group(1));
                 } catch (NumberFormatException ignored) {
-                    return 0;
+                    parsed = 0;
                 }
+                break;
             }
         }
-        return 0;
+        lastLore = lore;
+        lastLoreParsed = parsed;
+        return parsed;
     }
+
+    /** One-entry cache for {@link #getBreakerCharges}, keyed on the lore object's identity. */
+    private static ItemLore lastLore;
+    private static int lastLoreParsed;
 }
