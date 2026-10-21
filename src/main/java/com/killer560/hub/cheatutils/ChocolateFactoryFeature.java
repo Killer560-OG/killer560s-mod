@@ -86,15 +86,19 @@ public final class ChocolateFactoryFeature {
         if (menu.slots.size() < 54 + 36) {
             return;
         }
+        if (menu.getSlot(ChocolateFactoryMenu.INFO_SLOT).getItem().isEmpty()) {
+            return; // contents not arrived yet
+        }
+        long now = System.currentTimeMillis();
+        // Reading the menu is 54 lore scans and a handful of regexes: skip it on every tick where neither timer is due.
+        if (sessionActive && now < nextActionMs && !(cfg.isCfAutoUpgrade() && now >= nextUpgradeMs)) {
+            return;
+        }
         List<ItemStack> top = new ArrayList<>(54);
         for (int i = 0; i < 54; i++) {
             top.add(menu.getSlot(i).getItem());
         }
-        if (top.get(ChocolateFactoryMenu.INFO_SLOT).isEmpty()) {
-            return; // contents not arrived yet
-        }
         ChocolateFactoryMenu.State state = ChocolateFactoryMenu.read(top);
-        long now = System.currentTimeMillis();
         if (!sessionActive) {
             sessionActive = true;
             nextActionMs = now + cfg.rollCfDelayMs();
