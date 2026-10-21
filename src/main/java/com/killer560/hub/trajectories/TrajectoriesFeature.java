@@ -157,8 +157,7 @@ public final class TrajectoriesFeature {
             return;
         }
         if (cfg.isShowPearls() && item instanceof EnderpearlItem) {
-            String name = ChatFormatting.stripFormatting(heldItem.getHoverName().getString());
-            if (name == null || !name.toLowerCase(java.util.Locale.ROOT).contains("spirit")) {
+            if (!isSpiritPearl(heldItem)) {
                 renderTrajectory(context, client.level, player, handOrigin(player), yaw, pitch, true, 1.5);
                 record("PEARL", new float[]{yaw}, pitch, 1.5);
             }
@@ -166,6 +165,29 @@ public final class TrajectoriesFeature {
     }
 
     private static final float[] NO_YAWS = new float[0];
+
+    // The pearl's name test, cached: it built the hover name, stripped and lower-cased it every frame a pearl was held.
+    // The name comes from the CUSTOM_NAME / ITEM_NAME components (replaced, never edited) and the Language.
+    private static ItemStack pearlStack;
+    private static Object pearlCustomName;
+    private static Object pearlItemName;
+    private static net.minecraft.locale.Language pearlLanguage;
+    private static boolean pearlSpirit;
+
+    private static boolean isSpiritPearl(ItemStack stack) {
+        Object custom = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+        Object itemName = stack.get(net.minecraft.core.component.DataComponents.ITEM_NAME);
+        net.minecraft.locale.Language language = net.minecraft.locale.Language.getInstance();
+        if (stack != pearlStack || custom != pearlCustomName || itemName != pearlItemName || language != pearlLanguage) {
+            String name = ChatFormatting.stripFormatting(stack.getHoverName().getString());
+            pearlSpirit = name != null && name.toLowerCase(java.util.Locale.ROOT).contains("spirit");
+            pearlStack = stack;
+            pearlCustomName = custom;
+            pearlItemName = itemName;
+            pearlLanguage = language;
+        }
+        return pearlSpirit;
+    }
 
     // Shortbows' answers for the held stack. Asked every frame whatever is held (a sword too), and each frame flattened,
     // regex-stripped and lower-cased every lore line, twice more for a shortbow (fps pass 2026-10-19). They read only
@@ -220,7 +242,7 @@ public final class TrajectoriesFeature {
         Vec3 position = start;
         Vec3 motion = lookVector(yaw, pitch).normalize().scale(velocityMultiplier);
 
-        List<Vec3> points = new ArrayList<>();
+        List<Vec3> points = new ArrayList<>(range + 2);
         AABB impactBox = null;
 
         // One collision context for the whole arc: new ClipContext(.., player) builds CollisionContext.of(player) for
