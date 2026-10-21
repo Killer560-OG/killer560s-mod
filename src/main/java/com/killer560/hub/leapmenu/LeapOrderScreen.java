@@ -156,6 +156,14 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 }));
                 x += cardW + cardGap;
             }
+            // Reset All (killer560, 2026-10-21): every class pick on the party and every saved class layout, in one go.
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Reset All"), btn -> {
+                LeapMenuConfig cfg = LeapMenuConfig.getInstance();
+                ClassOverrides.clearAll();
+                cfg.clearAllPins();
+                cfg.save();
+                rebuild();
+            }).bounds(cx - 186, height - 30, 120, 20).build());
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), btn -> onClose())
                     .bounds(cx - 60, height - 30, 120, 20).build());
             return;

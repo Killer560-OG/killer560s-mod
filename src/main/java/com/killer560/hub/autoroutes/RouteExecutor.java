@@ -5175,15 +5175,6 @@ public final class RouteExecutor {
         return com.killer560.hub.util.ServerLag.ticksSince(stepLag);
     }
 
-    /**
-     * Is {@code pos} the first block the eye's ray meets? The same test {@code ForeignBreakerProbe} reports on, aimed at
-     * the block centre the dig itself is aimed at, so the breaker never sends a dig the probe would call blocked.
-     */
-    private static boolean inSight(Minecraft client, LocalPlayer player, BlockPos pos) {
-        BlockHitResult hit = client.level.clip(new ClipContext(player.getEyePosition(), Vec3.atCenterOf(pos),
-                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
-        return hit.getType() == HitResult.Type.BLOCK && hit.getBlockPos().equals(pos);
-    }
 
     /** Was {@code pos} dug within {@link #DIG_SETTLE_TICKS} ticks? Then the dig is still on its way, not a block to send. */
     private static boolean dugRecently(Minecraft client, BlockPos pos) {
@@ -5389,12 +5380,6 @@ public final class RouteExecutor {
                     breakerChargesLeft--;
                     LOGGER.info("[AutoRoutes] Breaker: obsidian {} queued - dug alone after the burst, held until the"
                             + " server breaks it", pos.toShortString());
-                    continue;
-                }
-                // In reach is not enough: a dig through a wall is the same as a dig nobody can see. The multi-break
-                // sent three in one tick on 22:10:47 with two of them behind the wall (the probe's line of sight).
-                if (!inSight(client, player, pos)) {
-                    LOGGER.info("[AutoRoutes] Breaker block {} not in sight - skipped", pos);
                     continue;
                 }
                 if (dugRecently(client, pos)) {
@@ -5807,9 +5792,7 @@ public final class RouteExecutor {
             if (sent != null && lingerTicks - sent < LINGER_RESEND_TICKS) {
                 continue;
             }
-            // In sight as well as in reach: a walled block waits here until it is visible, as the node's own breaker does.
-            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ && inSight(client, player, pos)
-                    && !dugRecently(client, pos)) {
+            if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos) <= BREAKER_RANGE_SQ && !dugRecently(client, pos)) {
                 inReach.add(pos);
             }
         }
