@@ -51,6 +51,7 @@ final class WatcherMoveTracker {
     private static long dialogueEndMs = 0L;
     private static long moveMs = 0L;
     private static int watcherId = -1;
+    private static int searchTicks = 0;
 
     private WatcherMoveTracker() {
     }
@@ -74,6 +75,7 @@ final class WatcherMoveTracker {
         dialogueEndMs = 0L;
         moveMs = 0L;
         watcherId = -1;
+        searchTicks = 0;
     }
 
     /** Milliseconds from the blood door opening until the Watcher first moved, or 0 if not measured (yet). */
@@ -96,6 +98,10 @@ final class WatcherMoveTracker {
         }
         Entity watcher = watcherId == -1 ? null : client.level.getEntity(watcherId);
         if (watcher == null) {
+            // The search walks every rendered entity; until he is found it runs every 5th tick, not every tick.
+            if (++searchTicks % 5 != 1) {
+                return;
+            }
             watcher = findWatcher(client);
             if (watcher == null) {
                 return;
