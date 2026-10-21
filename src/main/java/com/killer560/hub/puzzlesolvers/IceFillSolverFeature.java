@@ -44,6 +44,8 @@ public final class IceFillSolverFeature {
     private static final IceFillData DATA = loadData();
     private static final List<Vec3> currentPath = new ArrayList<>();
     private static RoomEntry lastRoomEntry = null;
+    /** The Alternate Path setting the drawn path was built with: flipping it in the room redraws instead of keeping the old line. */
+    private static boolean pathOptimized = false;
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan failure logged, so lines are written on CHANGE, never per tick. */
@@ -120,6 +122,9 @@ public final class IceFillSolverFeature {
         if ((current == null || !"Ice Fill".equals(current.name)) && !"none".equals(roomLogKey)) {
             logRoomState("none", "left Ice Fill: now in " + (current == null ? "no known room" : current.name));
         }
+        if (!currentPath.isEmpty() && pathOptimized != IceFillSolverConfig.getInstance().isOptimizedPath()) {
+            currentPath.clear();
+        }
         if (current == null || !"Ice Fill".equals(current.name) || !currentPath.isEmpty()) {
             return;
         }
@@ -141,6 +146,7 @@ public final class IceFillSolverFeature {
 
     private static void scanFloors(Level level, int[] clayAndRotation) {
         List<List<List<Pos>>> paths = IceFillSolverConfig.getInstance().isOptimizedPath() ? DATA.hard() : DATA.easy();
+        pathOptimized = IceFillSolverConfig.getInstance().isOptimizedPath();
         StringBuilder patterns = new StringBuilder(); // logging only: which layout each floor matched
         for (int floorIndex = 0; floorIndex < DATA.identifier().size(); floorIndex++) {
             List<List<Pos>> floorIdentifiers = DATA.identifier().get(floorIndex);
