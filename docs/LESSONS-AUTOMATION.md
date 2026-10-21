@@ -790,3 +790,7 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   (#8 waits for 2: the item and the placing, and the key is never taken under the aura's await-only rule); Golden Oasis
   #1 (start) waits for 1 at the entrance with no secret in reach; Supertall #13 CRYPT sits 1.41 off #20's landing, a
   step he walks by hand. Quiz cadence (waiting at Oruo for the next question) is the 4-12 s "TRAVEL" still at floor start.
+- ServerLag measured stalls by wall clock between pings, so a client that ticks slower than real time (the testkit's
+  lockstep recorder, a hitch, a frame longer than a tick) read every tick as server lag and pushed tick-counted waits to
+  the 600-tick cap (a 30 s stand outside Ice Fill, 1915 2026-10-20). Tick-counted waits now count only client ticks that
+  ran with no ping; ms-timed waits keep the wall-clock measure.
