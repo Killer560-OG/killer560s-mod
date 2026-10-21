@@ -2,14 +2,11 @@ package com.killer560.hub.interop;
 
 import com.killer560.hub.secrets.DungeonState;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * The one place every party-wide dungeon fact lands, whoever noticed it.
@@ -41,7 +38,6 @@ public final class PartyInteropState {
 
     /** After this long an untouched counter may be replaced by any source, however weak. */
     private static final long STALE_MS = 30_000L;
-    private static final int MAX_EVENT_LOG = 24;
     private static final int MAX_ROOMS = 64;
 
     /** One-way facts about the run. Once true they stay true until the run resets. */
@@ -102,8 +98,6 @@ public final class PartyInteropState {
     private static int p3SectionTotal = -1;
     private static final Map<String, Fact<RoomSecrets>> ROOMS = new LinkedHashMap<>();
     private static final Map<String, Fact<Long>> DRAGONS = new LinkedHashMap<>();
-    private static final Deque<String> EVENT_LOG = new ArrayDeque<>();
-    private static final Map<InteropSource, Integer> ACCEPTED_BY_SOURCE = new EnumMap<>(InteropSource.class);
 
     private PartyInteropState() {
     }
@@ -128,10 +122,6 @@ public final class PartyInteropState {
             }
             boolean isNew = held == null;
             FLAGS.put(flag, new Fact<>(Boolean.TRUE, source, reporter, System.currentTimeMillis()));
-            count(source);
-            if (isNew) {
-                log(flag.label() + " (" + source.label() + describeReporter(reporter) + ")");
-            }
             return isNew;
         }
     }
@@ -184,8 +174,6 @@ public final class PartyInteropState {
                 }
             }
             COUNTERS.put(counter, new Fact<>(value, source, reporter, now));
-            count(source);
-            log(counter.label() + " = " + value + " (" + source.label() + describeReporter(reporter) + ")");
             return true;
         }
     }
@@ -209,14 +197,16 @@ public final class PartyInteropState {
                 }
             }
             int keptTotal = total >= 0 ? total : (held == null ? -1 : held.value().total());
-            ROOMS.put(key, new Fact<>(new RoomSecrets(found, keptTotal), source, reporter, now));
+            boolean changed = held == null || found != held.value().found() || keptTotal != held.value().total();
+            // The local bridge re-offers every room it knows about every other second: an unchanged room only
+            // refreshes its timestamp (and keeps the better source), it is not a new fact.
+            InteropSource keptSource = !changed && held.source().rank() > source.rank() ? held.source() : source;
+            String keptReporter = keptSource == source ? reporter : held.reporter();
+            ROOMS.put(key, new Fact<>(new RoomSecrets(found, keptTotal), keptSource, keptReporter, now));
             while (ROOMS.size() > MAX_ROOMS) {
                 ROOMS.remove(ROOMS.keySet().iterator().next());
             }
-            count(source);
-            log(key + " secrets " + found + (keptTotal >= 0 ? "/" + keptTotal : "")
-                    + " (" + source.label() + describeReporter(reporter) + ")");
-            return true;
+            return changed;
         }
     }
 
@@ -233,8 +223,6 @@ public final class PartyInteropState {
                 return false;
             }
             DRAGONS.put(key, new Fact<>(System.currentTimeMillis(), source, reporter, System.currentTimeMillis()));
-            count(source);
-            log(key + " dragon spawning (" + source.label() + describeReporter(reporter) + ")");
             return true;
         }
     }
@@ -287,43 +275,6 @@ public final class PartyInteropState {
         }
     }
 
-    public static Fact<Long> dragonSpawn(String colour) {
-        synchronized (LOCK) {
-            return DRAGONS.get(colour == null ? "" : colour.trim().toLowerCase(Locale.US));
-        }
-    }
-
-    /** Most recent first - the Interop tab's "picked up this run" list. */
-    public static List<String> recentEvents(int limit) {
-        synchronized (LOCK) {
-            List<String> out = new ArrayList<>(Math.min(limit, EVENT_LOG.size()));
-            for (String entry : EVENT_LOG) {
-                if (out.size() >= limit) {
-                    break;
-                }
-                out.add(entry);
-            }
-            return out;
-        }
-    }
-
-    /** How many facts each feed has contributed this run - shown on the Interop tab. */
-    public static Map<InteropSource, Integer> acceptedBySource() {
-        synchronized (LOCK) {
-            return new EnumMap<>(ACCEPTED_BY_SOURCE);
-        }
-    }
-
-    public static int totalAccepted() {
-        synchronized (LOCK) {
-            int total = 0;
-            for (int n : ACCEPTED_BY_SOURCE.values()) {
-                total += n;
-            }
-            return total;
-        }
-    }
-
     // ------------------------------------------------------------------ lifecycle
 
     /** New dungeon run (or left the dungeon) - everything here is per-run. */
@@ -336,8 +287,6 @@ public final class PartyInteropState {
             p3SectionTotal = -1;
             ROOMS.clear();
             DRAGONS.clear();
-            EVENT_LOG.clear();
-            ACCEPTED_BY_SOURCE.clear();
         }
     }
 
@@ -347,28 +296,22 @@ public final class PartyInteropState {
         return counter == Counter.TERMINALS_DONE || counter == Counter.DEVICES_DONE || counter == Counter.LEVERS_DONE;
     }
 
-    /** Must hold {@link #LOCK}. */
-    private static void count(InteropSource source) {
-        ACCEPTED_BY_SOURCE.merge(source, 1, Integer::sum);
-    }
+    private static final Pattern WHITESPACE_RUN = Pattern.compile("\\s+");
 
-    /** Must hold {@link #LOCK}. */
-    private static void log(String text) {
-        EVENT_LOG.addFirst(text);
-        while (EVENT_LOG.size() > MAX_EVENT_LOG) {
-            EVENT_LOG.removeLast();
-        }
-    }
-
-    private static String describeReporter(String reporter) {
-        return reporter == null || reporter.isBlank() ? "" : ", " + reporter;
-    }
-
-    /** Room names arrive from several places with different capitalisation and stray spaces. */
+    /** Room names arrive from several places with different capitalisation and stray spaces. The map asks for
+     *  this every frame per room, so a name that is already clean (the usual case) is returned as it is. */
     private static String normaliseRoom(String roomName) {
         if (roomName == null) {
             return "";
         }
-        return roomName.trim().replaceAll("\\s+", " ");
+        boolean clean = true;
+        int len = roomName.length();
+        for (int i = 0; i < len && clean; i++) {
+            char c = roomName.charAt(i);
+            if (Character.isWhitespace(c)) {
+                clean = c == ' ' && i > 0 && i < len - 1 && roomName.charAt(i - 1) != ' ';
+            }
+        }
+        return clean ? roomName : WHITESPACE_RUN.matcher(roomName.trim()).replaceAll(" ");
     }
 }

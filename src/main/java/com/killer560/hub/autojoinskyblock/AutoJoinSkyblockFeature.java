@@ -27,8 +27,9 @@ public final class AutoJoinSkyblockFeature {
     // rather than waiting several seconds.
     private static final long DELAY_MS = 500;
 
-    private static boolean pending = false;
-    private static long fireAtMs = -1;
+    // volatile: DISCONNECT (cancelPending) runs on the Netty thread, the tick on the render thread
+    private static volatile boolean pending = false;
+    private static volatile long fireAtMs = -1;
 
     private AutoJoinSkyblockFeature() {
     }

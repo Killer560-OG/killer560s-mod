@@ -45,7 +45,10 @@ public final class ScreenshotCopyFeature {
         if (!ScreenshotCopyConfig.getInstance().isEnabled()) {
             return;
         }
-        copyNewestScreenshotToClipboard();
+        // own thread: PowerShell takes a second or more, and this is one of vanilla's shared IO pool threads
+        Thread worker = new Thread(ScreenshotCopyFeature::copyNewestScreenshotToClipboard, "killer560smod-screenshotcopy");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     private static void copyNewestScreenshotToClipboard() {
@@ -70,7 +73,7 @@ public final class ScreenshotCopyFeature {
             builder.environment().put("KILLER560SMOD_SCREENSHOT_PATH", newest.get().toAbsolutePath().toString());
             builder.redirectErrorStream(true);
             Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            // waitFor first: reading the pipe to its end first made the 10 s timeout below unreachable
             boolean finished = process.waitFor(10, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -78,6 +81,7 @@ public final class ScreenshotCopyFeature {
                 return;
             }
             if (process.exitValue() != 0) {
+                String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
                 LOGGER.warn("Screenshot copy: PowerShell exited {} - {}", process.exitValue(), output);
                 return;
             }

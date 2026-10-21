@@ -55,9 +55,10 @@ public final class ProfileData {
     static final Set<String> EXCLUDED_NAMES = Set.of(
             // The profile system itself.
             "profiles", "profiles-import", "profiles-share", "active-profile.txt",
-            // Downloads: Auto Update's staged jars, the speech model (~70 MB), the room database and the room library
+            // /reboot's work folder holds a class file the game launches with java (and a pid file): a profile must
+            // never carry or plant one. Downloads: Auto Update's staged jars, the speech model (~70 MB), the room database and the room library
             // (~13 MB), pathfinding island graphs (with fairy-soul progress beside them - his game state, not a setup).
-            "autoupdate-staging", "voice-model", "roomdata", "rooms", "pathfinding",
+            "autoupdate-staging", "reboot", "voice-model", "roomdata", "rooms", "pathfinding",
             // A Chromium profile (cookies, logins): huge and holds session data.
             "shorts-profile",
             // Caches and diagnostics: GIF audio converted to WAV, the Pack Disabler's "missing models" list, sim map
@@ -456,21 +457,6 @@ public final class ProfileData {
     }
 
     // --------------------------------------------------------------------------------------------------- helpers
-
-    static int countFiles(Path profileDir) {
-        return storedFiles(profileDir).size();
-    }
-
-    static long newestFile(Path profileDir) {
-        long newest = 0L;
-        for (Path p : storedFiles(profileDir).values()) {
-            try {
-                newest = Math.max(newest, Files.getLastModifiedTime(p).toMillis());
-            } catch (IOException ignored) {
-            }
-        }
-        return newest;
-    }
 
     static void deleteRecursive(Path path) throws IOException {
         if (!Files.exists(path)) {

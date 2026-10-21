@@ -48,16 +48,19 @@ public final class CommandKeybindsFeature {
         if (customWasDown.length != customs.size()) {
             customWasDown = new boolean[customs.size()];
         }
-        if (!cfg.isEnabled() || McCompat.screen(client) != null || client.player == null) {
+        if (!cfg.isEnabled() || client.player == null) {
             java.util.Arrays.fill(wasDown, false);
             java.util.Arrays.fill(customWasDown, false);
             return;
         }
+        // With a screen open nothing fires, but the held state is still tracked: a key that closed the screen (a bind on E
+        // while the inventory is open) is still down on the first free tick and must not read as a fresh press.
+        boolean fire = McCompat.screen(client) == null;
 
         for (int i = 0; i < binds.size(); i++) {
             CommandKeybindsConfig.Bind bind = binds.get(i);
             boolean isDown = bind.enabled && isBindDown(client, bind.key);
-            if (isDown && !wasDown[i]) {
+            if (fire && isDown && !wasDown[i]) {
                 send(client, bind.text);
             }
             wasDown[i] = isDown;
@@ -66,8 +69,9 @@ public final class CommandKeybindsFeature {
         // A custom shortcut with a key (since the merge, 2026-10-08): the key sends exactly what typing /name sends.
         for (int i = 0; i < customs.size(); i++) {
             CommandShortcutsConfig.CustomShortcut c = customs.get(i);
-            boolean isDown = c.key() != -1 && CommandShortcutsFeature.isKeyLive(c) && isBindDown(client, c.key());
-            if (isDown && !customWasDown[i]) {
+            // The key is polled first: isKeyLive trims the command string, which is wasted work on every tick a key is up.
+            boolean isDown = c.key() != -1 && isBindDown(client, c.key()) && CommandShortcutsFeature.isKeyLive(c);
+            if (fire && isDown && !customWasDown[i]) {
                 ServerCommands.toServer(CommandShortcutsFeature.commandOf(c));
             }
             customWasDown[i] = isDown;

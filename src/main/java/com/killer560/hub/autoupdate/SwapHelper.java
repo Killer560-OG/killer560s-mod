@@ -133,10 +133,15 @@ public final class SwapHelper {
         }
         log("swapped: " + oldJar.getFileName() + " -> " + newName);
 
-        Files.deleteIfExists(newJar);
-        Path staged = staging.resolve("staged.json");
-        if (Files.exists(staged)) {
-            Files.move(staged, staging.resolve("installed.json"), StandardCopyOption.REPLACE_EXISTING);
+        // The swap is done; a failure in the tidying below must not turn it into "failed" (exit 70).
+        try {
+            Files.deleteIfExists(newJar);
+            Path staged = staging.resolve("staged.json");
+            if (Files.exists(staged)) {
+                Files.move(staged, staging.resolve("installed.json"), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException e) {
+            log("swapped, but could not tidy the staging folder: " + e);
         }
         int count = 0;
         try (DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "killer560smod*.jar")) {

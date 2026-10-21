@@ -66,15 +66,18 @@ public final class SoundEffects {
             return in;
         }
         try {
+            // One event that makes two sounds in a tick plays the choice once: checked first, it needs neither the
+            // availability test (a file stat for an import) nor the resolve below.
+            long now = System.nanoTime();
+            if (effect == lastMergeEffect && now - lastMergeNanos < SAME_EVENT_NANOS
+                    && distSq(in) < SAME_EVENT_DIST_SQ) {
+                merged++;
+                return null;
+            }
             SoundManager sounds = Minecraft.getInstance().getSoundManager();
-            if (!ClickSounds.available(choice, sounds)) {
-                fallbacks++;
-                if (WARNED.add(effect.key + "|" + choice)) {
-                    ModChat.send("Sound Effects", ModChat.text(effect.label + ": "),
-                            ModChat.bad(ClickSounds.label(choice) + " is missing"),
-                            ModChat.text(", playing the game's sound."));
-                }
-                return in;
+            // An import's file is stat'ed once, by make() (null when it is gone); a preset is a map lookup here.
+            if (!choice.startsWith(ClickSounds.IMPORT_PREFIX) && !ClickSounds.available(choice, sounds)) {
+                return missing(effect, choice, in);
             }
             // Resolve the game's instance first: until then it has no Sound, and getVolume / getPitch throw. It is never
             // played, so resolving it only reads its volume and pitch.
@@ -85,15 +88,9 @@ public final class SoundEffects {
             } catch (RuntimeException ignored) {
                 // use the default volume; make() reads the pitch the same careful way
             }
-            long now = System.nanoTime();
-            if (effect == lastMergeEffect && now - lastMergeNanos < SAME_EVENT_NANOS
-                    && distSq(in) < SAME_EVENT_DIST_SQ) {
-                merged++;
-                return null;
-            }
             SoundInstance made = ClickSounds.make(choice, volume, in);
             if (made == null) {
-                return in;
+                return missing(effect, choice, in);
             }
             lastMergeEffect = effect;
             lastMergeNanos = now;
@@ -110,6 +107,17 @@ public final class SoundEffects {
             LOGGER.warn("[SoundEffects] could not play the {} sound, using the game's", effect.key, e);
             return in;
         }
+    }
+
+    /** The chosen sound is gone: the game's plays, and chat says so once per effect and choice. */
+    private static SoundInstance missing(SoundEffect effect, String choice, SoundInstance in) {
+        fallbacks++;
+        if (WARNED.add(effect.key + "|" + choice)) {
+            ModChat.send("Sound Effects", ModChat.text(effect.label + ": "),
+                    ModChat.bad(ClickSounds.label(choice) + " is missing"),
+                    ModChat.text(", playing the game's sound."));
+        }
+        return in;
     }
 
     private static double distSq(SoundInstance in) {

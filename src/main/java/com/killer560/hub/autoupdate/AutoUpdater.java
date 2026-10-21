@@ -342,7 +342,19 @@ public final class AutoUpdater {
     private static String download(HttpClient http, String url, Path out) throws Exception {
         HttpResponse<InputStream> res = ModNet.send(http, HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMinutes(5)).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        // HttpRequest.timeout covers only the wait for the response headers, so a connection that stalls mid-body
+        // would block this thread (and keep "checking" true) forever: close the stream when the five minutes are up.
+        java.util.Timer watchdog = new java.util.Timer("killer560smod-auto-update-watchdog", true);
         try (InputStream in = res.body()) {
+            watchdog.schedule(new java.util.TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        in.close();
+                    } catch (IOException ignored) {
+                    }
+                }
+            }, Duration.ofMinutes(5).toMillis());
             if (res.statusCode() != 200) {
                 throw new IOException(url + " returned " + res.statusCode());
             }
@@ -361,6 +373,8 @@ public final class AutoUpdater {
                 }
             }
             return HexFormat.of().formatHex(md.digest());
+        } finally {
+            watchdog.cancel();
         }
     }
 

@@ -87,8 +87,12 @@ public final class SessionRecorder {
         }
     }
 
-    public static boolean isRecording() {
-        return SessionRecorderSink.active();
+    /**
+     * True when the switch is on, the instance allows it, and yet no session is open and none was cut at 20 MB: the file
+     * could not be opened, or a write failed and closed it. Lets the tab say so instead of "Starting on the next tick".
+     */
+    public static boolean failed() {
+        return lastWanted && !SessionRecorderSink.active() && !SessionRecorderSink.wasCut() && !blockedHere();
     }
 
     private static void tick(Minecraft client) {

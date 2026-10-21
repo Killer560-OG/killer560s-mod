@@ -243,6 +243,11 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private int lastMelodyAutoClickedRow = -1;
     private long lastMelodyAutoClickAtMs;
 
+    /** Solver result for the current cells; null after any change to them. */
+    private Map<Integer, TerminalSolverFeature.SlotHighlight> cachedHighlights;
+    /** The cell list {@link #cachedHighlights} was worked out for. */
+    private List<ItemStack> cachedFor;
+
     private int gridOriginX;
     private int gridOriginY;
 
@@ -254,7 +259,12 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     @Override
     protected void init() {
-        generatePuzzle();
+        // init() runs again on every window resize: keep the board and its timer, only re-centre it.
+        if (cells.isEmpty()) {
+            generatePuzzle();
+        } else {
+            updateLayoutMetrics();
+        }
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("New Puzzle"), btn -> {
                     type = TermismMenuScreen.PRACTICE_TYPES.get(random.nextInt(TermismMenuScreen.PRACTICE_TYPES.size()));
                     generatePuzzle();
@@ -269,6 +279,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         solvedAtMs = -1;
         startedAtMs = System.currentTimeMillis();
         cells = new ArrayList<>();
+        cachedHighlights = null;
         // The real terminal's own committed-Rubix-target state (round 14) is shared static state, not
         // scoped to any one board - clear it so a fresh practice puzzle never inherits a stale target
         // left over from a real terminal or a previous practice round.
@@ -352,6 +363,19 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         rebuildMelodyCells();
     }
 
+    /** The solver's answer for the board, worked out once per change to the cells instead of twice a frame
+     *  (the overlay and Auto Terminals both read it). */
+    private Map<Integer, TerminalSolverFeature.SlotHighlight> highlights() {
+        Map<Integer, TerminalSolverFeature.SlotHighlight> result = cachedHighlights;
+        // Melody swaps in a new cell list every step without a click: a different list is a different board.
+        if (result == null || cachedFor != cells) {
+            result = TerminalSolverFeature.solve(type, syntheticTitle(), cells);
+            cachedHighlights = result;
+            cachedFor = cells;
+        }
+        return result;
+    }
+
     /** See the doc comment on {@link #nextAutoClickAllowedAtMs} - only ever runs with Custom GUI on. */
     private void tickAutoClick() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
@@ -367,8 +391,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         if (!TerminalSolverFeature.isAutoTypeEnabled(type, cfg)) {
             return;
         }
-        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights =
-                TerminalSolverFeature.solve(type, syntheticTitle(), cells);
+        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights = highlights();
         if (highlights.isEmpty()) {
             return;
         }
@@ -565,6 +588,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         if (stack.isEmpty()) {
             return;
         }
+        cachedHighlights = null;
         switch (type) {
             case PANES -> {
                 if (stack.getItem() == McItems.RED_STAINED_GLASS_PANE) {
@@ -782,8 +806,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  (only for slots that logic actually flags, everything else invisible) exactly like the real
      *  Custom GUI's own panel does - no item icons at all in this mode, matching the real thing. */
     private void renderSolverOverlay(GuiGraphicsExtractor graphics) {
-        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights =
-                TerminalSolverFeature.solve(type, syntheticTitle(), cells);
+        Map<Integer, TerminalSolverFeature.SlotHighlight> highlights = highlights();
         for (Map.Entry<Integer, TerminalSolverFeature.SlotHighlight> entry : highlights.entrySet()) {
             int index = entry.getKey();
             if (index < 0 || index >= cells.size()) {

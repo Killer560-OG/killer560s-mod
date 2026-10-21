@@ -126,8 +126,8 @@ public final class AutoSoulRunner {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
-            return;
+        if (client.player == null || active) {
+            return; // already running: a second start would drop the held click view without releasing it
         }
         active = true;
         state = State.WAIT_GRAPH;
