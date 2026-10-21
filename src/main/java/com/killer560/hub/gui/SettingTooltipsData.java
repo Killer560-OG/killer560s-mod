@@ -125,6 +125,11 @@ final class SettingTooltipsData {
         d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
         d.put("menu theme/background speed", "Custom: how fast the background moves.");
         d.put("menu theme/button panel", "Custom: the frosted panel behind the main menu's buttons.");
+        // Theme Extras (killer560, 2026-10-21: menuthemes.ThemeExtrasSettings).
+        d.put("menu theme/extras for", "The theme the rows below set up. It starts on the menu's own theme. Left click goes to the next, right click back.");
+        d.put("menu theme/theme music", "Plays the main menu theme's music while the main menu is open; it stops when you join a world or a server. Minecraft's own menu music waits while it plays.");
+        d.put("menu theme/music", "This theme's track: its own loop, Off, or any of the bundled loops. Left click goes to the next, right click back.");
+        d.put("menu theme/music volume", "How loud theme music plays, 0% to 100%. This is its own volume, not Minecraft's Music slider.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colours"
                     + " back to the " + preset + " preset it was started from.");
