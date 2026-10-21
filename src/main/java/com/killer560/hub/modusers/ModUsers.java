@@ -12,7 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class ModUsers {
 
-    private static final Map<String, String> SHOWN = new ConcurrentHashMap<>();
+    /** Most names kept from one room; a hostile or broken relay cannot grow the map past this. */
+    private static final int MAX_SHOWN = 1024;
+
+    /** Replaced whole on a welcome, so the render thread never sees a half-filled list. */
+    private static volatile Map<String, String> SHOWN = new ConcurrentHashMap<>();
 
     /** Bumped on every change to {@link #SHOWN}, so per-row caches (the tab list) know to look again. */
     private static volatile int version = 0;
@@ -31,29 +35,53 @@ public final class ModUsers {
 
     /** Called on the relay welcome: the full list of who shows. */
     public static void onWelcome(JsonObject mods) {
-        SHOWN.clear();
-        if (mods == null) {
-            return;
-        }
-        for (Map.Entry<String, com.google.gson.JsonElement> e : mods.entrySet()) {
-            if (e.getValue().isJsonPrimitive()) {
-                SHOWN.put(e.getKey(), e.getValue().getAsString());
+        Map<String, String> fresh = new ConcurrentHashMap<>();
+        if (mods != null) {
+            for (Map.Entry<String, com.google.gson.JsonElement> e : mods.entrySet()) {
+                if (fresh.size() >= MAX_SHOWN) {
+                    break;
+                }
+                if (e.getValue().isJsonPrimitive() && validName(e.getKey()) && validVariant(e.getValue().getAsString())) {
+                    fresh.put(e.getKey(), e.getValue().getAsString());
+                }
             }
         }
+        SHOWN = fresh;
         version++;
     }
 
     /** A presence event: {@code shareAs} null means that player stopped showing (or left). */
     public static void onPresence(String name, String shareAs) {
-        if (name == null) {
+        if (!validName(name)) {
             return;
         }
+        Map<String, String> shown = SHOWN;
         if (shareAs == null) {
-            SHOWN.remove(name);
+            shown.remove(name);
+        } else if (validVariant(shareAs) && (shown.size() < MAX_SHOWN || shown.containsKey(name))) {
+            shown.put(name, shareAs);
         } else {
-            SHOWN.put(name, shareAs);
+            return;
         }
         version++;
+    }
+
+    private static boolean validVariant(String v) {
+        return "legit".equals(v) || "cheat".equals(v);
+    }
+
+    /** A Minecraft name: 1-16 of letters, digits, underscore. */
+    private static boolean validName(String name) {
+        if (name == null || name.isEmpty() || name.length() > 16) {
+            return false;
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Tells the relay this build's variant and the player's sharing choice. Safe to call when not connected. */
