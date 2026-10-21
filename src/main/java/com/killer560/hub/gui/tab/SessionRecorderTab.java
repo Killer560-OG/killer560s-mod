@@ -50,6 +50,8 @@ public class SessionRecorderTab extends BaseTab {
             status = "§aRecording §7to " + (file == null ? "?" : file.getFileName());
         } else if (cfg.isEnabled() && SessionRecorderSink.wasCut()) {
             status = "§cStopped: the file reached 20 MB";
+        } else if (cfg.isEnabled() && SessionRecorder.failed()) {
+            status = "§cStopped: the session file could not be written";
         } else if (cfg.isEnabled()) {
             status = "§7Starting on the next tick";
         } else {
