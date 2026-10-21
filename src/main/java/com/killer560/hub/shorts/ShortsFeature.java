@@ -483,7 +483,7 @@ public final class ShortsFeature {
                     // Own try/catch for the same reason as the theme above: install the volume hook (page-side
                     // JS, dies with the CDP session same as the emulation) fresh on every (re)connect.
                     try {
-                        installVolumeHookNow(client);
+                        if (ShortsConfig.getInstance().getVolume() >= 0) installVolumeHookNow(client); // -1 = never touch: no in-page observer/poll
                     } catch (Exception e) {
                         LOGGER.warn("[Shorts] Volume hook install on connect failed: {}", e.toString());
                     }
