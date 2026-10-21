@@ -98,6 +98,11 @@ public final class AutoMeowFeature {
         if (!AutoMeowConfig.getInstance().isEnabled() || text.length() > 512) {
             return;
         }
+        // Cheap prefilter: the body is part of the line, so a line without a trigger word cannot trigger, and most
+        // chat lines have none - skip the six whole-line channel patterns for them (and while on cooldown).
+        if (System.currentTimeMillis() - lastReplyAtMs < COOLDOWN_MS || !TRIGGER.matcher(text).find()) {
+            return;
+        }
         reply(classify(text));
     }
 
