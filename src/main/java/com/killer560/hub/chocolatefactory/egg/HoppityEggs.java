@@ -96,7 +96,7 @@ public final class HoppityEggs {
         LocatorGuessRenderer.register();
         net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(ctx -> {
             try {
-                net.minecraft.world.phys.Vec3 g = LocatorTrail.guess(System.currentTimeMillis());
+                net.minecraft.world.phys.Vec3 g = on() ? LocatorTrail.guess(System.currentTimeMillis()) : null;
                 if (g != null) {
                     LocatorGuessRenderer.draw(ctx, g);
                 }
@@ -120,7 +120,11 @@ public final class HoppityEggs {
             return net.minecraft.world.InteractionResult.PASS;
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
-                client -> EggTracker.tick(System.currentTimeMillis()));
+                client -> {
+                    if (on()) {
+                        EggTracker.tick(System.currentTimeMillis());
+                    }
+                });
         ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tick);
         ClientTickEvents.END_CLIENT_TICK.register(EggPositions::tick);
         HudElementRegistry.register(HUD);
@@ -135,20 +139,22 @@ public final class HoppityEggs {
         return status[meal.ordinal()];
     }
 
-    public static int sessionEggs() {
-        return sessionEggs;
-    }
-
-    public static int sessionDupes() {
-        return sessionDupes;
-    }
-
-    public static long sessionDupeChocolate() {
-        return sessionDupeChocolate;
+    /** The helper's master switch: with it off nothing here reads, draws or tracks (it used to run regardless). */
+    private static boolean on() {
+        return ChocolateFactoryConfig.getInstance().isEnabled();
     }
 
     private static void tick(Minecraft client) {
         try {
+            if (!on()) {
+                // Spawns that pass while off are not "seen live": the next enable starts from unknown, not "ready".
+                if (initialised) {
+                    initialised = false;
+                    java.util.Arrays.fill(statusSpawn, 0L);
+                    java.util.Arrays.fill(eggStatusSpawn, 0L);
+                }
+                return;
+            }
             long now = System.currentTimeMillis();
             for (Meal m : Meal.values()) {
                 long spawn = HoppityCalendar.lastSpawn(m, now);
@@ -181,6 +187,9 @@ public final class HoppityEggs {
     }
 
     private static void onChat(Component message) {
+        if (!on()) {
+            return;
+        }
         onChatText(ChatObserver.strip(message));
     }
 
@@ -275,6 +284,10 @@ public final class HoppityEggs {
      * trail's own tick.
      */
     private static void tickLocator(Minecraft client) {
+        if (!on()) {
+            useWasDown = false;
+            return;
+        }
         long now = System.currentTimeMillis();
         boolean down = client.player != null && client.options != null && client.options.keyUse.isDown()
                 && isLocator(client.player.getMainHandItem());
@@ -292,7 +305,7 @@ public final class HoppityEggs {
     /** A use of {@code stack}: when it is the Egglocator and off cooldown (SkyHanni: 5 s since the last), a trail begins. */
     private static void locatorClicked(net.minecraft.world.item.ItemStack stack) {
         long now = System.currentTimeMillis();
-        if (!isLocator(stack) || !SkyblockGate.allows() || now < locatorUsedMs + LOCATOR_COOLDOWN_MS) {
+        if (!on() || !isLocator(stack) || !SkyblockGate.allows() || now < locatorUsedMs + LOCATOR_COOLDOWN_MS) {
             return;
         }
         locatorUsedMs = now;
@@ -419,18 +432,38 @@ public final class HoppityEggs {
             return 120;
         }
 
+        // The lines change by the second at most, but width(), height() and render() each asked for them every frame:
+        // build them (and measure) at most every 100 ms, and at once when the preview flips.
+        private long builtMs;
+        private boolean builtPreview;
+        private List<String> built = List.of();
+        private int builtWidth = 1;
+
+        private List<String> cachedLines() {
+            boolean preview = HudVisibility.editorOpen();
+            long now = System.currentTimeMillis();
+            if (builtMs == 0L || preview != builtPreview || now - builtMs >= 100L || now < builtMs) {
+                built = lines(preview);
+                builtPreview = preview;
+                builtMs = now;
+                int w = 1;
+                for (String line : built) {
+                    w = Math.max(w, Minecraft.getInstance().font.width(line));
+                }
+                builtWidth = w;
+            }
+            return built;
+        }
+
         @Override
         public int width() {
-            int w = 1;
-            for (String line : lines(HudVisibility.editorOpen())) {
-                w = Math.max(w, Minecraft.getInstance().font.width(line));
-            }
-            return w;
+            cachedLines();
+            return builtWidth;
         }
 
         @Override
         public int height() {
-            return com.killer560.hub.hud.HudText.height(Math.max(1, lines(HudVisibility.editorOpen()).size()), 9);
+            return com.killer560.hub.hud.HudText.height(Math.max(1, cachedLines().size()), 9);
         }
 
         @Override
@@ -440,7 +473,7 @@ public final class HoppityEggs {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            List<String> lines = lines(HudVisibility.editorOpen());
+            List<String> lines = cachedLines();
             if (lines.isEmpty()) {
                 return;
             }
