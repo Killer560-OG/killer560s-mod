@@ -207,7 +207,9 @@ public final class TicTacToeSolverFeature {
             reset();
             return;
         }
-        int hash = Arrays.hashCode(board);
+        // Show Prediction is part of the key: switching it on during the computer's turn must compute the square now,
+        // not at the next board change.
+        int hash = Arrays.hashCode(board) * 2 + (TicTacToeSolverConfig.getInstance().isShowPrediction() ? 1 : 0);
         if (hash == lastBoardHash) {
             return;
         }
