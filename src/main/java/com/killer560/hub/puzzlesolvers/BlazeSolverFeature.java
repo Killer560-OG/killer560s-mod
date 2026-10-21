@@ -132,19 +132,27 @@ public final class BlazeSolverFeature {
         if (client.level == null) {
             return;
         }
-        List<Entity> found = new ArrayList<>();
+        // Each stand's name is matched once and its max HP kept with it, so the sort never re-runs the regex.
+        List<Object[]> hits = new ArrayList<>();
         for (Entity entity : client.level.entitiesForRendering()) {
             if (!(entity instanceof ArmorStand)) {
                 continue;
             }
             String name = plainName(entity);
+            if (name.indexOf("Blaze") < 0) {
+                continue;
+            }
             Matcher matcher = BLAZE_NAME.matcher(name);
             if (matcher.matches()) {
-                found.add(entity);
+                hits.add(new Object[] {entity, parseMaxHp(matcher)});
             }
         }
-        Comparator<Entity> byMaxHp = Comparator.comparingLong(BlazeSolverFeature::maxHp);
-        found.sort(lowerRoom ? byMaxHp.reversed() : byMaxHp);
+        Comparator<Object[]> byMaxHp = Comparator.comparingLong(h -> (Long) h[1]);
+        hits.sort(lowerRoom ? byMaxHp.reversed() : byMaxHp);
+        List<Entity> found = new ArrayList<>(hits.size());
+        for (Object[] h : hits) {
+            found.add((Entity) h[0]);
+        }
         orderedBlazes = found;
         logScan(found);
     }
@@ -185,9 +193,10 @@ public final class BlazeSolverFeature {
 
     private static long maxHp(Entity entity) {
         Matcher matcher = BLAZE_NAME.matcher(plainName(entity));
-        if (!matcher.matches()) {
-            return 0;
-        }
+        return matcher.matches() ? parseMaxHp(matcher) : 0;
+    }
+
+    private static long parseMaxHp(Matcher matcher) {
         try {
             return Long.parseLong(matcher.group(1).replace(",", ""));
         } catch (NumberFormatException e) {
