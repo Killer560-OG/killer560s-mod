@@ -10,10 +10,12 @@ import javax.sound.sampled.FloatControl;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,13 +38,24 @@ public final class GifAudioFeature {
     private static final Path CACHE_FOLDER =
             GifPlayerFeature.folder().resolveSibling("killer560smod-gifs-cache");
 
-    /** Filename (as found in the gifs folder, .mp3 included) -> its open, looping Clip. */
-    private static final Map<String, Clip> clips = new LinkedHashMap<>();
+    private record Loaded(Clip clip, long stamp) {
+    }
+
+    /** Filename (as found in the gifs folder, .mp3 included) -> its open, looping Clip and the file it came from. */
+    private static final Map<String, Loaded> clips = new ConcurrentHashMap<>();
+
+    /** Opening a clip (and converting an .mp3 first) reads and decodes the whole file, so it runs here, one reload at a
+     *  time, instead of on the render thread. */
+    private static final ExecutorService LOADER = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-gif-audio");
+        t.setDaemon(true);
+        return t;
+    });
 
     /** Skyblock Only: true while audio is paused because you're outside Skyblock/p3sim. Uses the gate's
      *  location state directly (not {@code SkyblockGate.allows()}) so opening the mod menu elsewhere doesn't
      *  start the loops back up. */
-    private static boolean gateBlocked = false;
+    private static volatile boolean gateBlocked = false;
 
     private static boolean computeGateBlocked() {
         return com.killer560.hub.util.SkyblockGate.isEnabled() && !com.killer560.hub.util.SkyblockGate.isOnSkyblock();
@@ -57,19 +70,30 @@ public final class GifAudioFeature {
         }
         gateBlocked = blocked;
         if (GifPlayerConfig.getInstance().isAudioEnabled()) {
-            for (Clip clip : clips.values()) {
+            for (Loaded l : clips.values()) {
                 if (blocked) {
-                    clip.stop();
+                    l.clip().stop();
                 } else {
-                    clip.loop(Clip.LOOP_CONTINUOUSLY);
+                    l.clip().loop(Clip.LOOP_CONTINUOUSLY);
                 }
             }
         }
     }
 
     /** Re-scans the folder for every supported audio file and syncs {@link #clips} to match which
-     *  ones are currently enabled, converting any .mp3 to a cached .wav first. */
+     *  ones are currently enabled, converting any .mp3 to a cached .wav first. A clip whose file has not changed is
+     *  left playing. Runs on a background thread. */
     public static void reload() {
+        LOADER.execute(() -> {
+            try {
+                reloadNow();
+            } catch (Exception | OutOfMemoryError e) {
+                LOGGER.error("Failed to reload GIF audio", e);
+            }
+        });
+    }
+
+    private static void reloadNow() {
         List<Path> found;
         try (Stream<Path> stream = Files.list(GifPlayerFeature.folder())) {
             found = stream.filter(Files::isRegularFile)
@@ -98,11 +122,16 @@ public final class GifAudioFeature {
                 closeAndRemove(name);
                 continue;
             }
-            loadClip(file, name);
+            long stamp = GifPlayerFeature.fileStamp(file);
+            Loaded current = clips.get(name);
+            if (current != null && current.stamp() == stamp) {
+                continue;
+            }
+            loadClip(file, name, stamp);
         }
     }
 
-    private static void loadClip(Path file, String name) {
+    private static void loadClip(Path file, String name, long stamp) {
         closeAndRemove(name);
         try {
             Path playablePath = name.toLowerCase(Locale.US).endsWith(MP3_EXTENSION)
@@ -111,7 +140,7 @@ public final class GifAudioFeature {
             try (AudioInputStream in = AudioSystem.getAudioInputStream(playablePath.toFile())) {
                 Clip clip = AudioSystem.getClip();
                 clip.open(in);
-                clips.put(name, clip);
+                clips.put(name, new Loaded(clip, stamp));
                 applyVolumeTo(clip);
                 if (GifPlayerConfig.getInstance().isAudioEnabled() && !computeGateBlocked()) {
                     clip.loop(Clip.LOOP_CONTINUOUSLY);
@@ -125,18 +154,18 @@ public final class GifAudioFeature {
 
     /** Starts/stops looping every currently-loaded clip, without re-reading anything from disk. */
     public static void setEnabled(boolean enabled) {
-        for (Clip clip : clips.values()) {
+        for (Loaded l : clips.values()) {
             if (enabled && !computeGateBlocked()) {
-                clip.loop(Clip.LOOP_CONTINUOUSLY);
+                l.clip().loop(Clip.LOOP_CONTINUOUSLY);
             } else {
-                clip.stop();
+                l.clip().stop();
             }
         }
     }
 
     public static void applyVolume() {
-        for (Clip clip : clips.values()) {
-            applyVolumeTo(clip);
+        for (Loaded l : clips.values()) {
+            applyVolumeTo(l.clip());
         }
     }
 
@@ -151,10 +180,10 @@ public final class GifAudioFeature {
     }
 
     private static void closeAndRemove(String name) {
-        Clip clip = clips.remove(name);
-        if (clip != null) {
-            clip.stop();
-            clip.close();
+        Loaded l = clips.remove(name);
+        if (l != null) {
+            l.clip().stop();
+            l.clip().close();
         }
     }
 

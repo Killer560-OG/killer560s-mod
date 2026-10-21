@@ -16,11 +16,15 @@ import com.killer560.hub.util.ModLog;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -56,7 +60,7 @@ public final class GifPlayerFeature {
     /** His own position: 18px down, about 11px in from the right edge. */
     private static final int BUILTIN_DEFAULT_Y = 18;
     private static final int BUILTIN_RIGHT_MARGIN = 11;
-    private static GifDecoder.GifImage builtinDecoded;
+    private static volatile GifDecoder.GifImage builtinDecoded;
 
     /** Filename -> its loaded/playing state. Only present here while enabled and successfully decoded. */
     private static final Map<String, LoadedGif> loaded = new LinkedHashMap<>();
@@ -64,10 +68,32 @@ public final class GifPlayerFeature {
     // register() runs during Fabric client init, before RenderSystem's GPU device exists yet - a
     // real crash seen in the field ("Can't getDevice() before it was initialized"). The first load
     // is deferred to the first actual HUD render call instead, by which point it's always ready.
-    private static boolean initialLoadDone = false;
+    private static boolean audioInitDone = false;
+    /** The GIFs are not decoded until the feature first draws (switch on, Skyblock gate open) or reload() is called. */
+    private static boolean gifsRequested = false;
+
+    /**
+     * Decoding runs here, never on the render thread (a long GIF took a second or more per toggle click). The result
+     * is a plain {@link GifDecoder.GifImage}; the texture and HUD element are made in {@link #drainReady} on the
+     * render thread.
+     */
+    private static final ExecutorService DECODER = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-gif-decode");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private record Decoded(String name, long stamp, GifDecoder.GifImage gif) {
+    }
+
+    private static final ConcurrentLinkedQueue<Decoded> ready = new ConcurrentLinkedQueue<>();
+    /** Name -> stamp of the decode in flight (render thread only). A result that does not match is stale and dropped. */
+    private static final Map<String, Long> pending = new HashMap<>();
 
     private static final class LoadedGif {
         final String elementId;
+        final Identifier textureId;
+        final long stamp;
         GifDecoder.GifImage gif;
         DynamicTexture texture;
         int frameIndex;
@@ -75,8 +101,10 @@ public final class GifPlayerFeature {
         int displayWidth = 128;
         int displayHeight = 128;
 
-        LoadedGif(String elementId) {
+        LoadedGif(String elementId, Identifier textureId, long stamp) {
             this.elementId = elementId;
+            this.textureId = textureId;
+            this.stamp = stamp;
         }
     }
 
@@ -86,7 +114,7 @@ public final class GifPlayerFeature {
         } catch (IOException e) {
             LOGGER.error("Failed to create GIF folder", e);
         }
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("GifPlayerFeature", 
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("GifPlayerFeature",
                 client -> GifAudioFeature.tickSkyblockGate()));
     }
 
@@ -94,11 +122,25 @@ public final class GifPlayerFeature {
         return "gif_player_" + filename;
     }
 
+    /** Size and modification time of a file, so an unchanged one is not decoded or converted again. */
+    static long fileStamp(Path file) {
+        try {
+            return Files.size(file) * 31L + Files.getLastModifiedTime(file).toMillis();
+        } catch (IOException e) {
+            return -1L;
+        }
+    }
+
     /** Re-scans the folder for every .gif and syncs {@link #loaded} to match which ones are
-     *  currently enabled, plus every companion audio file (see {@link GifAudioFeature}). */
+     *  currently enabled, plus every companion audio file (see {@link GifAudioFeature}). A file that is already
+     *  loaded and unchanged is left alone; the rest decode on a background thread and appear when done. */
     public static void reload() {
         GifAudioFeature.reload();
+        loadGifs();
+    }
 
+    private static void loadGifs() {
+        gifsRequested = true;
         List<Path> found;
         try (Stream<Path> stream = Files.list(GIF_FOLDER)) {
             found = stream.filter(Files::isRegularFile)
@@ -111,9 +153,11 @@ public final class GifPlayerFeature {
         }
 
         Set<String> foundNames = found.stream().map(p -> p.getFileName().toString()).collect(Collectors.toSet());
-        for (String loadedName : List.copyOf(loaded.keySet())) {
-            if (!foundNames.contains(loadedName) && !BUILTIN_NAME.equals(loadedName)) {
-                unload(loadedName);
+        Set<String> known = new HashSet<>(loaded.keySet());
+        known.addAll(pending.keySet());
+        for (String knownName : known) {
+            if (!foundNames.contains(knownName) && !BUILTIN_NAME.equals(knownName)) {
+                unload(knownName);
             }
         }
 
@@ -121,20 +165,7 @@ public final class GifPlayerFeature {
         // The built-in only plays when no folder file of the same name exists - that one is loaded below instead.
         if (!foundNames.contains(BUILTIN_NAME)) {
             if (cfg.isGifFileEnabled(BUILTIN_NAME)) {
-                try {
-                    if (builtinDecoded == null) {
-                        try (java.io.InputStream in = GifPlayerFeature.class.getResourceAsStream(BUILTIN_RESOURCE)) {
-                            if (in == null) {
-                                throw new IOException("missing resource " + BUILTIN_RESOURCE);
-                            }
-                            builtinDecoded = GifDecoder.decode(in, BUILTIN_RESOURCE);
-                        }
-                    }
-                    applyGif(BUILTIN_NAME, builtinDecoded);
-                } catch (Exception e) {
-                    LOGGER.error("Failed to load the built-in GIF", e);
-                    unload(BUILTIN_NAME);
-                }
+                request(BUILTIN_NAME, 0L, null);
             } else {
                 unload(BUILTIN_NAME);
             }
@@ -145,32 +176,78 @@ public final class GifPlayerFeature {
                 unload(name);
                 continue;
             }
+            request(name, fileStamp(file), file);
+        }
+    }
+
+    /** Queues a decode unless {@code name} is already loaded (or being decoded) from the same file. {@code file} null = the built-in. */
+    private static void request(String name, long stamp, Path file) {
+        LoadedGif current = loaded.get(name);
+        if (current != null && current.stamp == stamp) {
+            pending.remove(name);
+            return;
+        }
+        Long inFlight = pending.get(name);
+        if (inFlight != null && inFlight == stamp) {
+            return;
+        }
+        pending.put(name, stamp);
+        DECODER.execute(() -> {
+            GifDecoder.GifImage image = null;
             try {
-                GifDecoder.GifImage decoded = GifDecoder.decode(file);
-                applyGif(name, decoded);
-                LOGGER.info("Loaded GIF: {} ({} frames, {}x{})", name, decoded.frames().size(),
-                        decoded.width(), decoded.height());
-            } catch (Exception e) {
+                image = file == null ? decodeBuiltin() : GifDecoder.decode(file);
+            } catch (Exception | OutOfMemoryError e) {
                 LOGGER.error("Failed to load GIF: {}", name, e);
-                unload(name);
+            }
+            ready.add(new Decoded(name, stamp, image));
+        });
+    }
+
+    /** Render thread: turns finished decodes into textures and HUD elements. */
+    private static void drainReady() {
+        Decoded d;
+        while ((d = ready.poll()) != null) {
+            Long inFlight = pending.get(d.name());
+            if (inFlight == null || inFlight != d.stamp()) {
+                continue;
+            }
+            pending.remove(d.name());
+            if (d.gif() == null) {
+                unload(d.name());
+                continue;
+            }
+            try {
+                applyGif(d.name(), d.gif(), d.stamp());
+                LOGGER.info("Loaded GIF: {} ({} frames, {}x{})", d.name(), d.gif().frames().size(),
+                        d.gif().width(), d.gif().height());
+            } catch (Exception e) {
+                LOGGER.error("Failed to load GIF: {}", d.name(), e);
+                unload(d.name());
             }
         }
     }
 
     private static void unload(String name) {
+        pending.remove(name);
+        dropLoaded(name);
+    }
+
+    private static void dropLoaded(String name) {
         LoadedGif existing = loaded.remove(name);
         if (existing != null) {
             if (existing.texture != null) {
-                existing.texture.close();
+                // release closes it and frees the id; closing it alone left a dead texture registered under the id.
+                Minecraft.getInstance().getTextureManager().release(existing.textureId);
             }
             HudElementRegistry.unregister(existing.elementId);
         }
     }
 
-    private static void applyGif(String name, GifDecoder.GifImage decoded) {
-        unload(name);
+    private static void applyGif(String name, GifDecoder.GifImage decoded, long stamp) {
+        dropLoaded(name);
 
-        LoadedGif entry = new LoadedGif(elementId(name));
+        LoadedGif entry = new LoadedGif(elementId(name),
+                Identifier.fromNamespaceAndPath("killer560smod", "gif_player_" + Integer.toHexString(name.hashCode())), stamp);
         entry.gif = decoded;
         entry.frameIndex = 0;
         entry.lastFrameChangeAtMs = System.currentTimeMillis();
@@ -184,12 +261,23 @@ public final class GifPlayerFeature {
         // DynamicTexture's own (Supplier, NativeImage) constructor already creates the GPU texture
         // and calls upload() internally (confirmed via javap) - no need to upload again here.
         entry.texture = new DynamicTexture(() -> "killer560smod gif player: " + name, image);
-        Minecraft.getInstance().getTextureManager().register(
-                Identifier.fromNamespaceAndPath("killer560smod", "gif_player_" + Integer.toHexString(name.hashCode())),
-                entry.texture);
+        Minecraft.getInstance().getTextureManager().register(entry.textureId, entry.texture);
 
         loaded.put(name, entry);
         registerHudElement(name, entry);
+    }
+
+    /** The built-in GIF from the jar, decoded once and kept (DVD shares it through {@link #decodeListed}). */
+    private static synchronized GifDecoder.GifImage decodeBuiltin() throws IOException {
+        if (builtinDecoded == null) {
+            try (java.io.InputStream in = GifPlayerFeature.class.getResourceAsStream(BUILTIN_RESOURCE)) {
+                if (in == null) {
+                    throw new IOException("missing resource " + BUILTIN_RESOURCE);
+                }
+                builtinDecoded = GifDecoder.decode(in, BUILTIN_RESOURCE);
+            }
+        }
+        return builtinDecoded;
     }
 
     private static void registerHudElement(String name, LoadedGif entry) {
@@ -253,18 +341,29 @@ public final class GifPlayerFeature {
 
     /** Called every frame from {@link com.killer560.hub.hud.GuiOverlays}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
-        if (!initialLoadDone) {
-            initialLoadDone = true;
-            reload();
+        if (!audioInitDone) {
+            audioInitDone = true;
+            GifAudioFeature.reload();
+        }
+        if (!ready.isEmpty()) {
+            drainReady();
         }
         // killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont show in the storage or any inventory".
         // The switch first: it is off for nearly everyone, and the container test reads the screen (2026-10-15).
         if (!GifPlayerConfig.getInstance().isEnabled() || com.killer560.hub.hud.GuiOverlays.containerOpen()) {
             return;
         }
+        if (!gifsRequested) {
+            loadGifs();
+        }
+        if (loaded.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        float speed = Math.max(0.1f, GifPlayerConfig.getInstance().getSpeedMultiplier());
         for (Map.Entry<String, LoadedGif> mapEntry : loaded.entrySet()) {
             LoadedGif entry = mapEntry.getValue();
-            advanceFrame(entry);
+            advanceFrame(entry, now, speed);
             // byId, not a Stream: this loop runs for every loaded GIF every frame (2026-09-20, FPS pass).
             HudElement element = HudElementRegistry.byId(entry.elementId);
             if (element == null) {
@@ -283,24 +382,36 @@ public final class GifPlayerFeature {
         }
     }
 
-    private static void advanceFrame(LoadedGif entry) {
+    /** Steps to the frame that is due now and uploads it once, however many frames were skipped. */
+    private static void advanceFrame(LoadedGif entry, long now, float speed) {
         List<GifDecoder.Frame> frames = entry.gif.frames();
-        if (frames.size() <= 1) {
+        int count = frames.size();
+        if (count <= 1) {
             return;
         }
-        float speed = Math.max(0.1f, GifPlayerConfig.getInstance().getSpeedMultiplier());
-        long now = System.currentTimeMillis();
-        int guard = 0;
-        while (guard++ < frames.size()) {
-            long effectiveDelay = Math.round(frames.get(entry.frameIndex).delayMs() / speed);
+        int index = entry.frameIndex;
+        int steps = 0;
+        while (steps < count) {
+            long effectiveDelay = Math.round(frames.get(index).delayMs() / speed);
             if (now - entry.lastFrameChangeAtMs < effectiveDelay) {
                 break;
             }
             entry.lastFrameChangeAtMs += effectiveDelay;
-            entry.frameIndex = (entry.frameIndex + 1) % frames.size();
-            GifTextureUtil.writeFrame(entry.texture.getPixels(), frames.get(entry.frameIndex).argb());
-            entry.texture.upload();
+            index = (index + 1) % count;
+            steps++;
         }
+        if (steps == 0) {
+            return;
+        }
+        if (steps == count) {
+            // A whole loop behind (the GIF was not drawn while a container was open): restart the clock instead of
+            // racing through the next frames to catch up.
+            entry.lastFrameChangeAtMs = now;
+        }
+        entry.frameIndex = index;
+        // Every skipped frame used to be written and uploaded in turn - up to a full loop's worth after closing a chest.
+        GifTextureUtil.writeFrame(entry.texture.getPixels(), frames.get(index).argb());
+        entry.texture.upload();
     }
 
     private static void drawFrame(LoadedGif entry, GuiGraphicsExtractor graphics, int x, int y) {
@@ -354,15 +465,7 @@ public final class GifPlayerFeature {
      */
     public static GifDecoder.GifImage decodeListed(String name) throws IOException {
         if (isBuiltinLoaded(name)) {
-            if (builtinDecoded == null) {
-                try (java.io.InputStream in = GifPlayerFeature.class.getResourceAsStream(BUILTIN_RESOURCE)) {
-                    if (in == null) {
-                        throw new IOException("missing resource " + BUILTIN_RESOURCE);
-                    }
-                    builtinDecoded = GifDecoder.decode(in, BUILTIN_RESOURCE);
-                }
-            }
-            return builtinDecoded;
+            return decodeBuiltin();
         }
         return GifDecoder.decode(GIF_FOLDER.resolve(name));
     }
