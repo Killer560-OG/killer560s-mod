@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.AABB;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -163,14 +162,45 @@ public final class CrushTimer {
                 return "§6Crush: §aREADY" + count;
             }
             String color = left <= cfg.getCrushWarnSeconds() ? "§c" : "§e";
-            return "§6Crush: " + color + String.format(Locale.US, "%.1fs", left) + count;
+            return countdownText(color, left, count);
         }
         long since = lastTriggerMs != 0L ? lastTriggerMs : p2StartMs;
         if (since == 0L) {
             return "§6Crush: §7-" + count;
         }
         double elapsed = (System.currentTimeMillis() - since) / 1000.0;
-        return "§6Crush: §e+" + String.format(Locale.US, "%.1fs", elapsed) + count;
+        return countUpText(elapsed, count);
+    }
+
+    // The HUD asks for this line three times a frame (width, height, draw); the text only changes every tenth of a
+    // second, so the last one is remembered instead of running String.format each time (2026-10-21).
+    private static long cdKey = Long.MIN_VALUE;
+    private static String cdColor = "";
+    private static String cdCount = "";
+    private static String cdText = "";
+    private static long cuKey = Long.MIN_VALUE;
+    private static String cuCount = "";
+    private static String cuText = "";
+
+    private static String countdownText(String color, double left, String count) {
+        long key = Math.round(left * 10.0);
+        if (key != cdKey || !color.equals(cdColor) || !count.equals(cdCount)) {
+            cdText = "§6Crush: " + color + String.format(Locale.US, "%.1fs", left) + count;
+            cdKey = key;
+            cdColor = color;
+            cdCount = count;
+        }
+        return cdText;
+    }
+
+    private static String countUpText(double elapsed, String count) {
+        long key = Math.round(elapsed * 10.0);
+        if (key != cuKey || !count.equals(cuCount)) {
+            cuText = "§6Crush: §e+" + String.format(Locale.US, "%.1fs", elapsed) + count;
+            cuKey = key;
+            cuCount = count;
+        }
+        return cuText;
     }
 
     /** Outlines the pads while you're in P2 (purple only unless "Show All Pads" is on). */
@@ -184,9 +214,8 @@ public final class CrushTimer {
         if (!cfg.isCrushAllPads()) {
             return;
         }
-        for (AABB pad : List.of(GREEN_PAD, YELLOW_PAD)) {
-            WorldRenderUtils.renderOutlineBox(context, pad, c[0], c[1], c[2], 0.7f, 2f);
-        }
+        WorldRenderUtils.renderOutlineBox(context, GREEN_PAD, c[0], c[1], c[2], 0.7f, 2f);
+        WorldRenderUtils.renderOutlineBox(context, YELLOW_PAD, c[0], c[1], c[2], 0.7f, 2f);
     }
 
     /** Chat-driven phase first ({@link Floor7Tracker#getPhase()}), falling back to the y-level phase - same
