@@ -42,7 +42,7 @@ import java.util.Map;
  */
 public final class BoulderSolverFeature {
 
-    private record BoxPosition(AABB render, BlockPos click) {
+    private record BoxPosition(BlockPos click) {
     }
 
     private static final Map<String, List<List<Integer>>> SOLUTIONS = loadSolutions();
@@ -204,9 +204,8 @@ public final class BoulderSolverFeature {
         }
         List<BoxPosition> positions = new ArrayList<>();
         for (List<Integer> sol : solution) {
-            BlockPos render = PuzzleCoords.real(sol.get(0), 65, sol.get(1), cr);
             BlockPos click = PuzzleCoords.real(sol.get(2), 65, sol.get(3), cr);
-            positions.add(new BoxPosition(new AABB(render), click));
+            positions.add(new BoxPosition(click));
         }
         currentPositions = positions;
         StringBuilder clicks = new StringBuilder();

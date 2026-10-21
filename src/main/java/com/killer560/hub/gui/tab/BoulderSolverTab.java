@@ -22,14 +22,14 @@ public class BoulderSolverTab extends BaseTab {
         int y = contentY;
         BoulderSolverConfig cfg = BoulderSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Boulder Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Boulder Solver", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
