@@ -2,7 +2,6 @@ package com.killer560.hub.auction;
 
 import net.minecraft.world.item.ItemStack;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -54,9 +53,10 @@ public record AuctionListing(
         String ultimateEnchantName,
         /** Roman-numeral tier of {@link #ultimateEnchantName}, 0 if none. */
         int ultimateEnchantTier,
-        /** Real, plain (color-stripped) lore lines from the decoded item, for the hover tooltip. Empty
-         *  (never null) for a disk-cache-only listing (lore isn't cached - see {@link AuctionHouseApi}). */
-        List<String> lore,
+        /** True when {@link #icon} is the real item decoded from the listing's own {@code item_bytes}; false for a
+         *  disk-cache-only listing or a failed decode. (This replaced a per-listing copy of the lore text that nothing
+         *  read - the tooltip comes from the icon - and which cost tens of MB across ~43,000 listings.) */
+        boolean decoded,
         ItemStack icon
 ) {
     public boolean isPet() {
@@ -79,6 +79,6 @@ public record AuctionListing(
     /** The same listing with new bid numbers (a rescan of an auction whose item was already decoded). */
     public AuctionListing withBids(long newHighestBid, int newBidCount, long newEnd) {
         return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, bin,
-                newHighestBid, newBidCount, newEnd, petLevel, ultimateEnchantName, ultimateEnchantTier, lore, icon);
+                newHighestBid, newBidCount, newEnd, petLevel, ultimateEnchantName, ultimateEnchantTier, decoded, icon);
     }
 }
