@@ -41,6 +41,9 @@ final class PetWheelEditor {
     private static boolean sentCommand = false;
     private static int targetSlotIndex = -1;
     private static Screen returnParent = null;
+    /** Ticks since the pick's /pets went out; past the expiry with no container screen open, the pick is dropped. */
+    private static int ticksSinceCommand = 0;
+    private static final int COMMAND_EXPIRY_TICKS = 100;
 
     private PetWheelEditor() {
     }
@@ -67,7 +70,15 @@ final class PetWheelEditor {
     }
 
     private static void tick(Minecraft client) {
-        if (!armed || sentCommand) {
+        if (!armed) {
+            return;
+        }
+        if (sentCommand) {
+            // /pets never opened (not on Skyblock, command swallowed): without this the pick stayed armed, and the
+            // next /pets the player opened himself had his first pet click cancelled and written into the wheel.
+            if (++ticksSinceCommand > COMMAND_EXPIRY_TICKS && !(McCompat.screen(client) instanceof AbstractContainerScreen<?>)) {
+                reopenEditScreen();
+            }
             return;
         }
         if (McCompat.screen(client) != null) {
@@ -83,6 +94,7 @@ final class PetWheelEditor {
         }
         player.connection.sendCommand("pets");
         sentCommand = true;
+        ticksSinceCommand = 0;
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int w, int h) {
