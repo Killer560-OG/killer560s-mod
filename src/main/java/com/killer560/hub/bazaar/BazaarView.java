@@ -119,7 +119,24 @@ public final class BazaarView {
     }
 
     private static final List<Hot> HOTS = new ArrayList<>();
-    private static final List<String> LAYOUT = new ArrayList<>();
+    /** One line of the layout report, kept as fields: the text is built only when the testkit asks ({@link #line}), not
+     *  on every frame. */
+    private record Lay(String kind, String name, int a, int b, int x, int y, int w, int h, String label) {
+        String line() {
+            return switch (kind) {
+                case "region" -> "region " + name + " " + x + " " + y + " " + w + " " + h;
+                case "widget" -> "widget " + name + " " + x + " " + y + " " + w + " " + h;
+                case "text" -> "text " + name + " " + x + " " + y + " "
+                        + (w >= 0 ? w : Minecraft.getInstance().font.width(label)) + " 8 " + label;
+                case "inv" -> "inv " + a + " " + x + " " + y + " " + w + " " + h + " " + b + " " + label;
+                case "slot" -> "hotspot " + a + " " + x + " " + y + " " + w + " " + h + " " + name.replace(' ', '_') + " "
+                        + label;
+                default -> "hotspot " + name.replace(' ', '_') + " " + x + " " + y + " " + w + " " + h + " " + label;
+            };
+        }
+    }
+
+    private static final List<Lay> LAYOUT = new ArrayList<>();
     private static String summary = "";
     private static int contentItems;
     private static int searchX, searchY, searchW, searchH;
@@ -276,7 +293,9 @@ public final class BazaarView {
         drawBottom(px + pad, bottomY, panelW - 2 * pad, bottomH, cp);
 
         summary = shown + " " + content + (frozen ? " frozen" : "") + " items=" + contentItems;
-        BazaarHud.recordFrame(host + " " + summary);
+        if (BazaarHud.recording()) {
+            BazaarHud.recordFrame(host + " " + summary);
+        }
         if (!frozen) {
             // The tooltip is drawn after the host's pose is popped (the reskin scales its own drawing), so it is placed
             // in the host's unscaled coordinates.
@@ -393,12 +412,19 @@ public final class BazaarView {
         text("header", fit(crumb, right - infoW - 10 - bx), bx, y + 2, t.text());
     }
 
+    private static int productsLabelN = -1;
+    private static String productsLabel = "";
+
     private static String infoLine() {
         int n = BazaarApi.getProducts().size();
         if (n == 0) {
             return BazaarApi.isRefreshing() ? "Fetching prices..." : "No price data yet";
         }
-        String base = String.format(Locale.US, "%,d products", n);
+        if (n != productsLabelN) { // drawn every frame: formatted once per count
+            productsLabelN = n;
+            productsLabel = String.format(Locale.US, "%,d products", n);
+        }
+        String base = productsLabel;
         if (BazaarApi.isRefreshing()) {
             return base + " · refreshing...";
         }
@@ -521,7 +547,7 @@ public final class BazaarView {
             g.fill(searchX, searchY, searchX + searchW, searchY + searchH, t.listBg());
             g.outline(searchX, searchY, searchW, searchH, searchFocused ? t.accent() : hover ? t.accent() : t.border());
         }
-        LAYOUT.add("widget search " + searchX + " " + searchY + " " + searchW + " " + searchH);
+        LAYOUT.add(new Lay("widget", "search", 0, 0, searchX, searchY, searchW, searchH, ""));
         int tx = searchX + 5;
         int room = searchW - 10;
         if (query.isEmpty() && !searchFocused) {
@@ -638,7 +664,7 @@ public final class BazaarView {
             int sy = gy + row * cell + (row == 3 ? 3 : 0);
             g.fill(sx, sy, sx + cell - 1, sy + cell - 1, t.rowHover()); // one fill a slot (docs/LESSONS-GUI.md)
             ItemStack stack = sl.stack();
-            String id = stack.isEmpty() ? null : productIdOf(stack);
+            String id = stack.isEmpty() ? null : cachedProductId(sl.index(), stack);
             int ix = sx + (cell - 1 - 16) / 2;
             int iy = sy + (cell - 1 - 16) / 2;
             if (!stack.isEmpty()) {
@@ -648,8 +674,8 @@ public final class BazaarView {
                     g.fill(sx, sy, sx + cell - 1, sy + cell - 1, t.light() ? 0xB0E8E8E8 : 0xB0000000);
                 }
             }
-            LAYOUT.add("inv " + sl.index() + " " + sx + " " + sy + " " + (cell - 1) + " " + (cell - 1) + " "
-                    + sl.containerSlot() + " " + (stack.isEmpty() ? "empty" : id == null ? "none" : id));
+            LAYOUT.add(new Lay("inv", "", sl.index(), sl.containerSlot(), sx, sy, cell - 1, cell - 1,
+                    stack.isEmpty() ? "empty" : id == null ? "none" : id));
             if (stack.isEmpty() || id == null) {
                 continue;
             }
@@ -660,10 +686,10 @@ public final class BazaarView {
             }
             String productId = id;
             if (sl.containerSlot() >= 0) {
-                HOTS.add(new Hot(sx, sy, cell - 1, cell - 1, "inv:" + sl.index(), sl.containerSlot(), stack.copy(), null,
-                        BazaarFormat.displayName(id)));
-                LAYOUT.add("hotspot " + sl.containerSlot() + " " + sx + " " + sy + " " + (cell - 1) + " " + (cell - 1)
-                        + " inv:" + sl.index() + " " + BazaarFormat.displayName(id));
+                String invKey = "inv:" + sl.index();
+                String invName = BazaarFormat.displayName(id);
+                HOTS.add(new Hot(sx, sy, cell - 1, cell - 1, invKey, sl.containerSlot(), stack.copy(), null, invName));
+                LAYOUT.add(new Lay("slot", invKey, sl.containerSlot(), 0, sx, sy, cell - 1, cell - 1, invName));
             } else if (!frozen) {
                 actionHot("inv:" + sl.index(), sx, sy, cell - 1, cell - 1, BazaarFormat.displayName(id),
                         () -> openProduct(productId));
@@ -691,6 +717,31 @@ public final class BazaarView {
             out.add(new InvSlot(i, player.getInventory().getItem(invSlot), -1));
         }
         return out;
+    }
+
+    private static final ItemStack[] INV_STACKS = new ItemStack[36];
+    private static final String[] INV_IDS = new String[36];
+    private static List<BazaarProduct> invSource;
+    private static boolean invCatalogLoaded;
+
+    /** {@link #productIdOf} for inventory slot {@code index}, kept while the slot holds the same stack object and the
+     *  product list has not been replaced: it reads NBT and looks names up, 36 times a frame otherwise. */
+    private static String cachedProductId(int index, ItemStack stack) {
+        List<BazaarProduct> source = BazaarApi.peekProducts();
+        boolean loaded = BazaarCatalog.isLoaded();
+        if (source != invSource || loaded != invCatalogLoaded) {
+            java.util.Arrays.fill(INV_STACKS, null);
+            invSource = source;
+            invCatalogLoaded = loaded;
+        }
+        if (index < 0 || index >= INV_STACKS.length) {
+            return productIdOf(stack);
+        }
+        if (INV_STACKS[index] != stack) {
+            INV_STACKS[index] = stack;
+            INV_IDS[index] = productIdOf(stack);
+        }
+        return INV_IDS[index];
     }
 
     /** The Bazaar product an item is: its SkyBlock id when the Bazaar sells that id, else its name; null when neither. */
@@ -809,6 +860,9 @@ public final class BazaarView {
     private static List<BazaarProduct> rowsSource;
     private static String rowsKey = "";
     private static List<Row> rows = List.of();
+    /** Product rows and total pixel height of {@link #rows}, counted when it is built, not every frame. */
+    private static long rowsProducts;
+    private static int rowsHeight;
 
     private static List<Row> browseRows() {
         List<BazaarProduct> source = BazaarApi.getProducts();
@@ -863,6 +917,16 @@ public final class BazaarView {
             }
         }
         rows = out;
+        long count = 0;
+        int height = 0;
+        for (Row r : out) {
+            if (r.product() != null) {
+                count++;
+            }
+            height += r.product() == null ? GROUP_H : ROW_H;
+        }
+        rowsProducts = count;
+        rowsHeight = height;
         return rows;
     }
 
@@ -934,7 +998,7 @@ public final class BazaarView {
         int headY = y + 5;
         region("list-head", x + 1, headY - 1, w - 2, 10);
         List<Row> list = browseRows();
-        long products = list.stream().filter(r -> r.product() != null).count();
+        long products = rowsProducts;
         String head = query.isBlank() ? tab + " · " + products + " products"
                 : products + (products == 1 ? " result" : " results");
         text("list-head", fit(head, c.nameRight() - x - 8), x + 6, headY, t.dim());
@@ -959,10 +1023,7 @@ public final class BazaarView {
             contentItems++;
             return;
         }
-        int contentHeight = 0;
-        for (Row r : list) {
-            contentHeight += r.product() == null ? GROUP_H : ROW_H;
-        }
+        int contentHeight = rowsHeight;
         int maxScroll = Math.max(0, contentHeight - (bottom - top));
         listScroll = Math.max(0, Math.min(listScroll, maxScroll));
         g.enableScissor(x + 1, top, x + w - 1, bottom);
@@ -1808,7 +1869,7 @@ public final class BazaarView {
         if (record) {
             int w = font.width(seq);
             if (w > 0) {
-                LAYOUT.add("text " + region + " " + x + " " + y + " " + w + " 8 " + plain(seq));
+                LAYOUT.add(new Lay("text", region, 0, 0, x, y, w, 8, plain(seq)));
             }
         }
     }
@@ -1839,22 +1900,21 @@ public final class BazaarView {
             return;
         }
         g.text(font, s, x, y, color, false);
-        LAYOUT.add("text " + region + " " + x + " " + y + " " + font.width(s) + " 8 " + s);
+        LAYOUT.add(new Lay("text", region, 0, 0, x, y, -1, 8, s)); // width measured when the report is read
     }
 
     private static void region(String name, int x, int y, int w, int h) {
-        LAYOUT.add("region " + name + " " + x + " " + y + " " + w + " " + h);
+        LAYOUT.add(new Lay("region", name, 0, 0, x, y, w, h, ""));
     }
 
     private static void slotHot(String key, int x, int y, int w, int h, BazaarPages.Item it, ItemStack stack) {
         HOTS.add(new Hot(x, y, w, h, key, it.slot(), stack.copy(), null, it.name()));
-        LAYOUT.add("hotspot " + it.slot() + " " + x + " " + y + " " + w + " " + h + " " + key.replace(' ', '_') + " "
-                + it.name());
+        LAYOUT.add(new Lay("slot", key, it.slot(), 0, x, y, w, h, it.name()));
     }
 
     private static void actionHot(String key, int x, int y, int w, int h, String label, Runnable action) {
         HOTS.add(new Hot(x, y, w, h, key, -1, ItemStack.EMPTY, action, label));
-        LAYOUT.add("hotspot " + key.replace(' ', '_') + " " + x + " " + y + " " + w + " " + h + " " + label);
+        LAYOUT.add(new Lay("action", key, 0, 0, x, y, w, h, label));
     }
 
     private static String fit(String s, int width) {
@@ -1881,7 +1941,11 @@ public final class BazaarView {
      * starts with its key, e.g. {@code back Go Back}), {@code widget search x y w h}.
      */
     public static List<String> layoutReportForTest() {
-        return List.copyOf(LAYOUT);
+        List<String> out = new ArrayList<>(LAYOUT.size());
+        for (Lay l : LAYOUT) {
+            out.add(l.line());
+        }
+        return out;
     }
 
     public static String frameSummaryForTest() {
