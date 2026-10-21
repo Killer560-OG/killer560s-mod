@@ -87,9 +87,13 @@ public final class ClickSounds {
     /** Imported files by the key their Sound location carries (an Identifier cannot hold spaces or capitals). */
     private static final Map<String, Path> IMPORT_KEYS = new ConcurrentHashMap<>();
 
+    /** {@link #lastPlayedId()} after a click the Sound Effects tab silenced. */
+    public static final String SILENT_ID = "silent";
+
     private static volatile String lastPlayedId = "";
     private static volatile int played;
     private static volatile int replaced;
+    private static volatile int silentClicks;
 
     private ClickSounds() {
     }
@@ -185,7 +189,7 @@ public final class ClickSounds {
         }
         boolean positional = at != null && at.getAttenuation() != SoundInstance.Attenuation.NONE && !at.isRelative();
         SoundSource source = at == null ? SoundSource.MASTER : at.getSource();
-        float pitch = at == null ? 1.0f : at.getPitch();
+        float pitch = at == null ? 1.0f : pitchOf(at);
         if (id.startsWith(IMPORT_PREFIX)) {
             String name = id.substring(IMPORT_PREFIX.length());
             Path dir = importDir().normalize();
@@ -210,6 +214,41 @@ public final class ClickSounds {
         return null;
     }
 
+    /**
+     * {@code at}'s pitch. A sound the game has just handed {@code SoundManager.play} is not resolved yet, and its
+     * {@code getPitch()} throws on the null sound - which made every Sound Effect fall back to the game's sound until
+     * 2026-10-20 - so an unresolved one plays at 1.0.
+     */
+    private static float pitchOf(SoundInstance at) {
+        try {
+            return at.getPitch();
+        } catch (RuntimeException e) {
+            return 1.0f;
+        }
+    }
+
+    /**
+     * Whether {@code id} can be played: Default always; a preset when the loaded resources have its sound event (a
+     * resource pack or a broken jar can leave it out); an import while its file is still in {@link #importDir()}.
+     */
+    public static boolean available(String id, SoundManager sounds) {
+        if (id == null || DEFAULT_ID.equals(id)) {
+            return true;
+        }
+        if (id.startsWith(IMPORT_PREFIX)) {
+            String name = id.substring(IMPORT_PREFIX.length());
+            Path dir = importDir().normalize();
+            Path file = dir.resolve(name).normalize();
+            return dir.equals(file.getParent()) && Files.isRegularFile(file);
+        }
+        for (Preset p : PRESETS) {
+            if (p.id().equals(id)) {
+                return sounds == null || sounds.getSoundEvent(p.event().location()) != null;
+            }
+        }
+        return false;
+    }
+
     /** The file an imported sound's key names (read by the buffer mixin), or null. */
     static Path fileForKey(String key) {
         return IMPORT_KEYS.get(key);
@@ -232,7 +271,8 @@ public final class ClickSounds {
      * sound, a sound effect is handed on to {@link SoundEffects}, anything else comes back untouched. It applies on every
      * screen (killer560, 2026-10-18: "the click sounds if on should work for all menus regardless"). Above 100% the click
      * is played in layers - the sound engine clamps one instance's gain to 1.0, so 300% is three copies playing together
-     * (each source adds to the mix).
+     * (each source adds to the mix). Null means play nothing: the hook then drops {@code in} and plays no sound in its
+     * place. Anything other than {@code in} is played INSTEAD of it; {@code in} itself never reaches the engine then.
      */
     public static SoundInstance replace(SoundInstance in) {
         if (in == null || layering) {
@@ -241,9 +281,12 @@ public final class ClickSounds {
         if (!VANILLA_CLICK_ID.equals(in.getIdentifier())) {
             return SoundEffects.replace(in);
         }
-        // On the Sound Effects tab the menu click is silent, so the sound you pick is the one you hear.
+        // On the Sound Effects tab the menu click is silent, so the sound you pick is the one you hear. Null: the play
+        // hook drops the click and plays nothing.
         if (onSoundEffectsTab()) {
-            return SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, 0.0f);
+            lastPlayedId = SILENT_ID;
+            silentClicks++;
+            return null;
         }
         SoundInstance out = in;
         try {
@@ -490,9 +533,22 @@ public final class ClickSounds {
         }
     }
 
-    /** The id of the last button-click sound handed to the engine (testkit evidence), "" before any. */
+    /**
+     * The id of the last sound this hook handed the engine for a button click or a replaced Sound Effect (testkit
+     * evidence): the chosen sound's id, {@link #SILENT_ID} for a click silenced on the Sound Effects tab, "" before any.
+     */
     public static String lastPlayedId() {
         return lastPlayedId;
+    }
+
+    /** A replaced Sound Effect records the sound it played here too. */
+    static void recordPlayed(String id) {
+        lastPlayedId = id;
+    }
+
+    /** Button clicks silenced because the Sound Effects tab was open (testkit evidence). */
+    public static int silentClicks() {
+        return silentClicks;
     }
 
     /** Button clicks seen by {@link #replace}. */

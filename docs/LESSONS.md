@@ -507,3 +507,7 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   BatLog's first sim run summed those steps and read 0.53-0.84 b/t for a bat flying 1.02, and "curved" for straight shots
   (2026-10-20). Keep the last target yourself, sample only new positions, and fit speed over them (`autoclear/BatLog`).
 - **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another recording (3:59 against Spotify's 4:06) whose line times were all wrong. Lyrics are matched by title, artist containment and Spotify's length within 2 s (`LyricsEngine.pickVersion`, plus lrclib's `/api/get` with the duration); the length and position come from `spotify/SpotifyMediaSession`, a PowerShell reader of the System Media Transport Controls, because the window title has no clock.
+- **The instance `SoundManager.play` is handed is not resolved yet, so its `getPitch()` and `getVolume()` throw** (null
+  `Sound`, javap 26.1.2). Sound Effects read `at.getPitch()` there, the catch handed back the game's sound, and no effect ever
+  played (2026-10-20). Call `resolve(soundManager)` on it first, or read neither. Proof that a swap reached the engine: a
+  `SoundEventListener` (testkit 99-sim-sound-effects) is told before the muted client's zero-volume skip.
