@@ -53,14 +53,18 @@ public final class BazaarAdvisorFeature {
             if (!BazaarAdvisorConfig.getInstance().isEnabled() || !(McCompat.screen(client) instanceof AbstractContainerScreen<?> screen)) {
                 return;
             }
-            if (screen == advisedScreen || !BazaarFlipMenus.titleOf(screen).startsWith("Bazaar")) {
+            if (screen == advisedScreen) {
                 return;
             }
+            // Marked before the title read and the advice, so a screen is looked at once: a non-Bazaar chest costs one
+            // title read, not one per tick, and a read that throws cannot repeat (and spam chat) every tick.
             advisedScreen = screen;
+            if (!BazaarFlipMenus.titleOf(screen).startsWith("Bazaar")) {
+                return;
+            }
             advise(screen.getMenu());
         } catch (RuntimeException e) {
             // A bad read must never stop the game's tick; the advisor just says nothing for this menu.
-            advisedScreen = null;
         }
     }
 
