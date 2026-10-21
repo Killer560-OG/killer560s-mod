@@ -1,11 +1,15 @@
 package com.killer560.hub.menuthemes;
 
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.MenuConfig;
+import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.MenuTheme;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
+import com.killer560.hub.gui.tab.MenuThemeTab;
 import com.killer560.hub.mainmenu.MainMenuLook;
+import com.killer560.hub.util.ExternalOpen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -94,7 +98,61 @@ public final class ThemeExtrasSettings {
         widgets.add(new StringWidget(x, y, w, 12, Component.literal("§7Used while the mod menu's theme is "
                 + editing().label + "; Font Applies To and Font Size stay as set above."), font));
         y += 16;
+
+        // ---- Theme Background ----
+        widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Theme Background", false), font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.cycling(backgroundText(), (btn, dir) -> {
+                    stepBackground(dir);
+                    btn.setMessage(backgroundText());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
+        int half = (w - 4) / 2;
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Import Background"), btn -> {
+                    MenuTheme theme = editing();
+                    ThemeBackgrounds.importClipboardAsync(Minecraft.getInstance().keyboardHandler.getClipboard(),
+                            id -> Minecraft.getInstance().execute(() -> {
+                                if (id != null) {
+                                    ThemeExtrasConfig c = ThemeExtrasConfig.getInstance();
+                                    c.setBackground(theme, id);
+                                    c.save();
+                                }
+                                rebuildIfOpen(requestRebuild);
+                            }));
+                    requestRebuild.run(); // shows "Importing..."
+                }).bounds(x, y, half, 18).build());
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Open Backgrounds Folder"), btn -> {
+                    try {
+                        ExternalOpen.path(ThemeBackgrounds.folder());
+                    } catch (Exception ignored) {
+                    }
+                }).bounds(x + w - half, y, half, 18).build());
+        y += 22;
+        String bgStatus = ThemeBackgrounds.lastImport();
+        widgets.add(new StringWidget(x, y, w, 12, Component.literal(bgStatus != null ? bgStatus
+                : "§7Copy a video or GIF's path (Shift + right click, Copy as path), then Import Background."), font));
+        y += 16;
         return y;
+    }
+
+    /** Rebuilds the Menu Theme tab if it is still the open page (an import finished after he moved on: nothing to do). */
+    static void rebuildIfOpen(Runnable requestRebuild) {
+        Minecraft mc = Minecraft.getInstance();
+        if (McCompat.screen(mc) instanceof ModScreen menu && menu.openFeature() instanceof MenuThemeTab) {
+            requestRebuild.run();
+        }
+    }
+
+    /** The theme's next (+1) or previous (-1) background, saved. */
+    public static void stepBackground(int dir) {
+        ThemeExtrasConfig c = ThemeExtrasConfig.getInstance();
+        MenuTheme t = editing();
+        c.setBackground(t, ThemeBackgrounds.step(c.getBackground(t), dir));
+        c.save();
+    }
+
+    static Component backgroundText() {
+        return Component.literal("Theme Background: " + ThemeBackgrounds.label(ThemeExtrasConfig.getInstance().getBackground(editing())));
     }
 
     static Component fontText() {

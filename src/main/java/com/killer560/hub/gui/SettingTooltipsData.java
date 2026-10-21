@@ -131,6 +131,9 @@ final class SettingTooltipsData {
         d.put("menu theme/music", "This theme's track: its own loop, Off, or any of the bundled loops. Left click goes to the next, right click back.");
         d.put("menu theme/music volume", "How loud theme music plays, 0% to 100%. This is its own volume, not Minecraft's Music slider.");
         d.put("menu theme/theme font", "The font this theme brings: Keep Current leaves the Font setting as it is; any other font is used while the mod menu is in this theme. Left click goes to the next, right click back.");
+        d.put("menu theme/theme background", "This theme's main menu background: Theme Scene (its own animated picture) or a video or GIF you imported. Left click goes to the next, right click back.");
+        d.put("menu theme/import background", "Imports the video or GIF whose path is on the clipboard (Shift + right click the file, Copy as path) and sets it as this theme's background. A GIF is used as it is; a video needs ffmpeg and keeps its first minute.");
+        d.put("menu theme/open backgrounds folder", "Opens the folder imported backgrounds live in.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colours"
                     + " back to the " + preset + " preset it was started from.");

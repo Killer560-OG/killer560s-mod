@@ -22,7 +22,7 @@ import java.util.Map;
  * {@code ProfileManager.reloadAllConfigs}. Everything here is off or "none" until he picks it, so a theme with nothing set
  * looks and sounds exactly as it did before.
  * <p>Per theme ({@link MenuTheme}, Custom included): the music track ({@link ThemeMusic}) and the font
- * ({@link ThemeFonts}). Shared: the Theme Music switch
+ * ({@link ThemeFonts}) and the main menu background ({@link ThemeBackgrounds}). Shared: the Theme Music switch
  * (default OFF) and its volume.
  */
 public final class ThemeExtrasConfig {
@@ -51,6 +51,8 @@ public final class ThemeExtrasConfig {
         String music = MUSIC_THEME;
         /** {@link #FONT_KEEP} or a {@code FontChoices} id ({@code minecraft}, {@code bundled:lato}, {@code file:X.ttf}). */
         String font = FONT_KEEP;
+        /** {@link ThemeBackgrounds#NONE} (the theme's own scene) or an imported background's id. */
+        String background = ThemeBackgrounds.NONE;
     }
 
     private boolean musicOn = false;
@@ -90,6 +92,7 @@ public final class ThemeExtrasConfig {
                         Entry entry = cfg.themes.get(t);
                         entry.music = clean(ConfigJson.getString(o, "music", entry.music), MUSIC_THEME);
                         entry.font = clean(ConfigJson.getString(o, "font", entry.font), FONT_KEEP);
+                        entry.background = clean(ConfigJson.getString(o, "background", entry.background), ThemeBackgrounds.NONE);
                     }
                 }
             }
@@ -111,6 +114,7 @@ public final class ThemeExtrasConfig {
                 JsonObject o = new JsonObject();
                 o.addProperty("music", e.getValue().music);
                 o.addProperty("font", e.getValue().font);
+                o.addProperty("background", e.getValue().background);
                 all.add(e.getKey().name(), o);
             }
             obj.add("themes", all);
@@ -199,6 +203,21 @@ public final class ThemeExtrasConfig {
         Entry e = entry(theme);
         if (!next.equals(e.font)) {
             e.font = next;
+            version++;
+        }
+    }
+
+    // ---------------------------------------------------------------- main menu background
+
+    public String getBackground(MenuTheme theme) {
+        return entry(theme).background;
+    }
+
+    public void setBackground(MenuTheme theme, String id) {
+        String next = clean(id, ThemeBackgrounds.NONE);
+        Entry e = entry(theme);
+        if (!next.equals(e.background)) {
+            e.background = next;
             version++;
         }
     }
