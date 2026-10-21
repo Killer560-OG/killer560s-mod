@@ -135,6 +135,28 @@ public final class ModChatFeature {
         return send(line);
     }
 
+    /** The relay stamps the sender from a verified login, but a name is still checked before it is shown or acted on. */
+    private static final java.util.regex.Pattern SENDER = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,16}");
+    /** Longest received line kept; the sending side caps at 512 too (RelayClient.MAX_CHAT_CHARS). */
+    private static final int MAX_RECEIVED_CHARS = 512;
+
+    /** Received text made safe to print: capped, and without section signs or control characters (formatting injection,
+     *  fake line breaks). */
+    static String clean(String s, int max) {
+        if (s == null) {
+            return "";
+        }
+        int n = Math.min(s.length(), max);
+        StringBuilder out = new StringBuilder(n);
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (c >= 0x20 && c != 0x7F && c != '§') {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     /** Shows a received whisper if it is to or from this player; any other whisper is dropped on the floor. */
     private static void handleWhisper(String from, String message) {
         String body = message.substring(WHISPER_PREFIX.length());
@@ -143,8 +165,8 @@ public final class ModChatFeature {
             return;
         }
         String target = body.substring(0, sep);
-        String text = body.substring(sep + 1);
-        if (!WHISPER_TARGET.matcher(target).matches() || text.isEmpty()) {
+        String text = clean(body.substring(sep + 1), MAX_RECEIVED_CHARS);
+        if (!WHISPER_TARGET.matcher(target).matches() || text.isBlank()) {
             return;
         }
         if (isSelf(from)) {
@@ -173,18 +195,25 @@ public final class ModChatFeature {
     private static final class Listener implements RelayListener {
 
         @Override
-        public void onChat(String from, String message) {
-            if (message == null || message.isBlank()) {
+        public void onChat(String from, String rawMessage) {
+            if (rawMessage == null || rawMessage.isBlank() || from == null || !SENDER.matcher(from).matches()) {
                 return;
             }
+            // Hostile input: bounded, and stripped of section signs / control characters so a sender cannot colour or
+            // fake chat lines. The whisper marker (a control character) is tested on the raw text first.
+            boolean whisper = rawMessage.startsWith(WHISPER_PREFIX);
             Minecraft.getInstance().execute(() -> {
                 ModChatConfig cfg = ModChatConfig.getInstance();
                 if (!cfg.isEnabled()) {
                     return;
                 }
-                if (message.startsWith(WHISPER_PREFIX)) {
-                    handleWhisper(from, message);
+                if (whisper) {
+                    handleWhisper(from, rawMessage);
                     return; // a whisper is never shown to anyone else, and never reaches the party or meow listeners
+                }
+                String message = clean(rawMessage, MAX_RECEIVED_CHARS);
+                if (message.isBlank()) {
+                    return;
                 }
                 if (cfg.isLogToChat()) {
                     // The relay echoes your own line back; in chat that echo IS the record of what you said, the
@@ -210,7 +239,7 @@ public final class ModChatFeature {
                 }
                 // Exactly one line per outage (RelayClient only calls this once), then silence while it retries.
                 ModChat.send("ModChat", ModChat.bad("Relay unavailable"),
-                        ModChat.dim(" (" + reason + "). Messages will not send until it is back."));
+                        ModChat.dim(" (" + clean(reason, 120) + "). Messages will not send until it is back."));
             });
         }
     }
