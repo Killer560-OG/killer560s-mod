@@ -245,6 +245,8 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     /** Solver result for the current cells; null after any change to them. */
     private Map<Integer, TerminalSolverFeature.SlotHighlight> cachedHighlights;
+    /** The cell list {@link #cachedHighlights} was worked out for. */
+    private List<ItemStack> cachedFor;
 
     private int gridOriginX;
     private int gridOriginY;
@@ -365,9 +367,11 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
      *  (the overlay and Auto Terminals both read it). */
     private Map<Integer, TerminalSolverFeature.SlotHighlight> highlights() {
         Map<Integer, TerminalSolverFeature.SlotHighlight> result = cachedHighlights;
-        if (result == null) {
+        // Melody swaps in a new cell list every step without a click: a different list is a different board.
+        if (result == null || cachedFor != cells) {
             result = TerminalSolverFeature.solve(type, syntheticTitle(), cells);
             cachedHighlights = result;
+            cachedFor = cells;
         }
         return result;
     }
