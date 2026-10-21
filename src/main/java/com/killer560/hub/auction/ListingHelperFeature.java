@@ -147,7 +147,25 @@ public final class ListingHelperFeature {
     private record Match(AuctionListing listing, int similarityPercent) {
     }
 
+    /** The last answer of {@link #bestMatch}: render asks every frame, and the answer only changes with the listed stack
+     *  or a finished scan (a new listings list), so a frame does not re-walk ~43,000 listings and copy their tags. */
+    private static ItemStack matchedFor;
+    private static List<AuctionListing> matchedSource;
+    private static Match matchedBest;
+
     private static Match bestMatch(ItemStack listed) {
+        List<AuctionListing> source = AuctionHouseApi.getListings();
+        if (listed == matchedFor && source == matchedSource) {
+            return matchedBest;
+        }
+        Match best = computeBestMatch(listed, source);
+        matchedFor = listed;
+        matchedSource = source;
+        matchedBest = best;
+        return best;
+    }
+
+    private static Match computeBestMatch(ItemStack listed, List<AuctionListing> source) {
         String id = LegacyItems.skyblockId(listed);
         if (id.isEmpty()) {
             return null;
@@ -159,7 +177,7 @@ public final class ListingHelperFeature {
         int enchantCount = extra.getCompoundOrEmpty("enchantments").size();
 
         List<Match> candidates = new ArrayList<>();
-        for (AuctionListing l : AuctionHouseApi.getListings()) {
+        for (AuctionListing l : source) {
             if (!id.equals(l.skyblockId())) {
                 continue;
             }
