@@ -46,8 +46,9 @@ final class PartyLeaderTracker {
     private PartyLeaderTracker() {
     }
 
-    /** {@code plain} is a stripped, trimmed line that really arrived from the server. */
-    static void onServerLine(String plain) {
+    /** {@code plain} is a stripped, trimmed line that really arrived from the server. Returns true when it was a
+     *  line that clears the party (left, kicked, disbanded). */
+    static boolean onServerLine(String plain) {
         Matcher m;
         if ((m = YOU_JOINED.matcher(plain)).matches()
                 || (m = TRANSFER_LEAVE.matcher(plain)).matches()
@@ -56,35 +57,32 @@ final class PartyLeaderTracker {
                 || (m = LEADER_REJOINED.matcher(plain)).matches()
                 || (m = LEADER_LIST.matcher(plain)).find()) {
             leader = m.group(1);
-            return;
+            return false;
         }
         if ((m = PROMOTED.matcher(plain)).matches()) {
             leader = m.group(2);
-            return;
+            return false;
         }
         if ((m = INVITE.matcher(plain)).matches()) {
             if (leader == null) {
                 leader = m.group(1);
             }
-            return;
+            return false;
         }
         for (Pattern p : CLEARED) {
             if (p.matcher(plain).matches()) {
                 leader = null;
-                return;
-            }
-        }
-    }
-
-    /** True for the lines that mean this client is no longer in the party it was in (left, kicked, disbanded).
-     *  {@link PartyCommandsFeature} uses it to drop anything it had queued for that party. */
-    static boolean clearsParty(String plain) {
-        for (Pattern p : CLEARED) {
-            if (p.matcher(plain).matches()) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Forget the leader (new connection, or lines were not being read), so a stale name never blocks commands. */
+    static void resetIfSet() {
+        if (leader != null) {
+            leader = null;
+        }
     }
 
     /** @return the known leader, or null when unknown / not in a party. */

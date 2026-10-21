@@ -11,6 +11,7 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ServerCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -117,6 +118,9 @@ public final class PartyCommandsFeature {
         registered = true;
         CommandChatListener.register();
         InfoReplies.register();
+        // A new connection has no known party leader (a volatile write, safe on the netty thread).
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> PartyLeaderTracker.resetIfSet());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> PartyLeaderTracker.resetIfSet());
         // "!ping" answers with the measured round trip, so keep one measured while that command is on.
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
@@ -134,8 +138,7 @@ public final class PartyCommandsFeature {
         if (plain == null || plain.isEmpty()) {
             return;
         }
-        PartyLeaderTracker.onServerLine(plain);
-        if (PartyLeaderTracker.clearsParty(plain)) {
+        if (PartyLeaderTracker.onServerLine(plain)) {
             cancelReinvites("you're no longer in that party");
         }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
@@ -417,7 +420,11 @@ public final class PartyCommandsFeature {
         GLOBAL_TIMES.addLast(now);
         mine.addLast(now);
         if (SENDER_TIMES.size() > 32) {
-            SENDER_TIMES.entrySet().removeIf(e -> e.getValue().isEmpty());
+            // Only the current sender's deque was pruned above; prune the rest or they never become empty.
+            SENDER_TIMES.entrySet().removeIf(e -> {
+                prune(e.getValue(), now);
+                return e.getValue().isEmpty();
+            });
         }
         return true;
     }
