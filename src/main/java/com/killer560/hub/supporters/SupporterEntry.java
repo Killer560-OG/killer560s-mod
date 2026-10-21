@@ -29,12 +29,15 @@ import java.util.UUID;
 record SupporterEntry(UUID uuid, String rawName, float scale, int[] colors, NameAnimation.Spec animation,
                       TrailSpec trail, String mob) {
 
+    private static final int MAX_RAW_NAME = 128;
+
     SupporterEntry {
         mob = com.killer560.hub.mobskin.MobSkins.sanitize(mob);
         if (uuid == null) {
             throw new IllegalArgumentException("uuid");
         }
-        rawName = rawName == null ? "" : rawName;
+        // The relay caps a name at 32 visible characters (plus &-codes); anything far past that is not from it.
+        rawName = rawName == null || rawName.length() > MAX_RAW_NAME ? "" : rawName;
         if (!Float.isFinite(scale) || scale < 0.5f || scale > 2.0f) {
             scale = 1.0f;
         }

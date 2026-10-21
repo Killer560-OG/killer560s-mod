@@ -148,11 +148,6 @@ public final class SupportersConfig {
         }
     }
 
-    /** Anything of other supporters' cosmetics shown at all. */
-    public boolean isCustomCosmeticsEnabled() {
-        return showSupporterNames || showSupporterSizes;
-    }
-
     /** Both switches at once, for callers that only know the old single toggle. */
     public void setCustomCosmeticsEnabled(boolean value) {
         this.showSupporterNames = value;

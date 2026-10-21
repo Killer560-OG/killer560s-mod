@@ -384,7 +384,7 @@ public class CosmeticsTab extends BaseTab {
         String plain = plainOwnName();
         int argb = ncCfg.getOwnColor();
         String rawName = plain.isEmpty() ? "" : (argb == NameColor.NONE ? "" : "&" + NameColor.codeFor(argb)) + plain;
-        String text = "name=" + rawName + ";scale=" + SupportersConfig.getInstance().getOwnScale();
+        String text = "name=" + rawName + ";scale=" + (float) SupportersAutoShare.sharedScale(SupportersConfig.getInstance().getOwnScale());
         CopyChatFeature.copyToClipboard(text);
         ModOverlayMessage.show("§a[Cosmetics] Copied - hand this to staff for the Discord bot route.", 3000);
     }
