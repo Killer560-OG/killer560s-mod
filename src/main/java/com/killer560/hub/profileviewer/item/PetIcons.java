@@ -43,7 +43,20 @@ public final class PetIcons {
         if (tex == null && skin != null && !skin.isEmpty()) {
             tex = texture(type, tier, null);
         }
-        return tex == null ? new ItemStack(Items.BONE) : LegacyItems.skull(tex, null);
+        return tex == null ? bone() : LegacyItems.skull(tex, null);
+    }
+
+    private static ItemStack boneStack;
+
+    /** One shared bone for every pet whose head has not arrived (the pets page asks for each visible pet every frame).
+     *  Read-only: it is only ever drawn. */
+    private static ItemStack bone() {
+        ItemStack b = boneStack;
+        if (b == null) {
+            b = new ItemStack(Items.BONE);
+            boneStack = b;
+        }
+        return b;
     }
 
     private static CompletableFuture<String> fetch(String key, String type) {

@@ -14,6 +14,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -106,6 +107,27 @@ public final class ExtraTables {
             out[i] = sum;
         }
         return out;
+    }
+
+    // The page draw methods read bundled tables every frame; these hand back the converted array computed once per
+    // table element (identity keyed, so only the finite bundled JSON should be passed in), not a fresh one per frame.
+    private static final Map<JsonElement, long[]> LONGS_CACHE = Collections.synchronizedMap(new IdentityHashMap<>());
+    private static final Map<JsonElement, long[]> CUMULATIVE_CACHE = Collections.synchronizedMap(new IdentityHashMap<>());
+    private static final Map<JsonElement, List<String>> STRINGS_CACHE = Collections.synchronizedMap(new IdentityHashMap<>());
+
+    /** {@link #longs} of a bundled table element, converted once. Callers must not modify the array. */
+    public static long[] tableLongs(JsonElement el) {
+        return el == null ? new long[0] : LONGS_CACHE.computeIfAbsent(el, ExtraTables::longs);
+    }
+
+    /** {@link #cumulative} of {@link #tableLongs}, computed once. Callers must not modify the array. */
+    public static long[] tableCumulative(JsonElement el) {
+        return el == null ? new long[0] : CUMULATIVE_CACHE.computeIfAbsent(el, e -> cumulative(tableLongs(e)));
+    }
+
+    /** {@link #strings} of a bundled table element, computed once. Callers must not modify the list. */
+    public static List<String> tableStrings(JsonElement el) {
+        return el == null ? List.of() : STRINGS_CACHE.computeIfAbsent(el, ExtraTables::strings);
     }
 
     /** Highest threshold entry whose threshold is <= amount; the first entry otherwise. */

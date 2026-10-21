@@ -65,6 +65,8 @@ final class ExtraPages {
     private boolean bypassAux = false;
     private final Map<SbProfile, CompletableFuture<Networth.Result>> networth = new IdentityHashMap<>();
     private final Map<SbProfile, Boolean> networthHasMuseum = new IdentityHashMap<>();
+    /** The last finished estimate per profile, so the per-frame ask is one map read. */
+    private final Map<SbProfile, NetworthState> networthSettled = new IdentityHashMap<>();
     private final Map<JsonObject, CompletableFuture<MuseumView>> museumViews = new IdentityHashMap<>();
     private final Map<SbProfile, CompletableFuture<RiftInventory>> riftInventories = new IdentityHashMap<>();
 
@@ -94,8 +96,16 @@ final class ExtraPages {
     void reset(boolean force) {
         aux.clear();
         networth.clear();
+        networthSettled.clear();
         networthHasMuseum.clear();
         museumViews.clear();
+        museumKeyView = null;
+        museumKeyTables = null;
+        museumStacks.clear();
+        collStatsEx = null;
+        collStatsCats = null;
+        bestiaryStatsEx = null;
+        bestiaryStatsCats = null;
         riftInventories.clear();
         bypassAux = force;
     }
@@ -297,6 +307,39 @@ final class ExtraPages {
 
     // ------------------------------------------------------------------ collections
 
+    // The Collections page's category names and maxed counts, worked out once per (profile extras, category list)
+    // instead of walking every collection item each frame.
+    private ProfileExtras collStatsEx;
+    private List<ExtraTables.CollectionCategory> collStatsCats;
+    private String[] collNames = new String[0];
+    private int[] collMaxedPerCat = new int[0];
+    private int collTotalMaxed;
+    private int collTotalCount;
+
+    private void computeCollectionStats(ProfileExtras ex, List<ExtraTables.CollectionCategory> cats) {
+        String[] names = new String[cats.size()];
+        int[] perCat = new int[cats.size()];
+        int totalMaxed = 0;
+        int totalCount = 0;
+        for (int i = 0; i < names.length; i++) {
+            ExtraTables.CollectionCategory c = cats.get(i);
+            names[i] = c.name();
+            for (ExtraTables.CollectionItem it : c.items()) {
+                totalCount++;
+                if (it.tiers().length > 0 && ex.collections.getOrDefault(it.id(), 0L) >= it.tiers()[it.tiers().length - 1]) {
+                    perCat[i]++;
+                    totalMaxed++;
+                }
+            }
+        }
+        collNames = names;
+        collMaxedPerCat = perCat;
+        collTotalMaxed = totalMaxed;
+        collTotalCount = totalCount;
+        collStatsEx = ex;
+        collStatsCats = cats;
+    }
+
     private void drawCollections(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         ProfileExtras ex = extras(g, p);
         if (ex == null) {
@@ -314,18 +357,13 @@ final class ExtraPages {
         }
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
-        String[] names = cats.stream().map(ExtraTables.CollectionCategory::name).toArray(String[]::new);
-        int sel = nav(g, names, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
-        int totalMaxed = 0;
-        int totalCount = 0;
-        for (ExtraTables.CollectionCategory c : cats) {
-            for (ExtraTables.CollectionItem it : c.items()) {
-                totalCount++;
-                if (it.tiers().length > 0 && ex.collections.getOrDefault(it.id(), 0L) >= it.tiers()[it.tiers().length - 1]) {
-                    totalMaxed++;
-                }
-            }
+        if (collStatsEx != ex || collStatsCats != cats) {
+            computeCollectionStats(ex, cats);
         }
+        String[] names = collNames;
+        int sel = nav(g, names, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
+        int totalMaxed = collTotalMaxed;
+        int totalCount = collTotalCount;
         int ny = s.contentY + 8 + names.length * 19;
         text(g, "Maxed", s.contentX + 6, ny, DIM);
         ny += 10;
@@ -335,12 +373,7 @@ final class ExtraPages {
         int rx = s.contentX + navW + 6;
         int rw = s.contentW - navW - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
-        int maxed = 0;
-        for (ExtraTables.CollectionItem it : cat.items()) {
-            if (it.tiers().length > 0 && ex.collections.getOrDefault(it.id(), 0L) >= it.tiers()[it.tiers().length - 1]) {
-                maxed++;
-            }
-        }
+        int maxed = collMaxedPerCat[Math.min(sel, collMaxedPerCat.length - 1)];
         title(g, cat.name(), rx + 6, s.contentY + 5);
         rightText(g, "Maxed " + maxed + " / " + cat.items().size(), rx + rw - 8, s.contentY + 5, VALUE);
 
@@ -428,7 +461,7 @@ final class ExtraPages {
         int x = rx + 6;
         int w = 160;
         int y = s.contentY + 5;
-        long[] table = ExtraTables.longs(ExtraTables.bundled().get("hotm_levels"));
+        long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get("hotm_levels"));
         LevelTables.Level lvl = thresholdLevel(table, m.hotmXp());
         s.bar(g, x, y, w, new ItemStack(Items.DIAMOND_PICKAXE), "Heart of the Mountain", lvl, mx, my, m.hotmXp());
         y += 22;
@@ -528,6 +561,27 @@ final class ExtraPages {
         scrollbar(g, x + w - 2, y, visible * 10, list.size(), visible);
     }
 
+    /** The bundled corpse milestone requirements, parsed on first use (the table never changes). */
+    private static List<Map<String, Integer>> corpseMilestones;
+
+    private static synchronized List<Map<String, Integer>> corpseMilestones() {
+        if (corpseMilestones == null) {
+            List<Map<String, Integer>> out = new ArrayList<>();
+            JsonObject bundled = ExtraTables.bundled();
+            for (JsonElement el : bundled.has("corpse_milestones") ? bundled.getAsJsonArray("corpse_milestones") : new com.google.gson.JsonArray()) {
+                Map<String, Integer> req = new LinkedHashMap<>();
+                if (el.isJsonObject()) {
+                    for (Map.Entry<String, JsonElement> e : el.getAsJsonObject().entrySet()) {
+                        req.put(e.getKey(), e.getValue().getAsInt());
+                    }
+                }
+                out.add(req);
+            }
+            corpseMilestones = out;
+        }
+        return corpseMilestones;
+    }
+
     private void drawGlacite(GuiGraphicsExtractor g, ProfileExtras.Mining m, int rx, int rw, int mx, int my) {
         int x = rx + 6;
         int w = (rw - 24) / 2;
@@ -535,16 +589,7 @@ final class ExtraPages {
         title(g, "Glacite Tunnels", x, y);
         y += 12;
         y = s.stat2(g, x, y, w, "Mineshafts Entered", commas(m.mineshafts()));
-        List<Map<String, Integer>> milestones = new ArrayList<>();
-        for (JsonElement el : ExtraTables.bundled().has("corpse_milestones") ? ExtraTables.bundled().getAsJsonArray("corpse_milestones") : new com.google.gson.JsonArray()) {
-            Map<String, Integer> req = new LinkedHashMap<>();
-            if (el.isJsonObject()) {
-                for (Map.Entry<String, JsonElement> e : el.getAsJsonObject().entrySet()) {
-                    req.put(e.getKey(), e.getValue().getAsInt());
-                }
-            }
-            milestones.add(req);
-        }
+        List<Map<String, Integer>> milestones = corpseMilestones();
         int milestone = 0;
         for (int i = 0; i < milestones.size(); i++) {
             boolean ok = true;
@@ -593,7 +638,7 @@ final class ExtraPages {
         int x = rx + 6;
         int w = 160;
         int y = s.contentY + 5;
-        long[] table = ExtraTables.longs(ExtraTables.bundled().get("hotf_levels"));
+        long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get("hotf_levels"));
         LevelTables.Level lvl = thresholdLevel(table, fo.hotfXp());
         s.bar(g, x, y, w, new ItemStack(Items.OAK_SAPLING), "Heart of the Forest", lvl, mx, my, fo.hotfXp());
         y += 22;
@@ -631,23 +676,13 @@ final class ExtraPages {
             center(g, tf.isDone() ? "Couldn't load bestiary data." : "Loading bestiary data" + s.dots(), s.contentX, s.contentW, tf.isDone() ? BAD : VALUE);
             return;
         }
-        int totalTiers = 0;
-        int maxed = 0;
-        int families = 0;
-        long kills = 0;
-        for (long k : ex.bestiaryKills.values()) {
-            kills += k;
+        if (bestiaryStatsEx != ex || bestiaryStatsCats != cats) {
+            computeBestiaryStats(ex, cats);
         }
-        for (ExtraTables.BestiaryCategory c : cats) {
-            for (ExtraTables.BestiaryFamily fam : c.families()) {
-                families++;
-                int tier = countAtOrBelow(toLongs(fam.tiers()), familyKills(ex, fam));
-                totalTiers += tier;
-                if (fam.tiers().length > 0 && tier >= fam.tiers().length) {
-                    maxed++;
-                }
-            }
-        }
+        int totalTiers = bestiaryTotalTiers;
+        int maxed = bestiaryMaxed;
+        int families = bestiaryFamilies;
+        long kills = bestiaryKillsTotal;
         // killer560: "make the bestiary tab more friendly... clicking into an area to see their bestiary
         // instead of panning through a bunch of menus" - swap the "< Category >" pager for the same
         // click-a-category nav list Collections/Mining/Crimson already use.
@@ -655,7 +690,7 @@ final class ExtraPages {
         // (one 19-pixel button per category, then four stat lines) ran past the bottom of the panel. The list now
         // packs its rows into the box (two columns if even 12-pixel rows will not fit), and the stats moved to a
         // line under the category title.
-        String[] catNames = cats.stream().map(ExtraTables.BestiaryCategory::name).toArray(String[]::new);
+        String[] catNames = bestiaryCatNames;
         int navH = s.contentH - 8;
         boolean twoCols = catNames.length * NAV_MIN_ROW > navH;
         int lw = twoCols ? 170 : 100;
@@ -691,7 +726,7 @@ final class ExtraPages {
             int ix = startX + (i % cols) * cell;
             int iy = top + row * cell;
             long k = familyKills(ex, fam);
-            long[] tiers = toLongs(fam.tiers());
+            int[] tiers = fam.tiers();
             int tier = countAtOrBelow(tiers, k);
             boolean isMaxed = tiers.length > 0 && tier >= tiers.length;
             ItemStack icon = k == 0 ? new ItemStack(McItems.GRAY_DYE) : familyIcon(fam);
@@ -722,12 +757,54 @@ final class ExtraPages {
         return k;
     }
 
-    private static long[] toLongs(int[] arr) {
-        long[] out = new long[arr.length];
-        for (int i = 0; i < arr.length; i++) {
-            out[i] = arr[i];
+    private static int countAtOrBelow(int[] thresholds, long amount) {
+        int n = 0;
+        for (int t : thresholds) {
+            if (amount >= t) {
+                n++;
+            }
         }
-        return out;
+        return n;
+    }
+
+    // The Bestiary page's category names and whole-bestiary totals, worked out once per (profile extras, category
+    // list) instead of every frame.
+    private ProfileExtras bestiaryStatsEx;
+    private List<ExtraTables.BestiaryCategory> bestiaryStatsCats;
+    private String[] bestiaryCatNames = new String[0];
+    private int bestiaryTotalTiers;
+    private int bestiaryMaxed;
+    private int bestiaryFamilies;
+    private long bestiaryKillsTotal;
+
+    private void computeBestiaryStats(ProfileExtras ex, List<ExtraTables.BestiaryCategory> cats) {
+        int totalTiers = 0;
+        int maxed = 0;
+        int families = 0;
+        long kills = 0;
+        for (long k : ex.bestiaryKills.values()) {
+            kills += k;
+        }
+        String[] names = new String[cats.size()];
+        for (int i = 0; i < names.length; i++) {
+            ExtraTables.BestiaryCategory c = cats.get(i);
+            names[i] = c.name();
+            for (ExtraTables.BestiaryFamily fam : c.families()) {
+                families++;
+                int tier = countAtOrBelow(fam.tiers(), familyKills(ex, fam));
+                totalTiers += tier;
+                if (fam.tiers().length > 0 && tier >= fam.tiers().length) {
+                    maxed++;
+                }
+            }
+        }
+        bestiaryCatNames = names;
+        bestiaryTotalTiers = totalTiers;
+        bestiaryMaxed = maxed;
+        bestiaryFamilies = families;
+        bestiaryKillsTotal = kills;
+        bestiaryStatsEx = ex;
+        bestiaryStatsCats = cats;
     }
 
     private final Map<ExtraTables.BestiaryFamily, ItemStack> familyIcons = new IdentityHashMap<>();
@@ -825,7 +902,7 @@ final class ExtraPages {
         }
         y += 4;
         y = s.stat2(g, x, y, w, "Total Runs", commas(total));
-        long[] colTiers = ExtraTables.longs(tables.get("kuudra_collection"));
+        long[] colTiers = ExtraTables.tableLongs(tables.get("kuudra_collection"));
         y = s.stat2(g, x, y, w, "Collection", commas(collection));
         y = s.stat2(g, x, y, w, "Collection Tier", countAtOrBelow(colTiers, collection) + " / " + colTiers.length);
         s.stat2(g, x, y, w, "Highest Wave", commas(bestWave));
@@ -879,6 +956,14 @@ final class ExtraPages {
 
     // ------------------------------------------------------------------ museum
 
+    // The Museum page's category list, button labels and per-category item lists, built once per (museum view,
+    // tables) rather than every frame.
+    private MuseumView museumKeyView;
+    private ExtraTables.MuseumTables museumKeyTables;
+    private List<String> museumCatIds = List.of();
+    private String[] museumCatLabels = new String[0];
+    private final Map<String, List<ItemStack>> museumStacks = new HashMap<>();
+
     private void drawMuseum(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         CompletableFuture<ProfileViewerApi.AuxResult> fut = aux(ProfileViewerApi.AuxKind.MUSEUM, p.profileId);
         if (!fut.isDone()) {
@@ -909,14 +994,28 @@ final class ExtraPages {
         }
         ExtraTables.MuseumTables tables = ExtraTables.now(ExtraTables.museum());
 
-        List<String> catIds = new ArrayList<>();
-        if (tables != null) {
-            catIds.addAll(tables.categories().keySet());
-            catIds.remove("special");
-        } else {
-            catIds.add("all");
+        if (museumKeyView != view || museumKeyTables != tables) {
+            List<String> ids = new ArrayList<>();
+            if (tables != null) {
+                ids.addAll(tables.categories().keySet());
+                ids.remove("special");
+            } else {
+                ids.add("all");
+            }
+            ids.add("special");
+            String[] labels = new String[ids.size()];
+            for (int i = 0; i < labels.length; i++) {
+                String id = ids.get(i);
+                Integer max = tables == null ? null : tables.maxValues().get(id);
+                labels[i] = SbProfile.titleCase(id) + " " + countDonated(view, tables, id) + (max != null && !id.equals("special") ? "/" + max : "");
+            }
+            museumCatIds = ids;
+            museumCatLabels = labels;
+            museumStacks.clear();
+            museumKeyView = view;
+            museumKeyTables = tables;
         }
-        catIds.add("special");
+        List<String> catIds = museumCatIds;
 
         int lw = 140;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
@@ -935,10 +1034,7 @@ final class ExtraPages {
         y += 4;
         s.subView = Math.max(0, Math.min(s.subView, catIds.size() - 1));
         for (int i = 0; i < catIds.size(); i++) {
-            String id = catIds.get(i);
-            int donated = countDonated(view, tables, id);
-            Integer max = tables == null ? null : tables.maxValues().get(id);
-            String label = SbProfile.titleCase(id) + " " + donated + (max != null && !id.equals("special") ? "/" + max : "");
+            String label = museumCatLabels[i];
             final int idx = i;
             if (y + 16 > s.contentY + s.contentH) {
                 break;
@@ -954,21 +1050,24 @@ final class ExtraPages {
         int rw = s.contentW - lw - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
         String cat = catIds.get(s.subView);
-        List<ItemStack> stacks = new ArrayList<>();
-        if (cat.equals("special")) {
-            stacks.addAll(view.special());
-        } else if (tables == null) {
-            for (List<ItemStack> l : view.items().values()) {
-                stacks.addAll(l);
-            }
-        } else {
-            for (String id : tables.categories().getOrDefault(cat, List.of())) {
-                List<ItemStack> l = view.items().get(id);
-                if (l != null) {
-                    stacks.addAll(l);
+        List<ItemStack> stacks = museumStacks.computeIfAbsent(cat, c -> {
+            List<ItemStack> out = new ArrayList<>();
+            if (c.equals("special")) {
+                out.addAll(view.special());
+            } else if (tables == null) {
+                for (List<ItemStack> l : view.items().values()) {
+                    out.addAll(l);
+                }
+            } else {
+                for (String id : tables.categories().getOrDefault(c, List.of())) {
+                    List<ItemStack> l = view.items().get(id);
+                    if (l != null) {
+                        out.addAll(l);
+                    }
                 }
             }
-        }
+            return out;
+        });
         title(g, SbProfile.titleCase(cat), rx + 6, s.contentY + 5);
         rightText(g, stacks.size() + " items", rx + rw - 8, s.contentY + 5, VALUE);
         if (stacks.isEmpty()) {
@@ -1020,6 +1119,7 @@ final class ExtraPages {
         s.button(g, s.contentX + s.contentW / 2 - 30, y + 4, 60, 16, "Retry", mx, my, false, () -> {
             aux.remove(kind.name() + ":" + id);
             networth.clear();
+            networthSettled.clear();
         });
     }
 
@@ -1101,9 +1201,9 @@ final class ExtraPages {
             y = s.stat2(g, x, y, w, "Time Sitting", duration(r.secondsSitting()));
             int souls = tables.has("enigma_souls") ? tables.get("enigma_souls").getAsInt() : 52;
             y = s.stat2(g, x, y, w, "Enigma Souls", r.souls().size() + " / " + souls);
-            List<String> cats = ExtraTables.strings(tables.get("montezuma"));
+            List<String> cats = ExtraTables.tableStrings(tables.get("montezuma"));
             y = listStat(g, x, y, w, "Montezuma Cats", r.cats(), cats, "Missing", mx, my);
-            List<String> eyes = ExtraTables.strings(tables.get("eyes"));
+            List<String> eyes = ExtraTables.tableStrings(tables.get("eyes"));
             y = listStat(g, x, y, w, "Unlocked Eyes", r.eyes(), eyes, "Locked", mx, my);
             int grub = tables.has("grubber_max") ? tables.get("grubber_max").getAsInt() : 5;
             s.stat2(g, x, y, w, "Grubber Stacks", r.grubberStacks() + " / " + grub);
@@ -1228,7 +1328,7 @@ final class ExtraPages {
         y += 12;
         if (garden != null) {
             long xp = (long) SbProfile.numPublic(garden.get("garden_experience"));
-            long[] levels = ExtraTables.cumulative(ExtraTables.longs(gardenTables.get("garden_level")));
+            long[] levels = ExtraTables.tableCumulative(gardenTables.get("garden_level"));
             s.bar(g, x, y, w, new ItemStack(Items.SUNFLOWER), "Garden Level", thresholdLevel(levels, xp), mx, my, xp);
             y += 21;
             JsonObject comm = SbProfile.asObjPublic(garden.get("commission_data"));
@@ -1323,7 +1423,7 @@ final class ExtraPages {
             g.item(icon, 0, 0);
             g.pose().popMatrix();
             text(g, f().plainSubstrByWidth(name, cols[1] - cols[0] - 4), cols[0], ty, TEXT);
-            long[] cum = ExtraTables.cumulative(ExtraTables.longs(e.getValue()));
+            long[] cum = ExtraTables.tableCumulative(e.getValue());
             long amount = collected == null ? -1 : (long) SbProfile.numPublic(collected.get(crop));
             int milestone = amount < 0 ? -1 : countAtOrBelow(cum, amount);
             boolean maxed = milestone >= cum.length && cum.length > 0;
@@ -1382,6 +1482,12 @@ final class ExtraPages {
      *  {@code RngMeterEngine.PRICES} (Hypixel's key-less bazaar endpoint), lowest BIN from {@link ExtraTables#lowestBins()}.
      *  A result calculated before any Bazaar price had arrived is recalculated once they have. */
     NetworthState networthState(SbProfile p) {
+        // The Basic Info page asks every frame. A finished estimate only changes when Bazaar prices arrive for one
+        // calculated without them, so hand it back as is until then.
+        NetworthState settled = networthSettled.get(p);
+        if (settled != null && !(settled.result().bazaarPrices() == 0 && Networth.bazaarCount() > 0)) {
+            return settled;
+        }
         CompletableFuture<ProfileExtras> ef = p.extras();
         if (!ef.isDone()) {
             return NW_PENDING;
@@ -1423,7 +1529,9 @@ final class ExtraPages {
         if (r == null) {
             return nf.isDone() ? NW_FAILED : NW_PENDING;
         }
-        return new NetworthState(r, false);
+        NetworthState ready = new NetworthState(r, false);
+        networthSettled.put(p, ready);
+        return ready;
     }
 
     private void drawNetworth(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {

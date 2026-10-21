@@ -308,7 +308,15 @@ public final class ProfileViewerApi {
 
     public static ProfilesResult getCached(UUID uuid) {
         Cached c = CACHE.get(uuid);
-        return c != null && System.currentTimeMillis() - c.at() < CACHE_MS ? c.result() : null;
+        if (c == null) {
+            return null;
+        }
+        if (System.currentTimeMillis() - c.at() < CACHE_MS) {
+            return c.result();
+        }
+        // Expired: let go of the full profile JSON now rather than at the next put.
+        CACHE.remove(uuid, c);
+        return null;
     }
 
     public static CompletableFuture<ProfilesResult> fetchProfiles(UUID uuid, boolean bypassCache) {
@@ -410,8 +418,16 @@ public final class ProfileViewerApi {
     private static final Map<String, CompletableFuture<AuxResult>> AUX_IN_FLIGHT = new ConcurrentHashMap<>();
 
     public static AuxResult getCachedAux(AuxKind kind, String id) {
-        AuxResult r = AUX_CACHE.get(kind.name() + ":" + id);
-        return r != null && System.currentTimeMillis() - r.fetchedAt() < CACHE_MS ? r : null;
+        String key = kind.name() + ":" + id;
+        AuxResult r = AUX_CACHE.get(key);
+        if (r == null) {
+            return null;
+        }
+        if (System.currentTimeMillis() - r.fetchedAt() < CACHE_MS) {
+            return r;
+        }
+        AUX_CACHE.remove(key, r);
+        return null;
     }
 
     public static CompletableFuture<AuxResult> fetchAux(AuxKind kind, String rawId, boolean bypassCache) {
@@ -533,35 +549,9 @@ public final class ProfileViewerApi {
     }
 
     private static CompletableFuture<Raw> fetchWithFallback(UUID uuid) {
-        ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
-        String userKey = cfg.getApiKey();
-        List<Attempt> order = new ArrayList<>();
-        switch (cfg.getSource()) {
-            // Source=HYPIXEL with no key of your own can only mean the keyless backend now.
-            case HYPIXEL -> order.add(userKey.isEmpty() ? Attempt.BACKEND : Attempt.USER_KEY);
-            case BACKEND -> order.add(Attempt.BACKEND);
-            default -> {
-                if (!userKey.isEmpty()) {
-                    order.add(Attempt.USER_KEY);
-                }
-                order.add(Attempt.BACKEND);
-            }
-        }
-        return runAttempts(uuid, order, 0, new ArrayList<>());
-    }
-
-    private static CompletableFuture<Raw> runAttempts(UUID uuid, List<Attempt> order, int index, List<Failure> errors) {
-        if (index >= order.size()) {
-            return CompletableFuture.failedFuture(allFailed(errors));
-        }
-        Attempt attempt = order.get(index);
-        CompletableFuture<Raw> f = switch (attempt) {
+        return runAttempts(attemptOrder(), 0, new ArrayList<>(), attempt -> switch (attempt) {
             case USER_KEY -> hypixel(uuid, ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)");
             case BACKEND -> backend(uuid, true);
-        };
-        return f.exceptionallyCompose(t -> {
-            errors.add(new Failure(label(attempt) + ": " + messageFor(t), throttle(t)));
-            return runAttempts(uuid, order, index + 1, errors);
         });
     }
 
