@@ -495,29 +495,24 @@ public final class ExperimentsFeature {
                 // get a super rare or something." Covered-but-known singles get their own color
                 // (HIGHLIGHT_KNOWN_SINGLE_COLOR) so it's visually obvious they're not a confirmed match
                 // yet, but the name is shown either way.
-                List<int[]> matches = SOLVER.superpairsKnownMatches(lastCells);
-                Set<Integer> confirmedSlots = new HashSet<>();
-                for (int[] confirmed : SOLVER.superpairsConfirmedMatches(lastCells)) {
-                    confirmedSlots.add(confirmed[0]);
-                    confirmedSlots.add(confirmed[1]);
-                }
-                Set<Integer> matchedSlots = new HashSet<>();
-                for (int[] match : matches) {
-                    matchedSlots.add(match[0]);
-                    matchedSlots.add(match[1]);
-                }
-                Map<Integer, String> knownNames = SOLVER.superpairsKnownItemNames(lastCells);
+                // Read from the per-tick view (see superpairsView): the matches, names and labels only change
+                // when the board is re-read, so they are no longer rebuilt - regexes and all - every frame.
+                SuperpairsView view = superpairsView();
+                List<int[]> matches = view.matches;
+                Set<Integer> confirmedSlots = view.confirmedSlots;
+                Set<Integer> matchedSlots = view.matchedSlots;
+                Map<Integer, String> knownNames = view.labels;
                 for (int[] match : matches) {
                     // Green once actually linked/found (both tiles currently revealed together), gold
                     // while just known - per killer560's request (2026-09-08).
                     int color = confirmedSlots.contains(match[0]) && confirmedSlots.contains(match[1])
                             ? HIGHLIGHT_CONFIRMED_MATCH_COLOR : HIGHLIGHT_MATCH_COLOR;
-                    highlightSlot(graphics, menu, match[0], left, top, color, shortLabel(knownNames.get(match[0])));
-                    highlightSlot(graphics, menu, match[1], left, top, color, shortLabel(knownNames.get(match[1])));
+                    highlightSlot(graphics, menu, match[0], left, top, color, knownNames.get(match[0]));
+                    highlightSlot(graphics, menu, match[1], left, top, color, knownNames.get(match[1]));
                 }
                 for (Map.Entry<Integer, String> entry : knownNames.entrySet()) {
                     if (matchedSlots.contains(entry.getKey())) continue;
-                    highlightSlot(graphics, menu, entry.getKey(), left, top, HIGHLIGHT_KNOWN_SINGLE_COLOR, shortLabel(entry.getValue()));
+                    highlightSlot(graphics, menu, entry.getKey(), left, top, HIGHLIGHT_KNOWN_SINGLE_COLOR, entry.getValue());
                 }
                 // Per killer560's request: always show SOMETHING once the board is visible, the same way
                 // SkyHanni's own Next Click Helper does, instead of going blank whenever nothing at all
@@ -529,7 +524,7 @@ public final class ExperimentsFeature {
                 // doesn't want it there once he's the one actually clicking); Autonomous mode keeps it,
                 // since it still communicates what the bot itself is about to explore next.
                 if (cfg.isAutonomousMode() && matches.isEmpty() && knownNames.isEmpty()) {
-                    int suggested = SOLVER.superpairsSuggestedExploreSlot(lastCells);
+                    int suggested = view.suggested;
                     if (suggested >= 0) {
                         highlightSlot(graphics, menu, suggested, left, top, HIGHLIGHT_SEQUENCE_COLOR, null);
                     }
@@ -569,6 +564,11 @@ public final class ExperimentsFeature {
         return stripped;
     }
 
+    private record LabelLayout(List<String> lines, float scale) {
+    }
+
+    private static final Map<String, LabelLayout> LABEL_LAYOUTS = new HashMap<>();
+
     /** Largest label scale - the size every label was drawn at before it could shrink. */
     private static final float LABEL_MAX_SCALE = 0.5f;
 
@@ -578,17 +578,28 @@ public final class ExperimentsFeature {
      *  than spilling into the next slot. */
     private static void drawSlotLabel(GuiGraphicsExtractor graphics, String label, int x0, int y0) {
         net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
-        String[] words = label.split(" ");
-        List<String> best = List.of(label);
-        float bestScale = fitScale(font, best);
-        for (int lines = 2; lines <= Math.min(3, words.length); lines++) {
-            List<String> wrapped = wrapWords(font, words, lines);
-            float scale = fitScale(font, wrapped);
-            if (scale > bestScale) {
-                best = wrapped;
-                bestScale = scale;
+        // The layout depends only on the text, and a board shows the same few labels every frame.
+        LabelLayout layout = LABEL_LAYOUTS.get(label);
+        if (layout == null) {
+            String[] words = label.split(" ");
+            List<String> best = List.of(label);
+            float bestScale = fitScale(font, best);
+            for (int lines = 2; lines <= Math.min(3, words.length); lines++) {
+                List<String> wrapped = wrapWords(font, words, lines);
+                float scale = fitScale(font, wrapped);
+                if (scale > bestScale) {
+                    best = wrapped;
+                    bestScale = scale;
+                }
             }
+            if (LABEL_LAYOUTS.size() >= 256) {
+                LABEL_LAYOUTS.clear();
+            }
+            layout = new LabelLayout(best, bestScale);
+            LABEL_LAYOUTS.put(label, layout);
         }
+        List<String> best = layout.lines();
+        float bestScale = layout.scale();
         float lineHeight = font.lineHeight * bestScale;
         float top = y0 + SLOT_SIZE - lineHeight * best.size();
         graphics.pose().pushMatrix();
@@ -700,12 +711,58 @@ public final class ExperimentsFeature {
         if (lastLoggedMode != ExperimentSolver.Mode.SUPERPAIRS || !com.killer560.hub.util.SkyblockGate.allows()) {
             return null;
         }
-        for (ExperimentSolver.Cell cell : lastCells) {
-            if (cell.slot() == slot) {
-                return ExperimentSolver.isRevealedPair(cell) ? null : superpairsIconCache.get(slot);
+        return superpairsView().ghosts.get(slot);
+    }
+
+    /** What the Superpairs overlay needs from one board read, worked out once per read instead of once per frame
+     *  (and, for the ghost icons, once per slot per frame): the solver's matches, the label of each known tile,
+     *  and which covered tiles show a remembered icon. The old per-frame version ran a pattern match for every
+     *  slot and rebuilt the names with several regexes each, 60+ times a second. */
+    private static final class SuperpairsView {
+        List<int[]> matches = List.of();
+        final Set<Integer> confirmedSlots = new HashSet<>();
+        final Set<Integer> matchedSlots = new HashSet<>();
+        final Map<Integer, String> labels = new HashMap<>();
+        final Map<Integer, ItemStack> ghosts = new HashMap<>();
+        int suggested = -1;
+    }
+
+    private static SuperpairsView superpairsView;
+    /** The {@link #lastCells} list {@link #superpairsView} was built from; a new tick brings a new list. */
+    private static List<ExperimentSolver.Cell> superpairsViewFor;
+
+    private static SuperpairsView superpairsView() {
+        List<ExperimentSolver.Cell> cells = lastCells;
+        if (superpairsView != null && superpairsViewFor == cells) {
+            return superpairsView;
+        }
+        SuperpairsView view = new SuperpairsView();
+        view.matches = SOLVER.superpairsKnownMatches(cells);
+        for (int[] confirmed : SOLVER.superpairsConfirmedMatches(cells)) {
+            view.confirmedSlots.add(confirmed[0]);
+            view.confirmedSlots.add(confirmed[1]);
+        }
+        for (int[] match : view.matches) {
+            view.matchedSlots.add(match[0]);
+            view.matchedSlots.add(match[1]);
+        }
+        for (Map.Entry<Integer, String> entry : SOLVER.superpairsKnownItemNames(cells).entrySet()) {
+            view.labels.put(entry.getKey(), shortLabel(entry.getValue()));
+        }
+        if (view.matches.isEmpty() && view.labels.isEmpty()) {
+            view.suggested = SOLVER.superpairsSuggestedExploreSlot(cells);
+        }
+        for (ExperimentSolver.Cell cell : cells) {
+            if (!ExperimentSolver.isRevealedPair(cell)) {
+                ItemStack icon = superpairsIconCache.get(cell.slot());
+                if (icon != null) {
+                    view.ghosts.put(cell.slot(), icon);
+                }
             }
         }
-        return null;
+        superpairsView = view;
+        superpairsViewFor = cells;
+        return view;
     }
 
     /** Real bug found and fixed (2026-09-07): this used to also draw the Superpairs ghost icon here
@@ -737,6 +794,14 @@ public final class ExperimentsFeature {
         // highlights and observation, the automation for its clicking and menu navigation.
         ExperimentsConfig gate = ExperimentsConfig.getInstance();
         if (!gate.isEnabled() && !gate.isAutonomousMode()) {
+            // Switched off (or left Skyblock) with a board open: the tick that would have noticed the screen
+            // closing never runs, so the mode, the board read and the Superpairs ghost icons stayed as they were
+            // and kept drawing remembered items into any container opened afterwards.
+            if (lastLoggedMode != ExperimentSolver.Mode.NONE) {
+                SOLVER.select("");
+                logModeChangeIfAny(ExperimentSolver.Mode.NONE, "");
+                lastCells = List.of();
+            }
             return;
         }
         try {
@@ -1535,6 +1600,8 @@ public final class ExperimentsFeature {
             // from ever being read again.
             if (lastLoggedMode == ExperimentSolver.Mode.SUPERPAIRS && mode != ExperimentSolver.Mode.SUPERPAIRS) {
                 superpairsIconCache.clear();
+                superpairsView = null;
+                superpairsViewFor = null;
                 // If the board jumped straight to its reward screen on the last click, the "0" may
                 // never have been rendered for a tick - treat "last seen <= 1, then the reward screen"
                 // as the clicks being used up (reward-screen title per SkyHanni's repo pattern).
@@ -1737,8 +1804,12 @@ public final class ExperimentsFeature {
     }
 
     private static List<ExperimentSolver.Cell> snapshot(ChestMenu menu) {
-        List<ExperimentSolver.Cell> cells = new ArrayList<>(menu.slots.size());
+        // The table's own slots only. ChestMenu appends the player's 36 inventory slots after them, and nothing the
+        // solver reads lives there; reading each one's name and whole lore every tick was most of this method's cost.
+        int containerSlotCount = menu.slots.size() - 36;
+        List<ExperimentSolver.Cell> cells = new ArrayList<>(containerSlotCount);
         for (Slot slot : menu.slots) {
+            if (slot.index >= containerSlotCount) continue;
             ItemStack stack = slot.getItem();
             boolean empty = stack == null || stack.isEmpty();
             cells.add(new ExperimentSolver.Cell(
@@ -1762,10 +1833,11 @@ public final class ExperimentsFeature {
     private static void updateSuperpairsIconCache(ChestMenu menu, List<ExperimentSolver.Cell> cells) {
         for (ExperimentSolver.Cell cell : cells) {
             if (!ExperimentSolver.isRevealedPair(cell)) continue;
-            for (Slot slot : menu.slots) {
+            // A ChestMenu's slot list is in index order, so the cell's slot is its position.
+            if (cell.slot() < menu.slots.size()) {
+                Slot slot = menu.slots.get(cell.slot());
                 if (slot.index == cell.slot()) {
                     superpairsIconCache.put(cell.slot(), slot.getItem().copy());
-                    break;
                 }
             }
         }
