@@ -104,7 +104,6 @@ public final class ScoreCalculatorFeature {
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
-    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)");
     // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",
             "mimic dead!", "$skytils-dungeon-score-mimic$");
@@ -507,10 +506,6 @@ public final class ScoreCalculatorFeature {
             expectingBloodUpdate = true;
             return;
         }
-        Matcher teamScore = TEAM_SCORE.matcher(plain);
-        if (teamScore.find()) {
-            return;
-        }
         Matcher party = PARTY_MESSAGE.matcher(plain);
         if (party.matches()) {
             String body = party.group(1).trim().toLowerCase(Locale.ROOT);
@@ -566,16 +561,9 @@ public final class ScoreCalculatorFeature {
 
     private static void fireMilestone(ScoreCalculatorConfig cfg, int milestone, String floor, int seconds) {
         boolean is300 = milestone == 300;
-        Minecraft client = Minecraft.getInstance();
         boolean title = is300 ? cfg.isTitle300() : cfg.isTitle270();
         if (title) {
-            String text = (is300 ? cfg.getTitle300Text() : cfg.getTitle270Text()).replace('&', '§');
-            McCompat.setTimes(client, 5, 40, 10);
-            McCompat.setTitle(client, Component.literal(text.contains("§") ? text : "§6§l" + text));
-            McCompat.setSubtitle(client, Component.literal(""));
-            if (cfg.isAlertSound()) {
-                client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f));
-            }
+            previewAlert(milestone);
         }
         boolean party = is300 ? cfg.isParty300() : cfg.isParty270();
         if (party) {
