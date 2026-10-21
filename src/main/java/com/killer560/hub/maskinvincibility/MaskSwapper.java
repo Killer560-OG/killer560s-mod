@@ -100,10 +100,6 @@ public final class MaskSwapper {
      */
     private static final long PHOENIX_HANDLED_GUARD_MS = 5_000L;
 
-    /** {@link #abort}'s {@code why} values that mean the swap actually put the target on/out, for
-     *  {@link #lastCompletedSuccess()}. */
-    private static final Set<String> SUCCESS_REASONS = Set.of("done", "already summoned", "rod thrown", "rod done");
-
     /**
      * ActionGate's own actors for this class's three kinds of action (the command, the menu click, the rod
      * cast) - {@link ActionGate.Actor#MASK_SWAP_CMD}/{@code MASK_SWAP_MENU}/{@code MASK_SWAP_ROD}.
@@ -135,9 +131,6 @@ public final class MaskSwapper {
             return skyblockId;
         }
     }
-
-    /** killer560, 2026-09-21: "make the order it should use them as spirit, phoenix, bonzo". */
-    public static final List<Target> DEFAULT_ORDER = List.of(Target.SPIRIT, Target.PHOENIX, Target.BONZO);
 
     private enum Stage {
         IDLE, SEND_STATS, AWAIT_MENU, CLICK_MASK, CLOSE_MENU, ROD_SELECT, ROD_CAST, ROD_RESTORE,
@@ -177,12 +170,6 @@ public final class MaskSwapper {
     private static final Pattern AUTOPET = Pattern.compile(
             "^Autopet equipped your \\[Lvl \\d{1,3}] ([A-Za-z' ]{1,32}?)(?: \u2726)?! VIEW RULE$");
     private static final Pattern DESPAWNED = Pattern.compile("^You despawned your ([A-Za-z' ]{1,32}?)(?: \u2726)?!$");
-    /** Bumped by {@link #abort} every time a swap ends - see {@link #completionSeq()}. */
-    private static long completionSeq = 0L;
-    private static Target lastCompletedTarget = null;
-    private static String lastCompletedRequester = null;
-    private static boolean lastCompletedSuccess = false;
-
     private MaskSwapper() {
     }
 
@@ -225,11 +212,6 @@ public final class MaskSwapper {
         return stage != Stage.IDLE;
     }
 
-    /** True once a swap to this target has failed in this world - callers should skip it instead of retrying. */
-    public static boolean isUnavailable(Target t) {
-        return unavailable.contains(t);
-    }
-
     /**
      * First target in {@code order} that is worth swapping to: not on cooldown (the caller owns that knowledge -
      * the proc timers and the i4 tracker count it differently), not already on you, not known missing, and -
@@ -265,32 +247,6 @@ public final class MaskSwapper {
     public static long msSincePhoenixHandled() {
         long last = Math.max(lastPhoenixRodThrowMs, lastPhoenixConfirmedSummonMs);
         return last <= 0 ? Long.MAX_VALUE / 2 : System.currentTimeMillis() - last;
-    }
-
-    /**
-     * Bumped once every time a swap this class started finishes, success or not - poll this each tick and
-     * compare against a saved value to notice a swap you requested has ended, then read
-     * {@link #lastCompletedTarget()}/{@link #lastCompletedRequester()}/{@link #lastCompletedSuccess()}.
-     * Restores what {@code i4sensors.I4AutoMask} used to do with its own "log the helmet 1s after the click"
-     * verification before the two swap flows were unified - it lost that when its own click was deleted, and
-     * there was nowhere to hang the callback until now.
-     */
-    public static long completionSeq() {
-        return completionSeq;
-    }
-
-    public static Target lastCompletedTarget() {
-        return lastCompletedTarget;
-    }
-
-    public static String lastCompletedRequester() {
-        return lastCompletedRequester;
-    }
-
-    /** True if the swap named by {@link #completionSeq()} actually put the target on/out (a click, a rod throw,
-     *  or Phoenix already being out) rather than timing out or coming up empty. */
-    public static boolean lastCompletedSuccess() {
-        return lastCompletedSuccess;
     }
 
     /**
@@ -335,14 +291,6 @@ public final class MaskSwapper {
         previousSlot = client.player.getInventory().getSelectedSlot();
         stage = wanted != Target.PHOENIX ? Stage.SEND_STATS : phoenixViaPets ? Stage.SEND_PETS : Stage.ROD_SELECT;
         return true;
-    }
-
-    /** Cleared on world change so a mask you did have next run is tried again. */
-    public static void resetWorldState() {
-        unavailable.clear();
-        lastPhoenixRodThrowMs = 0L;
-        lastPhoenixConfirmedSummonMs = 0L;
-        abort("world change");
     }
 
     // ------------------------------------------------------------------ state machine
@@ -683,14 +631,6 @@ public final class MaskSwapper {
     }
 
     private static void abort(String why) {
-        if (stage != Stage.IDLE) {
-            if (target != null) {
-                lastCompletedTarget = target;
-                lastCompletedRequester = requester;
-                lastCompletedSuccess = SUCCESS_REASONS.contains(why);
-                completionSeq++;
-            }
-        }
         stage = Stage.IDLE;
         target = null;
         requester = "";
