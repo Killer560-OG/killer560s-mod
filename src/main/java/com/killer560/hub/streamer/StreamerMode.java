@@ -44,18 +44,32 @@ public final class StreamerMode {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-streamer.json");
 
-    private static boolean active;
-    private static Option option = Option.HIDE_CHEAT_UI;
-    private static boolean loaded;
+    private static volatile boolean active;
+    private static volatile Option option = Option.HIDE_CHEAT_UI;
+    private static volatile boolean loaded;
 
     private StreamerMode() {
     }
 
-    private static synchronized void ensureLoaded() {
+    /** Called from the menu's per-frame loops and the action gate: a plain volatile read once loaded, no lock. */
+    private static void ensureLoaded() {
+        if (!loaded) {
+            load();
+        }
+    }
+
+    private static synchronized void load() {
         if (loaded) {
             return;
         }
-        loaded = true;
+        try {
+            readFile();
+        } finally {
+            loaded = true; // after the read, so a reader that sees it also sees the values
+        }
+    }
+
+    private static void readFile() {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED || !Files.exists(CONFIG_PATH)) {
             return;
         }
