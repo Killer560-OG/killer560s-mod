@@ -80,7 +80,10 @@ public final class FakeCursor {
             GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
             hidden = true;
         } else if (hidden) {
-            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+            // Not always NORMAL: closing the terminal to no screen makes the game grab the mouse (cursor DISABLED) before this
+            // tick ends, and writing NORMAL over that left the pointer free in the world until the next screen opened and closed.
+            boolean grabbed = client.mouseHandler.isMouseGrabbed() && McCompat.screen(client) == null;
+            GLFW.glfwSetInputMode(handle, GLFW.GLFW_CURSOR, grabbed ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL);
             hidden = false;
         }
     }
