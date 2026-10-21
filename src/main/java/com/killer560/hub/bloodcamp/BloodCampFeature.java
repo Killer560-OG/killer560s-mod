@@ -489,6 +489,10 @@ public final class BloodCampFeature {
         int pingMs = pingMs(client);
         tagBloodMobs(client, now);
         if (!cfg.isEnabled()) {
+            // Blood Camp switched off while the Aura held the camera or was turning: let go (tick() below no longer runs the aim)
+            if (AIM.isTurning() || AIM.ownsCamera()) {
+                AIM.reset(client.player);
+            }
             return; // tracking for the Blood Mob ESP only
         }
         tickSounds(cfg, now, pingMs);
@@ -519,8 +523,8 @@ public final class BloodCampFeature {
                     continue;
                 }
                 double remaining = remainingTicks(data, now);
-                if (remaining > AURA_START_TICKS) {
-                    continue;
+                if (remaining > AURA_START_TICKS || remaining >= best) {
+                    continue; // not due yet, or it cannot beat the one already picked (saves its line-of-sight rays)
                 }
                 Entity mob = nearestMob(client, data.endVector);
                 if (!visible(client, mob != null ? mob.getBoundingBox() : aimBox(data.endVector))) {
@@ -535,12 +539,9 @@ public final class BloodCampFeature {
             float yaw = client.player.getYRot();
             float pitch = client.player.getXRot();
             for (Entity mob : floorMobs(client, now)) {
-                if (!visible(client, mob.getBoundingBox())) {
-                    continue;
-                }
                 float[] a = BloodCampAim.angles(client.player.getEyePosition(), mob.getBoundingBox().getCenter());
                 double score = (Math.abs(net.minecraft.util.Mth.wrapDegrees(a[0] - yaw)) + Math.abs(a[1] - pitch)) * 0.01;
-                if (score < best) {
+                if (score < best && visible(client, mob.getBoundingBox())) {
                     best = score;
                     auraFloor = mob;
                     auraTrip = null;
@@ -898,7 +899,6 @@ public final class BloodCampFeature {
                 fc.clicks = Math.max(fc.clicks, triggerData.clicks + 1);
                 fc.lastTick = now;
             }
-            triggerData.triggerBotClicked = true;
             triggerData.clicks++;
             triggerData.lastClickTick = now;
             triggerData.lastClickAttacked = done == Click.ATTACK;
