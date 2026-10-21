@@ -97,30 +97,11 @@ public final class SupportersSelfService {
                 .exceptionally(e -> MeResult.failure(reason(e)));
     }
 
-    public static CompletableFuture<SaveResult> save(String rawName, double scale) {
-        return save(rawName, scale, null);
-    }
-
-    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors) {
-        return save(rawName, scale, colors, null, null);
-    }
-
     /** {@code colors}: one 0xRRGGBB per visible letter of {@code rawName} (fade / letter colours), or null for none.
-     *  {@code animation}: their Wave/Pulse, sent only alongside {@code colors} (the relay refuses it alone). */
-    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
-                                                     com.killer560.hub.namechanger.NameAnimation.Spec animation) {
-        return save(rawName, scale, colors, animation, null);
-    }
-
-    /** {@code trail}: the shared movement trail, or null for none. With a trail, {@code rawName} may be empty (a
-     *  supporter sharing a trail but no custom name; the relay accepts that only beside a trail). */
-    public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
-                                                     com.killer560.hub.namechanger.NameAnimation.Spec animation,
-                                                     com.killer560.hub.trail.TrailSpec trail) {
-        return save(rawName, scale, colors, animation, trail, null);
-    }
-
-    /** {@code mob}: the mob you play as ({@code MobSkins} id), or null for none. Like a trail, it may go up with an
+     *  {@code animation}: their Wave/Pulse, sent only alongside {@code colors} (the relay refuses it alone).
+     *  {@code trail}: the shared movement trail, or null for none. With a trail, {@code rawName} may be empty (a
+     *  supporter sharing a trail but no custom name; the relay accepts that only beside a trail).
+     *  {@code mob}: the mob you play as ({@code MobSkins} id), or null for none. Like a trail, it may go up with an
      *  empty name (the relay accepts that only beside a trail or a mob). */
     public static CompletableFuture<SaveResult> save(String rawName, double scale, int[] colors,
                                                      com.killer560.hub.namechanger.NameAnimation.Spec animation,
@@ -129,13 +110,6 @@ public final class SupportersSelfService {
         lastAttempt = "POST " + json;
         attempts++;
         return request("POST", HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8));
-    }
-
-    /** The {@code POST /supporters/me} body for these values. */
-    static String body(String rawName, double scale, int[] colors,
-                       com.killer560.hub.namechanger.NameAnimation.Spec animation,
-                       com.killer560.hub.trail.TrailSpec trail) {
-        return body(rawName, scale, colors, animation, trail, null);
     }
 
     /** The {@code POST /supporters/me} body, with {@code mob} last when set. */

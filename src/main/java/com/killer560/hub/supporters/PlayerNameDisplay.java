@@ -80,12 +80,6 @@ public final class PlayerNameDisplay {
         }
     }
 
-    /** Player-model render scale for {@code id} - see {@link SupportersFeature#scaleFor} for what this does
-     *  and does not touch. Not affected by the mapping precedence above (Name Changer carries no scale). */
-    public static float scaleFor(UUID id) {
-        return SupportersFeature.scaleFor(id);
-    }
-
     /**
      * The full model scale for one rendered player (Cosmetics tab "Player Size"). Your own model uses your own
      * size setting and ignores the relay's copy of it, so a shared size never applies twice. Every other real

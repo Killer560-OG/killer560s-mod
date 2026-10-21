@@ -48,7 +48,6 @@ public final class SupportersFeature {
     }
 
     private static volatile Map<UUID, Resolved> byUuid = Map.of();
-    private static volatile int lastAppliedVersion = -1;
 
     /** The same callback {@link #register} hands {@link SupportersFetcher#start}, kept so {@link #refreshNow}
      *  can reuse the identical fetch-then-apply-then-persist path instead of duplicating it. */
@@ -97,7 +96,6 @@ public final class SupportersFeature {
         byUuid = Map.copyOf(map);
         // Wave/Pulse names are recoloured where text is drawn (NameAnimation), recognised by these painted texts.
         com.killer560.hub.namechanger.NameAnimation.setShared(animated);
-        lastAppliedVersion = version;
         if (persist) {
             SupportersCache.save(version, entries);
         }
@@ -105,10 +103,6 @@ public final class SupportersFeature {
 
     public static int supporterCount() {
         return byUuid.size();
-    }
-
-    public static int lastVersion() {
-        return lastAppliedVersion;
     }
 
     /** @return true when cosmetics are on and there is at least one supporter to ever match - a cheap
