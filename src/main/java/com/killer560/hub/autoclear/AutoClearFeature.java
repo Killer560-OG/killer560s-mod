@@ -818,7 +818,10 @@ public final class AutoClearFeature {
                 continue;
             }
             Flight f = doomed.get(e.getKey());
-            if (f != null && f.bats() == 1 && !e.getValue().lost()) {
+            if (f != null && f.bats() == 1 && !e.getValue().lost() && (e.getValue().vel() == null
+                    || e.getValue().vel().horizontalDistance() < WeaponReach.LEAD_MIN_SPEED)) {
+                // (Nor a walking one: if its bat misses it may walk out of the room, and the room then cannot be cleared
+                // from it - 1020-sim-ac-speed with walking mobs gave Flags up after a missed bat.)
                 // (Not one left to several bats on the damage seen: one of those missing leaves it alive, and the
                 // come-back for it cost more than the wait - 1020-sim-ac-speed at 60 health, 108 room visits for 44.)
                 leftToBats++;   // a trusted bat is on its way: its kill is seen from wherever he is by then
