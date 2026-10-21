@@ -57,7 +57,8 @@ public final class QuizState {
     private static long lastLineAt = -1;
     /** {@link ServerTickClock#now()} of the last "answered" line. */
     private static long answeredAt = -1;
-    private static Object level;
+    /** Weak: a strong reference would keep the whole last ClientLevel (every loaded chunk) alive after he leaves the world. */
+    private static java.lang.ref.WeakReference<Object> level = new java.lang.ref.WeakReference<>(null);
 
     private QuizState() {
     }
@@ -66,8 +67,8 @@ public final class QuizState {
         ServerTickClock.register();
         ChatObserver.subscribe(QuizState::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizState", client -> {
-            if (client.level != level) {
-                level = client.level;
+            if (client.level != level.get()) {
+                level = new java.lang.ref.WeakReference<>(client.level);
                 reset("world changed");
             }
         }));
@@ -87,9 +88,7 @@ public final class QuizState {
         } else if (msg.equals(THIRD)) {
             set(3, now + LATER_LOCK_TICKS, now, "question 3");
         } else if (WRONG.matcher(msg).matches()) {
-            Matcher w = WRONG.matcher(msg);
-            LOGGER.info("[QuizState] wrong answer by {} at question {} (server tick {}) - the puzzle fails",
-                    w.matches() ? w.group(1) : "?", question, now);
+            LOGGER.info("[QuizState] wrong answer at question {} (server tick {}) - the puzzle fails", question, now);
             reset("a wrong answer");
         } else {
             Matcher m = ANSWERED.matcher(msg);
