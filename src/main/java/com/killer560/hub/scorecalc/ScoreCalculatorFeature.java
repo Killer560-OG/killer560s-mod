@@ -104,6 +104,7 @@ public final class ScoreCalculatorFeature {
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
+    private static final Pattern TEAM_SCORE = Pattern.compile("^\\s*Team Score: (\\d+) \\(([A-DS+]+)\\)"); // testkit fixture chat.team-score reads it
     // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",
             "mimic dead!", "$skytils-dungeon-score-mimic$");
