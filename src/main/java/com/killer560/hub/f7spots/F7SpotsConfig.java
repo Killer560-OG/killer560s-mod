@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -257,7 +258,7 @@ public final class F7SpotsConfig {
     public void setWalkColor(int v) { walkColor = v; }
 
     /** Read-only view; mutate through {@link #addWalkWaypoint} / {@link #removeLastWalkWaypoint} (then {@link #save()}). */
-    public List<WalkWaypoint> getWalkWaypoints() { return List.copyOf(walkWaypointList); }
+    public List<WalkWaypoint> getWalkWaypoints() { return Collections.unmodifiableList(walkWaypointList); }
 
     public void addWalkWaypoint(WalkWaypoint w) {
         if (w != null) {
@@ -307,7 +308,7 @@ public final class F7SpotsConfig {
     public void setAimColor(int v) { aimColor = v; }
 
     /** Read-only view; mutate through {@link #addAimSpot} / {@link #removeLastAimSpot} (then {@link #save()}). */
-    public List<AimSpot> getAimSpots() { return List.copyOf(aimSpotList); }
+    public List<AimSpot> getAimSpots() { return Collections.unmodifiableList(aimSpotList); }
 
     public void addAimSpot(AimSpot spot) {
         if (spot != null) {
