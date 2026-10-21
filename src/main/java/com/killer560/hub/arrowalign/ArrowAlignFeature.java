@@ -283,6 +283,7 @@ public final class ArrowAlignFeature {
                 // Device reset / re-randomised after a solve - arm a fresh attempt.
                 LOGGER.info("[ArrowAlign] device unsolved again after a solve: new attempt armed (needed {})", neededSummary());
                 solvedAnnounced = false;
+                heldIndex = -2; // the same layout rolled again: the Leave Last Arrow frame is chosen afresh
                 firstClickMs = 0L;
                 clicksThisSolve = 0;
             }
