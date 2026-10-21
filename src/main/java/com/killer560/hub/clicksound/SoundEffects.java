@@ -35,7 +35,16 @@ public final class SoundEffects {
             return in;
         }
         try {
-            SoundInstance made = ClickSounds.make(choice, in.getVolume(), in);
+            // The game loads a sound's file only when it plays, so before then its volume is unknown (getVolume throws
+            // on the null sound): play the effect at full volume rather than dropping it. (Owner, 2026-10-20: no effect
+            // played at all.)
+            float volume = 1.0f;
+            try {
+                volume = in.getVolume();
+            } catch (RuntimeException ignored) {
+                // use the default volume
+            }
+            SoundInstance made = ClickSounds.make(choice, volume, in);
             if (made == null) {
                 return in;
             }
