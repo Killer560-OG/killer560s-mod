@@ -303,7 +303,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
         // screen"). With nothing listed, the line says why instead. Since the screen sweep (2026-10-13) it sits on a
         // small chip in the theme, so it reads over any world and on a light theme.
         hintShown = "";
-        boolean hints = com.killer560.hub.gui.DescriptionConfig.getInstance().isShowEditor();
+        boolean hints = com.killer560.hub.gui.DescriptionConfig.getInstance().editorShown();
         if (draggingId == null && (shown.isEmpty() || hints)) {
             // Show Editor Descriptions (Home > Descriptions) hides the hints; the line that says why the editor is empty stays.
             hintShown = fit(shown.isEmpty() ? emptyLine() : hintLine());

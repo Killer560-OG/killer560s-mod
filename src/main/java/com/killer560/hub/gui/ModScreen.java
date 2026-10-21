@@ -2583,7 +2583,7 @@ public class ModScreen extends Screen {
      *  changes - not on every frame the mouse rests there (fps-gui-1015). */
     private String cardHoverText(Item it) {
         Boolean state = it.kind == ItemKind.CARD ? FeatureCards.state(it.tab) : null;
-        boolean show = DescriptionConfig.getInstance().isShowMenu();
+        boolean show = DescriptionConfig.getInstance().menuShown();
         if (cardHoverFor == it.tab && cardHoverKind == it.kind && java.util.Objects.equals(cardHoverState, state) && cardHoverShowMenu == show) {
             return cardHoverText;
         }

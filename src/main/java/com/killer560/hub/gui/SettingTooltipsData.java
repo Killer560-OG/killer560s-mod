@@ -89,6 +89,7 @@ final class SettingTooltipsData {
         d.put("sound effects/open sound folder", "Opens the folder imported sounds live in. Import a file here, then step a row's Sound to it.");
         d.put("sound effects/import from clipboard", "Copy a sound or video file's path (Shift + right click it, Copy as path), then press this to import it into the sound folder.");
         d.put("descriptions", "Show or hide the one-line descriptions: on the feature cards in this menu, and the hint lines in the HUD editor. The longer hover text stays either way.");
+        d.put("descriptions/descriptions", "Off hides every card description and HUD editor hint, whatever the two rows below say.");
         d.put("descriptions/show descriptions", "Off hides the one-line description under each feature card's name. Hover a card for the longer text.");
         d.put("descriptions/show editor descriptions", "Off hides the hint line at the top of the HUD editor (drag, resize, scroll, Esc). The line saying why the editor is empty stays.");
     }

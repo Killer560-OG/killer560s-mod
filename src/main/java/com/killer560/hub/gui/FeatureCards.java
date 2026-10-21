@@ -51,7 +51,7 @@ public final class FeatureCards {
      * (95-perf-screens JFR, fps-gui-1015): {@code String.split} with a regex, a candidate string per word, a width each.
      */
     public static CardText cardText(BaseTab tab, int w, int h, boolean hasSwitch) {
-        boolean show = DescriptionConfig.getInstance().isShowMenu();
+        boolean show = DescriptionConfig.getInstance().menuShown();
         int fv = com.killer560.hub.fonts.FontConfig.version();
         net.minecraft.client.gui.Font font = MenuStyle.font();
         String desc = show ? description(tab) : null;
@@ -69,7 +69,7 @@ public final class FeatureCards {
         int nameW = w - 14 - (hasSwitch ? MenuStyle.SWITCH_W + 4 : 0);
         List<String> name = MenuStyle.wrap(tab.name, nameW, 2);
         int budget = Math.max(0, (h - 14 - (6 + 10 * name.size() + 2)) / 10);
-        if (!DescriptionConfig.getInstance().isShowMenu()) {
+        if (!DescriptionConfig.getInstance().menuShown()) {
             return new CardText(name, List.of(), false);
         }
         String full = description(tab);

@@ -14,7 +14,9 @@ import java.nio.file.Path;
 /**
  * Whether the short descriptions show (killer560, 2026-10-15: "Have a toggle to show those descriptions at all for the gui
  * editor as well"): the one-line blurb on every feature card in the mod menu, and the hint lines of the HUD editor.
- * Both are on by default. The long hover descriptions are not affected.
+ * Both are on by default. The long hover descriptions are not affected. The tab's own switch (killer560, 2026-10-20: "make
+ * descriptions have a normal toggle for the whole setting as well") is over both: off hides every one-line description
+ * and every editor hint, whatever the two rows say, and keeps their values for when it is turned back on. On by default.
  */
 public final class DescriptionConfig {
 
@@ -23,6 +25,7 @@ public final class DescriptionConfig {
 
     private static DescriptionConfig instance;
 
+    private boolean enabled = true;
     private boolean showMenu = true;
     private boolean showEditor = true;
 
@@ -42,6 +45,7 @@ public final class DescriptionConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
+                cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
                 cfg.showMenu = ConfigJson.getBool(obj, "showMenu", true);
                 cfg.showEditor = ConfigJson.getBool(obj, "showEditor", true);
             } catch (Exception ignored) {
@@ -55,6 +59,7 @@ public final class DescriptionConfig {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
+            obj.addProperty("enabled", enabled);
             obj.addProperty("showMenu", showMenu);
             obj.addProperty("showEditor", showEditor);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -62,7 +67,26 @@ public final class DescriptionConfig {
         }
     }
 
-    /** Whether the feature cards in the mod menu show their one-line description. */
+    /** The tab's switch over both rows. */
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean v) {
+        enabled = v;
+    }
+
+    /** Whether the feature cards in the mod menu show their one-line description now: the switch and the row both on. */
+    public boolean menuShown() {
+        return enabled && showMenu;
+    }
+
+    /** Whether the HUD editor shows its hint lines now: the switch and the row both on. */
+    public boolean editorShown() {
+        return enabled && showEditor;
+    }
+
+    /** The Show Descriptions row's own value (what {@link #menuShown} uses while the switch is on). */
     public boolean isShowMenu() {
         return showMenu;
     }
@@ -71,7 +95,7 @@ public final class DescriptionConfig {
         showMenu = v;
     }
 
-    /** Whether the HUD editor shows its hint lines. */
+    /** The Show Editor Descriptions row's own value (what {@link #editorShown} uses while the switch is on). */
     public boolean isShowEditor() {
         return showEditor;
     }
