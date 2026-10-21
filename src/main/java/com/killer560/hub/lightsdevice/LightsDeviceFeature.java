@@ -187,6 +187,15 @@ public final class LightsDeviceFeature {
         return unlit;
     }
 
+    /** Whether the device rules would flick {@code pos} now: {@link #wantedReason} without building the text. */
+    private static boolean wanted(Minecraft client, BlockPos pos, boolean s2Open, int unlitTotal) {
+        if ((s2Open ? clickedS2 : clickedEarly).contains(pos.asLong())) {
+            return false;
+        }
+        boolean lit = client.level.getBlockState(pos).getValue(LeverBlock.POWERED);
+        return !lit || (s2Open && unlitTotal == 0 && clickedS2.isEmpty() && !activationClicked);
+    }
+
     /** Why the device rules would flick {@code pos} now, or null. */
     private static String wantedReason(Minecraft client, BlockPos pos, boolean s2Open, int unlitTotal) {
         if ((s2Open ? clickedS2 : clickedEarly).contains(pos.asLong())) {
@@ -222,8 +231,6 @@ public final class LightsDeviceFeature {
         double nearestUnlitSq = Double.MAX_VALUE;
         BlockPos nearestAny = null;
         double nearestAnySq = Double.MAX_VALUE;
-        String unlitReason = null;
-        String anyReason = null;
         Set<Long> inRangeNow = new HashSet<>();
         for (BlockPos pos : LIGHTS_LEVERS) {
             // Nearest point of the block, not its centre. See BlockHits.boxDistanceSq.
@@ -236,25 +243,21 @@ public final class LightsDeviceFeature {
             if (!dwellPassed(cfg, key, now)) {
                 continue;
             }
-            String reason = wantedReason(client, pos, s2Open, unlitTotal);
-            if (reason == null) {
+            if (!wanted(client, pos, s2Open, unlitTotal)) {
                 continue;
             }
             boolean lit = client.level.getBlockState(pos).getValue(LeverBlock.POWERED);
             if (!lit && d < nearestUnlitSq) {
                 nearestUnlitSq = d;
                 nearestUnlit = pos;
-                unlitReason = reason;
             } else if (lit && d < nearestAnySq) {
                 nearestAnySq = d;
                 nearestAny = pos;
-                anyReason = reason;
             }
         }
         inRangeSince.keySet().retainAll(inRangeNow);
         requiredDwell.keySet().retainAll(inRangeNow);
         BlockPos target = nearestUnlit != null ? nearestUnlit : nearestAny;
-        String reason = nearestUnlit != null ? unlitReason : anyReason;
 
         long tick = ActionGate.currentTick();
         if (target == null) {
@@ -264,6 +267,8 @@ public final class LightsDeviceFeature {
         if (tick < nextAuraDueTick) {
             return;
         }
+        // The reason text is built only for the lever actually going out (not for every lever in range every tick).
+        String reason = wantedReason(client, target, s2Open, unlitTotal);
         // Its own actor: a refusal (another feature owns this tick) costs nothing - the same lever is re-picked next tick.
         if (!ActionGate.tryAct(ActionGate.Actor.LIGHTS_AURA)) {
             return;
