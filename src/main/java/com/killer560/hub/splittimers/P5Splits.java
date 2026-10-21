@@ -50,10 +50,6 @@ public final class P5Splits {
         }
     }
 
-    public static synchronized long p5StartMs() {
-        return p5StartMs;
-    }
-
     public static synchronized void dragonSpawned(String key, String coloredLabel, int number, long nowMs) {
         DRAGONS.add(new DragonRow(key, coloredLabel, number, nowMs, 0L));
     }
@@ -83,10 +79,6 @@ public final class P5Splits {
             }
         }
         RELICS.add(new RelicRow(key, coloredLabel, nowMs, who));
-    }
-
-    public static synchronized boolean hasAny() {
-        return !DRAGONS.isEmpty() || !RELICS.isEmpty() || relicSpawnMs != 0L;
     }
 
     /** HUD lines ("name§f: time"), dragons first then relics, filtered by the two Split Timers toggles. */
