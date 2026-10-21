@@ -37,9 +37,9 @@ public class RagAxeTab extends BaseTab {
         int colB = contentX + half + gap;
 
         header(w, contentX, y, contentWidth, "Rag Axe");
-        master(w, contentX, y, contentWidth, "Rag Axe", cfg::isEnabled, cfg::setEnabled, cfg, requestRebuild);
+        master(w, contentX, y, contentWidth, "Rag Axe", cfg::isEnabledSetting, cfg::setEnabled, cfg, requestRebuild);
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledSetting()) {
             return w;
         }
 

@@ -2,12 +2,10 @@ package com.killer560.hub.ragaxe;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
-import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.witherdragons.P5State;
 import com.killer560.hub.witherdragons.ServerTickClock;
 import com.killer560.hub.witherdragons.WitherDragon;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 /**
  * The built-in "rag now" prompts (see {@link RagAxePrompt} for every offset and where it comes from).
@@ -59,12 +57,7 @@ final class RagAxePrompts {
 
     // ------------------------------------------------------------------ triggers
 
-    static void onChat(Component message) {
-        RagAxeConfig cfg = RagAxeConfig.getInstance();
-        if (!cfg.isEnabled()) {
-            return;
-        }
-        String plain = ChatObserver.strip(message).trim();
+    static void onChat(String plain) {
         if (LINE_WITHER_KING.equals(plain) && onFloor7()) {
             schedule(RagAxePrompt.M7_DRAGONS);
         } else if (LINE_NECRON.equals(plain) && onFloor7()) {

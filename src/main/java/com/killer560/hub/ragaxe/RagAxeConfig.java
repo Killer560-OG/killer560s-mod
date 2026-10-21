@@ -204,6 +204,11 @@ public final class RagAxeConfig {
         return enabled && SkyblockGate.allows();
     }
 
+    /** The saved master switch alone, without the Skyblock gate: what the settings tab must show and flip. */
+    public boolean isEnabledSetting() {
+        return enabled;
+    }
+
     public void setEnabled(boolean v) {
         enabled = v;
     }
