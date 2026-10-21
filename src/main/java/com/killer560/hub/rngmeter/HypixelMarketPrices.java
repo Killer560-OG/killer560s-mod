@@ -71,6 +71,28 @@ public final class HypixelMarketPrices {
      */
     private volatile Map<String, Long> ahScanInFlight = new ConcurrentHashMap<>();
 
+    /** Pages of the scan in flight that returned nothing usable (see the swap in {@link #refreshAsync}). */
+    private final java.util.concurrent.atomic.AtomicInteger ahPagesFailed = new java.util.concurrent.atomic.AtomicInteger();
+
+    /**
+     * The threads the blocking HTTP calls and the NBT decode of a scan run on: up to a batch of pages at once. They used
+     * to run on the JVM-wide common pool, which these ten blocking requests could hold for the whole scan, starving
+     * every other task queued there. Daemon, and the idle ones expire.
+     */
+    private static final java.util.concurrent.ExecutorService IO = newIoPool();
+
+    private static java.util.concurrent.ExecutorService newIoPool() {
+        java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.ThreadPoolExecutor pool = new java.util.concurrent.ThreadPoolExecutor(
+                PAGE_BATCH_SIZE, PAGE_BATCH_SIZE, 30, TimeUnit.SECONDS, new java.util.concurrent.LinkedBlockingQueue<>(), r -> {
+                    Thread t = new Thread(r, "killer560smod-rngmeter-io-" + n.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                });
+        pool.allowCoreThreadTimeOut(true);
+        return pool;
+    }
+
     private volatile boolean refreshing = false;
     private volatile long lastRefreshedAtMs = 0;
     private volatile String lastError = null;
@@ -141,8 +163,32 @@ public final class HypixelMarketPrices {
         if (item.source() == RngSource.AH) {
             return ahLowestBin.get(item.id());
         }
+        syncBazaarMode();
         Long bazaarPrice = bazaarSellPrice.get(item.id());
         return bazaarPrice != null ? bazaarPrice : ahLowestBin.get(item.id());
+    }
+
+    /** The Bazaar mode {@link #bazaarSellPrice} was last filled for. */
+    private volatile int appliedBuyMode = -1; // -1 = not read yet, else 0/1
+
+    /**
+     * bazaarSellPrice holds whichever side was set when the last refresh ran, so flipping Bazaar Pricing in the tab did
+     * nothing until the next refresh (up to the refresh interval). When the setting differs from what the map was
+     * filled for, refill it from the two sides the feed keeps; the map is only rewritten on a flip.
+     */
+    private void syncBazaarMode() {
+        boolean wanted = RngMeterConfig.getInstance().isUseInstantBuyPrice();
+        int applied = appliedBuyMode;
+        if (applied == (wanted ? 1 : 0)) {
+            return;
+        }
+        appliedBuyMode = wanted ? 1 : 0;
+        if (applied < 0) {
+            return; // first read: a fetch fills the map for the current setting
+        }
+        for (Map.Entry<String, Long> e : (wanted ? bazaarSellOffer : bazaarInstaSell).entrySet()) {
+            bazaarSellPrice.put(e.getKey(), e.getValue());
+        }
     }
 
     private static final long STALE_AFTER_MS = 10 * 60 * 1000L;
@@ -183,13 +229,17 @@ public final class HypixelMarketPrices {
 
     /** Kicks off a background refresh of both price maps. Safe to call repeatedly; no-ops while already running. */
     public void refreshAsync() {
-        if (refreshing) {
-            return;
+        // Check-and-set together: the render thread (screen open), Croesus and the scheduler all call this.
+        synchronized (this) {
+            if (refreshing) {
+                return;
+            }
+            refreshing = true;
         }
-        refreshing = true;
         lastError = null;
+        ahPagesFailed.set(0);
         long startedAt = System.currentTimeMillis();
-        CompletableFuture.runAsync(this::fetchBazaarPrices)
+        CompletableFuture.runAsync(this::fetchBazaarPrices, IO)
                 .thenCompose(v -> fetchAhLowestBins())
                 .whenComplete((v, err) -> {
                     if (err != null) {
@@ -197,8 +247,12 @@ public final class HypixelMarketPrices {
                     }
                     // Swap the completed scan in, but only if it found anything: a refresh that failed
                     // part-way through should leave the last good prices standing rather than blank them.
+                    // A scan with a page that never came back is laid over the old prices instead of replacing them,
+                    // or every item listed only on the missing pages would drop to "no price" until the next scan.
                     if (!ahScanInFlight.isEmpty()) {
-                        ahLowestBin.clear();
+                        if (ahPagesFailed.get() == 0) {
+                            ahLowestBin.clear();
+                        }
                         ahLowestBin.putAll(ahScanInFlight);
                     }
                     lastRefreshedAtMs = System.currentTimeMillis();
@@ -212,6 +266,7 @@ public final class HypixelMarketPrices {
         try {
             JsonObject resp = getJson(BAZAAR_URL);
             if (resp == null || !resp.has("success") || !resp.get("success").getAsBoolean()) {
+                lastError = "Bazaar fetch failed: no usable response";
                 return;
             }
             boolean useBuyPrice = RngMeterConfig.getInstance().isUseInstantBuyPrice();
@@ -227,6 +282,7 @@ public final class HypixelMarketPrices {
                     bazaarSellOffer.put(entry.getKey(), Math.round(quickStatus.get("buyPrice").getAsDouble()));
                 }
             }
+            appliedBuyMode = useBuyPrice ? 1 : 0; // what bazaarSellPrice now holds; syncBazaarMode reconciles a flip made mid-fetch
         } catch (Exception e) {
             lastError = "Bazaar fetch failed: " + e.getMessage();
         }
@@ -253,7 +309,7 @@ public final class HypixelMarketPrices {
         // A fresh map per scan - see ahScanInFlight.
         ahScanInFlight = new ConcurrentHashMap<>();
 
-        return CompletableFuture.supplyAsync(() -> getJson(auctionsUrl(0)))
+        return CompletableFuture.supplyAsync(() -> getJson(auctionsUrl(0)), IO)
                 .thenCompose(first -> {
                     if (first == null || !first.has("success") || !first.get("success").getAsBoolean()) {
                         lastError = "AH fetch failed: unexpected response on page 0";
@@ -271,10 +327,12 @@ public final class HypixelMarketPrices {
                             for (int p = batchStart; p < batchEnd; p++) {
                                 int page = p;
                                 pageFutures[p - batchStart] = CompletableFuture
-                                        .supplyAsync(() -> getJson(auctionsUrl(page)))
+                                        .supplyAsync(() -> getJson(auctionsUrl(page)), IO)
                                         .thenAccept(pageJson -> {
                                             if (pageJson != null) {
                                                 processAuctionPage(pageJson, wantedIds);
+                                            } else {
+                                                ahPagesFailed.incrementAndGet();
                                             }
                                         });
                             }

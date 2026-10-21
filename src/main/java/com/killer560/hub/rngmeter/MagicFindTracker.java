@@ -20,7 +20,6 @@ public final class MagicFindTracker {
             Pattern.compile("\\((\\d+(?:\\.\\d+)?)%[^)]*Magic Find\\)");
 
     private static volatile Integer lastMagicFind = null;
-    private static volatile long lastUpdatedAtMs = 0;
 
     private MagicFindTracker() {
     }
@@ -50,7 +49,6 @@ public final class MagicFindTracker {
             try {
                 // Clamped: a huge number from someone's chat line wrapped round when cast to int.
                 lastMagicFind = (int) Math.max(0, Math.min(100_000, Math.round(Double.parseDouble(m.group(1)))));
-                lastUpdatedAtMs = System.currentTimeMillis();
             } catch (NumberFormatException ignored) {
             }
         }
@@ -59,9 +57,5 @@ public final class MagicFindTracker {
     /** Last observed Magic Find percentage, or null if no drop message has been seen yet this session. */
     public static Integer getLastMagicFind() {
         return lastMagicFind;
-    }
-
-    public static long getLastUpdatedAtMs() {
-        return lastUpdatedAtMs;
     }
 }
