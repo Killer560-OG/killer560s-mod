@@ -42,7 +42,8 @@ public final class QuizLog {
     private static final net.minecraft.resources.Identifier PHASE =
             net.minecraft.resources.Identifier.fromNamespaceAndPath("killer560smod", "quizlog");
 
-    private static Object level;
+    /** Weak: a strong reference would keep the whole last ClientLevel alive after he leaves the world. */
+    private static java.lang.ref.WeakReference<Object> level = new java.lang.ref.WeakReference<>(null);
     private static long clientTick;
     private static boolean inQuiz;
     /** {@link ServerTickClock#now()} he last walked into the Quiz room this world; -1 before. */
@@ -66,6 +67,10 @@ public final class QuizLog {
     }
 
     public static void register() {
+        // Log only, and a release drops INFO: no tick, chat or click hook is worth running there.
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS) {
+            return;
+        }
         ChatObserver.subscribe(QuizLog::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QuizLog", QuizLog::tick));
         // Ahead of every other listener and always PASS: it only watches. A click another listener answers first would
@@ -91,8 +96,8 @@ public final class QuizLog {
 
     private static void tick(Minecraft client) {
         clientTick++;
-        if (client.level != level) {
-            level = client.level;
+        if (client.level != level.get()) {
+            level = new java.lang.ref.WeakReference<>(client.level);
             inQuiz = false;
             enteredAt = -1;
             entries = 0;
@@ -195,7 +200,7 @@ public final class QuizLog {
      * line per press, however many paths report it in the same tick.
      */
     public static void notePress(BlockPos pos, String who) {
-        if (pos == null || pos.equals(pressPos) && pressClientTick == clientTick) {
+        if (!com.killer560.hub.BuildVariant.DEV_TOOLS || pos == null || pos.equals(pressPos) && pressClientTick == clientTick) {
             return;
         }
         long t = ServerTickClock.now();
