@@ -76,6 +76,7 @@ public final class SimSidebar {
     private static int inFound;
     private static int inTotal;
     private static String inRoom;
+    private static int inCleared = -1;
 
     private SimSidebar() {
     }
@@ -120,10 +121,12 @@ public final class SimSidebar {
         int found = SimScore.secretsFound();
         int total = SimScore.secretsTotal();
         String room = SimState.currentRoomName();
+        int cleared = SimScore.roomsCleared();
         if (!lastLines.isEmpty() && floor.equals(inFloor) && found == inFound && total == inTotal
-                && java.util.Objects.equals(room, inRoom)) {
+                && java.util.Objects.equals(room, inRoom) && cleared == inCleared) {
             return;
         }
+        inCleared = cleared;
         inFloor = floor;
         inFound = found;
         inTotal = total;
@@ -155,6 +158,13 @@ public final class SimSidebar {
         lines.add("");
         lines.add("The Catacombs (" + floor + ")");
         lines.add("Secrets: " + found + "/" + total);
+        // Hypixel's "Cleared: X%": the Score Calculator works the floor's room total and the skill and room score out of
+        // it, and without it read 0% and 246 for a floor with every room but Blood done (testkit 1020-sim-300,
+        // autoclear-speed-1020). The rooms the sim has counted completed over the rooms it built.
+        int roomsTotal = SimScore.roomsTotal();
+        if (roomsTotal > 0) {
+            lines.add("Cleared: " + Math.min(100, SimScore.roomsCleared() * 100 / roomsTotal) + "%");
+        }
         lines.add("Room: " + (room == null || room.isBlank() ? "Entrance" : room));
         lines.add("");
         lines.add(DISCORD);
