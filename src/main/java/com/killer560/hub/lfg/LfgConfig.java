@@ -249,10 +249,6 @@ public final class LfgConfig {
         }
     }
 
-    public LfgCategory getLastTab() {
-        return lastTab;
-    }
-
     public void setLastTab(LfgCategory tab) {
         if (tab != null) {
             this.lastTab = tab;
