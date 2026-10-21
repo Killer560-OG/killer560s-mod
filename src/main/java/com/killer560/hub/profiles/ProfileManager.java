@@ -208,33 +208,6 @@ public final class ProfileManager {
         return names;
     }
 
-    /** What the Profiles page shows on a profile's card: when any of its files last changed (0 if unknown) and how
-     *  many setting files it holds. */
-    public record ProfileInfo(long lastChangedMs, int files) {
-    }
-
-    public static ProfileInfo info(String rawName) {
-        Path dir = PROFILES_DIR.resolve(sanitize(rawName));
-        long newest = 0L;
-        int files = 0;
-        if (!Files.isDirectory(dir)) {
-            return new ProfileInfo(0L, 0);
-        }
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
-            for (Path entry : stream) {
-                if (Files.isRegularFile(entry) && isProfileSettingFile(entry.getFileName().toString())) {
-                    files++;
-                    newest = Math.max(newest, Files.getLastModifiedTime(entry).toMillis());
-                }
-            }
-        } catch (IOException ignored) {
-        }
-        // Plus the GIFs, presets, routes and the rest it carries (ProfileData).
-        files += ProfileData.countFiles(dir);
-        newest = Math.max(newest, ProfileData.newestFile(dir));
-        return new ProfileInfo(newest, files);
-    }
-
     public static String getActiveProfile() {
         try {
             if (Files.exists(ACTIVE_MARKER)) {
@@ -827,7 +800,7 @@ public final class ProfileManager {
     /** Zips a profile's folder into the share folder ({@code config/killer560/system/profiles/killer560smod-profiles-share/
      *  <name>.zip}, since 2026-10-08) - a single real file the user can hand to a friend (Discord attachment, etc.).
      *  {@link #shareProfile} also opens that folder. */
-    public static Result exportProfile(String rawName) {
+    public static synchronized Result exportProfile(String rawName) {
         String name = sanitize(rawName);
         if (name.isEmpty()) {
             return new Result(false, "§cProfile name can't be empty.");
@@ -978,12 +951,6 @@ public final class ProfileManager {
                             break;
                         }
                     }
-                    byte[] bytes = readCapped(zis, ProfileData.MAX_TOTAL_BYTES - total);
-                    if (bytes == null) {
-                        throw new IOException("the profile is larger than " + (ProfileData.MAX_TOTAL_BYTES >> 20)
-                                + " MB");
-                    }
-                    total += bytes.length;
                     if (dataAt >= 0) {
                         String rel = String.join("/", java.util.Arrays.copyOfRange(parts, dataAt + 1, parts.length));
                         String top = parts[dataAt + 1];
@@ -997,12 +964,30 @@ public final class ProfileManager {
                             continue;
                         }
                         Files.createDirectories(target.getParent());
-                        Files.write(target, bytes);
+                        // Streamed to the file: a big GIF is never held whole in memory (a heap error on a zip dropped in
+                        // the import folder would be retried by every poll, for ever).
+                        long written = copyCapped(zis, target, ProfileData.MAX_TOTAL_BYTES - total);
+                        if (written < 0) {
+                            throw new IOException("the profile is larger than " + (ProfileData.MAX_TOTAL_BYTES >> 20)
+                                    + " MB");
+                        }
+                        total += written;
                         data++;
-                    } else if (fileName.equals(ProfileData.META_FILE)) {
+                        continue;
+                    }
+                    if (!fileName.equals(ProfileData.META_FILE) && !isProfileSettingFile(fileName)) {
+                        continue;
+                    }
+                    byte[] bytes = readCapped(zis, Math.min(ProfileData.MAX_TOTAL_BYTES - total, MAX_SETTING_BYTES));
+                    if (bytes == null) {
+                        throw new IOException("a setting file in the zip is larger than " + (MAX_SETTING_BYTES >> 20)
+                                + " MB, or the profile is larger than " + (ProfileData.MAX_TOTAL_BYTES >> 20) + " MB");
+                    }
+                    total += bytes.length;
+                    if (fileName.equals(ProfileData.META_FILE)) {
                         meta = ProfileData.parseMeta(new String(bytes, StandardCharsets.UTF_8));
                         Files.write(dir.resolve(ProfileData.META_FILE), bytes);
-                    } else if (isProfileSettingFile(fileName)) {
+                    } else {
                         try {
                             com.google.gson.JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8));
                         } catch (RuntimeException bad) {
@@ -1047,6 +1032,29 @@ public final class ProfileManager {
             LOGGER.warn("[Profiles] import of {} failed", zipPath, e);
             return new Result(false, "§cFailed to import profile: " + e.getMessage());
         }
+    }
+
+    /** The most a single setting file (or the stamp) in an imported zip may be: they are small JSON, held in memory. */
+    private static final long MAX_SETTING_BYTES = 32L * 1024 * 1024;
+
+    /** Streams the rest of a zip entry into {@code target}; returns the bytes written, or -1 (target deleted) once it
+     *  passes {@code limit} bytes. */
+    private static long copyCapped(InputStream in, Path target, long limit) throws IOException {
+        long read = 0;
+        try (OutputStream out = Files.newOutputStream(target)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                read += n;
+                if (read > limit) {
+                    out.close();
+                    Files.deleteIfExists(target);
+                    return -1;
+                }
+                out.write(buf, 0, n);
+            }
+        }
+        return read;
     }
 
     /** Reads the rest of a zip entry, or null once it passes {@code limit} bytes. */
