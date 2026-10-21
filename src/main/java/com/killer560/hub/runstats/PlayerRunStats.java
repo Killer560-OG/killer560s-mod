@@ -2,7 +2,6 @@ package com.killer560.hub.runstats;
 
 import com.killer560.hub.dungeonclass.DungeonClass;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -28,10 +27,6 @@ public record PlayerRunStats(String name, DungeonClass dungeonClass, int soloRoo
 
     public PlayerRunStats {
         deaths = deaths == null ? List.of() : List.copyOf(deaths);
-    }
-
-    public static PlayerRunStats unknown(String name) {
-        return new PlayerRunStats(name, null, -1, -1, -1, Collections.emptyList());
     }
 
     public boolean hasRooms() {
