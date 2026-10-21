@@ -63,15 +63,15 @@ public final class PosmsgRenderer {
                 continue;
             }
             float[] c = WorldRenderUtils.argbToFloats(e.color());
-            double distance = player.position().distanceTo(new Vec3(e.x, e.y, e.z));
+            double distSq = player.position().distanceToSqr(e.x, e.y, e.z);
             // Solid once you're inside it, translucent from outside - the same "you are in it now"
             // signal the chat line gives you, a tick before the chat line arrives.
-            boolean standingInside = distance <= e.radius;
+            boolean standingInside = distSq <= e.radius * e.radius;
             float alpha = standingInside ? 1f : 0.65f;
             // Per-waypoint line width, thickened slightly while you're inside so the crossing still reads.
             float thickness = (float) Math.max(0.5, e.thickness) * (standingInside ? 1.5f : 1f);
             WorldRenderUtils.renderLineStrip(context, ring(e, GROUND_OFFSET), c[0], c[1], c[2], alpha, thickness);
-            if (distance <= LABEL_DISTANCE) {
+            if (distSq <= LABEL_DISTANCE * LABEL_DISTANCE) {
                 // On the waypoint unless the player lifted it (offset defaults to 0 - killer560's original
                 // "Make the text not offset though from the waypoint"). SEE_THROUGH keeps it legible at
                 // floor level.
