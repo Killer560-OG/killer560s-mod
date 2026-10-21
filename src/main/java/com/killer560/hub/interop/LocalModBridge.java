@@ -145,9 +145,4 @@ public final class LocalModBridge {
             PartyInteropState.offerCounter(counter, value, InteropSource.BRIDGE, who);
         }
     }
-
-    /** Whether any bridge target is actually installed here - for the Interop tab's status line. */
-    public static boolean anyTargetInstalled() {
-        return DetectedMods.isLoaded(DetectedMods.NOAMM_ADDONS) || DetectedMods.isLoaded(DetectedMods.ODIN);
-    }
 }
