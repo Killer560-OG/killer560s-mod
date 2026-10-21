@@ -891,7 +891,7 @@ public final class AutoRoutesFeature {
             LOGGER.info("[AutoRoutes] Added node not fired: the route changed before the chat closed");
             return false;
         }
-        if (!node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), player.getBoundingBox())) {
+        if (!node.contains(frame, RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), player.getBoundingBox())) {
             LOGGER.info("[AutoRoutes] Added node #{} not fired: you left it before the chat closed", route.indexOf(node) + 1);
             return false;
         }

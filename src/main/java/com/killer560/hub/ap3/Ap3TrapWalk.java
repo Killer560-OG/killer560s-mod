@@ -193,6 +193,50 @@ public final class Ap3TrapWalk {
         startPlanning(player, from, 0, true);
     }
 
+    /**
+     * Starts an AP3 align with no walk before it: the Auto Routes ALIGN node (killer560, 2026-10-20: "an align node that
+     * I can do W2 L2 on"). The same finish as a walk's ({@link #tickAlign}, which is Ap3Executor's camera-method ALIGN):
+     * onto {@code to} (feet, real coordinates) within the Align Tolerance, at rest, held the settle ticks. {@code halfX} /
+     * {@code halfZ} are the node's W x L box in real axes, which is where an align that times out at rest still counts as
+     * arrived, as in a walk. Refused at once - as AP3 fails an align - when he stands further than
+     * {@code ALIGN_REACH + W/2 + L/2} from the point. A correction is honoured and the align carries on
+     * ({@link #onCorrection}).
+     */
+    public static void beginAlign(Minecraft client, LocalPlayer player, Vec3 to, double halfX, double halfZ, String what) {
+        cancel(null);
+        label = what == null ? "" : what;
+        onPlanned = null;
+        Ap3RoutePlanner.Gate g = new Ap3RoutePlanner.Gate();
+        g.x = to.x;
+        g.y = to.y;
+        g.z = to.z;
+        g.halfW = Math.max(0.05, halfX);
+        g.halfL = Math.max(0.05, halfZ);
+        g.exactTol = Ap3Config.getInstance().getRouteExactTolerance();
+        g.captureBlocks();
+        g.group = 1;
+        g.mustLand = true;
+        gate = g;
+        refusal = null;
+        firstPlanDone = true; // nothing to save: a re-plan after a correction is never kept
+        startedMs = System.currentTimeMillis();
+        ticks = 0;
+        alignTicks = 0;
+        settleTicks = 0;
+        lastSneak = false;
+        retryIn = RETRY_EVERY;
+        acceptFrom = SEQ.get() + 1;
+        double dist = Math.hypot(to.x - player.getX(), to.z - player.getZ());
+        double reach = ALIGN_REACH + g.halfW + g.halfL;
+        phase = Phase.ALIGNING;
+        LOGGER.info("[TrapWalk] {}: align starts at ({}, {}, {}) onto ({}, {}, {}), {} off (reach {}) - AP3 camera-method "
+                        + "align", label, f(player.getX()), f(player.getY()), f(player.getZ()), f(to.x), f(to.y), f(to.z),
+                f(dist), f(reach));
+        if (dist > reach) {
+            refuse(String.format(Locale.US, "too far from the align point (%.1f blocks, reach %.1f)", dist, reach));
+        }
+    }
+
     /** Ends the walk ({@code why} logged when it was still going; null = a silent reset). */
     public static void cancel(String why) {
         if (active() && why != null) {
@@ -426,7 +470,7 @@ public final class Ap3TrapWalk {
                 arrive(String.format(Locale.US, "align timed out after %d tick(s) at rest %.4f off, inside the node",
                         alignTicks, err));
             } else {
-                refuse(String.format(Locale.US, "couldn't align on the second node (%.4f blocks off after %d ticks)",
+                refuse(String.format(Locale.US, "couldn't align on the node (%.4f blocks off after %d ticks)",
                         err, alignTicks));
             }
             return null;

@@ -1040,6 +1040,13 @@ public final class RouteExecutor {
             Ap3TrapWalk.onCorrection(client, player);
             return;
         }
+        if (node != null && node.type == RouteNode.Type.ALIGN && trapWalk) {
+            // An align has no teleport of its own either: the server put him somewhere. Honoured, never fought, never a
+            // stop - AP3's align carries on from the corrected position (and walks back first if it left the reach).
+            reportCorrection(String.format(Locale.US, "during align #%d - aligning on from here", route.indexOf(node) + 1));
+            Ap3TrapWalk.onCorrection(client, player);
+            return;
+        }
         // The WARP's confirm, not the await's: tickAwait runs its own PREP/CONFIRM cycle on the same step field before
         // the node acts, and a packet then was judged against warpLanding - unset for this node, so another warp's - and
         // let a start node go that had sent nothing (killer560, 2026-10-07: "the interactive map was off when it tried
@@ -1064,7 +1071,7 @@ public final class RouteExecutor {
                 loadHop(node, hop);
                 return;
             }
-            if (node.contains(RouteCoords.toReal(frame, node.relativePos()), AutoRoutesConfig.getInstance().getHeight(),
+            if (node.contains(frame, RouteCoords.toReal(frame, node.relativePos()), AutoRoutesConfig.getInstance().getHeight(),
                     player.getBoundingBox())) {
                 reportCorrection(String.format(Locale.US,
                         "during etherwarp #%d (%.1f from its landing) - warping again", route.indexOf(node) + 1, off));
@@ -1279,10 +1286,13 @@ public final class RouteExecutor {
             RouteRotation.clear();
             return false;
         }
-        if (trapWalk && activeNode != null && activeNode.type == RouteNode.Type.PATH) {
+        if (trapWalk && activeNode != null && (activeNode.type == RouteNode.Type.PATH
+                || activeNode.type == RouteNode.Type.ALIGN)) {
             // A trap-room path walk drives him for as long as the walk takes, like a recorded route: a fresh press is him
-            // taking over, not something to override.
-            LOGGER.info("[AutoRoutes] fresh movement key during node {}'s trap-room walk - stopping", nodeTag(activeNode));
+            // taking over, not something to override. An ALIGN is AP3's align, and AP3's rule is the same: a key held
+            // since the route took over is overridden (handsLatched, above), a press after a release is "you moved".
+            LOGGER.info("[AutoRoutes] fresh movement key during node {}'s {} - stopping", nodeTag(activeNode),
+                    activeNode.type == RouteNode.Type.ALIGN ? "align" : "trap-room walk");
             stop("you moved");
             return false;
         }
@@ -1654,7 +1664,7 @@ public final class RouteExecutor {
             }
             RouteNode node = ordered.get(nextNode);
             Vec3 nodeAt = RouteCoords.toReal(frame, node.relativePos());
-            if (node.contains(nodeAt, cfg.getHeight(), player.getBoundingBox())) {
+            if (node.contains(frame, nodeAt, cfg.getHeight(), player.getBoundingBox())) {
                 if (refireHeld(client, player, node)) {
                     return;
                 }
@@ -1813,12 +1823,12 @@ public final class RouteExecutor {
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         if (nextNode < ordered.size()) {
             RouteNode next = ordered.get(nextNode);
-            if (next != from && !next.sameTile(from) && next.contains(RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
+            if (next != from && !next.sameTile(from) && next.contains(frame, RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
                 return next;
             }
         }
         for (RouteNode node : ordered) {
-            if (node != from && !node.sameTile(from) && node.contains(RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
+            if (node != from && !node.sameTile(from) && node.contains(frame, RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
                 return node;
             }
         }
@@ -2296,7 +2306,7 @@ public final class RouteExecutor {
                 RouteNode n = ordered.get(nextNode);
                 up = route.stackOf(n).get(0);
                 inPlace = pathless
-                        ? n.contains(RouteCoords.toReal(frame, n.relativePos()), cfg.getHeight(), player.getBoundingBox())
+                        ? n.contains(frame, RouteCoords.toReal(frame, n.relativePos()), cfg.getHeight(), player.getBoundingBox())
                         : n.pathIndex <= cursor;
             }
         }
@@ -2430,7 +2440,76 @@ public final class RouteExecutor {
             case BOOM -> tickBoom(client, player, node);
             case DUNGEON_BREAKER -> tickBreaker(client, player, node);
             case JUMP -> tickJump(player, node);
+            case ALIGN -> tickAlign(client, player, node);
         }
+    }
+
+    /** ALIGN nodes that finished on their point since launch - read by the testkit (96-ar-align). */
+    private static int alignsDone;
+
+    public static int alignsDone() {
+        return alignsDone;
+    }
+
+    /**
+     * An ALIGN node (killer560, 2026-10-20: "an align node that I can do W2 L2 on"): AP3's ALIGN, run by AP3's own code.
+     * Walking into its W x L box fired it; {@code Ap3TrapWalk.beginAlign} then brings him to rest on the node's point (the
+     * block centre it was placed on) with Ap3Executor's camera-method align - the discrete planner's key combination each
+     * tick, the body yaw turned at most ALIGN_YAW_STEP a tick, sprint off - and it is done when both axes are within the
+     * AP3 Align Tolerance at rest, held the settle ticks. Nothing but that stop ends it (no fixed delay); AP3's Align
+     * Timeout or standing past AP3's reach (4 + W/2 + L/2 from the point) refuses it, which stops the route and says why.
+     * Keys go in through the input mixin like a trap walk's; nothing writes a position or a velocity.
+     */
+    private static void tickAlign(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (step == Step.PREP) {
+            trapWalk = true; // Ap3TrapWalk is driving: stop() and the next node's beginAction cancel it
+            forceSneak = false;
+            wantSneak = false;
+            endWalkHold();
+            Vec3 to = RouteCoords.toReal(frame, node.relativePos());
+            int rot = frame == null ? 0 : frame.rotation();
+            Ap3TrapWalk.beginAlign(client, player, to, node.halfRealX(rot), node.halfRealZ(rot),
+                    "Align #" + (route.indexOf(node) + 1) + " (W" + RouteNode.fmtSize(node.alignWidth) + " L"
+                            + RouteNode.fmtSize(node.alignLength) + ") in " + frame.roomName());
+            logActed(node, String.format(Locale.US, " (aligning onto %.3f, %.3f from %.3f off)", to.x, to.z,
+                    Math.hypot(to.x - player.getX(), to.z - player.getZ())));
+            step = Step.DO;
+            stepTicks = 0;
+        }
+        Ap3TrapWalk.Drive d = Ap3TrapWalk.tick(client, player);
+        Ap3TrapWalk.Phase phase = Ap3TrapWalk.phase();
+        if (phase == Ap3TrapWalk.Phase.REFUSED) {
+            String why = Ap3TrapWalk.refusal();
+            LOGGER.info("[AutoRoutes] Node #{} ALIGN: refused - {}", route.indexOf(node) + 1, why);
+            AutoRoutesFeature.chatBad("Align #" + (route.indexOf(node) + 1) + ": " + why + ".");
+            trapWalk = false;
+            stop("align #" + (route.indexOf(node) + 1) + " " + why);
+            return;
+        }
+        if (phase == Ap3TrapWalk.Phase.ARRIVED) {
+            alignsDone++;
+            LOGGER.info("[AutoRoutes] Node #{} ALIGN: on the point at ({}, {}) after {} tick(s)", route.indexOf(node) + 1,
+                    String.format(Locale.US, "%.5f", player.getX()), String.format(Locale.US, "%.5f", player.getZ()),
+                    actionAge);
+            trapWalk = false;
+            finishAction();
+            return;
+        }
+        wantSneak = false;
+        if (d == null) {
+            return; // at rest on the point for the settle ticks, or re-planning after a correction: no keys
+        }
+        float delta = Mth.wrapDegrees(d.yaw() - player.getYRot());
+        if (Math.abs(delta) > 1e-4f) {
+            turnBody(player, player.getYRot() + delta, player.getXRot());
+        }
+        wantForward = d.forward();
+        wantBackward = d.backward();
+        wantLeft = d.left();
+        wantRight = d.right();
+        wantJump = d.jump();
+        wantSneak = d.sneak();
+        wantSprint = d.sprint() && !player.isInWater();
     }
 
     /** Ticks a jump node waits for him to be on the ground before pressing anyway (a press in the air does nothing). */

@@ -48,7 +48,11 @@ public final class RouteNode {
         /** killer560, 2026-10-09: "Add a jump node to auto routes"; 2026-10-12: "you have to type in jump _. That number
          *  is how many times it will jump". {@link #jumpCount} presses of the jump key, one tick each, each from the
          *  ground, then done. */
-        JUMP;
+        JUMP,
+        /** killer560, 2026-10-20: "for auto routes I need an align node that I can do W2 L2 on". AP3's ALIGN: its
+         *  trigger is a {@link #alignWidth} x {@link #alignLength} box ({@code w2 l2}, as {@code /ap3 add align w2 l2}),
+         *  and when it fires AP3's camera-method align brings him to rest on the node's point (the block centre). */
+        ALIGN;
 
         public static Type parse(String s) {
             if (s == null) {
@@ -70,6 +74,7 @@ public final class RouteNode {
                 case "crypt" -> CRYPT;
                 case "bat" -> BAT;
                 case "jump" -> JUMP;
+                case "align" -> ALIGN;
                 default -> null;
             };
         }
@@ -91,6 +96,7 @@ public final class RouteNode {
                 case CRYPT -> "Crypt";
                 case BAT -> "Bat";
                 case JUMP -> "Jump";
+                case ALIGN -> "Align";
             };
         }
     }
@@ -152,6 +158,88 @@ public final class RouteNode {
         }
         int n = Integer.parseInt(s.trim());
         return n >= MIN_JUMPS && n <= MAX_JUMPS ? n : -1;
+    }
+
+    /** Smallest and largest side of an {@link Type#ALIGN} box, in blocks - AP3's {@code Ap3Node.MIN_WIDTH}/{@code MAX_WIDTH}. */
+    public static final double MIN_ALIGN_SIZE = com.killer560.hub.ap3.Ap3Node.MIN_WIDTH;
+    public static final double MAX_ALIGN_SIZE = com.killer560.hub.ap3.Ap3Node.MAX_WIDTH;
+    public static final double DEFAULT_ALIGN_SIZE = 1.0;
+    /** {@link Type#ALIGN}: the trigger box, width along the room's x and length along its z (room-relative, so a turned
+     *  room turns the box with it). Every other type keeps its {@link #radius} ring and ignores these. */
+    public double alignWidth = DEFAULT_ALIGN_SIZE;
+    public double alignLength = DEFAULT_ALIGN_SIZE;
+
+    public static double clampAlignSize(double v) {
+        if (Double.isNaN(v)) {
+            return DEFAULT_ALIGN_SIZE;
+        }
+        return Math.max(MIN_ALIGN_SIZE, Math.min(MAX_ALIGN_SIZE, v));
+    }
+
+    private static final java.util.regex.Pattern SIZE = java.util.regex.Pattern.compile("\\d{1,3}(?:\\.\\d{1,3})?|\\.\\d{1,3}");
+
+    /**
+     * One word of {@code /ar add align ...}, in AP3's spellings ({@code Ap3Commands.parseSpec}): {@code w2} / {@code l2},
+     * {@code width:2} / {@code length:2} / {@code len:2}, or {@code 2x3}, any case. Writes {@code box[0]} (width) and/or
+     * {@code box[1]} (length). @return 1 when it was a box word, 0 when it is not one (a modifier such as start), -1 when
+     * it is a box word whose size is outside {@value #MIN_ALIGN_SIZE}..{@value #MAX_ALIGN_SIZE}.
+     */
+    public static int parseAlignToken(String raw, double[] box) {
+        String t = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        String w = null;
+        String l = null;
+        if (t.startsWith("width:") || t.startsWith("width=")) {
+            w = t.substring(6);
+        } else if (t.startsWith("length:") || t.startsWith("length=")) {
+            l = t.substring(7);
+        } else if (t.startsWith("len:")) {
+            l = t.substring(4);
+        } else if (t.length() > 1 && t.charAt(0) == 'w' && SIZE.matcher(t.substring(1)).matches()) {
+            w = t.substring(1);
+        } else if (t.length() > 1 && t.charAt(0) == 'l' && SIZE.matcher(t.substring(1)).matches()) {
+            l = t.substring(1);
+        } else if (t.indexOf('x') > 0) {
+            String[] wl = t.split("x", 2);
+            if (SIZE.matcher(wl[0]).matches() && SIZE.matcher(wl[1]).matches()) {
+                w = wl[0];
+                l = wl[1];
+            }
+        }
+        if (w == null && l == null) {
+            return 0;
+        }
+        if ((w != null && !SIZE.matcher(w).matches()) || (l != null && !SIZE.matcher(l).matches())) {
+            return -1;
+        }
+        double wv = w == null ? box[0] : Double.parseDouble(w);
+        double lv = l == null ? box[1] : Double.parseDouble(l);
+        if (wv < MIN_ALIGN_SIZE || wv > MAX_ALIGN_SIZE || lv < MIN_ALIGN_SIZE || lv > MAX_ALIGN_SIZE) {
+            return -1;
+        }
+        box[0] = wv;
+        box[1] = lv;
+        return 1;
+    }
+
+    /** Half the trigger box along REAL x in a room turned {@code rotation} degrees: a quarter turn swaps the two sides. */
+    public double halfRealX(int rotation) {
+        if (type != Type.ALIGN) {
+            return Math.max(0.1, radius) / 2.0;
+        }
+        return Math.max(0.05, (quarterTurned(rotation) ? alignLength : alignWidth) / 2.0);
+    }
+
+    /** Half the trigger box along REAL z (see {@link #halfRealX}). */
+    public double halfRealZ(int rotation) {
+        if (type != Type.ALIGN) {
+            return Math.max(0.1, radius) / 2.0;
+        }
+        return Math.max(0.05, (quarterTurned(rotation) ? alignWidth : alignLength) / 2.0);
+    }
+
+    private static boolean quarterTurned(int rotation) {
+        int r = ((rotation % 360) + 360) % 360;
+        return r == 90 || r == 270;
     }
 
     /** {@link Type#COMMAND}: full command line, with or without the leading slash. */
@@ -272,15 +360,22 @@ public final class RouteNode {
         hasLanding = true;
     }
 
-    /** QUOI {@code RouteRing.boundingBox}: a flat ring-shaped box around the node's REAL position. */
-    public AABB boundingBox(Vec3 real, double height) {
-        double r = Math.max(0.1, radius) / 2.0;
-        return new AABB(real.x - r, real.y, real.z - r, real.x + r, real.y + Math.max(0.1, height), real.z + r);
+    /** QUOI {@code RouteRing.boundingBox}: a flat ring-shaped box around the node's REAL position. An {@link Type#ALIGN}
+     *  node's box is its width x length instead, turned with the room ({@code rotation}, the frame's). */
+    public AABB boundingBox(Vec3 real, double height, int rotation) {
+        double hx = halfRealX(rotation);
+        double hz = halfRealZ(rotation);
+        return new AABB(real.x - hx, real.y, real.z - hz, real.x + hx, real.y + Math.max(0.1, height), real.z + hz);
+    }
+
+    /** {@link #boundingBox(Vec3, double, int)} in {@code frame}'s room (rotation 0 with no frame). */
+    public AABB boundingBox(RouteCoords.Frame frame, Vec3 real, double height) {
+        return boundingBox(real, height, frame == null ? 0 : frame.rotation());
     }
 
     /** True when {@code playerBox} (the player's own bounding box) overlaps this node's ring. */
-    public boolean contains(Vec3 real, double height, AABB playerBox) {
-        return boundingBox(real, height).intersects(playerBox);
+    public boolean contains(RouteCoords.Frame frame, Vec3 real, double height, AABB playerBox) {
+        return boundingBox(frame, real, height).intersects(playerBox);
     }
 
     /**
@@ -292,12 +387,13 @@ public final class RouteNode {
         double rx = RouteCoords.realX(frame, x, z);
         double ry = RouteCoords.realY(y);
         double rz = RouteCoords.realZ(frame, x, z);
-        double r = Math.max(0.1, radius) / 2.0;
-        double x1 = rx - r;
-        double x2 = rx + r;
+        double hx = halfRealX(frame.rotation());
+        double hz = halfRealZ(frame.rotation());
+        double x1 = rx - hx;
+        double x2 = rx + hx;
         double y2 = ry + Math.max(0.1, height);
-        double z1 = rz - r;
-        double z2 = rz + r;
+        double z1 = rz - hz;
+        double z2 = rz + hz;
         double minX = Math.min(x1, x2);
         double minY = Math.min(ry, y2);
         double minZ = Math.min(z1, z2);
@@ -341,21 +437,23 @@ public final class RouteNode {
     public int stackRank() {
         return switch (type) {
             case AWAIT, START -> 0;
-            case DUNGEON_BREAKER -> 1;
-            case BOOM -> 2;
+            // An align puts him on the point everything else on the tile then acts from (AP3: align, then act).
+            case ALIGN -> 1;
+            case DUNGEON_BREAKER -> 2;
+            case BOOM -> 3;
             // Right after the superboom that opens the crypt (killer560, 2026-10-05: "The crypt node should go after
             // superboom nodes").
-            case CRYPT, BAT -> 3;
-            case USE_ITEM -> 4;
-            case COMMAND -> 5;
-            case ROTATE -> 6;
-            case UNSNEAK -> 7;
+            case CRYPT, BAT -> 4;
+            case USE_ITEM -> 5;
+            case COMMAND -> 6;
+            case ROTATE -> 7;
+            case UNSNEAK -> 8;
             // A path is etherwarps, and fires in the etherwarp slot (killer560, 2026-10-05: "have the same priority
             // of an etherwarp in the ranking").
-            case ETHERWARP, PATH -> 8;
+            case ETHERWARP, PATH -> 9;
             // A jump moves you, like a walk; ahead of the walk so a jump-and-sprint stack leaves the ground first.
-            case JUMP -> 9;
-            case WALK -> 10;
+            case JUMP -> 10;
+            case WALK -> 11;
         };
     }
 
@@ -375,6 +473,7 @@ public final class RouteNode {
             case DUNGEON_BREAKER -> sb.append(" [").append(breakerBlocks.size()).append(" block(s)]");
             case COMMAND -> sb.append(" [").append(command == null ? "" : command).append(']');
             case JUMP -> sb.append(" [").append(jumpCount).append(jumpCount == 1 ? " jump]" : " jumps]");
+            case ALIGN -> sb.append(" [W").append(fmtSize(alignWidth)).append(" L").append(fmtSize(alignLength)).append(']');
             default -> {
             }
         }
@@ -384,6 +483,11 @@ public final class RouteNode {
         sb.append(modifierTag());
         sb.append(String.format(Locale.US, " @ %.1f, %.1f, %.1f", x, y, z));
         return sb.toString();
+    }
+
+    /** An align box side as typed: "2", "2.5". */
+    public static String fmtSize(double v) {
+        return v == Math.rint(v) ? String.valueOf((long) v) : String.format(Locale.US, "%.2f", v).replaceAll("0+$", "");
     }
 
     /** " [start]" / " [await ...]" / " [start, await ...]" - the {@code start} / {@code awaitEnabled} modifiers
@@ -481,6 +585,8 @@ public final class RouteNode {
         awaitAmount = o.awaitAmount;
         command = o.command;
         jumpCount = o.jumpCount;
+        alignWidth = o.alignWidth;
+        alignLength = o.alignLength;
         landingX = o.landingX;
         landingY = o.landingY;
         landingZ = o.landingZ;
@@ -526,7 +632,7 @@ public final class RouteNode {
                 && start == o.start && awaitEnabled == o.awaitEnabled && breakerBlocks.equals(o.breakerBlocks)
                 && java.util.Objects.equals(item, o.item) && awaitCondition == o.awaitCondition
                 && awaitAmount == o.awaitAmount && java.util.Objects.equals(command, o.command)
-                && jumpCount == o.jumpCount
+                && jumpCount == o.jumpCount && alignWidth == o.alignWidth && alignLength == o.alignLength
                 && landingX == o.landingX && landingY == o.landingY && landingZ == o.landingZ
                 && hasLanding == o.hasLanding && pathHops.equals(o.pathHops)
                 && hasPlaceEye == o.hasPlaceEye && placeEyeX == o.placeEyeX && placeEyeY == o.placeEyeY

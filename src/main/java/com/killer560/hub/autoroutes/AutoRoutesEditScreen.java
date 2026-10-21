@@ -82,7 +82,7 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
     /** The {@code /ar add} types, in killer560's order (the Type button cycles through them). */
     private static final RouteNode.Type[] TYPES = {RouteNode.Type.BOOM, RouteNode.Type.DUNGEON_BREAKER,
             RouteNode.Type.ETHERWARP, RouteNode.Type.USE_ITEM, RouteNode.Type.WALK, RouteNode.Type.PATH,
-            RouteNode.Type.CRYPT, RouteNode.Type.BAT, RouteNode.Type.JUMP};
+            RouteNode.Type.CRYPT, RouteNode.Type.BAT, RouteNode.Type.JUMP, RouteNode.Type.ALIGN};
     /** The Await Secrets dropdown's choices; 0 is "no await". */
     private static final int AWAIT_MAX = 4;
 
@@ -179,6 +179,8 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
             original.put("Yaw", fmt(RouteCoords.toRealYaw(frame, node.yaw)));
             original.put("Pitch", fmt(node.pitch));
             original.put("Item", node.item == null ? "" : node.item);
+            original.put("Width", RouteNode.fmtSize(node.alignWidth));
+            original.put("Length", RouteNode.fmtSize(node.alignLength));
             pending.putAll(original);
         }
         headings.clear();
@@ -187,10 +189,12 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         boolean breaker = type == RouteNode.Type.DUNGEON_BREAKER;
         boolean path = type == RouteNode.Type.PATH && node.type == RouteNode.Type.PATH;
         boolean jump = type == RouteNode.Type.JUMP;
+        boolean align = type == RouteNode.Type.ALIGN;
         int line = ROW + GAP;
-        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0);
+        int sections = 2 + (aim ? 1 : 0) + (use ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0)
+                + (align ? 1 : 0);
         int rows = 2 /* xyz, nudges */ + (aim ? 2 : 0) + (use ? 1 : 0) + 2 /* type+start, await */
-                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0);
+                + (awaitOpen ? 1 : 0) + (breaker ? 1 : 0) + (path ? 1 : 0) + (jump ? 1 : 0) + (align ? 1 : 0);
         panelW = PANEL_W;
         panelH = 32 + 22 + GAP * 2 + sections * HEADING_H + rows * line + GAP + 20 + 14 + PAD;
         panelX = (this.width - panelW) / 2;
@@ -287,6 +291,14 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
                         RouteNode.MAX_JUMPS - RouteNode.MIN_JUMPS + 1) + RouteNode.MIN_JUMPS;
                 b.setMessage(Component.literal(jumpsLabel()));
             }).bounds(x, y, w, ROW).build());
+            y += line;
+        }
+
+        if (align) {
+            // killer560, 2026-10-20: the W x L box of /ar add align w2 l2, in blocks (AP3's width and length).
+            y = heading("Align Box (blocks)", y);
+            addField(x, y, half, "Width", 40);
+            addField(x + half + GAP, y, w - half - GAP, "Length", 44);
             y += line;
         }
 
@@ -416,6 +428,18 @@ public class AutoRoutesEditScreen extends Screen implements com.killer560.hub.gu
         edited.type = type;
         if (type == RouteNode.Type.JUMP) {
             edited.jumpCount = jumps;
+        }
+        if (type == RouteNode.Type.ALIGN && (!same("Width") || !same("Length"))) {
+            Double nw = num("Width");
+            Double nl = num("Length");
+            if (nw == null || nl == null || nw < RouteNode.MIN_ALIGN_SIZE || nw > RouteNode.MAX_ALIGN_SIZE
+                    || nl < RouteNode.MIN_ALIGN_SIZE || nl > RouteNode.MAX_ALIGN_SIZE) {
+                status = "§cWidth and length are " + RouteNode.fmtSize(RouteNode.MIN_ALIGN_SIZE) + " to "
+                        + RouteNode.fmtSize(RouteNode.MAX_ALIGN_SIZE) + " blocks - nothing was changed.";
+                return false;
+            }
+            edited.alignWidth = nw;
+            edited.alignLength = nl;
         }
 
         Vec3 rel = node.relativePos();
