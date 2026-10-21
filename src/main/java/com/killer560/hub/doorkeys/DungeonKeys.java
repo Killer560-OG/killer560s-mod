@@ -184,7 +184,8 @@ public final class DungeonKeys {
             return out;
         }
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof ArmorStand) || entity.isRemoved()) {
+            // A key stand's name is a custom name; an unnamed stand is turned away before its name String is built.
+            if (!(entity instanceof ArmorStand) || entity.isRemoved() || !entity.hasCustomName()) {
                 continue;
             }
             String name = ChatFormatting.stripFormatting(entity.getName().getString());
