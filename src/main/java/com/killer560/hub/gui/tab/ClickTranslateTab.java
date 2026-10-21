@@ -118,7 +118,7 @@ public class ClickTranslateTab extends BaseTab {
 
     private static Component enabledText() {
         return Component.literal("Click Translate Enabled: "
-                + (ClickTranslateConfig.getInstance().isEnabled() ?"§aON" : "§cOFF"));
+                + (ClickTranslateConfig.getInstance().isEnabled() ? "§aON" : "§cOFF"));
     }
 
     private static Component languageText() {
