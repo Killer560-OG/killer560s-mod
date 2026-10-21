@@ -95,10 +95,12 @@ public final class PosmsgFeature {
             if (!e.configured) {
                 continue;
             }
-            double distance = pos.distanceTo(new Vec3(e.x, e.y, e.z));
-            if (distance > e.radius + EXIT_MARGIN) {
+            // Squared distances: no Vec3 per entry per tick and no sqrt.
+            double distSq = pos.distanceToSqr(e.x, e.y, e.z);
+            double exit = e.radius + EXIT_MARGIN;
+            if (distSq > exit * exit) {
                 inside.remove(e.id);
-            } else if (distance <= e.radius && inside.add(e.id) && live && e.enabled) {
+            } else if (distSq <= e.radius * e.radius && inside.add(e.id) && live && e.enabled) {
                 trySend(e);
             }
         }
