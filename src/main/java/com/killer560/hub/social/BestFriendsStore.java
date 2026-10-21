@@ -80,11 +80,6 @@ public final class BestFriendsStore {
             this.uuid = uuid;
         }
 
-        /** Whole seconds stored so far (without the live segment; see {@link BestFriendsTracker#liveTotalMs}). */
-        public long totalPartySeconds() {
-            return totalPartyMs / 1000L;
-        }
-
         public int totalDungeonRuns() {
             int total = 0;
             for (int v : dungeonRunsByFloor.values()) {

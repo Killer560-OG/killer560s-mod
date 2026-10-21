@@ -338,13 +338,22 @@ public final class StorageOverlayFeature {
         if (!synced) {
             return;
         }
-        List<ItemStack> contents = new ArrayList<>();
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
         // Real slots 0-8 (row 1 of the container) are Hypixel's own menu chrome - a "Go Back" barrier,
         // a sort/convert arrow, and decorative navigation glass panes, never real storage contents.
         // Ported directly from NoammAddons' own savePage (StorageOverlay.kt:154-155), which captures
         // gui.slots.subList(9, end) for exactly this reason - per killer560's "I dont want that top
         // line shown" report (2026-09-08).
+        StorageOverlayCache cache = StorageOverlayCache.getInstance();
+        // Compared slot by slot against the live stacks (sameStack reads only emptiness, count and item, which a copy
+        // shares) and the cache's own read-only list: this runs every frame on an open page, and building a list and
+        // copying ~45 stacks first only to find nothing changed was most of it (fps passes 2026-10-19 and 2026-10-21).
+        // The copies are made only when the page really is stored.
+        List<ItemStack> cached = cache.peek(key);
+        if (cached != null && matchesSlots(cached, menu, 9, containerSlotCount - 9)) {
+            return;
+        }
+        List<ItemStack> contents = new ArrayList<>();
         for (Slot slot : menu.slots) {
             if (slot.index < 9) {
                 continue;
@@ -353,19 +362,7 @@ public final class StorageOverlayFeature {
                 break;
             }
             ItemStack stack = slot.getItem();
-            contents.add(stack == null ? ItemStack.EMPTY : stack);
-        }
-        StorageOverlayCache cache = StorageOverlayCache.getInstance();
-        List<ItemStack> cached = cache.get(key);
-        // Compared against the live stacks (sameContents reads only emptiness, count and item, which a copy shares):
-        // this runs every frame on an open page, and copying ~45 stacks first only to find nothing changed was most of
-        // it (fps pass 2026-10-19). The copies are made only when the page really is stored.
-        if (sameContents(cached, contents)) {
-            return;
-        }
-        for (int i = 0; i < contents.size(); i++) {
-            ItemStack stack = contents.get(i);
-            contents.set(i, stack == ItemStack.EMPTY ? ItemStack.EMPTY : stack.copy());
+            contents.add(stack == null || stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
         }
         cache.put(key, contents);
     }
@@ -397,47 +394,52 @@ public final class StorageOverlayFeature {
         if (menu.slots.size() < WARDROBE_SET_SLOT_START + WARDROBE_SET_SLOT_COUNT) {
             return; // not the 45-slot layout this was ported against - never guess at a different one
         }
-        List<ItemStack> contents = new ArrayList<>(WARDROBE_SET_SLOT_COUNT);
         boolean synced = false;
         for (int i = 0; i < WARDROBE_SET_SLOT_COUNT; i++) {
-            Slot slot = menu.slots.get(WARDROBE_SET_SLOT_START + i);
-            ItemStack stack = slot.getItem();
+            ItemStack stack = menu.slots.get(WARDROBE_SET_SLOT_START + i).getItem();
             if (stack != null && !stack.isEmpty()) {
                 synced = true;
+                break;
             }
-            contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
         }
         if (!synced) {
             return; // same too-early-capture guard as captureIfChanged - contents haven't synced yet
         }
+        // Runs every tick while the Wardrobe is open: compare in place, copy only when a set icon really changed.
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
-        List<ItemStack> cached = cache.get(key);
-        if (sameContents(cached, contents)) {
+        List<ItemStack> cached = cache.peek(key);
+        if (cached != null && matchesSlots(cached, menu, WARDROBE_SET_SLOT_START, WARDROBE_SET_SLOT_COUNT)) {
             return;
+        }
+        List<ItemStack> contents = new ArrayList<>(WARDROBE_SET_SLOT_COUNT);
+        for (int i = 0; i < WARDROBE_SET_SLOT_COUNT; i++) {
+            ItemStack stack = menu.slots.get(WARDROBE_SET_SLOT_START + i).getItem();
+            contents.add(stack == null ? ItemStack.EMPTY : stack.copy());
         }
         cache.put(key, contents);
     }
 
-    private static boolean sameContents(List<ItemStack> a, List<ItemStack> b) {
-        if (a == null || b == null || a.size() != b.size()) {
+    /** Whether {@code cached} holds, in order, exactly the {@code count} live stacks of {@code menu}'s slots starting at
+     *  {@code first} (by emptiness, count and item). */
+    private static boolean matchesSlots(List<ItemStack> cached, ChestMenu menu, int first, int count) {
+        if (count < 0 || cached.size() != count || menu.slots.size() < first + count) {
             return false;
         }
-        for (int i = 0; i < a.size(); i++) {
-            ItemStack sa = a.get(i);
-            ItemStack sb = b.get(i);
-            boolean emptyA = sa == null || sa.isEmpty();
-            boolean emptyB = sb == null || sb.isEmpty();
-            if (emptyA != emptyB) {
-                return false;
-            }
-            if (emptyA) {
-                continue;
-            }
-            if (sa.getCount() != sb.getCount() || !sa.getItem().equals(sb.getItem())) {
+        for (int i = 0; i < count; i++) {
+            if (!sameStack(cached.get(i), menu.slots.get(first + i).getItem())) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static boolean sameStack(ItemStack sa, ItemStack sb) {
+        boolean emptyA = sa == null || sa.isEmpty();
+        boolean emptyB = sb == null || sb.isEmpty();
+        if (emptyA || emptyB) {
+            return emptyA == emptyB;
+        }
+        return sa.getCount() == sb.getCount() && sa.getItem().equals(sb.getItem());
     }
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
@@ -457,9 +459,39 @@ public final class StorageOverlayFeature {
      *  real "Empty Backpack Slot #N" tooltip ("Left-click a backpack item on this slot to place it!").
      *  That tooltip doesn't contain "locked", so it was being counted as owned. Now excluded the same way. */
     private static void scanOverview(ChestMenu menu) {
+        // Not synced yet (the open-screen packet comes before the contents): every icon reads as empty, which used to
+        // un-mark every known page and write the cache file once per page, only for the first real frame to mark them all
+        // again. Same guard captureIfChanged has for a page (fps/bug pass 2026-10-21).
+        boolean synced = false;
+        int top = Math.max(0, menu.slots.size() - 36);
+        for (int i = 0; i < top; i++) {
+            if (menu.slots.get(i).hasItem()) {
+                synced = true;
+                break;
+            }
+        }
+        if (!synced) {
+            return;
+        }
+        if (menu != overviewMenu) {
+            overviewMenu = menu;
+            java.util.Arrays.fill(overviewStacks, null);
+        }
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
         for (Slot slot : menu.slots) {
-            String key = overviewSlotToKey(slot.index);
+            // Runs every frame on the overview: an icon is classified (name, lore, regexes) and its key built only when
+            // the stack in that slot is a different object from the last frame's - the server replaces a stack, it does
+            // not edit one.
+            int index = slot.index;
+            if (index < 9 || index >= 45 || (index >= 18 && index < 27)) {
+                continue;
+            }
+            ItemStack seen = slot.getItem();
+            if (overviewStacks[index] == seen) {
+                continue;
+            }
+            overviewStacks[index] = seen;
+            String key = overviewSlotToKey(index);
             if (key == null) {
                 continue;
             }
@@ -473,6 +505,9 @@ public final class StorageOverlayFeature {
             }
         }
     }
+
+    private static ChestMenu overviewMenu;
+    private static final ItemStack[] overviewStacks = new ItemStack[45];
 
     private static String overviewSlotToKey(int slotIndex) {
         if (slotIndex >= 9 && slotIndex < 18) {
@@ -602,8 +637,64 @@ public final class StorageOverlayFeature {
             lastScale = totalScale();
 
             String prefix = accountProfilePrefix();
-            List<String> keys = StorageOverlayCache.getInstance().knownKeysFor(prefix);
-            if (keys.isEmpty()) {
+            StorageOverlayCache storageCache = StorageOverlayCache.getInstance();
+            int columns = effectiveColumns();
+            int lineHeight = Minecraft.getInstance().font.lineHeight;
+            // The sorted, laid-out panels only change when the cache, the account/profile, the focus, the column count or
+            // the font does. They used to be rebuilt every frame (a key scan, a TreeMap with two int[] per comparison, a
+            // list copy per page, a PanelLayout per panel): kept until one of those moves (fps pass 2026-10-21).
+            LayoutMemo memo = layoutMemo;
+            List<PanelLayout> layout;
+            int contentHeight;
+            if (memo != null && memo.cache() == storageCache && memo.version() == storageCache.version()
+                    && memo.prefix().equals(prefix) && java.util.Objects.equals(memo.focus(), focusKey)
+                    && memo.columns() == columns && memo.lineHeight() == lineHeight) {
+                layout = memo.layout();
+                contentHeight = memo.contentHeight();
+            } else {
+                List<String> keys = storageCache.knownKeysFor(prefix);
+                boolean complete = true;
+                // Ender Chest pages before Backpacks, then numerically within each - matches the natural
+                // reading order NoammAddons' own StoragePage.compareTo gives. Real bug found and fixed
+                // (2026-09-08), per killer560's screenshot showing "Backpack #14" before "Backpack #5":
+                // this used to be a plain string compare on the whole key, which sorts "backpack_14"
+                // before "backpack_2" lexicographically (and Backpacks before Ender Chest entirely, since
+                // 'b' < 'e') - see storageOrderKey for the real fix. A null value here means "known to
+                // exist (from the overview screen) but not opened/logged yet" - see scanOverview.
+                Map<String, List<ItemStack>> ordered = new TreeMap<>((x, y) -> {
+                    int[] ox = storageOrderKey(x, prefix);
+                    int[] oy = storageOrderKey(y, prefix);
+                    return ox[0] != oy[0] ? Integer.compare(ox[0], oy[0]) : Integer.compare(ox[1], oy[1]);
+                });
+                for (String key : keys) {
+                    List<ItemStack> contents = storageCache.peek(key);
+                    if (contents == null && storageCache.hasContents(key)) {
+                        complete = false; // could not be decoded this frame - do not keep a placeholder for it
+                    }
+                    ordered.put(key, contents);
+                }
+                // Search narrowed the grid to one storage - everything below (layout, scroll, hit-testing) then works
+                // on that single entry, so nothing else has to know about focus mode.
+                if (focusKey != null) {
+                    if (ordered.containsKey(focusKey)) {
+                        List<ItemStack> only = ordered.get(focusKey);
+                        ordered = new LinkedHashMap<>();
+                        ordered.put(focusKey, only);
+                    } else {
+                        // The focused storage isn't in this account/profile's cache any more - don't strand him on an
+                        // empty grid with no way back except the button.
+                        focusKey = null;
+                    }
+                }
+                layout = layoutPanels(ordered);
+                contentHeight = 0;
+                for (PanelLayout p : layout) {
+                    contentHeight = Math.max(contentHeight, p.y() + p.height());
+                }
+                layoutMemo = complete ? new LayoutMemo(storageCache, storageCache.version(), prefix, focusKey, columns,
+                        lineHeight, layout, contentHeight) : null;
+            }
+            if (layout.isEmpty()) {
                 lastPanelBounds.clear();
                 lastLabelBounds.clear();
                 // No grid to click, but the side buttons still are - zero the viewport so the panel hit-test in
@@ -612,40 +703,6 @@ public final class StorageOverlayFeature {
                 lastViewportHeightPx = 0;
                 drawSideButtons(graphics, mouseX, mouseY);
                 return;
-            }
-            // Ender Chest pages before Backpacks, then numerically within each - matches the natural
-            // reading order NoammAddons' own StoragePage.compareTo gives. Real bug found and fixed
-            // (2026-09-08), per killer560's screenshot showing "Backpack #14" before "Backpack #5":
-            // this used to be a plain string compare on the whole key, which sorts "backpack_14"
-            // before "backpack_2" lexicographically (and Backpacks before Ender Chest entirely, since
-            // 'b' < 'e') - see storageOrderKey for the real fix. A null value here means "known to
-            // exist (from the overview screen) but not opened/logged yet" - see scanOverview.
-            Map<String, List<ItemStack>> ordered = new TreeMap<>((a, b) -> {
-                int[] oa = storageOrderKey(a, prefix);
-                int[] ob = storageOrderKey(b, prefix);
-                return oa[0] != ob[0] ? Integer.compare(oa[0], ob[0]) : Integer.compare(oa[1], ob[1]);
-            });
-            for (String key : keys) {
-                ordered.put(key, StorageOverlayCache.getInstance().get(key));
-            }
-            // Search narrowed the grid to one storage - everything below (layout, scroll, hit-testing) then works
-            // on that single entry, so nothing else has to know about focus mode.
-            if (focusKey != null) {
-                if (ordered.containsKey(focusKey)) {
-                    List<ItemStack> only = ordered.get(focusKey);
-                    ordered = new LinkedHashMap<>();
-                    ordered.put(focusKey, only);
-                } else {
-                    // The focused storage isn't in this account/profile's cache any more - don't strand him on an
-                    // empty grid with no way back except the button.
-                    focusKey = null;
-                }
-            }
-
-            List<PanelLayout> layout = layoutPanels(ordered);
-            int contentHeight = 0;
-            for (PanelLayout p : layout) {
-                contentHeight = Math.max(contentHeight, p.y() + p.height());
             }
             int viewportWidthLocal = gridWidthLocal();
             // Per killer560's report (2026-09-08) that the grid could grow tall enough to cover his own
@@ -1243,6 +1300,13 @@ public final class StorageOverlayFeature {
      *  where every panel sits, and so an off-screen panel can be skipped without redoing the layout. */
     private record PanelLayout(String key, List<ItemStack> contents, int x, int y, int height) {
     }
+
+    /** The last grid layout and what it was built from - see {@link #onContainerScreenRender}. */
+    private record LayoutMemo(StorageOverlayCache cache, int version, String prefix, String focus, int columns,
+                              int lineHeight, List<PanelLayout> layout, int contentHeight) {
+    }
+
+    private static LayoutMemo layoutMemo;
 
     /** The scroll-to-resize scale the HUD editor stores for this element (1.0 unless it has been
      *  scrolled). {@code HudElementRegistry} multiplies {@code width()}/{@code height()} by it when it

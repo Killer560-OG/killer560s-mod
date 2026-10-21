@@ -54,7 +54,7 @@ public final class RagAxeState {
     private static final float CAST_PITCH = 1.4920635f;
     private static final Pattern CANCEL =
             Pattern.compile("Ragnarock was cancelled due to (?:being hit|taking damage)!");
-    private static final Pattern STRENGTH = Pattern.compile("Strength: \\+(\\d+)");
+    private static final Pattern STRENGTH = Pattern.compile("Strength: \\+(\\d{1,9})");
 
     private static long buffStartMs = 0L;
     private static long buffEndMs = 0L;
@@ -105,7 +105,7 @@ public final class RagAxeState {
 
     /** Cancel line - the channel (and therefore the buff) is gone; the cooldown already started at the cast
      *  and keeps running, so it is deliberately left alone. */
-    static void onChat(Component message) {
+    static void onChat(String plain) {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
         // Deliberately NOT gated on isCancelAlert(): that setting only controls the title/sound. The state
         // clear has to happen either way, or a cancelled rag would still run the buff timer down and still
@@ -113,7 +113,6 @@ public final class RagAxeState {
         if (!cfg.isEnabled()) {
             return;
         }
-        String plain = ChatObserver.strip(message).trim();
         if (!CANCEL.matcher(plain).matches()) {
             return;
         }
@@ -178,10 +177,6 @@ public final class RagAxeState {
     public static long cooldownRemainingMs() {
         long left = cooldownEndMs - System.currentTimeMillis();
         return cooldownEndMs > 0 && left > 0 ? left : 0L;
-    }
-
-    public static int lastStrength() {
-        return pendingStrength;
     }
 
     // ------------------------------------------------------------------ item helpers (Odin ItemUtils)

@@ -30,7 +30,8 @@ public final class ModUserTabTag {
     private static final Logger LOGGER = ModLog.get("killer560smod-modusers");
     private static boolean loggedOnce = false;
 
-    private record Row(Component source, String profileName, String stamp, String variant) {
+    private record Row(Component source, String profileName, String own, boolean showOwn, String shareAs,
+            boolean seeOthers, int version, String variant) {
     }
 
     private static final Map<PlayerInfo, Row> ROWS = new WeakHashMap<>();
@@ -69,19 +70,22 @@ public final class ModUserTabTag {
         if (!showOwn && !seeOthers) {
             return null;
         }
-        String stamp = own + "|" + showOwn + "|" + cfg.getShareAs() + "|" + seeOthers + "|" + ModUsers.version();
+        String shareAs = cfg.getShareAs();
+        int version = ModUsers.version();
         Component source = info.getTabListDisplayName();
         String profileName = info.getProfile().name();
         Row row = ROWS.get(info);
-        if (row != null && row.source() == source && Objects.equals(row.profileName(), profileName)
-                && row.stamp().equals(stamp)) {
+        // Compared field by field: a joined key string would allocate for every row on every frame.
+        if (row != null && row.source() == source && row.showOwn() == showOwn && row.seeOthers() == seeOthers
+                && row.version() == version && Objects.equals(row.profileName(), profileName)
+                && Objects.equals(row.own(), own) && row.shareAs().equals(shareAs)) {
             return row.variant();
         }
-        String variant = lookup(profileName, own, showOwn, seeOthers, cfg.getShareAs());
+        String variant = lookup(profileName, own, showOwn, seeOthers, shareAs);
         if (variant == null && source != null) {
-            variant = scan(source.getString(), own, showOwn, seeOthers, cfg.getShareAs());
+            variant = scan(source.getString(), own, showOwn, seeOthers, shareAs);
         }
-        ROWS.put(info, new Row(source, profileName, stamp, variant));
+        ROWS.put(info, new Row(source, profileName, own, showOwn, shareAs, seeOthers, version, variant));
         return variant;
     }
 

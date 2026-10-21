@@ -153,12 +153,20 @@ public final class ChatTidy {
         return hide;
     }
 
+    /** Every damage pattern ends in a full stop or an exclamation mark; most chat lines do not. */
+    private static boolean endsLikeDamage(String plain) {
+        char last = plain.charAt(plain.length() - 1);
+        return last == '.' || last == '!';
+    }
+
     public static boolean isAbilityDamage(String plain) {
-        return plain != null && plain.length() <= MAX_LINE && ABILITY_DAMAGE.matcher(plain).matches();
+        return plain != null && !plain.isEmpty() && plain.length() <= MAX_LINE && endsLikeDamage(plain)
+                && plain.startsWith("Your ") && ABILITY_DAMAGE.matcher(plain).matches();
     }
 
     public static boolean isIncomingHit(String plain) {
-        if (plain == null || plain.length() > MAX_LINE) {
+        if (plain == null || plain.isEmpty() || plain.length() > MAX_LINE || !endsLikeDamage(plain)
+                || !plain.contains(" you")) {
             return false;
         }
         for (Pattern p : INCOMING_HITS) {
@@ -190,11 +198,12 @@ public final class ChatTidy {
         if (incoming == null || incoming.signature() != null || all.isEmpty()) {
             return null;
         }
-        String plain = ChatObserver.strip(incoming.content());
-        if (!stackable(plain)) {
+        // One walk of the line serves both the "is there anything to stack" test and the key (the key's text is the
+        // visible text plus separator marks, which are neither letters nor digits).
+        Key incomingKey = key(incoming.content());
+        if (!stackable(incomingKey.text())) {
             return null;
         }
-        Key incomingKey = key(incoming.content());
         int n = Math.min(STACK_WINDOW_MESSAGES, all.size());
         for (int i = 0; i < n; i++) {
             GuiMessage earlier = all.get(i);

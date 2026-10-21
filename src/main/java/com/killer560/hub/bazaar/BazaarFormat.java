@@ -89,6 +89,27 @@ final class BazaarFormat {
 
     /** Coins, compact enough for a column: 4.4, 1,234.5, 123.4k, 12.35M, 1.23B. */
     static String price(double v) {
+        // Drawn for every visible row every frame, and prices only change when the API refreshes: formatted once.
+        return PRICES.computeIfAbsent(Double.doubleToLongBits(v), k -> formatPrice(v));
+    }
+
+    private static final Map<Long, String> PRICES = new BoundedCache<>();
+    private static final Map<Long, String> NUMBERS = new BoundedCache<>();
+    private static final Map<Long, String> PERCENTS = new BoundedCache<>();
+
+    /** A map that forgets everything when it grows past a few thousand entries (the live list is about 1,800 products). */
+    private static final class BoundedCache<K, V> extends java.util.concurrent.ConcurrentHashMap<K, V> {
+        @Override
+        public V computeIfAbsent(K key, java.util.function.Function<? super K, ? extends V> fn) {
+            if (size() > 6000) {
+                clear();
+            }
+            V cached = get(key);
+            return cached != null ? cached : super.computeIfAbsent(key, fn);
+        }
+    }
+
+    private static String formatPrice(double v) {
         double a = Math.abs(v);
         if (a >= 1e9) {
             return String.format(Locale.US, "%.2fB", v / 1e9);
@@ -103,6 +124,10 @@ final class BazaarFormat {
     }
 
     static String shortNumber(long n) {
+        return NUMBERS.computeIfAbsent(n, k -> formatNumber(n));
+    }
+
+    private static String formatNumber(long n) {
         if (n >= 1_000_000_000L) {
             return String.format(Locale.US, "%.2fB", n / 1e9);
         }
@@ -116,7 +141,7 @@ final class BazaarFormat {
     }
 
     static String percent(double v) {
-        return String.format(Locale.US, "%.1f%%", v);
+        return PERCENTS.computeIfAbsent(Double.doubleToLongBits(v), k -> String.format(Locale.US, "%.1f%%", v));
     }
 
     static String standingText(BazaarOrderParser.Order o, BazaarProduct live) {

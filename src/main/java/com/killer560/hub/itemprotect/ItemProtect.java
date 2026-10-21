@@ -323,8 +323,9 @@ public final class ItemProtect {
                 announceBlock(action, slot.getItem(), "Locked In Place");
                 return true;
             }
-            // A number-key SWAP also moves whatever is in the destination hotbar slot.
-            if (type == ContainerInput.SWAP && button >= 0 && button < 9 && isExplicitlyProtected(inv.getItem(button))) {
+            // A number-key SWAP also moves whatever is in the destination hotbar slot, and the offhand key (button
+            // 40) whatever is in the offhand.
+            if (type == ContainerInput.SWAP && isSwapDestination(button) && isExplicitlyProtected(inv.getItem(button))) {
                 announceBlock(action, inv.getItem(button), "Locked In Place");
                 return true;
             }
@@ -349,6 +350,11 @@ public final class ItemProtect {
             }
         }
         return false;
+    }
+
+    /** A SWAP click's button is a hotbar index (0-8) or 40 for the offhand; both are inventory slots to check. */
+    private static boolean isSwapDestination(int button) {
+        return (button >= 0 && button < 9) || button == 40;
     }
 
     /**

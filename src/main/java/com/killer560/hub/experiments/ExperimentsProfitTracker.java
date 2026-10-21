@@ -243,8 +243,11 @@ public final class ExperimentsProfitTracker {
                     return;
                 }
             }
-            Matcher charge = BONUS_CHARGE.matcher(text);
-            if (charge.find()) {
+            // matches(), not find(): these are Hypixel's own whole lines, and another player's chat line that merely
+            // contains the text must not log a bonus charge or a claim.
+            String whole = text.trim();
+            Matcher charge = BONUS_CHARGE.matcher(whole);
+            if (charge.matches()) {
                 int bits = switch (Integer.parseInt(charge.group(1))) {
                     case 1 -> 150;
                     case 2 -> 300;
@@ -256,8 +259,8 @@ public final class ExperimentsProfitTracker {
                 save();
                 return;
             }
-            Matcher claim = CLAIM_MESSAGE.matcher(text);
-            if (claim.find()) {
+            Matcher claim = CLAIM_MESSAGE.matcher(whole);
+            if (claim.matches()) {
                 onClaim(claim.group(1), now);
             }
         } catch (Exception e) {

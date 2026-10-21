@@ -53,15 +53,22 @@ public final class LfgCommandGate {
         return send("accept", name, ACCEPTS, ACCEPT_GAP_MS, ACCEPTS_PER_MINUTE, false);
     }
 
+    private static void note(List<String> log, String line) {
+        log.add(line);
+        if (log.size() > 200) { // Auto Accept Requests retries a refused invite every second: keep the test record bounded
+            log.remove(0);
+        }
+    }
+
     private static String send(String verb, String name, ArrayDeque<Long> times, long gap, int perMinute, boolean perName) {
         String why = refusal(name, times, gap, perMinute, perName);
         if (why != null) {
-            REFUSED.add(verb + " " + name + ": " + why);
+            note(REFUSED, verb + " " + name + ": " + why);
             return why;
         }
         long now = System.currentTimeMillis();
         if (!ServerCommands.toServer("party " + verb + " " + name)) {
-            REFUSED.add(verb + " " + name + ": not connected");
+            note(REFUSED, verb + " " + name + ": not connected");
             return "Not connected.";
         }
         times.addLast(now);
@@ -69,7 +76,7 @@ public final class LfgCommandGate {
         if (perName) {
             LAST_BY_NAME.put(name.toLowerCase(Locale.ROOT), now);
         }
-        SENT.add("/party " + verb + " " + name);
+        note(SENT, "/party " + verb + " " + name);
         return null;
     }
 

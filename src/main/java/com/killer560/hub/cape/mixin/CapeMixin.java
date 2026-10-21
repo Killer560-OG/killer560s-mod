@@ -21,6 +21,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(AvatarRenderer.class)
 public abstract class CapeMixin {
 
+    private static String cachedName;
+    private static ClientAsset.ResourceTexture cachedAsset;
+
     @Inject(method = "extractRenderState", at = @At("RETURN"), require = 0)
     private void killer560smod$customCape(Avatar entity, AvatarRenderState state, float partialTick, CallbackInfo ci) {
         CapeConfig cfg = CapeConfig.getInstance();
@@ -33,11 +36,18 @@ public abstract class CapeMixin {
         }
         PlayerSkin skin = state.skin;
         String name = cfg.getSelected();
-        Identifier texture = cfg.isCustom() ? com.killer560.hub.cape.CustomCapeTexture.ensure(cfg)
-                : Identifier.fromNamespaceAndPath("killer560smod", "textures/cape/" + name + ".png");
-        Identifier asset = Identifier.fromNamespaceAndPath("killer560smod", "cape/" + name);
-        state.skin = new PlayerSkin(skin.body(), new ClientAsset.ResourceTexture(asset, texture), skin.elytra(),
-                skin.model(), skin.secure());
+        if (cfg.isCustom()) {
+            com.killer560.hub.cape.CustomCapeTexture.ensure(cfg); // rebuilds only when the design changed
+        }
+        // The identifiers and the cape asset depend only on the chosen name, so they are built once per choice, not per frame.
+        if (!name.equals(cachedName)) {
+            Identifier texture = cfg.isCustom() ? com.killer560.hub.cape.CustomCapeTexture.ID
+                    : Identifier.fromNamespaceAndPath("killer560smod", "textures/cape/" + name + ".png");
+            Identifier asset = Identifier.fromNamespaceAndPath("killer560smod", "cape/" + name);
+            cachedAsset = new ClientAsset.ResourceTexture(asset, texture);
+            cachedName = name;
+        }
+        state.skin = new PlayerSkin(skin.body(), cachedAsset, skin.elytra(), skin.model(), skin.secure());
         state.showCape = true;
     }
 }

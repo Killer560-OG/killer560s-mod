@@ -57,10 +57,17 @@ public final class AutoDialogueFeature {
     }
 
     static void register() {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return; // legit jar: the feature cannot act, so it listens to nothing
+        }
         ChatObserver.subscribe(AutoDialogueFeature::onChat);
     }
 
     private static void onChat(Component message) {
+        // Switched off: no NPC bookkeeping, no regex, no string work for any chat line.
+        if (!DungeonExtrasConfig.getInstance().isAutoDialogueEnabledRaw()) {
+            return;
+        }
         String plain = ChatObserver.strip(message).trim();
         Matcher npc = plain.startsWith("[NPC] ") ? NPC_LINE.matcher(plain) : null; // anchored on it (fps-idle-1015)
         long nowMs = System.currentTimeMillis();

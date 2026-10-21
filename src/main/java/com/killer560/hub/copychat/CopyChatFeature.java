@@ -45,7 +45,6 @@ public final class CopyChatFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-copychat");
 
     // Test hooks (testkit, by reflection).
-    private static volatile String lastCopied = "";
     private static volatile String lastKind = "";
     private static long copies;
 
@@ -165,7 +164,6 @@ public final class CopyChatFeature {
     private static void copy(String text, String kind) {
         Minecraft client = Minecraft.getInstance();
         client.keyboardHandler.setClipboard(text);
-        lastCopied = text;
         lastKind = kind;
         copies++;
         if (client.player != null) {
@@ -183,10 +181,6 @@ public final class CopyChatFeature {
     }
 
     // ---- test hooks ---------------------------------------------------------------------------------------------
-
-    public static String testLastCopied() {
-        return lastCopied;
-    }
 
     public static String testLastKind() {
         return lastKind;

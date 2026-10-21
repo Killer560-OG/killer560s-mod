@@ -62,19 +62,19 @@ public final class StorageSearchExtraCache {
         instance = cache;
     }
 
+    /** Snapshots the pages here and writes the file on {@link StorageSearchDiskWriter}'s thread. */
     public void save() {
-        try {
-            Files.createDirectories(CACHE_PATH.getParent());
+        Map<String, Page> snapshot = new LinkedHashMap<>(pages);
+        StorageSearchDiskWriter.write(CACHE_PATH, () -> {
             JsonObject root = new JsonObject();
-            for (Map.Entry<String, Page> entry : pages.entrySet()) {
+            for (Map.Entry<String, Page> entry : snapshot.entrySet()) {
                 JsonObject obj = new JsonObject();
                 obj.addProperty("b", entry.getValue().blob());
                 obj.addProperty("t", entry.getValue().updatedMs());
                 root.add(entry.getKey(), obj);
             }
-            Files.writeString(CACHE_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+            return GSON.toJson(root);
+        });
     }
 
     /** Only writes when the contents actually changed - this is called every tick while the menu is open. */

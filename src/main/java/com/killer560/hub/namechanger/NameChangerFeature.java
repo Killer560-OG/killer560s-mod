@@ -39,7 +39,11 @@ public final class NameChangerFeature {
 
     /** Stable per-launch seed so "randomize others" gives the same fake name for a player all session. */
     private static final long SESSION_SEED = new SplittableRandom().nextLong();
-    private static final int MAX_SEEN_PLAYERS = 4000;
+    /** Past this many names a newly seen player would keep their real name, so it is far above what a session meets. */
+    private static final int MAX_SEEN_PLAYERS = 20000;
+    /** Randomize Others' table entries per real name, valid for {@link #entryBase}; only touched inside {@link #rebuild}. */
+    private static final Map<String, NameTable.Entry> ENTRY_CACHE = new HashMap<>();
+    private static String entryBase = null;
 
     private static final Map<String, String> RANDOM_NAMES = new HashMap<>();
     private static final Set<String> SEEN_PLAYERS = new LinkedHashSet<>();
@@ -156,11 +160,25 @@ public final class NameChangerFeature {
         }
         if (cfg.isRandomizeOthers()) {
             String base = baseName(cfg);
+            if (!base.equals(entryBase)) {
+                ENTRY_CACHE.clear();
+                entryBase = base;
+            }
             synchronized (SEEN_PLAYERS) {
                 for (String name : SEEN_PLAYERS) {
+                    // Your own name is never one of "others", even when it was noted before an account swap.
+                    if (own != null && name.equalsIgnoreCase(own)) {
+                        continue;
+                    }
                     // Case-sensitive: displayed IGNs always use their real capitalization, and this keeps a player
-                    // literally named e.g. "Mage" from eating the plain word "mage" in lore.
-                    entries.add(new NameTable.Entry(name, base.isEmpty() ? randomNameFor(name) : base + numberFor(name), true));
+                    // literally named e.g. "Mage" from eating the plain word "mage" in lore. The entry is kept per
+                    // name (a rebuild runs for every newly seen player), and dropped when the base name changes.
+                    NameTable.Entry entry = ENTRY_CACHE.get(name);
+                    if (entry == null) {
+                        entry = new NameTable.Entry(name, base.isEmpty() ? randomNameFor(name) : base + numberFor(name), true);
+                        ENTRY_CACHE.put(name, entry);
+                    }
+                    entries.add(entry);
                 }
             }
         }
@@ -388,12 +406,5 @@ public final class NameChangerFeature {
     /** The typed base name ("&" codes converted) when Randomized Name is on, else "" (random made-up names). */
     private static String baseName(NameChangerConfig cfg) {
         return cfg.isRandomizedName() ? colorize(cfg.getRandomBaseName().trim()) : "";
-    }
-
-    /** Number of distinct other players collected this session (for the settings tab). */
-    public static int seenPlayerCount() {
-        synchronized (SEEN_PLAYERS) {
-            return SEEN_PLAYERS.size();
-        }
     }
 }

@@ -79,8 +79,13 @@ public final class RagAxeFeature {
     }
 
     private static void onChat(Component message) {
-        RagAxeState.onChat(message);
-        RagAxePrompts.onChat(message);
+        if (!RagAxeConfig.getInstance().isEnabled()) {
+            return;
+        }
+        // Stripped once for both readers (each used to strip every chat line itself).
+        String plain = ChatObserver.strip(message).trim();
+        RagAxeState.onChat(plain);
+        RagAxePrompts.onChat(plain);
     }
 
     private static void tick(Minecraft client) {

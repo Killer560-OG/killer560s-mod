@@ -58,11 +58,6 @@ public final class LfgRequirements {
         return String.format(Locale.ROOT, "%d:%02d", seconds / 60, seconds % 60);
     }
 
-    /** Requirements whose key the checks understand; the rest are shown but never checked. */
-    public static boolean checkable(String key) {
-        return key.equals("cata") || key.equals("secrets") || key.equals(LfgCategory.PB);
-    }
-
     /** As {@link #check(LfgCategory, String, Map, String)} without a floor (a PB requirement is then unchecked). */
     public static List<Check> check(LfgCategory category, Map<String, Integer> reqs, String player) {
         return check(category, null, reqs, player);

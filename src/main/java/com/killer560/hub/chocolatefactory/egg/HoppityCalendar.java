@@ -81,11 +81,6 @@ public final class HoppityCalendar {
         return huntDay(dayIndex(nowMs));
     }
 
-    /** The egg's name on the day it spawned: Breakfast on odd days of the year (1-based), Brunch on even ones. */
-    public static String eggName(Meal meal, long spawnDayIndex) {
-        return (dayOfYear(spawnDayIndex) + 1) % 2 == 1 ? meal.oddName : meal.evenName;
-    }
-
     private static long spawnAt(Meal meal, long dayIndex) {
         return EPOCH_MS + dayIndex * DAY_MS + meal.offsetMs();
     }

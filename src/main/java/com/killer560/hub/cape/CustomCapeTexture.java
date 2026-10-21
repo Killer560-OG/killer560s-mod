@@ -15,6 +15,8 @@ public final class CustomCapeTexture {
     public static final Identifier ID = Identifier.fromNamespaceAndPath("killer560smod", "textures/cape/custom.png");
 
     private static String builtFor = null;
+    /** The config the texture was built from: a reloaded config (a profile applied) restarts its revision at 0. */
+    private static CapeConfig builtFrom = null;
 
     private CustomCapeTexture() {
     }
@@ -22,9 +24,10 @@ public final class CustomCapeTexture {
     /** Makes sure the texture for the current settings is registered, and returns its id. */
     public static Identifier ensure(CapeConfig cfg) {
         String key = cfg.getCustomPattern().name() + ":" + cfg.getCustomColourA() + ":" + cfg.getCustomColourB() + ":" + cfg.getRevision();
-        if (key.equals(builtFor)) {
+        if (cfg == builtFrom && key.equals(builtFor)) {
             return ID;
         }
+        builtFrom = cfg;
         try {
             NativeImage image = new NativeImage(64, 32, false);
             for (int y = 0; y < 32; y++) {

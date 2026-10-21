@@ -34,6 +34,7 @@ public final class PetWheelFeature {
         PetWheelConfig cfg = PetWheelConfig.getInstance();
         if (!cfg.isEnabled() || !SkyblockGate.allows()) {
             keyWasDown = false;
+            PetsMenuScanner.reset();
             return;
         }
         PetsMenuScanner.tick(client);

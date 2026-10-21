@@ -115,7 +115,7 @@ public final class SlotTextFeature {
     /** Called from the slot mixin after the item and its count are drawn. {@code x}/{@code y} are slot-local. */
     public static void draw(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         ItemStack stack = slot.getItem();
-        if (stack.isEmpty() || !visible()) {
+        if (stack.isEmpty() || !visible() || !anyTypeOn()) {
             return;
         }
         String title = titleOf(screen);
@@ -125,6 +125,28 @@ public final class SlotTextFeature {
             return;
         }
         paint(graphics, Minecraft.getInstance().font, entries, slot.x, slot.y);
+    }
+
+    private static int anyGen = -1;
+    private static boolean anyOn;
+
+    /** Whether any type is switched on, worked out once per settings generation: with every type off the per-slot cache
+     *  lookup and lore reads would only ever produce nothing. Render thread only. */
+    private static boolean anyTypeOn() {
+        int gen = generation;
+        if (anyGen != gen) {
+            SlotTextConfig cfg = SlotTextConfig.getInstance();
+            boolean any = false;
+            for (SlotTextType t : SlotTextType.values()) {
+                if (cfg.isTypeEnabled(t)) {
+                    any = true;
+                    break;
+                }
+            }
+            anyOn = any;
+            anyGen = gen;
+        }
+        return anyOn;
     }
 
     private static Component lastTitle;

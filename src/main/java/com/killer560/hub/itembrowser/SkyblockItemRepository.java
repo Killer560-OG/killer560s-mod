@@ -86,6 +86,7 @@ public final class SkyblockItemRepository {
     private static volatile List<SkyblockItemEntry> items = List.of();
     private static volatile Map<String, SkyblockItemEntry> byId = Map.of();
     private static volatile long lastFetchAtMs = 0;
+    private static volatile long lastAttemptAtMs = 0;
     private static final AtomicBoolean refreshing = new AtomicBoolean(false);
     private static volatile boolean triedCache = false;
     /** True while the loaded cache was written by an older {@link #CACHE_SCHEMA}; cleared by a successful refresh. */
@@ -130,10 +131,6 @@ public final class SkyblockItemRepository {
         return byId.get(id);
     }
 
-    public static boolean isRefreshing() {
-        return refreshing.get();
-    }
-
     /** Loads the on-disk cache (any age) on first real use so the panel has data immediately, then kicks
      *  off a background refresh if that cache is missing or stale. Safe to call every render frame -
      *  every real check here is a cheap volatile/AtomicBoolean read after the first call. */
@@ -142,7 +139,10 @@ public final class SkyblockItemRepository {
             triedCache = true;
             loadFromDisk();
         }
-        if (System.currentTimeMillis() - lastFetchAtMs > CACHE_TTL_MS) {
+        // A failed refresh leaves lastFetchAtMs where it was, so without the attempt gate every frame after a failure
+        // (offline, a 5xx, DNS) started another request and logged another warning.
+        long now = System.currentTimeMillis();
+        if (now - lastFetchAtMs > CACHE_TTL_MS && now - lastAttemptAtMs > SCHEMA_RETRY_MS) {
             refreshAsync();
         }
     }
@@ -151,6 +151,7 @@ public final class SkyblockItemRepository {
         if (!refreshing.compareAndSet(false, true)) {
             return;
         }
+        lastAttemptAtMs = System.currentTimeMillis();
         CompletableFuture.supplyAsync(SkyblockItemRepository::fetchAndParse).whenComplete((fetched, error) -> {
             refreshing.set(false);
             if (error != null || fetched == null || fetched.isEmpty()) {

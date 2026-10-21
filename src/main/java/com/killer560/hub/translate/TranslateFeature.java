@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,6 +103,11 @@ public final class TranslateFeature {
      * needs no lock. {@code exceptionally} is what keeps one failure from wedging the chain for the session.
      */
     private static CompletableFuture<Void> sendChain = CompletableFuture.completedFuture(null);
+
+    /** Called by the chat mixin when {@link #tryIntercept} threw, so the line falls through to vanilla's send. */
+    public static void logInterceptFailure(RuntimeException e) {
+        LOGGER.warn("Translate intercept failed, letting vanilla send the message", e);
+    }
 
     /**
      * @return true if this call was handled here (the vanilla send must be cancelled), false if
@@ -226,7 +232,7 @@ public final class TranslateFeature {
                 LOGGER.warn("Translate request failed, sending original message instead", e);
                 return (TranslationResult) null;
             }
-        }, EXECUTOR);
+        }, EXECUTOR).completeOnTimeout(null, 25, TimeUnit.SECONDS);
         // Wait for BOTH this translation AND every earlier message's send, then send. thenCombine is what makes
         // the order his, not the network's - see sendChain.
         sendChain = sendChain
@@ -355,9 +361,17 @@ public final class TranslateFeature {
         if (responseData == null || !responseData.has("translatedText")) {
             throw new RuntimeException("MyMemory response missing translatedText");
         }
+        // MyMemory reports quota, length and same-language errors as a normal-looking translatedText (with the real
+        // status in the body): never let one of those be sent to chat as if it were the translation.
+        String translated = responseData.get("translatedText").getAsString();
+        if ((root.has("responseStatus") && root.get("responseStatus").isJsonPrimitive()
+                && !"200".equals(root.get("responseStatus").getAsString()))
+                || translated.startsWith("MYMEMORY WARNING") || translated.startsWith("PLEASE SELECT TWO DISTINCT")) {
+            throw new RuntimeException("MyMemory refused: " + root.get("responseStatus"));
+        }
         String detected = responseData.has("detectedLanguage") && !responseData.get("detectedLanguage").isJsonNull()
                 ? responseData.get("detectedLanguage").getAsString() : null;
-        return new TranslationResult(responseData.get("translatedText").getAsString(), detected);
+        return new TranslationResult(translated, detected);
     }
 
     private static String urlEncode(String value) {

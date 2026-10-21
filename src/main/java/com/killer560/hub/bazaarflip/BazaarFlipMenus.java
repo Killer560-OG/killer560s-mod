@@ -80,37 +80,6 @@ public final class BazaarFlipMenus {
         return -1;
     }
 
-    /** How many units of {@code productDisplayName} the player is currently carrying, counted across their
-     *  own 36 slots of the open container by visible name. */
-    public static int countInInventory(AbstractContainerMenu menu, String productDisplayName) {
-        if (productDisplayName == null || productDisplayName.isBlank()) {
-            return 0;
-        }
-        String needle = productDisplayName.toLowerCase(Locale.ROOT);
-        int total = 0;
-        for (Slot slot : playerSlots(menu)) {
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) {
-                continue;
-            }
-            if (nameOf(stack).toLowerCase(Locale.ROOT).contains(needle)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
-    }
-
-    /** Empty slots among the player's own 36, inside an open container. */
-    public static int freePlayerSlots(AbstractContainerMenu menu) {
-        int free = 0;
-        for (Slot slot : playerSlots(menu)) {
-            if (slot.getItem().isEmpty()) {
-                free++;
-            }
-        }
-        return free;
-    }
-
     // ---- the flip's own reads (2026-10-11) -------------------------------------------------------------
 
     /** The open menu as {@link BazaarPages} classifies it - the same classifier the Bazaar reskin uses, so the

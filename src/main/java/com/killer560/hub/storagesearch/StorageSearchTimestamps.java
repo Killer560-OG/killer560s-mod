@@ -52,15 +52,14 @@ public final class StorageSearchTimestamps {
     public static void mark(String key, long timeMs) {
         ensureLoaded();
         TIMES.put(key, timeMs);
-        try {
-            Files.createDirectories(PATH.getParent());
+        Map<String, Long> snapshot = new HashMap<>(TIMES);
+        StorageSearchDiskWriter.write(PATH, () -> {
             JsonObject obj = new JsonObject();
-            for (Map.Entry<String, Long> e : TIMES.entrySet()) {
+            for (Map.Entry<String, Long> e : snapshot.entrySet()) {
                 obj.addProperty(e.getKey(), e.getValue());
             }
-            Files.writeString(PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+            return GSON.toJson(obj);
+        });
     }
 
     /** @return the recorded time for {@code key}, or -1 if none recorded. */

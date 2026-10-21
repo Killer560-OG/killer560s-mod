@@ -20,9 +20,14 @@ public abstract class ChatScreenMixin {
 
     @Inject(method = "handleChatInput", at = @At("HEAD"), cancellable = true)
     private void killer560smod$translateOutgoing(String message, boolean addToHistory, CallbackInfo ci) {
-        String normalized = ((ChatScreen) (Object) this).normalizeChatMessage(message);
-        if (TranslateFeature.tryIntercept(normalized, addToHistory)) {
-            ci.cancel();
+        // A throw here would leave the chat screen's input handler: fail safe to vanilla's own send instead.
+        try {
+            String normalized = ((ChatScreen) (Object) this).normalizeChatMessage(message);
+            if (TranslateFeature.tryIntercept(normalized, addToHistory)) {
+                ci.cancel();
+            }
+        } catch (RuntimeException e) {
+            TranslateFeature.logInterceptFailure(e);
         }
     }
 }

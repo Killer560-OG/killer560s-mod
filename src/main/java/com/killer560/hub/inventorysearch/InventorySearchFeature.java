@@ -107,6 +107,7 @@ public final class InventorySearchFeature {
             return;
         }
         listening = false;
+        selectedAll = false; // a Ctrl+A left over from the last screen would make the next typed character wipe the query
         lastMatchQuery = null;
         lastBoxBounds = null;
         lastOverlayQuery = null;
@@ -237,6 +238,8 @@ public final class InventorySearchFeature {
     /** Per-slot match cache for {@link #drawSlotHighlight}: the query it was built for and stack -> matched. Identity
      *  keyed, so a slot whose stack object is replaced is simply asked again. Cleared when the query changes. */
     private static String lastMatchQuery = null;
+    private static boolean lastMatchIgnoreCase = true;
+    private static boolean lastMatchLore = true;
     private static final java.util.Map<ItemStack, Boolean> MATCH_CACHE = new java.util.IdentityHashMap<>();
 
     // QUERY as a String and its calculator answer, rebuilt only when the text changes. highlightQuery() runs once per
@@ -298,14 +301,20 @@ public final class InventorySearchFeature {
         if (query == null || stack == null || stack.isEmpty()) {
             return false;
         }
-        if (!query.equals(lastMatchQuery)) {
+        InventorySearchConfig cfg = InventorySearchConfig.getInstance();
+        // The cached answers also depend on the two match options, so flipping either drops them (they used to
+        // stay stale until the query text next changed).
+        if (!query.equals(lastMatchQuery) || cfg.isIgnoreCase() != lastMatchIgnoreCase
+                || cfg.isSearchLore() != lastMatchLore) {
             lastMatchQuery = query;
+            lastMatchIgnoreCase = cfg.isIgnoreCase();
+            lastMatchLore = cfg.isSearchLore();
             MATCH_CACHE.clear();
         }
         if (MATCH_CACHE.size() > 4096) {
             MATCH_CACHE.clear();
         }
-        return MATCH_CACHE.computeIfAbsent(stack, st -> matches(st, query, InventorySearchConfig.getInstance()));
+        return MATCH_CACHE.computeIfAbsent(stack, st -> matches(st, query, cfg));
     }
 
     /** The text shown in the bar: the query, plus " = result" in green when it is a sum. Public for the testkit. */

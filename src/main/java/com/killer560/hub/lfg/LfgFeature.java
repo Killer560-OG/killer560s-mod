@@ -490,7 +490,10 @@ public final class LfgFeature {
     static void onMe(JsonObject body) {
         JsonElement l = body.get("listing");
         if (wanted != null) {
-            myListing = l != null && l.isJsonObject() ? LfgListing.parse(l.getAsJsonObject()) : myListing;
+            LfgListing parsed = l != null && l.isJsonObject() ? LfgListing.parse(l.getAsJsonObject()) : null;
+            if (parsed != null) {
+                myListing = parsed; // a body that fails to parse keeps the last good listing (else the inbox goes dead)
+            }
         }
         List<LfgListing.Request> inbox = new ArrayList<>();
         JsonArray reqs = body.has("requests") && body.get("requests").isJsonArray() ? body.getAsJsonArray("requests") : new JsonArray();

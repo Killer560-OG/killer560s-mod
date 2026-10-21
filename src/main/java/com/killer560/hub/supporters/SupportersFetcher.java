@@ -51,6 +51,9 @@ final class SupportersFetcher {
             // same thread for its own connection work meant the connect could never finish - every fetch timed out.
             .build();
     private static final long RETRY_AFTER_FAILURE_MS = 30_000L;
+    /** Bounds on what the relay may hand back: a real list is a few hundred short rows. */
+    private static final int MAX_BODY_CHARS = 4_000_000;
+    private static final int MAX_ENTRIES = 20_000;
 
     private SupportersFetcher() {
     }
@@ -88,6 +91,10 @@ final class SupportersFetcher {
                 LOGGER.info("[Supporters] Fetch failed: HTTP {}", resp.statusCode());
                 return false;
             }
+            if (resp.body().length() > MAX_BODY_CHARS) {
+                LOGGER.info("[Supporters] Fetch ignored: response too large ({} chars)", resp.body().length());
+                return false;
+            }
             JsonObject body = JsonParser.parseString(resp.body()).getAsJsonObject();
             int version = body.has("version") ? body.get("version").getAsInt() : -1;
             List<SupporterEntry> entries = parseSupporters(body.get("supporters"));
@@ -105,6 +112,9 @@ final class SupportersFetcher {
             return out;
         }
         for (JsonElement entryEl : el.getAsJsonArray()) {
+            if (out.size() >= MAX_ENTRIES) {
+                break;
+            }
             try {
                 if (entryEl == null || !entryEl.isJsonObject()) {
                     continue;

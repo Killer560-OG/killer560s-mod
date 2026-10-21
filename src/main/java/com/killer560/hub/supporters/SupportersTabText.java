@@ -37,8 +37,8 @@ public final class SupportersTabText {
 
     /** {@code shown} with every supporter IGN in it replaced, or {@code null} to leave the row alone. */
     public static Component replace(PlayerInfo info, Component shown) {
-        if (info == null || shown == null) {
-            return null;
+        if (info == null || shown == null || !SupportersFeature.cosmeticsActive()) {
+            return null; // asked per tab row per frame: names off or no supporters is the common case
         }
         Component source = info.getTabListDisplayName();
         if (source == null) {

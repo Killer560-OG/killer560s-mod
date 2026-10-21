@@ -192,6 +192,11 @@ public final class VoiceToTextFeature {
             overlay("[Voice] Still preparing the speech model...", 1500);
             return;
         }
+        if (state == State.TRANSCRIBING) {
+            // A press while the last clip is still being transcribed used to open a second recording; the finishing
+            // transcription then set the state back to READY under it, leaving that mic open with nothing to close it.
+            return;
+        }
         if (loadedModel == null) {
             state = State.PREPARING_MODEL;
             // The engine (~26MB, VoskLibrary) and the model (~40MB) are both fetched on first use; say how much is
@@ -203,7 +208,9 @@ public final class VoiceToTextFeature {
             overlay(needEngine || needModel
                     ? "[Voice] Preparing speech recognition (first use only, may download " + size + ")..."
                     : "[Voice] Preparing speech model...", 4000);
-            new Thread(VoiceToTextFeature::prepareModelAndStartRecording, "killer560smod-voice-prepare").start();
+            Thread prepare = new Thread(VoiceToTextFeature::prepareModelAndStartRecording, "killer560smod-voice-prepare");
+            prepare.setDaemon(true);
+            prepare.start();
             return;
         }
         startRecording();
@@ -268,7 +275,11 @@ public final class VoiceToTextFeature {
                 boolean openMic = VoiceToTextConfig.getInstance().getMode() == VoiceToTextConfig.Mode.OPEN_MIC;
                 overlay(openMic ? "§a[Voice] Speech model ready - listening now."
                         : "§a[Voice] Speech model ready - hold the key again to talk.", 2500);
-                startRecording();
+                // Push To Talk records only if the key is still down now: starting regardless left the mic open after
+                // a release during the download, with nothing to close it until the next press and release.
+                if (VoiceToTextConfig.getInstance().isEnabled() && (openMic || keyWasDown)) {
+                    startRecording();
+                }
             });
         } catch (Throwable t) {
             LOGGER.warn("[VoiceToText] Failed to prepare speech model", t);
@@ -299,36 +310,66 @@ public final class VoiceToTextFeature {
         Files.createDirectories(parent);
         Path zipFile = parent.resolve("model-download.zip");
         LOGGER.info("[VoiceToText] Downloading speech model from {}", MODEL_URL);
-        java.net.URLConnection conn = ModNet.open(MODEL_URL);
-        conn.setConnectTimeout(15_000);
-        conn.setReadTimeout(120_000);
-        long length = conn.getContentLengthLong();
-        try (InputStream in = conn.getInputStream()) {
-            com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_MODEL_ZIP_BYTES, "speech model download",
-                    downloadProgress("speech model", length > 0 ? length : MODEL_ZIP_ESTIMATE_BYTES));
-        }
-        LOGGER.info("[VoiceToText] Extracting speech model...");
-        long extracted = 0;
-        try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipFile))) {
-            ZipEntry entry;
-            while ((entry = zip.getNextEntry()) != null) {
-                Path target = parent.resolve(entry.getName()).normalize();
-                if (!target.startsWith(parent)) {
-                    continue; // zip-slip guard
-                }
-                if (entry.isDirectory()) {
-                    Files.createDirectories(target);
-                } else {
-                    Files.createDirectories(target.getParent());
-                    try (java.io.OutputStream out = Files.newOutputStream(target)) {
-                        extracted += com.killer560.hub.util.BoundedDownload.copyCapped(zip, out,
-                                MAX_MODEL_EXTRACTED_BYTES - extracted, "speech model extraction");
+        // Extracted beside the final folder and moved into place only when whole: the "conf" folder is what marks a model
+        // as present, so extracting straight into place left a cut-off or failed extraction (disk full, game closed) that
+        // looked installed forever and failed to load every time after.
+        Path staging = parent.resolve("model-extract.tmp");
+        try {
+            java.net.URLConnection conn = ModNet.open(MODEL_URL);
+            conn.setConnectTimeout(15_000);
+            conn.setReadTimeout(120_000);
+            if (conn instanceof java.net.HttpURLConnection http && http.getResponseCode() != java.net.HttpURLConnection.HTTP_OK) {
+                throw new IOException("HTTP " + http.getResponseCode() + " from " + MODEL_URL);
+            }
+            long length = conn.getContentLengthLong();
+            try (InputStream in = conn.getInputStream()) {
+                com.killer560.hub.util.BoundedDownload.toFile(in, zipFile, MAX_MODEL_ZIP_BYTES, "speech model download",
+                        downloadProgress("speech model", length > 0 ? length : MODEL_ZIP_ESTIMATE_BYTES));
+            }
+            LOGGER.info("[VoiceToText] Extracting speech model...");
+            deleteTree(staging);
+            Files.createDirectories(staging);
+            long extracted = 0;
+            try (ZipInputStream zip = new ZipInputStream(Files.newInputStream(zipFile))) {
+                ZipEntry entry;
+                while ((entry = zip.getNextEntry()) != null) {
+                    Path target = staging.resolve(entry.getName()).normalize();
+                    if (!target.startsWith(staging)) {
+                        continue; // zip-slip guard
+                    }
+                    if (entry.isDirectory()) {
+                        Files.createDirectories(target);
+                    } else {
+                        Files.createDirectories(target.getParent());
+                        try (java.io.OutputStream out = Files.newOutputStream(target)) {
+                            extracted += com.killer560.hub.util.BoundedDownload.copyCapped(zip, out,
+                                    MAX_MODEL_EXTRACTED_BYTES - extracted, "speech model extraction");
+                        }
                     }
                 }
             }
+            Path built = staging.resolve(MODEL_DIR_NAME);
+            if (!Files.exists(built.resolve("conf"))) {
+                throw new IOException("the downloaded speech model archive is not the expected model");
+            }
+            deleteTree(modelDir);
+            Files.move(built, modelDir);
+        } finally {
+            Files.deleteIfExists(zipFile);
+            deleteTree(staging);
         }
-        Files.deleteIfExists(zipFile);
         LOGGER.info("[VoiceToText] Speech model ready at {}", modelDir);
+    }
+
+    private static void deleteTree(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> walk = Files.walk(root)) {
+            for (Path p : (Iterable<Path>) walk.sorted(java.util.Comparator.reverseOrder())::iterator) {
+                Files.deleteIfExists(p);
+            }
+        }
     }
 
     // ------------------------------------------------------------------

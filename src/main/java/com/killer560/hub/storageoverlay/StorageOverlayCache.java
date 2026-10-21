@@ -76,6 +76,7 @@ public final class StorageOverlayCache {
      *  while that key's blob string is unchanged, so a {@link #put} (which stores a new blob) invalidates
      *  itself automatically with no separate bookkeeping. */
     private final Map<String, DecodedEntry> decodedCache = new HashMap<>();
+    private int version;
 
     private StorageOverlayCache() {
     }
@@ -110,21 +111,63 @@ public final class StorageOverlayCache {
         instance = cache;
     }
 
+    /** The newest snapshot nobody has written yet; a burst of saves (Scan All, the overview marking 27 pages) collapses
+     *  into one write of the last one. */
+    private static final java.util.concurrent.atomic.AtomicReference<JsonObject> PENDING_WRITE =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final java.util.concurrent.ExecutorService WRITER =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "killer560smod-storageoverlay-writer");
+                t.setDaemon(true);
+                return t;
+            });
+    private static volatile boolean shutdownHookAdded;
+
+    /** Saves the cache without stalling the caller: every change used to pretty-print and rewrite the whole file (all
+     *  pages, all profiles) on the render thread, once per page marked or moved item. The snapshot is taken here (a few
+     *  dozen string references); the serialising and the disk write happen on a writer thread, and a JVM shutdown hook
+     *  writes whatever is still waiting (fps pass 2026-10-21). */
     public void save() {
+        JsonObject obj = new JsonObject();
+        for (Map.Entry<String, String> entry : encoded.entrySet()) {
+            obj.addProperty(entry.getKey(), entry.getValue());
+        }
+        var knownArray = new com.google.gson.JsonArray();
+        for (String key : knownOnly) {
+            knownArray.add(key);
+        }
+        obj.add(KNOWN_ONLY_KEY, knownArray);
+        PENDING_WRITE.set(obj);
+        if (!shutdownHookAdded) {
+            shutdownHookAdded = true;
+            try {
+                Runtime.getRuntime().addShutdownHook(new Thread(StorageOverlayCache::writePending, "killer560smod-storageoverlay-flush"));
+            } catch (RuntimeException ignored) {
+            }
+        }
+        try {
+            WRITER.execute(StorageOverlayCache::writePending);
+        } catch (RuntimeException e) {
+            writePending();
+        }
+    }
+
+    private static synchronized void writePending() {
+        JsonObject obj = PENDING_WRITE.getAndSet(null);
+        if (obj == null) {
+            return;
+        }
         try {
             Files.createDirectories(CACHE_PATH.getParent());
-            JsonObject obj = new JsonObject();
-            for (Map.Entry<String, String> entry : encoded.entrySet()) {
-                obj.addProperty(entry.getKey(), entry.getValue());
-            }
-            var knownArray = new com.google.gson.JsonArray();
-            for (String key : knownOnly) {
-                knownArray.add(key);
-            }
-            obj.add(KNOWN_ONLY_KEY, knownArray);
             Files.writeString(CACHE_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
+    }
+
+    /** Bumped by every change to what {@link #knownKeysFor} / {@link #get} return, so a caller can keep what it built
+     *  from them until this number moves. */
+    public int version() {
+        return version;
     }
 
     /** Registers a storage as known to exist (a real icon on the "Storage" overview screen) without
@@ -134,6 +177,7 @@ public final class StorageOverlayCache {
      *  every single frame once it's already known). */
     public void markKnown(String key) {
         if (!encoded.containsKey(key) && knownOnly.add(key)) {
+            version++;
             save();
         }
     }
@@ -143,6 +187,7 @@ public final class StorageOverlayCache {
      *  from the known-but-unopened set. Never touches a key that already has real contents. */
     public void unmarkKnown(String key) {
         if (knownOnly.remove(key)) {
+            version++;
             save();
         }
     }
@@ -173,6 +218,7 @@ public final class StorageOverlayCache {
             NbtIo.writeCompressed(root, baos);
             encoded.put(key, Base64.getEncoder().encodeToString(baos.toByteArray()));
             knownOnly.remove(key);
+            version++;
             save();
         } catch (Exception e) {
             LOGGER.error("Failed to encode storage \"{}\"", key, e);
@@ -189,6 +235,24 @@ public final class StorageOverlayCache {
         if (cached != null && cached.blob().equals(blob)) {
             return new ArrayList<>(cached.items());
         }
+        return decode(key, blob, true);
+    }
+
+    /** {@link #get} without the copy: the cached page as a read-only list (null if never captured). Safe to hold; a
+     *  later {@link #put} makes a new list rather than changing this one. For per-frame readers (fps pass 2026-10-21). */
+    public List<ItemStack> peek(String key) {
+        String blob = encoded.get(key);
+        if (blob == null) {
+            return null;
+        }
+        DecodedEntry cached = decodedCache.get(key);
+        if (cached != null && cached.blob().equals(blob)) {
+            return cached.items();
+        }
+        return decode(key, blob, false);
+    }
+
+    private List<ItemStack> decode(String key, String blob, boolean copy) {
         RegistryAccess registryAccess = registryAccess();
         if (registryAccess == null) {
             return null;
@@ -208,11 +272,15 @@ public final class StorageOverlayCache {
                 }
                 result.add(ItemStack.CODEC.parse(ops, tag).result().orElse(ItemStack.EMPTY));
             }
-            decodedCache.put(key, new DecodedEntry(blob, result));
-            return new ArrayList<>(result);
+            List<ItemStack> shared = java.util.Collections.unmodifiableList(result);
+            decodedCache.put(key, new DecodedEntry(blob, shared));
+            return copy ? new ArrayList<>(result) : shared;
         } catch (Exception e) {
             LOGGER.error("Failed to decode storage \"{}\"", key, e);
-            return null;
+            // Remembered for this blob, so a corrupt page logs once instead of every frame it is on screen.
+            List<ItemStack> none = java.util.Collections.emptyList();
+            decodedCache.put(key, new DecodedEntry(blob, none));
+            return copy ? new ArrayList<>(none) : none;
         }
     }
 

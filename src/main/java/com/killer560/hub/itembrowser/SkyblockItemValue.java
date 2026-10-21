@@ -42,6 +42,11 @@ public final class SkyblockItemValue {
         return RngMeterEngine.PRICES.getPrice(new RngItem("", "", id, RngSource.BAZAAR, 0, false));
     }
 
+    /** Changes whenever the shared price engine finishes a refresh; the browser re-sorts a value sort on it. */
+    public static long priceStamp() {
+        return RngMeterEngine.PRICES.getLastRefreshedAtMs();
+    }
+
     /** Live unit price for a real item stack (anywhere in the game), or null if it couldn't be
      *  identified or has no known price. */
     public static Long getValue(ItemStack stack) {

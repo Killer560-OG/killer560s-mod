@@ -86,6 +86,18 @@ public final class AhReskin {
         int clicksSent;
         String lastClick = "";
         boolean recorded;
+        /** Per-page memo of what is derived from a settled item each frame (lore parsed, skyblock id); cleared when the
+         *  page is re-read. Keyed by identity: a page's lore lists and stacks are never mutated. */
+        final java.util.Map<List<String>, AhLore.Listing> parsed = new java.util.IdentityHashMap<>();
+        final java.util.Map<ItemStack, String> ids = new java.util.IdentityHashMap<>();
+
+        AhLore.Listing parse(List<String> lore) {
+            return parsed.computeIfAbsent(lore, AhLore::parse);
+        }
+
+        String skyblockId(ItemStack stack) {
+            return ids.computeIfAbsent(stack, LegacyItems::skyblockId);
+        }
 
         State(AbstractContainerScreen<?> screen) {
             this.screen = screen;
@@ -201,18 +213,23 @@ public final class AhReskin {
     private static void poll(State st) {
         AbstractContainerMenu menu = st.screen.getMenu();
         int n = Math.max(0, menu.slots.size() - 36);
-        List<ItemStack> items = new ArrayList<>(n);
-        for (int i = 0; i < n; i++) {
-            items.add(menu.slots.get(i).getItem());
+        // Runs every frame: compare in place and build a list only when something changed.
+        boolean same = st.live.size() == n;
+        for (int i = 0; same && i < n; i++) {
+            same = ItemStack.matches(menu.slots.get(i).getItem(), st.live.get(i));
         }
         long now = System.currentTimeMillis();
-        if (!ItemStack.listMatches(items, st.live)) {
+        if (!same) {
+            List<ItemStack> items = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                items.add(menu.slots.get(i).getItem());
+            }
             st.live = List.copyOf(items);
             st.stableSinceMs = now;
             st.pending = true;
             return;
         }
-        if (!st.pending || now - st.stableSinceMs < SETTLE_MS || items.stream().allMatch(ItemStack::isEmpty)) {
+        if (!st.pending || now - st.stableSinceMs < SETTLE_MS || st.live.stream().allMatch(ItemStack::isEmpty)) {
             return;
         }
         st.pending = false;
@@ -223,6 +240,8 @@ public final class AhReskin {
         AhPages.Page old = st.page;
         st.page = AhPages.classify(plainTitle(st.screen), n / 9, describe(menu));
         st.stacks = snapshot;
+        st.parsed.clear();
+        st.ids.clear();
         if (old == null || old.kind() != st.page.kind()) {
             st.scroll = 0;
         }
@@ -539,7 +558,7 @@ public final class AhReskin {
                     continue;
                 }
                 ItemStack stack = stack(stacks, it.slot());
-                AhLore.Listing l = AhLore.parse(it.lore());
+                AhLore.Listing l = st.parse(it.lore());
                 String price = l.price() < 0 ? "" : l.isBin() ? AhUi.coins(l.price()) + " coins"
                         : l.priceLabel() + " " + AhUi.coins(l.price());
                 String badge = "";
@@ -562,7 +581,7 @@ public final class AhReskin {
                 if (!l.seller().isEmpty()) {
                     sub.add(l.seller());
                 }
-                String id = LegacyItems.skyblockId(stack);
+                String id = st.skyblockId(stack);
                 long lb = AhMarket.lowestBin(id);
                 List<Component> extra = new ArrayList<>();
                 if (lb > 0) {
@@ -591,7 +610,7 @@ public final class AhReskin {
         try {
             if (page.hero() != null) {
                 ItemStack hero = stack(stacks, page.hero().slot());
-                AhLore.Listing l = AhLore.parse(page.hero().lore());
+                AhLore.Listing l = st.parse(page.hero().lore());
                 List<String[]> info = new ArrayList<>();
                 if (l.price() >= 0) {
                     info.add(new String[]{l.priceLabel(), AhUi.coins(l.price()) + " coins", "FFC040"});
@@ -610,7 +629,7 @@ public final class AhReskin {
                 }
                 cy = ui.hero(x + 4, cy, cw - 8, hero, hero.getHoverName(), info, page.hero().slot()) + 4;
                 if (page.kind() == AhPages.Kind.VIEW) {
-                    int my = ui.marketPanel(x + 4, cy, cw - 8, 44, LegacyItems.skyblockId(hero));
+                    int my = ui.marketPanel(x + 4, cy, cw - 8, 44, st.skyblockId(hero));
                     cy = my > cy ? my + 5 : cy;
                 }
             }

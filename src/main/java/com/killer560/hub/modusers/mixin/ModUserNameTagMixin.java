@@ -27,17 +27,21 @@ public abstract class ModUserNameTagMixin {
         if (!(entity instanceof Player)) {
             return;
         }
+        ModUserConfig cfg = ModUserConfig.getInstance();
+        if (!cfg.isShare() && !cfg.isSeeOthers()) {
+            return; // both off (the default): skip the name lookup for every player on every frame
+        }
         String name = entity.getName().getString();
         Minecraft client = Minecraft.getInstance();
         String variant;
         if (client.player != null && name.equals(client.player.getGameProfile().name())) {
             // Your own name tag (My Name in F5): your symbol shows there only while you show yourself as a mod user.
-            if (!ModUserConfig.getInstance().isShare()) {
+            if (!cfg.isShare()) {
                 return;
             }
-            variant = ModUserConfig.getInstance().getShareAs();
+            variant = cfg.getShareAs();
         } else {
-            if (!ModUserConfig.getInstance().isSeeOthers()) {
+            if (!cfg.isSeeOthers()) {
                 return;
             }
             variant = ModUsers.variantOf(name);

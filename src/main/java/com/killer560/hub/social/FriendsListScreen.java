@@ -124,7 +124,12 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         if (selected != null) {
             int barY = panelY + panelH - 40;
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Remove"), btn -> {
-                FriendsListSync.requestRemove(selected.name);
+                if (!FriendsListSync.requestRemove(selected.name)) {
+                    // Rate-limited: nothing was sent, so keep the friend selected instead of looking removed.
+                    statusMessage = "Please wait a moment before sending another request.";
+                    statusColor = ModChat.BAD;
+                    return;
+                }
                 selected = null;
                 scroll = 0;
                 rebuildWidgets();
@@ -156,8 +161,18 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
      *  re-fetched here - it only ever goes stale if that friend was actually removed, in which case it just
      *  keeps showing what it last knew until the player presses "< Back" or "Remove" themselves. */
     private void refresh() {
-        visible = filter(FriendsListConfig.getInstance().friends(), searchQuery);
+        List<FriendsListConfig.Friend> all = FriendsListConfig.getInstance().friends();
+        // Called every frame: the filtered copy is rebuilt only when the list or the search text changed.
+        if (all == filteredFrom && searchQuery.equals(filteredQuery)) {
+            return;
+        }
+        filteredFrom = all;
+        filteredQuery = searchQuery;
+        visible = filter(all, searchQuery);
     }
+
+    private List<FriendsListConfig.Friend> filteredFrom;
+    private String filteredQuery;
 
     /** The friends whose name contains {@code query} (case-insensitive); everyone for a blank query. */
     static List<FriendsListConfig.Friend> filter(List<FriendsListConfig.Friend> all, String query) {

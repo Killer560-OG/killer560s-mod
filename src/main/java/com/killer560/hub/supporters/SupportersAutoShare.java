@@ -46,6 +46,16 @@ public final class SupportersAutoShare {
     private SupportersAutoShare() {
     }
 
+    /** The relay refuses a scale outside 0.5-2.0 (its validateScale), but your own size slider goes down to 0.05 for
+     *  your own model; a smaller size shares as 0.5, or the push would 400 on every retry and take your name, trail and
+     *  mob down with it. */
+    public static double sharedScale(double scale) {
+        if (Double.isNaN(scale)) {
+            return 1.0;
+        }
+        return Math.max(0.5, Math.min(2.0, scale));
+    }
+
     /**
      * @param plainName   the Cosmetics tab's own display name, plain text (no {@code &}/{@code §} codes) -
      *                    same text {@link NameColor#buildFade} would use as its base.
@@ -53,43 +63,17 @@ public final class SupportersAutoShare {
      *                    NameColor#NONE}.
      * @param whitelisted must already be confirmed true by a fresh {@code GET /supporters/me} - this method
      *                    never triggers that check itself.
+     * @param colors      your name's colour per visible letter ({@code NameChangerFeature.ownShareColours}), or null. Sent
+     *                    only when it has exactly one entry per visible letter of the shared name; otherwise the name goes alone.
+     * @param animation   your name's Wave/Pulse ({@code NameChangerFeature.ownShareAnimation}), or null; sent only with
+     *                    {@code colors}.
+     * @param trail       your Trail as shared ({@link #trailToShare}), or null for none. With a trail and no display name the
+     *                    entry still goes up, with an empty name (the relay's trail-only entry, shown under your real name);
+     *                    with neither, your entry is cleared as before.
+     * @param mob         the mob you play as ({@link #mobToShare}), or null for none. Like a trail it goes up with an empty name
+     *                    when you have no display name; with no name, trail or mob the entry is cleared.
      * @param onError     called (on the client thread) with a short reason whenever a push this method
      *                    actually attempted came back rejected - null to ignore.
-     */
-    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
-                                   double scale, Consumer<String> onError) {
-        maybeShare(shareIfSupporter, whitelisted, plainName, argb, null, scale, onError);
-    }
-
-    /** @param colors your name's colour per visible letter ({@code NameChangerFeature.ownShareColours}), or null. Sent
-     *  only when it has exactly one entry per visible letter of the shared name; otherwise the name goes alone. */
-    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
-                                   int[] colors, double scale, Consumer<String> onError) {
-        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, null, scale, onError);
-    }
-
-    /** @param animation your name's Wave/Pulse ({@code NameChangerFeature.ownShareAnimation}), or null; sent only with
-     *  {@code colors}. */
-    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
-                                   int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
-                                   double scale, Consumer<String> onError) {
-        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, animation, scale, null, onError);
-    }
-
-    /**
-     * @param trail your Trail as shared ({@link #trailToShare}), or null for none. With a trail and no display name the
-     *              entry still goes up, with an empty name (the relay's trail-only entry, shown under your real name);
-     *              with neither, your entry is cleared as before.
-     */
-    public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
-                                   int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
-                                   double scale, TrailSpec trail, Consumer<String> onError) {
-        maybeShare(shareIfSupporter, whitelisted, plainName, argb, colors, animation, scale, trail, null, onError);
-    }
-
-    /**
-     * @param mob the mob you play as ({@link #mobToShare}), or null for none. Like a trail it goes up with an empty name
-     *            when you have no display name; with no name, trail or mob the entry is cleared.
      */
     public static void maybeShare(boolean shareIfSupporter, boolean whitelisted, String plainName, int argb,
                                    int[] colors, com.killer560.hub.namechanger.NameAnimation.Spec animation,
@@ -97,6 +81,7 @@ public final class SupportersAutoShare {
         if (!shareIfSupporter || !whitelisted) {
             return;
         }
+        scale = sharedScale(scale);
 
         String rawName = plainName == null || plainName.isEmpty() ? ""
                 : (argb == NameColor.NONE ? "" : "&" + NameColor.codeFor(argb)) + plainName;

@@ -229,24 +229,48 @@ public final class BazaarReskin {
 
     /** Re-reads the menu: classified on every change, clickable once its items have sat still for {@link #SETTLE_MS}. */
     private static void poll(State st) {
-        List<ItemStack> items = menuStacks(st.screen.getMenu());
         long now = System.currentTimeMillis();
-        if (!ItemStack.listMatches(items, st.snapshot)) {
+        // Runs every frame: compared in place, a list is built only when the menu actually changed.
+        if (!sameAsSnapshot(st.screen.getMenu(), st.snapshot)) {
+            List<ItemStack> items = menuStacks(st.screen.getMenu());
             st.snapshot = List.copyOf(items);
             st.stableSinceMs = now;
             st.pending = true;
             classify(st, items);
             return;
         }
-        if (!st.pending || now - st.stableSinceMs < SETTLE_MS || items.stream().allMatch(ItemStack::isEmpty)) {
+        if (!st.pending || now - st.stableSinceMs < SETTLE_MS || allEmpty(st.snapshot)) {
             return;
         }
         st.pending = false;
         onSettled(st);
     }
 
+    /** {@code ItemStack.listMatches(menuStacks(menu), snapshot)} without building the list. */
+    private static boolean sameAsSnapshot(AbstractContainerMenu menu, List<ItemStack> snapshot) {
+        int n = Math.max(0, menu.slots.size() - 36);
+        if (n != snapshot.size()) {
+            return false;
+        }
+        for (int i = 0; i < n; i++) {
+            if (!ItemStack.matches(menu.slots.get(i).getItem(), snapshot.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean allEmpty(List<ItemStack> items) {
+        for (ItemStack s : items) {
+            if (!s.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static void classify(State st, List<ItemStack> items) {
-        if (items.stream().allMatch(ItemStack::isEmpty)) {
+        if (allEmpty(items)) {
             return;
         }
         st.page = BazaarPages.classify(plainTitle(st.screen), rows(st.screen.getMenu()), describe(st.screen.getMenu()));

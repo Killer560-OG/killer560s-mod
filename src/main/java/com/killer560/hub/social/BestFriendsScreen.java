@@ -207,11 +207,12 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         return i >= 0 && i < visible.size() ? visible.get(i) : null;
     }
 
+    private int contentHeight(List<String> lines) {
+        return lines != null ? lines.size() * 10 : visible.size() * ROW_H;
+    }
+
     private int maxScroll() {
-        if (selected != null) {
-            return Math.max(0, detailLines(selected).size() * 10 - listH);
-        }
-        return Math.max(0, visible.size() * ROW_H - listH);
+        return Math.max(0, contentHeight(selected != null ? detailLines(selected) : null) - listH);
     }
 
     @Override
@@ -241,21 +242,25 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         }
 
         ScreenChrome.well(graphics, listX - 1, listY - 1, listW + 2, listH + 2);
+        // The detail text is built once a frame (it reads the live clock) and shared by the draw, the scroll range
+        // and the scrollbar, which each rebuilt it before.
+        List<String> lines = selected != null ? detailLines(selected) : null;
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         try {
             if (selected != null) {
-                drawDetail(graphics, selected);
+                drawDetail(graphics, selected, lines);
             } else {
                 drawList(graphics, mouseX, mouseY);
             }
         } finally {
             graphics.disableScissor();
         }
-        if (maxScroll() > 0) {
+        int maxScroll = Math.max(0, contentHeight(lines) - listH);
+        if (maxScroll > 0) {
             int trackX = listX + listW - 4;
-            int contentH = selected == null ? Math.max(1, visible.size() * ROW_H) : Math.max(1, detailLines(selected).size() * 10);
+            int contentH = Math.max(1, contentHeight(lines));
             int thumbH = Math.max(10, listH * listH / contentH);
-            int thumbY = listY + (listH - thumbH) * scroll / maxScroll();
+            int thumbY = listY + (listH - thumbH) * scroll / maxScroll;
             ScreenChrome.scrollbar(graphics, trackX, listY, 4, listH, thumbY, thumbH, false);
         }
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -295,7 +300,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    private void drawDetail(GuiGraphicsExtractor graphics, BestFriendsStore.Record record) {
+    private void drawDetail(GuiGraphicsExtractor graphics, BestFriendsStore.Record record, List<String> lines) {
         PlayerHeadRenderer.draw(graphics, record.uuid, record.lastKnownName, listX + 6, listY + 6 - scroll, 32);
         int textX = listX + 6 + 32 + 10;
         String name = record.lastKnownName == null || record.lastKnownName.isBlank() ? "?" : record.lastKnownName;
@@ -304,7 +309,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
                 textX, listY + 18 - scroll, MenuStyle.TXT);
 
         int y = listY + 6 - scroll + 38;
-        for (String line : detailLines(record)) {
+        for (String line : lines) {
             if (y > listY + listH) {
                 break;
             }

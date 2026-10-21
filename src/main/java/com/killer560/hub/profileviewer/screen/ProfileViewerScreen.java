@@ -141,6 +141,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private static final Map<UUID, String> LIVE_NAME_CACHE = new ConcurrentHashMap<>();
     private static final Set<UUID> HEAD_FETCHING = ConcurrentHashMap.newKeySet();
 
+    private static final DateTimeFormatter JOINED_FORMAT = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US);
+    /** Heads and live names kept at most this many; a session that views many players starts over past it. */
+    private static final int MAX_HEADS = 64;
+
     private final Screen parent;
     private ProfileViewerFeature.Target target;
 
@@ -868,6 +872,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 }
                 ItemStack head = new ItemStack(Items.PLAYER_HEAD);
                 head.set(DataComponents.PROFILE, ResolvableProfile.createResolved(gp));
+                if (HEAD_CACHE.size() >= MAX_HEADS) {
+                    HEAD_CACHE.clear();
+                    HEAD_FETCHING.clear();
+                    LIVE_NAME_CACHE.clear();
+                }
                 HEAD_CACHE.put(uuid, head);
                 if (gp.name() != null && !gp.name().isEmpty()) {
                     LIVE_NAME_CACHE.put(uuid, gp.name());
@@ -971,7 +980,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             y = stat(g, lx, y, "Motes", shorten(p.motes));
         }
         if (p.firstJoin > 0) {
-            y = stat(g, lx, y, "Joined", DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+            y = stat(g, lx, y, "Joined", JOINED_FORMAT
                     .format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())));
         }
         if (p.memberCount > 1) {

@@ -13,6 +13,7 @@ import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.profileviewer.item.LegacyItems;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
@@ -185,6 +186,13 @@ public final class AuctionHouseApi {
     }
 
     private static void runAutoScanCycle() {
+        // No world (title screen, after leaving a server) or the Skyblock Only gate shut: nothing can use the listings,
+        // so skip this cycle instead of paging ~44 pages and decoding up to ~43,000 items for nobody.
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || !com.killer560.hub.util.SkyblockGate.allows()) {
+            SCHEDULER.schedule(AuctionHouseApi::runAutoScanCycle, AUTO_RESCAN_MINUTES, TimeUnit.MINUTES);
+            return;
+        }
         refreshAsync().whenComplete((v, e) ->
                 SCHEDULER.schedule(AuctionHouseApi::runAutoScanCycle, AUTO_RESCAN_MINUTES, TimeUnit.MINUTES));
     }
@@ -317,13 +325,13 @@ public final class AuctionHouseApi {
             }
         }
         AuctionListing known = previous == null ? null : previous.get(uuid);
-        if (known != null && !known.lore().isEmpty()) {
+        if (known != null && known.decoded()) {
             return known.withBids(highestBid, bidCount, end); // the item was decoded on an earlier scan
         }
 
         ItemStack icon = ItemStack.EMPTY;
         String skyblockId = "";
-        List<String> lore = List.of();
+        boolean decodedOk = false;
         String ultimateName = null;
         int ultimateTier = 0;
         if (a.has("item_bytes") && a.get("item_bytes").isJsonPrimitive()) {
@@ -332,9 +340,9 @@ public final class AuctionHouseApi {
                 ItemStack stack = decoded.get(0);
                 icon = stack;
                 skyblockId = LegacyItems.skyblockId(stack);
-                lore = DungeonChestValuer.cleanLore(stack);
+                decodedOk = true;
                 int[] tierOut = new int[1];
-                ultimateName = findUltimateEnchant(lore, tierOut);
+                ultimateName = findUltimateEnchant(DungeonChestValuer.cleanLore(stack), tierOut);
                 ultimateTier = tierOut[0];
             }
         }
@@ -365,7 +373,7 @@ public final class AuctionHouseApi {
         }
         int petLevel = parsePetLevel(itemName);
         return new AuctionListing(uuid, auctioneer, itemName, skyblockId, tier, category, startingBid, bin,
-                highestBid, bidCount, end, petLevel, ultimateName, ultimateTier, lore, icon);
+                highestBid, bidCount, end, petLevel, ultimateName, ultimateTier, decodedOk, icon);
     }
 
     private static <T> void copyComponent(ItemStack from, ItemStack to, net.minecraft.core.component.DataComponentType<T> type) {
@@ -487,7 +495,7 @@ public final class AuctionHouseApi {
                         o.has("petLevel") ? o.get("petLevel").getAsInt() : -1,
                         o.has("ultimateEnchantName") ? o.get("ultimateEnchantName").getAsString() : null,
                         o.has("ultimateEnchantTier") ? o.get("ultimateEnchantTier").getAsInt() : 0,
-                        List.of(), icon));
+                        false, icon));
             }
             if (!cached.isEmpty() && listings.isEmpty()) {
                 listings = List.copyOf(cached);
