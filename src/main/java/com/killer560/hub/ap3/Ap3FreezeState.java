@@ -95,10 +95,16 @@ public final class Ap3FreezeState {
             history.clear();
             frozen = false;
             cursor = -1;
+            pendingForward = 0; // a step owed when the world went away must not fire on the next freeze
+            stepRan = false;
+            executorTicks = 0;
             return;
         }
-        if (frozen && !Ap3Config.getInstance().isFreezeStateEnabled()) {
-            unfreeze(player); // switched off while frozen: resume rather than leave him stuck
+        if (!Ap3Config.getInstance().isFreezeStateEnabled()) {
+            if (frozen) {
+                unfreeze(player); // switched off while frozen: resume rather than leave him stuck
+            }
+            history.clear(); // switched off: no per-tick snapshots
             return;
         }
         if (frozen && stepRan) {
