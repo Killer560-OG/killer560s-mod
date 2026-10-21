@@ -144,18 +144,47 @@ public final class CompactorPreviewFeature {
         if (stack == null || stack.isEmpty()) {
             return components;
         }
-        return augment(components, stack);
+        CompoundTag tag = ItemNbt.view(stack);
+        if (tag == null) {
+            return components;
+        }
+        // Hover path runs every frame: the answer for one stack's tag (contents, icons, built lines) is kept, so a hover costs
+        // an identity compare. Re-resolved after a couple of seconds so an icon catalog that finishes loading is picked up.
+        long now = System.nanoTime();
+        CachedExtra c = cache;
+        if (c == null || c.tag != tag || now - c.at > CACHE_NANOS) {
+            c = new CachedExtra(tag, now, buildExtra(stack));
+            cache = c;
+        }
+        return c.extra == null ? components : withExtra(components, c.extra);
     }
+
+    private static final long CACHE_NANOS = 2_000_000_000L;
+
+    private record CachedExtra(CompoundTag tag, long at, List<ClientTooltipComponent> extra) {
+    }
+
+    private static volatile CachedExtra cache;
 
     /** {@link #augment(List)} for a known stack and without the visibility check. Public for the tests. */
     public static List<ClientTooltipComponent> augment(List<ClientTooltipComponent> components, ItemStack stack) {
+        List<ClientTooltipComponent> extra = buildExtra(stack);
+        return extra == null ? components : withExtra(components, extra);
+    }
+
+    private static List<ClientTooltipComponent> withExtra(List<ClientTooltipComponent> components, List<ClientTooltipComponent> extra) {
+        List<ClientTooltipComponent> out = new ArrayList<>(components.size() + extra.size());
+        out.addAll(components);
+        out.addAll(insertionIndex(components), extra);
+        return out;
+    }
+
+    /** The lines to add for {@code stack}, or null when it is not a compactor / deletor. */
+    private static List<ClientTooltipComponent> buildExtra(ItemStack stack) {
         Contents contents = contentsOf(stack);
         if (contents == null) {
-            return components;
+            return null;
         }
-        List<ClientTooltipComponent> out = new ArrayList<>(components.size() + 2);
-        out.addAll(components);
-        int at = insertionIndex(components);
         List<ClientTooltipComponent> extra = new ArrayList<>(2);
         if (contents.active() != null) {
             extra.add(ClientTooltipComponent.create(Component.literal("Active: ")
@@ -170,8 +199,7 @@ public final class CompactorPreviewFeature {
         } else {
             extra.add(new CompactorGridComponent(contents, resolveStacks(contents)));
         }
-        out.addAll(at, extra);
-        return out;
+        return extra;
     }
 
     /** Before the second blank line (the gap that follows the item's description), else at the very end. */
