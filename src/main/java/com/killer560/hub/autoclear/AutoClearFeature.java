@@ -3877,7 +3877,54 @@ public final class AutoClearFeature {
                 return b;
             }
         }
+        // None does the whole job in one warp: the one-warp block that does the most of it, the target among them - a
+        // direct warp is half a searched trip in the sim (3 ticks against 6-8), so a second trip for what it leaves is
+        // still the cheaper way when it leaves little.
+        if (targetId >= 0 && need.contains(targetId) && need.size() > 1) {
+            BlockPos best = null;
+            int bestGot = 0;
+            tried = 0;
+            List<Integer> partial = new java.util.ArrayList<>();
+            for (int i = 0; i < coverAllSpots.size(); i++) {
+                if (i != at && coverAllIds.get(i).contains(targetId)) {
+                    partial.add(i);
+                }
+            }
+            partial.sort(java.util.Comparator.comparingInt((Integer i) -> -intersect(coverAllIds.get(i), need))
+                    .thenComparingDouble(i -> Vec3.atCenterOf(coverAllSpots.get(i)).distanceToSqr(feet)));
+            for (int i : partial) {
+                if (++tried > ONE_WARP_TRIES) {
+                    break;
+                }
+                int got = intersect(coverAllIds.get(i), need);
+                if (got <= bestGot || got * 2 < need.size()) {
+                    continue;
+                }
+                BlockPos b = coverAllSpots.get(i);
+                if (!BlockPos.containing(feet).below().equals(b) && warpsTo(feet, b) == 1) {
+                    best = b;
+                    bestGot = got;
+                    break;   // sorted by how much it does: the first one-warp block is the best
+                }
+            }
+            if (best != null) {
+                LOGGER.info("[AutoClear] trip: {} reaches {} of the plan block {}'s {} mob(s) (the target among them) and is"
+                        + " one warp from here - going there", best.toShortString(), bestGot, planned.toShortString(),
+                        need.size());
+                return best;
+            }
+        }
         return planned;
+    }
+
+    private static int intersect(Set<Integer> a, Set<Integer> b) {
+        int n = 0;
+        for (int x : a) {
+            if (b.contains(x)) {
+                n++;
+            }
+        }
+        return n;
     }
     /** Etherwarps toward mobs, ever (each is a reposition). */
     private static int repositions = 0;
