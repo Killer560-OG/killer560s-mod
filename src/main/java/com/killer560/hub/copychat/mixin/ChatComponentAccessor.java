@@ -27,7 +27,4 @@ public interface ChatComponentAccessor {
 
     @Invoker("getScale")
     double killer560smod$invokeGetScale();
-
-    @Invoker("getLineHeight")
-    int killer560smod$invokeGetLineHeight();
 }
