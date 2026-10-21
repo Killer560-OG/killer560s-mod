@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.objecthider.ObjectHiderConfig;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -31,6 +32,15 @@ public class HidePlayersTab extends BaseTab {
 
         ObjectHiderTab.toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Hide Players", cfg::getHidePlayersRaw, cfg::setHidePlayers);
+        if (cfg.getHidePlayersRaw() && !cfg.isObjectHiderEnabled()) {
+            // Hiding runs through Object Hider's master switch, so with it OFF this tab's settings did nothing.
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Object Hider is OFF: click to turn it on"), btn -> {
+                        cfg.setObjectHiderEnabled(true);
+                        cfg.save();
+                        requestRebuild.run();
+                    }).bounds(contentX + 12, y[0], contentWidth - 12, 20).build());
+            y[0] += 24;
+        }
         if (cfg.getHidePlayersRaw()) {
             widgets.add(new ThemedSliderButton(contentX + 12, y[0], contentWidth - 12, 18,
                     distanceText(cfg),

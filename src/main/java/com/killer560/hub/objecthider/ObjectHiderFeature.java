@@ -386,7 +386,7 @@ public final class ObjectHiderFeature {
         // QUOI 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
         // max distance. "Click Through" is deliberately not ported: that changes which entity your clicks
         // hit, i.e. interaction/raycasting, not rendering - out of scope for a client-side render hider.
-        if (cfg.isHidePlayers() && entity instanceof RemotePlayer
+        if (entity instanceof RemotePlayer && cfg.isHidePlayers()
                 && (!cfg.isHidePlayersDungeonOnly() || inDungeon)
                 && (!cfg.isHidePlayersBossOnly() || LiveMapFeature.isInBoss())
                 && withinHidePlayersDistance(entity, cfg, client)) {
