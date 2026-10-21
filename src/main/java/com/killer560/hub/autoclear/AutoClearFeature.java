@@ -711,7 +711,11 @@ public final class AutoClearFeature {
             targetName = "";
             String waitingOn = doomedIn(client, layout, room);
             if (waitingOn != null) {
-                // Every mob left here is one a bat is on its way to: its death (or the bat being late) is the signal.
+                // Every mob left here is one a bat is on its way to: its death (or the bat being late) is the signal -
+                // which a standalone run does not stand and wait for (moveOnAtLastDeath).
+                if (moveOnAtLastDeath(client, layout, room)) {
+                    return;
+                }
                 releaseUse(client);
                 action = "waiting for the bat at " + waitingOn;
                 noMobTicks = 0;
@@ -804,22 +808,31 @@ public final class AutoClearFeature {
      * @return true when the room was left
      */
     private static boolean moveOnAtLastDeath(Minecraft client, DungeonLayout layout, int room) {
-        if (singleRoom != null || deathsInRoom == 0 || !LiveMapFeature.hasRoomStates() || roomName == null
+        if (singleRoom != null || !LiveMapFeature.hasRoomStates() || roomName == null
                 || MidasAltar.ROOM.equals(roomName)) {
             return false;
         }
-        for (Seen s : seenMobs.values()) {
-            if (roomName.equals(s.room())) {
-                return false;   // one alive somewhere (in view without its tag, or lost from view)
+        int leftToBats = 0;
+        for (var e : seenMobs.entrySet()) {
+            if (!roomName.equals(e.getValue().room())) {
+                continue;
             }
+            if (doomed.containsKey(e.getKey()) && !e.getValue().lost()) {
+                leftToBats++;   // a trusted bat is on its way: its kill is seen from wherever he is by then
+                continue;
+            }
+            return false;   // one alive somewhere (in view without its tag, or lost from view)
+        }
+        if (deathsInRoom == 0 && leftToBats == 0) {
+            return false;
         }
         if (!knownMobs(client, layout, room).isEmpty()) {
             return false;
         }
         pendingClears.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
-        LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) - going on now; the map's clear is"
-                + " counted when it comes, and the room is picked again if it has not come in {} ticks", roomName,
-                deathsInRoom, PENDING_CLEAR_TICKS);
+        LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) or has a trusted bat on its way ({})"
+                + " - going on now; the map's clear is counted when it comes, and the room is picked again if it has not"
+                + " come in {} ticks", roomName, deathsInRoom, leftToBats, PENDING_CLEAR_TICKS);
         RoomClock.end("left at its last death");
         releaseUse(client);
         roomName = null;
