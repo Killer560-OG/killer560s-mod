@@ -61,7 +61,7 @@ public final class I4LeapFeature {
     private static final Pattern MELODY_PARTY_LINE = Pattern.compile(
             "^Party > (?:\\[[^\\]]+\\] )?([A-Za-z0-9_]{1,16}): (.*)$");
     // QUOI deviceDoneRegex, plus an optional suffix (Odin's Terminal Splits appends times)
-    private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^(\\w+) completed a device! \\((.*?)\\)(?:\\s.*)?$");
+    private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^([A-Za-z0-9_]{1,16}) completed a device! \\((.*?)\\)(?:\\s.*)?$");
     private static final int RELIGHT_GRACE_TICKS = 40;
     // Safety: no lit target for this long = stop treating the device as running, so a missed completion line can
     // never keep the player's inputs blocked on the pad.
@@ -230,10 +230,6 @@ public final class I4LeapFeature {
             return cfg.getBackupClass() == null ? null : LeapManager.resolveClass(cfg.getBackupClass());
         }
         return cfg.getBackupName().isBlank() ? null : LeapManager.resolveName(cfg.getBackupName());
-    }
-
-    static String melodyTarget() {
-        return melodyTarget;
     }
 
     private static boolean isAtPre4() {

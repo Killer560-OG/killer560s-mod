@@ -162,12 +162,12 @@ public final class FastLeapConfig {
                 cfg.enabled = bool(obj, "enabled", false);
                 String oldMode = str(obj, "targetMode", "NAME");
                 cfg.targetMode = parseMode(oldMode);
-                cfg.clickDelayMs = clampDelay(obj.has("clickDelayMs") ? obj.get("clickDelayMs").getAsInt() : 250);
+                cfg.clickDelayMs = clampDelay(intOr(obj, "clickDelayMs", 250));
                 cfg.blockInputs = bool(obj, "blockInputs", false);
                 cfg.fastMode = bool(obj, "fastMode", false);
                 // "swapBack" (before 2026-10-13) is not carried over: an Auto leap always returns now (killer560:
                 // "swap to your leap, open it, then leap to the person, then swap back to the item you want").
-                cfg.returnToSlot = clampReturn(obj.has("returnToSlot") ? obj.get("returnToSlot").getAsInt() : RETURN_PREVIOUS);
+                cfg.returnToSlot = clampReturn(intOr(obj, "returnToSlot", RETURN_PREVIOUS));
                 cfg.disableAfterBloodOpen = bool(obj, "disableAfterBloodOpen", false);
                 cfg.onlyWhenGateBlown = bool(obj, "onlyWhenGateBlown", false);
                 if (obj.has("groups") && obj.get("groups").isJsonObject()) {
@@ -260,6 +260,15 @@ public final class FastLeapConfig {
     private static boolean bool(JsonObject o, String key, boolean fallback) {
         try {
             return o.has(key) ? o.get(key).getAsBoolean() : fallback;
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    /** A number that is not one (hand-edited file) falls back alone instead of discarding every other setting. */
+    private static int intOr(JsonObject o, String key, int fallback) {
+        try {
+            return o.has(key) ? o.get(key).getAsInt() : fallback;
         } catch (Exception e) {
             return fallback;
         }
@@ -397,27 +406,13 @@ public final class FastLeapConfig {
         s.byClass = false;
     }
 
-    /** Whether the target has anything picked (a class, or a non-blank name). */
-    public boolean hasTargetPick(LeapTarget target) {
-        TargetSettings s = targets.get(target);
-        return s.byClass ? s.clazz != null : !s.name.isBlank();
-    }
-
     public String getTargetName(LeapTarget target) {
         return targets.get(target).name;
-    }
-
-    public void setTargetName(LeapTarget target, String name) {
-        targets.get(target).name = name == null ? "" : name.trim();
     }
 
     /** @return the configured class, or null for QUOI's "Unknown" (not set). */
     public DungeonClass getTargetClass(LeapTarget target) {
         return targets.get(target).clazz;
-    }
-
-    public void setTargetClass(LeapTarget target, DungeonClass clazz) {
-        targets.get(target).clazz = clazz;
     }
 
     public String getTargetKeywords(LeapTarget target) {
