@@ -64,7 +64,13 @@ public final class ItemLooks {
     }
 
     /** Loads the table once (~290 KB). The render path calls {@link #get} only after {@link #isLoaded}. */
-    public static synchronized void ensureLoaded() {
+    public static void ensureLoaded() {
+        if (!loaded) {
+            load();
+        }
+    }
+
+    private static synchronized void load() {
         if (loaded) {
             return;
         }
