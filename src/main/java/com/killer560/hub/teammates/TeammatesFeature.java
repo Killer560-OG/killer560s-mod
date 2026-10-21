@@ -21,7 +21,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import com.killer560.hub.compat.McRender;
 
@@ -84,7 +83,7 @@ public final class TeammatesFeature {
         Vec3 eye = client.player.getEyePosition();
         double rangeSq = cfg.getRange() * cfg.getRange();
         List<String> party = PartyTracker.teammates();
-        Map<Integer, Integer> found = new LinkedHashMap<>();
+        Map<Integer, Integer> found = null;
 
         for (Player player : client.level.players()) {
             boolean self = player == client.player;
@@ -110,9 +109,12 @@ public final class TeammatesFeature {
                 continue;
             }
             DungeonClass clazz = PartyTracker.classOf(name);
+            if (found == null) {
+                found = new LinkedHashMap<>(); // never mutated after it is published below
+            }
             found.put(player.getId(), clazz != null ? clazz.color() : cfg.getUnknownColor());
         }
-        targets = Map.copyOf(found);
+        targets = found == null ? Map.of() : found;
     }
 
     /** A real (v4-UUID, i.e. not a Hypixel NPC) player the party tracker lists. */
