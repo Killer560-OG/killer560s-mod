@@ -2,9 +2,7 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.cape.CapeConfig;
 import com.killer560.hub.compat.McCompat;
-import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.CapeDesignerScreen;
-import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -12,7 +10,6 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.IntConsumer;
 
 /** Custom Cape: pick one of the built-in designs to wear (your own player only), or Make Your Own: a pattern and two colours.
  *  Click to step; the first click on None starts at the first design, and Make Your Own comes after the last design. */
@@ -38,10 +35,6 @@ public class CapeTab extends BaseTab {
                 .bounds(contentX, contentY + 22, contentWidth, 18).build());
         // The pattern lives inside Make Your Own (the designer), with the grid it fills.
         return widgets;
-    }
-
-    private static Component patternText(CapeConfig cfg) {
-        return Component.literal("Pattern: " + cfg.getCustomPattern().label);
     }
 
     private static Component capeText(CapeConfig cfg) {
