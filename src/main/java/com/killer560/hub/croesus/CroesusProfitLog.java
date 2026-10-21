@@ -102,12 +102,19 @@ public final class CroesusProfitLog {
     private static boolean accountsMigrated = false;
     /** Every entry parsed, rebuilt only when the log changes (the screen reads it every frame). */
     private static List<Claim> parsed = null;
+    /** Bumped by every change to the entries, resets or view, so a screen can keep what it worked out until it moves. */
+    private static int revision = 0;
 
     private CroesusProfitLog() {
     }
 
+    public static synchronized int revision() {
+        return revision;
+    }
+
     public static synchronized void load() {
         loaded = true;
+        revision++;
         entries = new JsonArray();
         RESETS.clear();
         view = new ProfitScope.Filter();
@@ -555,6 +562,7 @@ public final class CroesusProfitLog {
     }
 
     private static void saveAsync() {
+        revision++; // every change to the entries, resets or view ends here
         JsonObject root = new JsonObject();
         root.addProperty("version", 2);
         root.add("view", view.toJson());

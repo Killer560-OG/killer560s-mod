@@ -78,8 +78,33 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
         this.view = view == null ? View.OVERVIEW : view;
     }
 
+    /** What the Overview draws, worked out from the log once per change instead of every frame (the log's totals, item
+     *  index and claim list are each a walk over every claim ever logged). Redone when {@link CroesusProfitLog#revision()}
+     *  moves and whenever {@link #init} runs, which every switch (session, floor, account, reset) goes through. */
+    private int cachedRevision = -1;
+    private CroesusProfitLog.Totals cachedTotals = new CroesusProfitLog.Totals();
+    private long[] cachedNet = new long[0];
+    private List<CroesusProfitLog.ItemTotals> cachedItems = List.of();
+    private CroesusProfitLog.Claim cachedLast = null;
+    private String cachedClaimsText = "";
+
+    private void refreshCache() {
+        int revision = CroesusProfitLog.revision();
+        if (revision == cachedRevision) {
+            return;
+        }
+        cachedRevision = revision;
+        cachedTotals = selectedTotals();
+        cachedNet = netPerRun();
+        cachedItems = CroesusProfitLog.itemIndex();
+        List<CroesusProfitLog.Claim> claims = CroesusProfitLog.claims();
+        cachedLast = claims.isEmpty() ? null : claims.get(claims.size() - 1);
+        cachedClaimsText = CroesusProfitLog.entryCount() + " claims";
+    }
+
     @Override
     protected void init() {
+        cachedRevision = -1;
         panelW = Math.min(this.width - 20, Math.max(360, Math.min((int) (this.width * 0.8), 620)));
         panelH = Math.min(this.height - 20, Math.max(220, Math.min((int) (this.height * 0.85), 460)));
         panelX = (this.width - panelW) / 2;
@@ -280,7 +305,8 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.header(graphics, panelX, panelY, panelW, "Dungeon Profit");
-        String claims = CroesusProfitLog.entryCount() + " claims";
+        refreshCache();
+        String claims = cachedClaimsText;
         MenuStyle.text(graphics, claims, resetX() - 8 - this.font.width(claims), panelY + 12, MenuStyle.DIM);
 
         if (view == View.OVERVIEW) {
@@ -292,7 +318,7 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void renderOverview(GuiGraphicsExtractor g) {
-        CroesusProfitLog.Totals t = selectedTotals();
+        CroesusProfitLog.Totals t = cachedTotals;
         int cardsY = panelY + BODY_TOP;
         int cardH = 46;
         int gap = 6;
@@ -321,7 +347,7 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
     private void renderRareDrops(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         ScreenChrome.well(g, x, y, w, h);
         MenuStyle.text(g, "RARE DROPS", x + 8, y + 8, MenuStyle.DIM);
-        List<CroesusProfitLog.ItemTotals> items = CroesusProfitLog.itemIndex();
+        List<CroesusProfitLog.ItemTotals> items = cachedItems;
         int rowY = y + 22;
         int shown = 0;
         for (CroesusProfitLog.ItemTotals item : items) {
@@ -356,11 +382,10 @@ public class CroesusTrackerScreen extends Screen implements MenuThemedScreen {
 
         int graphY = y + 46;
         int graphH = h - 46 - 18;
-        ProfitPanels.themedBarGraph(g, this.font, x + 6, graphY, w - 12, graphH, netPerRun());
+        ProfitPanels.themedBarGraph(g, this.font, x + 6, graphY, w - 12, graphH, cachedNet);
 
-        List<CroesusProfitLog.Claim> claims = CroesusProfitLog.claims();
-        if (!claims.isEmpty()) {
-            CroesusProfitLog.Claim last = claims.get(claims.size() - 1);
+        CroesusProfitLog.Claim last = cachedLast;
+        if (last != null) {
             String recent = "RECENT  " + last.floor() + " " + last.chest();
             MenuStyle.text(g, ScreenChrome.readable(this.font.plainSubstrByWidth(recent, w - 80)), x + 8, y + h - 12,
                     MenuStyle.DIM);
