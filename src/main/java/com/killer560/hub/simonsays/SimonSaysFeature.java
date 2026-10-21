@@ -8,18 +8,15 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.terminals.TerminalLayouts;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.WorldRenderUtils;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -630,7 +627,11 @@ public final class SimonSaysFeature {
         ClientReceiveMessageEvents.CHAT.register(
                 (message, signedMessage, sender, params, receptionTimestamp) -> onChatMessage(message));
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> onChatMessage(message));
-        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimonSaysFeature", client -> tick()));
+        // Gated on the stored Simon Says switch: with it off, tick() only gives back a turned body and clears state, and the
+        // gate still lets the first switched-off tick through for exactly that (FeatureGuard.start with a bit).
+        ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimonSaysFeature",
+                com.killer560.hub.util.FeatureBits.register("Simon Says tick", () -> SimonSaysConfig.getInstance().isEnabledRaw()),
+                client -> tick()));
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!DungeonState.isF7OrM7()) {
                 return;
@@ -1763,7 +1764,13 @@ public final class SimonSaysFeature {
 
     /** Diagnostic-only - logs {@code state} only when it actually changes, same convention as
      *  {@code tickRotateFrame}'s own [RotateFrame] logger. See {@link #lastLoggedAutoSolveState}. */
-    private static void logAutoSolveState(String state) {
+    private static void logAutoSolveState(java.util.function.Supplier<String> stateSupplier) {
+        // The state text is built only with Diagnostic Logging on: this runs every tick inside the 2-block anchor, and the
+        // DISPATCH line is a six-argument String.format.
+        if (!SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled()) {
+            return;
+        }
+        String state = stateSupplier.get();
         if (!state.equals(lastLoggedAutoSolveState)) {
             verboseLog("[SimonSays][AutoSolve] {}", state);
             lastLoggedAutoSolveState = state;
@@ -1813,7 +1820,7 @@ public final class SimonSaysFeature {
         wasBlockedByReveal = noStepsPending || blockedByReveal;
 
         if (noStepsPending) {
-            logAutoSolveState("NO_STEPS_PENDING clickNeeded=" + clickNeeded + " clickInOrder.size=" + clickInOrder.size());
+            logAutoSolveState(() -> "NO_STEPS_PENDING clickNeeded=" + clickNeeded + " clickInOrder.size=" + clickInOrder.size());
             triggerAimTarget = null; // gate closed - the per-frame Trigger Bot path must not fire on a stale aim
             return;
         }
@@ -1869,7 +1876,7 @@ public final class SimonSaysFeature {
         // position clickInOrder.get(clickNeeded) that's about to be reinterpreted (reverse/drop-middle) -
         // same real risk Auto Solve's own gate already protects against, just never applied here too.
         if (blockedByReveal) {
-            logAutoSolveState("BLOCKED_BY_REVEAL target=" + nextButton + " firstPhase=" + firstPhase
+            logAutoSolveState(() -> "BLOCKED_BY_REVEAL target=" + nextButton + " firstPhase=" + firstPhase
                     + " isStillRevealing=" + isStillRevealing());
             triggerAimTarget = null;
             return;
@@ -1884,7 +1891,7 @@ public final class SimonSaysFeature {
         // Auto Solve/Trigger Bot now waits for Auto Start to fully finish before touching the camera at
         // all - the same principle idle's own existing !autoStartRunning gate already uses.
         if (autoStartRunning) {
-            logAutoSolveState("BLOCKED_BY_AUTOSTART target=" + nextButton);
+            logAutoSolveState(() -> "BLOCKED_BY_AUTOSTART target=" + nextButton);
             triggerAimTarget = null;
             return;
         }
@@ -1899,7 +1906,7 @@ public final class SimonSaysFeature {
         // De-spammed (2026-09-14): the change key used to embed the two ms values below, which change every
         // tick, so this "state change" logger fired every single tick while dispatching. Flags/target only
         // now; the ms values go on their own line, throttled to at most once a second.
-        logAutoSolveState(String.format(Locale.US,
+        logAutoSolveState(() -> String.format(Locale.US,
                 "DISPATCH target=%s autoSolveEnabled=%b autoSolveRotate=%b autoSolveFixedDelay=%b "
                         + "triggerBotEnabled=%b autoSolveArmed=%b",
                 nextButton, cfg.isAutoSolveEnabled(), cfg.isAutoSolveRotate(), cfg.isAutoSolveFixedDelayMode(),
@@ -2371,9 +2378,12 @@ public final class SimonSaysFeature {
         boolean revealStillBlocking = firstPhase || isStillRevealing();
         boolean solveStepsPending = !revealStillBlocking && !clickInOrder.isEmpty() && clickNeeded < clickInOrder.size();
 
-        String state;
+        // The state text below exists only for the log line at the end, so it is built only with Diagnostic Logging on
+        // (this runs every frame, and BlockPos.toString is not free).
+        final boolean logState = cfg.isDiagnosticLoggingEnabled();
+        String state = "";
         if (rotateInProgressTarget != null) {
-            state = "APPROACH target=" + rotateInProgressTarget;
+            state = logState ? "APPROACH target=" + rotateInProgressTarget : "";
             applyRotateApproachFrame(client, rotateInProgressTarget, dtTicks);
         } else {
             boolean nearAnchor = isNearIdleLookAnchor(client);
@@ -2400,7 +2410,7 @@ public final class SimonSaysFeature {
                 stimQueue.clear();
             }
             if (!stimQueue.isEmpty() && !autoStartRunning && !idleSuppressedAfterCompletion) {
-                state = "STIM target=" + stimQueue.get(stimIndex);
+                state = logState ? "STIM target=" + stimQueue.get(stimIndex) : "";
                 applyStimFrame(client, dtTicks);
             } else if (solveStepsPending && !autoStartRunning) {
                 BlockPos preDriftTarget = clickInOrder.get(clickNeeded).west();
@@ -2412,11 +2422,11 @@ public final class SimonSaysFeature {
                     preDriftTarget = clickInOrder.get(clickNeeded + 1).west();
                     momentumGlideFrames++;
                 }
-                state = "PRE_DRIFT target=" + preDriftTarget;
+                state = logState ? "PRE_DRIFT target=" + preDriftTarget : "";
                 applyPreDriftFrame(client, preDriftTarget, dtTicks);
             } else if (!autoStartRunning && !idleSuppressedAfterCompletion && goldorLineSeenThisPhase && nearAnchor
                     && !solveStepsPending) {
-                state = "IDLE target=" + (rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON);
+                state = logState ? "IDLE target=" + (rememberedFirstButton != null ? rememberedFirstButton : START_BUTTON) : "";
                 applyIdleSwayFrame(client, dtTicks);
                 if (rememberedFirstButton != null) {
                     logIdleAimThrottled(client);
@@ -2429,14 +2439,14 @@ public final class SimonSaysFeature {
                 // near/far transition still shows up, and never format the line at all when diagnostic
                 // logging is off.
                 double distSq = client.player.position().distanceToSqr(IDLE_LOOK_ANCHOR);
-                state = !SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled() ? "BLOCKED" : String.format(Locale.US,
+                state = !logState ? "" : String.format(Locale.US,
                         "BLOCKED autoStartRunning=%b idleSuppressedAfterCompletion=%b goldorLineSeen=%b nearAnchor=%b (dist~%.0f blocks, need<=%.1f) solveStepsPending=%b rememberedFirstButton=%s clickInOrder.size=%d clickNeeded=%d",
                         autoStartRunning, idleSuppressedAfterCompletion, goldorLineSeenThisPhase, nearAnchor,
                         Math.floor(Math.sqrt(distSq)), Math.sqrt(IDLE_LOOK_RANGE_SQ), solveStepsPending,
                         rememberedFirstButton, clickInOrder.size(), clickNeeded);
             }
         }
-        if (!state.equals(lastLoggedRotateFrameState)) {
+        if (logState && !state.equals(lastLoggedRotateFrameState)) {
             verboseLog("[SimonSays][RotateFrame] {}", state);
             lastLoggedRotateFrameState = state;
         }
@@ -2449,7 +2459,8 @@ public final class SimonSaysFeature {
      *  compares the offset against the box's own angular half-extents, so drift off the face is numeric. */
     private static void logIdleAimThrottled(Minecraft client) {
         long nowMs = System.currentTimeMillis();
-        if (nowMs - diagLastIdleLogAtMs < 1000L || client.level == null) {
+        if (nowMs - diagLastIdleLogAtMs < 1000L || client.level == null
+                || !SimonSaysConfig.getInstance().isDiagnosticLoggingEnabled()) {
             return;
         }
         diagLastIdleLogAtMs = nowMs;
@@ -2506,7 +2517,7 @@ public final class SimonSaysFeature {
             return;
         }
         player.setYRot(currentYaw + stepYaw);
-        player.setXRot(currentPitch + stepPitch);
+        player.setXRot(Mth.clamp(currentPitch + stepPitch, -90f, 90f));
     }
 
     /** 0 (off) to 1: the Momentum setting, only while Rotate mode is what is aiming. */
@@ -2701,7 +2712,7 @@ public final class SimonSaysFeature {
             applyMomentumStep(player, currentYaw, currentPitch, yawDelta * frameSmoothing, pitchDelta * frameSmoothing, dtTicks);
         } else {
             player.setYRot(currentYaw + yawDelta * frameSmoothing);
-            player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+            player.setXRot(Mth.clamp(currentPitch + pitchDelta * frameSmoothing, -90f, 90f));
         }
 
         // Real bug found and fixed (2026-09-14, "it can be a hair off of pressing buttons... make it go
@@ -2764,6 +2775,12 @@ public final class SimonSaysFeature {
     private static void fireReadyRotateClick(Minecraft client) {
         BlockPos buttonPos = rotateFireReadyFor;
         if (buttonPos == null) {
+            return;
+        }
+        // The frames stop setting this the moment Auto Solve / Rotate goes off or he leaves the 2-block anchor, but they
+        // do not clear what they left: without this a stale "ready" sent one more click after the switch was turned off.
+        if (!rotateActive(SimonSaysConfig.getInstance()) || !isWithinAutoAnchor(client)) {
+            rotateFireReadyFor = null;
             return;
         }
         if (!buttonPos.equals(rotateInProgressTarget) || rotateClickFiredFor != null
@@ -2942,7 +2959,7 @@ public final class SimonSaysFeature {
         float perTickSmoothing = stillCatchingUp ? 0.35f : 0.08f;
         float frameSmoothing = 1f - (float) Math.pow(1.0 - perTickSmoothing, dtTicks);
         player.setYRot(currentYaw + yawDelta * frameSmoothing);
-        player.setXRot(currentPitch + pitchDelta * frameSmoothing);
+        player.setXRot(Mth.clamp(currentPitch + pitchDelta * frameSmoothing, -90f, 90f));
     }
 
     /** Real bug found and fixed (2026-09-14, "it is aiming to the left of the start button... aiming to
