@@ -302,7 +302,7 @@ public final class AutoRoutesRenderer {
                     return false;
                 }
                 int d = i * 4;
-                if (node.x != key[d] || node.y != key[d + 1] || node.z != key[d + 2] || node.radius != key[d + 3]) {
+                if (node.x != key[d] || node.y != key[d + 1] || node.z != key[d + 2] || sizeKey(node) != key[d + 3]) {
                     return false;
                 }
                 int k = i * 6;
@@ -313,6 +313,11 @@ public final class AutoRoutesRenderer {
                 }
             }
             return true;
+        }
+
+        /** The trigger size in the mesh key: the ring for most nodes, an align's W x L (negative, so the two never meet). */
+        private static double sizeKey(RouteNode n) {
+            return n.type == RouteNode.Type.ALIGN ? -(n.alignWidth * 1000.0 + n.alignLength) : n.radius;
         }
 
         private static int flags(RouteNode n) {
@@ -402,7 +407,7 @@ public final class AutoRoutesRenderer {
                 m.key[d] = node.x;
                 m.key[d + 1] = node.y;
                 m.key[d + 2] = node.z;
-                m.key[d + 3] = node.radius;
+                m.key[d + 3] = sizeKey(node);
                 int k = i * 6;
                 m.keyInts[k] = node.type.ordinal();
                 m.keyInts[k + 1] = flags(node);
@@ -435,7 +440,7 @@ public final class AutoRoutesRenderer {
                 m.realZ[i] = real.z;
                 chain.add(real.add(0, height / 2.0, 0));
                 int base = i * SLOTS;
-                AABB box = node.boundingBox(real, height);
+                AABB box = node.boundingBox(frame, real, height);
                 double ringRadius = Math.max(0.1, node.radius) / 2.0;
                 m.lineStart[i] = segSlot.size;
                 m.fillStart[i] = fillSlot.size;
@@ -448,7 +453,12 @@ public final class AutoRoutesRenderer {
                         filledBox(fill, fillSlot, box, base + S_FILL);
                         outlineBox(seg, segSlot, segWidth, box, base + S_FULL, thickness);
                     }
+                    // An align's trigger is a W x L box, which a ring cannot show: it draws as the box in every style.
                     case CYLINDER -> {
+                        if (node.type == RouteNode.Type.ALIGN) {
+                            outlineBox(seg, segSlot, segWidth, box, base + S_FULL, thickness);
+                            break;
+                        }
                         ring(seg, segSlot, segWidth, real, ringRadius, GROUND_OFFSET, base + S_FULL, thickness);
                         if (height > 0.15) {
                             ring(seg, segSlot, segWidth, real, ringRadius, height, base + S_RING_TOP, ringTopWidth);
@@ -461,7 +471,7 @@ public final class AutoRoutesRenderer {
                     // killer560, 2026-10-04: "if something is a start node the outline is filled in so I know it is
                     // special". Filled in every style; in Filled style, where every node already is, it is filled
                     // twice as solid so it still stands out.
-                    if (style == AutoRoutesConfig.RenderStyle.CYLINDER) {
+                    if (style == AutoRoutesConfig.RenderStyle.CYLINDER && node.type != RouteNode.Type.ALIGN) {
                         // The cylinder's own shape, between its two rings. A box fill put its corners outside the circle
                         // (killer560: "make sure the fill is only inside the cylinder").
                         filledCylinder(fill, fillSlot, real, ringRadius, real.y + GROUND_OFFSET,

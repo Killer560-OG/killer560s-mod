@@ -198,6 +198,8 @@ public final class AutoRoutesConfig {
             case CRYPT -> 0xFF7FFF7F;
             case BAT -> 0xFF8B5A2B;
             case JUMP -> 0xFF4F8BFF;
+            // AP3's Align colour.
+            case ALIGN -> 0xFFFFA040;
         };
     }
 

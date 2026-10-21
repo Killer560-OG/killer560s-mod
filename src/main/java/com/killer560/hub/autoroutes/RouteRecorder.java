@@ -436,7 +436,7 @@ public final class RouteRecorder {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
         NodeModifiers mods = modifiers == null ? NodeModifiers.NONE : modifiers;
         if (type == null) {
-            return bad("Unknown node type. Types: walk, ew, use, breaker, boom, path, crypt, jump - add start / await:<n> as modifiers.");
+            return bad("Unknown node type. Types: walk, ew, use, breaker, boom, path, crypt, jump, align - add start / await:<n> as modifiers.");
         }
         if (!cfg.isEnabled()) {
             return bad("Auto Routes is off (cheat build + Skyblock only).");
@@ -501,6 +501,20 @@ public final class RouteRecorder {
                 }
                 node.jumpCount = n;
                 extra = " [" + n + (n == 1 ? " jump]" : " jumps]");
+            }
+            case ALIGN -> {
+                // "<width> <length>" from /ar add align (AutoRoutesCommands parses AP3's w<n> l<n> words into it).
+                double[] box = {RouteNode.DEFAULT_ALIGN_SIZE, RouteNode.DEFAULT_ALIGN_SIZE};
+                if (argument != null && !argument.isBlank()) {
+                    String[] wl = argument.trim().split("\\s+");
+                    if (wl.length != 2 || RouteNode.parseAlignToken("w" + wl[0], box) <= 0
+                            || RouteNode.parseAlignToken("l" + wl[1], box) <= 0) {
+                        return bad("Usage: /ar add align w<width> l<length>, e.g. /ar add align w2 l2");
+                    }
+                }
+                node.alignWidth = box[0];
+                node.alignLength = box[1];
+                extra = " [W" + RouteNode.fmtSize(box[0]) + " L" + RouteNode.fmtSize(box[1]) + "]";
             }
             case COMMAND -> {
                 String cmd = RouteStore.cleanString(argument, RouteStore.MAX_COMMAND);

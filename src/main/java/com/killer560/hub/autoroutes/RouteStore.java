@@ -457,6 +457,10 @@ public final class RouteStore {
         n.command = cleanString(ConfigJson.getString(o, "command", null), MAX_COMMAND);
         // A jump node saved before the count existed (killer560, 2026-10-12) jumps once, as it always did.
         n.jumpCount = Math.max(RouteNode.MIN_JUMPS, Math.min(RouteNode.MAX_JUMPS, ConfigJson.getInt(o, "jumps", 1)));
+        if (type == RouteNode.Type.ALIGN) {
+            n.alignWidth = RouteNode.clampAlignSize(ConfigJson.getDouble(o, "width", RouteNode.DEFAULT_ALIGN_SIZE));
+            n.alignLength = RouteNode.clampAlignSize(ConfigJson.getDouble(o, "length", RouteNode.DEFAULT_ALIGN_SIZE));
+        }
         n.start = ConfigJson.getBool(o, "start", false);
         n.awaitEnabled = ConfigJson.getBool(o, "awaitEnabled", false);
         n.awaitCondition = ConfigJson.getEnum(o, "await", RouteNode.AwaitCondition.class, RouteNode.AwaitCondition.SECRET);
@@ -671,6 +675,11 @@ public final class RouteStore {
             }
             case COMMAND -> o.addProperty("command", n.command == null ? "" : n.command);
             case JUMP -> o.addProperty("jumps", n.jumpCount);
+            // AP3's keys for the same box ("width" / "length", as in an AP3 chain file).
+            case ALIGN -> {
+                o.addProperty("width", round(n.alignWidth, 2));
+                o.addProperty("length", round(n.alignLength, 2));
+            }
             default -> {
             }
         }

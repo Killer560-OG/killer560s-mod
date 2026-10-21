@@ -95,6 +95,8 @@ public final class AutoRoutesCommands {
         ADD_BAT("add_bat", "Add Bat Node", "/ar add bat"),
         /** killer560, 2026-10-09: "Add a jump node to auto routes where it just jumps once." */
         ADD_JUMP("add_jump", "Add Jump Node", "/ar add jump <n>"),
+        /** killer560, 2026-10-20: "an align node that I can do W2 L2 on" - AP3's align, its box W x L blocks. */
+        ADD_ALIGN("add_align", "Add Align Node", "/ar add align w<n> l<n>"),
         EDIT_BREAKER("edit_db", "Edit Breaker Blocks", "/ar edit db"),
         CLEAR("clear", "Clear Room Route", "/ar clear"),
         LIST("list", "List Nodes", "/ar list"),
@@ -151,9 +153,10 @@ public final class AutoRoutesCommands {
             java.util.Map.entry("path", RouteNode.Type.PATH),
             java.util.Map.entry("crypt", RouteNode.Type.CRYPT),
             java.util.Map.entry("bat", RouteNode.Type.BAT),
-            java.util.Map.entry("jump", RouteNode.Type.JUMP));
+            java.util.Map.entry("jump", RouteNode.Type.JUMP),
+            java.util.Map.entry("align", RouteNode.Type.ALIGN));
     private static final List<String> TYPE_WORDS = List.of("boom", "breaker", "dungeonbreaker", "ew", "etherwarp", "use", "walk", "path",
-            "crypt", "bat", "jump");
+            "crypt", "bat", "jump", "align");
     /** Modifiers offered after any {@code /ar add <type>}. {@code await:} completes to just that, so the number is
      *  typed straight after it (killer560, 2026-10-06: "make await fill as await: without the x"); the command
      *  refuses {@code await:} followed by anything but a number. */
@@ -345,9 +348,16 @@ public final class AutoRoutesCommands {
     /** Opens chat prefilled with {@link #JUMP_PROMPT}, as the client's own command key does with "/". Queued like
      *  {@link #openEditor}: set from inside a key handler or command, a screen can be closed again the same tick. */
     private static void openJumpPrompt() {
+        openPrompt(JUMP_PROMPT);
+    }
+
+    /** The text the Add Align Node key leaves in chat, for him to finish with the box (w2 l2). */
+    public static final String ALIGN_PROMPT = "/ar add align ";
+
+    private static void openPrompt(String text) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> com.killer560.hub.compat.McCompat.setScreen(client,
-                new net.minecraft.client.gui.screens.ChatScreen(JUMP_PROMPT, false)));
+                new net.minecraft.client.gui.screens.ChatScreen(text, false)));
     }
 
     private static void dispatch(Action action) {
@@ -367,6 +377,8 @@ public final class AutoRoutesCommands {
             // A key cannot type the count (killer560, 2026-10-12: "Type the command out with the player ready to type in the
             // number of jumps"): it opens chat holding "/ar add jump " and sends nothing - Enter does, after the number.
             case ADD_JUMP -> openJumpPrompt();
+            // The same for an align: the key cannot type the box, so chat opens holding "/ar add align ".
+            case ADD_ALIGN -> openPrompt(ALIGN_PROMPT);
             case EDIT_BREAKER -> toggleEditMode();
             case CLEAR -> clear();
             case LIST -> list();
@@ -420,7 +432,7 @@ public final class AutoRoutesCommands {
         ModChat.send(FEATURE, ModChat.value("/ar edit <n>"), ModChat.dim(" - Node Editor (type, start, await, position, look, item, Go To)"));
         ModChat.send(FEATURE, ModChat.value("/ar replan"), ModChat.dim(" - Re-plan every saved path pair (fewest warps)"));
         ModChat.send(FEATURE, ModChat.dim("/autoroutes works everywhere /ar does."));
-        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump <number of jumps>. After the type (and a jump's number), any order: "),
+        ModChat.send(FEATURE, ModChat.dim("Types: boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump <number of jumps>, align w<width> l<length> (AP3's align box, e.g. align w2 l2). After the type (and a jump's number), any order: "),
                 ModChat.value("start"), ModChat.dim(" (this room's start node), "), ModChat.value("await:<number>"),
                 ModChat.dim(" (wait for that many secrets first) - e.g. "), ModChat.value("/ar add ew start await:2"),
                 ModChat.dim("."));
@@ -502,6 +514,7 @@ public final class AutoRoutesCommands {
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies (a Spirit Sceptre then aims at each crypt mob, two uses each).");
             case BAT -> ModChat.dim(" - place it where the bat flies; uses the Bat Weapon straight down until a secret bat dies.");
             case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");
+            case ALIGN -> ModChat.dim(" - walking into its box lines you up on the block centre, as an AP3 align does.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);
@@ -521,7 +534,7 @@ public final class AutoRoutesCommands {
             LOGGER.info("[AutoRoutes] command /ar add {} {}: type {}", typeWord, mods == null ? "" : mods, type);
             if (type == null) {
                 ModChat.send(FEATURE, ModChat.bad("Unknown node type "), ModChat.value(typeWord),
-                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path, crypt or jump <number>. start and await:<number> go after it, e.g. "),
+                        ModChat.dim(" - boom, breaker, ew (or etherwarp), use, walk, path, crypt, jump <number> or align w<n> l<n>. start and await:<number> go after it, e.g. "),
                         ModChat.value("/ar add ew start await:2"), ModChat.dim("."));
                 return;
             }
@@ -538,6 +551,30 @@ public final class AutoRoutesCommands {
                 }
                 argument = parts[0];
                 rest = parts.length > 1 ? parts[1] : "";
+            }
+            if (type == RouteNode.Type.ALIGN) {
+                // "/ar add align w2 l2 [start] [await:<n>]": AP3's box words (w<n> l<n>, width:<n> length:<n>, <w>x<l>),
+                // either or both, anywhere among the modifiers; a side not given is 1 block (killer560, 2026-10-20).
+                double[] box = {RouteNode.DEFAULT_ALIGN_SIZE, RouteNode.DEFAULT_ALIGN_SIZE};
+                StringBuilder others = new StringBuilder();
+                if (mods != null && !mods.isBlank()) {
+                    for (String raw : mods.trim().split("\\s+")) {
+                        int took = RouteNode.parseAlignToken(raw, box);
+                        if (took < 0) {
+                            LOGGER.info("[AutoRoutes] /ar add align refused: box size \"{}\" out of range", raw);
+                            ModChat.send(FEATURE, ModChat.bad("\"" + raw + "\" is not a box size"),
+                                    ModChat.dim(" - " + RouteNode.fmtSize(RouteNode.MIN_ALIGN_SIZE) + " to "
+                                            + RouteNode.fmtSize(RouteNode.MAX_ALIGN_SIZE) + " blocks, e.g. "),
+                                    ModChat.value("/ar add align w2 l2"), ModChat.dim(". Nothing was added."));
+                            return;
+                        }
+                        if (took == 0) {
+                            others.append(raw).append(' ');
+                        }
+                    }
+                }
+                argument = RouteNode.fmtSize(box[0]) + " " + RouteNode.fmtSize(box[1]);
+                rest = others.toString().trim();
             }
             RouteRecorder.NodeModifiers modifiers = parseModifiers(rest);
             if (modifiers == null) {
