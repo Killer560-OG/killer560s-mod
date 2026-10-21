@@ -18,7 +18,8 @@ public class ExperimentsStopKeyMixin {
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void killer560smod$etableStopOnKey(long window, int action, KeyEvent event, CallbackInfo ci) {
-        if (action == 1 && window == Minecraft.getInstance().getWindow().handle()
+        // armed first: the key's display name is built per press, and nearly every press is outside a run
+        if (action == 1 && ExperimentsFeature.isArmed() && window == Minecraft.getInstance().getWindow().handle()
                 && ExperimentsFeature.stopOnPlayerInput("the " + InputConstants.Type.KEYSYM.getOrCreate(event.key())
                 .getDisplayName().getString() + " key")) {
             ci.cancel();
