@@ -47,6 +47,7 @@ public final class DoorKeysFeature {
 
     private static Entity currentKey = null;
     private static float[] currentColor = null;
+    private static boolean currentBlood = false;
     /** The circle's centre (the key's stand, at its height) and radius: {x, y, z, r}, or null. */
     private static volatile double[] ring = null;
     private static final int RING_SEGMENTS = 64;
@@ -93,12 +94,17 @@ public final class DoorKeysFeature {
             ring = null;
             return;
         }
-        if (currentKey != null && !currentKey.isRemoved()) {
+        // A key whose Wither/Blood switch has since been turned off is let go (it used to stay drawn until it was picked up).
+        if (currentKey != null && !currentKey.isRemoved()
+                && (currentBlood ? cfg.isHighlightBlood() : cfg.isHighlightWither())) {
             ring = ringFor(client, currentKey);
             return;
         }
         currentKey = null;
         ring = null;
+        if (!cfg.isHighlightWither() && !cfg.isHighlightBlood()) {
+            return; // nothing to look for: no entity walk
+        }
         for (Entity entity : client.level.entitiesForRendering()) {
             // A key stand's "Wither Key" / "Blood Key" is its custom name (an unnamed stand is "Armor Stand"), so an
             // unnamed one - most of a dungeon's stands - is turned away before its name String is built (FPS pass).
@@ -112,11 +118,13 @@ public final class DoorKeysFeature {
             if ("Wither Key".equals(name) && cfg.isHighlightWither()) {
                 currentKey = entity;
                 currentColor = new float[]{0.1f, 0.1f, 0.1f};
+                currentBlood = false;
                 break;
             }
             if ("Blood Key".equals(name) && cfg.isHighlightBlood()) {
                 currentKey = entity;
                 currentColor = new float[]{0.8f, 0.05f, 0.05f};
+                currentBlood = true;
                 break;
             }
         }
@@ -223,7 +231,7 @@ public final class DoorKeysFeature {
             return;
         }
         // Built on the ring's change, not every frame (65 Vec3 and a list per frame before; FPS pass).
-                float[] circleRgba = resolveColor(cfg.getCircleColor(), currentColor, 1f);
+        float[] circleRgba = resolveColor(cfg.getCircleColor(), currentColor, 1f);
         float[] tracerRgba = resolveColor(cfg.getTracerColor(), currentColor, 1f);
         boolean sphere = cfg.getRangeStyle() == DoorKeysConfig.RANGE_SPHERE;
         Vec3[] points = ringPoints(circle, sphere ? circle[1]
