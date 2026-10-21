@@ -4,8 +4,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import java.util.Arrays;
-
 /**
  * Builds Full Block's "Custom" hitboxes (killer560, 2026-09-21): every block type gets Width / Height / Length
  * sliders running from its normal vanilla size (0) to a full block along that axis (100). Axes are relative to the
@@ -26,8 +24,19 @@ public final class HitboxSizer {
     private final double baseW;
     private final double baseH;
     private final double baseL;
-    private final VoxelShape[] cache = new VoxelShape[18];
-    private int cacheKey = -1;
+    /** The shapes for one slider setting. Read from the render thread and the integrated server's thread alike, so a
+     *  slider move swaps in a whole new instance instead of clearing one in place (a thread still holding the old
+     *  instance can then only fill the old one, never leave a stale shape under the new setting). */
+    private static final class Cache {
+        final int key;
+        final VoxelShape[] shapes = new VoxelShape[18];
+
+        Cache(int key) {
+            this.key = key;
+        }
+    }
+
+    private volatile Cache cache = new Cache(-1);
 
     /** @param w normal width, @param h normal height, @param l normal length - all in pixels (1/16 block). */
     public HitboxSizer(double w, double h, double l) {
@@ -42,7 +51,8 @@ public final class HitboxSizer {
      *  support - for a wall block the support is on the opposite side. */
     public VoxelShape attached(Mount mount, Direction facing, int wPct, int hPct, int lPct) {
         int idx = attachedIndex(mount, facing);
-        VoxelShape cached = lookup(idx, wPct, hPct, lPct);
+        Cache c = cacheFor(wPct, hPct, lPct);
+        VoxelShape cached = c.shapes[idx];
         if (cached != null) {
             return cached;
         }
@@ -59,7 +69,7 @@ public final class HitboxSizer {
                 default -> Shapes.box(0.0, h0, w0, l, h1, w1);
             };
         };
-        cache[idx] = shape;
+        c.shapes[idx] = shape;
         return shape;
     }
 
@@ -69,7 +79,8 @@ public final class HitboxSizer {
     public VoxelShape standing(Direction facing, Direction joinedSide, int wPct, int hPct, int lPct) {
         int joined = joinedSide == null || joinedSide.getAxis() == Direction.Axis.Y ? 0 : 1 + joinedSide.get2DDataValue();
         int idx = 8 + (facing != null && facing.getAxis() == Direction.Axis.X ? 1 : 0) + 2 * joined;
-        VoxelShape cached = lookup(idx, wPct, hPct, lPct);
+        Cache c = cacheFor(wPct, hPct, lPct);
+        VoxelShape cached = c.shapes[idx];
         if (cached != null) {
             return cached;
         }
@@ -87,17 +98,18 @@ public final class HitboxSizer {
             }
         }
         VoxelShape shape = Shapes.box(x0, 0.0, z0, x1, h, z1);
-        cache[idx] = shape;
+        c.shapes[idx] = shape;
         return shape;
     }
 
-    private VoxelShape lookup(int idx, int wPct, int hPct, int lPct) {
+    private Cache cacheFor(int wPct, int hPct, int lPct) {
         int key = clamp(wPct) | (clamp(hPct) << 8) | (clamp(lPct) << 16);
-        if (key != cacheKey) {
-            Arrays.fill(cache, null);
-            cacheKey = key;
+        Cache c = cache;
+        if (c.key != key) {
+            c = new Cache(key);
+            cache = c;
         }
-        return cache[idx];
+        return c;
     }
 
     private static int attachedIndex(Mount mount, Direction facing) {
