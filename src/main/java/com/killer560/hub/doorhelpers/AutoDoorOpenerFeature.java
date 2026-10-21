@@ -256,7 +256,8 @@ public final class AutoDoorOpenerFeature {
             return null;
         }
         BlockPos hitPos = hit.getBlockPos();
-        if (hitPos.getY() < 69 || hitPos.getY() > 73) {
+        int off = com.killer560.hub.livemap.DungeonLayout.simYOffset(); // Hypixel's heights, moved with the sim's floor
+        if (hitPos.getY() < 69 + off || hitPos.getY() > 73 + off) {
             return null;
         }
         Block block = client.level.getBlockState(hitPos).getBlock();

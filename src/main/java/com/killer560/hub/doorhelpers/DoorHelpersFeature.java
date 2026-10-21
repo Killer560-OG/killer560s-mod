@@ -6,7 +6,6 @@ import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
@@ -32,8 +31,12 @@ public final class DoorHelpersFeature {
 
     public static void register() {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("DoorHelpersFeature.onEndTick", DoorHelpersFeature::onEndTick));
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) {
+        // ChatObserver, not a raw GAME listener: it catches a throw per listener (a throw on the packet path
+        // disconnects him), also sees lines another chat mod cancelled and re-added, and de-duplicates.
+        // Off (or a legit build): nothing is armed, so a key line seen while it is off cannot leave a stale
+        // window that clicks a door the moment it is turned on.
+        com.killer560.hub.util.ChatObserver.subscribe(message -> {
+            if (DoorHelpersConfig.getInstance().isAutoDoorEnabled()) {
                 AutoDoorOpenerFeature.onChat(com.killer560.hub.util.ChatObserver.strip(message));
             }
         });
