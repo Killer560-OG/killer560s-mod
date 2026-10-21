@@ -19,7 +19,8 @@ public final class DungeonBreakerConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-dungeonbreaker.json");
 
-    private static DungeonBreakerConfig instance;
+    // volatile: BreakerGuard.protects is also asked from AP3's planner thread, which must not see a half-set config.
+    private static volatile DungeonBreakerConfig instance;
 
     private boolean enabled = false;
     private boolean fatigueOnly = false;
