@@ -6,6 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.chocolatefactory.ChocolateFactoryConfig;
 import com.killer560.hub.chocolatefactory.egg.HoppityCalendar.Meal;
 import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.util.ModLog;
@@ -95,22 +96,27 @@ public final class EggPositions {
     /** Client tick: every few ticks, records each egg stand loaded near the player. */
     static void tick(Minecraft client) {
         try {
-            if (client.level == null || client.player == null || !SkyblockGate.allows()) {
+            // Off with the helper's master switch: it used to scan every entity here whether the feature was on or not.
+            if (client.level == null || client.player == null || !ChocolateFactoryConfig.getInstance().isEnabled()
+                    || !SkyblockGate.allows()) {
                 return;
             }
             if (++ticks % SCAN_EVERY_TICKS != 0) {
                 return;
             }
-            String island = island();
-            if (island == null) {
-                return;
-            }
+            String island = null;
             for (Entity e : client.level.entitiesForRendering()) {
                 if (!(e instanceof ArmorStand stand) || !stand.isInvisible() || stand.hasCustomName()) {
                     continue;
                 }
                 Meal meal = EggEsp.mealOf(stand.getItemBySlot(EquipmentSlot.HEAD));
                 if (meal != null) {
+                    if (island == null) {
+                        island = island();
+                        if (island == null) {
+                            return;
+                        }
+                    }
                     record(island, new Spot(stand.getX(), stand.getY(), stand.getZ(), meal));
                 }
             }
@@ -132,7 +138,10 @@ public final class EggPositions {
         List<Spot> list = ISLANDS.computeIfAbsent(island, k -> new ArrayList<>());
         for (Spot s : list) {
             boolean sameMeal = s.meal() == null || spot.meal() == null || s.meal() == spot.meal();
-            if (sameMeal && s.point().distanceTo(spot.point()) < SAME_EGG) {
+            double dx = s.x() - spot.x();
+            double dy = s.y() - spot.y();
+            double dz = s.z() - spot.z();
+            if (sameMeal && Math.sqrt(dx * dx + dy * dy + dz * dz) < SAME_EGG) {
                 return false;
             }
         }

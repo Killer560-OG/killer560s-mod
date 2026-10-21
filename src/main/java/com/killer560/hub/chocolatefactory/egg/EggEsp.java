@@ -90,11 +90,6 @@ public final class EggEsp {
                 && HoppityCalendar.huntActive(System.currentTimeMillis());
     }
 
-    /** Eggs seen on the last scan - the testkit reads it. */
-    public static int eggCount() {
-        return eggs.size();
-    }
-
     private static void tick(Minecraft client) {
         try {
             if (!active() || client.level == null || client.player == null) {

@@ -47,6 +47,9 @@ public final class ChocolateFactoryHelper {
 
     private static ChocolateFactoryMenu.State state;
     private static int stateContainer = -1;
+    /** The 54 stack objects the last read came from; see tick. */
+    private static final ItemStack[] lastRefs = new ItemStack[54];
+    private static boolean refsValid;
     private static final Set<Integer> strayAlerted = new HashSet<>();
     private static boolean towerReminded;
     /** The best upgrade as the reader had it on the last tick, so a pick-up has a slot to hold (killer560, 2026-10-18). */
@@ -66,6 +69,11 @@ public final class ChocolateFactoryHelper {
     /** The info line's place in Edit HUD (2026-10-12): drawn over the factory menu, moved and scaled like any element. */
     public static final String INFO_LINE_ELEMENT_ID = "chocolate_info_line";
     private static com.killer560.hub.hud.ContainerOverlayElement infoLineElement;
+    private static ChocolateFactoryMenu.State lineState;
+    private static ChocolateFactoryMenu.Upgrade lineBest;
+    private static String lineCps = "";
+    private static String lineBestText = "";
+    private static int lineWidth;
     private static volatile String lastInfoLine = "§6123.4/s §7| Best: §aRabbit Sis §7- §61.25M §7(affordable now)";
 
     public static void register() {
@@ -115,6 +123,7 @@ public final class ChocolateFactoryHelper {
                     || !ChocolateFactoryMenu.isFactoryTitle(screen.getTitle().getString())) {
                 state = null;
                 stateContainer = -1;
+                refsValid = false;
                 strayAlerted.clear();
                 towerReminded = false;
                 lastBest = null;
@@ -125,19 +134,32 @@ public final class ChocolateFactoryHelper {
             if (menu.slots.size() < 54 || menu.getSlot(ChocolateFactoryMenu.INFO_SLOT).getItem().isEmpty()) {
                 return;
             }
-            List<ItemStack> top = new ArrayList<>(54);
+            // The server replaces a slot's stack object whenever it changes it, so when all 54 are the same objects as the
+            // last read the reading would come out identical: reuse it instead of parsing ~250 names and lore lines a tick.
+            boolean unchanged = refsValid && menu.containerId == stateContainer && state != null;
             for (int i = 0; i < 54; i++) {
-                top.add(menu.getSlot(i).getItem());
+                ItemStack s = menu.getSlot(i).getItem();
+                if (lastRefs[i] != s) {
+                    unchanged = false;
+                    lastRefs[i] = s;
+                }
             }
-            if (menu.containerId != stateContainer) {
-                stateContainer = menu.containerId;
-                strayAlerted.clear();
-                towerReminded = false;
-                lastBest = null;
-                heldBest = null;
-                dumpMenu(top);
+            if (!unchanged) {
+                List<ItemStack> top = new ArrayList<>(54);
+                for (int i = 0; i < 54; i++) {
+                    top.add(lastRefs[i]);
+                }
+                if (menu.containerId != stateContainer) {
+                    stateContainer = menu.containerId;
+                    strayAlerted.clear();
+                    towerReminded = false;
+                    lastBest = null;
+                    heldBest = null;
+                    dumpMenu(top);
+                }
+                state = ChocolateFactoryMenu.read(top);
+                refsValid = true;
             }
-            state = ChocolateFactoryMenu.read(top);
             updateHeldBest(menu, state);
             if (cfg.isStrayAlert()) {
                 for (int slot : state.strays()) {
@@ -203,7 +225,8 @@ public final class ChocolateFactoryHelper {
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
-        if (!(screen instanceof AbstractContainerScreen<?> container)) {
+        if (!(screen instanceof AbstractContainerScreen<?> container)
+                || !ChocolateFactoryMenu.isFactoryTitle(container.getTitle().getString())) {
             return;
         }
         ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, partialTick) -> {
@@ -244,10 +267,19 @@ public final class ChocolateFactoryHelper {
         }
         if (cfg.isInfoLine()) {
             // Two lines above the menu: chocolate per second, then the best upgrade on the line below it (killer560, 2026-10-18).
-            String cps = cpsLine(st);
-            String best = bestLine(st);
-            lastInfoLine = best.isEmpty() ? cps : cps + "\n" + best;
-            int w = Math.max(client.font.width(cps), client.font.width(best));
+            // Built once per reading (the menu updates about once a second), not every frame.
+            ChocolateFactoryMenu.Upgrade shownNow = shownBest(st);
+            if (st != lineState || shownNow != lineBest) {
+                lineState = st;
+                lineBest = shownNow;
+                lineCps = cpsLine(st);
+                lineBestText = bestLine(st);
+                lineWidth = Math.max(client.font.width(lineCps), client.font.width(lineBestText));
+                lastInfoLine = lineBestText.isEmpty() ? lineCps : lineCps + "\n" + lineBestText;
+            }
+            String cps = lineCps;
+            String best = lineBestText;
+            int w = lineWidth;
             infoLineElement.draw(graphics, left, top - 21, w, 19,
                     (g, x, y) -> {
                         // A dark backing behind both lines, so the info reads on any part of the menu.
