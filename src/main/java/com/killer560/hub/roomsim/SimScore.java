@@ -71,6 +71,7 @@ public final class SimScore {
         batsKilled = 0;
         secretsFound = 0;
         FOUND_BY_ROOM.clear();
+        COUNTED_ONCE.clear();
         deaths = 0;
         roomsCleared = 0;
         secretsTotal = mapSecretTotal;
@@ -126,6 +127,20 @@ public final class SimScore {
                 at == null ? "?" : at.toShortString(), room, room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0));
     }
 
+    /**
+     * {@code n} secrets of {@code room} counted at once, none of them placed - the trap room counted as done
+     * ({@link SimLiveMobs#setTrapCleared}): the run's total and the room's own count, as if each had been found there.
+     */
+    public static synchronized void creditRoomSecrets(String room, int n) {
+        if (room == null || n <= 0) {
+            return;
+        }
+        secretsFound += n;
+        FOUND_BY_ROOM.merge(room, n, Integer::sum);
+        com.killer560.hub.util.ModLog.get("killer560smod-roomsim").info("Sim secrets credited: {} in {} ({} in the room)",
+                n, room, FOUND_BY_ROOM.getOrDefault(room, 0));
+    }
+
     /** Secrets found so far in the named room this run. */
     public static int foundInRoom(String room) {
         return room == null ? 0 : FOUND_BY_ROOM.getOrDefault(room, 0);
@@ -148,6 +163,22 @@ public final class SimScore {
 
     public static synchronized void roomCleared() {
         roomsCleared++;
+    }
+
+    /** Rooms counted by {@link #countRoomOnce} this floor. */
+    private static final java.util.Set<String> COUNTED_ONCE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * Counts {@code room} as a completed room once a floor (a solved puzzle, which no mob death or entry ever counted -
+     * so the sim's "Completed Rooms" never reached a floor's total and a Solo 300 could not be read; autoclear-speed-1020).
+     * @return true when this call counted it
+     */
+    public static synchronized boolean countRoomOnce(String room) {
+        if (room == null || !COUNTED_ONCE.add(room)) {
+            return false;
+        }
+        roomsCleared++;
+        return true;
     }
 
     public static synchronized void died() {

@@ -340,6 +340,41 @@ public final class ClearExecutor {
     }
 
     /**
+     * {@link #etherPathArrive} in one warp with no search, when one sneaking look from where he stands lands on {@code to}
+     * (and holds within the planner's margin, {@link TeleportUtils#getEtherwarpDirection}): the queue is that one hop, run
+     * as a path planned ahead ({@link #runPlanned} - the item swapped at once, the hop sent the tick the sneak is heard, the
+     * trip over on the server's answer to the landing). Auto Clear's in-room trips (autoclear-speed-1020): a search handed
+     * back a tick or two after the ask, and the floor graph's plan was often two or three warps where one line lands.
+     * @return false (nothing started) when no such look exists, a search is already pending, or he has no player
+     */
+    public static boolean etherDirectFast(BlockPos to, Runnable complete) {
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
+        if (player == null || client.level == null || pathPending || replanPending) {
+            return false;
+        }
+        Vec3 at = player.position();
+        Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
+        TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, to, hopRange() + 1.0);
+        if (rot == null) {
+            return false;
+        }
+        EtherwarpPathfinder.Node hop = new EtherwarpPathfinder.Node(at.x, at.y, at.z, BlockPos.containing(at).below(),
+                rot.yaw(), rot.pitch());
+        goalExact = true;
+        goalFastArrival = true;
+        trimGoal = null;
+        replans = 0;
+        heldReplans = 0;
+        replanPending = false;
+        if (!runPlanned(List.of(hop), at, to, -1, complete, player, "direct, one warp", to)) {
+            goalFastArrival = false;
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * {@link #etherPath} to {@code to} that ends at the first planned landing whose feet are within {@code reach} of
      * {@code point}, should the plan pass one before it gets to {@code to}. A dropped key's trip (Auto Secret): its stand is
      * the block in pickup range nearest to him in a straight line, and the warps there can come through the key's own spot

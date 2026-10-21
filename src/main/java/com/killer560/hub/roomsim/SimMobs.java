@@ -180,7 +180,10 @@ public final class SimMobs {
 
     public static void register() {
         net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register(
-                (dispatcher, registryAccess) -> registerSummon(dispatcher));
+                (dispatcher, registryAccess) -> {
+                    registerSummon(dispatcher);
+                    SimLiveMobs.registerCommand(dispatcher);
+                });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
     }
 
@@ -198,6 +201,7 @@ public final class SimMobs {
             ServerLevel level = server.overworld();
             wakeFels(level);
             refreshStarred(level);
+            refreshLiveTags(level);
             countDeadBats(level);
             SimMimic.tickServer(level);
             countDeadCrypts(level);
@@ -209,6 +213,35 @@ public final class SimMobs {
             roomClearTicks = 0;
             markEnteredRoomCleared(client);
             markClearedRooms();
+            countOtherRooms(client);
+        }
+    }
+
+    /**
+     * The rooms no mob death counts (autoclear-speed-1020: the sim's "Completed Rooms" read 15/23 on a floor with every mob
+     * room and the trap done, so a Solo 300 could never be read): a solved puzzle ({@code SimPuzzles.isRoomComplete}) is
+     * counted once, and - with clear-on-entry off, as live mobs have it - the Entrance and a Fairy room once he has been
+     * in them, which clear-on-entry would have counted. Client thread, with the room checks.
+     */
+    private static void countOtherRooms(Minecraft client) {
+        if (!SimRun.hasStarted() || client.player == null) {
+            return;
+        }
+        com.killer560.hub.livemap.DungeonLayout layout = com.killer560.hub.livemap.DungeonLayout.current();
+        int here = layout.roomAtWorld(client.player.getX(), client.player.getZ());
+        for (int i = 0; i < layout.roomCount(); i++) {
+            String name = layout.name(i);
+            com.killer560.hub.roomdatabase.RoomEntry entry = layout.entry(i);
+            if (name == null || entry == null || entry.type == null) {
+                continue;
+            }
+            String type = entry.type.toUpperCase(java.util.Locale.ROOT);
+            boolean count = type.equals("PUZZLE") ? com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(name)
+                    : !clearRoomsOnEntry && i == here && (type.equals("ENTRANCE") || type.equals("FAIRY"));
+            if (count && SimScore.countRoomOnce(name)) {
+                com.killer560.hub.util.ModLog.get("killer560smod-sim").info("[Sim] room counted: {} ({})", name,
+                        type.equals("PUZZLE") ? "its puzzle is solved" : "he has been in it");
+            }
         }
     }
 
@@ -395,6 +428,92 @@ public final class SimMobs {
         }
     }
 
+    /**
+     * A LIVE starred mob ({@link SimLiveMobs}, 2026-10-20): {@code health} instead of one, and with {@code wander} its AI on
+     * with nothing but a random stroll (no target, no attack: the sim is peaceful and a mob that chases him would make a
+     * clear's time depend on where he walked). Its star tag follows it and its health figure drops as it is hit, as
+     * Hypixel's does, so everything that reads the tag (Mob ESP, Auto Clear's one-tap call) reads what it would there.
+     * Server thread only.
+     */
+    static void spawnLive(ServerLevel level, BlockPos pos, Kind kind, double health, boolean wander) {
+        double hp = Math.max(ONE_HP, health);
+        switch (kind) {
+            case SKELETON -> {
+                SimSkeleton s = new SimSkeleton(McEntities.SKELETON, level);
+                spawnDummy(level, s, pos, pos.getY(), true, hp);
+                if (wander) {
+                    s.wanderOnly();
+                }
+                LIVE.add(s.getUUID());
+            }
+            case MINIBOSS -> {
+                SimMiniboss.Name name = MinibossPick.pick(pos);
+                SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, hp);
+                if (placed == null) {
+                    spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, pos.getY(), true, hp);
+                    return;
+                }
+                ServerPlayer boss = placed.boss();
+                SPAWNED.add(boss.getUUID());
+                STARRED.add(boss.getUUID());
+                recordStarred(boss.getUUID(), boss.getX(), boss.getY(), boss.getZ());
+                attachStarTag(level, boss, name.text(), hp, placed.tag());
+                LIVE.add(boss.getUUID());
+            }
+            default -> {
+                SimZombie z = new SimZombie(McEntities.ZOMBIE, level);
+                spawnDummy(level, z, pos, pos.getY(), true, hp);
+                if (wander) {
+                    z.wanderOnly();
+                }
+                LIVE.add(z.getUUID());
+            }
+        }
+    }
+
+    /** Which miniboss a live CHAMPION room gets: the two whose profile names fit, picked by the spot (reproducible). */
+    private static final class MinibossPick {
+        static SimMiniboss.Name pick(BlockPos pos) {
+            return (pos.asLong() & 1L) == 0 ? SimMiniboss.Name.LOST_ADVENTURER : SimMiniboss.Name.SHADOW_ASSASSIN;
+        }
+    }
+
+    /** Live mobs ({@link #spawnLive}): their tags follow them and show their health. */
+    private static final java.util.Set<UUID> LIVE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** A live mob's tag name before its health figure, and the health that figure last showed. */
+    private static final java.util.Map<UUID, String> STAR_NAMES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<UUID, Float> TAG_HEALTH = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Server thread, every tick: each live starred mob's tag moved onto it and its health figure brought up to date. */
+    private static void refreshLiveTags(ServerLevel level) {
+        if (LIVE.isEmpty()) {
+            return;
+        }
+        for (UUID id : LIVE) {
+            Entity e = level.getEntity(id);
+            UUID tagId = STAR_TAGS.get(id);
+            if (!(e instanceof net.minecraft.world.entity.LivingEntity mob) || !mob.isAlive() || tagId == null) {
+                continue;
+            }
+            Entity tag = level.getEntity(tagId);
+            if (tag == null) {
+                continue;
+            }
+            double ty = mob.getY() + mob.getBbHeight() + 0.1;
+            if (Math.abs(tag.getX() - mob.getX()) > 1.0e-3 || Math.abs(tag.getY() - ty) > 1.0e-3
+                    || Math.abs(tag.getZ() - mob.getZ()) > 1.0e-3) {
+                tag.snapTo(mob.getX(), ty, mob.getZ(), 0f, 0f);
+            }
+            float hp = mob.getHealth();
+            Float shown = TAG_HEALTH.get(id);
+            String base = STAR_NAMES.get(id);
+            if (base != null && (shown == null || shown != hp)) {
+                TAG_HEALTH.put(id, hp);
+                tag.setCustomName(Component.literal(" ✯ " + base + " " + shortHealth(Math.max(0, hp)) + "❤"));
+            }
+        }
+    }
+
     private static void spawnDummy(ServerLevel level, Mob mob, BlockPos pos, boolean starred) {
         spawnDummy(level, mob, pos, starred, ONE_HP);
     }
@@ -487,6 +606,7 @@ public final class SimMobs {
         level.addFreshEntity(tag);
         SPAWNED.add(tag.getUUID());
         STAR_TAGS.put(mob.getUUID(), tag.getUUID());
+        STAR_NAMES.put(mob.getUUID(), displayName);
     }
 
     /** Health the way Hypixel writes it on a name tag: 337.5k, 6.6M. */
@@ -928,6 +1048,9 @@ public final class SimMobs {
         SimMimic.forgetMob();
         STARRED.clear();
         STAR_TAGS.clear();
+        STAR_NAMES.clear();
+        TAG_HEALTH.clear();
+        LIVE.clear();
         FELS.clear();
         starredSnapshot = List.of();
         hadStarred = false;
@@ -975,6 +1098,14 @@ public final class SimMobs {
         protected boolean isSunSensitive() {
             return false;
         }
+
+        /** AI on with a random stroll only (no target, no attack) - a live mob that walks about ({@link #spawnLive}). */
+        void wanderOnly() {
+            setNoAi(false);
+            goalSelector.removeAllGoals(g -> true);
+            targetSelector.removeAllGoals(g -> true);
+            goalSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.RandomStrollGoal(this, 0.8, 20));
+        }
     }
 
     /** Plain {@link Skeleton} minus {@code checkDespawn()} - see {@link #spawnDummy}. Skeleton has no separate
@@ -983,6 +1114,14 @@ public final class SimMobs {
     private static final class SimSkeleton extends Skeleton {
         SimSkeleton(EntityType<? extends Skeleton> type, Level level) {
             super(type, level);
+        }
+
+        /** See {@link SimZombie#wanderOnly}. */
+        void wanderOnly() {
+            setNoAi(false);
+            goalSelector.removeAllGoals(g -> true);
+            targetSelector.removeAllGoals(g -> true);
+            goalSelector.addGoal(1, new net.minecraft.world.entity.ai.goal.RandomStrollGoal(this, 0.8, 20));
         }
 
         @Override

@@ -134,11 +134,23 @@ public final class WeaponReach {
      * meets, else in the air at {@link #SCEPTRE_PLAN_RANGE}. Armour stands (the star tags) are markers and are skipped.
      */
     public static Vec3 batImpact(Level level, Player player, Vec3 eye, Vec3 dir) {
+        Vec3 hit = batImpactOrAir(level, player, eye, dir);
+        return hit != null ? hit : eye.add(dir.scale(SCEPTRE_PLAN_RANGE));
+    }
+
+    /**
+     * {@link #batImpact}, but null when the bat would meet nothing within {@link #SCEPTRE_PLAN_RANGE}. Where a bat that
+     * meets nothing goes off is not known (the wiki gives no range; the sim's flies ~29.6, past the plan's 24), so an aim
+     * whose blast is only "in the air at 24" is no aim (autoclear-speed-1020: a fan aim 5 degrees off a zombie 21.8
+     * blocks away, its predicted air burst 2.2 past it, sent bat after bat that went off 8 past it in the sim).
+     */
+    public static Vec3 batImpactOrAir(Level level, Player player, Vec3 eye, Vec3 dir) {
         Vec3 end = eye.add(dir.scale(SCEPTRE_PLAN_RANGE));
         BlockHitResult block = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 player));
-        Vec3 stop = block.getType() == HitResult.Type.MISS ? end : block.getLocation();
-        Vec3 impact = stop;
+        boolean air = block.getType() == HitResult.Type.MISS;
+        Vec3 stop = air ? end : block.getLocation();
+        Vec3 impact = air ? null : stop;
         double best = eye.distanceToSqr(stop);
         for (Entity e : level.getEntities(player, new AABB(eye, stop).inflate(1.0),
                 e -> e instanceof LivingEntity && !(e instanceof ArmorStand) && e.isAlive())) {
@@ -252,6 +264,95 @@ public final class WeaponReach {
         return mob.distanceToSqr(impact) <= r * r;
     }
 
+    /** His standing eye over feet. */
+    private static final double STANDING_EYE = 1.62;
+
+    /**
+     * Whether a sceptre bat fired by him standing with his feet at {@code feet} reaches the mob, for the room's plan of
+     * stand blocks (autoclear-speed-1020): fired straight down (the blast at his feet, the old rule), or a straight shot at
+     * the mob's centre or top within {@link #SCEPTRE_PLAN_RANGE} whose first block on the way (collision shapes; mobs and
+     * stands are not looked at) is within the planned blast radius of it. A cut of {@link #sceptreAim}, which also tries
+     * a fan of looks round the mob: whatever this says reaches, the aim from there finds.
+     */
+    public static boolean sceptreReachesFrom(Level level, Vec3 feet, AABB mob) {
+        return sceptreReachesFrom(level, feet, mob, SCEPTRE_PLAN_RANGE);
+    }
+
+    /** {@link #sceptreReachesFrom} with straight shots only out to {@code range} (at most the plan range). */
+    public static boolean sceptreReachesFrom(Level level, Vec3 feet, AABB mob, double range) {
+        if (sceptreHits(feet, mob)) {
+            return true;
+        }
+        range = Math.min(range, SCEPTRE_PLAN_RANGE);
+        Vec3 eye = feet.add(0, STANDING_EYE, 0);
+        Vec3 c = mob.getCenter();
+        if (eye.distanceToSqr(c) > (range + 1.0) * (range + 1.0)) {
+            return false;
+        }
+        Vec3[] points = {c, new Vec3(c.x, mob.maxY - 0.2, c.z)};
+        for (Vec3 p : points) {
+            if (eye.distanceTo(p) > range) {
+                continue;
+            }
+            BlockHitResult hit = level.clip(new ClipContext(eye, p, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                    net.minecraft.world.phys.shapes.CollisionContext.empty()));
+            Vec3 impact = hit.getType() == HitResult.Type.MISS ? p : hit.getLocation();
+            if (sceptreHits(impact, mob)) {
+                TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, p);
+                if (batAimHolds(level, eye, r.yaw(), r.pitch(), impact, mob)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // ---- a far bat's aim must hold for the bat's spread (autoclear-speed-1020: the sim's bats leave the look by up to
+    // SimSpiritSceptre.SPREAD, 0.06 an axis - a few degrees - so a straight shot at a zombie 20 blocks off passes it by a
+    // block or two and flies on to whatever is behind it; "Guided Bat at the mob" aims at 20-26 blocks missed again and
+    // again. Hypixel's spread is unmeasured: the wiki's bat "follows your aim") ----
+
+    /** Each aim farther than {@link #HOLD_FROM} is also cast this many degrees off in yaw and in pitch, and every one of
+     *  those must still go off within the planned radius of the mob. */
+    public static final float BAT_AIM_SPREAD_DEG = 3.0f;
+    /** Nearer than this (eye to impact) a bat's spread is a fraction of a block: no check. */
+    public static final double HOLD_FROM = 10.0;
+
+    /** Where a bat along {@code dir} goes off for the hold check: the mob's own box, else the first block within
+     *  {@link #SCEPTRE_PLAN_RANGE}; null in the air. Other entities are not looked at. */
+    private static Vec3 impactAlong(Level level, Vec3 eye, Vec3 dir, AABB mob) {
+        Vec3 end = eye.add(dir.scale(SCEPTRE_PLAN_RANGE));
+        BlockHitResult block = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                net.minecraft.world.phys.shapes.CollisionContext.empty()));
+        boolean air = block.getType() == HitResult.Type.MISS;
+        Vec3 stop = air ? end : block.getLocation();
+        java.util.Optional<Vec3> onMob = mob.clip(eye, stop);
+        if (onMob.isPresent()) {
+            return onMob.get();
+        }
+        return air ? null : stop;
+    }
+
+    /**
+     * Whether a bat fired along {@code yaw}/{@code pitch} still goes off within the planned radius of the mob when it
+     * leaves the look by {@link #BAT_AIM_SPREAD_DEG} either way in yaw or in pitch. True for an impact nearer than
+     * {@link #HOLD_FROM}.
+     */
+    public static boolean batAimHolds(Level level, Vec3 eye, float yaw, float pitch, Vec3 impact, AABB mob) {
+        if (impact == null || eye.distanceTo(impact) <= HOLD_FROM) {
+            return impact != null;
+        }
+        float s = BAT_AIM_SPREAD_DEG;
+        float[][] nudges = {{s, 0f}, {-s, 0f}, {0f, s}, {0f, -s}};
+        for (float[] n : nudges) {
+            Vec3 at = impactAlong(level, eye, TeleportUtils.getLook(yaw + n[0], Mth.clamp(pitch + n[1], -90f, 90f)), mob);
+            if (at == null || !sceptreHits(at, mob)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * An aim from where he stands whose bat goes off within reach of the mob: straight at it first, then at points of
      * its box, then a fan of looks around it (which is what finds a wall face next to a mob standing inside the wall).
@@ -268,8 +369,8 @@ public final class WeaponReach {
                 continue;
             }
             TeleportUtils.Rotation r = TeleportUtils.getDirection(eye, p);
-            Vec3 impact = batImpact(level, player, eye, TeleportUtils.getLook(r.yaw(), r.pitch()));
-            if (sceptreHits(impact, mob)) {
+            Vec3 impact = batImpactOrAir(level, player, eye, TeleportUtils.getLook(r.yaw(), r.pitch()));
+            if (impact != null && sceptreHits(impact, mob) && batAimHolds(level, eye, r.yaw(), r.pitch(), impact, mob)) {
                 return new Aim(r.yaw(), Mth.clamp(r.pitch(), -90f, 90f), null, "Guided Bat at the mob");
             }
         }
@@ -283,12 +384,12 @@ public final class WeaponReach {
             for (int dp = -45; dp <= 45; dp += 5) {
                 float yaw = direct.yaw() + dy;
                 float pitch = Mth.clamp(direct.pitch() + dp, -90f, 90f);
-                Vec3 impact = batImpact(level, player, eye, TeleportUtils.getLook(yaw, pitch));
-                if (!sceptreHits(impact, mob)) {
+                Vec3 impact = batImpactOrAir(level, player, eye, TeleportUtils.getLook(yaw, pitch));
+                if (impact == null || !sceptreHits(impact, mob)) {
                     continue;
                 }
                 double d = mob.distanceToSqr(impact);
-                if (d < bestDist) {
+                if (d < bestDist && batAimHolds(level, eye, yaw, pitch, impact, mob)) {
                     bestDist = d;
                     best = new Aim(yaw, pitch, null, "Guided Bat into the block beside the mob");
                 }
@@ -300,8 +401,8 @@ public final class WeaponReach {
             // behind a wall nothing here matched the plan, and the mob was skipped as out of reach while he stood on the
             // very block chosen to reach it (Balcony, 2026-10-19 22:14:39: 46 ticks idle, then two roams).
             float yaw = player.getYRot();
-            Vec3 impact = batImpact(level, player, eye, TeleportUtils.getLook(yaw, 90f));
-            if (sceptreHits(impact, mob)) {
+            Vec3 impact = batImpactOrAir(level, player, eye, TeleportUtils.getLook(yaw, 90f));
+            if (impact != null && sceptreHits(impact, mob)) {
                 best = new Aim(yaw, 90f, null, "Guided Bat at his feet");
             }
         }

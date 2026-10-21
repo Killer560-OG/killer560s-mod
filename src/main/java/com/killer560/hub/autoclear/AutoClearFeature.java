@@ -310,6 +310,11 @@ public final class AutoClearFeature {
         edgeLogged.clear();
         doomed.clear();
         batLogs.clear();
+        missedAims.clear();
+        aimKey = Long.MIN_VALUE;
+        pendingClears.clear();
+        deathsInRoom = 0;
+        emptySince = -1;
         oneTapLogged.clear();
         oneTapFailed.clear();
         leadLogged.clear();
@@ -371,6 +376,7 @@ public final class AutoClearFeature {
 
     private static void stopQuietly() {
         Minecraft client = Minecraft.getInstance();
+        RoomClock.end("the run ended");
         running = false;
         bodyWanted = false;
         releaseUse(client);
@@ -395,6 +401,7 @@ public final class AutoClearFeature {
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            homeRooms.clear();
             if (running) {
                 stop("the world changed");
             }
@@ -441,6 +448,7 @@ public final class AutoClearFeature {
             releaseUse(client);
             abandonWalk(McCompat.screen(client) != null ? "a screen opened" : "Auto Routes started");
             action = McCompat.screen(client) != null ? "waiting (a screen is open)" : "waiting (Auto Routes is running)";
+            RoomClock.tick("waiting", false);
             if (com.killer560.hub.autoroutes.RouteExecutor.isRunning()) {
                 // The route's own warps are its business (it judges their landings itself), not corrections of ours.
                 positionPacketsSeen = positionPackets;
@@ -454,6 +462,7 @@ public final class AutoClearFeature {
             abandonWalk(com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working");
             action = "waiting (" + com.killer560.hub.autopuzzles.AutoPuzzleActivity.what() + " is working)";
             positionPacketsSeen = positionPackets;
+            RoomClock.tick("waiting", false);
             return;
         }
         checkPositionPackets(client, player);
@@ -461,12 +470,73 @@ public final class AutoClearFeature {
             return;
         }
         noteBatSent(player);
+        tickKind = null;
         try {
             step(client, player);
         } catch (RuntimeException e) {
             LOGGER.warn("[AutoClear] tick failed", e);
             stop("internal error: " + e);
         }
+        if (running) {
+            clockTick();
+        }
+    }
+
+    // ---- where a room's ticks go (RoomClock) ----
+
+    /** What this tick did, when the phase alone does not say (a swap, a turn); null otherwise. Reset every tick. */
+    private static String tickKind = null;
+    /** The estimate (ticks) the trip or walk about to start was chosen on, -1 when it was not priced. */
+    private static int tripPrice = -1;
+
+    private static void clockTick() {
+        boolean moving = phase == Phase.TRAVEL || phase == Phase.WALK;
+        if (RoomClock.running()) {
+            if (moving && !RoomClock.tripOpen()) {
+                RoomClock.tripStarted(action, tripPrice, phase == Phase.WALK);
+                tripPrice = -1;
+            } else if (!moving && phase != Phase.RELEASE && RoomClock.tripOpen()) {
+                RoomClock.tripEnded(ClearExecutor.lastPathFailed());
+            }
+        }
+        RoomClock.tick(clockBucket(), moving);
+    }
+
+    private static String clockBucket() {
+        switch (phase) {
+            case TRAVEL:
+                return roamTrip ? "roam trips" : keyTrip || quizTrip || doorTarget >= 0 ? "other trips" : "trips";
+            case WALK:
+                return roamTrip ? "roam walks" : "walks";
+            case HOP:
+                return "hops";
+            case RELEASE:
+                return "release";
+            case ATTACK:
+                if (useHeld) {
+                    return "firing";
+                }
+                break;
+            default:
+                break;
+        }
+        if (tickKind != null) {
+            return tickKind;
+        }
+        String a = action == null ? "" : action;
+        if (a.startsWith("waiting for the bat") || a.startsWith("bat in flight")) {
+            return "bat waits";
+        }
+        if (a.startsWith("looking for starred mobs")) {
+            return "looking";
+        }
+        if (a.startsWith("landing") || a.startsWith("waiting to land")) {
+            return "landing";
+        }
+        if (a.startsWith("roaming")) {
+            return "roam trips";
+        }
+        return "other";
     }
 
     private static void step(Minecraft client, LocalPlayer player) {
@@ -587,6 +657,7 @@ public final class AutoClearFeature {
         int room = AutoClearTargets.roomByName(layout, roomName);
         if (room >= 0 && AutoClearTargets.isCleared(layout, room)) {
             roomsCleared++;
+            RoomClock.end("cleared");
             LOGGER.info("[AutoClear] room cleared: {}{}", roomName, AutoClearTargets.isClearedOnMap(layout, room) ? ""
                     : " (its secret chest was grabbed - killer560's chest rule: " + ChestClearRule.describe() + ")");
             if (singleRoom != null) {
@@ -611,7 +682,9 @@ public final class AutoClearFeature {
             }
             roomName = layout.name(room);
             noMobTicks = 0;
+            emptySince = -1;
             killsInRoom = 0;
+            deathsInRoom = 0;
             pathFailures = 0;
             targetId = -1;
             resetRoam();
@@ -624,6 +697,7 @@ public final class AutoClearFeature {
             if (previous == null || !previous.isAlive()) {
                 mobsKilled++;
                 killsInRoom++;
+                RoomClock.kill();
                 LOGGER.info("[AutoClear] {} in {} is dead ({} starred kill(s) this run)", targetName, roomName, mobsKilled);
                 targetId = -1;
             }
@@ -632,15 +706,25 @@ public final class AutoClearFeature {
             return;
         }
         List<Entity> mobs = starredIn(client, layout, room);
+        if (!mobs.isEmpty() || layout.currentRoom() == room) {
+            RoomClock.start(roomName);
+        }
         if (mobs.isEmpty()) {
             targetId = -1;
             targetName = "";
             String waitingOn = doomedIn(client, layout, room);
             if (waitingOn != null) {
-                // Every mob left here is one a bat is on its way to: its death (or the bat being late) is the signal.
+                // Every mob left here is one a bat is on its way to: its death (or the bat being late) is the signal -
+                // which a standalone run does not stand and wait for (moveOnAtLastDeath).
+                if (moveOnAtLastDeath(client, layout, room)) {
+                    return;
+                }
                 releaseUse(client);
                 action = "waiting for the bat at " + waitingOn;
                 noMobTicks = 0;
+                return;
+            }
+            if (moveOnAtLastDeath(client, layout, room)) {
                 return;
             }
             if (layout.currentRoom() == room) {
@@ -667,7 +751,16 @@ public final class AutoClearFeature {
                         && roam(client, player, layout, room, known)) {
                     return;
                 }
-                if (noMobTicks > (roamedAny ? ROAM_LOOK_TICKS : NO_MOB_TICKS) + lag) {
+                if (emptySince < 0) {
+                    emptySince = ClearExecutor.clientTick();
+                    emptyLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                // Never given up sooner than NO_MOB_TICKS after nothing was first in sight, however fast the roam went:
+                // the 3-tick roam looks (and roam trips that failed at once) gave a room up in 61 ticks, before the map
+                // or the chest rule (3 s) could say it was cleared (testkit 1020-sim-chestclear).
+                boolean longEnough = ClearExecutor.clientTick() - emptySince
+                        > NO_MOB_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag);
+                if (noMobTicks > (roamedAny ? ROAM_LOOK_TICKS : NO_MOB_TICKS) + lag && longEnough) {
                     if (doneWithoutMap) {
                         // No dungeon map to say so (nothing ever reads cleared without one): every starred mob in
                         // sight is dead, which is all a clear is.
@@ -684,8 +777,9 @@ public final class AutoClearFeature {
             return;
         }
         noMobTicks = 0;
+        emptySince = -1;
         midasCheckOpened(client);
-        planRepositions(client, player, mobs, cfg.getWeapon());
+        planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
         Entity target = pickTarget(player, mobs, cfg.getWeapon());
         if (target.getId() != targetId) {
             targetId = target.getId();
@@ -705,6 +799,93 @@ public final class AutoClearFeature {
             return;
         }
         attack(client, player, target, cfg);
+    }
+
+    // ---- moving on at the room's last death (autoclear-speed-1020: a player who has killed the last mob he knows of goes
+    // on; Auto Clear stood "looking for starred mobs" until the map's checkmark came - 226 of the sim's 1654 room ticks,
+    // the sim checking its rooms every 10 ticks and Hypixel's map item a refresh behind) ----
+
+    /** A room left at its last death is not picked again for this long (plus server lag) while the map catches up. */
+    static final int PENDING_CLEAR_TICKS = 60;
+    /** Rooms left at their last death whose clear the map has not shown yet: name -> {tick, ServerLag mark}. */
+    private static final java.util.Map<String, long[]> pendingClears = new java.util.LinkedHashMap<>();
+    /** Starred deaths seen this room (any cause: the target, a doomed one, a splash). */
+    private static int deathsInRoom = 0;
+    /** The tick nothing of the room was first in sight (with a ServerLag mark), -1 while something is. */
+    private static long emptySince = -1;
+    private static long emptyLag = 0L;
+
+    /**
+     * Standalone runs only (a room handed over by Auto Secret or Autopilot ends on the map's own clear, as their plans
+     * expect): with no starred mob of the room in sight, none left to a bat, none remembered (lost from view or skipped),
+     * at least one seen dying here and the map not saying cleared yet, the room is left now and the next one picked; it
+     * counts when the map clears it, and is picked again (a mob that was never seen) if the map has not after
+     * {@link #PENDING_CLEAR_TICKS}.
+     * @return true when the room was left
+     */
+    private static boolean moveOnAtLastDeath(Minecraft client, DungeonLayout layout, int room) {
+        if (singleRoom != null || !LiveMapFeature.hasRoomStates() || roomName == null
+                || MidasAltar.ROOM.equals(roomName)) {
+            return false;
+        }
+        int leftToBats = 0;
+        for (var e : seenMobs.entrySet()) {
+            if (!roomName.equals(e.getValue().room())) {
+                continue;
+            }
+            Flight f = doomed.get(e.getKey());
+            if (f != null && f.bats() == 1 && !e.getValue().lost() && (e.getValue().vel() == null
+                    || e.getValue().vel().horizontalDistance() < WeaponReach.LEAD_MIN_SPEED)) {
+                // (Nor a walking one: if its bat misses it may walk out of the room, and the room then cannot be cleared
+                // from it - 1020-sim-ac-speed with walking mobs gave Flags up after a missed bat.)
+                // (Not one left to several bats on the damage seen: one of those missing leaves it alive, and the
+                // come-back for it cost more than the wait - 1020-sim-ac-speed at 60 health, 108 room visits for 44.)
+                leftToBats++;   // a trusted bat is on its way: its kill is seen from wherever he is by then
+                continue;
+            }
+            return false;   // one alive somewhere (in view without its tag, or lost from view)
+        }
+        if (deathsInRoom == 0 && leftToBats == 0) {
+            return false;
+        }
+        if (!knownMobs(client, layout, room).isEmpty()) {
+            return false;
+        }
+        pendingClears.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
+        LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) or has a trusted bat on its way ({})"
+                + " - going on now; the map's clear is counted when it comes, and the room is picked again if it has not"
+                + " come in {} ticks", roomName, deathsInRoom, leftToBats, PENDING_CLEAR_TICKS);
+        RoomClock.end("left at its last death");
+        releaseUse(client);
+        roomName = null;
+        targetId = -1;
+        return true;
+    }
+
+    /** Pending rooms the map now shows cleared are counted; those it still does not after the wait are dropped (picked
+     *  again). Returns the names still waiting. */
+    private static Set<String> pendingStill(DungeonLayout layout) {
+        Set<String> out = new HashSet<>();
+        for (var it = pendingClears.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            int r = AutoClearTargets.roomByName(layout, e.getKey());
+            if (r >= 0 && AutoClearTargets.isCleared(layout, r)) {
+                roomsCleared++;
+                LOGGER.info("[AutoClear] room cleared: {} (on the map {} ticks after it was left)", e.getKey(),
+                        ClearExecutor.clientTick() - e.getValue()[0]);
+                it.remove();
+                continue;
+            }
+            if (ClearExecutor.clientTick() - e.getValue()[0]
+                    > PENDING_CLEAR_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
+                LOGGER.info("[AutoClear] {} is still not cleared on the map {} ticks after its last death - it goes back in"
+                        + " the order", e.getKey(), ClearExecutor.clientTick() - e.getValue()[0]);
+                it.remove();
+                continue;
+            }
+            out.add(e.getKey());
+        }
+        return out;
     }
 
     private static int pickRoom(DungeonLayout layout, AutoClearConfig cfg) {
@@ -732,10 +913,20 @@ public final class AutoClearFeature {
         if (startQuizFirst(layout)) {
             return -1;
         }
-        List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
+        Set<String> pending = pendingStill(layout);
+        Set<String> skip = skippedRooms;
+        if (!pending.isEmpty()) {
+            skip = new HashSet<>(skippedRooms);
+            skip.addAll(pending);
+        }
+        List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skip);
         if (candidates == null) {
             stop("the blood door is not on the map yet (Blood Rush Split)");
             return -1;
+        }
+        if (candidates.isEmpty() && !pending.isEmpty()) {
+            action = "waiting for the map to clear " + String.join(", ", pending);
+            return -1;   // nothing else to do: the room left at its last death is counted, or taken again, shortly
         }
         AutoClearTargets.Choice c = candidates.isEmpty() ? null : AutoClearTargets.choose(layout, candidates);
         int back = comeBackRoom(layout, cfg, c == null ? -1 : c.room());
@@ -1612,8 +1803,10 @@ public final class AutoClearFeature {
     /** No starred mob in sight (or every one skipped as out of reach) this long: the first roam. Before 2026-10-19 the
      *  room was given up at {@link #NO_MOB_TICKS} with no move at all. */
     static final int ROAM_AFTER_TICKS = 40;
-    /** After each roam landing: this long looking for the room's mobs before the next spot (or giving up). */
-    static final int ROAM_LOOK_TICKS = 30;
+    /** After each roam landing: this long looking for the room's mobs before the next spot (or giving up). 30 until
+     *  autoclear-speed-1020 (his study: Mossy, 280 ticks of roaming with no kill at four spots); a mob in range of the new
+     *  spot is in the client's world a tick or two after the landing (the server's spawn packets), plus any server lag. */
+    static final int ROAM_LOOK_TICKS = 3;
     /** At most this many spots per room. */
     static final int ROAM_MAX_SPOTS = 4;
     /** And at most this long from the first roam, however the trips went (real time; server lag stretches it). */
@@ -1720,6 +1913,15 @@ public final class AutoClearFeature {
     private static String mobRoom(DungeonLayout layout, Entity mob, Seen before) {
         int under = layout.roomAtWorld(mob.getX(), mob.getZ());
         String here = under < 0 ? null : layout.name(under);
+        // A mob counts for the room it was first seen standing in, however far it walks (autoclear-speed-1020: the sim's
+        // walking mobs; a zombie that strolled out of Overgrown Chains left it uncleared, and the room was given up after
+        // four roam spots while the zombie stood in the next room). The edge rule below stays for a mob first seen there.
+        String home = homeRooms.get(mob.getId());
+        if (home == null && here != null && (before == null || before.lost())) {
+            homeRooms.put(mob.getId(), here);
+        } else if (home != null && !home.equals(here)) {
+            return home;
+        }
         if (before == null || before.lost() || before.room() == null || before.room().equals(here)) {
             return here;
         }
@@ -1737,7 +1939,14 @@ public final class AutoClearFeature {
     }
 
     /** Whether {@code mob} counts for {@code room}: under it, or kept there by the edge rule ({@link #mobRoom}). */
+    /** Each starred mob's room by entity id: where it was first seen (mobRoom). For the run. */
+    private static final java.util.Map<Integer, String> homeRooms = new java.util.HashMap<>();
+
     private static boolean inRoom(DungeonLayout layout, int room, Entity mob) {
+        String home = homeRooms.get(mob.getId());
+        if (home != null) {
+            return home.equals(layout.name(room));
+        }
         if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {
             return true;
         }
@@ -1777,6 +1986,9 @@ public final class AutoClearFeature {
             double hp = WeaponReach.tagHealth(tags.get(mob.getId()));
             if (hp < 0 && before != null) {
                 hp = before.health();
+            }
+            if (before != null && before.health() > 0 && hp >= 0 && hp < before.health() && batLogs.containsKey(mob.getId())) {
+                noteDrop(before.health() - hp);
             }
             seenMobs.put(mob.getId(), new Seen(mob.getName().getString(), pos, mob.distanceTo(player), false, room, vel,
                     hp, tick));
@@ -2015,6 +2227,7 @@ public final class AutoClearFeature {
 
     private static void roomDoneWithoutMap() {
         roomsCleared++;
+        RoomClock.end("done without a map");
         LOGGER.info("[AutoClear] room done without a map: {} ({} starred kill(s), none left in sight)", roomName,
                 killsInRoom);
         if (singleRoom != null) {
@@ -2029,6 +2242,7 @@ public final class AutoClearFeature {
     private static void giveUpRoom(String why) {
         say(ModChat.bad("Giving up on "), ModChat.value(String.valueOf(roomName)), ModChat.dim(" - " + why));
         LOGGER.info("[AutoClear] gave up on {}: {}", roomName, why);
+        RoomClock.end("gave up: " + why);
         lastReason = roomName + ": " + why;
         lastReasonMs = System.currentTimeMillis();
         if (singleRoom != null) {
@@ -2283,6 +2497,16 @@ public final class AutoClearFeature {
             cachedBatTicks = -2;
             cachedPreferEther = null;
             cachedAttackFlight = -1;
+            cachedTripSpotDone = false;
+            if (cachedAttack != null && missedAims.contains(key)) {
+                cachedAttack = null;   // its bats from this block went off somewhere else: a move instead
+            }
+        }
+        if (cachedAttack != null && weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && aimMissed(target)) {
+            missedAims.add(key);
+            cachedAttack = null;
+            releaseUse(client);
+            phase = Phase.IDLE;
         }
         if (cachedAttack != null) {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
@@ -2315,9 +2539,12 @@ public final class AutoClearFeature {
         if (cachedHops == -2) {
             cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) : -1;
         }
-        double dist = Math.sqrt(box.distanceToSqr(feet));
-        int warps = Math.max(1, (int) Math.ceil(dist / ClearExecutor.hopRange()));
-        int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
+        // The trip's real price: its warps from here (one only when a line from here lands on the block), each warp count
+        // priced by what this run's trips of that many warps really took (tripTicks).
+        BlockPos priceSpot = tripSpot(client, player, target, box, cfg);
+        int warps = priceSpot == null ? Math.max(1, (int) Math.ceil(Math.sqrt(box.distanceToSqr(feet)) / ClearExecutor.hopRange()))
+                : warpsTo(feet, priceSpot);
+        int etherTicks = tripTicks(warps);
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
         if (weapon == AutoClearConfig.Weapon.HYPERION && hyperionBatWins(client, player, target, box, etherTicks,
                 canHop ? hypeTicks : Integer.MAX_VALUE)) {
@@ -2389,8 +2616,14 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
-        if (walkInsteadOfTrip(client, player, spot, feetAt -> reaches(cfg.getWeapon(), feetAt, box),
-                targetName + " at " + target.blockPosition().toShortString())) {
+        if (planned != null && spot.equals(planned)) {
+            // Of the blocks that reach what the plan's block reaches, one that a single warp from here lands on.
+            spot = preferOneWarp(client, feet, planned);
+        }
+        java.util.function.Predicate<Vec3> inReach = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE
+                ? feetAt -> WeaponReach.sceptreReachesFrom(client.level, feetAt, box, usefulBatRange())
+                : feetAt -> reaches(cfg.getWeapon(), feetAt, box);
+        if (walkInsteadOfTrip(client, player, spot, inReach, targetName + " at " + target.blockPosition().toShortString())) {
             return;
         }
         if (lastTripGoal != null && BlockPos.containing(feet).below().equals(lastTripGoal)) {
@@ -2407,6 +2640,7 @@ public final class AutoClearFeature {
             return;
         }
         final BlockPos goal = spot;
+        tripPrice = etherTicks;
         action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
@@ -2422,7 +2656,7 @@ public final class AutoClearFeature {
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
                             : " - nearest block to it");
             double toGoal = feet.distanceTo(new Vec3(goal.getX() + 0.5, goal.getY() + 1.0, goal.getZ() + 0.5));
-            int goalWarps = Math.max(1, (int) Math.ceil(toGoal / ClearExecutor.hopRange()));
+            int goalWarps = warpsTo(feet, goal);
             String whyNoBat;
             if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE) {
                 whyNoBat = cachedAttack == null ? "no bat from here reaches it (no aim within "
@@ -2438,7 +2672,7 @@ public final class AutoClearFeature {
             com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s: etherwarp%s onto %s (%.1f blocks,"
                             + " %d warp(s), ~%d ticks; weapon %s, %.1f blocks from it) - not a bat: %s", targetName, targetId,
                     target.blockPosition().toShortString(), goalWarps == 1 ? " (a one-tap warp)" : "", goal.toShortString(),
-                    toGoal, goalWarps, ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * goalWarps, weapon,
+                    toGoal, goalWarps, tripTicks(goalWarps), weapon,
                     Math.sqrt(box.distanceToSqr(player.getEyePosition())), whyNoBat));
         }
     }
@@ -2492,8 +2726,20 @@ public final class AutoClearFeature {
                 Seen s = seenMobs.get(targetId);
                 batLogs.put(targetId, b == null ? new BatLog(1, batSentTick, batFlight, s == null ? -1 : s.health(),
                         com.killer560.hub.util.ServerLag.mark(), Long.MAX_VALUE) : b.plusOne(batSentTick, batFlight));
+                if (aimKey != planKey) {
+                    aimKey = planKey;
+                    aimShots = 0;
+                    aimFirst = batSentTick;
+                    aimFlight = batFlight;
+                    aimHealth = s == null ? -1 : s.health();
+                    aimLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                aimShots++;
                 if (b == null) {
                     afterFirstBat(player, s);
+                }
+                if (!doomed.containsKey(targetId)) {
+                    afterEnoughBats(s);
                 }
             }
             itemUsesSeen = uses;
@@ -2518,7 +2764,7 @@ public final class AutoClearFeature {
     }
 
     /** A mob whose one bat is trusted to kill it: when the bat left, its flight, when to move on, its health. */
-    private record Flight(long sent, int flight, long moveOn, double health, long lag, String name) {
+    private record Flight(long sent, int flight, long moveOn, double health, long lag, String name, int bats) {
     }
 
     private static final java.util.Map<Integer, BatLog> batLogs = new java.util.HashMap<>();
@@ -2595,10 +2841,72 @@ public final class AutoClearFeature {
         }
         long moveOn = mode == AutoClearConfig.OneTap.AT_ONCE ? batSentTick : batSentTick + batFlight;
         doomed.put(targetId, new Flight(batSentTick, batFlight, moveOn, s == null ? -1 : s.health(),
-                com.killer560.hub.util.ServerLag.mark(), targetName));
+                com.killer560.hub.util.ServerLag.mark(), targetName, 1));
         if (mode == AutoClearConfig.OneTap.AT_ONCE) {
             leaveToBat(Minecraft.getInstance());
         }
+    }
+
+    // ---- enough bats, not a stream (autoclear-speed-1020: live mobs of 60 health, two sim bats each - 2071 bats for 164
+    // kills, 12.6 a mob, as the 2-tick presses kept sending while the first ones flew; his study saw 24 of 180 bats still
+    // flying after their mob died) ----
+
+    /** Health drops seen on mobs Auto Clear was shooting, one a sighting: what a bat (or two landing together) does. */
+    private static final List<Double> dropSamples = new java.util.ArrayList<>();
+    /** Per target: the tag health the bats counted below were sent at, and how many have gone since it last changed. */
+    private static int countedFor = -1;
+    private static double countedHealth = -1;
+    private static int countedBats = 0;
+
+    /** A drop of {@code hp} health seen on a mob we have sent bats at (observeMobs). */
+    private static void noteDrop(double drop) {
+        if (drop > 0) {
+            dropSamples.add(drop);
+            if (dropSamples.size() > 60) {
+                dropSamples.remove(0);
+            }
+        }
+    }
+
+    /** The damage one bat is seen doing: the low quartile of the drops seen (two landing together read as one drop), -1
+     *  with fewer than two. */
+    static double seenBatDamage() {
+        if (dropSamples.size() < 2) {
+            return -1;
+        }
+        List<Double> s = new java.util.ArrayList<>(dropSamples);
+        s.sort(null);
+        return s.get(s.size() / 4);
+    }
+
+    /**
+     * After a bat at the target (not left to one bat): once the bats sent since its tag health last changed would take
+     * that health on the damage bats have been seen doing, it is left to them (One-Tap Warp At Once's rule, for several
+     * bats) and the next mob gets the presses; a survivor is shot again.
+     */
+    private static void afterEnoughBats(Seen s) {
+        if (AutoClearConfig.getInstance().getOneTap() != AutoClearConfig.OneTap.AT_ONCE || s == null || s.health() <= 0) {
+            return;
+        }
+        if (countedFor != targetId || countedHealth != s.health()) {
+            countedFor = targetId;
+            countedHealth = s.health();
+            countedBats = 0;
+        }
+        countedBats++;
+        double dmg = seenBatDamage();
+        if (dmg <= 0) {
+            return;
+        }
+        int needed = (int) Math.ceil(s.health() / dmg);
+        if (countedBats < needed) {
+            return;
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoClear] %s: %d bat(s) on their way for its %.0f health at ~%.0f a bat (as"
+                        + " seen) - leaving it to them", targetName, countedBats, s.health(), dmg));
+        doomed.put(targetId, new Flight(batSentTick, batFlight, batSentTick, s.health(),
+                com.killer560.hub.util.ServerLag.mark(), targetName, countedBats));
+        leaveToBat(Minecraft.getInstance());
     }
 
     /** The target is left to its bat: the use goes up and the next decision is a fresh one, for another mob. */
@@ -2633,6 +2941,26 @@ public final class AutoClearFeature {
                     + com.killer560.hub.util.ServerLag.ticksSince(f.lag());
             if (now > due) {
                 it.remove();
+                Seen sNow = seenMobs.get(entry.getKey());
+                double hpNow = sNow == null ? -1 : sNow.health();
+                if (f.health() > 0 && hpNow >= f.health()) {
+                    // Not a hit too weak: no hit at all (its tag never dropped) - the bat went off somewhere else. The bat's
+                    // damage is not in question, so the run's trust in it stays (autoclear-speed-1020: one miss threw away
+                    // every one-bat kill seen, and every mob after it got a held stream of bats until it died).
+                    batMisses++;
+                    LOGGER.info("[AutoClear] one-tap: {} is still alive {} ticks after its bat (flight ~{}) and its tag"
+                            + " still reads {} - the bat missed; shooting it again (the bat damage trusted is unchanged)",
+                            f.name(), now - f.sent(), f.flight(), String.format(Locale.US, "%.0f", hpNow));
+                    continue;
+                }
+                if (f.bats() > 1) {
+                    // Left to several bats on the damage they had been seen doing: hit, not killed - shot again, and the
+                    // one-bat trust (a separate figure) is untouched.
+                    LOGGER.info("[AutoClear] {} is still alive {} ticks after its {} bats (tag {} -> {}) - shooting it"
+                            + " again", f.name(), now - f.sent(), f.bats(), String.format(Locale.US, "%.0f", f.health()),
+                            String.format(Locale.US, "%.0f", hpNow));
+                    continue;
+                }
                 oneTapFailed.add(entry.getKey());
                 if (f.health() > 0) {
                     oneBatKills.removeIf(v -> v >= f.health());
@@ -2673,6 +3001,10 @@ public final class AutoClearFeature {
      * (its tag health then); a doomed mob's death is counted here, since the target had already moved on from it.
      */
     private static void mobDied(int id, Seen s) {
+        RoomClock.death(s.room());
+        if (s.room() != null && s.room().equals(roomName)) {
+            deathsInRoom++;
+        }
         BatLog b = batLogs.remove(id);
         Flight f = doomed.remove(id);
         long now = ClearExecutor.clientTick();
@@ -2691,6 +3023,7 @@ public final class AutoClearFeature {
             mobsKilled++;
             if (s.room() != null && s.room().equals(roomName)) {
                 killsInRoom++;
+                RoomClock.kill();
             }
             LOGGER.info("[AutoClear] one-tap: {} died {} ticks after its bat (flight ~{}) ({} starred kill(s) this run)",
                     f.name(), now - f.sent(), f.flight(), mobsKilled);
@@ -2776,8 +3109,164 @@ public final class AutoClearFeature {
 
     // ---- bat travel against etherwarping (killer560, 2026-10-19) ----
 
-    /** After an etherwarp chain with the Hyperion, the in-place Wither Impact still needs its turn tick before the use. */
-    static final int HYPERION_KILL_TICKS = 1;
+    /** After an etherwarp chain with the Hyperion, the in-place Wither Impact still needs the weapon back in hand and its
+     *  turn tick before the use - {@link #AFTER_TRIP_TICKS}, as every weapon after a trip. */
+    static final int HYPERION_KILL_TICKS = 2;
+
+    // ---- what a trip really costs (autoclear-speed-1020; killer560's study of his 2026-10-20 run: in-room trips were
+    // priced "~7 ticks (1 warp)" because the straight distance over the 56-block hop range is always one warp inside a
+    // room, while they averaged 2.1 warps and 12.7 ticks, so a bat that was faster lost to a trip) ----
+
+    /** After a trip lands: the weapon back in hand and the body turned onto the mob, a tick each (the sim's room-time
+     *  buckets: one swap and one turn per trip), before the use goes. */
+    static final int AFTER_TRIP_TICKS = 2;
+    /** Measured in-room etherwarp trips, by warps sent (1, 2, 3 or more): their mean ticks and how many. */
+    private static final double[] tripMean = new double[4];
+    private static final int[] tripSeen = new int[4];
+
+    /** The block a trip for {@code target} would go to (the room plan's block for it, else the nearest that reaches it),
+     *  worked out once per plan key. */
+    private static BlockPos cachedTripSpot = null;
+    private static boolean cachedTripSpotDone = false;
+
+    private static BlockPos tripSpot(Minecraft client, LocalPlayer player, Entity target, AABB box, AutoClearConfig cfg) {
+        if (!cachedTripSpotDone) {
+            cachedTripSpotDone = true;
+            BlockPos planned = coverSpotFor(target);
+            cachedTripSpot = planned != null ? preferOneWarp(client, player.position(), planned)
+                    : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        }
+        return cachedTripSpot;
+    }
+
+    /**
+     * Warps an etherwarp trip from {@code feet} onto {@code stand} needs: one when a sneaking look from here lands on it
+     * ({@link TeleportUtils#getEtherwarpDirection}, its face points only - the cheap check), else at least two, and one more
+     * for every further hop range of straight distance.
+     */
+    static int warpsTo(Vec3 feet, BlockPos stand) {
+        Vec3 eye = feet.add(0, TeleportUtils.eyeHeight(true), 0);
+        double hop = Math.max(1.0, ClearExecutor.hopRange());
+        double d = eye.distanceTo(Vec3.atCenterOf(stand));
+        if (d <= hop + 1.0 && TeleportUtils.getEtherwarpDirection(eye, stand, hop + 1.0, false) != null) {
+            return 1;
+        }
+        return Math.max(2, (int) Math.ceil(d / hop) + 1);
+    }
+
+    /** What a trip of {@code warps} warps takes: this run's own mean for that many once one has been seen, else the
+     *  nearest measured count's mean and {@link #ETHER_TICKS_PER_WARP} a warp between, else the fixed estimate. */
+    static int tripTicks(int warps) {
+        int w = Math.max(1, Math.min(3, warps));
+        if (tripSeen[w] > 0) {
+            return (int) Math.round(tripMean[w] + (warps > 3 ? ETHER_TICKS_PER_WARP * (warps - 3) : 0));
+        }
+        for (int d = 1; d <= 2; d++) {
+            for (int k : new int[]{w - d, w + d}) {
+                if (k >= 1 && k <= 3 && tripSeen[k] > 0) {
+                    return (int) Math.round(Math.max(1.0, tripMean[k] + ETHER_TICKS_PER_WARP * (warps - k)));
+                }
+            }
+        }
+        return ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
+    }
+
+    private static String tripCostNote(int warps) {
+        int w = Math.max(1, Math.min(3, warps));
+        return tripSeen[w] > 0 ? String.format(Locale.US, "%d trip(s) of %s warp(s) seen", tripSeen[w], w == 3 ? "3+" : w)
+                : "none of " + (w == 3 ? "3+" : String.valueOf(w)) + " warp(s) seen yet";
+    }
+
+    // ---- bats that miss (autoclear-speed-1020: a far aim "into the block beside the mob" whose bats went off a block from
+    // his hand, every 4 ticks for the whole Mob Timeout - 63 ticks of firing at one zombie in the sim's Flags) ----
+
+    /** The plan key the shots below were fired under, how many, the first one's tick and flight, the mob's tag health
+     *  then, and a ServerLag mark. */
+    private static long aimKey = Long.MIN_VALUE;
+    private static int aimShots = 0;
+    private static long aimFirst = 0L;
+    private static int aimFlight = 0;
+    private static double aimHealth = -1;
+    private static long aimLag = 0L;
+    /** Plan keys (his block, the mob's block, the mob) whose aim's bats missed: from there the mob is moved to instead. */
+    private static final Set<Long> missedAims = new HashSet<>();
+    /** Bats that missed (a doomed mob's tag never dropped, or an aim's shots never touched it), ever - for the testkit. */
+    private static int batMisses = 0;
+
+    public static int batMisses() {
+        return batMisses;
+    }
+
+    /**
+     * Two or more bats sent at {@code target} from here and the first should long have hit (its flight, the grace and the
+     * confirm window, and any server stall), yet its tag health has not dropped at all: the aim from here does not reach it
+     * in the server's world, whatever the client's ray said. Logged once per aim.
+     */
+    private static boolean aimMissed(Entity target) {
+        if (aimKey != planKey || aimShots < 2 || aimHealth <= 0) {
+            return false;
+        }
+        long due = aimFirst + aimFlight + BAT_HIT_GRACE_TICKS + DOOM_CONFIRM_TICKS
+                + com.killer560.hub.util.ServerLag.ticksSince(aimLag);
+        if (ClearExecutor.clientTick() <= due) {
+            return false;
+        }
+        Seen s = seenMobs.get(target.getId());
+        if (s == null || s.health() < aimHealth) {
+            return false;
+        }
+        batMisses++;
+        LOGGER.info(String.format(Locale.US, "[AutoClear] %s at %s: %d bat(s) from here and none touched it (tag still %.0f,"
+                        + " %d ticks after the first, flight ~%d) - the aim from this block misses; moving to it instead",
+                targetName, target.blockPosition().toShortString(), aimShots, s.health(),
+                ClearExecutor.clientTick() - aimFirst, aimFlight));
+        return true;
+    }
+
+    /**
+     * How far a straight bat is worth planning on: the distance a bat flies in the time a one-warp trip, the swap and turn
+     * after it and a bat fired down take ({@link #tripTicks}, as measured this run), at least 6 and at most the plan range.
+     * Past it a trip onto a nearer block kills sooner, so the room's plan of stand blocks and the "a bat from here
+     * first" pick stop there (testkit 1020-sim-ac-speed: planning on the full 24 made 20-block bats the clear's bottleneck,
+     * bat waits 652 and firing 445 ticks over 44 rooms against 206 and 241; the sim's trips take ~6 ticks, its bat 1.02 a
+     * tick). His Hypixel trips (12.7 ticks in the study) make it about 17.
+     */
+    static double usefulBatRange() {
+        int ticks = tripTicks(1) + AFTER_TRIP_TICKS + WeaponReach.BAT_LAUNCH_TICKS + 2;
+        return Math.max(6.0, Math.min(WeaponReach.SCEPTRE_PLAN_RANGE, ticks * WeaponReach.BAT_BLOCKS_PER_TICK));
+    }
+
+    /** Whether a live starred mob of the room other than {@code target} (and not already left to its bat) is in sight. */
+    private static boolean othersLeft(Minecraft client, Entity target) {
+        DungeonLayout layout = DungeonLayout.capture();
+        int room = AutoClearTargets.roomByName(layout, roomName);
+        if (room < 0) {
+            return false;
+        }
+        for (Entity e : starredIn(client, layout, room)) {
+            if (e.getId() != target.getId() && e.isAlive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** RoomClock: an etherwarp trip of the clear ended after {@code ticks}, having sent {@code uses} warps. */
+    static void noteTripCost(int ticks, int uses, boolean failed) {
+        if (failed || uses <= 0 || ticks <= 0) {
+            return;
+        }
+        int w = Math.min(3, uses);
+        // A running mean that leans on the last few (a lag spike or a server that sped up moves it within a few trips).
+        tripMean[w] = tripSeen[w] == 0 ? ticks : tripMean[w] * 0.7 + ticks * 0.3;
+        tripSeen[w]++;
+        if (tripSeen[w] == 1 || tripSeen[w] % 10 == 0) {
+            LOGGER.info(String.format(Locale.US, "[AutoClear] trip cost learned: 1 warp ~%s, 2 warps ~%s, 3+ warps ~%s ticks",
+                    tripSeen[1] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[1], tripSeen[1]) : "?",
+                    tripSeen[2] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[2], tripSeen[2]) : "?",
+                    tripSeen[3] > 0 ? String.format(Locale.US, "%.1f (%d)", tripMean[3], tripSeen[3]) : "?"));
+        }
+    }
 
     /** The sceptre bat from where he stands for the current plan key: its aim, and its cost in ticks (-2 not worked
      *  out yet, -1 none: no sceptre in the hotbar or no bat from here reaches). */
@@ -2845,29 +3334,39 @@ public final class AutoClearFeature {
         cachedPreferEther = false;
         Vec3 eye = player.getEyePosition();
         int batTicks = WeaponReach.batTicks(client.level, player, eye, cachedAttack);
+        // A bat trusted to kill alone (One-Tap Warp At Once) is left to fly while he goes on to the room's next mob, so the
+        // part of its flight that the next mob's own work (at least a trip and a shot) covers is no time of his. With no
+        // other mob left in the room the clear waits for it whole (testkit 1020-sim-ac-speed: counting only the launch
+        // made far bats the last thing in every room, 404 ticks of bat waits against 206).
+        Seen seen = seenMobs.get(target.getId());
+        boolean trusted = AutoClearConfig.getInstance().getOneTap() == AutoClearConfig.OneTap.AT_ONCE
+                && oneTapCall(target.getId(), seen == null ? -1 : seen.health()).sure() && othersLeft(client, target);
+        int batCost = trusted ? Math.max(WeaponReach.BAT_LAUNCH_TICKS, batTicks - (tripTicks(1) + AFTER_TRIP_TICKS))
+                : batTicks;
         int down = WeaponReach.batDownTicks(player);
-        if (batTicks <= ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP + down) {
+        if (batCost <= tripTicks(1) + AFTER_TRIP_TICKS + down) {
             return false;
         }
-        BlockPos planned = coverSpotFor(target);
-        BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
+        BlockPos spot = tripSpot(client, player, target, box, cfg);
         if (spot == null || BlockPos.containing(player.position()).below().equals(spot)) {
             return false;
         }
         double d = player.position().distanceTo(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
-        int warps = Math.max(1, (int) Math.ceil(d / ClearExecutor.hopRange()));
-        int ether = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps + down;
-        cachedPreferEther = ether < batTicks;
+        int warps = warpsTo(player.position(), spot);
+        int ether = tripTicks(warps) + AFTER_TRIP_TICKS + down;
+        cachedPreferEther = ether < batCost;
         LOGGER.info("[AutoClear] cost for {} at {}: bat from here ~{} ticks ({} b/t), etherwarp onto {} and fire down ~{}"
-                        + " ticks - {}", targetName, target.blockPosition().toShortString(), batTicks,
+                        + " ticks - {}", targetName, target.blockPosition().toShortString(), batCost,
                 WeaponReach.BAT_BLOCKS_PER_TICK, spot.toShortString(), ether,
                 cachedPreferEther ? "etherwarp" : "the bat from here");
         com.killer560.hub.autoclear.BatLog.LOGGER.info(String.format(Locale.US, "[Bat] decision for %s id %d at %s (sceptre weapon): %s - bat from here"
-                        + " ~%d ticks (%.1f blocks at %.2f b/t) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
-                        + " ~%d ticks (fixed %d + %d a warp + down %d)", targetName, target.getId(),
-                target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batTicks,
-                Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK, warps == 1 ? " (one-tap warp)" : "",
-                spot.toShortString(), d, warps, ether, ETHER_FIXED_TICKS, ETHER_TICKS_PER_WARP, down));
+                        + " ~%d ticks (%.1f blocks at %.2f b/t%s) vs etherwarp%s onto %s (%.1f blocks, %d warp(s)) and fire down"
+                        + " ~%d ticks (trip %d as measured, %s, + %d after the landing + down %d)", targetName,
+                target.getId(), target.blockPosition().toShortString(), cachedPreferEther ? "etherwarp" : "bat", batCost,
+                Math.sqrt(box.distanceToSqr(eye)), WeaponReach.BAT_BLOCKS_PER_TICK,
+                trusted ? "; trusted to kill alone, the next mob's work covers part of its flight " + batTicks : "",
+                warps == 1 ? " (one-tap warp)" : "", spot.toShortString(), d, warps, ether, tripTicks(warps),
+                tripCostNote(warps), AFTER_TRIP_TICKS, down));
         return cachedPreferEther;
     }
 
@@ -2887,6 +3386,8 @@ public final class AutoClearFeature {
     /** The last walk-or-etherwarp decision, so it is worked out (and logged) once per plan: start block, goal, what. */
     private static String walkDecisionKey = null;
     private static ShortWalk.Plan walkDecisionPlan = null;
+    /** The etherwarp trip's warps for {@link #walkDecisionKey} (worked out with it). */
+    private static int walkWarps = 1;
     private static int walks = 0;
 
     /** For the testkit: walks Auto Clear chose over an etherwarp, ever (only goes up). */
@@ -2924,9 +3425,12 @@ public final class AutoClearFeature {
         }
         Vec3 goalFeet = new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5);
         double straight = feet.distanceTo(goalFeet);
-        int warps = Math.max(1, (int) Math.ceil(straight / ClearExecutor.hopRange()));
-        int etherTicks = ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * warps;
         String key = BlockPos.containing(feet).asLong() + "|" + spot.asLong() + "|" + what;
+        if (!key.equals(walkDecisionKey)) {
+            walkWarps = warpsTo(feet, spot);
+        }
+        int warps = walkWarps;
+        int etherTicks = tripTicks(warps);
         if (!key.equals(walkDecisionKey)) {
             walkDecisionKey = key;
             walkDecisionPlan = null;
@@ -2951,6 +3455,7 @@ public final class AutoClearFeature {
         }
         walkDecisionKey = null;   // taken: the next decision is a fresh one
         walkDecisionPlan = null;
+        tripPrice = plan.ticks();
         walkForMob = doneAt != null && !forDoor;
         walkForDoor = forDoor;
         walkWhat = what;
@@ -3130,13 +3635,24 @@ public final class AutoClearFeature {
             ClearExecutor.etherPathArrive(spot, null);
         } else {
             sameGoalTrips = 1;
-            ClearExecutor.etherPathFast(spot, null);
+            // One warp onto it from here: no search (autoclear-speed-1020).
+            if (ClearExecutor.etherDirectFast(spot, null)) {
+                directTrips++;
+            } else {
+                ClearExecutor.etherPathFast(spot, null);
+            }
         }
         lastTripGoal = spot.immutable();
     }
 
     /** Trips in a row asked for {@link #lastTripGoal}. */
     private static int sameGoalTrips;
+    /** Trips sent as one direct warp with no search (ClearExecutor.etherDirectFast), ever - read by the testkit. */
+    private static int directTrips = 0;
+
+    public static int directTrips() {
+        return directTrips;
+    }
 
     /** True when both the near trip and the exact one onto {@code spot} ended off it: no trip will get him there. */
     private static boolean tripsCannotReach(BlockPos spot) {
@@ -3146,8 +3662,15 @@ public final class AutoClearFeature {
     /** Gives the body back first (a tick), then starts an Interactive Map trip. */
     private static void startTrip(Minecraft client, LocalPlayer player, java.util.function.BooleanSupplier trip) {
         if (BODY.isHeld()) {
-            phase = Phase.RELEASE;
-            return;
+            // The body goes back to his view NOW, inside this tick, as ClearExecutor.finishArrivalEarly hands it over before
+            // a route turns it: nothing of Auto Clear's goes out on this tick after it, and the trip's first hop turns the
+            // body with its own BodyAim when it is sent. Until autoclear-speed-1020 this was a whole tick (Phase.RELEASE)
+            // before every trip: 95 ticks of the sim's 44 rooms.
+            BODY.tick(player, false);
+            if (BODY.isHeld()) {
+                phase = Phase.RELEASE;
+                return;
+            }
         }
         ClearExecutor.setExternalOwner(true);
         boolean started = trip.getAsBoolean();
@@ -3173,10 +3696,15 @@ public final class AutoClearFeature {
             stop("no " + label + " in the hotbar");
             return false;
         }
+        boolean swapped = false;
         if (player.getInventory().getSelectedSlot() != slot) {
+            // The weapon and the turn on the same tick (autoclear-speed-1020: the swap was a tick of its own after every
+            // trip, 146 ticks of the sim's 44 rooms): the carried-item packet goes now, the movement packet carries the
+            // turn, and the use the next tick - what a player pressing the hotbar key while he turns sends.
             releaseUse(client);
             select(client, player, slot);
-            return false;
+            tickKind = "swap";
+            swapped = true;
         }
         bodyWanted = true;
         float yaw = player.getYRot() + Mth.wrapDegrees(aim.yaw() - player.getYRot());
@@ -3185,16 +3713,64 @@ public final class AutoClearFeature {
             releaseUse(client);
             BODY.turn(player, yaw, pitch);
             phase = Phase.IDLE;
+            tickKind = swapped ? "swap" : "turning";
             return false;
         }
+        if (swapped) {
+            return false;   // already aimed: the use goes next tick, a tick after the swap the server has heard
+        }
         phase = next;
-        holdUse(client);
+        if (next == Phase.ATTACK) {
+            pressUse(client);
+        } else {
+            holdUse(client);   // a Hyperion hop keeps its one held use along the dash until it lands
+        }
         return true;
     }
 
     private static void holdUse(Minecraft client) {
         client.options.keyUse.setDown(true);
         useHeld = true;
+    }
+
+    // ---- the fast repeat (autoclear-speed-1020; his study: vanilla repeats a HELD use only every 4 ticks
+    // (Minecraft.handleKeybinds: held, rightClickDelay == 0), which cost about 384 ticks of his run; a fresh press is not
+    // bound by it - "while (keyUse.consumeClick()) startUseItem()" has no rightClickDelay check (javap 26.1.2, offsets
+    // 786-799) - so an attack's uses are fresh presses on a 2-tick schedule, 10 a second, as Lever Aura's clicks are) ----
+
+    /** Ticks between two of Auto Clear's presses of the use key: 10 uses a second. */
+    static final int FAST_REPEAT_TICKS = 2;
+    /** The client tick of Auto Clear's last press. */
+    private static long lastPressTick = Long.MIN_VALUE / 2;
+
+    /**
+     * One fresh press of the use key this tick, unless the last went out under {@link #FAST_REPEAT_TICKS} ago: vanilla's
+     * own click path then sends the use in this tick's {@code handleKeybinds}, after the body turned a tick earlier (the
+     * movement packet has reported it), through the same pick (HeldUsePickMixin, while {@link #useHeld}). A use key bound
+     * to nothing is held as before.
+     */
+    private static void pressUse(Minecraft client) {
+        useHeld = true;
+        if (client.options.keyUse.isDown()) {
+            client.options.keyUse.setDown(false);
+        }
+        long now = ClearExecutor.clientTick();
+        if (now - lastPressTick < FAST_REPEAT_TICKS) {
+            return;
+        }
+        com.mojang.blaze3d.platform.InputConstants.Key key = null;
+        try {
+            key = ((com.killer560.hub.autoroutes.mixin.KeyMappingKeyAccessor) (Object) client.options.keyUse)
+                    .killer560smod$getKey();
+        } catch (RuntimeException e) {
+            // the accessor did not apply: hold as before
+        }
+        if (key == null || key.equals(com.mojang.blaze3d.platform.InputConstants.UNKNOWN)) {
+            client.options.keyUse.setDown(true);
+            return;
+        }
+        KeyMapping.click(key);
+        lastPressTick = now;
     }
 
     private static void releaseUse(Minecraft client) {
@@ -3366,6 +3942,104 @@ public final class AutoClearFeature {
     private static final int COVER_REPLAN_TICKS = 10;
     private static List<BlockPos> coverSpots = List.of();
     private static List<Set<Integer>> coverMobs = List.of();
+    /** Every candidate block of the last plan, and the mob ids each reaches. */
+    private static List<BlockPos> coverAllSpots = List.of();
+    private static List<Set<Integer>> coverAllIds = List.of();
+    /** At most this many blocks are tried (nearest him first) for one that a single warp from here lands on. */
+    static final int ONE_WARP_TRIES = 40;
+
+    /**
+     * A block that does the plan block's job - it reaches every live mob the plan block reaches - and that one warp from
+     * where he stands lands on ({@link #warpsTo}); the nearest such of the plan's candidates, or {@code planned} itself
+     * when it is one warp already or none is. The plan counts blocks and their straight distance; a block one warp away
+     * is the cheaper of two that reach the same mobs (his study: in-room trips averaged 2.1 warps).
+     */
+    private static BlockPos preferOneWarp(Minecraft client, Vec3 feet, BlockPos planned) {
+        int at = coverAllSpots.indexOf(planned);
+        if (at < 0 || warpsTo(feet, planned) == 1) {
+            return planned;
+        }
+        Set<Integer> need = new HashSet<>();
+        for (int id : coverAllIds.get(at)) {
+            Entity e = client.level.getEntity(id);
+            if (e != null && e.isAlive()) {
+                need.add(id);
+            }
+        }
+        if (need.isEmpty()) {
+            return planned;
+        }
+        List<Integer> order = new java.util.ArrayList<>();
+        for (int i = 0; i < coverAllSpots.size(); i++) {
+            if (i != at && coverAllIds.get(i).containsAll(need)) {
+                order.add(i);
+            }
+        }
+        order.sort(java.util.Comparator.comparingDouble(i -> Vec3.atCenterOf(coverAllSpots.get(i)).distanceToSqr(feet)));
+        int tried = 0;
+        for (int i : order) {
+            if (++tried > ONE_WARP_TRIES) {
+                break;
+            }
+            BlockPos b = coverAllSpots.get(i);
+            if (BlockPos.containing(feet).below().equals(b)) {
+                continue;
+            }
+            if (warpsTo(feet, b) == 1) {
+                LOGGER.info("[AutoClear] trip: {} reaches the same {} mob(s) as the plan's {} and is one warp from here"
+                        + " (the plan's block is not) - going there", b.toShortString(), need.size(), planned.toShortString());
+                return b;
+            }
+        }
+        // None does the whole job in one warp: the one-warp block that does the most of it, the target among them - a
+        // direct warp is half a searched trip in the sim (3 ticks against 6-8), so a second trip for what it leaves is
+        // still the cheaper way when it leaves little.
+        if (targetId >= 0 && need.contains(targetId) && need.size() > 1) {
+            BlockPos best = null;
+            int bestGot = 0;
+            tried = 0;
+            List<Integer> partial = new java.util.ArrayList<>();
+            for (int i = 0; i < coverAllSpots.size(); i++) {
+                if (i != at && coverAllIds.get(i).contains(targetId)) {
+                    partial.add(i);
+                }
+            }
+            partial.sort(java.util.Comparator.comparingInt((Integer i) -> -intersect(coverAllIds.get(i), need))
+                    .thenComparingDouble(i -> Vec3.atCenterOf(coverAllSpots.get(i)).distanceToSqr(feet)));
+            for (int i : partial) {
+                if (++tried > ONE_WARP_TRIES) {
+                    break;
+                }
+                int got = intersect(coverAllIds.get(i), need);
+                if (got <= bestGot || got * 2 < need.size()) {
+                    continue;
+                }
+                BlockPos b = coverAllSpots.get(i);
+                if (!BlockPos.containing(feet).below().equals(b) && warpsTo(feet, b) == 1) {
+                    best = b;
+                    bestGot = got;
+                    break;   // sorted by how much it does: the first one-warp block is the best
+                }
+            }
+            if (best != null) {
+                LOGGER.info("[AutoClear] trip: {} reaches {} of the plan block {}'s {} mob(s) (the target among them) and is"
+                        + " one warp from here - going there", best.toShortString(), bestGot, planned.toShortString(),
+                        need.size());
+                return best;
+            }
+        }
+        return planned;
+    }
+
+    private static int intersect(Set<Integer> a, Set<Integer> b) {
+        int n = 0;
+        for (int x : a) {
+            if (b.contains(x)) {
+                n++;
+            }
+        }
+        return n;
+    }
     /** Etherwarps toward mobs, ever (each is a reposition). */
     private static int repositions = 0;
 
@@ -3380,8 +4054,8 @@ public final class AutoClearFeature {
      * mobs, each with the mobs its weapon reaches from there, and the fewest of them that reach every mob
      * ({@link RepositionPlanner}). Planned again whenever a mob dies or moves a block.
      */
-    private static void planRepositions(Minecraft client, LocalPlayer player, List<Entity> mobs,
-                                        AutoClearConfig.Weapon weapon) {
+    private static void planRepositions(Minecraft client, LocalPlayer player, List<Entity> mobs, AutoClearConfig.Weapon weapon,
+                                        DungeonLayout layout, int room) {
         List<Entity> list = mobs.size() > 63 ? mobs.subList(0, 63) : mobs;
         StringBuilder ids = new StringBuilder(weapon.name());
         StringBuilder key = new StringBuilder();
@@ -3400,7 +4074,7 @@ public final class AutoClearFeature {
         coverKey = key.toString();
         coverAge = 0;
         long t0 = System.nanoTime();
-        Cover cover = cover(list, weapon);
+        Cover cover = cover(list, weapon, layout, room);
         List<Long> keys = cover.keys();
         long[] covers = cover.covers();
         double[][] spots = cover.spots();
@@ -3428,6 +4102,21 @@ public final class AutoClearFeature {
         }
         coverSpots = order;
         coverMobs = reach;
+        // Every candidate block with the mobs it reaches, for the trip's pick among blocks that do the plan block's job.
+        List<BlockPos> allSpots = new java.util.ArrayList<>(keys.size());
+        List<Set<Integer>> allIds = new java.util.ArrayList<>(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            Set<Integer> mobIds = new HashSet<>();
+            for (int j = 0; j < list.size(); j++) {
+                if ((covers[i] & (1L << j)) != 0) {
+                    mobIds.add(list.get(j).getId());
+                }
+            }
+            allSpots.add(BlockPos.of(keys.get(i)));
+            allIds.add(mobIds);
+        }
+        coverAllSpots = allSpots;
+        coverAllIds = allIds;
         int old = RepositionPlanner.nearestMobFirst(covers, list.size(), spots, mobAt, from);
         LOGGER.info(String.format(Locale.US, "[AutoClear] reposition plan for %s: %d block(s) reach all %d reachable starred"
                         + " mob(s)%s (nearest mob first would take %d); %d candidate block(s), %.1f ms: %s", roomName,
@@ -3443,7 +4132,78 @@ public final class AutoClearFeature {
     private record Cover(List<Long> keys, long[] covers, double[][] spots, long[] trimmed, int reachable) {
     }
 
+    // ---- stand blocks within the bat's real reach (autoclear-speed-1020; his study: trips were planned only onto blocks
+    // within 5 of a mob - the bat fired straight down - though a bat flies 24, so every reposition went onto a mob cluster
+    // and each mob or two cost a trip of its own) ----
+
+    /** How far round each mob the sceptre's stand blocks are looked for (horizontally), and the grid they are taken on. */
+    static final int SCEPTRE_STAND_RADIUS = 18;
+    static final int SCEPTRE_STAND_STEP = 3;
+
+    /** The mobs of {@code list} the weapon reaches with his feet at {@code feet} (bit j = mob j). */
+    private static long reachMask(AutoClearConfig.Weapon weapon, Vec3 feet, List<Entity> list) {
+        long m = 0;
+        net.minecraft.world.level.Level level = Minecraft.getInstance().level;
+        for (int j = 0; j < list.size(); j++) {
+            AABB box = list.get(j).getBoundingBox();
+            boolean hit = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && level != null
+                    ? WeaponReach.sceptreReachesFrom(level, feet, box, usefulBatRange()) : reaches(weapon, feet, box);
+            if (hit) {
+                m |= 1L << j;
+            }
+        }
+        return m;
+    }
+
+    /**
+     * The sceptre's far stand blocks: on a {@link #SCEPTRE_STAND_STEP}-block grid up to {@link #SCEPTRE_STAND_RADIUS} round
+     * each mob, inside the room, every block he can etherwarp onto between six under and four over the mob, each with the
+     * mobs a straight bat from its standing eye reaches ({@link WeaponReach#sceptreReachesFrom}) - so the plan can take one
+     * block that shoots across the room instead of a block beside each mob.
+     */
+    private static void sceptreStands(List<Entity> list, DungeonLayout layout, int room, java.util.Map<Long, Long> masks) {
+        net.minecraft.world.level.Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        Set<Long> columns = new HashSet<>();
+        for (Entity mob : list) {
+            int mx = Mth.floor(mob.getX());
+            int my = Mth.floor(mob.getY());
+            int mz = Mth.floor(mob.getZ());
+            // Snapped to the grid, so the columns round two mobs are the same columns.
+            int x0 = Math.floorDiv(mx - SCEPTRE_STAND_RADIUS, SCEPTRE_STAND_STEP) * SCEPTRE_STAND_STEP;
+            int z0 = Math.floorDiv(mz - SCEPTRE_STAND_RADIUS, SCEPTRE_STAND_STEP) * SCEPTRE_STAND_STEP;
+            for (int x = x0; x <= mx + SCEPTRE_STAND_RADIUS; x += SCEPTRE_STAND_STEP) {
+                for (int z = z0; z <= mz + SCEPTRE_STAND_RADIUS; z += SCEPTRE_STAND_STEP) {
+                    if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) {
+                        continue;
+                    }
+                    for (int y = my - 6; y <= my + 4; y++) {
+                        BlockPos pos = new BlockPos(x, y, z);
+                        long k = pos.asLong();
+                        if (masks.containsKey(k) || !columns.add(k)) {
+                            continue;
+                        }
+                        if (!TeleportUtils.etherwarpable(pos)) {
+                            continue;
+                        }
+                        Vec3 feet = new Vec3(x + 0.5, y + 1.0, z + 0.5);
+                        long m = reachMask(AutoClearConfig.Weapon.SPIRIT_SCEPTRE, feet, list);
+                        if (m != 0) {
+                            masks.put(k, m);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon) {
+        return cover(list, weapon, null, -1);
+    }
+
+    private static Cover cover(List<Entity> list, AutoClearConfig.Weapon weapon, DungeonLayout layout, int room) {
         java.util.Map<Long, Long> masks = new java.util.LinkedHashMap<>();
         for (int i = 0; i < list.size(); i++) {
             AABB box = list.get(i).getBoundingBox();
@@ -3464,16 +4224,13 @@ public final class AutoClearFeature {
                             masks.put(k, 0L);
                             continue;
                         }
-                        long m = 0;
-                        for (int j = 0; j < list.size(); j++) {
-                            if (reaches(weapon, feet, list.get(j).getBoundingBox())) {
-                                m |= 1L << j;
-                            }
-                        }
-                        masks.put(k, m);
+                        masks.put(k, reachMask(weapon, feet, list));
                     }
                 }
             }
+        }
+        if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && layout != null && room >= 0) {
+            sceptreStands(list, layout, room, masks);
         }
         List<Long> keys = new java.util.ArrayList<>();
         for (java.util.Map.Entry<Long, Long> e : masks.entrySet()) {
@@ -3570,7 +4327,7 @@ public final class AutoClearFeature {
             double[] s = cover.spots()[i];
             double d = Math.sqrt((s[0] - at[0]) * (s[0] - at[0]) + (s[1] - at[1]) * (s[1] - at[1])
                     + (s[2] - at[2]) * (s[2] - at[2]));
-            ticks += ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * Math.max(1, Math.ceil(d / hop)) + ESTIMATE_USE_TICKS;
+            ticks += tripTicks(Math.max(1, (int) Math.ceil(d / hop))) + ESTIMATE_USE_TICKS;
             at = s;
         }
         return new double[]{ticks, at[0], at[1], at[2], list.size()};
@@ -3600,6 +4357,10 @@ public final class AutoClearFeature {
 
     /** The plan's first block that reaches {@code mob}, or null. */
     private static BlockPos coverSpotFor(Entity mob) {
+        if (java.util.Objects.equals(nextBlockPlan, coverIds) && nextBlockAnswer < coverSpots.size()
+                && coverMobs.get(nextBlockAnswer).contains(mob.getId())) {
+            return coverSpots.get(nextBlockAnswer);   // the block nextPlanBlock chose for this mob
+        }
         for (int i = 0; i < coverSpots.size(); i++) {
             if (coverMobs.get(i).contains(mob.getId())) {
                 return coverSpots.get(i);
@@ -3661,10 +4422,24 @@ public final class AutoClearFeature {
                 return nearest(player, now);
             }
         }
+        if (weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE && player.level() != null) {
+            // Every mob a bat from here reaches first: no trip at all for those (a turn and a use each), and the room's
+            // plan for the rest is made again without them.
+            List<Entity> now = new java.util.ArrayList<>();
+            for (Entity e : mobs) {
+                if (WeaponReach.sceptreReachesFrom(player.level(), player.position(), e.getBoundingBox(), usefulBatRange())) {
+                    now.add(e);
+                }
+            }
+            if (!now.isEmpty()) {
+                return nearest(player, now);
+            }
+        }
         if (!coverSpots.isEmpty()) {
             List<Entity> reached = new java.util.ArrayList<>();
+            int next = nextPlanBlock(player);
             for (Entity e : mobs) {
-                if (coverMobs.get(0).contains(e.getId())) {
+                if (coverMobs.get(next).contains(e.getId())) {
                     reached.add(e);
                 }
             }
@@ -3673,6 +4448,46 @@ public final class AutoClearFeature {
             }
         }
         return nearest(player, mobs);
+    }
+
+    /** {@link #nextPlanBlock}'s answer for one block of his and one plan. */
+    private static long nextBlockKey = Long.MIN_VALUE;
+    private static String nextBlockPlan = null;
+    private static int nextBlockAnswer = 0;
+
+    /**
+     * Which of the room plan's blocks to go to next (autoclear-speed-1020, his study: "prefer the mob the next trip reaches
+     * with the fewest warps, not the nearest"): the one the fewest warps from here reach ({@link #warpsTo}, a block that
+     * does its job one warp away counting for it), the plan's nearest-first order breaking ties. Worked out once per block
+     * of his and plan.
+     */
+    private static int nextPlanBlock(LocalPlayer player) {
+        long here = BlockPos.containing(player.position()).asLong();
+        if (here == nextBlockKey && java.util.Objects.equals(nextBlockPlan, coverIds) && nextBlockAnswer < coverSpots.size()) {
+            return nextBlockAnswer;
+        }
+        nextBlockKey = here;
+        nextBlockPlan = coverIds;
+        int best = 0;
+        int bestWarps = Integer.MAX_VALUE;
+        Minecraft client = Minecraft.getInstance();
+        for (int i = 0; i < coverSpots.size() && bestWarps > 1; i++) {
+            BlockPos b = coverSpots.get(i);
+            int w = warpsTo(player.position(), b);
+            if (w > 1 && preferOneWarp(client, player.position(), b) != b) {
+                w = 1;
+            }
+            if (w < bestWarps) {
+                bestWarps = w;
+                best = i;
+            }
+        }
+        if (best != 0) {
+            LOGGER.info("[AutoClear] next block: {} ({} warp(s) from here) before the plan's nearest {}",
+                    coverSpots.get(best).toShortString(), bestWarps, coverSpots.get(0).toShortString());
+        }
+        nextBlockAnswer = best;
+        return best;
     }
 
     private static Entity nearest(LocalPlayer player, List<Entity> mobs) {

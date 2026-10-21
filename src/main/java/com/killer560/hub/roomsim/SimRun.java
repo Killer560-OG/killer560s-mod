@@ -164,6 +164,7 @@ public final class SimRun {
             // finishes it needs to remove the blocks for the gate. Those infested chizzledd blocks."
             SimDoors.openEntranceGate(client, entranceDoor);
             ModChat.send("Sim", ModChat.text("GO"));
+            SimLiveMobs.onRunStart(client);
         }
     }
 
