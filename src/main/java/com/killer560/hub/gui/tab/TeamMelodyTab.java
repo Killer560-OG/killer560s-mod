@@ -40,16 +40,18 @@ public class TeamMelodyTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isHudEnabledRaw()) {
-            return widgets;
-        }
-
+        // Share My Progress is independent of the HUD (the tracker reads and publishes with the HUD off), so it
+        // stays reachable while the HUD is off; only the HUD's own Scale slider needs the HUD on.
         widgets.add(SettingsButtonWidget.builder(onOff("Share My Progress", cfg.isShareProgress()), btn -> {
                     cfg.setShareProgress(!cfg.isShareProgress());
                     cfg.save();
                     btn.setMessage(onOff("Share My Progress", cfg.isShareProgress()));
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 24;
+
+        if (!cfg.isHudEnabledRaw()) {
+            return widgets;
+        }
 
         widgets.add(scaleSlider(contentX, y, contentWidth));
         y += 22;
