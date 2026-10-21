@@ -51,11 +51,6 @@ public final class WitherDoorsConfig {
             this.label = label;
         }
 
-        public Style next() {
-            Style[] v = values();
-            return v[(ordinal() + 1) % v.length];
-        }
-
         public boolean fills() {
             return this != OUTLINE;
         }
