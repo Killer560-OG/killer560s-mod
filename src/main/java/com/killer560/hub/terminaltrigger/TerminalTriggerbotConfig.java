@@ -24,7 +24,6 @@ public final class TerminalTriggerbotConfig {
 
     public static final int MAX_DELAY_MS = 1000;
     public static final int MAX_COOLDOWN_MS = 2000;
-    /** Hypixel's own interact reach - past this the server refuses the click anyway. */
     /**
      * Measured ENTITY reach.
      *
