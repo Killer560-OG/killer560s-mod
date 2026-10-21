@@ -5,7 +5,6 @@ import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudEditorScreen;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
-import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -209,7 +208,7 @@ public final class InventoryHudFeature {
         }
         Font font = Minecraft.getInstance().font;
         Inventory inventory = player.getInventory();
-        int veil = itemVeil(bg, cfg.getItemOpacity());
+        int veil = itemVeil(bg, cfg.getItemOpacity(), com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD));
         // One batch for every occupied cell's veil, submitted after the items so each veil sits over its item and count.
         GuiRects veils = veil == 0 ? null : GuiRects.begin(graphics);
         for (int row = 0; row < ROWS; row++) {
@@ -251,11 +250,10 @@ public final class InventoryHudFeature {
      * where there is no colour to fade toward. At 0% the veil is opaque, so every item is hidden behind the colour; the
      * panel itself still follows the background opacity (0 there hides the whole panel, see drawPanel).
      */
-    private static int itemVeil(InventoryHudConfig.Background bg, int itemOpacity) {
+    private static int itemVeil(InventoryHudConfig.Background bg, int itemOpacity, com.killer560.hub.gui.OverlayPalette menu) {
         if (itemOpacity >= 100 || bg == InventoryHudConfig.Background.NONE) {
             return 0;
         }
-        com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.INVENTORY_HUD);
         int rgb;
         if (bg == InventoryHudConfig.Background.SLOTS) {
             rgb = menu == null ? SLOT_BG : menu.card();
@@ -315,33 +313,29 @@ public final class InventoryHudFeature {
         // which carries no colour either. The only per-item colour is the tints array on submitItem, which a mixin
         // would have to rewrite, and blending of its alpha has not been verified in game. So the fade is the veil
         // drawn by drawPanel (see itemVeil): an approximation, not a true per-item alpha.
-        try {
-            float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
-            if (pop > 0f) {
-                // Same squash-and-stretch as vanilla Gui#extractSlot.
-                float s = 1.0f + pop / 5.0f;
-                graphics.pose().pushMatrix();
-                try {
-                    graphics.pose().translate(x + 8, y + 12);
-                    graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
-                    graphics.pose().translate(-(x + 8), -(y + 12));
-                    graphics.item(stack, x, y);
-                } finally {
-                    graphics.pose().popMatrix();
-                }
-            } else {
+        float pop = cfg.isPickupAnimation() ? stack.getPopTime() - partialTick : 0f;
+        if (pop > 0f) {
+            // Same squash-and-stretch as vanilla Gui#extractSlot.
+            float s = 1.0f + pop / 5.0f;
+            graphics.pose().pushMatrix();
+            try {
+                graphics.pose().translate(x + 8, y + 12);
+                graphics.pose().scale(1.0f / s, (s + 1.0f) / 2.0f);
+                graphics.pose().translate(-(x + 8), -(y + 12));
                 graphics.item(stack, x, y);
+            } finally {
+                graphics.pose().popMatrix();
             }
+        } else {
+            graphics.item(stack, x, y);
+        }
 
-            if (cfg.isShowDurability()) {
-                // Empty text suppresses the count while keeping the durability bar / cooldown overlay.
-                graphics.itemDecorations(font, stack, x, y, cfg.isShowCounts() ? null : "");
-            } else if (cfg.isShowCounts() && stack.getCount() != 1) {
-                String count = String.valueOf(stack.getCount());
-                graphics.text(font, count, x + 19 - 2 - font.width(count), y + 6 + 3, 0xFFFFFFFF, true);
-            }
-        } finally {
-            // (nothing to restore - see the note above; no global colour is being set any more)
+        if (cfg.isShowDurability()) {
+            // Empty text suppresses the count while keeping the durability bar / cooldown overlay.
+            graphics.itemDecorations(font, stack, x, y, cfg.isShowCounts() ? null : "");
+        } else if (cfg.isShowCounts() && stack.getCount() != 1) {
+            String count = String.valueOf(stack.getCount());
+            graphics.text(font, count, x + 19 - 2 - font.width(count), y + 6 + 3, 0xFFFFFFFF, true);
         }
     }
 
