@@ -312,6 +312,8 @@ public final class AutoClearFeature {
         batLogs.clear();
         missedAims.clear();
         aimKey = Long.MIN_VALUE;
+        pendingClears.clear();
+        deathsInRoom = 0;
         oneTapLogged.clear();
         oneTapFailed.clear();
         leadLogged.clear();
@@ -679,6 +681,7 @@ public final class AutoClearFeature {
             roomName = layout.name(room);
             noMobTicks = 0;
             killsInRoom = 0;
+            deathsInRoom = 0;
             pathFailures = 0;
             targetId = -1;
             resetRoam();
@@ -712,6 +715,9 @@ public final class AutoClearFeature {
                 releaseUse(client);
                 action = "waiting for the bat at " + waitingOn;
                 noMobTicks = 0;
+                return;
+            }
+            if (moveOnAtLastDeath(client, layout, room)) {
                 return;
             }
             if (layout.currentRoom() == room) {
@@ -778,6 +784,75 @@ public final class AutoClearFeature {
         attack(client, player, target, cfg);
     }
 
+    // ---- moving on at the room's last death (autoclear-speed-1020: a player who has killed the last mob he knows of goes
+    // on; Auto Clear stood "looking for starred mobs" until the map's checkmark came - 226 of the sim's 1654 room ticks,
+    // the sim checking its rooms every 10 ticks and Hypixel's map item a refresh behind) ----
+
+    /** A room left at its last death is not picked again for this long (plus server lag) while the map catches up. */
+    static final int PENDING_CLEAR_TICKS = 60;
+    /** Rooms left at their last death whose clear the map has not shown yet: name -> {tick, ServerLag mark}. */
+    private static final java.util.Map<String, long[]> pendingClears = new java.util.LinkedHashMap<>();
+    /** Starred deaths seen this room (any cause: the target, a doomed one, a splash). */
+    private static int deathsInRoom = 0;
+
+    /**
+     * Standalone runs only (a room handed over by Auto Secret or Autopilot ends on the map's own clear, as their plans
+     * expect): with no starred mob of the room in sight, none left to a bat, none remembered (lost from view or skipped),
+     * at least one seen dying here and the map not saying cleared yet, the room is left now and the next one picked; it
+     * counts when the map clears it, and is picked again (a mob that was never seen) if the map has not after
+     * {@link #PENDING_CLEAR_TICKS}.
+     * @return true when the room was left
+     */
+    private static boolean moveOnAtLastDeath(Minecraft client, DungeonLayout layout, int room) {
+        if (singleRoom != null || deathsInRoom == 0 || !LiveMapFeature.hasRoomStates() || roomName == null
+                || MidasAltar.ROOM.equals(roomName)) {
+            return false;
+        }
+        for (Seen s : seenMobs.values()) {
+            if (roomName.equals(s.room())) {
+                return false;   // one alive somewhere (in view without its tag, or lost from view)
+            }
+        }
+        if (!knownMobs(client, layout, room).isEmpty()) {
+            return false;
+        }
+        pendingClears.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
+        LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) - going on now; the map's clear is"
+                + " counted when it comes, and the room is picked again if it has not come in {} ticks", roomName,
+                deathsInRoom, PENDING_CLEAR_TICKS);
+        RoomClock.end("left at its last death");
+        releaseUse(client);
+        roomName = null;
+        targetId = -1;
+        return true;
+    }
+
+    /** Pending rooms the map now shows cleared are counted; those it still does not after the wait are dropped (picked
+     *  again). Returns the names still waiting. */
+    private static Set<String> pendingStill(DungeonLayout layout) {
+        Set<String> out = new HashSet<>();
+        for (var it = pendingClears.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            int r = AutoClearTargets.roomByName(layout, e.getKey());
+            if (r >= 0 && AutoClearTargets.isCleared(layout, r)) {
+                roomsCleared++;
+                LOGGER.info("[AutoClear] room cleared: {} (on the map {} ticks after it was left)", e.getKey(),
+                        ClearExecutor.clientTick() - e.getValue()[0]);
+                it.remove();
+                continue;
+            }
+            if (ClearExecutor.clientTick() - e.getValue()[0]
+                    > PENDING_CLEAR_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
+                LOGGER.info("[AutoClear] {} is still not cleared on the map {} ticks after its last death - it goes back in"
+                        + " the order", e.getKey(), ClearExecutor.clientTick() - e.getValue()[0]);
+                it.remove();
+                continue;
+            }
+            out.add(e.getKey());
+        }
+        return out;
+    }
+
     private static int pickRoom(DungeonLayout layout, AutoClearConfig cfg) {
         if (singleRoom != null) {
             int r = AutoClearTargets.roomByName(layout, singleRoom);
@@ -803,10 +878,20 @@ public final class AutoClearFeature {
         if (startQuizFirst(layout)) {
             return -1;
         }
-        List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skippedRooms);
+        Set<String> pending = pendingStill(layout);
+        Set<String> skip = skippedRooms;
+        if (!pending.isEmpty()) {
+            skip = new HashSet<>(skippedRooms);
+            skip.addAll(pending);
+        }
+        List<Integer> candidates = AutoClearTargets.candidates(layout, cfg.getMode(), skip);
         if (candidates == null) {
             stop("the blood door is not on the map yet (Blood Rush Split)");
             return -1;
+        }
+        if (candidates.isEmpty() && !pending.isEmpty()) {
+            action = "waiting for the map to clear " + String.join(", ", pending);
+            return -1;   // nothing else to do: the room left at its last death is counted, or taken again, shortly
         }
         AutoClearTargets.Choice c = candidates.isEmpty() ? null : AutoClearTargets.choose(layout, candidates);
         int back = comeBackRoom(layout, cfg, c == null ? -1 : c.room());
@@ -2790,6 +2875,9 @@ public final class AutoClearFeature {
      */
     private static void mobDied(int id, Seen s) {
         RoomClock.death(s.room());
+        if (s.room() != null && s.room().equals(roomName)) {
+            deathsInRoom++;
+        }
         BatLog b = batLogs.remove(id);
         Flight f = doomed.remove(id);
         long now = ClearExecutor.clientTick();
