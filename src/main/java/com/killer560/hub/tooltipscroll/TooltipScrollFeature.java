@@ -251,6 +251,11 @@ public final class TooltipScrollFeature {
 
     /** The sideways move the tooltip should be drawn with this frame (0 = none). Used by the render mixin. */
     public static int horizontalOffset() {
+        // Only while the feature is on and a container slot is hovered: nudgeX otherwise lingered after closing the
+        // inventory (or turning the feature off) and shifted every later tooltip, widgets on other screens included.
+        if (nudgeX == 0 || hovered.get() == null || !TooltipScrollConfig.getInstance().isEnabled()) {
+            return 0;
+        }
         return nudgeX;
     }
 
@@ -275,11 +280,7 @@ public final class TooltipScrollFeature {
         }
 
         int n = components.size();
-        int[] heights = new int[n];
-        for (int i = 0; i < n; i++) {
-            heights[i] = components.get(i).getHeight(font);
-        }
-        // prefix[i] = the real, rendered vertical extent of components[0, i): each component's own height
+        // Prefix height of components[0, i) = the real, rendered vertical extent: each component's own height
         // plus the 2px separator vanilla inserts before every component after the first. Read straight off
         // GuiGraphicsExtractor#tooltip's actual drawing loop with javap -c - deliberately NOT the same
         // arithmetic vanilla uses to size/position its background box (which sums getHeight() alone, with no
@@ -287,11 +288,7 @@ public final class TooltipScrollFeature {
         // background anymore - it translates the whole already-correctly-rendered picture as one rigid
         // block - so what matters here is how tall the actual drawn TEXT is, which is this formula, not
         // vanilla's internal box-sizing shortcut.
-        int[] prefix = new int[n + 1];
-        for (int i = 0; i < n; i++) {
-            prefix[i + 1] = prefix[i] + heights[i] + (i == 0 ? 0 : 2);
-        }
-        int total = prefix[n];
+        int total = prefixHeight(font, components, n);
 
         int available = graphics.guiHeight() - VERTICAL_CHROME;
         // Recomputed every render so a nudge picked up on one screen (e.g. a tiny GUI scale) can never clamp
@@ -320,15 +317,29 @@ public final class TooltipScrollFeature {
         // many pixels puts the last line's bottom edge at (or just past) the bottom of the available space,
         // never further - see the maxOffset field doc for why that is the "can always get back" guarantee.
         int max = n;
+        int running = 0;
         for (int i = 0; i <= n; i++) {
-            if (prefix[i] >= overflow) {
+            if (i > 0) {
+                running += components.get(i - 1).getHeight(font) + (i == 1 ? 0 : 2);
+            }
+            if (running >= overflow) {
                 max = i;
                 break;
             }
         }
         maxOffset = max;
         offset = clamp(offset, 0, maxOffset);
-        return prefix[offset];
+        return prefixHeight(font, components, offset);
+    }
+
+    /** Rendered height of the first {@code count} components, with the 2px separator before each after the first.
+     *  Allocation-free: this runs every frame while a tooltip is hovered (the old version built two int arrays). */
+    private static int prefixHeight(Font font, List<ClientTooltipComponent> components, int count) {
+        int sum = 0;
+        for (int i = 0; i < count; i++) {
+            sum += components.get(i).getHeight(font) + (i == 0 ? 0 : 2);
+        }
+        return sum;
     }
 
     private static int clamp(int value, int min, int max) {
