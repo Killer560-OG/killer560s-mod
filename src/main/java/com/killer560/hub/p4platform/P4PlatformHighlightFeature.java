@@ -95,6 +95,13 @@ public final class P4PlatformHighlightFeature {
         }
         wasInDungeon = inDungeon;
 
+        // Off means no world sampling at all (the chat state above is still tracked); it resamples within 5 ticks of being switched on.
+        if (!P4PlatformHighlightConfig.getInstance().isEnabledRaw()) {
+            nearPlatform = false;
+            platformBroken = false;
+            return;
+        }
+
         // World state, sampled off the render thread: whether the 3x3 is still there, and whether the
         // player is standing in the core at all. Both are what let the highlight show up in a run where
         // the Core line never reached us (rejoin, dialogue-skipped/hidden chat, warp straight to the
