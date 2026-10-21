@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -69,11 +70,32 @@ public final class DvdFeature {
         int currentColor;
 
         String loadedGifFileName;
+        /** The gif file being decoded on the background thread for this box, or null. */
+        String pendingGif;
         GifDecoder.GifImage gif;
         DynamicTexture texture;
+        Identifier textureId;
         int frameIndex;
         long lastFrameChangeAtMs;
+
+        /** The entry's colour setting the current colour was last taken from, so a change in the tab shows at once. */
+        String baseColorHex;
+        /** Text width measured once per text, not once per frame. */
+        String measuredText;
+        int measuredWidth;
     }
+
+    /** Decoding runs here, never on the render thread; textures are made in {@link #drainReady} on the render thread. */
+    private static final ExecutorService DECODER = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "killer560smod-dvd-decode");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private record Decoded(Runtime rt, String name, boolean resize, GifDecoder.GifImage gif) {
+    }
+
+    private static final ConcurrentLinkedQueue<Decoded> ready = new ConcurrentLinkedQueue<>();
 
     public static void register() {
         // Nothing to do at mod-init time - same "GPU device not ready yet" hazard GifPlayerFeature
@@ -122,6 +144,7 @@ public final class DvdFeature {
         Runtime rt = new Runtime();
         rt.entry = e;
         rt.currentColor = e.textColor();
+        rt.baseColorHex = e.textColorHex;
         rt.x = 40 + ThreadLocalRandom.current().nextInt(0, 200);
         rt.y = 40 + ThreadLocalRandom.current().nextInt(0, 150);
         double angle = ThreadLocalRandom.current().nextDouble(0, Math.PI * 2);
@@ -132,29 +155,36 @@ public final class DvdFeature {
 
     private static void closeAndRemove(String id) {
         Runtime rt = runtimes.remove(id);
-        if (rt != null && rt.texture != null) {
-            rt.texture.close();
+        if (rt != null) {
+            rt.pendingGif = null;
+            dropTexture(rt);
+        }
+    }
+
+    /** Frees the texture and its id (closing it alone would leave a dead texture registered under the id). */
+    private static void dropTexture(Runtime rt) {
+        if (rt.texture != null) {
+            Minecraft.getInstance().getTextureManager().release(rt.textureId);
+            rt.texture = null;
         }
     }
 
     private static void syncGifTexture(Runtime rt, DvdEntry e) {
         if (e.contentType != DvdContentType.GIF) {
+            rt.pendingGif = null;
             if (rt.texture != null) {
-                rt.texture.close();
-                rt.texture = null;
+                dropTexture(rt);
                 rt.gif = null;
                 rt.loadedGifFileName = null;
             }
             return;
         }
-        if (e.gifFileName.equals(rt.loadedGifFileName) && rt.texture != null) {
+        if (e.gifFileName.equals(rt.loadedGifFileName) && (rt.texture != null || e.gifFileName.equals(rt.pendingGif))) {
             return;
         }
-        if (rt.texture != null) {
-            rt.texture.close();
-            rt.texture = null;
-        }
+        dropTexture(rt);
         rt.gif = null;
+        rt.pendingGif = null;
         // Captured before overwriting: null means this runtime never had a gif file selected this session
         // (fresh launch, or a profile reload), so the file in the config is the one already saved WITH its
         // box width/height - see the resize below.
@@ -163,45 +193,91 @@ public final class DvdFeature {
         if (e.gifFileName.isBlank()) {
             return;
         }
-        try {
-            GifDecoder.GifImage decoded = GifPlayerFeature.decodeListed(e.gifFileName);
-            rt.gif = decoded;
-            rt.frameIndex = 0;
-            rt.lastFrameChangeAtMs = System.currentTimeMillis();
-            // Default to the gif's real decoded size the moment it's picked, instead of the
-            // generic Width/Height defaults - only for a genuinely new file selection, so it doesn't
-            // fight with dimensions killer560 deliberately changed afterward for that same file.
-            // Bug fix (2026-09-15 persistence audit): after a restart loadedGifFileName starts null, so
-            // the equals-check above alone treated the saved file as "new" and overwrote the saved
-            // Width/Height with the gif's native size on every launch. A real pick in the tab always has
-            // a non-null previous name (the wizard's GIF step syncs the blank "" name first, or the
-            // previously shown file when cycling), so only resize then.
-            if (previousGifFileName != null) {
-                e.boxWidth = decoded.width();
-                e.boxHeight = decoded.height();
-                DvdConfig.getInstance().save();
+        boolean resize = previousGifFileName != null;
+        String name = e.gifFileName;
+        if (GifPlayerFeature.isBuiltinLoaded(name)) {
+            // The jar's own GIF is decoded once and shared with GIF Player, so it is kept on the render thread.
+            try {
+                applyGif(rt, resize, GifPlayerFeature.decodeListed(name));
+            } catch (Exception ex) {
+                LOGGER.error("Failed to load DVD gif: {}", name, ex);
             }
-            NativeImage image = new NativeImage(decoded.width(), decoded.height(), false);
-            GifTextureUtil.writeFrame(image, decoded.frames().get(0).argb());
-            rt.texture = new DynamicTexture(() -> "killer560smod dvd: " + e.id, image);
-            Minecraft.getInstance().getTextureManager().register(
-                    Identifier.fromNamespaceAndPath("killer560smod", "dvd_" + Integer.toHexString(e.id.hashCode())),
-                    rt.texture);
-        } catch (Exception ex) {
-            LOGGER.error("Failed to load DVD gif: {}", e.gifFileName, ex);
+            return;
         }
+        rt.pendingGif = name;
+        DECODER.execute(() -> {
+            GifDecoder.GifImage image = null;
+            try {
+                image = GifPlayerFeature.decodeListed(name);
+            } catch (Exception | OutOfMemoryError ex) {
+                LOGGER.error("Failed to load DVD gif: {}", name, ex);
+            }
+            ready.add(new Decoded(rt, name, resize, image));
+        });
+    }
+
+    /** Render thread: turns finished decodes into textures. A result for a box that has since moved on is dropped. */
+    private static void drainReady() {
+        Decoded d;
+        while ((d = ready.poll()) != null) {
+            Runtime rt = d.rt();
+            if (!d.name().equals(rt.pendingGif) || runtimes.get(rt.entry.id) != rt) {
+                continue;
+            }
+            rt.pendingGif = null;
+            if (d.gif() == null) {
+                continue;
+            }
+            try {
+                applyGif(rt, d.resize(), d.gif());
+            } catch (Exception ex) {
+                LOGGER.error("Failed to load DVD gif: {}", d.name(), ex);
+            }
+        }
+    }
+
+    private static void applyGif(Runtime rt, boolean resize, GifDecoder.GifImage decoded) {
+        DvdEntry e = rt.entry;
+        rt.gif = decoded;
+        rt.frameIndex = 0;
+        rt.lastFrameChangeAtMs = System.currentTimeMillis();
+        // Default to the gif's real decoded size the moment it's picked, instead of the
+        // generic Width/Height defaults - only for a genuinely new file selection, so it doesn't
+        // fight with dimensions killer560 deliberately changed afterward for that same file.
+        // Bug fix (2026-09-15 persistence audit): after a restart loadedGifFileName starts null, so
+        // the equals-check above alone treated the saved file as "new" and overwrote the saved
+        // Width/Height with the gif's native size on every launch. A real pick in the tab always has
+        // a non-null previous name (the wizard's GIF step syncs the blank "" name first, or the
+        // previously shown file when cycling), so only resize then.
+        if (resize) {
+            e.boxWidth = decoded.width();
+            e.boxHeight = decoded.height();
+            DvdConfig.getInstance().save();
+        }
+        NativeImage image = new NativeImage(decoded.width(), decoded.height(), false);
+        GifTextureUtil.writeFrame(image, decoded.frames().get(0).argb());
+        rt.texture = new DynamicTexture(() -> "killer560smod dvd: " + e.id, image);
+        rt.textureId = Identifier.fromNamespaceAndPath("killer560smod", "dvd_" + Integer.toHexString(e.id.hashCode()));
+        Minecraft.getInstance().getTextureManager().register(rt.textureId, rt.texture);
     }
 
     /** Called every frame from {@link com.killer560.hub.hud.GuiOverlays}. */
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
-        if (!initialSyncDone) {
-            initialSyncDone = true;
-            reload();
-        }
         // killer560, 2026-10-11: "make it so gifs and dvds and whatnot dont show in the storage or any inventory".
         // The switch first: it is off for nearly everyone (2026-10-15).
         if (!DvdConfig.getInstance().isDvdEnabled() || com.killer560.hub.hud.GuiOverlays.containerOpen()
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
+            return;
+        }
+        // After the switch, so a player who never turns DVD on never decodes a gif for it.
+        if (!initialSyncDone) {
+            initialSyncDone = true;
+            reload();
+        }
+        if (!ready.isEmpty()) {
+            drainReady();
+        }
+        if (runtimes.isEmpty()) {
             return;
         }
         long now = System.currentTimeMillis();
@@ -232,6 +308,12 @@ public final class DvdFeature {
         float dt = Math.min(0.25f, (now - rt.lastUpdateMs) / 1000f);
         rt.lastUpdateMs = now;
 
+        // A new colour picked in the tab replaces the box's current (possibly wall-hit) colour at once.
+        if (!e.textColorHex.equals(rt.baseColorHex)) {
+            rt.baseColorHex = e.textColorHex;
+            rt.currentColor = e.textColor();
+        }
+
         int w;
         int h;
         if (e.contentType == DvdContentType.TEXT) {
@@ -243,7 +325,11 @@ public final class DvdFeature {
             // to the text means the visible glyphs are what actually reaches the edge.
             Font font = Minecraft.getInstance().font;
             String text = e.text.isBlank() ? "DVD" : e.text;
-            w = Math.max(1, Math.round((font.width(text) + TEXT_PADDING) * e.scale));
+            if (!text.equals(rt.measuredText)) {
+                rt.measuredText = text;
+                rt.measuredWidth = font.width(text);
+            }
+            w = Math.max(1, Math.round((rt.measuredWidth + TEXT_PADDING) * e.scale));
             h = Math.max(1, Math.round((font.lineHeight + TEXT_PADDING) * e.scale));
         } else {
             w = Math.max(1, Math.round(e.boxWidth * e.scale));
@@ -263,20 +349,22 @@ public final class DvdFeature {
         boolean bounceY = false;
         if (newX < 0) {
             newX = 0;
-            rt.vx = -rt.vx;
+            rt.vx = Math.abs(rt.vx);
             bounceX = true;
         } else if (newX + w > screenW) {
             newX = Math.max(0, screenW - w);
-            rt.vx = -rt.vx;
+            rt.vx = -Math.abs(rt.vx);
             bounceX = true;
         }
+        // abs() rather than a plain flip, so a box that is already heading away from the wall (the window or its scale
+        // just changed under it) is not turned back into the wall every frame.
         if (newY < 0) {
             newY = 0;
-            rt.vy = -rt.vy;
+            rt.vy = Math.abs(rt.vy);
             bounceY = true;
         } else if (newY + h > screenH) {
             newY = Math.max(0, screenH - h);
-            rt.vy = -rt.vy;
+            rt.vy = -Math.abs(rt.vy);
             bounceY = true;
         }
         rt.x = newX;
@@ -335,6 +423,7 @@ public final class DvdFeature {
         }
         long now = System.currentTimeMillis();
         int guard = 0;
+        boolean changed = false;
         while (guard++ < frames.size()) {
             long delay = frames.get(rt.frameIndex).delayMs();
             if (now - rt.lastFrameChangeAtMs < delay) {
@@ -342,6 +431,10 @@ public final class DvdFeature {
             }
             rt.lastFrameChangeAtMs += delay;
             rt.frameIndex = (rt.frameIndex + 1) % frames.size();
+            changed = true;
+        }
+        // One write and one upload per draw however many frames were due (a slow frame used to upload each one).
+        if (changed) {
             GifTextureUtil.writeFrame(rt.texture.getPixels(), frames.get(rt.frameIndex).argb());
             rt.texture.upload();
         }
