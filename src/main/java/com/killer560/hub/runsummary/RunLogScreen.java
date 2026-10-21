@@ -4,7 +4,6 @@ import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.MenuThemedScreen;
-import com.killer560.hub.util.ModChat;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -13,7 +12,6 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
@@ -54,6 +52,9 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
     private int listW;
     private int listH;
     private int scroll = 0;
+    /** {@link RunDetails#lines} for {@link #cachedLinesFor}, so the render path does not rebuild them every frame. */
+    private RunRecord cachedLinesFor = null;
+    private List<String> cachedLines = List.of();
 
     public RunLogScreen(Screen parent) {
         super(Component.literal("Run Log"));
@@ -71,6 +72,7 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
         listW = panelW - 12;
         listH = panelH - 58 - 8;
 
+        cachedLinesFor = null;
         refilter();
 
         int bw = Math.min(100, (panelW - 24) / 4);
@@ -258,7 +260,12 @@ public class RunLogScreen extends Screen implements MenuThemedScreen {
 
     /** The run summary's own lines, plus the party, rooms cleared and deaths (shared with the sim's run page). */
     private List<String> detailLines(RunRecord run) {
-        return RunDetails.lines(run);
+        // Built once per open run (init() drops it), not per frame: the render path asks for these several times a frame.
+        if (run != cachedLinesFor) {
+            cachedLines = RunDetails.lines(run);
+            cachedLinesFor = run;
+        }
+        return cachedLines;
     }
 
     /** The 11x11 grid the run finished on - rooms coloured by type, doors as their own darker cells. */
