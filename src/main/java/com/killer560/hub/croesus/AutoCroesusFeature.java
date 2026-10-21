@@ -71,9 +71,8 @@ public final class AutoCroesusFeature {
     /** How long a fresh session waits for the Bazaar/AH feed before giving up (see {@link #start}). */
     private static final long PRICE_WAIT_MS = 10_000L;
     private static final long ENTITY_BIND_WINDOW_MS = 3000L;
-    /** How far the Croesus NPC may be for a re-open click, in blocks squared. */
     /**
-     * Measured ENTITY reach, squared.
+     * Measured ENTITY reach, squared (how far the Croesus NPC may be for a re-open click).
      *
      * <p>Was 36.0 - 6.0 blocks, feet to feet, for what is an entity interaction limited to 3.0 to the box.
      * Double the real limit against a measure that already flatters itself.
@@ -234,8 +233,20 @@ public final class AutoCroesusFeature {
             return false;
         }
         Minecraft client = Minecraft.getInstance();
-        return McCompat.screen(client) instanceof AbstractContainerScreen<?> screen
-                && DungeonChestValuer.CROESUS_MENU_TITLE.matcher(ChestProfitFeature.titleOf(screen)).matches();
+        return McCompat.screen(client) instanceof AbstractContainerScreen<?> screen && isCroesusMenu(screen);
+    }
+
+    /** The last container screen asked about and whether its title is the Croesus menu's. A screen's title never
+     *  changes, and this is asked every frame (and every click) with the feature on, in every container. */
+    private static java.lang.ref.WeakReference<AbstractContainerScreen<?>> titleCheckedScreen = new java.lang.ref.WeakReference<>(null);
+    private static boolean titleCheckedIsMenu = false;
+
+    private static boolean isCroesusMenu(AbstractContainerScreen<?> screen) {
+        if (titleCheckedScreen.get() != screen) {
+            titleCheckedIsMenu = DungeonChestValuer.CROESUS_MENU_TITLE.matcher(ChestProfitFeature.titleOf(screen)).matches();
+            titleCheckedScreen = new java.lang.ref.WeakReference<>(screen);
+        }
+        return titleCheckedIsMenu;
     }
 
     /** Drawn from {@link ChestProfitFeature}'s {@code ScreenEvents.afterExtract} hook, i.e. the container
@@ -393,14 +404,27 @@ public final class AutoCroesusFeature {
     /** @return the Dungeon Chest Key's live Bazaar insta-buy ({@code instaBuy=true}) or buy-offer price,
      *  or null if it isn't in the current Bazaar feed yet. */
     private static Long keyBazaarPrice(boolean instaBuy) {
-        for (BazaarProduct product : BazaarApi.getProducts()) {
-            if (product.productId().equals(DungeonChestValuer.DUNGEON_CHEST_KEY_ID)) {
-                double price = instaBuy ? product.buyPrice() : product.sellPrice();
-                return Math.round(price);
+        // Asked once per drawn slot per frame in the Croesus menu (ChestProfitFeature.keyWorthFloor), so the scan of the
+        // whole feed is done once per feed: BazaarApi replaces its list wholesale on every refresh.
+        List<BazaarProduct> feed = BazaarApi.getProducts();
+        if (feed != keyFeed) {
+            BazaarProduct found = null;
+            for (BazaarProduct product : feed) {
+                if (product.productId().equals(DungeonChestValuer.DUNGEON_CHEST_KEY_ID)) {
+                    found = product;
+                    break;
+                }
             }
+            keyInstaBuy = found == null ? null : Math.round(found.buyPrice());
+            keyBuyOffer = found == null ? null : Math.round(found.sellPrice());
+            keyFeed = feed;
         }
-        return null;
+        return instaBuy ? keyInstaBuy : keyBuyOffer;
     }
+
+    private static List<BazaarProduct> keyFeed = null;
+    private static Long keyInstaBuy = null;
+    private static Long keyBuyOffer = null;
 
     // ---- state machine ---------------------------------------------------------------------------
 
@@ -698,7 +722,7 @@ public final class AutoCroesusFeature {
             return;
         }
         skipped++;
-        ModChat.send("Auto Croesus", ModChat.text("Skipped "), ModChat.value(String.valueOf(ChestProfitFeature.currentRunViewFloor())),
+        ModChat.log("Auto Croesus", ModChat.text("Skipped "), ModChat.value(String.valueOf(ChestProfitFeature.currentRunViewFloor())),
                 ModChat.dim(" (best " + (best == null ? "n/a" : DungeonChestValuer.formatCoins(best.profit())) + ")"));
     }
 
@@ -1066,7 +1090,7 @@ public final class AutoCroesusFeature {
         revisitFloor = currentRunFloor;
         LOGGER.info("[Croesus] Will come back to run {} ({}) for the {} chest with a key: {} after the key", revisitRunKey,
                 revisitFloor, second.type(), best);
-        ModChat.send("Auto Croesus", ModChat.text("Coming back with a Dungeon Chest Key for the "),
+        ModChat.log("Auto Croesus", ModChat.text("Coming back with a Dungeon Chest Key for the "),
                 ModChat.value(second.type().display),
                 ModChat.dim(" (" + DungeonChestValuer.formatCoins(best) + " after the key)"));
     }
