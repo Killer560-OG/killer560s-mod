@@ -142,6 +142,8 @@ public final class EtherwarpFeature {
         final int clayZ;
         final int rotation;
         final int argb;
+        /** The sim's floor height shift the blocks were translated with (0 on Hypixel); a rebuilt floor changes it. */
+        final int yOffset;
         final BlockPos[] blocks;
         /** The block the waypoint is in - a full unit box, same as before (this just marks a spot). */
         final AABB[] boxes;
@@ -157,6 +159,7 @@ public final class EtherwarpFeature {
             this.clayZ = clayZ;
             this.rotation = rotation;
             this.argb = argb;
+            this.yOffset = com.killer560.hub.livemap.DungeonLayout.simYOffset();
             int n = saved.size();
             blocks = new BlockPos[n];
             boxes = new AABB[n];
@@ -181,7 +184,8 @@ public final class EtherwarpFeature {
         String name = ctx.room().name;
         RoomCache c = roomCache;
         if (c == null || c.version != version || c.argb != argb || c.clayX != ctx.clayX() || c.clayZ != ctx.clayZ()
-                || c.rotation != ctx.rotation() || !c.room.equals(name)) {
+                || c.rotation != ctx.rotation() || !c.room.equals(name)
+                || c.yOffset != com.killer560.hub.livemap.DungeonLayout.simYOffset()) {
             float alpha = ((argb >> 24) & 0xFF) / 255f;
             if (alpha <= 0f) {
                 alpha = 1f;
