@@ -1312,6 +1312,7 @@ final class SettingTooltipsData {
         d.put("chunked stats", "Page for the stats in the combined Chunked Stats line: drag into order, trash, Add.");
         d.put("hide with tab list", "Hides the custom scoreboard while you hold the player-list key.");
         d.put("hide with chat open", "Hides the custom scoreboard while the chat box is open.");
+        d.put("hide in menus", "Hides the custom scoreboard while any menu or screen is open.");
         d.put("outside skyblock", "What to show outside SkyBlock: the server's own sidebar (Vanilla) or a minimal custom board.");
         d.put("cache on island switch", "Keeps the previous board on screen briefly while a new island loads.");
         d.put("clickable lines", "Lets you click scoreboard lines that have a command to run it.");
