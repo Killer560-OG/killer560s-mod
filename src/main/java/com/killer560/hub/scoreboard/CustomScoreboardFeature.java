@@ -476,7 +476,8 @@ public final class CustomScoreboardFeature {
         if (cfg.isHideWhenChat() && chatOpen) {
             return;
         }
-        if (cfg.isHideInMenus() && McCompat.screen(client) != null) {
+        // Chat is not a menu: with it open the board stays up, unless "Hide With Chat Open" is on.
+        if (cfg.isHideInMenus() && McCompat.screen(client) != null && !chatOpen) {
             return;
         }
         Font font = client.font;
