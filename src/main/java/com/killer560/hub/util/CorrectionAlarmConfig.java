@@ -18,19 +18,26 @@ public final class CorrectionAlarmConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-correctionalarm.json");
 
-    private static CorrectionAlarmConfig instance;
+    private static volatile CorrectionAlarmConfig instance;
 
-    private boolean enabled = true;
-    private float volume = 1.0f;
+    // Read from the netty thread (ServerCorrections -> ModSounds), written from the menu.
+    private volatile boolean enabled = true;
+    private volatile float volume = 1.0f;
 
     private CorrectionAlarmConfig() {
     }
 
     public static CorrectionAlarmConfig getInstance() {
-        if (instance == null) {
-            load();
+        CorrectionAlarmConfig cfg = instance;
+        if (cfg == null) {
+            synchronized (CorrectionAlarmConfig.class) {
+                if (instance == null) {
+                    load();
+                }
+                cfg = instance;
+            }
         }
-        return instance;
+        return cfg;
     }
 
     public static void load() {
