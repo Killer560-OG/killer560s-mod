@@ -92,16 +92,27 @@ public final class RemoteTrails {
             return;
         }
         // Who shares a trail and is drawable, nearest first.
-        List<AbstractClientPlayer> sharing = new ArrayList<>();
+        // The cheap map lookup goes first: on a lobby full of players almost none share a trail, so nothing else is
+        // read for them, and the list is only built once someone does.
+        List<AbstractClientPlayer> sharing = null;
         double maxSq = MAX_DISTANCE * MAX_DISTANCE;
         for (AbstractClientPlayer p : level.players()) {
-            if (p == self || p.isRemoved() || p.isInvisible() || p.isSpectator()
-                    || p.distanceToSqr(self) > maxSq || SupportersFeature.trailFor(p.getUUID()) == null) {
+            if (p == self || SupportersFeature.trailFor(p.getUUID()) == null || p.isRemoved() || p.isInvisible()
+                    || p.isSpectator() || p.distanceToSqr(self) > maxSq) {
                 continue;
+            }
+            if (sharing == null) {
+                sharing = new ArrayList<>();
             }
             sharing.add(p);
         }
-        sharing.sort((a, b) -> Double.compare(a.distanceToSqr(self), b.distanceToSqr(self)));
+        if (sharing == null) {
+            SLOTS.clear();
+            return;
+        }
+        if (sharing.size() > MAX_PLAYERS) {
+            sharing.sort((a, b) -> Double.compare(a.distanceToSqr(self), b.distanceToSqr(self)));
+        }
         Set<UUID> keep = new HashSet<>();
         for (int i = 0; i < sharing.size() && i < MAX_PLAYERS; i++) {
             AbstractClientPlayer p = sharing.get(i);

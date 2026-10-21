@@ -355,12 +355,18 @@ public final class RibbonTrail {
         double bottom = bandBottom(player.getEyeHeight(), spec.width());
         double top = bottom + spec.width();
         float baseAlpha = spec.opacity() / 100f;
+        // The chroma phase is the same for every point of a frame: read the clock once, not once per point.
+        float chromaT = 0f;
+        if (spec.mode() == RibbonTrailConfig.ColorMode.CHROMA) {
+            long period = (long) ChromaWave.BASE_PERIOD_MS;
+            chromaT = (ChromaWave.now() % period) / (float) period;
+        }
         int o = 0;
         for (int i = 0; i < n; i++) {
             float u = along[i];
             float fade = Math.min(Math.max(0f, 1f - age[i]), u);
             float alpha = baseAlpha * fade;
-            int rgb = colorAt(spec, fadeEnds, u);
+            int rgb = colorAt(spec, fadeEnds, u, chromaT);
             float r = ((rgb >> 16) & 0xFF) / 255f, g = ((rgb >> 8) & 0xFF) / 255f, bl = (rgb & 0xFF) / 255f;
             float x = (float) px[i], z = (float) pz[i];
             o = put(o, x, (float) (py[i] + bottom), z, r, g, bl, alpha);
@@ -417,14 +423,12 @@ public final class RibbonTrail {
     }
 
     /** Colour at {@code u} along the band (1 = at the player, 0 = the tail end). 0xRRGGBB. {@code fadeEnds}: Name Fade's
-     *  head and tail colours, or null to fall back to the spec's own colours. */
-    static int colorAt(TrailSpec spec, int[] fadeEnds, float u) {
+     *  head and tail colours, or null to fall back to the spec's own colours. {@code chromaT} is Chroma's 0..1 phase. */
+    static int colorAt(TrailSpec spec, int[] fadeEnds, float u, float chromaT) {
         switch (spec.mode()) {
             case CHROMA: {
-                long period = (long) ChromaWave.BASE_PERIOD_MS;
-                float t = (ChromaWave.now() % period) / (float) period;
                 // The colours flow from the player toward the tail as time passes.
-                return ChromaWave.hsv((1f - u) * 0.6f - t, 1f, 1f);
+                return ChromaWave.hsv((1f - u) * 0.6f - chromaT, 1f, 1f);
             }
             case NAME_FADE: {
                 if (fadeEnds != null && fadeEnds.length >= 2) {
