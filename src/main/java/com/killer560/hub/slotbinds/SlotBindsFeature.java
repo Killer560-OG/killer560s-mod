@@ -196,6 +196,13 @@ public final class SlotBindsFeature {
             } else {
                 return true;
             }
+            // Item Protect's Lock In Place hooks the screen's own slot click, which this direct SWAP bypasses
+            // (the drag path checks it too), so a locked item at either end must be refused here.
+            Slot partner = findSlot((AbstractContainerScreen<?>) screen, bound);
+            if (lockedInPlace(hovered.getItem()) || (partner != null && lockedInPlace(partner.getItem()))) {
+                ModChat.send("Slot Binds", ModChat.bad("Lock In Place holds that item, so it stays where it is."));
+                return false;
+            }
             client.gameMode.handleContainerInput(
                     ((net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) screen)
                             .getMenu().containerId,
