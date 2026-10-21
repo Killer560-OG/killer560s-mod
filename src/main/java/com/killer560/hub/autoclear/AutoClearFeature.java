@@ -817,7 +817,10 @@ public final class AutoClearFeature {
             if (!roomName.equals(e.getValue().room())) {
                 continue;
             }
-            if (doomed.containsKey(e.getKey()) && !e.getValue().lost()) {
+            Flight f = doomed.get(e.getKey());
+            if (f != null && f.bats() == 1 && !e.getValue().lost()) {
+                // (Not one left to several bats on the damage seen: one of those missing leaves it alive, and the
+                // come-back for it cost more than the wait - 1020-sim-ac-speed at 60 health, 108 room visits for 44.)
                 leftToBats++;   // a trusted bat is on its way: its kill is seen from wherever he is by then
                 continue;
             }
@@ -1949,6 +1952,9 @@ public final class AutoClearFeature {
             if (hp < 0 && before != null) {
                 hp = before.health();
             }
+            if (before != null && before.health() > 0 && hp >= 0 && hp < before.health() && batLogs.containsKey(mob.getId())) {
+                noteDrop(before.health() - hp);
+            }
             seenMobs.put(mob.getId(), new Seen(mob.getName().getString(), pos, mob.distanceTo(player), false, room, vel,
                     hp, tick));
         }
@@ -2697,6 +2703,9 @@ public final class AutoClearFeature {
                 if (b == null) {
                     afterFirstBat(player, s);
                 }
+                if (!doomed.containsKey(targetId)) {
+                    afterEnoughBats(s);
+                }
             }
             itemUsesSeen = uses;
         }
@@ -2720,7 +2729,7 @@ public final class AutoClearFeature {
     }
 
     /** A mob whose one bat is trusted to kill it: when the bat left, its flight, when to move on, its health. */
-    private record Flight(long sent, int flight, long moveOn, double health, long lag, String name) {
+    private record Flight(long sent, int flight, long moveOn, double health, long lag, String name, int bats) {
     }
 
     private static final java.util.Map<Integer, BatLog> batLogs = new java.util.HashMap<>();
@@ -2797,10 +2806,72 @@ public final class AutoClearFeature {
         }
         long moveOn = mode == AutoClearConfig.OneTap.AT_ONCE ? batSentTick : batSentTick + batFlight;
         doomed.put(targetId, new Flight(batSentTick, batFlight, moveOn, s == null ? -1 : s.health(),
-                com.killer560.hub.util.ServerLag.mark(), targetName));
+                com.killer560.hub.util.ServerLag.mark(), targetName, 1));
         if (mode == AutoClearConfig.OneTap.AT_ONCE) {
             leaveToBat(Minecraft.getInstance());
         }
+    }
+
+    // ---- enough bats, not a stream (autoclear-speed-1020: live mobs of 60 health, two sim bats each - 2071 bats for 164
+    // kills, 12.6 a mob, as the 2-tick presses kept sending while the first ones flew; his study saw 24 of 180 bats still
+    // flying after their mob died) ----
+
+    /** Health drops seen on mobs Auto Clear was shooting, one a sighting: what a bat (or two landing together) does. */
+    private static final List<Double> dropSamples = new java.util.ArrayList<>();
+    /** Per target: the tag health the bats counted below were sent at, and how many have gone since it last changed. */
+    private static int countedFor = -1;
+    private static double countedHealth = -1;
+    private static int countedBats = 0;
+
+    /** A drop of {@code hp} health seen on a mob we have sent bats at (observeMobs). */
+    private static void noteDrop(double drop) {
+        if (drop > 0) {
+            dropSamples.add(drop);
+            if (dropSamples.size() > 60) {
+                dropSamples.remove(0);
+            }
+        }
+    }
+
+    /** The damage one bat is seen doing: the low quartile of the drops seen (two landing together read as one drop), -1
+     *  with fewer than two. */
+    static double seenBatDamage() {
+        if (dropSamples.size() < 2) {
+            return -1;
+        }
+        List<Double> s = new java.util.ArrayList<>(dropSamples);
+        s.sort(null);
+        return s.get(s.size() / 4);
+    }
+
+    /**
+     * After a bat at the target (not left to one bat): once the bats sent since its tag health last changed would take
+     * that health on the damage bats have been seen doing, it is left to them (One-Tap Warp At Once's rule, for several
+     * bats) and the next mob gets the presses; a survivor is shot again.
+     */
+    private static void afterEnoughBats(Seen s) {
+        if (AutoClearConfig.getInstance().getOneTap() != AutoClearConfig.OneTap.AT_ONCE || s == null || s.health() <= 0) {
+            return;
+        }
+        if (countedFor != targetId || countedHealth != s.health()) {
+            countedFor = targetId;
+            countedHealth = s.health();
+            countedBats = 0;
+        }
+        countedBats++;
+        double dmg = seenBatDamage();
+        if (dmg <= 0) {
+            return;
+        }
+        int needed = (int) Math.ceil(s.health() / dmg);
+        if (countedBats < needed) {
+            return;
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoClear] %s: %d bat(s) on their way for its %.0f health at ~%.0f a bat (as"
+                        + " seen) - leaving it to them", targetName, countedBats, s.health(), dmg));
+        doomed.put(targetId, new Flight(batSentTick, batFlight, batSentTick, s.health(),
+                com.killer560.hub.util.ServerLag.mark(), targetName, countedBats));
+        leaveToBat(Minecraft.getInstance());
     }
 
     /** The target is left to its bat: the use goes up and the next decision is a fresh one, for another mob. */
@@ -2845,6 +2916,14 @@ public final class AutoClearFeature {
                     LOGGER.info("[AutoClear] one-tap: {} is still alive {} ticks after its bat (flight ~{}) and its tag"
                             + " still reads {} - the bat missed; shooting it again (the bat damage trusted is unchanged)",
                             f.name(), now - f.sent(), f.flight(), String.format(Locale.US, "%.0f", hpNow));
+                    continue;
+                }
+                if (f.bats() > 1) {
+                    // Left to several bats on the damage they had been seen doing: hit, not killed - shot again, and the
+                    // one-bat trust (a separate figure) is untouched.
+                    LOGGER.info("[AutoClear] {} is still alive {} ticks after its {} bats (tag {} -> {}) - shooting it"
+                            + " again", f.name(), now - f.sent(), f.bats(), String.format(Locale.US, "%.0f", f.health()),
+                            String.format(Locale.US, "%.0f", hpNow));
                     continue;
                 }
                 oneTapFailed.add(entry.getKey());
