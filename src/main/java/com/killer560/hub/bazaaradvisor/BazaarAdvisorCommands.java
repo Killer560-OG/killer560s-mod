@@ -55,14 +55,4 @@ public final class BazaarAdvisorCommands {
         ModChat.send(FEATURE, ModChat.text("Advisor "), on ? ModChat.good("ON") : ModChat.bad("OFF"), ModChat.text("."));
         return 1;
     }
-
-    private static void list() {
-        BazaarAdvisorConfig cfg = BazaarAdvisorConfig.getInstance();
-        ModChat.send(FEATURE, ModChat.text("Answers: "), ModChat.value(cfg.summary()));
-        ModChat.send(FEATURE, ModChat.dim("1. /bzflip npc | bazaar - where it sells"));
-        ModChat.send(FEATURE, ModChat.dim("2. /bzflip total | percent - what it optimises"));
-        ModChat.send(FEATURE, ModChat.dim("3. /bzflip insta | order - how it buys"));
-        ModChat.send(FEATURE, ModChat.dim("4. /bzflip instasell | offer - how it sells on the Bazaar (Bazaar only)"));
-        ModChat.send(FEATURE, ModChat.dim("/bzflip on | off - the advisor itself"));
-    }
 }
