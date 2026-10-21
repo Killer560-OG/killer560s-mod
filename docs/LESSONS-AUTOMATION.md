@@ -790,3 +790,27 @@ Split out of [LESSONS.md](LESSONS.md). Same rules: problem, then fix; verified o
   (#8 waits for 2: the item and the placing, and the key is never taken under the aura's await-only rule); Golden Oasis
   #1 (start) waits for 1 at the entrance with no secret in reach; Supertall #13 CRYPT sits 1.41 off #20's landing, a
   step he walks by hand. Quiz cadence (waiting at Oruo for the next question) is the 4-12 s "TRAVEL" still at floor start.
+
+## Auto Clear kill speed (autoclear-speed-1020)
+
+Measured with testkit 1020-sim-ac-speed (whole sim floors, the sim's live mobs, Auto Clear alone with the Spirit Sceptre
+and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/RoomClock`), which every real run now logs too.
+- **A trip's price must come from trips.** The straight distance over the 56-block hop range is one warp for any in-room
+  trip, so every trip was "~7 ticks (1 warp)"; Hypixel's took 12.7 at 2.1 warps (his study). `warpsTo` (one only when a
+  sneaking look lands on the block) and `tripTicks` (this run's mean per warp count) price them now. Counting a trusted bat
+  as its launch alone was wrong: the room's last bats are waited for whole (bat waits 404 vs 206).
+- **Plan on the reach that is worth having, not the full reach.** Stand blocks a straight bat reaches from 24 blocks gave
+  fewer trips but 20-block flights at 1.02 b/t, slower than a 6-tick trip and the shot down (firing 928, bat waits 532).
+  `usefulBatRange()` is the distance a bat covers in a one-warp trip plus the shot: ~10 in the sim, ~17 on Hypixel's trips.
+- **A bat aim must hold, and must hit something.** The sim's bats leave the look by up to 0.06 an axis, so a 20-block shot
+  at a lone mob passes it and flies on; and an aim that meets nothing within 24 was called a burst "in the air at 24", where
+  the sim's bat flies on to ~29.6. `batImpactOrAir` and `batAimHolds` (3 degrees either way) refuse both. A bat that missed
+  (tag unchanged) is not "too weak": it no longer throws away the one-bat trust.
+- **A fresh press is not bound by the held use's 4 ticks** (`handleKeybinds`: `consumeClick` -> `startUseItem` with no
+  `rightClickDelay` check, javap 26.1.2). Presses every 2 ticks: GrimAC clean (62-argrim-1020-acbat, 259 uses in 600 ticks).
+- Waits a player does not pay: the body-release tick before a trip, the swap tick after it, the planner for a block one
+  look lands on (`ClearExecutor.etherDirectFast`: 3 ticks against 6-8), 30-tick roam looks, standing in a room until the map
+  checks it after the last kill, and waiting for trusted bats in flight (standalone runs only). The turn tick before a use
+  and the wait for the landing's answer stay.
+- Sim floor 1 of `killer560s-mod-logs/acs/codes-stuck.txt` (Tomioka) leaves a stand block with no etherwarp out: the base
+  jar gave up 10 rooms there ("no etherwarp path (4 tries)", every one from the same spot); the new plan does not stand there.
