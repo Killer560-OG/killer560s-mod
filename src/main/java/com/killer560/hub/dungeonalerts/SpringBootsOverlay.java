@@ -1,6 +1,7 @@
 package com.killer560.hub.dungeonalerts;
 
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.util.ModChat;
@@ -10,14 +11,11 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -98,18 +96,22 @@ final class SpringBootsOverlay {
     }
 
     private static boolean wearingSpringBoots(LocalPlayer player) {
-        ItemStack boots = player.getItemBySlot(EquipmentSlot.FEET);
-        CustomData data = boots.get(DataComponents.CUSTOM_DATA);
-        if (data == null) {
-            return false;
-        }
-        CompoundTag tag = data.copyTag();
-        return "SPRING_BOOTS".equals(tag.getStringOr("id", ""));
+        // The live tag, read only: copyTag() deep-copied the boots' whole custom data every tick while charging.
+        CompoundTag tag = ItemNbt.view(player.getItemBySlot(EquipmentSlot.FEET));
+        return tag != null && "SPRING_BOOTS".equals(tag.getStringOr("id", ""));
     }
 
+    private static float coloredFor = Float.NaN;
+    private static String coloredText = "";
+
+    /** The coloured height; the string is rebuilt only when the height changes (the HUD asks every frame, twice). */
     private static String colored(float blocks) {
-        String code = blocks <= 13.5f ? "§c" : blocks <= 22.5f ? "§e" : blocks <= 33.0f ? "§6" : blocks <= 43.5f ? "§a" : "§b";
-        return code + blocks;
+        if (blocks != coloredFor) {
+            String code = blocks <= 13.5f ? "§c" : blocks <= 22.5f ? "§e" : blocks <= 33.0f ? "§6" : blocks <= 43.5f ? "§a" : "§b";
+            coloredText = code + blocks;
+            coloredFor = blocks;
+        }
+        return coloredText;
     }
 
     static void onWorldRender(LevelRenderContext context) {
