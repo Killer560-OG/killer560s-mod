@@ -790,6 +790,9 @@ public final class SimonSaysFeature {
             // correct through a later edit.
             return;
         }
+        if (!DungeonState.isF7OrM7()) {
+            return; // parsed above (scenario 86 relies on that), but a lobby's "SS 3/5" is not a run in progress
+        }
         long now = System.currentTimeMillis();
         // Bounded. One entry per name that has ever said "SS n/m" in range, and names are not a closed set -
         // over a long session in a busy lobby this grew without limit. Anything not updated in ten minutes is
@@ -797,6 +800,9 @@ public final class SimonSaysFeature {
         if (partyProgress.size() > 64) {
             long cutoff = now - 600_000L;
             partyProgress.entrySet().removeIf(en -> en.getValue().lastUpdateMs < cutoff);
+            if (partyProgress.size() > 64 && !partyProgress.containsKey(sender)) {
+                return; // a flood of distinct names inside ten minutes: a party is five, drop the rest
+            }
         }
         PartyProgress p = partyProgress.computeIfAbsent(sender, s -> new PartyProgress());
         if (progress <= 1 || p.total != total) {
@@ -898,7 +904,10 @@ public final class SimonSaysFeature {
         // chat sent "/pc Resetting Simon Says" to the party. The Restart Key next to it already got
         // this right (see tickRestartKeybind's McCompat.screen(client) == null check); this one never did.
         boolean down = com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getAnnounceKeyCode());
-        if (down && !announceKeyWasDown && McCompat.screen(client) == null && cfg.isEnabled()) {
+        // F7/M7 only: the key is a party message, and a bound letter pressed in a lobby or a Skyblock island used to
+        // send "/pc Resetting Simon Says" to whatever party he was in.
+        if (down && !announceKeyWasDown && McCompat.screen(client) == null && cfg.isEnabled()
+                && DungeonState.isF7OrM7()) {
             if (client.player != null) {
                 client.player.connection.sendCommand("pc " + cfg.getResetMessageText());
             }
