@@ -12,8 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted F7/M7 Phase 3 navigation aid settings - see {@link GateHighlightFeature} and
- * {@link TerminalEspFeature}. Both aids ship disabled by default, same as every other new feature in
+ * Persisted F7/M7 Phase 3 navigation aid settings - see {@link P3NavFeature}. All the aids ship disabled by default, same as every other new feature in
  * this mod, and every getter the features read ANDs {@link com.killer560.hub.util.SkyblockGate#allows()}.
  * <p>
  * Through Walls (terminals only) is cheat-build only and gated the same single-source-of-truth way
