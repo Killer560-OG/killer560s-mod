@@ -77,6 +77,9 @@ public final class MaskInvincibilityFeature {
     private static final Map<Type, Integer> cooldownRemaining = new EnumMap<>(Type.class);
     /** Last real stack seen for each type, so the icon keeps rendering after the mask leaves your inventory. */
     private static final Map<Type, ItemStack> iconCache = new EnumMap<>(Type.class);
+    /** Stand-in icons (catalog skin or plain head), kept so render does not rebuild a stack every frame. */
+    private static final Map<Type, ItemStack> fallbackIcon = new EnumMap<>(Type.class);
+    private static final Type[] TYPES = Type.values();
     private static int iconScanCountdown = 0;
     private static boolean wasInDungeon = false;
 
@@ -160,15 +163,9 @@ public final class MaskInvincibilityFeature {
         }
         wasInDungeon = inDungeon;
 
-        if (!MaskInvincibilityConfig.getInstance().isEnabled()) {
-            return;
-        }
-        if (MaskInvincibilityConfig.getInstance().isShowItemIcons() && --iconScanCountdown <= 0) {
-            // Once a second, not per frame: the HUD renders every frame and this walks the whole inventory.
-            iconScanCountdown = 20;
-            refreshIcons();
-        }
-        for (Type t : Type.values()) {
+        // The timers count down whether or not the switch is on: a mask cooldown is Hypixel's, so switching the
+        // feature off and on (or leaving Skyblock) must not freeze it and show a stale time afterwards.
+        for (Type t : TYPES) {
             int active = activeRemaining.get(t);
             if (active > 0) {
                 activeRemaining.put(t, active - 1);
@@ -177,6 +174,12 @@ public final class MaskInvincibilityFeature {
             if (cooldown > 0) {
                 cooldownRemaining.put(t, cooldown - 1);
             }
+        }
+        MaskInvincibilityConfig cfg = MaskInvincibilityConfig.getInstance();
+        if (cfg.isEnabled() && cfg.isShowItemIcons() && --iconScanCountdown <= 0) {
+            // Once a second, not per frame: the HUD renders every frame and this walks the whole inventory.
+            iconScanCountdown = 20;
+            refreshIcons();
         }
     }
 
@@ -208,7 +211,7 @@ public final class MaskInvincibilityFeature {
             iconCache.put(Type.SPIRIT, stack.copy());
         } else if (id != null && id.contains("BONZO_MASK")) {
             iconCache.put(Type.BONZO, stack.copy());
-        } else if (stack.getHoverName().getString().contains("Phoenix")) {
+        } else if (stack.is(Items.PLAYER_HEAD) && stack.getHoverName().getString().contains("Phoenix")) {
             iconCache.put(Type.PHOENIX, stack.copy());
         }
     }
@@ -228,13 +231,25 @@ public final class MaskInvincibilityFeature {
         if (cached != null && !cached.isEmpty()) {
             return cached;
         }
+        // Built once per type, not per frame: this is called from the HUD's render every frame.
+        ItemStack fallback = fallbackIcon.get(t);
+        if (fallback != null) {
+            return fallback;
+        }
         if (t == Type.SPIRIT) {
             SkyblockItemEntry entry = SkyblockItemRepository.findById("SPIRIT_MASK");
             if (entry != null && entry.skinValue() != null) {
-                return SkyblockItemStackFactory.build(entry);
+                fallback = SkyblockItemStackFactory.build(entry);
+                fallbackIcon.put(t, fallback);
+                return fallback;
             }
         }
-        return new ItemStack(Items.PLAYER_HEAD);
+        // The catalog may not be loaded yet for Spirit, so a plain head is not remembered for it.
+        fallback = new ItemStack(Items.PLAYER_HEAD);
+        if (t != Type.SPIRIT) {
+            fallbackIcon.put(t, fallback);
+        }
+        return fallback;
     }
 
     private static boolean shown(Type t) {
@@ -302,7 +317,6 @@ public final class MaskInvincibilityFeature {
 
         // rowText's last answer per type: the text changes at most once a tick, render and width() ask every frame
         // (a concat, and a String.format while counting, each frame: 95-perf-features 2026-10-15). Render thread.
-        private static final Type[] TYPES = Type.values();
         private static final String[] ROW_TEXT = new String[Type.values().length];
         private static final int[] ROW_ACTIVE = new int[Type.values().length];
         private static final int[] ROW_COOLDOWN = new int[Type.values().length];
