@@ -1,5 +1,8 @@
 package com.killer560.hub.clicksound;
 
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ModScreen;
+import com.killer560.hub.gui.tab.SoundEffectsTab;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ModPaths;
 import net.minecraft.client.Minecraft;
@@ -212,6 +215,13 @@ public final class ClickSounds {
         return IMPORT_KEYS.get(key);
     }
 
+    /** True while the mod's Sound Effects tab is the open page (its own click is silent). */
+    private static boolean onSoundEffectsTab() {
+        Minecraft client = Minecraft.getInstance();
+        return client != null && McCompat.screen(client) instanceof ModScreen menu
+                && menu.openFeature() instanceof SoundEffectsTab;
+    }
+
     /** True while the extra layers of a loud click are being played, so they are not layered again. */
     private static boolean layering;
     private static volatile int layersPlayed;
@@ -230,6 +240,10 @@ public final class ClickSounds {
         }
         if (!VANILLA_CLICK_ID.equals(in.getIdentifier())) {
             return SoundEffects.replace(in);
+        }
+        // On the Sound Effects tab the menu click is silent, so the sound you pick is the one you hear.
+        if (onSoundEffectsTab()) {
+            return SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, 0.0f);
         }
         SoundInstance out = in;
         try {
