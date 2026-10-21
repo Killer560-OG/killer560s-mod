@@ -22,11 +22,6 @@ public record FlipOrder(boolean buy, String productId, String name, long amount,
         return Math.max(0, amount - filled);
     }
 
-    /** Coins this order holds on the Bazaar: a buy order's unfilled part was paid for when it was placed. */
-    public double escrowCoins() {
-        return buy ? unfilled() * price : 0;
-    }
-
     /** The same identity {@code BazaarOrderParser.Order.key()} gives the order, so the two can be matched. */
     public String key() {
         return (buy ? "BUY|" : "SELL|") + name.toLowerCase(java.util.Locale.ROOT) + "|" + price + "|" + amount;

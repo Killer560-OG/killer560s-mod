@@ -85,10 +85,6 @@ public final class BazaarFlipScanner {
             List<BazaarFlipCandidate> ranked,
             String error
     ) {
-        public BazaarFlipCandidate best() {
-            return ranked.isEmpty() ? null : ranked.getFirst();
-        }
-
         public boolean ok() {
             return error == null;
         }
@@ -147,10 +143,6 @@ public final class BazaarFlipScanner {
 
     public static ScanResult getLast() {
         return last;
-    }
-
-    public static boolean isScanning() {
-        return scanning.get();
     }
 
     /** Drops the cached scan, so a stopped-and-restarted session never acts on a stale book. */

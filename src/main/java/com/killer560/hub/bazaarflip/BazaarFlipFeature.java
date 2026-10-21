@@ -298,11 +298,6 @@ public final class BazaarFlipFeature {
         return state != State.IDLE;
     }
 
-    /** The candidate the current session is working on, for the settings tab. Null when idle. */
-    public static BazaarFlipCandidate getTarget() {
-        return target;
-    }
-
     public static int getCycles() {
         return cycles;
     }
