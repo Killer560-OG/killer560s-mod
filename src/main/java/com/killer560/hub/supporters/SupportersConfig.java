@@ -67,7 +67,7 @@ public final class SupportersConfig {
     private float othersScale = 1.0f;
     /** "My Name in F5" - your own nametag in both third-person views (never first person). Off by default. */
     private boolean ownNameInF5 = false;
-    /** "Share Trail" (killer560, 2026-10-13): your Trail goes out with your shared cosmetics. Only a linked supporter
+    /** "Share Ribbon Trail" (killer560, 2026-10-13): your Trail goes out with your shared cosmetics. Only a linked supporter
      *  can share, and only while Share if Supporter is on. ON by default, like every sharing setting. */
     private boolean shareTrail = true;
     /** "Show Others' Trails": draw the trails other supporters share. ON by default. */

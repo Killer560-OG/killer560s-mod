@@ -2307,7 +2307,7 @@ final class SettingTooltipsData {
         d.put("inventory theme/applies to", "Which screens get the theme: only Hypixel and p3sim menus, or every container.");
         d.put("inventory theme/accent source", "Use the Base's accent, or pick your own colour for the hover highlight, selected hotbar slot, title text and the bevels.");
         d.put("inventory theme/accent colour", "Opens a colour picker for the custom accent colour.");
-        d.put("best friends/party time tracker", "Tracks time partied and dungeon runs cleared with each player; open it with /bestfriends.");
+        d.put("best friends/track party time", "Counts the time you spend in a party with each player and the dungeon runs you clear together, for the /bestfriends list.");
         d.put("best friends/sort", "How the /bestfriends list is ordered: time together, runs together, or name.");
         d.put("best friends/dungeon only filter", "Hides anyone you have never cleared a dungeon with from the /bestfriends list.");
         d.put("friends list/use our /fl", "Makes /fl open this mod's Friends List instead of Hypixel's. /flcustom always opens ours and /flhypixel always opens Hypixel's.");
@@ -2365,7 +2365,7 @@ final class SettingTooltipsData {
         d.put("share if supporter", "Automatically shares your display name, your own player size and your Play as Mob choice with other players who have this mod.");
         d.put("player cosmetics/supporter names", "Shows the names other supporters share (their display names and colours).");
         d.put("player cosmetics/supporter sizes", "Shows the player sizes other supporters share.");
-        d.put("share trail", "Shares your Ribbon Trail (colours, height, length, opacity) with other players who have this mod, while Share if Supporter and your Ribbon Trail are on. Only supporters can share it; the squares Trail is never shared.");
+        d.put("share ribbon trail", "Shares your Ribbon Trail (colours, height, length, opacity) with other players who have this mod, while Share if Supporter and your Ribbon Trail are on. Only supporters can share it; the squares Trail is never shared.");
         d.put("show others' trails", "Draws the ribbon trails other supporters share behind them. Off hides every other player's ribbon; your own is unaffected.");
         d.put("copy settings for global cosmetics", "Copies your name and scale to your clipboard so staff can apply them for you.");
         d.put("reset cosmetics", "Clears your name, colours, bold, sizes, model shape and your chosen mob. The Play as Mob switch stays as it is.");

@@ -24,7 +24,7 @@ import java.util.function.Supplier;
 /** The Ribbon Trail cosmetic (killer560, 2026-10-14: "make a trail setting under cosmetics now instead of its own toggle
  *  for the ribbon ... The trail though for ribbon can be shared"): a vertical band streaming behind you like a Roblox
  *  trail, drawn by {@link com.killer560.hub.trail.RibbonTrail}. Independent of the squares {@link TrailTab}; both can be
- *  on. Its Sharing section holds the same Share Trail / Show Others' Trails switches as Player Cosmetics (where the other
+ *  on. Its Sharing section holds the same Share Ribbon Trail / Show Others' Trails switches as Player Cosmetics (where the other
  *  supporter switches are), so a supporter finds them from either tab. Purely visual, legit in both builds.
  *  <p>Since 2026-10-18 (killer560: "the ribbon trail is the only one that can be shared of the trails and it only shows
  *  up in player cosmetics to be adjusted") it is no longer a card of its own: {@link CosmeticsTab} builds it as its
@@ -174,7 +174,7 @@ public class RibbonTrailTab extends BaseTab {
         header(w, x, y, width, "Sharing");
         int half = (width - 4) / 2;
         boolean canShare = SupportersAutoShare.isLinked();
-        SettingsButtonWidget share = SettingsButtonWidget.builder(onOff("Share Trail", sc.isShareTrail() && canShare),
+        SettingsButtonWidget share = SettingsButtonWidget.builder(onOff("Share Ribbon Trail", sc.isShareTrail() && canShare),
                 btn -> {
                     sc.setShareTrail(!sc.isShareTrail());
                     sc.save();

@@ -29,7 +29,7 @@ public class BestFriendsTab extends BaseTab {
         int col2X = contentX + colW + gap;
         int y = contentY;
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Party Time Tracker", cfg.getEnabledRaw()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Track Party Time", cfg.getEnabledRaw()), btn -> {
                     cfg.setEnabled(!cfg.getEnabledRaw());
                     cfg.save();
                     requestRebuild.run();

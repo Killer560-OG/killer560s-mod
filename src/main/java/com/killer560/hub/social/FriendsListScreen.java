@@ -49,8 +49,7 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
     private final Screen parent;
     private EditBox addBox;
     private EditBox noteBox;
-    /** The list view's search box, and its text (kept across a rebuild). */
-    private EditBox searchBox;
+    /** The search text (kept across a rebuild). Since 1c0f3686 the search box is {@link #addBox}. */
     private String searchQuery = "";
     private List<FriendsListConfig.Friend> visible = List.of();
     private FriendsListConfig.Friend selected;
@@ -120,8 +119,6 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
                     }
                 }).bounds(panelX + panelW - 6 - refreshBtnW, panelY + 34, refreshBtnW, 18).build());
 
-        searchBox = null;
-
         refresh();
 
         if (selected != null) {
@@ -177,12 +174,13 @@ public class FriendsListScreen extends Screen implements MenuThemedScreen {
         return out;
     }
 
-    /** Typing on the list with no box focused goes into the search box, so just typing a name narrows the list. */
+    /** Typing on the list with no box focused goes into the search box, so just typing a name narrows the list. The
+     *  search box is the Add box since 1c0f3686, which had left this pointing at a box that no longer existed. */
     @Override
     public boolean charTyped(net.minecraft.client.input.CharacterEvent event) {
-        if (searchBox != null && selected == null && !(getFocused() instanceof EditBox)) {
-            setFocused(searchBox);
-            searchBox.setFocused(true);
+        if (addBox != null && selected == null && !(getFocused() instanceof EditBox)) {
+            setFocused(addBox);
+            addBox.setFocused(true);
         }
         return super.charTyped(event);
     }

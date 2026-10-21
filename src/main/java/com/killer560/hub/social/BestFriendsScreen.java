@@ -233,7 +233,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
         if (selected != null) {
             // The "< Back" button sits where the count would be.
         } else if (!BestFriendsConfig.getInstance().getEnabledRaw()) {
-            String warn = this.font.plainSubstrByWidth("Party Time Tracker is OFF - turn it on in the Best Friends tab",
+            String warn = this.font.plainSubstrByWidth("Track Party Time is OFF - turn it on in the Best Friends tab",
                     Math.max(0, panelW - 30 - this.font.width("Best Friends")));
             ScreenChrome.headerRight(graphics, panelX, panelY, panelW, warn, MenuStyle.RED);
         } else {
@@ -264,7 +264,7 @@ public class BestFriendsScreen extends Screen implements MenuThemedScreen {
     private void drawList(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (visible.isEmpty()) {
             String message = BestFriendsStore.records().isEmpty()
-                    ? "Nobody tracked yet - party up with Party Time Tracker on and it'll fill in."
+                    ? "Nobody tracked yet - party up with Track Party Time on and it'll fill in."
                     : "No players match this search/filter.";
             ScreenChrome.text(graphics, message, listX + 6, listY + 8, MenuStyle.DIM);
             return;

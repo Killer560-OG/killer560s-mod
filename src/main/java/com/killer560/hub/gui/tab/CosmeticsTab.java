@@ -48,7 +48,7 @@ public class CosmeticsTab extends BaseTab {
 
     private static final List<String> SEARCHABLE_LABELS = List.of(
             "cosmetics", "toggle global cosmetics", "global cosmetics", "supporter names", "supporter sizes", "share if supporter",
-            "share trail", "show others' trails", "trail", "ribbon trail", "ribbon", "custom names", "my name in f5", "player size",
+            "share ribbon trail", "show others' trails", "trail", "ribbon trail", "ribbon", "custom names", "my name in f5", "player size",
             "my size", "others' size", "width", "height", "thickness", "held item", "play as mob", "my mob",
             "show others' mobs", "mob", "cape", "custom cape",
             "copy settings for global cosmetics", "reset cosmetics");
@@ -109,10 +109,10 @@ public class CosmeticsTab extends BaseTab {
         // Trails (killer560, 2026-10-13: "it should be toggleable to see in cosmetics for whether it is shared or not
         // and it can only be shared by a supporter"): Share Trail is greyed out, with the reason under it, until the
         // relay says this account is a linked supporter. Only the Ribbon Trail is shared (2026-10-14); the same two
-        // switches are on the Ribbon Trail tab too.
+        // switches are on the Ribbon Trail tab too. "Share Ribbon Trail" since 2026-10-20.
         String trailBlocker = SupportersAutoShare.trailShareBlocker();
         boolean canShareTrail = SupportersAutoShare.isLinked();
-        SettingsButtonWidget shareTrail = SettingsButtonWidget.builder(onOff("Share Trail", cfg.isShareTrail() && canShareTrail),
+        SettingsButtonWidget shareTrail = SettingsButtonWidget.builder(onOff("Share Ribbon Trail", cfg.isShareTrail() && canShareTrail),
                 btn -> {
                     cfg.setShareTrail(!cfg.isShareTrail());
                     cfg.save();

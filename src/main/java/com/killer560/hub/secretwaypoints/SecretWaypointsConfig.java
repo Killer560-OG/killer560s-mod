@@ -26,7 +26,8 @@ public final class SecretWaypointsConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-secretwaypoints.json");
 
-    public static final int MIN_RENDER_DISTANCE = 16;
+    /** Blocks: how far the renderer draws a waypoint. Fixed since 2026-10-20 (killer560: the Render Distance option
+     *  was removed on purpose, and its saved field with it). */
     public static final int MAX_RENDER_DISTANCE = 256;
 
     private static SecretWaypointsConfig instance;
@@ -37,9 +38,6 @@ public final class SecretWaypointsConfig {
      *  so it ships on; the toggle exists for anyone who wants the old depth-tested boxes back. */
     private boolean throughWalls = true;
     private BoxSize boxSize = BoxSize.HITBOX;
-    /** Blocks. Secrets further away than this are not built and not drawn (2026-09-20 FPS pass: this
-     *  feature used to draw every secret of every identified room in the dungeon, every frame). */
-    private int renderDistance = 64;
     // NoammAddons' DungeonWaypoints defaults (killer560, 2026-09-21: "I would like the colors by default to match
     // noamm's coloring style"): chest MAGENTA, item its favoriteColor (0,134,255), bat GREEN, essence BLACK, key RED.
     // Superseded 2026-09-27 (killer560: "change chest colors to be green and bats to be a brown") - chest takes the
@@ -100,7 +98,6 @@ public final class SecretWaypointsConfig {
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
             cfg.boxSize = ConfigJson.getEnum(obj, "boxSize", BoxSize.class, BoxSize.HITBOX);
             cfg.showNames = ConfigJson.getBool(obj, "showNames", false);
-            cfg.renderDistance = clampDistance(ConfigJson.getInt(obj, "renderDistance", 64));
             cfg.chestColor = ConfigJson.getInt(obj, "chestColor", cfg.chestColor);
             cfg.itemColor = ConfigJson.getInt(obj, "itemColor", cfg.itemColor);
             cfg.witherColor = ConfigJson.getInt(obj, "witherColor", cfg.witherColor);
@@ -148,7 +145,6 @@ public final class SecretWaypointsConfig {
             obj.addProperty("style", style.name());
             obj.addProperty("throughWalls", throughWalls);
             obj.addProperty("boxSize", boxSize.name());
-            obj.addProperty("renderDistance", renderDistance);
             obj.addProperty("showNames", showNames);
             obj.addProperty("noammDefaultsV1", true);
             obj.addProperty("colorPassV2", true);
@@ -167,10 +163,6 @@ public final class SecretWaypointsConfig {
         }
         // Everything on this page feeds the cached waypoint snapshot; rebuild it on the next tick.
         SecretWaypointsFeature.invalidateCache();
-    }
-
-    private static int clampDistance(int value) {
-        return Math.max(MIN_RENDER_DISTANCE, Math.min(MAX_RENDER_DISTANCE, value));
     }
 
     public boolean isEnabled() {
@@ -203,14 +195,6 @@ public final class SecretWaypointsConfig {
 
     public void setBoxSize(BoxSize boxSize) {
         this.boxSize = boxSize;
-    }
-
-    public int getRenderDistance() {
-        return renderDistance;
-    }
-
-    public void setRenderDistance(int renderDistance) {
-        this.renderDistance = clampDistance(renderDistance);
     }
 
     public boolean isShowNames() {

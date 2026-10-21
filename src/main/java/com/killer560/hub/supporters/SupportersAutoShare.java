@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  * which is what a client older than 2026-10-11 shows; a fade or letter colours go alongside it as the relay's
  * {@code colors} list, one true colour per visible letter, which newer clients paint exactly as you see it.
  * <p>
- * Your Ribbon Trail goes along as the relay's {@code trail} while "Share Trail" and the Ribbon Trail itself are on
+ * Your Ribbon Trail goes along as the relay's {@code trail} while "Share Ribbon Trail" and the Ribbon Trail itself are on
  * (killer560, 2026-10-13: "it can only be shared by a supporter"; 2026-10-14: only the ribbon, never the squares Trail) -
  * see {@link #trailToShare} and {@link #shareCurrent}, which the Player Cosmetics and Ribbon Trail tabs call on every rebuild and {@code RemoteTrails} every 35 seconds. Linked status is
  * checked once at startup ({@link #tickStartupCheck}), so this works without opening the menu. With no display name the
