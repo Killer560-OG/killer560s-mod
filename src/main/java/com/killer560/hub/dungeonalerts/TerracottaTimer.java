@@ -97,22 +97,22 @@ final class TerracottaTimer {
     }
 
     // The label per ticks-left value (fps pass 2026-10-19): a String.format per spawn per frame in the F6 boss before,
-    // for a value that changes once a tick. Pure function of the tick count; immutable entries in a small table.
-    private record Label(int ticks, String text) {
-    }
-
-    private static final Label[] LABELS = new Label[64];
+    // for a value that changes once a tick. Pure function of the tick count, one slot per value (the longest timer is
+    // 300 ticks): the old 64-slot table was keyed on ticksLeft mod 64, so several spawns whose counts collided
+    // evicted each other and re-formatted every frame.
+    private static final String[] LABELS = new String[301];
 
     private static String label(int ticksLeft) {
-        int slot = ticksLeft & (LABELS.length - 1);
-        Label known = LABELS[slot];
-        if (known != null && known.ticks == ticksLeft) {
-            return known.text;
+        boolean cached = ticksLeft >= 0 && ticksLeft < LABELS.length;
+        if (cached && LABELS[ticksLeft] != null) {
+            return LABELS[ticksLeft];
         }
         float seconds = ticksLeft / 20f;
         char color = seconds > 5f ? 'a' : seconds > 2f ? '6' : 'c';
         String text = "§" + color + String.format(Locale.US, "%.2f", seconds) + "s";
-        LABELS[slot] = new Label(ticksLeft, text);
+        if (cached) {
+            LABELS[ticksLeft] = text;
+        }
         return text;
     }
 }
