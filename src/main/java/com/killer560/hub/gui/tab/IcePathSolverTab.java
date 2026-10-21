@@ -21,14 +21,14 @@ public class IcePathSolverTab extends BaseTab {
         int y = contentY;
         IcePathSolverConfig cfg = IcePathSolverConfig.getInstance();
 
-        widgets.add(SettingsButtonWidget.builder(onOff("Ice Path Solver", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
+        widgets.add(SettingsButtonWidget.builder(onOff("Ice Path Solver", cfg.isEnabledRaw()), btn -> {
+                    cfg.setEnabled(!cfg.isEnabledRaw());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabledRaw()) {
             return widgets;
         }
 
