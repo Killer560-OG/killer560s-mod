@@ -302,10 +302,6 @@ public final class MobEspConfig {
     public boolean getWitherHighlightRaw() { return witherHighlight; }
     public void setWitherHighlight(boolean v) { witherHighlight = v; }
 
-    public boolean isAnyEnabled() {
-        return isStarredMobsEnabled() || isBatsEnabled() || isBloodMobsEnabled() || isWithersEnabled() || isWitherHighlightEnabled();
-    }
-
     // ---- Colours ----
     public int getStarredColor() { return starredColor; }
     public void setStarredColor(int v) { starredColor = v; }
@@ -326,10 +322,6 @@ public final class MobEspConfig {
     }
 
     public WitherStyle getWitherHighlightStyle() { return witherHighlightStyle; }
-    public void cycleWitherHighlightStyle() {
-        cycleWitherHighlightStyle(1);
-    }
-
     public void cycleWitherHighlightStyle(int dir) {
         WitherStyle[] all = WitherStyle.values();
         witherHighlightStyle = all[Math.floorMod(witherHighlightStyle.ordinal() + dir, all.length)];
@@ -344,7 +336,6 @@ public final class MobEspConfig {
      *  report true here even from a copied cheat-build config file. */
     public boolean isThroughWalls() { return cheat() && esp; }
     /** The master ESP switch: Through Walls has no toggle of its own any more. */
-    public boolean getThroughWallsRaw() { return esp; }
     public void setThroughWalls(boolean v) { esp = v; }
 
     /** The one ESP switch (see {@link #esp}). */
