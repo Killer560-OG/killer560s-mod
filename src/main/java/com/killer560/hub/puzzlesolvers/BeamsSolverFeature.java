@@ -145,7 +145,9 @@ public final class BeamsSolverFeature {
                         + " inDungeon=" + DungeonState.isInDungeon() + " inBoss=" + LiveMapFeature.isInBoss()
                         + " - highlights cleared");
             }
-            activePairs = new ArrayList<>();
+            if (!activePairs.isEmpty()) {
+                activePairs = new ArrayList<>();
+            }
             lastRoomEntry = null;
             return;
         }
