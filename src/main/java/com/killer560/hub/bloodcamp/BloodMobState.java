@@ -22,8 +22,7 @@ final class BloodMobState {
      *  being looked at after the click - killer560's own explicit request ("make sure it only clicks once
      *  not twice or any more than once"). */
     boolean triggerBotClicked = false;
-    /** Countdown sounds: each fires once per trip (see {@code BloodCampFeature#tickSounds}). */
-    boolean startSoundDone = false;
+    /** The Kill Sound fires once per trip (see {@code BloodCampFeature#hitSound}). */
     boolean killSoundDone = false;
     /** The kill timer (box green) has been reached this trip - recorded once for the testkit. */
     boolean killableSeen = false;
@@ -71,7 +70,6 @@ final class BloodMobState {
         this.deltaHistory.clear();
         this.endVector = null;
         this.triggerBotClicked = false;
-        this.startSoundDone = false;
         this.killSoundDone = false;
         this.killableSeen = false;
         this.clicks = 0;

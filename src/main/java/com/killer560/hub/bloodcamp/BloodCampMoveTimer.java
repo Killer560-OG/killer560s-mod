@@ -230,6 +230,19 @@ public final class BloodCampMoveTimer {
         return cfg.isEnabled() && cfg.isKillPopup() && DungeonState.isInDungeon();
     }
 
+    /** "Kill in 3.4s", remembered for the last tick count: the number is a whole tick count, so it changes 20 times a
+     *  second while the popup is drawn every frame (a String.format per frame otherwise). */
+    private static double lastCountdownTicks = Double.NaN;
+    private static String lastCountdownText = "";
+
+    private static String countdownText(double ticks) {
+        if (ticks != lastCountdownTicks) {
+            lastCountdownText = String.format(Locale.US, "Kill in %.1fs", ticks / 20.0);
+            lastCountdownTicks = ticks;
+        }
+        return lastCountdownText;
+    }
+
     /** killer560, 2026-09-27: "make the kill timer thing larger" - multiplies the old 76x14 footprint the
      *  centering math in {@link #render} was written for. */
     private static final float SCALE = 2.0f;
@@ -295,7 +308,7 @@ public final class BloodCampMoveTimer {
                     return;
                 }
                 if (ticks > 0) {
-                    text = String.format(Locale.US, "Kill in %.1fs", ticks / 20.0);
+                    text = countdownText(ticks);
                     color = 0xFF000000 | ModChat.LIGHT_ORANGE;
                 } else {
                     text = "KILL";

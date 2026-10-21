@@ -254,18 +254,18 @@ public final class BloodCampFeature {
     /** Real movement-based extrapolation, ported directly from Noamm's own real math - see this class's
      *  own doc comment. */
     public static void onMoveEntity(ClientboundMoveEntityPacket packet, Level level) {
-        BloodCampConfig cfg = BloodCampConfig.getInstance();
         if (!isActive()) {
             return;
         }
         if (packet.getXa() == 0 && packet.getYa() == 0 && packet.getZa() == 0) {
             return;
         }
-        if (!(packet.getEntity(level) instanceof ArmorStand entity)) {
-            return;
-        }
+        // Before any entity lookup: until the Watcher is known no move packet can matter (every stand in the world sends them).
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || watcherEntityId == null) {
+            return;
+        }
+        if (!(packet.getEntity(level) instanceof ArmorStand entity)) {
             return;
         }
         Entity watcher = level.getEntity(watcherEntityId);
@@ -1742,9 +1742,6 @@ public final class BloodCampFeature {
                 continue;
             }
             double remaining = remainingTicks(data, nowTick);
-            if (!data.startSoundDone) {
-                data.startSoundDone = true;
-            }
             if (!data.killableSeen && killable(remaining, pingMs)) {
                 data.killableSeen = true;
                 lastKillableAt = remaining;
