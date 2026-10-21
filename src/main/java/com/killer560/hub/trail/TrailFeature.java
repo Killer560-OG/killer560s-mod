@@ -94,8 +94,16 @@ public final class TrailFeature {
 
         TrailConfig cfg = TrailConfig.getInstance();
         RibbonTrailConfig ribbon = RibbonTrailConfig.getInstance();
-        localSpec = TrailSpec.fromConfig(ribbon);
-        localFadeEnds = ownFadeEnds();
+        boolean ribbonNow = ribbon.isEnabled();
+        // The look is only read while the ribbon draws, so with it off the TrailSpec, colour array and Name Changer
+        // lookups are not rebuilt every tick (localSpec() rebuilds on demand).
+        if (ribbonNow) {
+            localSpec = TrailSpec.fromConfig(ribbon);
+            localFadeEnds = ownFadeEnds();
+        } else if (localSpec != null) {
+            localSpec = null;
+            localFadeEnds = null;
+        }
         boolean enabledNow = cfg.isEnabled();
         if (wasEnabled && !enabledNow) {
             // Same "leaving true -> false" edge-triggered reset every other per-run state in this mod
@@ -103,7 +111,6 @@ public final class TrailFeature {
             SQUARES.clear();
         }
         wasEnabled = enabledNow;
-        boolean ribbonNow = ribbon.isEnabled();
         if (wasRibbon && !ribbonNow) {
             RibbonTrail.clear();
         }
