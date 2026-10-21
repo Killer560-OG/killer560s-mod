@@ -105,6 +105,7 @@ public final class ClassColors {
     static void onWorldChange() {
         CLASSES.clear();
         TAB_NAMES.clear();
+        NAMETAG_CACHE.clear();
     }
 
     static DungeonClass selfClass() {
@@ -218,7 +219,8 @@ public final class ClassColors {
         String name = player.getGameProfile().name();
         return name != null && !name.equals(client.player.getGameProfile().name())
                 && player.getUUID().version() == 4
-                && ClassOverrides.classOf(name, CLASSES.get(name)) != null;
+                && ClassOverrides.classOf(name, CLASSES.get(name)) != null
+                && com.killer560.hub.util.SkyblockGate.allows();
     }
 
     static void onWorldRender(LevelRenderContext context) {
