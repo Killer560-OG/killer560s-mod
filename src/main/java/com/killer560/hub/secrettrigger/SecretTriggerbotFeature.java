@@ -91,7 +91,10 @@ public final class SecretTriggerbotFeature {
         }
         SecretTriggerbotConfig cfg = SecretTriggerbotConfig.getInstance();
         if (!cfg.isEnabled()) {
+            // Switched off mid-swap: forget the slot to swap back to, or a later enable swaps to a stale one.
             pendingPos = null;
+            originalSlot = -1;
+            swapBackPending = false;
             return;
         }
         long now = System.currentTimeMillis();
@@ -151,6 +154,9 @@ public final class SecretTriggerbotFeature {
             dropPending(cfg);
             return;
         }
+        if (standsDown()) {
+            return;
+        }
         if (cfg.isSwapEnabled()) {
             int slot = cfg.getSwapSlot() - 1;
             int selected = player.getInventory().getSelectedSlot();
@@ -176,14 +182,9 @@ public final class SecretTriggerbotFeature {
         // from the middle. isBusy() covers the whole trip: searching, queued, executing, and the completion sync.
         // Placed here rather than at the top of the tick so the bookkeeping above still runs and nothing is
         // mis-remembered as attempted while it is held back.
-        if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
-                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()
-                // Nor while Auto Clear kills (killer560, 2026-10-20): its held use sets the crosshair's block to the body's
-                // look, and a secret taken then is one the route through the room later waits for.
-                || com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks()) {
-            return;
-        }
-        if (!com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_TRIGGER)) {
+        // (standsDown() is checked above the swap, too: a swap made while the executor owns the hotbar would fight its
+        // own swaps every tick.)
+        if (standsDown() || !com.killer560.hub.util.ActionGate.tryAct(com.killer560.hub.util.ActionGate.Actor.SECRET_TRIGGER)) {
             return;
         }
         BlockPos pos = pendingPos;
@@ -199,6 +200,14 @@ public final class SecretTriggerbotFeature {
         } else {
             originalSlot = -1;
         }
+    }
+
+    private static boolean standsDown() {
+        return com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
+                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()
+                // Nor while Auto Clear kills (killer560, 2026-10-20): its held use sets the crosshair's block to the body's
+                // look, and a secret taken then is one the route through the room later waits for.
+                || com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks();
     }
 
     /** Drops a pending trigger; if we already swapped for it, swap back (when enabled) once active again. */
