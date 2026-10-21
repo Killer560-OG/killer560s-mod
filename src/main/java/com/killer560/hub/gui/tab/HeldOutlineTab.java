@@ -75,8 +75,11 @@ public class HeldOutlineTab extends BaseTab {
                 protected void applyValue() {
                     float raw = (float) (HeldOutlineConfig.MIN_WIDTH
                             + this.value * (HeldOutlineConfig.MAX_WIDTH - HeldOutlineConfig.MIN_WIDTH));
+                    float before = cfg.getWidth();
                     cfg.setWidth(Math.round(raw * 2f) / 2f);
-                    cfg.save();
+                    if (cfg.getWidth() != before) {
+                        cfg.save(); // a drag repeats the same half-pixel step many times
+                    }
                 }
             });
             y[0] += 22;

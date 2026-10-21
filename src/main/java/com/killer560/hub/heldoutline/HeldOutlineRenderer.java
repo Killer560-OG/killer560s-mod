@@ -111,6 +111,8 @@ public final class HeldOutlineRenderer {
     /** Whether any item drawn this frame had a near and a far face (an extruded sprite or a cube). */
     private static boolean facesFound;
     private static final float[] segments = new float[MAX_SEGMENTS * 4];
+    /** The main uniform block's floats, rewritten each composited frame (writeUniformVec4s copies them out). */
+    private static final float[] uniformScratch = new float[MAIN_SIZE / 4];
     private static int segmentCount;
     private static final Matrix4f hudProjection = new Matrix4f();
     private static PostChain chain;
@@ -210,6 +212,8 @@ public final class HeldOutlineRenderer {
             if (sides) {
                 nearMask = sized(nearMask, "killer560smod held outline near face", main, false);
                 farMask = sized(farMask, "killer560smod held outline far face", main, false);
+            } else if (nearMask != null || farMask != null) {
+                destroyFaceMasks(); // Outline Side: Far (or Fill) needs neither window-sized target
             }
 
             SubmitNodeCollector collector = McRender.handMaskCollector(mc);
@@ -274,7 +278,8 @@ public final class HeldOutlineRenderer {
         int o = cfg.getOutlineColor();
         int f = cfg.getFillColor();
         int segs = mode == 2f ? segmentCount : 0;
-        float[] v = new float[MAIN_SIZE / 4];
+        float[] v = uniformScratch;
+        java.util.Arrays.fill(v, 0f);
         float[] head = {
                 ((o >> 16) & 0xFF) / 255f, ((o >> 8) & 0xFF) / 255f, (o & 0xFF) / 255f, ((o >>> 24) & 0xFF) / 255f,
                 ((f >> 16) & 0xFF) / 255f, ((f >> 8) & 0xFF) / 255f, (f & 0xFF) / 255f, ((f >>> 24) & 0xFF) / 255f,
@@ -596,7 +601,18 @@ public final class HeldOutlineRenderer {
             } catch (Throwable ignored) {
             }
         }
-        for (TextureTarget t : new TextureTarget[]{mask, nearMask, farMask}) {
+        destroyFaceMasks();
+        if (mask != null) {
+            try {
+                mask.destroyBuffers();
+            } catch (Throwable ignored) {
+            }
+        }
+        mask = null;
+    }
+
+    private static void destroyFaceMasks() {
+        for (TextureTarget t : new TextureTarget[]{nearMask, farMask}) {
             if (t != null) {
                 try {
                     t.destroyBuffers();
@@ -604,7 +620,6 @@ public final class HeldOutlineRenderer {
                 }
             }
         }
-        mask = null;
         nearMask = null;
         farMask = null;
     }

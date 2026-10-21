@@ -33,10 +33,6 @@ public final class HeldOutlineConfig {
             this.outline = outline;
             this.fill = fill;
         }
-
-        public Style next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
     }
 
     /**
@@ -53,10 +49,6 @@ public final class HeldOutlineConfig {
 
         Side(String label) {
             this.label = label;
-        }
-
-        public Side next() {
-            return values()[(ordinal() + 1) % values().length];
         }
     }
 
