@@ -21,7 +21,8 @@ import java.util.Map;
  * {@code menu} row of ModPaths, so {@code config/killer560/interface/menu/}); re-read by
  * {@code ProfileManager.reloadAllConfigs}. Everything here is off or "none" until he picks it, so a theme with nothing set
  * looks and sounds exactly as it did before.
- * <p>Per theme ({@link MenuTheme}, Custom included): the music track ({@link ThemeMusic}). Shared: the Theme Music switch
+ * <p>Per theme ({@link MenuTheme}, Custom included): the music track ({@link ThemeMusic}) and the font
+ * ({@link ThemeFonts}). Shared: the Theme Music switch
  * (default OFF) and its volume.
  */
 public final class ThemeExtrasConfig {
@@ -33,6 +34,8 @@ public final class ThemeExtrasConfig {
     public static final String MUSIC_THEME = "theme";
     /** No music for this theme: vanilla's menu music plays as it always did. */
     public static final String MUSIC_NONE = "none";
+    /** The theme leaves the font alone: the Font setting above applies as it is. */
+    public static final String FONT_KEEP = "keep";
 
     public static final int MIN_VOLUME = 0;
     public static final int MAX_VOLUME = 100;
@@ -46,6 +49,8 @@ public final class ThemeExtrasConfig {
     public static final class Entry {
         /** {@link #MUSIC_THEME}, {@link #MUSIC_NONE}, {@code bundled:<id>} or {@code import:<file name>}. */
         String music = MUSIC_THEME;
+        /** {@link #FONT_KEEP} or a {@code FontChoices} id ({@code minecraft}, {@code bundled:lato}, {@code file:X.ttf}). */
+        String font = FONT_KEEP;
     }
 
     private boolean musicOn = false;
@@ -84,6 +89,7 @@ public final class ThemeExtrasConfig {
                         JsonObject o = e.getValue().getAsJsonObject();
                         Entry entry = cfg.themes.get(t);
                         entry.music = clean(ConfigJson.getString(o, "music", entry.music), MUSIC_THEME);
+                        entry.font = clean(ConfigJson.getString(o, "font", entry.font), FONT_KEEP);
                     }
                 }
             }
@@ -104,6 +110,7 @@ public final class ThemeExtrasConfig {
             for (Map.Entry<MenuTheme, Entry> e : themes.entrySet()) {
                 JsonObject o = new JsonObject();
                 o.addProperty("music", e.getValue().music);
+                o.addProperty("font", e.getValue().font);
                 all.add(e.getKey().name(), o);
             }
             obj.add("themes", all);
@@ -177,6 +184,21 @@ public final class ThemeExtrasConfig {
         Entry e = entry(theme);
         if (!next.equals(e.music)) {
             e.music = next;
+            version++;
+        }
+    }
+
+    // ---------------------------------------------------------------- font
+
+    public String getFont(MenuTheme theme) {
+        return entry(theme).font;
+    }
+
+    public void setFont(MenuTheme theme, String id) {
+        String next = clean(id, FONT_KEEP);
+        Entry e = entry(theme);
+        if (!next.equals(e.font)) {
+            e.font = next;
             version++;
         }
     }

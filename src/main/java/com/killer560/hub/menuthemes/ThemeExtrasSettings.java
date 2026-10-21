@@ -82,7 +82,23 @@ public final class ThemeExtrasSettings {
         widgets.add(new StringWidget(x, y, w, 12, Component.literal("§7Plays on the main menu, which shows "
                 + MainMenuLook.current().theme().label + " now."), font));
         y += 16;
+
+        // ---- Theme Font ----
+        widgets.add(new StringWidget(x, y, w, 12, SectionHeaders.header("Theme Font", false), font));
+        y += 16;
+        widgets.add(SettingsButtonWidget.cycling(fontText(), (btn, dir) -> {
+                    ThemeFonts.step(editing(), dir);
+                    btn.setMessage(fontText());
+                }).bounds(x, y, w, 20).build());
+        y += 24;
+        widgets.add(new StringWidget(x, y, w, 12, Component.literal("§7Used while the mod menu's theme is "
+                + editing().label + "; Font Applies To and Font Size stay as set above."), font));
+        y += 16;
         return y;
+    }
+
+    static Component fontText() {
+        return Component.literal("Theme Font: " + ThemeFonts.label(ThemeExtrasConfig.getInstance().getFont(editing())));
     }
 
     /** The theme's next (+1) or previous (-1) music choice, saved. */

@@ -130,6 +130,7 @@ final class SettingTooltipsData {
         d.put("menu theme/theme music", "Plays the main menu theme's music while the main menu is open; it stops when you join a world or a server. Minecraft's own menu music waits while it plays.");
         d.put("menu theme/music", "This theme's track: its own loop, Off, or any of the bundled loops. Left click goes to the next, right click back.");
         d.put("menu theme/music volume", "How loud theme music plays, 0% to 100%. This is its own volume, not Minecraft's Music slider.");
+        d.put("menu theme/theme font", "The font this theme brings: Keep Current leaves the Font setting as it is; any other font is used while the mod menu is in this theme. Left click goes to the next, right click back.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colours"
                     + " back to the " + preset + " preset it was started from.");
