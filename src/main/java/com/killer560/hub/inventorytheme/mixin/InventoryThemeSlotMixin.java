@@ -66,7 +66,8 @@ public abstract class InventoryThemeSlotMixin {
     @Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$hideOffhandSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
         AbstractContainerScreen<?> self = (AbstractContainerScreen<?>) (Object) this;
-        if (InventoryThemeFeature.shouldTheme(self) && InventoryThemeFeature.isOffhandSlot(slot)
+        // The slot test goes first: it is a field compare, and all but one slot of ~90 fail it before the gate is asked.
+        if (InventoryThemeFeature.isOffhandSlot(slot) && InventoryThemeFeature.shouldTheme(self)
                 && !InventoryThemeFeature.isOwnedByStorageOverlay(self.getTitle())) {
             ci.cancel();
         }

@@ -3,7 +3,7 @@ package com.killer560.hub.inventorytheme;
 import com.killer560.hub.hud.GuiRects;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import org.joml.Matrix3x2f;
+import org.joml.Matrix3x2fc;
 
 /**
  * Fills placed in FRAMEBUFFER pixels, from coordinates given in the caller's GUI units (killer560, 2026-10-07: "right now
@@ -27,7 +27,7 @@ final class PixelRects {
     private final float m21;
     private final int guiScale;
 
-    private PixelRects(GuiGraphicsExtractor graphics, Matrix3x2f pose, int guiScale) {
+    private PixelRects(GuiGraphicsExtractor graphics, Matrix3x2fc pose, int guiScale) {
         this.graphics = graphics;
         this.m00 = pose.m00();
         this.m11 = pose.m11();
@@ -42,7 +42,8 @@ final class PixelRects {
 
     static PixelRects begin(GuiGraphicsExtractor graphics) {
         int gs = Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
-        return new PixelRects(graphics, new Matrix3x2f(graphics.pose()), gs);
+        // The constructor reads the four pose values before it pushes, so the live pose needs no copy (once per slot).
+        return new PixelRects(graphics, graphics.pose(), gs);
     }
 
     /** Pixels in one GUI unit of the caller's pose (guiScale times the pose's own scale), at least 1. */

@@ -225,6 +225,7 @@ public final class InventoryThemeConfig {
 
     public void setUseCustomAccent(boolean useCustomAccent) {
         this.useCustomAccent = useCustomAccent;
+        this.paletteMemo = null;
     }
 
     public int getCustomAccentColor() {
@@ -233,6 +234,7 @@ public final class InventoryThemeConfig {
 
     public void setCustomAccentColor(int customAccentColor) {
         this.customAccentColor = customAccentColor;
+        this.paletteMemo = null;
     }
 
     /** Always on while the Inventory Theme is (killer560, 2026-10-18); the same Skyblock Only gate as {@link #isEnabled()}. */
@@ -253,6 +255,7 @@ public final class InventoryThemeConfig {
 
     public void setTheme(PanelTheme theme) {
         this.theme = theme == null ? PanelTheme.AMBER : theme;
+        this.paletteMemo = null;
     }
 
     public boolean isThemeHotbar() {
@@ -319,6 +322,7 @@ public final class InventoryThemeConfig {
 
     public void setUseCustomSlotColor(boolean useCustomSlotColor) {
         this.useCustomSlotColor = useCustomSlotColor;
+        this.paletteMemo = null;
     }
 
     public int getCustomSlotColor() {
@@ -327,6 +331,7 @@ public final class InventoryThemeConfig {
 
     public void setCustomSlotColor(int customSlotColor) {
         this.customSlotColor = customSlotColor;
+        this.paletteMemo = null;
     }
 
     /** The slot backdrop colour actually drawn: the custom one when set, else the theme's. */
@@ -361,6 +366,26 @@ public final class InventoryThemeConfig {
      *  theme, a named theme is that theme's colours, Vanilla is vanilla's greys, Custom is what the Customize screen
      *  sets (its Base / Slot Color / Accent Color). The Slot and Accent overrides apply to Custom only. */
     public InventoryPalette getPalette() {
+        // Asked once per slot per frame: remembered until the Theme choice, the menu's colours or one of this config's own
+        // colour settings changes (the versions move on every such change), instead of four locked lookups and a new
+        // palette (a record plus its derived shades) for each of ~90 slots.
+        PaletteMemo memo = paletteMemo;
+        int sv = com.killer560.hub.gui.ScreenThemes.version();
+        int mv = com.killer560.hub.gui.MenuConfig.version();
+        if (memo != null && memo.screenVersion == sv && memo.menuVersion == mv) {
+            return memo.palette;
+        }
+        InventoryPalette p = computePalette();
+        paletteMemo = new PaletteMemo(sv, mv, p);
+        return p;
+    }
+
+    private record PaletteMemo(int screenVersion, int menuVersion, InventoryPalette palette) {
+    }
+
+    private volatile PaletteMemo paletteMemo;
+
+    private InventoryPalette computePalette() {
         if (isVanilla()) {
             return InventoryPalette.DEFAULT;
         }
@@ -374,10 +399,5 @@ public final class InventoryThemeConfig {
             menu = com.killer560.hub.gui.OverlayThemes.menu(); // Default: whatever the mod menu's theme is
         }
         return InventoryPalette.fromMenu(menu);
-    }
-
-    /** The panel fill colour (opaque; Background Opacity supplies the alpha). */
-    public int getPanelColor() {
-        return theme.invPanelBg;
     }
 }
