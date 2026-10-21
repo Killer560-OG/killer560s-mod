@@ -152,8 +152,8 @@ public final class InventorySorterExecutor {
 
     private static void pollKeys(Minecraft client) {
         InventorySorterConfig cfg = InventorySorterConfig.getInstance();
-        Map<String, Integer> binds = cfg.getLayoutKeys();
-        if (binds.isEmpty() || client.getWindow() == null) {
+        Map<String, Integer> binds = cfg.layoutKeysView();
+        if (binds.isEmpty() || !cfg.isEnabledRaw() || client.getWindow() == null) {
             keysDown.clear();
             return;
         }

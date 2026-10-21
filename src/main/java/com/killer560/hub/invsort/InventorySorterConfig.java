@@ -41,6 +41,7 @@ public final class InventorySorterConfig {
     private int randomExtraTicks = 2;
     /** Layout name -> key (or mouse-button, {@link KeyUtil#MOUSE_CODE_BASE}) code that applies it. Insertion ordered. */
     private final Map<String, Integer> layoutKeys = new LinkedHashMap<>();
+    private final Map<String, Integer> layoutKeysReadOnly = java.util.Collections.unmodifiableMap(layoutKeys);
 
     private InventorySorterConfig() {
     }
@@ -165,6 +166,11 @@ public final class InventorySorterConfig {
         if (code != KeyUtil.NONE) {
             setLayoutKey(to, code);
         }
+    }
+
+    /** A read-only view (no copy, for the per-tick key poll): layout name -> key code. */
+    public Map<String, Integer> layoutKeysView() {
+        return layoutKeysReadOnly;
     }
 
     /** A copy: layout name -> key code. */
