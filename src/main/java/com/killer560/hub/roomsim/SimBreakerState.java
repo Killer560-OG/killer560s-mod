@@ -119,16 +119,16 @@ public final class SimBreakerState {
     /** -1 until read. Guarded by the class monitor, like the charge count. */
     private static int secretCharges = -1;
 
-    /**
-     * Charges a secret gives back: the sim's "Echoes of the Lost" level, 0 (off) to {@link #MAX_SECRET_CHARGES}.
-     * killer560 (2026-10-06): "the regaining charges should be an optional slider or setting somewhere. The main
-     * server it is under the essence shop for either essence or for undead that gives charges back each secret".
-     */
     /** A profile load replaced the file: read it again on next use. */
     public static synchronized void forgetSecretCharges() {
         secretCharges = -1;
     }
 
+    /**
+     * Charges a secret gives back: the sim's "Echoes of the Lost" level, 0 (off) to {@link #MAX_SECRET_CHARGES}.
+     * killer560 (2026-10-06): "the regaining charges should be an optional slider or setting somewhere. The main
+     * server it is under the essence shop for either essence or for undead that gives charges back each secret".
+     */
     public static synchronized int secretCharges() {
         if (secretCharges < 0) {
             secretCharges = DEFAULT_SECRET_CHARGES;
@@ -146,7 +146,12 @@ public final class SimBreakerState {
     }
 
     public static synchronized void setSecretCharges(int level) {
-        secretCharges = Math.max(0, Math.min(MAX_SECRET_CHARGES, level));
+        int clamped = Math.max(0, Math.min(MAX_SECRET_CHARGES, level));
+        if (clamped == secretCharges) {
+            // The slider calls this on every drag event; rewriting the file for an unchanged level is wasted I/O.
+            return;
+        }
+        secretCharges = clamped;
         try {
             java.nio.file.Files.createDirectories(SECRET_FILE.getParent());
             java.nio.file.Files.writeString(SECRET_FILE, String.valueOf(secretCharges),
