@@ -11,8 +11,8 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 /** Advanced Position settings - exact X/Y/Z coordinates as a movable HUD, more precise than F3. See
  *  {@link com.killer560.hub.position.PositionFeature}. Master ships OFF; every change saves immediately. */
@@ -33,8 +33,10 @@ public class PositionTab extends BaseTab {
 
         header(w, contentX, y, contentWidth, "Advanced Position");
         w.add(SettingsButtonWidget.builder(onOff("Advanced Position", cfg.isEnabled()), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
+                    // getInstance() each press: a profile apply replaces the instance, and this tab is not rebuilt for it.
+                    PositionConfig live = PositionConfig.getInstance();
+                    live.setEnabled(!live.isEnabled());
+                    live.save();
                     requestRebuild.run();
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
@@ -49,23 +51,24 @@ public class PositionTab extends BaseTab {
                         / (double) (PositionConfig.MAX_DECIMAL_PLACES - PositionConfig.MIN_DECIMAL_PLACES)) {
             @Override
             protected void updateMessage() {
-                setMessage(decimalPlacesLabel(cfg));
+                setMessage(decimalPlacesLabel(PositionConfig.getInstance()));
             }
 
             @Override
             protected void applyValue() {
                 int range = PositionConfig.MAX_DECIMAL_PLACES - PositionConfig.MIN_DECIMAL_PLACES;
-                cfg.setDecimalPlaces(PositionConfig.MIN_DECIMAL_PLACES + (int) Math.round(this.value * range));
-                cfg.save();
+                PositionConfig live = PositionConfig.getInstance();
+                live.setDecimalPlaces(PositionConfig.MIN_DECIMAL_PLACES + (int) Math.round(this.value * range));
+                live.save();
             }
         });
         y[0] += 24;
 
         header(w, contentX, y, contentWidth, "Lines");
-        toggle(w, contentX, y[0], half, "Show Facing", cfg::isShowFacing, cfg::setShowFacing, cfg);
-        toggle(w, colB, y[0], half, "Show Block", cfg::isShowBlock, cfg::setShowBlock, cfg);
+        toggle(w, contentX, y[0], half, "Show Facing", PositionConfig::isShowFacing, PositionConfig::setShowFacing, cfg);
+        toggle(w, colB, y[0], half, "Show Block", PositionConfig::isShowBlock, PositionConfig::setShowBlock, cfg);
         y[0] += 22;
-        toggle(w, contentX, y[0], half, "Show Velocity", cfg::isShowVelocity, cfg::setShowVelocity, cfg);
+        toggle(w, contentX, y[0], half, "Show Velocity", PositionConfig::isShowVelocity, PositionConfig::setShowVelocity, cfg);
         y[0] += 24;
         return w;
     }
@@ -81,11 +84,14 @@ public class PositionTab extends BaseTab {
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label,
-                               Supplier<Boolean> get, Consumer<Boolean> set, PositionConfig cfg) {
-        w.add(SettingsButtonWidget.builder(onOff(label, get.get()), btn -> {
-                    boolean now = !get.get();
-                    set.accept(now);
-                    cfg.save();
+                               Function<PositionConfig, Boolean> get, BiConsumer<PositionConfig, Boolean> set,
+                               PositionConfig cfg) {
+        w.add(SettingsButtonWidget.builder(onOff(label, get.apply(cfg)), btn -> {
+                    // The getter/setter are bound to the build-time instance; a profile apply may have replaced it.
+                    PositionConfig live = PositionConfig.getInstance();
+                    boolean now = !get.apply(live);
+                    set.accept(live, now);
+                    live.save();
                     btn.setMessage(onOff(label, now));
                 }).bounds(x, y, width, 18).build());
     }
