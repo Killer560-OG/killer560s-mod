@@ -7,7 +7,6 @@ import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -169,10 +168,6 @@ public class CroesusTab extends BaseTab {
 
     private static Component priceModeText(CroesusConfig cfg) {
         return Component.literal("Price Mode: §6" + cfg.getPriceMode().label);
-    }
-
-    private static StringWidget label(int x, int y, int width, String text) {
-        return new StringWidget(x, y, width, 12, Component.literal(text), Minecraft.getInstance().font);
     }
 
     private static Component onOff(String label, boolean value) {
