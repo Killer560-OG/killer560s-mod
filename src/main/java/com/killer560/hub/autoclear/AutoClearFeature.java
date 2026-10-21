@@ -314,6 +314,7 @@ public final class AutoClearFeature {
         aimKey = Long.MIN_VALUE;
         pendingClears.clear();
         deathsInRoom = 0;
+        emptySince = -1;
         oneTapLogged.clear();
         oneTapFailed.clear();
         leadLogged.clear();
@@ -400,6 +401,7 @@ public final class AutoClearFeature {
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            homeRooms.clear();
             if (running) {
                 stop("the world changed");
             }
@@ -680,6 +682,7 @@ public final class AutoClearFeature {
             }
             roomName = layout.name(room);
             noMobTicks = 0;
+            emptySince = -1;
             killsInRoom = 0;
             deathsInRoom = 0;
             pathFailures = 0;
@@ -748,7 +751,16 @@ public final class AutoClearFeature {
                         && roam(client, player, layout, room, known)) {
                     return;
                 }
-                if (noMobTicks > (roamedAny ? ROAM_LOOK_TICKS : NO_MOB_TICKS) + lag) {
+                if (emptySince < 0) {
+                    emptySince = ClearExecutor.clientTick();
+                    emptyLag = com.killer560.hub.util.ServerLag.mark();
+                }
+                // Never given up sooner than NO_MOB_TICKS after nothing was first in sight, however fast the roam went:
+                // the 3-tick roam looks (and roam trips that failed at once) gave a room up in 61 ticks, before the map
+                // or the chest rule (3 s) could say it was cleared (testkit 1020-sim-chestclear).
+                boolean longEnough = ClearExecutor.clientTick() - emptySince
+                        > NO_MOB_TICKS + com.killer560.hub.util.ServerLag.ticksSince(emptyLag);
+                if (noMobTicks > (roamedAny ? ROAM_LOOK_TICKS : NO_MOB_TICKS) + lag && longEnough) {
                     if (doneWithoutMap) {
                         // No dungeon map to say so (nothing ever reads cleared without one): every starred mob in
                         // sight is dead, which is all a clear is.
@@ -765,6 +777,7 @@ public final class AutoClearFeature {
             return;
         }
         noMobTicks = 0;
+        emptySince = -1;
         midasCheckOpened(client);
         planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
         Entity target = pickTarget(player, mobs, cfg.getWeapon());
@@ -798,6 +811,9 @@ public final class AutoClearFeature {
     private static final java.util.Map<String, long[]> pendingClears = new java.util.LinkedHashMap<>();
     /** Starred deaths seen this room (any cause: the target, a doomed one, a splash). */
     private static int deathsInRoom = 0;
+    /** The tick nothing of the room was first in sight (with a ServerLag mark), -1 while something is. */
+    private static long emptySince = -1;
+    private static long emptyLag = 0L;
 
     /**
      * Standalone runs only (a room handed over by Auto Secret or Autopilot ends on the map's own clear, as their plans
@@ -1897,6 +1913,15 @@ public final class AutoClearFeature {
     private static String mobRoom(DungeonLayout layout, Entity mob, Seen before) {
         int under = layout.roomAtWorld(mob.getX(), mob.getZ());
         String here = under < 0 ? null : layout.name(under);
+        // A mob counts for the room it was first seen standing in, however far it walks (autoclear-speed-1020: the sim's
+        // walking mobs; a zombie that strolled out of Overgrown Chains left it uncleared, and the room was given up after
+        // four roam spots while the zombie stood in the next room). The edge rule below stays for a mob first seen there.
+        String home = homeRooms.get(mob.getId());
+        if (home == null && here != null && (before == null || before.lost())) {
+            homeRooms.put(mob.getId(), here);
+        } else if (home != null && !home.equals(here)) {
+            return home;
+        }
         if (before == null || before.lost() || before.room() == null || before.room().equals(here)) {
             return here;
         }
@@ -1914,7 +1939,14 @@ public final class AutoClearFeature {
     }
 
     /** Whether {@code mob} counts for {@code room}: under it, or kept there by the edge rule ({@link #mobRoom}). */
+    /** Each starred mob's room by entity id: where it was first seen (mobRoom). For the run. */
+    private static final java.util.Map<Integer, String> homeRooms = new java.util.HashMap<>();
+
     private static boolean inRoom(DungeonLayout layout, int room, Entity mob) {
+        String home = homeRooms.get(mob.getId());
+        if (home != null) {
+            return home.equals(layout.name(room));
+        }
         if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {
             return true;
         }
