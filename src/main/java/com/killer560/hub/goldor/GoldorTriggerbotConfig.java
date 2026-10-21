@@ -142,10 +142,6 @@ public final class GoldorTriggerbotConfig {
         return clickType;
     }
 
-    public void cycleClickType() {
-        cycleClickType(1);
-    }
-
     public void cycleClickType(int dir) {
         ClickType[] all = ClickType.values();
         clickType = all[Math.floorMod(clickType.ordinal() + dir, all.length)];

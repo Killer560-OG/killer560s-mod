@@ -54,13 +54,7 @@ public final class GoldorTriggerbotFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-goldortriggerbot");
 
-    /**
-     * TEMPORARY - {@code ActionGate.Actor} has no Goldor constant yet and this feature must not borrow another
-     * one for good. The exact line to add is at the top of this wave's staging notes; until the main session adds
-     * it, clicks are gated as {@code ARROW_ALIGN}, the closest existing actor (the other F7 P3 Goldor-arena
-     * triggerbot, same {@code Kind.WORLD} and the same priority tier). Aiming at an arrow-align item frame and
-     * aiming at Goldor are mutually exclusive, so sharing the slot cannot make the two fight over a tick.
-     */
+    /** This feature's own {@code ActionGate} actor (a {@code Kind.WORLD} one). */
     private static final ActionGate.Actor GATE_ACTOR = ActionGate.Actor.GOLDOR_TRIGGER;
 
     /** Said once per session, not once per tick. */
