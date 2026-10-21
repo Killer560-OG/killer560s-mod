@@ -19,7 +19,10 @@ public class GeneralTab extends FolderTab {
                 // General."
                 new CrosshairTab(),
                 // Writes what the dungeon features log to a per-session file (2026-10-19). Recorder only.
-                new SessionRecorderTab()
+                new SessionRecorderTab(),
+                // Out of Home (the mod's own settings) on 2026-10-20: it replaces game sounds (arrow and attack hits, block
+                // hits, mob deaths, block breaks), none of which one feature owns, so it is a Misc card of its own.
+                new SoundEffectsTab()
         ));
         pinFirstSection();
     }

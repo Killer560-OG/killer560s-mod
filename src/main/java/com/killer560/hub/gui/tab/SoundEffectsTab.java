@@ -16,7 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Home's Sound Effects (killer560, 2026-10-18): one row per game sound the mod can replace - an arrow hitting, every left
+ * Misc's Sound Effects (killer560, 2026-10-18; in Home until 2026-10-20, when he asked for game sounds to be out of the
+ * mod settings - none of its five sounds belongs to one feature, so the tab moved whole): one row per game sound the mod can replace - an arrow hitting, every left
  * click that hits a mob or a block, a mob dying, a block breaking. Each row is a switch and the sound it plays instead
  * (Default, a preset, or an imported file, the same list as the click). Off by default. See {@link SoundEffect}.
  */
@@ -31,7 +32,7 @@ public class SoundEffectsTab extends BaseTab {
 
     @Override
     public String cardDescription() {
-        return "Replace arrow, hit, death and break sounds.";
+        return "Swap hit and death sounds.";
     }
 
     /** Each effect is its own feature: the card is ON while any row is on (see {@link BaseTab#masterToggles}). */

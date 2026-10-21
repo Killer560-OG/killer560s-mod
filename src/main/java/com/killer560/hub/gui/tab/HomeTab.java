@@ -17,12 +17,13 @@ public class HomeTab extends FolderTab {
 
     private static List<BaseTab> buildTabs() {
         // killer560, 2026-10-15: Home's cards are in THIS order, not alphabetical (the alphabetical rule of
-        // MenuCategories.cheatLast never touches Home): Mod & HUD, Click Sounds, Sound Effects (2026-10-18), Descriptions,
-        // Discord Rich Presence, Auto Update. Menu Theme is built too but Home shows it as its own row, not a card. Testkit 519 holds the order.
+        // MenuCategories.cheatLast never touches Home): Mod & HUD, Click Sounds, Descriptions, Discord Rich Presence, Auto
+        // Update. Menu Theme is built too but Home shows it as its own row, not a card. Testkit 519 holds the order.
+        // Sound Effects (game sounds: hits, mob deaths, block breaks) moved out to Misc on 2026-10-20 (killer560: "move sound
+        // effects out of the mod settings for stuff that pertains to things like mob kills and such"); see GeneralTab.
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new HomeMainTab(),
                 new ClickSoundsTab(),
-                new SoundEffectsTab(),
                 new DescriptionsTab(),
                 new DiscordRpcTab(),
                 new AutoUpdateTab(),
