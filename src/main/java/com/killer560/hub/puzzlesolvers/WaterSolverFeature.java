@@ -144,6 +144,13 @@ public final class WaterSolverFeature {
     private static long openedWaterTick = -1;
     private static long tickCounter = 0;
     private static RoomEntry lastRoomEntry = null;
+    /** Zero-time clicks first in lever order, then the timed ones by time; the same order as {@link #compareClick}. */
+    private static final Comparator<Map.Entry<LeverBlock, Double>> CLICK_ORDER = Comparator
+            .comparing((Map.Entry<LeverBlock, Double> e) -> e.getValue() != 0.0)
+            .thenComparingInt(e -> e.getValue() == 0.0 ? e.getKey().ordinal() : Integer.MAX_VALUE)
+            .thenComparingDouble(e -> e.getValue() != 0.0 ? e.getValue() : 0.0);
+    /** {@link #remainingClicks} cache; null whenever {@code solutions} or a lever's {@code clicked} changed. */
+    private static List<Map.Entry<LeverBlock, Double>> remainingCache = null;
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-puzzles");
     /** Logging only: last room state and last scan refusal logged, so lines are written on CHANGE, never per tick. */
@@ -303,6 +310,7 @@ public final class WaterSolverFeature {
             }
         }
         patternIdentifier = identifier;
+        remainingCache = null;
         LOGGER.info("[WaterSolver] solution computed: board {} wool slots {} optimizedPath={} -> lever times {}",
                 identifier, extendedSlots, WaterSolverConfig.getInstance().isOptimizedPath(), solutions);
     }
@@ -372,10 +380,7 @@ public final class WaterSolverFeature {
                 flat.add(Map.entry(entry.getKey(), time));
             }
         }
-        flat.sort(Comparator
-                .comparing((Map.Entry<LeverBlock, Double> e) -> e.getValue() != 0.0)
-                .thenComparingInt(e -> e.getValue() == 0.0 ? e.getKey().ordinal() : Integer.MAX_VALUE)
-                .thenComparingDouble(e -> e.getValue() != 0.0 ? e.getValue() : 0.0));
+        flat.sort(CLICK_ORDER);
         return flat;
     }
 
@@ -487,6 +492,7 @@ public final class WaterSolverFeature {
                             tickCounter);
                 }
                 lever.clicked++;
+                remainingCache = null;
                 List<Double> times = solutions.get(lever);
                 NextClick next = nextClick();
                 LOGGER.info("[WaterSolver] step advanced: {} lever clicked at {} (click {} of {}, tick {}, {} since water)"
@@ -514,6 +520,26 @@ public final class WaterSolverFeature {
         }
     }
 
+    /** Every remaining click in {@link #CLICK_ORDER}, rebuilt only when a click, a scan or a reset changes it (it was
+     *  rebuilt and sorted every frame). The returned list is shared and must not be modified. */
+    private static List<Map.Entry<LeverBlock, Double>> remainingClicks() {
+        List<Map.Entry<LeverBlock, Double>> cached = remainingCache;
+        if (cached != null) {
+            return cached;
+        }
+        List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
+        for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
+            LeverBlock lever = entry.getKey();
+            List<Double> times = entry.getValue();
+            for (int i = lever.clicked; i < times.size(); i++) {
+                flat.add(Map.entry(lever, times.get(i)));
+            }
+        }
+        flat.sort(CLICK_ORDER);
+        remainingCache = flat;
+        return flat;
+    }
+
     private static void onWorldRender(LevelRenderContext context) {
         WaterSolverConfig cfg = WaterSolverConfig.getInstance();
         if (!cfg.isEnabled() || solutions.isEmpty()) {
@@ -524,18 +550,7 @@ public final class WaterSolverFeature {
             return;
         }
 
-        List<Map.Entry<LeverBlock, Double>> flat = new ArrayList<>();
-        for (Map.Entry<LeverBlock, List<Double>> entry : solutions.entrySet()) {
-            LeverBlock lever = entry.getKey();
-            List<Double> times = entry.getValue();
-            for (int i = lever.clicked; i < times.size(); i++) {
-                flat.add(Map.entry(lever, times.get(i)));
-            }
-        }
-        flat.sort(Comparator
-                .comparing((Map.Entry<LeverBlock, Double> e) -> e.getValue() != 0.0)
-                .thenComparingInt(e -> e.getValue() == 0.0 ? e.getKey().ordinal() : Integer.MAX_VALUE)
-                .thenComparingDouble(e -> e.getValue() != 0.0 ? e.getValue() : 0.0));
+        List<Map.Entry<LeverBlock, Double>> flat = remainingClicks();
 
         if (cfg.isShowTracer() && !flat.isEmpty()) {
             LeverBlock first = flat.get(0).getKey();
@@ -661,6 +676,7 @@ public final class WaterSolverFeature {
         for (LeverBlock lever : LeverBlock.values()) {
             lever.clicked = 0;
         }
+        remainingCache = null;
         patternIdentifier = -1;
         openedWaterTick = -1;
         tickCounter = 0;
