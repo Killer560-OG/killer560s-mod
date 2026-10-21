@@ -80,6 +80,7 @@ public final class ItemBrowserFeature {
     private static String cachedQuery = null;
     private static List<SkyblockItemEntry> cachedSourceRef = null;
     private static ItemBrowserConfig.SortMode cachedSortMode = null;
+    private static long cachedPriceStamp = 0L;
     private static List<SkyblockItemEntry> cachedFiltered = List.of();
 
     /** Minion tier id: {@code BLAZE_GENERATOR_7} -> base {@code BLAZE}, tier 7. */
@@ -201,12 +202,17 @@ public final class ItemBrowserFeature {
         String query = InventorySearchFeature.getQuery();
         List<SkyblockItemEntry> all = SkyblockItemRepository.getItems();
         ItemBrowserConfig.SortMode sortMode = ItemBrowserConfig.getInstance().getSortMode();
-        if (query.equals(cachedQuery) && all == cachedSourceRef && sortMode == cachedSortMode) {
+        // A value sort also depends on the prices, which arrive (and refresh) in the background after the panel first
+        // opens; without the stamp it stayed in the no-price order until the query or mode next changed.
+        boolean byValue = sortMode == ItemBrowserConfig.SortMode.VALUE_HIGH_LOW || sortMode == ItemBrowserConfig.SortMode.VALUE_LOW_HIGH;
+        long stamp = byValue ? SkyblockItemValue.priceStamp() : 0L;
+        if (query.equals(cachedQuery) && all == cachedSourceRef && sortMode == cachedSortMode && stamp == cachedPriceStamp) {
             return cachedFiltered;
         }
         cachedQuery = query;
         cachedSourceRef = all;
         cachedSortMode = sortMode;
+        cachedPriceStamp = stamp;
         List<SkyblockItemEntry> filtered;
         if (query.isBlank() || com.killer560.hub.inventorysearch.SearchCalculator.resultFor(query) != null) {
             filtered = new ArrayList<>(all);
@@ -321,22 +327,30 @@ public final class ItemBrowserFeature {
      *  known price always sorts to the end of a value sort, in either direction, rather than landing at
      *  an arbitrary spot among the priced ones. */
     private static void sort(List<SkyblockItemEntry> filtered, ItemBrowserConfig.SortMode sortMode) {
-        java.util.Comparator<SkyblockItemEntry> byNameAz =
-                java.util.Comparator.comparing((SkyblockItemEntry e) -> e.name().toLowerCase(Locale.ROOT));
+        // The sort key is read once per entry, not inside the comparator (that lowercased a name, or built a price
+        // key and looked it up, about 2 x n log n times on every keystroke of the search).
+        boolean byValue = sortMode == ItemBrowserConfig.SortMode.VALUE_HIGH_LOW || sortMode == ItemBrowserConfig.SortMode.VALUE_LOW_HIGH;
+        List<Keyed> keyed = new ArrayList<>(filtered.size());
+        for (SkyblockItemEntry e : filtered) {
+            keyed.add(new Keyed(e, byValue ? null : e.name().toLowerCase(Locale.ROOT), byValue ? SkyblockItemValue.getValue(e.id()) : null));
+        }
+        java.util.Comparator<Keyed> byNameAz = java.util.Comparator.comparing(Keyed::lower);
         // Built separately (not one comparator plus .reversed()) so an unpriced item stays LAST in BOTH
         // directions - reversing a nullsLast comparator whole would flip it to sort first instead.
-        java.util.Comparator<SkyblockItemEntry> byValueHighLow = java.util.Comparator.comparing(
-                (SkyblockItemEntry e) -> SkyblockItemValue.getValue(e.id()),
-                java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder()));
-        java.util.Comparator<SkyblockItemEntry> byValueLowHigh = java.util.Comparator.comparing(
-                (SkyblockItemEntry e) -> SkyblockItemValue.getValue(e.id()),
-                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()));
         switch (sortMode) {
-            case AZ -> filtered.sort(byNameAz);
-            case ZA -> filtered.sort(byNameAz.reversed());
-            case VALUE_HIGH_LOW -> filtered.sort(byValueHighLow);
-            case VALUE_LOW_HIGH -> filtered.sort(byValueLowHigh);
+            case AZ -> keyed.sort(byNameAz);
+            case ZA -> keyed.sort(byNameAz.reversed());
+            case VALUE_HIGH_LOW -> keyed.sort(java.util.Comparator.comparing(Keyed::value,
+                    java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())));
+            case VALUE_LOW_HIGH -> keyed.sort(java.util.Comparator.comparing(Keyed::value,
+                    java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
         }
+        for (int i = 0; i < keyed.size(); i++) {
+            filtered.set(i, keyed.get(i).entry());
+        }
+    }
+
+    private record Keyed(SkyblockItemEntry entry, String lower, Long value) {
     }
 
     /** Pure function of the screen size and current settings (no dependency on the previous frame), so
@@ -391,16 +405,18 @@ public final class ItemBrowserFeature {
     }
 
     private static void render(AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
-                || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
-            return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
-        }
+        // The cheap setting check comes first: this runs at the tail of every container screen's frame, and with the
+        // browser off (or on a chest with Only In Inventory) nothing else should be asked.
         ItemBrowserConfig cfg = ItemBrowserConfig.getInstance();
         if (!cfg.isEnabled() || !showsOn(screen, cfg)) {
             if (ItemCraftView.isOpen()) {
                 ItemCraftView.close();
             }
             return;
+        }
+        if (com.killer560.hub.bazaar.BazaarReskin.isHiding(screen)
+                || com.killer560.hub.auction.ah.AhReskin.isHiding(screen)) {
+            return; // a reskinned Bazaar or Auction House menu covers the chest; nothing of this belongs on top of it
         }
 
         PanelLayout layout = layout(screen, cfg);
@@ -496,11 +512,35 @@ public final class ItemBrowserFeature {
      *  "make it so hovering something there shows its tooltip"), else what Hypixel's catalog has (name, tier,
      *  category, description, NPC sell price). Ends with the value and a hint line. Public for the craft view. */
     public static List<Component> buildTooltipLines(SkyblockItemEntry entry) {
-        Font font = Minecraft.getInstance().font;
-        List<Component> lines = new ArrayList<>();
+        // Asked every frame the mouse rests on a cell. The answer only changes with the entry, whether its NEU lore has
+        // arrived, its price, or whether the tier picker is open, so the last one built is kept (a wrapped description
+        // and the Component list were rebuilt per frame). Callers only read the list.
         List<SkyblockItemEntry> tiers = minionTiers(entry);
         boolean stack = tiers.size() > 1 && ItemCraftView.openTierList() == null;
         NeuItemData.Info neu = NeuItemData.get(entry.id());
+        Long value = SkyblockItemValue.getValue(entry.id());
+        if (entry == tipEntry && neu == tipNeu && stack == tipStack && java.util.Objects.equals(value, tipValue)) {
+            return tipLines;
+        }
+        List<Component> built = buildTooltipLines(entry, tiers, stack, neu, value);
+        tipEntry = entry;
+        tipNeu = neu;
+        tipStack = stack;
+        tipValue = value;
+        tipLines = built;
+        return built;
+    }
+
+    private static SkyblockItemEntry tipEntry;
+    private static NeuItemData.Info tipNeu;
+    private static boolean tipStack;
+    private static Long tipValue;
+    private static List<Component> tipLines = List.of();
+
+    private static List<Component> buildTooltipLines(SkyblockItemEntry entry, List<SkyblockItemEntry> tiers, boolean stack,
+                                                     NeuItemData.Info neu, Long value) {
+        Font font = Minecraft.getInstance().font;
+        List<Component> lines = new ArrayList<>();
         if (stack) {
             lines.add(Component.literal(SkyblockItemStackFactory.tierColorCode(entry.tier()) + minionBaseName(entry)));
             lines.add(Component.literal("\u00a77Tiers " + minionTierLabel(tiers.getFirst()) + "-" + minionTierLabel(tiers.getLast())));
@@ -527,7 +567,6 @@ public final class ItemBrowserFeature {
                 lines.add(Component.literal("\u00a77NPC Sell: \u00a76" + Math.round(entry.npcSellPrice()) + " coins"));
             }
         }
-        Long value = SkyblockItemValue.getValue(entry.id());
         if (value != null && !stack) {
             lines.add(Component.literal("\u00a77Value: \u00a76" + SkyblockItemValue.formatCoins(value)));
         }
