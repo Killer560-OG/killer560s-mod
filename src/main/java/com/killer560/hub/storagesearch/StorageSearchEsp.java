@@ -68,10 +68,6 @@ public final class StorageSearchEsp {
         TARGETS.clear();
     }
 
-    public static boolean hasTargets() {
-        return !TARGETS.isEmpty();
-    }
-
     private static void onWorldRender(LevelRenderContext context) {
         // Nothing marked is the normal case - this must cost effectively nothing then.
         if (TARGETS.isEmpty()) {

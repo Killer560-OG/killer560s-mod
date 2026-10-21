@@ -81,11 +81,12 @@ public final class IslandChestCache {
         instance = cache;
     }
 
+    /** Snapshots the entries here and writes the file on {@link StorageSearchDiskWriter}'s thread. */
     public void save() {
-        try {
-            Files.createDirectories(CACHE_PATH.getParent());
+        List<ChestEntry> snapshot = new ArrayList<>(chests.values());
+        StorageSearchDiskWriter.write(CACHE_PATH, () -> {
             JsonObject root = new JsonObject();
-            for (ChestEntry entry : chests.values()) {
+            for (ChestEntry entry : snapshot) {
                 JsonObject obj = new JsonObject();
                 obj.addProperty("w", entry.world());
                 obj.addProperty("x", entry.pos().getX());
@@ -96,9 +97,8 @@ public final class IslandChestCache {
                 obj.addProperty("b", entry.blob());
                 root.add(entry.key(), obj);
             }
-            Files.writeString(CACHE_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
-        } catch (Exception ignored) {
-        }
+            return GSON.toJson(root);
+        });
     }
 
     public static String keyFor(String accountProfilePrefix, String world, BlockPos pos) {
