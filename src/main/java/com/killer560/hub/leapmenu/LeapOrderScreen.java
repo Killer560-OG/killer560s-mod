@@ -14,7 +14,10 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
 
 import java.util.Arrays;
@@ -46,6 +49,12 @@ import com.killer560.hub.compat.McCompat;
  * need that"): that automatic start is the only way in. The bottom row is Back, Reset Classes (the party's class picks),
  * Reset Positions (this class's pins) and Done; opening the editor asks for the party list itself (/pl, at most every
  * 10 s, not in a dungeon), so there is no Refresh Party button and no hint line.
+ * <p>
+ * 2026-10-21, the chat panel (killer560: players type their class in chat, and he reads it and answers himself - no
+ * auto-fill from chat, because of misspellings): a Chat button in the header's top-right corner on every stage opens
+ * {@link LeapChatPanel} down the right side, from under the header to just above the bottom row. The stage's own content
+ * (class cards, wizard rows, the four spots) shrinks into the space left of it; the bottom rows keep the full width.
+ * While its input has the keyboard every key goes to it (Enter sends, Escape leaves the box, Up/Down recall).
  */
 public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
@@ -80,6 +89,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     private int wizardIndex = 0;
     /** The editor opened with nobody in the party yet: start the wizard once names arrive (a /pl answer). */
     private boolean wizardWhenPartyArrives = false;
+    /** The chat panel (killer560, 2026-10-21), on every stage, closed when the editor opens. */
+    private final LeapChatPanel chat = new LeapChatPanel();
+    /** Set by the Chat button when it opens the panel during a mouse press (see {@link #addChat}). */
+    private boolean focusChatAfterClick = false;
 
     public LeapOrderScreen(Screen parent) {
         super(Component.literal("Leap Order"));
@@ -131,8 +144,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     }
 
     private void rebuild() {
+        boolean typing = chat.input != null && getFocused() == chat.input;
         clearWidgets();
         selectedSpot = -1;
+        addChat(typing);
         int cx = width / 2;
         if (editing == null) {
             // Page 1 (redesigned 2026-10-15, killer560: "make this menu use a better amount of its space"): the five
@@ -213,7 +228,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     private int[] classArea() {
         int x = 18;
         int y = 76;
-        int w = Math.max(50, width - 2 * x);
+        int w = Math.max(50, contentRight() - 2 * x);
         int room = Math.max(40, height - 40 - y);
         // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centred.
         int h = Math.min(room, 280);
@@ -329,6 +344,8 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     private void buildWizard(int cx) {
         String name = wizard.get(wizardIndex);
         DungeonClass now = PartyTracker.classOf(name);
+        // The page's own rows sit in the part of the panel the chat leaves; the bottom row stays across the whole width.
+        int ccx = contentRight() / 2;
         addRenderableWidget(SettingsButtonWidget.cycling(wizardClassText(now), (btn, dir) -> {
             int at = 0;
             for (int i = 0; i < WIZARD_CYCLE.length; i++) {
@@ -338,10 +355,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             }
             pickClass(name, WIZARD_CYCLE[SettingsButtonWidget.step(at, dir, WIZARD_CYCLE.length)]);
             rebuild();
-        }).bounds(cx - 80, wizardY() + 64, 160, 18).build());
+        }).bounds(ccx - 80, wizardY() + 64, 160, 18).build());
         DungeonClass[] classes = DungeonClass.values();
-        int bw = Math.min(70, (width - 20 - (classes.length - 1) * 4) / classes.length);
-        int x = cx - (classes.length * (bw + 4) - 4) / 2;
+        int bw = Math.min(70, (contentRight() - 20 - (classes.length - 1) * 4) / classes.length);
+        int x = ccx - (classes.length * (bw + 4) - 4) / 2;
         for (DungeonClass c : classes) {
             String label = c == now ? "> " + c.displayName() + " <" : c.displayName();
             addRenderableWidget(new ColoredButton(x, wizardY() + 88, bw, 18, label, c.color(), () -> {
@@ -380,10 +397,10 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     private void renderWizard(GuiGraphicsExtractor graphics) {
         String name = wizard.get(wizardIndex);
-        int cx = width / 2;
+        int cx = contentRight() / 2;
         int y = wizardY();
         ScreenChrome.titleCentred(graphics, "Teammate " + (wizardIndex + 1) + " of " + wizard.size()
-                + " - what class are they?", cx, 16, false);
+                + " - what class are they?", chat.open ? cx : width / 2, 16, false);
         int face = 32;
         GuiRects r = GuiRects.begin(graphics);
         ScreenChrome.card(r, cx - face / 2 - 4, y - 4, face + 8, face + 8, false, false);
@@ -424,7 +441,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     /** The four spots keep the leap menu's proportions but grow to fill the panel (2026-10-15; before, they stopped at the
      *  Custom Leap Menu's own scale and sat as a small block in the middle of a big screen). */
     private float boxScale() {
-        float fitW = (width - 40) / (float) (BOX_W * 2 + GAP * 2);
+        float fitW = (contentRight() - 40) / (float) (BOX_W * 2 + GAP * 2);
         float fitH = (height - 90) / (float) (BOX_H * 2 + GAP * 2);
         return Math.max(0.4f, Math.min(2.5f, Math.min(fitW, fitH)));
     }
@@ -434,7 +451,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         float s = boxScale();
         int w = (int) (BOX_W * s);
         int h = (int) (BOX_H * s);
-        int cx = width / 2;
+        int cx = contentRight() / 2;
         int cy = height / 2;
         int x0 = spot % 2 == 0 ? cx - GAP - w : cx + GAP;
         int y0 = spot < 2 ? cy - GAP - h : cy + GAP;
@@ -512,16 +529,119 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 }
             }
             if (!any) {
-                ScreenChrome.centered(graphics, "No party members found", width / 2, height / 2 - 4, MenuStyle.DIM);
+                ScreenChrome.centered(graphics, "No party members found", contentRight() / 2, height / 2 - 4, MenuStyle.DIM);
             }
         }
+        chat.draw(graphics, font, mouseX, mouseY);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    }
+
+    // ---- the chat panel ------------------------------------------------------------------------------------------------
+
+    /** The right edge of what the stage may use: the whole width, or up to the chat panel when it is open. */
+    private int contentRight() {
+        return chat.open ? chat.left(width) - 6 : width;
+    }
+
+    /** The Chat toggle in the header's top-right corner (clear of every stage's bottom row and of the Default Order pill),
+     *  and, when open, the panel down the right from under the header to just above the bottom row - so it never covers
+     *  a bottom button; a narrow window shrinks the panel, not the buttons. */
+    private void addChat(boolean typing) {
+        addRenderableWidget(SettingsButtonWidget.builder(Component.literal(chat.open ? "Hide Chat" : "Chat"), btn -> {
+            chat.open = !chat.open;
+            chat.scroll = 0;
+            rebuild();
+            if (chat.open && chat.input != null) {
+                // Opening it is for typing: no extra click. A mouse press re-focuses the pressed button after this runs
+                // (ContainerEventHandler.mouseClicked), so mouseClicked focuses the input again afterwards.
+                setFocused(chat.input);
+                focusChatAfterClick = true;
+            }
+        }).bounds(width - 12 - 60, 11, 60, 14).build());
+        if (!chat.open) {
+            return;
+        }
+        int top = editing == null ? 72 : wizard != null ? 32 : 54;
+        addRenderableWidget(chat.layout(font, width, height, top));
+        if (typing) {
+            setFocused(chat.input);
+        }
+    }
+
+    /** True while the chat input has the keyboard: every key goes to it, none to the editor or its buttons. */
+    private boolean chatTyping() {
+        return chat.open && chat.input != null && getFocused() == chat.input && chat.input.isFocused();
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (!chatTyping()) {
+            return super.keyPressed(event);
+        }
+        int key = event.key();
+        if (key == InputConstants.KEY_ESCAPE) {
+            setFocused(null); // Escape leaves the box; a second one closes the editor as before
+        } else if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) {
+            chat.send();
+        } else if (key == InputConstants.KEY_UP || key == InputConstants.KEY_DOWN) {
+            chat.history(key == InputConstants.KEY_UP ? 1 : -1);
+        } else if (key == InputConstants.KEY_PAGEUP || key == InputConstants.KEY_PAGEDOWN) {
+            chat.page(key == InputConstants.KEY_PAGEUP ? 1 : -1);
+        } else {
+            chat.input.keyPressed(event);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        if (chatTyping()) {
+            chat.input.charTyped(event);
+            return true;
+        }
+        return super.charTyped(event);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (chat.scroll(mouseX, mouseY, scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    /** Testkit: whether the chat panel is open, the lines it shows (plain text, top to bottom), and lines it has sent. */
+    public boolean chatPanelOpen() {
+        return chat.open;
+    }
+
+    public java.util.List<String> chatPanelLines() {
+        return chat.shown();
+    }
+
+    public boolean chatPanelTyping() {
+        return chatTyping();
+    }
+
+    public static int chatPanelSent() {
+        return LeapChatPanel.sent;
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (chat.input != null && getFocused() == chat.input && !chat.input.isMouseOver(event.x(), event.y())) {
+            setFocused(null); // a click anywhere else gives the keyboard back to the editor
+        }
+        focusChatAfterClick = false;
         if (super.mouseClicked(event, doubleClick)) {
+            if (focusChatAfterClick && chat.input != null) {
+                setFocused(chat.input);
+            }
+            focusChatAfterClick = false;
             return true;
+        }
+        if (chat.over(event.x(), event.y())) {
+            return true; // the panel's own area: nothing under it to click
         }
         if (editing == null || wizard != null) {
             return false;
@@ -614,7 +734,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             r.outline(x + 1, y + 1, w - 2, h - 2, c);
             r.fill(x + 2, y + 2, x + w - 2, y + h - 2, MenuStyle.alpha(cls.color(), 0x30));
             r.submit();
-            drawLarge(graphics, cls.displayName(), x + w / 2, y + h / 2 - 12, 3f, c);
+            // Three times size, smaller only when the card is too narrow for the name (the chat panel narrows them).
+            float scale = Math.max(1f, Math.min(3f, (w - 8) / (float) Math.max(1, MenuStyle.font().width(cls.displayName()))));
+            drawLarge(graphics, cls.displayName(), x + w / 2, y + h / 2 - (int) (4 * scale), scale, c);
         }
 
         @Override
