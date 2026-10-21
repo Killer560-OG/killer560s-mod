@@ -28,7 +28,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -88,15 +87,6 @@ public final class TerminalSolverFeature {
     private static int color(TerminalSolverConfig.OverlayColor key) {
         return TerminalSolverConfig.color(key);
     }
-
-    /** Public - {@link com.killer560.hub.termism.TermismPracticeScreen} (a different package) reads these
-     *  two directly for its own Melody practice overlay. They are now only the DEFAULT values: the live,
-     *  user-configurable colours are {@code TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT} and
-     *  {@code .MELODY_TRACK}. Termism should be switched over to {@code TerminalSolverConfig.color(...)}
-     *  so a custom Melody palette applies in practice mode too - not done here to keep this change
-     *  scoped to the terminals package. */
-    public static final int MELODY_ENDPOINT_COLOR = TerminalSolverConfig.OverlayColor.MELODY_ENDPOINT.defaultArgb();
-    public static final int MELODY_TRACK_BASE_COLOR = TerminalSolverConfig.OverlayColor.MELODY_TRACK.defaultArgb();
 
     // Real Hypixel Rubix mechanic (confirmed via Odin's own RubixHandler): each click on a pane
     // advances it ONE step through this 5-color cycle - no adjacency/neighbor coupling despite the name.
