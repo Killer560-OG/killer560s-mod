@@ -2,7 +2,6 @@ package com.killer560.hub.pathfinding;
 
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -34,7 +33,6 @@ final class WalkPhysics {
     static final double AIR_SPEED = 0.02;
     static final double AIR_SPEED_SPRINTING = 0.025999999;
     static final double SPRINT_MULTIPLIER = 1.3;
-    static final double SPRINT_JUMP_BOOST = 0.2;
 
     /** The eight key combinations plus "nothing": {forward, strafe} with left = +1, as {@code moveVector} has it. */
     static final int[][] KEYS = {{0, 0}, {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
@@ -58,10 +56,6 @@ final class WalkPhysics {
                 return attr * (GROUND_CONSTANT / (friction * friction * friction));
             }
             return sprint ? AIR_SPEED_SPRINTING : AIR_SPEED;
-        }
-
-        double horizontalDrag() {
-            return (onGround ? friction : 1.0) * FRICTION_SCALE;
         }
 
         double speed() {
@@ -113,39 +107,50 @@ final class WalkPhysics {
     }
 
     /**
-     * How far (horizontally) he still moves with no keys at all from this state: the slide on the ground, or the rest of
-     * an airborne arc (0.91 drag, gravity) until the feet drop back to {@code landY}, then the slide.
+     * The key combination (index into {@link #KEYS}, shifted left one bit, with bit 0 set for sprint) whose move this
+     * tick comes closest to {@code (wantX, wantZ)}; AutoWalker and ShortWalk both press it. {@code lastCombo} is held a
+     * little, so the keys do not flutter.
      */
-    static double coastDistance(Model m, double feetY, double landY) {
-        double vx = m.vx;
-        double vz = m.vz;
-        double vy = m.vy;
-        double y = feetY;
-        boolean ground = m.onGround;
-        double total = 0;
-        for (int i = 0; i < 80; i++) {
-            double drag = (ground ? m.friction : 1.0) * FRICTION_SCALE;
-            total += Math.sqrt(vx * vx + vz * vz);
-            if (!ground) {
-                y += vy;
-                vy = (vy - 0.08) * 0.98;
-                if (y <= landY && vy < 0) {
-                    ground = true;
+    static int chooseCombo(Model model, float bodyYaw, double wantX, double wantZ, boolean sprintOk, int lastCombo) {
+        int bestCombo = 0;
+        boolean bestSprint = false;
+        double bestScore = Double.MAX_VALUE;
+        double wantLen = Math.sqrt(wantX * wantX + wantZ * wantZ);
+        for (int c = 0; c < KEYS.length; c++) {
+            int fw = KEYS[c][0];
+            int st = KEYS[c][1];
+            for (int s = 0; s < 2; s++) {
+                boolean sprint = s == 1;
+                if (sprint && (!sprintOk || fw <= 0)) {
+                    continue;
+                }
+                double[] dir = keyDirection(fw, st, bodyYaw);
+                double push = model.push(sprint);
+                double mx = model.vx + dir[0] * push;
+                double mz = model.vz + dir[1] * push;
+                double ex = mx - wantX;
+                double ez = mz - wantZ;
+                double score = ex * ex + ez * ez;
+                // Faster than wanted costs more than slower: at Skyblock 600 one key is a 0.6-block push, so a tie
+                // between "too fast" and "too slow" decided the wrong way slid him onto the soul (testkit
+                // 1017-fairy-overshoot: rest 0.05 from it, aiming for 1.6).
+                if (wantLen > 1.0e-6 && (mx * wantX + mz * wantZ) / wantLen > wantLen) {
+                    score *= 3.0;
+                }
+                if (c != lastCombo) {
+                    score += 0.0004;
+                }
+                if (fw != 1) {
+                    score += 0.00005;
+                }
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestCombo = c;
+                    bestSprint = sprint;
                 }
             }
-            vx *= drag;
-            vz *= drag;
-            if (vx * vx + vz * vz < 9.0E-6) {
-                break;
-            }
         }
-        return total;
-    }
-
-    /** Distance a ground slide covers after a tick whose move was {@code speed} long: speed * f*0.91 / (1 - f*0.91). */
-    static double slideAfter(double speed, double friction) {
-        double k = friction * FRICTION_SCALE;
-        return speed * k / (1.0 - k);
+        return bestCombo << 1 | (bestSprint ? 1 : 0);
     }
 
     /**
@@ -155,11 +160,5 @@ final class WalkPhysics {
     static double speedToStopWithin(double distance, double friction) {
         double k = friction * FRICTION_SCALE;
         return Math.max(0.0, distance) * (1.0 - k);
-    }
-
-    /** Ground under the feet column, for the coast's landing height (the feet height when nothing is found). */
-    static double groundBelow(Level level, Vec3 pos) {
-        double drop = WalkTerrain.dropBelow(level, pos.x, pos.z, pos.y);
-        return drop == Double.MAX_VALUE ? pos.y - 6.0 : pos.y - drop;
     }
 }

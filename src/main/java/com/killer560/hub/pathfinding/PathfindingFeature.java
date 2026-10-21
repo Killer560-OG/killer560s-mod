@@ -238,6 +238,10 @@ public final class PathfindingFeature {
                 double x = Double.parseDouble(parts[0]);
                 double y = Double.parseDouble(parts[1]);
                 double z = Double.parseDouble(parts[2]);
+                if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+                    ModChat.send(CHAT, ModChat.bad("Those are not coordinates."));
+                    return 0;
+                }
                 NavigationManager.navigate(String.format(Locale.US, "%.0f, %.0f, %.0f", x, y, z),
                         new Vec3(x + 0.5, y, z + 0.5), -1, false, null);
                 return 1;

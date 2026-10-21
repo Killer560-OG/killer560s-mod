@@ -46,7 +46,6 @@ public final class NavigationManager {
 
     private static Target target;
     private static List<Vec3> path = List.of();
-    private static double pathLength;
     private static String pathIsland;
     private static long lastPathMs;
     private static int lastStartNode = -1;
@@ -76,15 +75,9 @@ public final class NavigationManager {
         return pathIsland;
     }
 
-    /** True when the player jumped/teleported since the last tick (warp, jump pad, etherwarp). */
-    public static boolean teleportedLastTick() {
-        return teleported;
-    }
-
     public static void navigate(String label, Vec3 pos, int nodeIndex, boolean stayOnArrive, ArrivalListener listener) {
         target = new Target(label, pos, nodeIndex, stayOnArrive, listener);
         path = List.of();
-        pathLength = 0;
         lastPathMs = 0;
         lastStartNode = -1;
         pathIsland = IslandDetector.graphIsland();
@@ -103,7 +96,6 @@ public final class NavigationManager {
         String label = target.label;
         target = null;
         path = List.of();
-        pathLength = 0;
         if (announce && PathfindingConfig.getInstance().isChatFeedback()) {
             FairySoulsFeature.say(PathfindingConfig.chatName(), ModChat.text("Stopped navigating to "), ModChat.value(label),
                     reason == null ? ModChat.text(".") : ModChat.dim(" (" + reason + ")"));
@@ -127,10 +119,6 @@ public final class NavigationManager {
             total += path.get(i).distanceTo(path.get(i + 1));
         }
         return total;
-    }
-
-    public static double totalDistance() {
-        return pathLength;
     }
 
     // ------------------------------------------------------------------ ticking
@@ -197,13 +185,12 @@ public final class NavigationManager {
         if (!stale) {
             double offPath = Math.sqrt(distanceSqToPath(pos));
             stale = offPath > cfg.getRecalcDistance();
-        }
-        if (!stale) {
-            IslandGraph graph = GraphRepository.get(island);
-            if (graph != null) {
-                IslandGraph.Node nearest = graph.nearest(pos.x, pos.y + 1.0, pos.z);
-                stale = nearest != null && nearest.index != lastStartNode
-                        && Math.sqrt(distanceSqToPath(pos)) > 3.0;
+            if (!stale && offPath > 3.0) {
+                IslandGraph graph = GraphRepository.get(island);
+                if (graph != null) {
+                    IslandGraph.Node nearest = graph.nearest(pos.x, pos.y + 1.0, pos.z);
+                    stale = nearest != null && nearest.index != lastStartNode;
+                }
             }
         }
         if (stale) {
@@ -228,7 +215,6 @@ public final class NavigationManager {
         if (graph == null) {
             // no graph (yet): fall back to a straight line so the target is still shown
             path = List.of(player.position(), target.pos);
-            pathLength = player.position().distanceTo(target.pos);
             return;
         }
         Vec3 pos = player.position();
@@ -238,7 +224,6 @@ public final class NavigationManager {
                 : graph.nearest(target.pos.x, target.pos.y, target.pos.z);
         if (start == null || goal == null) {
             path = List.of(pos, target.pos);
-            pathLength = pos.distanceTo(target.pos);
             return;
         }
         lastStartNode = start.index;
@@ -268,11 +253,6 @@ public final class NavigationManager {
             points.add(target.pos);
         }
         path = List.copyOf(points);
-        double length = pos.distanceTo(path.get(0));
-        for (int i = 0; i < path.size() - 1; i++) {
-            length += path.get(i).distanceTo(path.get(i + 1));
-        }
-        pathLength = length;
     }
 
     // ------------------------------------------------------------------ geometry helpers
@@ -282,7 +262,28 @@ public final class NavigationManager {
         return new Vec3(node.x + 0.5, node.y + 0.5, node.z + 0.5);
     }
 
+    // closestSegment is asked many times a tick for one position (the walker's carrot tries, corner scan, remaining
+    // distance, the HUD's width/height/render): the path list is only ever replaced, so identity plus the position is a key.
+    private static List<Vec3> segPath;
+    private static double segX = Double.NaN;
+    private static double segY;
+    private static double segZ;
+    private static int segResult;
+
     public static int closestSegment(Vec3 pos) {
+        if (path == segPath && pos.x == segX && pos.y == segY && pos.z == segZ) {
+            return segResult;
+        }
+        int found = closestSegment0(pos);
+        segPath = path;
+        segX = pos.x;
+        segY = pos.y;
+        segZ = pos.z;
+        segResult = found;
+        return found;
+    }
+
+    private static int closestSegment0(Vec3 pos) {
         int best = 0;
         double bestD = Double.MAX_VALUE;
         for (int i = 0; i < path.size() - 1; i++) {
