@@ -4,7 +4,6 @@ import com.killer560.hub.util.ModChat;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 import java.util.List;
 import java.util.Locale;
@@ -62,23 +61,8 @@ public final class BazaarFlipCommands {
                                     scan(IntegerArgumentType.getInteger(context, "top"));
                                     return 1;
                                 }))));
-        ClientTickEvents.END_CLIENT_TICK.register(BazaarFlipCommands::autoScanOnce);
-    }
-
-    private static boolean autoScanDone = false;
-
-    /** One silent scan once you are in a world with a readable purse, so the market is priced when the mod opens. */
-    private static void autoScanOnce(net.minecraft.client.Minecraft client) {
-        if (autoScanDone || client.player == null) {
-            return;
-        }
-        Double purse = BazaarFlipFeature.readPurse();
-        if (purse == null) {
-            return;
-        }
-        autoScanDone = true;
-        BazaarFlipConfig cfg = BazaarFlipConfig.getInstance();
-        BazaarFlipScanner.scanAsync(purse, cfg.getRankingMode(), BazaarFlipNpcLimit.remaining());
+        // The silent scan at world join (autoScanOnce) was removed 2026-10-21: it ran with the Flipper OFF, parsed the
+        // scoreboard every tick until a purse showed, and nothing read its result (the autopilot never uses the scanner).
     }
 
     private static void help() {
