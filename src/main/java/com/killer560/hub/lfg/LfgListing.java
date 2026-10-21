@@ -64,8 +64,9 @@ public record LfgListing(String id, String leader, String leaderUuid, boolean ve
                 || category == null || activity == null || !ACTIVITY.matcher(activity).matches()) {
             return null;
         }
-        int max = (int) lng(o, "max");
-        int size = (int) lng(o, "size");
+        // Clamped before the cast: a 64-bit value must not wrap into a legal party size.
+        int max = (int) Math.max(-1L, Math.min(1000L, lng(o, "max")));
+        int size = (int) Math.max(-1L, Math.min(1000L, lng(o, "size")));
         if (max < 2 || max > category.maxParty || size < 1 || size > max) {
             return null;
         }
@@ -88,7 +89,7 @@ public record LfgListing(String id, String leader, String leaderUuid, boolean ve
                 }
             }
         }
-        String note = strOr(o, "note", "").replace("§", "");
+        String note = strOr(o, "note", "").replace("§", "").replaceAll("\\p{Cntrl}", "");
         if (note.length() > 80) {
             note = note.substring(0, 80);
         }
