@@ -160,7 +160,10 @@ public class MenuThemeTab extends BaseTab {
         y += 6;
         y = com.killer560.hub.fonts.FontSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
         y += 6;
-        com.killer560.hub.mainmenu.MainMenuSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
+        y = com.killer560.hub.mainmenu.MainMenuSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
+        // ---- Theme Extras: each theme's music, font and background (killer560, 2026-10-21) ----
+        y += 6;
+        com.killer560.hub.menuthemes.ThemeExtrasSettings.build(widgets, contentX, y, contentWidth, requestRebuild);
         return widgets;
     }
 

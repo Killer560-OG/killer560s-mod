@@ -222,6 +222,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.mainmenu.MainMenuTitleLayout.register();
         com.killer560.hub.mainmenu.SceneShaders.register();
         com.killer560.hub.fonts.CustomFonts.register();
+        com.killer560.hub.menuthemes.ThemeMusic.register();
+        com.killer560.hub.menuthemes.ThemeBackgroundPlayer.register();
         AutoMeowFeature.register();
         com.killer560.hub.architect.ArchitectDraftFeature.register();
         com.killer560.hub.util.SackCommands.register();

@@ -54,5 +54,45 @@
         "stream": false
       }
     ]
+  },
+  "theme_music_amber": {
+    "sounds": [
+      {
+        "name": "killer560smod:music/theme_amber",
+        "stream": true
+      }
+    ]
+  },
+  "theme_music_dark": {
+    "sounds": [
+      {
+        "name": "killer560smod:music/theme_dark",
+        "stream": true
+      }
+    ]
+  },
+  "theme_music_light": {
+    "sounds": [
+      {
+        "name": "killer560smod:music/theme_light",
+        "stream": true
+      }
+    ]
+  },
+  "theme_music_ocean": {
+    "sounds": [
+      {
+        "name": "killer560smod:music/theme_ocean",
+        "stream": true
+      }
+    ]
+  },
+  "theme_music_green": {
+    "sounds": [
+      {
+        "name": "killer560smod:music/theme_green",
+        "stream": true
+      }
+    ]
   }
 }

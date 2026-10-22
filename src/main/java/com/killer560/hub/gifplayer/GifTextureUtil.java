@@ -51,6 +51,15 @@ public final class GifTextureUtil {
         graphics.blit(texture.getTextureView(), texture.getSampler(), x, y, x + width, y + height, 0f, 1f, 1f, 0f);
     }
 
+    /** {@link #blit} showing only part of the texture: {@code u0..u1} across, {@code top..bottom} down, each 0..1 of the
+     *  picture as written by {@link #writeFrame} (a main menu background cropped to fill the screen). */
+    public static void blit(GuiGraphicsExtractor graphics, DynamicTexture texture, int x, int y, int width, int height,
+                            float u0, float u1, float top, float bottom) {
+        // Rows are pre-flipped (see writeFrame), so the picture's top is v = 1 and its bottom v = 0.
+        graphics.blit(texture.getTextureView(), texture.getSampler(), x, y, x + width, y + height, u0, u1, 1f - top,
+                1f - bottom);
+    }
+
     private GifTextureUtil() {
     }
 }

@@ -125,6 +125,17 @@ final class SettingTooltipsData {
         d.put("menu theme/particles", "Custom: how many embers, drops, stars or lights the background draws. Off draws none.");
         d.put("menu theme/background speed", "Custom: how fast the background moves.");
         d.put("menu theme/button panel", "Custom: the frosted panel behind the main menu's buttons.");
+        // Theme Extras (killer560, 2026-10-21: menuthemes.ThemeExtrasSettings).
+        d.put("menu theme/extras for", "The theme the rows below set up. It starts on the menu's own theme. Left click goes to the next, right click back.");
+        d.put("menu theme/theme music", "Plays the main menu theme's music while the main menu is open; it stops when you join a world or a server. Minecraft's own menu music waits while it plays.");
+        d.put("menu theme/music", "This theme's track: its own loop, Off, any of the bundled loops, or music you imported. Left click goes to the next, right click back.");
+        d.put("menu theme/music volume", "How loud theme music plays, 0% to 100%. This is its own volume, not Minecraft's Music slider.");
+        d.put("menu theme/import music", "Imports the sound or video whose path is on the clipboard (Shift + right click the file, Copy as path) and sets it as this theme's music. An .ogg is used as it is; anything else needs ffmpeg and keeps its first 10 minutes.");
+        d.put("menu theme/open music folder", "Opens the folder imported theme music lives in. An .ogg dropped there can be picked with Music.");
+        d.put("menu theme/theme font", "The font this theme brings: Keep Current leaves the Font setting as it is; any other font is used while the mod menu is in this theme. Left click goes to the next, right click back.");
+        d.put("menu theme/theme background", "This theme's main menu background: Theme Scene (its own animated picture) or a video or GIF you imported. Left click goes to the next, right click back.");
+        d.put("menu theme/import background", "Imports the video or GIF whose path is on the clipboard (Shift + right click the file, Copy as path) and sets it as this theme's background. A GIF is used as it is; a video needs ffmpeg and keeps its first minute.");
+        d.put("menu theme/open backgrounds folder", "Opens the folder imported backgrounds live in.");
         for (String preset : new String[]{"Amber", "Dark", "Light"}) {
             d.put("menu theme/reset custom to " + preset.toLowerCase(java.util.Locale.ROOT), "Puts Custom's five colours"
                     + " back to the " + preset + " preset it was started from.");

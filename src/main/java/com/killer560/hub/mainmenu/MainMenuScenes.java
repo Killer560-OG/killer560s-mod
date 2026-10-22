@@ -190,6 +190,10 @@ public final class MainMenuScenes {
         if (w <= 0 || h <= 0) {
             return;
         }
+        // A theme's imported video or GIF (Theme Extras, 2026-10-21) replaces its scene once its first frame is ready.
+        if (com.killer560.hub.menuthemes.ThemeBackgroundPlayer.draw(g, w, h, look.theme())) {
+            return;
+        }
         long probeStart = allocProbe ? allocatedNow() : 0L;
         double t = clock(look.speed());
         int accent = look.accent() | 0xFF000000;

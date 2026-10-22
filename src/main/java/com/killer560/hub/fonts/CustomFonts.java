@@ -64,6 +64,8 @@ public final class CustomFonts {
     private static boolean dirty = true;
     private static int generation;
     private static String builtId = FontChoices.MINECRAFT;
+    /** The font id the last build was asked for (the theme's or the Font setting's), so a theme change rebuilds. */
+    private static String builtWant = FontChoices.MINECRAFT;
     private static volatile String lastError;
     private static boolean registered;
     /** Builds done, for the testkit (a font that never built is not a font that works). */
@@ -161,13 +163,16 @@ public final class CustomFonts {
         FontConfig cfg = FontConfig.getInstance();
         int scale = Math.max(1, (int) Math.ceil(mc.getWindow().getGuiScale()));
         everywhere = cfg.getScope() == FontConfig.Scope.EVERYTHING;
-        if (!dirty && builtVersion == FontConfig.version() && builtScale == scale) {
+        // The menu theme's own font, when it has one (Theme Extras, 2026-10-21); otherwise the Font setting's.
+        String want = com.killer560.hub.menuthemes.ThemeFonts.effective(cfg.getFont());
+        if (!dirty && builtVersion == FontConfig.version() && builtScale == scale && want.equals(builtWant)) {
             return;
         }
         dirty = false;
         builtVersion = FontConfig.version();
         builtScale = scale;
-        rebuild(mc, cfg, scale);
+        builtWant = want;
+        rebuild(mc, cfg, want, scale);
     }
 
     /** Forces the next {@link #refresh} to rebuild and runs it now (Reload Fonts). */
@@ -177,16 +182,16 @@ public final class CustomFonts {
         refresh(mc);
     }
 
-    private static void rebuild(Minecraft mc, FontConfig cfg, int scale) {
+    private static void rebuild(Minecraft mc, FontConfig cfg, String fontId, int scale) {
         anyGlyphs = null;
         nonFishyGlyphs = null;
         closeSet();
         lastError = null;
         builtId = FontChoices.MINECRAFT;
-        FontChoices.Choice choice = FontChoices.find(cfg.getFont());
+        FontChoices.Choice choice = FontChoices.find(fontId);
         if (choice == null) {
-            if (!FontChoices.MINECRAFT.equals(cfg.getFont())) {
-                lastError = "Font not found: " + cfg.getFont().replaceFirst("^[a-z]+:", "");
+            if (!FontChoices.MINECRAFT.equals(fontId)) {
+                lastError = "Font not found: " + fontId.replaceFirst("^[a-z]+:", "");
             }
             return;
         }

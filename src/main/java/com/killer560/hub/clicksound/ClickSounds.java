@@ -432,20 +432,28 @@ public final class ClickSounds {
      * @throws IOException with the message to show him when it is refused
      */
     public static String importClipboard(String clip) throws IOException {
+        return importFile(clipboardPath(clip, "Copy a sound or video file's path first (Shift + right click it, Copy as path)."));
+    }
+
+    /**
+     * The path on the clipboard, with the quotes Explorer's "Copy as path" adds stripped: the import path every import
+     * button shares (Click Sounds, Sound Effects, Theme Music, Theme Background).
+     * @param empty the message for an empty clipboard
+     * @throws IOException with the message to show him when it is not a path
+     */
+    public static Path clipboardPath(String clip, String empty) throws IOException {
         String text = clip == null ? "" : clip.strip();
         if (text.length() > 1 && text.startsWith("\"") && text.endsWith("\"")) {
             text = text.substring(1, text.length() - 1);
         }
         if (text.isEmpty()) {
-            throw new IOException("Copy a sound or video file's path first (Shift + right click it, Copy as path).");
+            throw new IOException(empty);
         }
-        Path path;
         try {
-            path = Path.of(text);
+            return Path.of(text);
         } catch (java.nio.file.InvalidPathException e) {
             throw new IOException("That is not a file path.");
         }
-        return importFile(path);
     }
 
     /**

@@ -417,6 +417,8 @@ public final class ProfileManager {
                 com.killer560.hub.gui.ScreenThemes::load,
                 // The Themes tab's Font setting (2026-10-15).
                 com.killer560.hub.fonts.FontConfig::load,
+                // Each menu theme's music, font and main menu background (2026-10-21).
+                com.killer560.hub.menuthemes.ThemeExtrasConfig::load,
                 com.killer560.hub.autocorrect.AutoCorrectConfig::load,
                 com.killer560.hub.trail.TrailConfig::load,
                 com.killer560.hub.trail.RibbonTrailConfig::load,
@@ -602,6 +604,8 @@ public final class ProfileManager {
         Runnable[] refreshers = {
                 // Loaded GIF textures + their HUD elements are synced to GifPlayerConfig's enabled files.
                 com.killer560.hub.gifplayer.GifPlayerFeature::reload,
+                // A theme's imported main menu background (killer560smod-menu-themebackgrounds) is read again when next drawn.
+                com.killer560.hub.menuthemes.ThemeBackgroundPlayer::release,
                 // Data a profile carries (ProfileData) that a feature holds in memory: re-read it from disk.
                 com.killer560.hub.cringe.CringeLines::load,
                 com.killer560.hub.dungeonextras.BreakerAuraStore::reload,
