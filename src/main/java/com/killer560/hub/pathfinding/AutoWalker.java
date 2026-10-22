@@ -648,6 +648,12 @@ public final class AutoWalker {
         double uz = horizontal < 1.0e-6 ? 0 : dz / horizontal;
         boolean sprintOk = cfg.isAutoSprint() && !player.isInWater() && horizontal > 1.5;
         chooseKeys(model, player.getYRot(), ux * allowed, uz * allowed, sprintOk);
+        // At the water surface (feet in the water, eyes out) the keys are not steered either: the same flag came from
+        // the walker starting from the surface. He sinks or floats there on his own, and steering resumes once
+        // his eyes are under.
+        if (player.isInWater() && !player.isUnderWater()) {
+            wantForward = wantBack = wantLeft = wantRight = false;
+        }
         NavigationManager.Target navTarget = NavigationManager.target();
         if (LOGGER.isDebugEnabled() && navTarget != null && navTarget.stayOnArrive && NavigationManager.remainingDistance() < 7.0) {
             LOGGER.debug(String.format(Locale.US, "[AutoWalker] approach: %.2f left, speed %.2f, allowed %.2f, ground %s, "
