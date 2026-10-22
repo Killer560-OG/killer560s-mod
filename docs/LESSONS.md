@@ -511,3 +511,11 @@ Compiling lessons (API names across versions, the cloud-session javac filter) ar
   `Sound`, javap 26.1.2). Sound Effects read `at.getPitch()` there, the catch handed back the game's sound, and no effect ever
   played (2026-10-20). Call `resolve(soundManager)` on it first, or read neither. Proof that a swap reached the engine: a
   `SoundEventListener` (testkit 99-sim-sound-effects) is told before the muted client's zero-volume skip.
+- **On Windows a tmp-then-`Files.move(REPLACE_EXISTING)` save fails while anything else has the target open**
+  (FileAlreadyExistsException), and a writer that only logs that has lost the save. The Croesus run file lost pages 2 and
+  3 across a restart that way (testkit 890, 2026-10-22). `CroesusRunMemory.replace` writes the file in place when the
+  replace is refused; other savers with the same pattern (RunHistoryStore, BestFriendsStore, GraphRepository...) still drop it.
+- **A wait that ends on "the confirm page is open" must not end on the one it just clicked.** That page stays open until the
+  server answers, so the Bazaar Flip autopilot read its own clicked Confirm Instant Buy as a new question, dropped its
+  wait, and bought from the reopened Instant Buy page a second time (testkit 2762, 2026-10-22). Key such a wait on the
+  clicked page's container id.
