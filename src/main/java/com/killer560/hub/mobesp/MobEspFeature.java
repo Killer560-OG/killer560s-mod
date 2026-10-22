@@ -291,12 +291,14 @@ public final class MobEspFeature {
                 }
                 liveStands.add(stand.getId());
                 Entity mob = resolveMob(client, stand, name);
-                if (mob != null && accept(client, eye, mob, rangeSq, roomBox, throughWalls, glow, filled,
+                // Starred mobs ignore Range and Room Scoped, as QUOI's starred ESP does: every starred mob in the dungeon is
+                // drawn until it dies, wherever it is (2026-10-22). Line of sight still applies.
+                if (mob != null && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled,
                         throughWalls, foundBoxes, foundGlows, cfg.getStarredColor())) {
                     stars++;
                 }
             } else if (wantStars && entity instanceof Player p && isMiniboss(client, p)) {
-                if (accept(client, eye, p, rangeSq, roomBox, throughWalls, glow, filled, throughWalls,
+                if (accept(client, eye, p, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
                         foundBoxes, foundGlows, cfg.getStarredColor())) {
                     stars++;
                 }
