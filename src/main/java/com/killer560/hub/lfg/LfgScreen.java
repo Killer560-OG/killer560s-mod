@@ -58,6 +58,9 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     /** The player's own stats, which fill the Create form's requirements; statsPending while they have not arrived yet. */
     private PartyFinderStatsApi.PlayerStats ownStats;
     private boolean statsPending = false;
+    /** The header's top-right text as last drawn (null before the first frame); read by the testkit. */
+    private String lastHeaderRight;
+
     /** The start screen. */
     public LfgScreen(Screen parent) {
         this(parent, null);
@@ -484,8 +487,11 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.header(graphics, panelX, panelY, panelW, tab == null ? "Custom Party Finder" : "Custom Party Finder - " + tab.label);
         LfgListing mine = LfgFeature.myListing();
         String right = mine != null ? "Listed: " + mine.category().label + " " + mine.activity() + " " + mine.size() + "/" + mine.max()
-                : LfgFeature.isListed() ? "Listing..." : "/pf";
-        ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+                : LfgFeature.isListed() ? "Listing..." : "";
+        if (!right.isEmpty()) {
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+        }
+        lastHeaderRight = right;
 
         if (tab == null) {
             ScreenChrome.text(graphics, "Pick an activity to see its parties.", listX + 4, panelY + 34, MenuStyle.DIM);
@@ -614,6 +620,11 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     /** Test hook: the activity shown, or null on the start screen. */
     public LfgCategory tabForTest() {
         return tab;
+    }
+
+    /** Test hook: the text the header's top-right drew last frame ("" when it drew nothing). */
+    public String headerRightForTest() {
+        return lastHeaderRight;
     }
 
     /** Test hook: the inbox rows drawn. */
