@@ -239,6 +239,9 @@ final class BazaarFlipAutopilot {
         lastPlacement = null;
         lastPlacementCounted = false;
         staleAskedAtMs = 0L;
+        boughtLines.clear();
+        estimatedBuy = null;
+        estimatedCost.clear();
     }
 
     /**
@@ -309,12 +312,61 @@ final class BazaarFlipAutopilot {
             return;
         }
         Matcher m = BazaarFlipFeature.BOUGHT_LINE.matcher(line);
-        if (m.matches() && action instanceof FlipAction.InstaBuy b && m.group(2).equalsIgnoreCase(b.name())) {
+        if (m.matches()) {
             try {
-                boughtCoins += Double.parseDouble(m.group(3).replace(",", ""));
+                long units = Long.parseLong(m.group(1).replace(",", ""));
+                double coins = Double.parseDouble(m.group(3).replace(",", ""));
+                if (units > 0 && coins > 0) {
+                    boughtLines.add(new Bought(m.group(2), units, coins));
+                }
             } catch (NumberFormatException ignored) {
                 // a malformed number is no cost information
             }
+        }
+    }
+
+    /** Hypixel's "[Bazaar] Bought Nx NAME for C coins!": what an Insta Buy really cost. */
+    private record Bought(String name, long units, double coins) {
+    }
+
+    /** Bought lines from the chat listener, taken in by the next tick ({@link #takeBoughtLines}). */
+    private static final java.util.concurrent.ConcurrentLinkedQueue<Bought> boughtLines =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    /** The last Insta Buy whose units arrived before its Bought line: their cost is the page quote's estimate until the
+     *  line comes and corrects it. */
+    private record EstimatedBuy(String productId, String name, long units, double each) {
+    }
+
+    private static EstimatedBuy estimatedBuy;
+    /** Products whose cost basis still holds an estimate from a page quote (no Bought line seen for it). */
+    private static final Set<String> estimatedCost = new HashSet<>();
+
+    /**
+     * The Bought lines since the last tick. One for the Insta Buy under way is its true cost (used when the units
+     * arrive); one for the Insta Buy whose units came first replaces that buy's quote estimate in the cost basis.
+     */
+    private static void takeBoughtLines() {
+        for (Bought b; (b = boughtLines.poll()) != null; ) {
+            if (action instanceof FlipAction.InstaBuy ib && b.name().equalsIgnoreCase(ib.name())) {
+                boughtCoins += b.coins();
+                continue;
+            }
+            EstimatedBuy e = estimatedBuy;
+            if (e == null || !b.name().equalsIgnoreCase(e.name())) {
+                continue;
+            }
+            estimatedBuy = null;
+            long held = holdings.getOrDefault(e.productId(), 0L);
+            long units = Math.min(held, Math.min(b.units(), e.units()));
+            double trueEach = b.coins() / b.units();
+            if (held > 0 && units > 0) {
+                double avg = costBasis.getOrDefault(e.productId(), e.each());
+                costBasis.put(e.productId(), avg + (trueEach - e.each()) * units / held);
+                estimatedCost.remove(e.productId());
+            }
+            LOGGER.info("[BazaarFlip] Autopilot: Bought line for {} - {} each, not the quote's {} ({} still held)",
+                    e.name(), trueEach, e.each(), held);
         }
     }
 
@@ -322,6 +374,7 @@ final class BazaarFlipAutopilot {
 
     static void tick(Minecraft client, BazaarFlipConfig cfg) {
         long now = System.currentTimeMillis();
+        takeBoughtLines();
         if (now - productsAskedAtMs >= PRODUCTS_REFRESH_MS) {
             productsAskedAtMs = now;
             BazaarApi.refreshAsync();
@@ -786,8 +839,17 @@ final class BazaarFlipAutopilot {
 
     private static void onCarriedUp(Minecraft client, int delta) {
         if (action instanceof FlipAction.InstaBuy b) {
-            double each = boughtCoins > 0 ? boughtCoins / delta : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
+            // The true cost is Hypixel's Bought line. When the units come first, the Instant Buy page's quote (rounded to
+            // whole coins, and the book plus Hypixel's margin) stands in until the line arrives (takeBoughtLines).
+            boolean known = boughtCoins > 0;
+            double each = known ? boughtCoins / delta : quoteEach / (1 + FlipAutopilot.INSTANT_BUY_QUOTE_MARGIN);
             addHolding(b.productId(), delta, each);
+            if (known) {
+                estimatedBuy = null;
+            } else {
+                estimatedBuy = new EstimatedBuy(b.productId(), b.name(), delta, each);
+                estimatedCost.add(b.productId());
+            }
             placed++;
             closeMenu(client);
             done("bought " + delta + " " + b.name());
@@ -798,8 +860,8 @@ final class BazaarFlipAutopilot {
 
     private static void onCarriedDown(Minecraft client, int delta) {
         if (action instanceof FlipAction.InstaSell s) {
-            takeHolding(s.productId(), delta);
             logSale(s.productId(), s.name(), delta, s.expectedEach());
+            takeHolding(s.productId(), delta);
             done("insta-sold " + delta + " " + s.name());
         } else if (action instanceof FlipAction.PlaceSellOffer s) {
             takeHolding(s.productId(), delta);
@@ -1426,8 +1488,8 @@ final class BazaarFlipAutopilot {
 
     private static void finishNpcSell(Minecraft client, FlipAction.SellToNpc s, String why) {
         if (npcSoldUnits > 0) {
-            takeHolding(s.productId(), npcSoldUnits);
             logSale(s.productId(), s.name(), npcSoldUnits, s.npcEach());
+            takeHolding(s.productId(), npcSoldUnits);
         }
         closeMenu(client);
         done("NPC sale of " + s.name() + ": " + why);
@@ -1465,14 +1527,21 @@ final class BazaarFlipAutopilot {
             holdings.put(id, left);
         } else {
             holdings.remove(id);
+            estimatedCost.remove(id);
         }
     }
 
     /** One sale to the profit tracker: the units at their cost basis against what they brought (estimated from the
-     *  price the sale was made at - Hypixel's Bazaar sale lines are not in the repo). */
+     *  price the sale was made at - Hypixel's Bazaar sale lines are not in the repo). Said in chat (ModChat.log), with
+     *  the spent figure marked as an estimate when no Bought line gave the true cost. Call before {@link #takeHolding}. */
     private static void logSale(String id, String name, long units, double receivedEach) {
         double cost = costBasis.getOrDefault(id, 0.0);
+        boolean estimated = estimatedCost.contains(id);
         BazaarFlipProfitLog.record(id, name, (int) units, (int) units, units * cost, units * receivedEach, 0, Double.NaN);
+        ModChat.log(CHAT, ModChat.text(String.format(Locale.US, "Sold %,d %s: spent %,.0f, received %,.0f, net %,.0f",
+                        units, name, units * cost, units * receivedEach, units * (receivedEach - cost))),
+                ModChat.dim(estimated ? " - spent is estimated from the Instant Buy page's rounded quote (no Bought line"
+                        + " gave the true cost)" : ""));
     }
 
     /** Units of the product in his own 36 slots, whatever screen is open. */
