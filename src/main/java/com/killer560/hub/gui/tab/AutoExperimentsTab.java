@@ -127,7 +127,7 @@ public class AutoExperimentsTab extends BaseTab {
             protected void applyValue() {
                 ExperimentsConfig c = ExperimentsConfig.getInstance();
                 c.setSuperpairsSkipValueCoins(ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE + this.value * skipRange);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (c.getSuperpairsSkipValueCoins() - ExperimentsConfig.MIN_SUPERPAIRS_SKIP_VALUE) / skipRange;
             }
         });
@@ -207,7 +207,7 @@ public class AutoExperimentsTab extends BaseTab {
                 ExperimentsConfig c = ExperimentsConfig.getInstance();
                 int snapped = (int) Math.round(this.value * ExperimentsConfig.MAX_AUTO_RENEW_COUNT);
                 c.setAutoRenewCount(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = snapped / (double) ExperimentsConfig.MAX_AUTO_RENEW_COUNT;
             }
         });
@@ -262,7 +262,7 @@ public class AutoExperimentsTab extends BaseTab {
                 int step = ExperimentsConfig.DELAY_STEP_MS;
                 int snapped = minMs + (int) Math.round(this.value * range / step) * step;
                 setter.accept(Math.max(minMs, Math.min(maxMs, snapped)));
-                ExperimentsConfig.getInstance().save();
+                saveOnRelease(() -> ExperimentsConfig.getInstance().save());
                 this.value = (getter.getAsInt() - minMs) / range;
             }
         };
@@ -307,7 +307,7 @@ public class AutoExperimentsTab extends BaseTab {
             snapped = Math.max(ExperimentsConfig.MIN_TITANIC_MAX_PRICE,
                     Math.min(ExperimentsConfig.MAX_TITANIC_MAX_PRICE, snapped));
             c.setTitanicMaxPriceCoins(snapped);
-            c.save();
+            saveOnRelease(() -> c.save());
             this.value = fraction();
             if (field != null) {
                 field.setValue(String.format("%.0f", snapped));

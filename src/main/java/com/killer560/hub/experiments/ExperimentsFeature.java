@@ -421,6 +421,10 @@ public final class ExperimentsFeature {
         return true;
     }
 
+    /** Frames a Superpairs board drew its highlights / skipped them for the click switch - testkit evidence of which path ran. */
+    public static volatile long superpairsHighlightFrames;
+    public static volatile long superpairsHighlightsHiddenFrames;
+
     /** Solver-Only mode's whole visible effect: colored tints over the correct slot(s), numbered for
      *  Chronomatron/Ultrasequencer's ordered sequence, matched-pair colored for Superpairs - never a
      *  click. See the class doc for why this exists as a mode of its own. */
@@ -487,10 +491,14 @@ public final class ExperimentsFeature {
                 if (following >= 0) highlightSlot(graphics, menu, following, left, top, HIGHLIGHT_FOLLOWING_CLICK_COLOR, null);
             }
             case SUPERPAIRS -> {
-                // Not gated on isSuperpairsEnabled() (sweep 2026-10-21): that is Auto E-Table's "Auto-Solve
-                // Superpairs" click switch, and the legit solver has no control for it, so turning the auto's
-                // Superpairs off hid the legit highlights too. Observation runs either way (nextClick observes
-                // before it decides), so the labels are as accurate with the click switch off.
+                // The highlights follow Auto E-Table's "Auto-Solve Superpairs" click switch (killer560, 2026-10-21:
+                // off means no Superpairs highlights either). The switch exists only in the cheat build; a legit
+                // build has no control for it, so there the highlights always show.
+                if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !cfg.isSuperpairsEnabled()) {
+                    superpairsHighlightsHiddenFrames++;
+                    return;
+                }
+                superpairsHighlightFrames++;
                 // Per killer560's request: label every known tile with what's actually under it (not just
                 // confirmed pairs) - "tell me what is under it in case I manually have to take over to
                 // get a super rare or something." Covered-but-known singles get their own color

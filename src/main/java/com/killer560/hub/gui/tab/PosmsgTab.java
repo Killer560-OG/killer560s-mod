@@ -216,7 +216,7 @@ public class PosmsgTab extends BaseTab {
                 double raw = min + this.value * span;
                 double snapped = Math.round(raw / step) * step;
                 apply.accept(Math.max(min, Math.min(max, snapped)));
-                PosmsgConfig.getInstance().save();
+                saveOnRelease(() -> PosmsgConfig.getInstance().save());
             }
         };
     }

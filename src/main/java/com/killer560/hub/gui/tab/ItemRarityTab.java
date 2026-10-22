@@ -54,7 +54,7 @@ public class ItemRarityTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setOutlineWidth(ItemRarityConfig.MIN_OUTLINE_WIDTH + (int) Math.round(this.value * span));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -73,7 +73,7 @@ public class ItemRarityTab extends BaseTab {
             protected void applyValue() {
                 int range = ItemRarityConfig.MAX_OPACITY - ItemRarityConfig.MIN_OPACITY;
                 cfg.setOpacity(ItemRarityConfig.MIN_OPACITY + (int) Math.round(this.value * range));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

@@ -115,7 +115,7 @@ public class LeapMenuTab extends BaseTab {
                     // 50%..400% in 5% steps
                     float raw = SpiritLeapOverlayConfig.MIN_SCALE + (float) this.value * span;
                     cfg.setScale(Math.round(raw * 20.0f) / 20.0f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += ROW + GAP;

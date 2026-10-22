@@ -61,7 +61,7 @@ public class AutoCroesusTab extends BaseTab {
                     int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 50.0) * 50;
                     CroesusConfig c = CroesusConfig.getInstance();
                     c.setAutoMinProfitK(k);
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             });
             y += 24;
@@ -85,7 +85,7 @@ public class AutoCroesusTab extends BaseTab {
                 protected void applyValue() {
                     CroesusConfig c = CroesusConfig.getInstance();
                     c.setAutoMinDelayMs((int) Math.round(CroesusConfig.MIN_DELAY_BOUND_MS + this.value * range));
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             });
             widgets.add(new ThemedSliderButton(contentX + half + GAP, y, half, 20, maxDelayText(),
@@ -99,7 +99,7 @@ public class AutoCroesusTab extends BaseTab {
                 protected void applyValue() {
                     CroesusConfig c = CroesusConfig.getInstance();
                     c.setAutoMaxDelayMs((int) Math.round(CroesusConfig.MIN_DELAY_BOUND_MS + this.value * range));
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             });
             y += 24;
@@ -137,7 +137,7 @@ public class AutoCroesusTab extends BaseTab {
                         // 0 to 2,000,000 in 20k steps (killer560, 2026-10-13)
                         CroesusConfig c = CroesusConfig.getInstance();
                         c.setAutoKeyMinProfitK((int) Math.round(this.value * CroesusConfig.MAX_KEY_MIN_PROFIT_K));
-                        c.save();
+                        saveOnRelease(() -> c.save());
                     }
                 });
                 y += 24;
@@ -161,7 +161,7 @@ public class AutoCroesusTab extends BaseTab {
                         int k = (int) Math.round(this.value * CroesusConfig.MAX_MIN_PROFIT_K / 50.0) * 50;
                         CroesusConfig c = CroesusConfig.getInstance();
                         c.setAutoRerollBelowK(k);
-                        c.save();
+                        saveOnRelease(() -> c.save());
                     }
                 });
                 y += 24;

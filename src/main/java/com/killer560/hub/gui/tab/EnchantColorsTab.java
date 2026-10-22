@@ -142,12 +142,12 @@ public class EnchantColorsTab extends BaseTab {
             widgets.add(slider(contentX, y, half, "Chroma Speed", EnchantColorsConfig.MIN_CHROMA_SPEED,
                     EnchantColorsConfig.MAX_CHROMA_SPEED, 0.1f, cfg.getChromaSpeed(), v -> {
                         cfg.setChromaSpeed(v);
-                        cfg.save();
+                        ThemedSliderButton.saveOnRelease(() -> cfg.save());
                     }));
             widgets.add(slider(col2, y, half, "Chroma Size", EnchantColorsConfig.MIN_CHROMA_SIZE,
                     EnchantColorsConfig.MAX_CHROMA_SIZE, 0.05f, cfg.getChromaSize(), v -> {
                         cfg.setChromaSize(v);
-                        cfg.save();
+                        ThemedSliderButton.saveOnRelease(() -> cfg.save());
                     }));
             y += 22;
         }

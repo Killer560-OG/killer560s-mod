@@ -150,7 +150,7 @@ public class HeldItemTab extends BaseTab {
                 // A drag calls this on every mouse move; only a changed step needs a write to disk.
                 if (rounded == getter.get()) return;
                 setter.accept(rounded);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

@@ -69,7 +69,7 @@ public class MenuThemeTab extends BaseTab {
             protected void applyValue() {
                 MenuConfig c = MenuConfig.getInstance(); // a profile load replaces the instance this tab was built with
                 c.setAnimationSpeed(speeds[(int) Math.round(this.value * (speeds.length - 1))]);
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         }.steps(speeds.length - 1));
         y += 26;

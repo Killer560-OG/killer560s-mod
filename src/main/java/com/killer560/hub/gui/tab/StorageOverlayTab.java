@@ -67,7 +67,7 @@ public class StorageOverlayTab extends BaseTab {
                 float newScale = (float) (StorageOverlayConfig.MIN_SCALE
                         + this.value * (StorageOverlayConfig.MAX_SCALE - StorageOverlayConfig.MIN_SCALE));
                 c.setScale(newScale);
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 26;
@@ -90,7 +90,7 @@ public class StorageOverlayTab extends BaseTab {
                 StorageOverlayConfig c = StorageOverlayConfig.getInstance();
                 int snapped = StorageOverlayConfig.MIN_COLUMNS + (int) Math.round(this.value * columnRange);
                 c.setColumns(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (snapped - StorageOverlayConfig.MIN_COLUMNS) / (double) columnRange;
             }
         });

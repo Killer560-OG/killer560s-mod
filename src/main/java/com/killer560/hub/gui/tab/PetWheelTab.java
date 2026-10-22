@@ -118,7 +118,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setScalePercent((int) Math.round(minScale + this.value * (maxScale - minScale)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
 
@@ -136,7 +136,7 @@ public class PetWheelTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setIconScalePercent((int) Math.round(minIcon + this.value * (maxIcon - minIcon)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
 

@@ -69,7 +69,7 @@ public class AbilityCooldownTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setMaxLines(1 + (int) Math.round(this.value * 11.0));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 24;
@@ -93,7 +93,7 @@ public class AbilityCooldownTab extends BaseTab {
                 int range = AbilityCooldownConfig.MAX_CLICK_WINDOW_MS - AbilityCooldownConfig.MIN_CLICK_WINDOW_MS;
                 cfg.setClickWindowMs((int) (Math.round(
                         (AbilityCooldownConfig.MIN_CLICK_WINDOW_MS + this.value * range) / 25.0) * 25));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 24;

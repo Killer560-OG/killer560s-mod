@@ -209,7 +209,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                     v -> {
                         ps.setBarWidth((int) Math.round(PlayerStatsConfig.MIN_BAR_WIDTH
                                 + v * (PlayerStatsConfig.MAX_BAR_WIDTH - PlayerStatsConfig.MIN_BAR_WIDTH)));
-                        ps.save();
+                        ThemedSliderButton.saveOnRelease(() -> ps.save());
                     });
             slider(widgets, col2, y[0], half, () -> "Bar Height: " + ps.getBarHeight(),
                     (ps.getBarHeight() - PlayerStatsConfig.MIN_BAR_HEIGHT)
@@ -217,7 +217,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                     v -> {
                         ps.setBarHeight((int) Math.round(PlayerStatsConfig.MIN_BAR_HEIGHT
                                 + v * (PlayerStatsConfig.MAX_BAR_HEIGHT - PlayerStatsConfig.MIN_BAR_HEIGHT)));
-                        ps.save();
+                        ThemedSliderButton.saveOnRelease(() -> ps.save());
                     });
             y[0] += ROW;
             // Bar Size (killer560, 2026-10-19: the bar size slider should move in 0.5 increments): the size every readout
@@ -234,7 +234,7 @@ public class HealthAndManaBarsTab extends BaseTab {
                         v -> {
                             ps.setPredefinedScale((float) (PlayerStatsConfig.MIN_PREDEFINED_SCALE
                                     + Math.round(v * stops) * BAR_SIZE_STEP));
-                            ps.save();
+                            ThemedSliderButton.saveOnRelease(() -> ps.save());
                         }, stops);
             }
             y[0] += ROW;

@@ -53,7 +53,7 @@ public class AutoMeowTab extends BaseTab {
             protected void applyValue() {
                 AutoMeowConfig cfg = AutoMeowConfig.getInstance();
                 cfg.setCatVolume((float) this.value * MAX_VOLUME);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         EditBox volumeField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,

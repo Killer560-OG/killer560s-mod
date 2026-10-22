@@ -291,7 +291,7 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 set.accept(min + this.value * (max - min));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

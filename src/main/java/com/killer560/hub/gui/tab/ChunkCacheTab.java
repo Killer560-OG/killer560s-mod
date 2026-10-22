@@ -60,7 +60,7 @@ public class ChunkCacheTab extends BaseTab {
                 c.setMaxChunks(chunks);
                 // A drag fires this every mouse move; the value only changes once per 100-chunk step.
                 if (c.getMaxChunks() != before) {
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             }
         });

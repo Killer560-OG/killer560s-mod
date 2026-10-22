@@ -348,7 +348,7 @@ public class CrosshairTab extends BaseTab {
                 float raw = (float) (min + this.value * (max - min));
                 float snapped = Math.round(raw / step) * step;
                 set.set(Math.max(min, Math.min(max, snapped)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += STEP;

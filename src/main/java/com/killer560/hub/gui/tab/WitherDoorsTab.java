@@ -81,7 +81,7 @@ public class WitherDoorsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setFillOpacity((int) Math.round(fMin + this.value * (fMax - fMin)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -114,7 +114,7 @@ public class WitherDoorsTab extends BaseTab {
             protected void applyValue() {
                 // Snap to 8 so the label reads in round blocks.
                 cfg.setRenderDistance((int) (Math.round((min + this.value * (max - min)) / 8.0) * 8));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

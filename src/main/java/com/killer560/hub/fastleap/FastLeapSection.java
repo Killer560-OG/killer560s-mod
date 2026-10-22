@@ -121,7 +121,7 @@ public final class FastLeapSection {
             protected void applyValue() {
                 int range = FastLeapConfig.MAX_CLICK_DELAY_MS - FastLeapConfig.MIN_CLICK_DELAY_MS;
                 cfg.setClickDelayMs(FastLeapConfig.MIN_CLICK_DELAY_MS + (int) Math.round(this.value * range));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         int blockCol = cols == 1 ? 0 : 1;

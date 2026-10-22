@@ -129,7 +129,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setAutopilotReservePercent((int) Math.round(this.value * 100));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -192,7 +192,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 cfg.setSpeed((int) Math.round(BazaarFlipConfig.MIN_SPEED
                         + this.value * (BazaarFlipConfig.MAX_SPEED - BazaarFlipConfig.MIN_SPEED)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -209,7 +209,7 @@ public class BazaarFlipTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 cfg.setSellSpeed((int) Math.round(BazaarFlipConfig.MIN_SPEED
                         + this.value * (BazaarFlipConfig.MAX_SPEED - BazaarFlipConfig.MIN_SPEED)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

@@ -249,7 +249,7 @@ final class SettingTooltipsData {
         d.put("melody skip mode", "Edges: extra rows are clicked in a burst only when the match is on the first or last row; All: every remaining row is clicked (cheat build only).");
         d.put("melody lookahead clicks", "Rows clicked in one burst after an edge-row match, 0-4 (cheat build only).");
         d.put("experiment solver enabled", "Turns on the Experimentation Table solver for Chronomatron, Ultrasequencer and Superpairs.");
-        d.put("auto-solve superpairs", "Lets the bot play Superpairs too (cheat build, Autonomous mode).");
+        d.put("auto-solve superpairs", "Lets the bot play Superpairs too (cheat build, Autonomous mode). Off also hides the Superpairs highlights.");
         d.put("superpairs pairs", "Every Pair matches all revealed pairs; Skip Plain XP saves clicks for other rewards (cheat build, Autonomous mode).");
         d.put("adaptive timeout", "While the server lags, the bot waits that much longer for a Superpairs click to land (cheat build, Autonomous mode).");
         d.put("block input in menu", "Ignores your own clicks and keys in container menus while the bot runs (cheat build, Autonomous mode).");

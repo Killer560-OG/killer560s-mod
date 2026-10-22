@@ -86,7 +86,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 float newScale = (float) (TerminalSolverConfig.MIN_SCALE
                         + this.value * (TerminalSolverConfig.MAX_SCALE - TerminalSolverConfig.MIN_SCALE));
                 c.setScale(newScale);
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 30;
@@ -232,7 +232,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                 protected void applyValue() {
                     cfg.setProtectionThresholdMs(
                             (int) Math.round(TerminalQolConfig.MIN_PROTECTION_MS + this.value * span));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             widgets.add(SettingsButtonWidget.builder(onOff("Subtract Ping", cfg.isProtectionSubtractPing()), btn -> {
@@ -279,7 +279,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setTerminalGuiScale((int) Math.round(TerminalQolConfig.MIN_GUI_SCALE + this.value * scaleSpan));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, melodyScaleText(cfg),
@@ -292,7 +292,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setMelodyGuiScale((int) Math.round(TerminalQolConfig.MIN_GUI_SCALE + this.value * scaleSpan));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;

@@ -86,7 +86,7 @@ public class RibbonTrailTab extends BaseTab {
                 float v = (float) (RibbonTrailConfig.MIN_RIBBON_HEIGHT
                         + this.value * (RibbonTrailConfig.MAX_RIBBON_HEIGHT - RibbonTrailConfig.MIN_RIBBON_HEIGHT));
                 cfg.setRibbonHeight(Math.round(v * 20f) / 20f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;
@@ -104,7 +104,7 @@ public class RibbonTrailTab extends BaseTab {
                 float v = (float) (RibbonTrailConfig.MIN_RIBBON_SECONDS
                         + this.value * (RibbonTrailConfig.MAX_RIBBON_SECONDS - RibbonTrailConfig.MIN_RIBBON_SECONDS));
                 cfg.setRibbonSeconds(Math.round(v * 10f) / 10f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;
@@ -121,7 +121,7 @@ public class RibbonTrailTab extends BaseTab {
             protected void applyValue() {
                 cfg.setOpacityPercent(RibbonTrailConfig.MIN_OPACITY_PERCENT + (int) Math.round(
                         this.value * (RibbonTrailConfig.MAX_OPACITY_PERCENT - RibbonTrailConfig.MIN_OPACITY_PERCENT)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;

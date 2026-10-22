@@ -139,7 +139,7 @@ public class TickTimersTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setCrushIntervalSeconds((float) (this.value * TickTimersConfig.MAX_CRUSH_INTERVAL));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(new ThemedSliderButton(col2X, y, colW, 18, warnText(cfg),
@@ -152,7 +152,7 @@ public class TickTimersTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setCrushWarnSeconds((float) (this.value * TickTimersConfig.MAX_CRUSH_WARN));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

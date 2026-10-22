@@ -135,7 +135,7 @@ public class AutoTerminalTab extends BaseTab {
                     int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
                             + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
                     c.setAutoClickMinDelayMs(newDelay);
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             });
 
@@ -153,7 +153,7 @@ public class AutoTerminalTab extends BaseTab {
                     int newDelay = (int) Math.round(TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS
                             + this.value * (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS));
                     c.setAutoClickMaxDelayMs(newDelay);
-                    c.save();
+                    saveOnRelease(() -> c.save());
                 }
             });
             y += 26;
@@ -193,7 +193,7 @@ public class AutoTerminalTab extends BaseTab {
                             int newLookahead = (int) Math.round(TerminalSolverConfig.MIN_MELODY_LOOKAHEAD
                                     + this.value * (TerminalSolverConfig.MAX_MELODY_LOOKAHEAD - TerminalSolverConfig.MIN_MELODY_LOOKAHEAD));
                             c.setMelodyLookaheadClicks(newLookahead);
-                            c.save();
+                            saveOnRelease(() -> c.save());
                         }
                     });
                     y += 26;
@@ -238,7 +238,7 @@ public class AutoTerminalTab extends BaseTab {
                 TerminalSolverConfig c = TerminalSolverConfig.getInstance();
                 c.setHoverDelayMs((int) Math.round(TerminalSolverConfig.MIN_HOVER_DELAY_MS
                         + this.value * (TerminalSolverConfig.MAX_HOVER_DELAY_MS - TerminalSolverConfig.MIN_HOVER_DELAY_MS)));
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 26;
@@ -256,7 +256,7 @@ public class AutoTerminalTab extends BaseTab {
                 TerminalSolverConfig c = TerminalSolverConfig.getInstance();
                 c.setHoverJitterMs((int) Math.round(TerminalSolverConfig.MIN_HOVER_JITTER_MS
                         + this.value * (TerminalSolverConfig.MAX_HOVER_JITTER_MS - TerminalSolverConfig.MIN_HOVER_JITTER_MS)));
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 26;

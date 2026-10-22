@@ -97,7 +97,7 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setOpenMicSilenceMs(min + (int) Math.round(this.value * range / 100.0) * 100);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;

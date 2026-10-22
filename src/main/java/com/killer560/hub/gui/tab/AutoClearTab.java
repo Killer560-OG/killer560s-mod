@@ -306,7 +306,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                AutoSecretConfig.getInstance().save();
+                saveOnRelease(() -> AutoSecretConfig.getInstance().save());
             }
         });
     }

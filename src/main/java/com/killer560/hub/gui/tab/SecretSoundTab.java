@@ -63,7 +63,7 @@ public class SecretSoundTab extends BaseTab {
                 float v = Math.round(this.value * 10) / 10f;
                 if (v != cfg.secretSoundVolume) { // a drag fires this per mouse move; write the file only on a real step
                     cfg.secretSoundVolume = v;
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             }
         });
@@ -78,7 +78,7 @@ public class SecretSoundTab extends BaseTab {
                 float p = Math.round(this.value * 20) / 10f;
                 if (p != cfg.secretSoundPitch) {
                     cfg.secretSoundPitch = p;
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             }
         });

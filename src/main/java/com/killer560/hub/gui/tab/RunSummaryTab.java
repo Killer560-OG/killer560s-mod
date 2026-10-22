@@ -124,7 +124,7 @@ public class RunSummaryTab extends BaseTab {
                 int runs = (int) Math.round((RunSummaryConfig.MIN_RUNS + this.value * range) / 5.0) * 5;
                 RunSummaryConfig c = RunSummaryConfig.getInstance();
                 c.setMaxRuns(runs);
-                c.save();
+                saveOnRelease(() -> c.save());
                 RunHistoryStore.applyMaxRuns();
             }
         });

@@ -44,7 +44,7 @@ public class WindowLayoutTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setWindowsPerMonitor(WindowLayoutConfig.MIN_WINDOWS + (int) Math.round(this.value * span));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
 
@@ -74,7 +74,7 @@ public class WindowLayoutTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setGap((int) Math.round(this.value * WindowLayoutConfig.MAX_GAP));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
 

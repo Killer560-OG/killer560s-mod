@@ -151,7 +151,7 @@ public class AutoKickTab extends BaseTab {
             protected void applyValue() {
                 int secs = (int) (Math.round((min + this.value * (max - min)) / 5.0) * 5);
                 cfg.setTargetSeconds(floor, secs);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

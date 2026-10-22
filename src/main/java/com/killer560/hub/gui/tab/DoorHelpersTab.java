@@ -67,7 +67,7 @@ public class DoorHelpersTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAutoDoorRange(DoorHelpersConfig.RANGE_MIN + this.value * span);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }
@@ -84,7 +84,7 @@ public class DoorHelpersTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAutoDoorTriggerDelayMs((int) Math.round(this.value * DoorHelpersConfig.TRIGGER_DELAY_MAX_MS));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 20;
@@ -101,7 +101,7 @@ public class DoorHelpersTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setAutoDoorRetryDelayMs((int) Math.round(DoorHelpersConfig.RETRY_MIN_MS + this.value * retrySpan));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;

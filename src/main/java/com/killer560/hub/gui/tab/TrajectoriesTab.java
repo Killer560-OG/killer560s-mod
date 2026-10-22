@@ -68,7 +68,7 @@ public class TrajectoriesTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setRange((int) Math.round(5 + this.value * 115));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 26;

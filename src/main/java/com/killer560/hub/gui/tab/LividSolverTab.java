@@ -105,7 +105,7 @@ public class LividSolverTab extends BaseTab {
                 float span = LividSolverConfig.MAX_TRACER_THICKNESS - LividSolverConfig.MIN_TRACER_THICKNESS;
                 float raw = LividSolverConfig.MIN_TRACER_THICKNESS + (float) this.value * span;
                 cfg.setTracerThickness(Math.round(raw * 2f) / 2f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 26;

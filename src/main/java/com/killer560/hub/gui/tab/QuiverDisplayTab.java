@@ -88,7 +88,7 @@ public class QuiverDisplayTab extends BaseTab {
             protected void applyValue() {
                 cfg.setAlertThreshold(QuiverDisplayConfig.MIN_THRESHOLD
                         + (int) Math.round(this.value * steps) * QuiverDisplayConfig.THRESHOLD_STEP);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

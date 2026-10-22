@@ -74,7 +74,7 @@ public class P3NavTab extends BaseTab {
         if (cfg.getGateStyle() != P3NavConfig.Style.FILLED) {
             widthSlider(widgets, col2X, y, colW, "Gate Line Width", cfg.getGateLineWidth(), v -> {
                 cfg.setGateLineWidth(v);
-                cfg.save();
+                ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }, cfg::getGateLineWidth);
         }
         y += 22;
@@ -121,7 +121,7 @@ public class P3NavTab extends BaseTab {
         if (cfg.getTerminalStyle() != P3NavConfig.Style.FILLED) {
             widthSlider(widgets, col2X, y, colW, "Highlight Line Width", cfg.getTerminalLineWidth(), v -> {
                 cfg.setTerminalLineWidth(v);
-                cfg.save();
+                ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }, cfg::getTerminalLineWidth);
         }
         y += 22;

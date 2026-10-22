@@ -1037,7 +1037,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
             @Override
             protected void applyValue() {
                 setter.accept(valueInt());
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         }.steps(range); // a whole number: the knob stops on each one
     }

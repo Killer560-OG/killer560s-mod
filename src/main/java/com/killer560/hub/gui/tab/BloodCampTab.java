@@ -66,7 +66,7 @@ public class BloodCampTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setKillPopupLeadTicks((int) Math.round(this.value * BloodCampConfig.MAX_KILL_POPUP_LEAD_TICKS));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -86,7 +86,7 @@ public class BloodCampTab extends BaseTab {
                 protected void applyValue() {
                     // tenths, the precision the label shows (so the knob stops on each one)
                     cfg.setTimerTextScale(Math.round((minScale + (float) this.value * (maxScale - minScale)) * 10f) / 10f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -124,7 +124,7 @@ public class BloodCampTab extends BaseTab {
                     @Override
                     protected void applyValue() {
                         cfg.setSpawnLineWidth(minW + (float) this.value * (maxW - minW));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 22;
@@ -157,7 +157,7 @@ public class BloodCampTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setSoundVolume(Math.round(this.value * 20) / 20f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;

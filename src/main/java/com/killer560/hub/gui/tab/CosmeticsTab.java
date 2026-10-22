@@ -336,7 +336,7 @@ public class CosmeticsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 setter.accept(snapSize(min + (float) (this.value * (max - min))));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }
@@ -363,7 +363,7 @@ public class CosmeticsTab extends BaseTab {
                 // the label shows what is saved (it used to show the unsnapped drag: "0.51x" saved as 0.50)
                 float snapped = snapDimension(min + (float) (this.value * (max - min)));
                 setter.accept(snapped);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

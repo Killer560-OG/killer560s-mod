@@ -23,7 +23,8 @@ feature each one is. `pf-relay` is the relay's `/pf/stats` alone (Party Finder s
 on every request, so a case may set it at run time; the testkit points it at its HTTP fake (`/pfrelay`).
 Auto Update (`autoupdate/AutoUpdater`) also reads `github-api` and `github-download` on every check, so a case can point
 both at an in-process fake at run time. `github-download` is also the only download prefix it accepts
-(`<override>/Killer560-OG/killer560s-mod/releases/download/`).
+(`<override>/Killer560-OG/killer560s-mod/releases/download/`). `-Dkiller560.test.autoUpdateStallMillis=N` shortens the
+download's stall limit (default 60000: it gives up only after that long with no byte arriving); read on every download.
 
 ## Custom Party Finder (`lfg/`)
 

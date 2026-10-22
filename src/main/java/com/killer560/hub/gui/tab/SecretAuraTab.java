@@ -174,7 +174,7 @@ public class SecretAuraTab extends BaseTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                save.run();
+                saveOnRelease(save);
             }
         });
     }

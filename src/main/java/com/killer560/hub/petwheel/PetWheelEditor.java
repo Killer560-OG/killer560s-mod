@@ -44,6 +44,8 @@ final class PetWheelEditor {
     /** Ticks since the pick's /pets went out; past the expiry with no container screen open, the pick is dropped. */
     private static int ticksSinceCommand = 0;
     private static final int COMMAND_EXPIRY_TICKS = 100;
+    /** True while the /pets menu this pick opened is on screen (set at its init, cleared by its remove hook). */
+    private static boolean petsMenuOpen = false;
 
     private PetWheelEditor() {
     }
@@ -76,8 +78,15 @@ final class PetWheelEditor {
         if (sentCommand) {
             // /pets never opened (not on Skyblock, command swallowed): without this the pick stayed armed, and the
             // next /pets the player opened himself had his first pet click cancelled and written into the wheel.
-            if (++ticksSinceCommand > COMMAND_EXPIRY_TICKS && !(McCompat.screen(client) instanceof AbstractContainerScreen<?>)) {
-                reopenEditScreen();
+            // While the /pets menu is up its remove hook owns the pick. Any other screen open at the expiry is his own
+            // (chat, another menu): drop the pick without opening anything over it (sweep 2026-10-21: the expiry
+            // reopened the edit wheel on top of whatever he had open). Only with no screen up does the wheel come back.
+            if (++ticksSinceCommand > COMMAND_EXPIRY_TICKS && !petsMenuOpen) {
+                if (McCompat.screen(client) == null) {
+                    reopenEditScreen();
+                } else {
+                    cancel("another screen is open");
+                }
             }
             return;
         }
@@ -105,8 +114,10 @@ final class PetWheelEditor {
                 || !PETS_TITLE.matcher(container.getTitle().getString()).matches()) {
             return;
         }
+        petsMenuOpen = true;
         ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> onPetsClick(container, event));
         ScreenEvents.remove(screen).register(s -> {
+            petsMenuOpen = false;
             // Still armed here means the menu closed (Escape, world change, etc.) without a pick ever
             // landing in onPetsClick - reopen the edit wheel unchanged rather than leaving the player looking
             // at whatever screen (or none) comes next.

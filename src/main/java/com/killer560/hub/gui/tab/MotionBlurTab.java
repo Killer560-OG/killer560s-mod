@@ -44,7 +44,7 @@ public class MotionBlurTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setStrength((int) Math.round(MotionBlurConfig.MIN_STRENGTH + this.value * range));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

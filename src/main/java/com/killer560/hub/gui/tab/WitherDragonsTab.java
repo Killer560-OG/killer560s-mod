@@ -125,7 +125,7 @@ public class WitherDragonsTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setRelicSpawnTicks((int) Math.round(this.value * 100));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y[0] += 22;
@@ -181,7 +181,7 @@ public class WitherDragonsTab extends BaseTab {
                 } else {
                     cfg.setEasyPower(power);
                 }
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

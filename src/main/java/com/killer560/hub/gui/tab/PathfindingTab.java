@@ -95,7 +95,7 @@ public class PathfindingTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setVisiblePathLength((int) Math.round(8 + this.value * 88));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, thicknessText(cfg),
@@ -108,7 +108,7 @@ public class PathfindingTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setLineThickness((float) (1.0 + this.value * 7.0));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;
@@ -122,7 +122,7 @@ public class PathfindingTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setRecalcDistance(Math.round(3.0 + this.value * 22.0));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, textScaleText(cfg), (cfg.getTextScale() - 0.5) / 2.5) {
@@ -134,7 +134,7 @@ public class PathfindingTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setTextScale((float) (0.5 + this.value * 2.5));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;

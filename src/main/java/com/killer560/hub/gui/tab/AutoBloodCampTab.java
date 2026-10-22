@@ -113,7 +113,7 @@ public class AutoBloodCampTab extends BaseTab {
                 protected void applyValue() {
                     cfg.setTriggerOffsetTicks(BloodCampConfig.MIN_TRIGGER_OFFSET_TICKS
                             + (int) Math.round(this.value * span));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 20;

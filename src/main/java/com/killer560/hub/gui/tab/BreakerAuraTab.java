@@ -137,7 +137,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setBreakerAuraReach(Math.round((reachMin + this.value * reachSpan) * 10.0) / 10.0);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         // Cooldown beside Reach, then the switches two to a row. Every row steps down by exactly one row height and
@@ -160,7 +160,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setBreakerAuraCooldownTicks((int) Math.round(this.value * 20));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;
@@ -225,7 +225,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setBreakerAuraSwapDelayTicks((int) Math.round(1 + this.value * 19));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             widgets.add(SettingsButtonWidget.builder(onOff("Swap Back", cfg.isBreakerAuraSwapBack()), btn -> {
@@ -246,7 +246,7 @@ public class BreakerAuraTab extends BaseTab implements KeyCaptureTab {
                     @Override
                     protected void applyValue() {
                         cfg.setBreakerAuraSwapBackIdleTicks((int) Math.round(5 + this.value * 95));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 20;

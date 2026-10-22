@@ -54,7 +54,7 @@ public class HidePlayersTab extends BaseTab {
                 protected void applyValue() {
                     cfg.setHidePlayersDistance(
                             (int) Math.round(MIN_DISTANCE + this.value * (MAX_DISTANCE - MIN_DISTANCE)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y[0] += 22;

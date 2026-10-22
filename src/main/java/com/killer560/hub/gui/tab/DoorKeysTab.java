@@ -72,7 +72,7 @@ public class DoorKeysTab extends BaseTab {
                 protected void applyValue() {
                     float raw = DoorKeysConfig.MIN_TRACER_THICKNESS + (float) this.value * span;
                     cfg.setTracerThickness(Math.round(raw * 2f) / 2f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }
@@ -101,7 +101,7 @@ public class DoorKeysTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setCircleThickness(Math.round((DoorKeysConfig.MIN_CIRCLE_THICKNESS + (float) this.value * tSpan) * 2f) / 2f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         if (!sphere) {
@@ -116,7 +116,7 @@ public class DoorKeysTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setCircleLift(Math.round((DoorKeysConfig.MIN_CIRCLE_LIFT + (float) this.value * lSpan) * 10f) / 10f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }

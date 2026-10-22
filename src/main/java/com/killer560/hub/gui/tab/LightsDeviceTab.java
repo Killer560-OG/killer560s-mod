@@ -137,7 +137,7 @@ public class LightsDeviceTab extends BaseTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                LightsDeviceConfig.getInstance().save();
+                saveOnRelease(() -> LightsDeviceConfig.getInstance().save());
             }
         });
     }

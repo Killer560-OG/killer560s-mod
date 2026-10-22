@@ -98,7 +98,7 @@ public class I4SensorsTab extends BaseTab {
                     @Override
                     protected void applyValue() {
                         cfg.setAutoI4RotationTimeMs((int) Math.round(this.value * I4SensorsConfig.MAX_ROTATION_TIME_MS));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
             }
@@ -128,7 +128,7 @@ public class I4SensorsTab extends BaseTab {
                         // 100 ms steps
                         int ms = (int) Math.round(this.value * I4SensorsConfig.MAX_PREFIRE_LEAD_MS / 100.0) * 100;
                         cfg.setAutoI4PrefireLeadMs(ms);
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 22;
@@ -166,7 +166,7 @@ public class I4SensorsTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setShotAccuracyPercent((int) Math.round(this.value * 100));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;

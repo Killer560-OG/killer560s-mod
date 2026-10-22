@@ -100,7 +100,7 @@ public class AutoGfsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                CheatUtilsConfig.getInstance().save();
+                saveOnRelease(() -> CheatUtilsConfig.getInstance().save());
             }
         });
     }

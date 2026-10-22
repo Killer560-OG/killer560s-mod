@@ -87,7 +87,7 @@ public class TeamMelodyTab extends BaseTab {
                 snapped = Math.max(min, Math.min(max, snapped));
                 float factor = (float) Math.pow(10, decimals);
                 setter.accept(Math.round(snapped * factor) / factor + 0f);
-                HudConfig.getInstance().save();
+                saveOnRelease(() -> HudConfig.getInstance().save());
             }
         };
     }

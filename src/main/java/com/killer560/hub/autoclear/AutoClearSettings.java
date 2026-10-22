@@ -110,7 +110,7 @@ public final class AutoClearSettings {
             @Override
             protected void applyValue() {
                 cfg.setMobTimeoutTicks((int) Math.round(AutoClearConfig.MIN_MOB_TIMEOUT_TICKS + this.value * span));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {

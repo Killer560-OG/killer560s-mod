@@ -150,7 +150,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
                 protected void applyValue() {
                     double raw = Route.MIN_RADIUS + this.value * (Route.MAX_RADIUS - Route.MIN_RADIUS);
                     sel.setRadius(Math.round(raw * 2.0) / 2.0);
-                    RouteStore.save();
+                    saveOnRelease(() -> RouteStore.save());
                 }
             });
             y += 20;
@@ -239,7 +239,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setTextScale((float) (0.5 + this.value * 2.5));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         double thickNorm = (cfg.getLineThickness() - 1.0) / 5.0;
@@ -252,7 +252,7 @@ public class WaypointRoutesTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setLineThickness((float) (1.0 + Math.round(this.value * 10) / 2.0));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 28;

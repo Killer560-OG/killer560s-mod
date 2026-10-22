@@ -135,6 +135,15 @@ public final class PlayerStatsFeature {
                     return true;
                 });
         registerVanillaSuppression();
+        // The mana reading that holds an etherwarp belongs to the world it was read in (sweep 2026-10-21): leaving Hypixel
+        // on NOT ENOUGH MANA kept every etherwarp held in the next world until an action bar with a mana figure came.
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(
+                com.killer560.hub.util.FeatureGuard.end("PlayerStatsFeature", client -> {
+                    if (client.level != manaLevel) {
+                        manaLevel = client.level;
+                        resetManaReading();
+                    }
+                }));
         // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
         // level"). Fabric's INFO_BAR is the contextual bar slot - the XP bar, and also the locator and
         // mount-jump bars that take its place - and EXPERIENCE_LEVEL is the number over it (javap,
@@ -320,6 +329,15 @@ public final class PlayerStatsFeature {
     /** The last mana figure on the action bar, read with the HUD off too (0 while it says NOT ENOUGH MANA); -1 unseen. */
     private static volatile long manaSeen = -1;
     private static volatile long manaSeenMax = -1;
+    /** The world the mana reading above was taken in; a different one (or none) clears it. Render thread. */
+    private static Object manaLevel;
+
+    /** Forgets the mana reading: a new world starts with no figure, so nothing holds an etherwarp until the bar says so. */
+    public static void resetManaReading() {
+        manaShort = false;
+        manaSeen = -1;
+        manaSeenMax = -1;
+    }
 
     /** The mana the action bar last showed, whether or not the stat HUD is on: 0 while it reads NOT ENOUGH MANA, -1 before
      *  any figure. Auto Clear spaces its bats with it when mana runs low. */

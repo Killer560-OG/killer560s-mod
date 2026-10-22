@@ -61,7 +61,7 @@ public class CorrectionAlarmTab extends BaseTab {
             protected void applyValue() {
                 CorrectionAlarmConfig cfg = CorrectionAlarmConfig.getInstance();
                 cfg.setVolume(Math.round(this.value * 100) / 100f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         return widgets;

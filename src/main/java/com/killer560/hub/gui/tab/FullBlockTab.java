@@ -192,7 +192,7 @@ public class FullBlockTab extends BaseTab {
                     return; // a drag fires this per mouse event; only a changed percentage is worth a file write
                 }
                 set.accept(pct);
-                SecretsConfig.getInstance().save();
+                saveOnRelease(() -> SecretsConfig.getInstance().save());
             }
         });
         return y + 22;

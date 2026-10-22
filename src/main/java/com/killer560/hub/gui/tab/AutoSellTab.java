@@ -73,7 +73,7 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 AutoSellConfig c = AutoSellConfig.getInstance();
                 c.setMinTicks((int) Math.round(this.value * tickRange));
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = c.getMinTicks() / (double) tickRange;
             }
         });
@@ -89,7 +89,7 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 AutoSellConfig c = AutoSellConfig.getInstance();
                 c.setMaxTicks((int) Math.round(this.value * tickRange));
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = c.getMaxTicks() / (double) tickRange;
             }
         });

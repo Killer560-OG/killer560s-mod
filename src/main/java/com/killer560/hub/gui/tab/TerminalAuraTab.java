@@ -140,7 +140,7 @@ public class TerminalAuraTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setRange(valueAt());
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }
@@ -163,7 +163,7 @@ public class TerminalAuraTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setFovDegrees(valueAt());
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }
