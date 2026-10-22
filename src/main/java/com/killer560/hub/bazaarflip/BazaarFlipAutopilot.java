@@ -777,9 +777,14 @@ final class BazaarFlipAutopilot {
                     onCarriedUp(client, have - expectBaseline);
                     return false;
                 }
+                // Hypixel asked to confirm: the dispatch handles that page. Not the confirm page this step already clicked
+                // (its container id is the expectation's): it stays open until the server answers, and taking it for a
+                // new question dropped the wait, so the Instant Buy page Hypixel reopens after the purchase was bought
+                // from a second time (2762, 2026-10-22).
                 if (action instanceof FlipAction.InstaBuy && open instanceof AbstractContainerScreen<?> c
+                        && c.getMenu().containerId != expectContainerId
                         && BazaarFlipFeature.CONFIRM_INSTANT_BUY.equals(BazaarFlipMenus.titleOf(c))) {
-                    expect = Expect.NONE; // Hypixel asked to confirm: the dispatch handles that page
+                    expect = Expect.NONE;
                     return true;
                 }
                 if (timedOut) {
@@ -1212,7 +1217,7 @@ final class BazaarFlipAutopilot {
             return;
         }
         if (click(client, screen, match.index, ContainerInput.PICKUP, cfg, true)) {
-            expect(Expect.CARRIED_UP, unitsBefore, null);
+            expect(Expect.CARRIED_UP, unitsBefore, screen);
         }
     }
 
