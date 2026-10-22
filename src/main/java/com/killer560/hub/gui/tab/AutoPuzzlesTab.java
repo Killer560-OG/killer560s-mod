@@ -54,7 +54,7 @@ public class AutoPuzzlesTab extends BaseTab {
         if (cfg.isAutoQuizEnabled()) {
             widgets.add(delaySlider(contentX, y, contentWidth, "Quiz Click Delay", cfg.getQuizDelayMs(), ms -> {
                 cfg.setQuizDelayMs(ms);
-                cfg.save();
+                ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }));
             y += ROW_STEP;
         }
@@ -63,7 +63,7 @@ public class AutoPuzzlesTab extends BaseTab {
         if (cfg.isAutoWeirdosEnabled()) {
             widgets.add(delaySlider(contentX, y, contentWidth, "Chest Open Delay", cfg.getWeirdosDelayMs(), ms -> {
                 cfg.setWeirdosDelayMs(ms);
-                cfg.save();
+                ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }));
             y += ROW_STEP;
             widgets.add(SettingsButtonWidget.builder(onOff("Talk to NPCs", cfg.getWeirdosTalkToNpcsRaw()), btn -> {
@@ -104,7 +104,7 @@ public class AutoPuzzlesTab extends BaseTab {
                     AutoPuzzlesConfig.SHOOT_CD_MIN, AutoPuzzlesConfig.SHOOT_CD_MAX, AutoPuzzlesConfig.COOLDOWN_STEP_MS, "ms",
                     v -> {
                         cfg.setShootCooldownMs(v);
-                        cfg.save();
+                        ThemedSliderButton.saveOnRelease(() -> cfg.save());
                     }));
             y += ROW_STEP;
         }
@@ -116,7 +116,7 @@ public class AutoPuzzlesTab extends BaseTab {
         if (cfg.isAutoBoulderEnabled()) {
             widgets.add(delaySlider(contentX, y, contentWidth, "Boulder Chest Wait", cfg.getBoulderDelayMs(), ms -> {
                 cfg.setBoulderDelayMs(ms);
-                cfg.save();
+                ThemedSliderButton.saveOnRelease(() -> cfg.save());
             }));
             y += ROW_STEP;
         }
@@ -158,7 +158,7 @@ public class AutoPuzzlesTab extends BaseTab {
                         AutoPuzzlesConfig.ICE_FILL_DELAY_MIN, AutoPuzzlesConfig.ICE_FILL_DELAY_MAX, 1, "t",
                         v -> {
                             cfg.setIceFillDelayTicks(v);
-                            cfg.save();
+                            ThemedSliderButton.saveOnRelease(() -> cfg.save());
                         }));
                 y += ROW_STEP;
             }

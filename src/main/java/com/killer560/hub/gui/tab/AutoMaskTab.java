@@ -165,7 +165,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 cfg.setSwapStepDelayTicks(MaskInvincibilityConfig.MIN_STEP_DELAY_TICKS
                         + (int) Math.round(this.value * range));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

@@ -86,7 +86,7 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 ZoomConfig c = ZoomConfig.getInstance();
                 c.setZoomLevel((float) (ZoomConfig.MIN_LEVEL + this.value * range));
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (c.getZoomLevel() - ZoomConfig.MIN_LEVEL) / range;
             }
         });
@@ -112,7 +112,7 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 ZoomConfig c = ZoomConfig.getInstance();
                 c.setScrollStep((float) (ZoomConfig.MIN_SCROLL_STEP + this.value * stepRange));
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 22;

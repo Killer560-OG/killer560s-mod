@@ -54,7 +54,7 @@ public class SecretTriggerbotTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setDelayMs((int) Math.round(this.value * SecretTriggerbotConfig.MAX_DELAY_MS));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18, cooldownText(cfg),
@@ -67,7 +67,7 @@ public class SecretTriggerbotTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setCooldownMs((int) Math.round(this.value * SecretTriggerbotConfig.MAX_COOLDOWN_MS));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -89,7 +89,7 @@ public class SecretTriggerbotTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setSwapSlot(1 + (int) Math.round(this.value * 8));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             widgets.add(SettingsButtonWidget.builder(onOff("Swap Back", cfg.isSwapBack()), btn -> {

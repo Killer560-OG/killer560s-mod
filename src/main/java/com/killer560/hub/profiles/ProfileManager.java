@@ -582,6 +582,11 @@ public final class ProfileManager {
                 // Missing until the blank profile's all-configs walk (2026-10-08): its own file, its own enabled
                 // switch, and no *Config class for anyone to notice.
                 com.killer560.hub.autotrap.AutoTrap::load,
+                // Missing until the 2026-10-21 sweep (320-ui-profiles failed on Bazaar Advisor): a profile wrote their
+                // files and the next save put the old in-memory values back.
+                com.killer560.hub.zoom.ZoomConfig::load,
+                com.killer560.hub.modusers.ModUserConfig::load,
+                com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig::load,
         };
         int failed = 0;
         for (Runnable loader : loaders) {

@@ -77,7 +77,7 @@ public class DungeonAlertsTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.roomAlertsDisplaySeconds = Math.round((0.5 + this.value * 2.5) * 10) / 10f;
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y[0] += 24;

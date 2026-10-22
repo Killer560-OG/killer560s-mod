@@ -111,7 +111,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setVolume((int) Math.round(this.value * 100));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
                 ShortsFeature.applyVolume();
             }
         });
@@ -223,7 +223,7 @@ public class ShortsTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 setter.accept((int) Math.round(min + this.value * (max - min)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

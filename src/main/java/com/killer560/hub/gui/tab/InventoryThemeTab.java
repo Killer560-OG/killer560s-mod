@@ -103,7 +103,7 @@ public class InventoryThemeTab extends BaseTab {
                     float raw = (float) (InventoryThemeConfig.MIN_HOTBAR_SCALE + this.value
                             * (InventoryThemeConfig.MAX_HOTBAR_SCALE - InventoryThemeConfig.MIN_HOTBAR_SCALE));
                     cfg.setHotbarScale(Math.round(raw * 100f) / 100f);
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 26;

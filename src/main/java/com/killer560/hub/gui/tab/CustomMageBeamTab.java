@@ -72,7 +72,7 @@ public class CustomMageBeamTab extends BaseTab {
             protected void applyValue() {
                 float raw = DungeonExtrasConfig.MIN_BEAM_WIDTH + (float) this.value * widthSpan;
                 cfg.setMageBeamWidth(Math.round(raw * 2f) / 2f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;
@@ -95,7 +95,7 @@ public class CustomMageBeamTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setMageBeamDurationTicks((int) Math.round(5 + this.value * 95));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 26;

@@ -86,7 +86,7 @@ public class AutoAnvilTab extends BaseTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                AutoAnvilConfig.getInstance().save();
+                saveOnRelease(() -> AutoAnvilConfig.getInstance().save());
             }
         });
     }

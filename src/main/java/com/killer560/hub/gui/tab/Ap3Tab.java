@@ -449,7 +449,7 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
                 double raw = min + this.value * span;
                 double snapped = Math.round(raw / step) * step;
                 apply.accept(Math.max(min, Math.min(max, snapped)));
-                save.run();
+                saveOnRelease(save);
             }
         };
     }

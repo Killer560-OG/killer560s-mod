@@ -108,7 +108,7 @@ public class PartyCommandsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setReplyDelayMs((int) (Math.round(this.value * max / 10.0) * 10));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

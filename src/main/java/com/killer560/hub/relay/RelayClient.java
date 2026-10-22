@@ -518,8 +518,16 @@ public final class RelayClient {
     }
 
     private static void handle(String text) {
-        JsonElement parsed = JsonParser.parseString(text);
-        if (!parsed.isJsonObject()) {
+        // Runs on the WebSocket's network thread: a reply that is not JSON (or nests deep enough to blow the stack)
+        // is dropped here, never thrown (sweep 2026-10-21).
+        JsonElement parsed;
+        try {
+            parsed = JsonParser.parseString(text);
+        } catch (RuntimeException | StackOverflowError e) {
+            LOGGER.warn("[Relay] Unreadable packet ({} chars): {}", text.length(), e.toString());
+            return;
+        }
+        if (parsed == null || !parsed.isJsonObject()) {
             return;
         }
         JsonObject packet = parsed.getAsJsonObject();

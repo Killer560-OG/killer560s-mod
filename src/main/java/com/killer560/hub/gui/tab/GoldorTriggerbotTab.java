@@ -96,7 +96,7 @@ public class GoldorTriggerbotTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setRange(minRange + this.value * (maxRange - minRange));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         return widgets;

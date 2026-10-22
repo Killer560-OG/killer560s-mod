@@ -51,7 +51,7 @@ public class SmoothTeleportTab extends BaseTab {
                 int ms = SmoothTeleportConfig.MIN_DURATION_MS + (int) Math.round(this.value * SPAN / 10.0) * 10;
                 SmoothTeleportConfig live = SmoothTeleportConfig.getInstance();
                 live.setDurationMs(ms);
-                live.save();
+                saveOnRelease(() -> live.save());
             }
         });
         y += 22;

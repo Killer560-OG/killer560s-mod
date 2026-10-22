@@ -125,7 +125,7 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setBackgroundOpacity((int) Math.round(this.value * 100));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }
@@ -141,7 +141,7 @@ public class InventoryHudTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 cfg.setItemOpacity((int) Math.round(this.value * 100));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         };
     }

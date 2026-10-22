@@ -70,7 +70,7 @@ public class RagAxeTab extends BaseTab {
             protected void applyValue() {
                 float range = RagAxeConfig.MAX_COOLDOWN_S - RagAxeConfig.MIN_COOLDOWN_S;
                 cfg.setCooldownSeconds(Math.round((RagAxeConfig.MIN_COOLDOWN_S + this.value * range) * 2f) / 2f);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;
@@ -127,7 +127,7 @@ public class RagAxeTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setPromptLeadMs(prompt, (int) (Math.round(this.value * RagAxeConfig.MAX_LEAD_MS / 250.0) * 250));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y[0] += 24;

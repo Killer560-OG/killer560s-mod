@@ -93,7 +93,7 @@ public class SimonSaysTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setNumberScale((float) (0.25 + this.value * (3.0 - 0.25)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }

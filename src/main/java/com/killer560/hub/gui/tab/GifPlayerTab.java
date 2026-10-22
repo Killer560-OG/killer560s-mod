@@ -62,7 +62,7 @@ public class GifPlayerTab extends BaseTab {
             protected void applyValue() {
                 GifPlayerConfig cfg = GifPlayerConfig.getInstance();
                 cfg.setSpeedMultiplier(MIN_SPEED + (float) this.value * (MAX_SPEED - MIN_SPEED));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         EditBox speedField = new EditBox(Minecraft.getInstance().font, contentX + 166, y, 60, 20,
@@ -93,7 +93,7 @@ public class GifPlayerTab extends BaseTab {
             protected void applyValue() {
                 GifPlayerConfig cfg = GifPlayerConfig.getInstance();
                 cfg.setVolume((float) this.value);
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
                 GifAudioFeature.applyVolume();
             }
         });

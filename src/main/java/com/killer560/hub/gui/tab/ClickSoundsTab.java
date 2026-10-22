@@ -67,7 +67,7 @@ public class ClickSoundsTab extends BaseTab {
                 cfg.setVolume(ClickSoundConfig.MIN_VOLUME
                         + Math.round(this.value * (ClickSoundConfig.MAX_VOLUME - ClickSoundConfig.MIN_VOLUME) * 20) / 20f);
                 if (cfg.getVolume() != before) {
-                    cfg.save();   // a drag calls this every mouse move; write the file only when a step changes
+                    saveOnRelease(() -> cfg.save());   // a drag calls this every mouse move; write the file only when a step changes
                 }
             }
         });

@@ -65,7 +65,7 @@ public class ItemBrowserTab extends BaseTab {
                 ItemBrowserConfig c = ItemBrowserConfig.getInstance();
                 int snapped = ItemBrowserConfig.MIN_COLUMNS + (int) Math.round(this.value * columnRange);
                 c.setColumns(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (snapped - ItemBrowserConfig.MIN_COLUMNS) / (double) columnRange;
             }
         });
@@ -85,7 +85,7 @@ public class ItemBrowserTab extends BaseTab {
                 float newScale = (float) (ItemBrowserConfig.MIN_SCALE
                         + this.value * (ItemBrowserConfig.MAX_SCALE - ItemBrowserConfig.MIN_SCALE));
                 c.setScale(newScale);
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
         y += 26;

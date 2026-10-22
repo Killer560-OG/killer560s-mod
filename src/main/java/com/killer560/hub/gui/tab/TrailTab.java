@@ -57,7 +57,7 @@ public class TrailTab extends BaseTab {
             protected void applyValue() {
                 cfg.setLength(TrailConfig.MIN_LENGTH
                         + (int) Math.round(this.value * (TrailConfig.MAX_LENGTH - TrailConfig.MIN_LENGTH)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;
@@ -74,7 +74,7 @@ public class TrailTab extends BaseTab {
             protected void applyValue() {
                 cfg.setSquareSize((float) (TrailConfig.MIN_SQUARE_SIZE
                         + this.value * (TrailConfig.MAX_SQUARE_SIZE - TrailConfig.MIN_SQUARE_SIZE)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;
@@ -91,7 +91,7 @@ public class TrailTab extends BaseTab {
             protected void applyValue() {
                 cfg.setOpacityPercent(TrailConfig.MIN_OPACITY_PERCENT + (int) Math.round(
                         this.value * (TrailConfig.MAX_OPACITY_PERCENT - TrailConfig.MIN_OPACITY_PERCENT)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 22;

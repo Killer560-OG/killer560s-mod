@@ -114,7 +114,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
             protected void applyValue() {
                 double raw = min + this.value * span;
                 cfg.setRewindTicks((int) (Math.round(raw / 20.0) * 20));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += ROW + 8;

@@ -195,7 +195,7 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
                         ItemProtectConfig c = ItemProtectConfig.getInstance();
                         int snapped = minD + (int) Math.round(this.value * (maxD - minD));
                         c.setForceDrops(snapped);
-                        c.save();
+                        saveOnRelease(() -> c.save());
                         this.value = (snapped - minD) / (double) (maxD - minD);
                     }
                 });

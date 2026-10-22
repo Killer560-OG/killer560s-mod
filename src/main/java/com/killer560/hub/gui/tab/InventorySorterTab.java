@@ -82,13 +82,13 @@ public class InventorySorterTab extends BaseTab implements KeyCaptureTab {
         widgets.add(tickSlider(contentX, y, contentWidth, "Ticks Between Moves", cfg.getTicksBetweenMoves(),
                 InventorySorterConfig.MIN_TICKS, InventorySorterConfig.MAX_TICKS, v -> {
                     cfg.setTicksBetweenMoves(v);
-                    cfg.save();
+                    ThemedSliderButton.saveOnRelease(() -> cfg.save());
                 }));
         y += 22;
         widgets.add(tickSlider(contentX, y, contentWidth, "Random Extra Ticks", cfg.getRandomExtraTicks(),
                 0, InventorySorterConfig.MAX_RANDOM_TICKS, v -> {
                     cfg.setRandomExtraTicks(v);
-                    cfg.save();
+                    ThemedSliderButton.saveOnRelease(() -> cfg.save());
                 }));
         y += 26;
 

@@ -64,7 +64,7 @@ public class InventorySearchTab extends BaseTab {
                 float newScale = (float) (InventorySearchConfig.MIN_BOX_SCALE
                         + this.value * (InventorySearchConfig.MAX_BOX_SCALE - InventorySearchConfig.MIN_BOX_SCALE));
                 c.setBoxScale(newScale);
-                c.save();
+                saveOnRelease(() -> c.save());
             }
         });
 

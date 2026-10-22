@@ -80,7 +80,7 @@ public class TooltipScrollTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setLinesPerScroll(min + (int) Math.round(this.value * (max - min)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 26;

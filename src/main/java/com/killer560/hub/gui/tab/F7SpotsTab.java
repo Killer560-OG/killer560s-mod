@@ -99,7 +99,7 @@ public class F7SpotsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setWalkBeamHeight((float) (this.value * F7SpotsConfig.MAX_BEAM_HEIGHT));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -152,7 +152,7 @@ public class F7SpotsTab extends BaseTab {
             protected void applyValue() {
                 cfg.setAimSize((float) (F7SpotsConfig.MIN_AIM_SIZE
                         + this.value * (F7SpotsConfig.MAX_AIM_SIZE - F7SpotsConfig.MIN_AIM_SIZE)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;

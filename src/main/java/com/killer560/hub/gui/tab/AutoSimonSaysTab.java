@@ -93,7 +93,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setTriggerBotDelayMs((int) Math.round(this.value * SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -123,7 +123,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAutoStartClicks((int) Math.round(this.value * 20));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
 
@@ -139,7 +139,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAutoStartClickDelayTicks(1 + (int) Math.round(this.value * 19));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             // No separate Auto Start "Click Mode" button anymore (2026-09-14, killer560's own call) - it follows
@@ -199,7 +199,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                     @Override
                     protected void applyValue() {
                         cfg.setAutoSolveFixedDelayMs((int) Math.round(this.value * 3000));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 22;
@@ -224,7 +224,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                     @Override
                     protected void applyValue() {
                         cfg.setClickTimerTargetMs((int) Math.round(minTarget + this.value * (maxTarget - minTarget)));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
 
@@ -239,7 +239,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                     @Override
                     protected void applyValue() {
                         cfg.setClickTimerVarianceMs((int) Math.round(this.value * SimonSaysConfig.MAX_CLICK_TIMER_VARIANCE_MS));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 22;
@@ -274,7 +274,7 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                     protected void applyValue() {
                         // Steps of 10, so Off is easy to land on.
                         cfg.setAutoSolveMomentum((int) Math.round(this.value * 10) * 10);
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y += 22;

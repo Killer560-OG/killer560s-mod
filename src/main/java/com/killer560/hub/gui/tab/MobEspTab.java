@@ -92,7 +92,7 @@ public class MobEspTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setLineWidth((float) (min + this.value * (max - min)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }
@@ -116,7 +116,7 @@ public class MobEspTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setRoomMargin(minMargin + this.value * (maxMargin - minMargin));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         } else {
@@ -131,7 +131,7 @@ public class MobEspTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setRange(minRange + this.value * (maxRange - minRange));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }
@@ -172,7 +172,7 @@ public class MobEspTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setWitherTracerThickness((float) (minT + this.value * (maxT - minT)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }

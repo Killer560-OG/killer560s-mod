@@ -94,7 +94,7 @@ public class ThornTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setLineWidth((float) (min + this.value * (max - min)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }

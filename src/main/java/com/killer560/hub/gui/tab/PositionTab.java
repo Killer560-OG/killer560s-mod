@@ -59,7 +59,7 @@ public class PositionTab extends BaseTab {
                 int range = PositionConfig.MAX_DECIMAL_PLACES - PositionConfig.MIN_DECIMAL_PLACES;
                 PositionConfig live = PositionConfig.getInstance();
                 live.setDecimalPlaces(PositionConfig.MIN_DECIMAL_PLACES + (int) Math.round(this.value * range));
-                live.save();
+                saveOnRelease(() -> live.save());
             }
         });
         y[0] += 24;

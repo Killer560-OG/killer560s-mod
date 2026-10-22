@@ -541,7 +541,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
             @Override
             protected void applyValue() {
                 apply.accept(this.value);
-                AutoRoutesConfig.getInstance().save();
+                saveOnRelease(() -> AutoRoutesConfig.getInstance().save());
             }
         });
     }

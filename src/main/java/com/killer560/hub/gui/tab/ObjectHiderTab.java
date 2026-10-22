@@ -89,7 +89,7 @@ public class ObjectHiderTab extends BaseTab {
                     @Override
                     protected void applyValue() {
                         cfg.setKeepOrbRadius((int) Math.round(min + this.value * (max - min)));
-                        cfg.save();
+                        saveOnRelease(() -> cfg.save());
                     }
                 });
                 y[0] += 22;

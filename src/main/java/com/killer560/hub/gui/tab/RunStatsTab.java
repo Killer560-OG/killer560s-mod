@@ -60,7 +60,7 @@ public class RunStatsTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setDelaySeconds((int) Math.round(this.value * RunStatsConfig.MAX_DELAY_SECONDS));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 24;

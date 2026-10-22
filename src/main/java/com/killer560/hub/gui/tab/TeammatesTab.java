@@ -61,7 +61,7 @@ public class TeammatesTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setLineWidth((float) (minWidth + this.value * (maxWidth - minWidth)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 22;
@@ -78,7 +78,7 @@ public class TeammatesTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setRange(minRange + this.value * (maxRange - minRange));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Unknown Class Colour", cfg.getUnknownColor()), btn -> {

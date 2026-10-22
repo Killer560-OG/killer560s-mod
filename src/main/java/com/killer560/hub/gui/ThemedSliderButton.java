@@ -87,6 +87,89 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
      */
     @Override
     protected void setValue(double v) {
+        boolean outer = stepSaves == null;
+        if (outer) {
+            stepSaves = new java.util.ArrayList<>();
+        }
+        try {
+            setValueSnapped(v);
+        } finally {
+            if (outer) {
+                java.util.List<Runnable> saves = stepSaves;
+                stepSaves = null;
+                if (!saves.isEmpty()) {
+                    if (pressHeld) {
+                        pendingSaves = saves; // the latest step's saves; the release writes them once
+                    } else {
+                        runAll(saves);
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- save on release (sweep 2026-10-21: every drag step wrote the whole config file) ----------------------------
+
+    /** Saves asked for by the value change running right now, or null outside one. */
+    private static java.util.List<Runnable> stepSaves;
+    /** The last drag step's saves, written when the press ends. */
+    private static java.util.List<Runnable> pendingSaves;
+    /** A mouse press on a slider has not been released yet. Static: a menu relayout hands the drag to a rebuilt row. */
+    private static boolean pressHeld;
+    /** The screen the press started in; if it goes away without a release, the next client tick writes the saves. */
+    private static Object pressScreen;
+    private static boolean flushTickRegistered;
+
+    /**
+     * Saves a slider's setting: once when the press that moves it is released, or at once for a key or a programmatic
+     * change. A slider's {@code applyValue} (and any setter it calls) uses this instead of calling {@code save()} itself,
+     * so a drag still applies every step live but writes the file only once. Outside a slider change it just runs.
+     */
+    public static void saveOnRelease(Runnable save) {
+        if (stepSaves != null) {
+            stepSaves.add(save);
+        } else {
+            save.run();
+        }
+    }
+
+    /** Writes any saves a drag left waiting. Safe to call at any time. */
+    public static void flushPendingSaves() {
+        pressHeld = false;
+        pressScreen = null;
+        java.util.List<Runnable> saves = pendingSaves;
+        pendingSaves = null;
+        if (saves != null) {
+            runAll(saves);
+        }
+    }
+
+    private static void runAll(java.util.List<Runnable> saves) {
+        for (Runnable r : saves) {
+            try {
+                r.run();
+            } catch (RuntimeException e) {
+                // One config's failed write must not lose the others.
+            }
+        }
+    }
+
+    private static void beginPress() {
+        flushPendingSaves(); // a press whose release never came (its screen closed under it)
+        pressHeld = true;
+        Minecraft mc = Minecraft.getInstance();
+        pressScreen = com.killer560.hub.compat.McCompat.screen(mc);
+        if (!flushTickRegistered) {
+            flushTickRegistered = true;
+            net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
+                if (pressHeld && com.killer560.hub.compat.McCompat.screen(client) != pressScreen) {
+                    flushPendingSaves();
+                }
+            });
+        }
+    }
+
+    private void setValueSnapped(double v) {
         int n = stepCount();
         if (n > 0) {
             v = snap(v, n);
@@ -219,6 +302,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
     /** Forgets a drag whose release never arrived (the menu closed under it). */
     public static void endLiveDrag() {
         liveDrag = null;
+        flushPendingSaves();
     }
 
     /** This row's label, the key a drag is handed over by. */
@@ -241,6 +325,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
 
     @Override
     public void onClick(MouseButtonEvent event, boolean doubleClick) {
+        beginPress();
         super.onClick(event, doubleClick);
         if ((SettingsButtonWidget.inMenu() || SettingsButtonWidget.inThemedScreen()) && this.active) {
             int[] t = trackRange();
@@ -265,6 +350,7 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
     public void onRelease(MouseButtonEvent event) {
         super.onRelease(event);
         liveDrag = null;
+        flushPendingSaves();
     }
 
     @Override

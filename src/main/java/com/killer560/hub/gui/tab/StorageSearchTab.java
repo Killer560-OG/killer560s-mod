@@ -179,7 +179,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 StorageSearchConfig c = StorageSearchConfig.getInstance();
                 int snapped = StorageSearchConfig.MIN_CHEST_RADIUS + (int) Math.round(this.value * radiusRange);
                 c.setChestRadius(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (snapped - StorageSearchConfig.MIN_CHEST_RADIUS) / (double) radiusRange;
             }
         });
@@ -197,7 +197,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 StorageSearchConfig c = StorageSearchConfig.getInstance();
                 int snapped = StorageSearchConfig.MIN_ESP_SECONDS + (int) Math.round(this.value * espRange);
                 c.setEspSeconds(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = (snapped - StorageSearchConfig.MIN_ESP_SECONDS) / (double) espRange;
             }
         });
@@ -215,7 +215,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
                 StorageSearchConfig c = StorageSearchConfig.getInstance();
                 int snapped = (int) Math.round(this.value * 100);
                 c.setSearchBoxOpacity(snapped);
-                c.save();
+                saveOnRelease(() -> c.save());
                 this.value = c.getSearchBoxOpacity() / 100.0;
             }
         });

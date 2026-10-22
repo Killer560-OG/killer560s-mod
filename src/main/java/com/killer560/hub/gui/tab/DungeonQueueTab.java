@@ -66,7 +66,7 @@ public class DungeonQueueTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     queue.setDelaySeconds((int) Math.round(this.value * DungeonQueueConfig.MAX_DELAY_SECONDS));
-                    queue.save();
+                    saveOnRelease(() -> queue.save());
                 }
             });
             widgets.add(toggle("Disable on Leave/Kick", queue::isDisableOnLeave, queue::setDisableOnLeave, queue::save,

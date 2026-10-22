@@ -58,7 +58,7 @@ public class AutoDialogueTab extends BaseTab {
             @Override
             protected void applyValue() {
                 cfg.setAutoDialogueDelayTicks((int) Math.round(this.value * 40));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y += 20;

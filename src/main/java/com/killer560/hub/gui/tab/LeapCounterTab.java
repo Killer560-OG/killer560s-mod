@@ -77,7 +77,7 @@ public class LeapCounterTab extends BaseTab {
             protected void applyValue() {
                 cfg.setRadius((float) (LeapCounterConfig.MIN_RADIUS
                         + this.value * (LeapCounterConfig.MAX_RADIUS - LeapCounterConfig.MIN_RADIUS)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         w.add(new ThemedSliderButton(colB, y[0], half, 18, jumpText(cfg),
@@ -92,7 +92,7 @@ public class LeapCounterTab extends BaseTab {
             protected void applyValue() {
                 cfg.setJumpDistance((float) (LeapCounterConfig.MIN_JUMP_DISTANCE
                         + this.value * (LeapCounterConfig.MAX_JUMP_DISTANCE - LeapCounterConfig.MIN_JUMP_DISTANCE)));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
         y[0] += 24;
@@ -146,7 +146,7 @@ public class LeapCounterTab extends BaseTab {
             @Override
             protected void applyValue() {
                 set.accept((int) Math.round(this.value * LeapCounterConfig.MAX_COUNT));
-                cfg.save();
+                saveOnRelease(() -> cfg.save());
             }
         });
     }

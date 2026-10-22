@@ -62,7 +62,7 @@ public class ArrowAlignTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setNumberScale((float) (minScale + this.value * (maxScale - minScale)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -193,7 +193,7 @@ public class ArrowAlignTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAuraCps((int) Math.round(minCps + this.value * (maxCps - minCps)));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
             y += 22;
@@ -210,7 +210,7 @@ public class ArrowAlignTab extends BaseTab {
                 @Override
                 protected void applyValue() {
                     cfg.setAuraRange(minRange + this.value * (maxRange - minRange));
-                    cfg.save();
+                    saveOnRelease(() -> cfg.save());
                 }
             });
         }
