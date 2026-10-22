@@ -1171,6 +1171,15 @@ public final class Ap3Executor {
                 continue;
             }
             queue.remove(i);
+            if (node.type == Ap3Node.Type.STOPWATCH) {
+                // Always on: a stopwatch node that fired in the last second is not fired again (walking off and back on
+                // over it for an align must not restart the timer).
+                long nowMs = System.currentTimeMillis();
+                if (nowMs - node.lastStopwatchFiredMs < STOPWATCH_REFIRE_LOCK_MS) {
+                    continue;
+                }
+                node.lastStopwatchFiredMs = nowMs;
+            }
             switch (node.type) {
                 case LOOK -> doLook(player, node);
                 case STOPWATCH -> toggleStopwatch(node);
@@ -3476,6 +3485,9 @@ public final class Ap3Executor {
     }
 
     // ---- STOPWATCH ------------------------------------------------------------------------------------------
+
+    /** How long after a stopwatch node fires before it can fire again (killer560, 2026-10-22: one second). */
+    static final long STOPWATCH_REFIRE_LOCK_MS = 1000L;
 
     /** First node starts it, the next prints the time (client-side only), the one after starts it again. */
     private static void toggleStopwatch(Ap3Node node) {

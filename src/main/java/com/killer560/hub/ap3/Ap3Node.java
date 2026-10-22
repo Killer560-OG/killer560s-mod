@@ -287,6 +287,9 @@ public final class Ap3Node {
     public String useItemId;
 
     public String name;
+    /** When this stopwatch node last fired (System.currentTimeMillis), or 0. Always on: a stopwatch that fired
+     *  within the last second does not fire again, so walking off and back on (an align) cannot restart the timer. */
+    public transient long lastStopwatchFiredMs;
 
     public enum JumpMod { NONE, JUMP, EDGE }
     /** {@link Type#LEAP}. */
