@@ -345,6 +345,12 @@ public final class BazaarFlipFeature {
                     purse, cfg.getTargetPurse());
         }
         if (cfg.isAutopilot()) {
+            if (com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.answers(
+                    com.killer560.hub.bazaaradvisor.BazaarAdvisorConfig.getInstance()).npc()
+                    && BazaarFlipNpcLimit.remaining() <= 0) {
+                // Selling to the NPC is the plan and the NPCs take nothing more today: a session would only stop again.
+                return npcLimitText();
+            }
             String refusal = BazaarFlipAutopilot.begin(client, purse);
             if (refusal != null) {
                 return refusal;

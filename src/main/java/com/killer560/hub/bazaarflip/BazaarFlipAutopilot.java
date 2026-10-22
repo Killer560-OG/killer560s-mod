@@ -522,7 +522,17 @@ final class BazaarFlipAutopilot {
             return;
         }
         if (next instanceof FlipAction.Stop s) {
-            BazaarFlipFeature.finishFromAutopilot(s.why());
+            if (!pending.isEmpty()) {
+                // An order it just placed is not in Manage Orders yet: wait as for any open order (the regular
+                // Manage Orders read adopts it, or forgets it after three reads), then decide again.
+                idleUntilMs = now + IDLE_WAIT_MS;
+                return;
+            }
+            String why = s.why();
+            if (why.startsWith(FlipAutopilot.STOP_NPC_LIMIT)) {
+                why += String.format(Locale.US, " (it resets at 00:00 UTC, in %s)", BazaarFlipNpcLimit.resetsIn());
+            }
+            BazaarFlipFeature.finishFromAutopilot(why);
             return;
         }
         lastWaitWhy = "";

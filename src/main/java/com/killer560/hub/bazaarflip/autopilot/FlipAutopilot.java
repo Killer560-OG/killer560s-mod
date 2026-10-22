@@ -199,8 +199,30 @@ public final class FlipAutopilot {
                 ours++;
             }
         }
+        if (ours == 0) {
+            // Nothing of the session's is open, so nothing will change by waiting on it: a wait here was forever.
+            long held = 0;
+            for (Long v : s.holdings().values()) {
+                held += v == null ? 0 : Math.max(0, v);
+            }
+            FlipPricing.Answers ans = s.answers();
+            if (ans.npc() && (held > 0 || s.lookups().npcRemaining() <= 0)) {
+                // The NPCs take nothing more today: what it holds cannot be sold there, and nothing new pays.
+                return new FlipAction.Stop(STOP_NPC_LIMIT + (held > 0
+                        ? String.format(Locale.US, " - the %,d unit(s) it holds stay with you", held) : ""));
+            }
+            if (held == 0) {
+                return new FlipAction.Stop(STOP_NOTHING_PROFITABLE + (ans.npc() ? String.format(Locale.US,
+                        " within the %,.0f coins left on today's NPC sell limit", s.lookups().npcRemaining()) : ""));
+            }
+        }
         return new FlipAction.Wait(ours + " order(s) open, nothing else worth doing");
     }
+
+    /** The stop reason when the NPC sell limit leaves nothing to sell to (the driver adds when it resets). */
+    public static final String STOP_NPC_LIMIT = "the daily NPC sell limit is reached";
+    /** The stop reason when no product pays and nothing of the session's is open or held. */
+    public static final String STOP_NOTHING_PROFITABLE = "nothing on the Bazaar is profitable right now";
 
     // ---- 1. collect --------------------------------------------------------------------------------------------
 
