@@ -338,32 +338,70 @@ public final class AutoUpdater {
         return body;
     }
 
+    /** A download gives up once no byte has arrived for this long. A slow connection that keeps sending is never cut. */
+    static final long DEFAULT_STALL_MILLIS = 60_000;
+
+    /** The stall limit: {@link #DEFAULT_STALL_MILLIS}, or {@code -Dkiller560.test.autoUpdateStallMillis} (read on every
+     *  download, so a test can set it at run time; docs/TESTING-HOOKS.md). */
+    static long stallMillis() {
+        long v = Long.getLong("killer560.test.autoUpdateStallMillis", DEFAULT_STALL_MILLIS);
+        return v > 0 ? v : DEFAULT_STALL_MILLIS;
+    }
+
     /** Streams {@code url} into {@code out}, returning its SHA-256. */
     private static String download(HttpClient http, String url, Path out) throws Exception {
-        HttpResponse<InputStream> res = ModNet.send(http, HttpRequest.newBuilder(URI.create(url))
-                .timeout(Duration.ofMinutes(5)).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
-        // HttpRequest.timeout covers only the wait for the response headers, so a connection that stalls mid-body
-        // would block this thread (and keep "checking" true) forever: close the stream when the five minutes are up.
+        final long stallMs = stallMillis();
+        // How often the stall watchdog looks at the download's progress.
+        final long checkMs = Math.max(50, Math.min(5_000, stallMs / 4));
+        // No HttpRequest.timeout here: on this JDK it also cuts the BODY of an ofInputStream response once it runs out
+        // (testkit 786, 2026-10-21: a download still arriving every 0.4 s died with "IOException: closed" exactly at the
+        // timeout), so the old five-minute timeout was itself a cap on the whole download. The wait for the headers is
+        // bounded by the same stall limit instead, and the body by the watchdog below: it closes the stream once no byte
+        // has arrived for stallMillis(), so a download that is still moving runs as long as it takes, and one that stalls
+        // never blocks this thread (and keeps "checking" true) forever.
+        java.util.concurrent.CompletableFuture<HttpResponse<InputStream>> pending = ModNet.sendAsync(http,
+                HttpRequest.newBuilder(URI.create(url)).GET().build(), HttpResponse.BodyHandlers.ofInputStream());
+        HttpResponse<InputStream> res;
+        try {
+            res = pending.get(stallMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            pending.cancel(true);
+            throw stallError(url, 0, stallMs);
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception ex) {
+                throw ex;
+            }
+            throw e;
+        }
+        java.util.concurrent.atomic.AtomicLong lastByteNanos = new java.util.concurrent.atomic.AtomicLong(System.nanoTime());
+        java.util.concurrent.atomic.AtomicBoolean stalled = new java.util.concurrent.atomic.AtomicBoolean();
         java.util.Timer watchdog = new java.util.Timer("killer560smod-auto-update-watchdog", true);
+        long total = 0;
         try (InputStream in = res.body()) {
             watchdog.schedule(new java.util.TimerTask() {
                 @Override
                 public void run() {
+                    if (System.nanoTime() - lastByteNanos.get() < stallMs * 1_000_000L) {
+                        return;
+                    }
+                    stalled.set(true);
+                    cancel();
                     try {
                         in.close();
                     } catch (IOException ignored) {
                     }
                 }
-            }, Duration.ofMinutes(5).toMillis());
+            }, checkMs, checkMs);
             if (res.statusCode() != 200) {
                 throw new IOException(url + " returned " + res.statusCode());
             }
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            long total = 0;
             byte[] buf = new byte[1 << 16];
             try (OutputStream os = Files.newOutputStream(out)) {
                 int n;
                 while ((n = in.read(buf)) > 0) {
+                    lastByteNanos.set(System.nanoTime());
                     total += n;
                     if (total > MAX_JAR_BYTES) {
                         throw new IOException(url + " is larger than " + MAX_JAR_BYTES + " bytes");
@@ -372,10 +410,25 @@ public final class AutoUpdater {
                     os.write(buf, 0, n);
                 }
             }
+            if (stalled.get()) {
+                throw stallError(url, total, stallMs);
+            }
             return HexFormat.of().formatHex(md.digest());
+        } catch (IOException e) {
+            if (stalled.get()) {
+                throw stallError(url, total, stallMs);
+            }
+            throw e;
         } finally {
             watchdog.cancel();
         }
+    }
+
+    private static IOException stallError(String url, long bytes, long stallMillis) {
+        String secs = String.format(java.util.Locale.ROOT, "%.1f", stallMillis / 1000.0);
+        LOGGER.warn("[AutoUpdate] download of {} stalled: no data for {} s after {} bytes; gave up", url, secs, bytes);
+        return new IOException("download stalled - no data for " + secs + " s after " + bytes
+                + " bytes, gave up");
     }
 
     public static String sha256(Path file) {
