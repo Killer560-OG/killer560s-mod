@@ -74,7 +74,7 @@ public final class CustomColorScreen extends Screen implements MenuThemedScreen 
 
         // Row 1: colour, and its on/off.
         SettingsButtonWidget colour = SettingsButtonWidget.builder(
-                        ColorSwatch.label("Color", e == null ? 0xFFFFFFFF : e.color),
+                        ColorSwatch.label("Colour", e == null ? 0xFFFFFFFF : e.color),
                         b -> {
                             ArmourDyeEntry cur = main.entry();
                             CustomItemsScreen.colourPicker(this, main.selectedLabel(),
