@@ -14,6 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
@@ -51,6 +52,11 @@ import com.killer560.hub.compat.McCompat;
  * and shoots once a movement packet has carried the turn - the camera never moves. Per this mod's standing rotation rule, yaw is never
  * wrapped/clamped: every target yaw is the current running yaw plus the wrapped difference.
  * <p>
+ * In both modes a shot is over only when its arrow is seen leaving along the aim (2026-10-22); until then the aim is held
+ * and the next cadence slot clicks again (see {@link #MAX_UNSEEN_AIMED_CLICKS}). Each click is a plain use; vanilla's own
+ * keybind pass releases the bow draw later in the same tick (use key not down: {@code Minecraft.handleKeybinds} calls
+ * {@code releaseUsingItem}), and Hypixel's shortbows fire on the use itself, so there is no draw to wait for.
+ * <p>
  * Weapon (2026-09-14): Terminator = the above (3-arrow spread, between-column aim points, predictions).
  * Machine Gun Shortbow (Skyblock id MACHINE_GUN_BOW) fires a single arrow, so it aims at the lit block's own
  * x centre (x + 0.5) with Noamm's same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block centre)
@@ -65,11 +71,22 @@ import com.killer560.hub.compat.McCompat;
  */
 public final class AutoI4Feature {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoi4");
     private static final Pattern DEVICE_DONE = Pattern.compile("^(\\w{3,16}) completed a device! \\(\\d/\\d\\)");
     private static final AABB STAND_BOX = new AABB(56, 118, 40, 76, 140, 58);
     private static final String NOT_HOLDING_BOW = "not holding a bow";
     private static final long RESHOOT_AFTER_MS = 1000L;
     private static final float ALREADY_AIMED_TOLERANCE_DEG = 1f;
+    // Arrow out before the next turn (killer560, 2026-10-22: "often aims at a spot, does not shoot, and has to come back to
+    // it about 2 seconds later"). Both weapons are shortbows: Hypixel fires on the use packet and drops one that lands
+    // inside the shortbow cooldown (ceil(10 / (1 + AS/100)) ticks, 5-7 ticks at a Terminator's Attack Speed; see
+    // roomsim/SimAttackSpeed). A mid-turn click spends that cooldown, so the aimed click after it was often dropped, the
+    // camera turned straight on, and only the 1 s watchdog brought it back. A shot now ends when the client SEES its arrow
+    // leave along the aim; until then the camera stays and the next cadence slot clicks again. Given up (old behaviour,
+    // watchdog as before) after this many aimed clicks with no arrow, so a server that shows no arrows cannot stall it.
+    private static final int MAX_UNSEEN_AIMED_CLICKS = 3;
+    private static final double ARROW_DIRECTION_TOLERANCE_DEG = 3.0;
+    private static final double ARROW_SEEN_RANGE = 6.0;
     // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
     // with Predictions on), and stops No Rotate from firing a target + its prediction in the same tick.
     // Click cadence (2026-09-14, killer560's own request): replaces the old fixed minimum shot gap. When the device
@@ -138,6 +155,10 @@ public final class AutoI4Feature {
         final float targetPitch;
         final long startedAtMs;
         final long durationMs;
+        /** Aimed clicks sent for this shot so far; while above zero the shot waits for its arrow (see {@link #fire}). */
+        int aimedClicks;
+        /** Arrow entity ids the client had when the first aimed click went out: an arrow not in here is a new one. */
+        Set<Integer> arrowsBefore;
 
         Shot(BlockPos target, boolean prediction, Vec3 aimPoint, float startYaw, float startPitch,
              float targetYaw, float targetPitch, long durationMs) {
@@ -656,6 +677,22 @@ public final class AutoI4Feature {
         LocalPlayer player = client.player;
         long now = System.currentTimeMillis();
         Shot shot = currentShot;
+        if (shot != null && shot.aimedClicks > 0) {
+            // The aimed click went out: the shot (and the camera, or No Rotate's body, on its aim) is done only once its
+            // arrow is seen, and only then does the next target's turn start.
+            boolean seen = arrowLeft(client, player, shot);
+            if (seen || shot.aimedClicks >= MAX_UNSEEN_AIMED_CLICKS) {
+                if (!seen) {
+                    LOGGER.info("[AutoI4] no arrow seen after {} aimed clicks at target #{} - moving on",
+                            shot.aimedClicks, indexOf(shot.target));
+                }
+                currentShot = null;
+                if (!shotQueue.isEmpty()) {
+                    startShot(client, cfg, player, shotQueue.remove(0));
+                }
+                shot = currentShot;
+            }
+        }
         boolean settled = shot != null && (!cfg.isAutoI4Rotate() || progress(shot, now) >= 1.0);
         // Clicking only once the device has started, holding the bow, with no menu open.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
@@ -678,13 +715,11 @@ public final class AutoI4Feature {
                 player.setXRot(shot.targetPitch);
                 // A block click unpaired on the server gets vanilla's block half first (util/RightClick).
                 com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
+                markAimed(client, shot);
                 client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
                 onFired(shot);
             }
-            currentShot = null;
-            if (!shotQueue.isEmpty()) {
-                startShot(client, cfg, player, shotQueue.remove(0));
-            }
+            // The shot stays current (No Rotate marked it in fireNoRotate): the next one starts above, once its arrow is out.
         } else if (cfg.isAutoI4Rotate()) {
             // Mid-turn (or nothing to aim at yet): a plain click wherever the camera is pointing.
             com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
@@ -709,9 +744,49 @@ public final class AutoI4Feature {
             return false;
         }
         com.killer560.hub.util.RightClick.beforePlainUse(client, player, "[AutoI4] Shot");
+        markAimed(client, shot);
         client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
         onFired(shot);
         return true;
+    }
+
+    /** An aimed click is about to go out for {@code shot}: on the first, note the arrows already there. */
+    private static void markAimed(Minecraft client, Shot shot) {
+        if (shot.arrowsBefore == null) {
+            shot.arrowsBefore = new HashSet<>();
+            for (Entity entity : client.level.entitiesForRendering()) {
+                if (entity instanceof AbstractArrow) {
+                    shot.arrowsBefore.add(entity.getId());
+                }
+            }
+        }
+        shot.aimedClicks++;
+    }
+
+    /**
+     * True once an arrow that was not there at the shot's first aimed click is near his eye (a server tick of flight at
+     * most), his or ownerless, and flying along the shot's aim. The Terminator's side arrows are 5 degrees out and an
+     * arrow from a mid-turn click points elsewhere, so neither counts; the Machine Gun Shortbow's one arrow (and Rapid
+     * Fire's) is the aim itself.
+     */
+    private static boolean arrowLeft(Minecraft client, LocalPlayer player, Shot shot) {
+        Vec3 eye = player.getEyePosition();
+        Vec3 want = shot.aimPoint.subtract(eye).normalize();
+        double minDot = Math.cos(Math.toRadians(ARROW_DIRECTION_TOLERANCE_DEG));
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (!(entity instanceof AbstractArrow arrow) || shot.arrowsBefore.contains(entity.getId())) {
+                continue;
+            }
+            Entity owner = arrow.getOwner();
+            if ((owner != null && owner != player) || arrow.position().distanceToSqr(eye) > ARROW_SEEN_RANGE * ARROW_SEEN_RANGE) {
+                continue;
+            }
+            Vec3 v = arrow.getDeltaMovement();
+            if (v.lengthSqr() > 0.01 && v.normalize().dot(want) >= minDot) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void onFired(Shot shot) {
