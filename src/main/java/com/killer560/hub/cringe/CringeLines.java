@@ -57,7 +57,7 @@ public final class CringeLines {
     }
 
     private static final List<String> DEFAULTS = List.of(
-            "I am the strongest existence in this world. You just haven't realized it yet.",
+            "I am the strongest existence in this world. You just haven't realised it yet.",
             "Do you understand the gap between us? No? I didn't think so.",
             "This isn't even my final form.",
             "You already lost. You just don't know it yet.",
@@ -144,7 +144,7 @@ public final class CringeLines {
             "I was cursed with too much power and not enough people worth using it on.",
             "The last person who doubted me is now a cautionary tale.",
             "I don't get hurt. I collect damage and cash it in later.",
-            "My eyes changed color the day I stopped being ordinary.",
+            "My eyes changed colour the day I stopped being ordinary.",
             "You're not in my league. You're not even in the sport.",
             "I already saw this conversation end in a dream. You lost there too.",
             "Somewhere a bell just tolled. That's just my power, introducing itself.",
@@ -185,7 +185,7 @@ public final class CringeLines {
             "You keep calling it luck. I keep calling it destiny with good timing.",
             "My hands have written more endings than you've read beginnings.",
             "I don't get intimidated. I get curious about how this ends for you.",
-            "The world tried to break me once. It's still apologizing.",
+            "The world tried to break me once. It's still apologising.",
             "I don't chase power. I just let it catch up when it's ready.",
             "You're about to become the reason my legend gets a new chapter."
     );

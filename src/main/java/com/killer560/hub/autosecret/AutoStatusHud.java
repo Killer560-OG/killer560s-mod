@@ -318,7 +318,7 @@ public final class AutoStatusHud {
         if (a.startsWith("etherwarp to ") || a.startsWith("waiting to land")) {
             return failures > 0 ? "stuck - retrying" : "travelling";
         }
-        if (a.startsWith("etherwarp toward")) {
+        if (a.startsWith("etherwarp towards")) {
             return "warping to mob";
         }
         if (a.contains(" -> ")) {

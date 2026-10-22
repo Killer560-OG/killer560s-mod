@@ -53,7 +53,7 @@ public final class MappingFeature {
         sb.append("# Killer560's Mod - map dump\n");
         sb.append("# mapId=").append(held.mapId).append('\n');
         sb.append("# scale=").append(held.data.scale).append(" locked=").append(held.data.locked).append('\n');
-        sb.append("# Each line is one row of the real 128x128 color-index grid, as 2-digit hex bytes.\n");
+        sb.append("# Each line is one row of the real 128x128 colour-index grid, as 2-digit hex bytes.\n");
         sb.append("# Save a copy of this file at different real moments (map open, mimic room visible,\n");
         sb.append("# after a class icon appears) and diff them to find which bytes/positions changed.\n");
         for (int row = 0; row < MAP_SIZE; row++) {

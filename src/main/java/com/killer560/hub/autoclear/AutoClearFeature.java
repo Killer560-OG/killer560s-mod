@@ -2669,7 +2669,7 @@ public final class AutoClearFeature {
         }
         final BlockPos goal = spot;
         tripPrice = etherTicks;
-        action = "etherwarp toward " + targetName + " (~" + etherTicks + " ticks vs hops "
+        action = "etherwarp towards " + targetName + " (~" + etherTicks + " ticks vs hops "
                 + (cachedHops < 0 ? "none" : "~" + hypeTicks) + ")";
         startTrip(client, player, () -> {
             tripTo(goal);

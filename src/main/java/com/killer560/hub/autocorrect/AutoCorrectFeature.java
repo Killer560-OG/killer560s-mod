@@ -312,11 +312,11 @@ public final class AutoCorrectFeature {
         put(m, "humerous", "humorous");
         put(m, "immediatly", "immediately");
         put(m, "independant", "independent");
-        put(m, "jewelery", "jewelry");
+        put(m, "jewelery", "jewellery");
         put(m, "knowlege", "knowledge");
         put(m, "liason", "liaison");
         put(m, "libary", "library");
-        put(m, "lisence", "license");
+        put(m, "lisence", "licence");
         put(m, "maintainance", "maintenance");
         put(m, "mispell", "misspell");
         put(m, "neccessary", "necessary");

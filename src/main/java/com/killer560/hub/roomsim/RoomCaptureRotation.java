@@ -268,7 +268,7 @@ public final class RoomCaptureRotation {
                     + (secretsImpossible ? "the secrets (" + perRotation(hits) + ")" : "")
                     + (markerImpossible && secretsImpossible ? " point" : " points") + " at a turn this " + tiles(room.sizeX) + "x" + tiles(room.sizeZ)
                     + " capture cannot have - it looks laid along the wrong axis or a tile off, holding one tile"
-                    + " of this room and one of a neighbor; re-capture it");
+                    + " of this room and one of a neighbour; re-capture it");
         }
         if (hitsIn == 0 && hitsOut == 0 && tested > 0 && !markerImpossible) {
             String shifted = shiftedLanding(room, entry);
@@ -454,7 +454,7 @@ public final class RoomCaptureRotation {
             return null;
         }
         return "no secret lands at any rotation, but " + best + " land " + where + " - the capture looks anchored a "
-                + "tile off, holding one tile of this room and one of a neighbor; re-capture it";
+                + "tile off, holding one tile of this room and one of a neighbour; re-capture it";
     }
 
     private static boolean isHead(String block) {

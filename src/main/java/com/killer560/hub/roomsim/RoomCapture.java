@@ -222,7 +222,7 @@ public final class RoomCapture {
         ModChat.send(FEATURE, ModChat.good("Captured " + name + " "),
                 ModChat.dim("(" + tilesX + "x" + tilesZ + " tiles, " + sizeX + "x" + sizeZ + " blocks, y "
                         + r.contentMinY() + ".." + r.contentMaxY() + ", " + doorways + " doorway(s) at y "
-                        + RoomDoors.DOOR_FLOOR_Y + "; every tile's center column is " + name + ")."));
+                        + RoomDoors.DOOR_FLOOR_Y + "; every tile's centre column is " + name + ")."));
         ModChat.send(FEATURE, ModChat.text("Saved to "), ModChat.value(written.file().toAbsolutePath().toString()));
         if (written.backup() != null) {
             ModChat.send(FEATURE, ModChat.text("The file it replaced is backed up as "),
@@ -299,9 +299,9 @@ public final class RoomCapture {
             RoomEntry hit = RoomDatabase.lookup(core);
             String where = "Tile " + t[0] + "," + t[1] + " (capture x " + x + ", z " + z + ")";
             if (hit == null) {
-                problems.add(where + ": its center column matches no room in the room database.");
+                problems.add(where + ": its centre column matches no room in the room database.");
             } else if (!expected.equalsIgnoreCase(hit.name)) {
-                problems.add(where + ": its center column is " + hit.name + " in the room database, not "
+                problems.add(where + ": its centre column is " + hit.name + " in the room database, not "
                         + expected + " - another room stitched in.");
             }
         }
