@@ -588,7 +588,7 @@ public final class CroesusProfitLog {
                 Files.createDirectories(PATH.getParent());
                 Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
                 Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                Files.move(tmp, PATH, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                CroesusRunMemory.replace(tmp, PATH, json);
             } catch (Exception e) {
                 LOGGER.warn("[Croesus] Failed to write {}", PATH.getFileName(), e);
             }

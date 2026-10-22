@@ -500,13 +500,28 @@ final class CroesusRunMemory {
                     Files.createDirectories(PATH.getParent());
                     Path tmp = PATH.resolveSibling(PATH.getFileName() + ".tmp");
                     Files.writeString(tmp, json, StandardCharsets.UTF_8);
-                    Files.move(tmp, PATH, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    replace(tmp, PATH, json);
                 } catch (Exception e) {
                     LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
                 }
             });
         } catch (Exception e) {
             LOGGER.warn("[Croesus] Could not save {}", PATH.getFileName(), e);
+        }
+    }
+
+    /**
+     * Puts {@code tmp} in place of {@code target}. Windows refuses the replace while anything else has the target open
+     * (FileAlreadyExistsException: a scanner, or a reader at that moment), and a refused replace used to drop the save
+     * outright, so a restart read the save before it (890 lost pages 2 and 3 that way, 2026-10-22). Then the file is
+     * written in place instead, which an open reader does not block.
+     */
+    static void replace(Path tmp, Path target, String json) throws java.io.IOException {
+        try {
+            Files.move(tmp, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.io.IOException refused) {
+            Files.writeString(target, json, StandardCharsets.UTF_8);
+            Files.deleteIfExists(tmp);
         }
     }
 
