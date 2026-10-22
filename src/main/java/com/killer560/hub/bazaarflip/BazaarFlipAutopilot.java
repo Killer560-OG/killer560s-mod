@@ -87,6 +87,12 @@ final class BazaarFlipAutopilot {
     private static final long PRODUCTS_REFRESH_MS = 60_000L;
     /** Manage Orders is re-read this often while the session has orders open, so fills and outbids are seen. */
     private static final long ORDERS_REFRESH_MS = 60_000L;
+    /**
+     * No trade is started on a Bazaar snapshot older than this, by the snapshot's own timestamp
+     * ({@link BazaarApi#getProductsUpdatedMs}): three refresh intervals, so two failed refreshes in a row are survived and
+     * a third is not. A failed refresh leaves the old products in place, and this is what stops them being traded on.
+     */
+    static final long MAX_SNAPSHOT_AGE_MS = 3 * PRODUCTS_REFRESH_MS;
     /** With nothing to do, the next decision waits this long. */
     private static final long IDLE_WAIT_MS = 5_000L;
     /** An order that is claimed instead of opening its options is clicked again at most this often. */
@@ -232,6 +238,7 @@ final class BazaarFlipAutopilot {
         cooldownUntilMs = 0L;
         lastPlacement = null;
         lastPlacementCounted = false;
+        staleAskedAtMs = 0L;
     }
 
     /**
@@ -473,6 +480,9 @@ final class BazaarFlipAutopilot {
             LOGGER.info("[BazaarFlip] Autopilot order cooldown over - carrying on");
             ModChat.log(CHAT, ModChat.dim("Order cooldown over - carrying on."));
         }
+        if (!snapshotFresh(now)) {
+            return;
+        }
         if (followUp != null) {
             currentRelists = followUpRelists;
             FlipAction next = followUp;
@@ -550,6 +560,49 @@ final class BazaarFlipAutopilot {
             }
         }
         begin(next, now);
+    }
+
+    /** When a refresh was asked for because the snapshot was too old (0: it is fresh). */
+    private static long staleAskedAtMs;
+
+    /**
+     * Whether the Bazaar snapshot is young enough to trade on ({@link #MAX_SNAPSHOT_AGE_MS}, by the snapshot's own
+     * timestamp). When it is not, a refresh is asked for at once and nothing is decided until it has answered; if the
+     * snapshot is still too old (the refresh failed, or brought an old copy back), the session stops and says so.
+     */
+    private static boolean snapshotFresh(long now) {
+        List<BazaarProduct> products = BazaarApi.peekProducts();
+        long updated = BazaarApi.getProductsUpdatedMs();
+        long age = updated > 0 ? Math.max(0, now - updated) : -1;
+        if (products != null && !products.isEmpty() && age >= 0 && age <= MAX_SNAPSHOT_AGE_MS) {
+            if (staleAskedAtMs > 0) {
+                staleAskedAtMs = 0L;
+                LOGGER.info("[BazaarFlip] Autopilot: Bazaar prices refreshed ({} s old) - carrying on", age / 1000);
+            }
+            return true;
+        }
+        String old = age < 0 ? "there are no Bazaar prices yet" : "the Bazaar prices are " + ageText(age) + " old";
+        if (staleAskedAtMs == 0L) {
+            staleAskedAtMs = now;
+            productsAskedAtMs = now;
+            BazaarApi.refreshAsync();
+            LOGGER.info("[BazaarFlip] Autopilot: {} - refreshing before the next trade", old);
+            ModChat.log(CHAT, ModChat.dim(Character.toUpperCase(old.charAt(0)) + old.substring(1)
+                    + " - refreshing them before the next trade."));
+            return false;
+        }
+        if (BazaarApi.isRefreshing() || BazaarApi.getLastFetchedMs() < staleAskedAtMs) {
+            return false; // the refresh asked for has not answered yet
+        }
+        String error = BazaarApi.getLastError();
+        fail(old + " and refreshing them failed" + (error == null || error.isBlank() ? "" : " (" + error + ")")
+                + " - not trading on them");
+        return false;
+    }
+
+    private static String ageText(long ms) {
+        long s = ms / 1000;
+        return s < 120 ? s + " s" : s < 7200 ? (s / 60) + " min" : (s / 3600) + " h";
     }
 
     /** The snapshot whose unknown volumes were last logged (once per snapshot, not per decision). */

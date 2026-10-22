@@ -47,6 +47,8 @@ public final class BazaarApi {
 
     private static volatile List<BazaarProduct> products = List.of();
     private static volatile long lastFetchedMs = 0;
+    /** When Hypixel built the snapshot in {@link #products}, on this machine's clock (0: none yet). */
+    private static volatile long productsUpdatedMs = 0;
     private static volatile String lastError = null;
     private static final AtomicBoolean refreshing = new AtomicBoolean(false);
     private static volatile boolean autoStarted = false;
@@ -69,8 +71,19 @@ public final class BazaarApi {
         return refreshing.get();
     }
 
+    /** When the last refresh ENDED, successful or not (a failed one sets it too). */
     public static long getLastFetchedMs() {
         return lastFetchedMs;
+    }
+
+    /**
+     * When Hypixel built the snapshot {@link #peekProducts()} returns, on this machine's clock: the response's own
+     * {@code lastUpdated}, shifted by how far this clock is from the server's {@code Date} header when there is one (so a
+     * client clock set wrong does not age it). A failed refresh leaves it alone, which is the point - the products keep
+     * their old age. 0 before any snapshot.
+     */
+    public static long getProductsUpdatedMs() {
+        return productsUpdatedMs;
     }
 
     public static String getLastError() {
@@ -101,8 +114,9 @@ public final class BazaarApi {
                 lastFetchedMs = System.currentTimeMillis();
                 return null;
             }
-            if (fetched != null && !fetched.isEmpty()) {
-                products = fetched;
+            if (fetched != null && !fetched.products().isEmpty()) {
+                products = fetched.products();
+                productsUpdatedMs = fetched.updatedMs();
                 lastError = null;
             } else {
                 lastError = "Bazaar fetch returned no products.";
@@ -224,21 +238,65 @@ public final class BazaarApi {
         }
     }
 
-    private static List<BazaarProduct> fetchAndParse() {
+    /** One fetched snapshot and when Hypixel built it (this machine's clock). */
+    private record Fetched(List<BazaarProduct> products, long updatedMs) {
+    }
+
+    private static Fetched fetchAndParse() {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(BAZAAR_URL))
+            // Past every cache, as fetchInstantBuyBooks does: the Bazaar Flipper refuses a snapshot older than a few
+            // minutes, and Cloudflare's s-maxage=300 could otherwise hand back one five minutes old.
+            String url = BAZAAR_URL + (BAZAAR_URL.contains("?") ? "&" : "?") + "_=" + System.currentTimeMillis();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                     .timeout(Duration.ofSeconds(30))
                     .header("User-Agent", "Killer560sMod-Bazaar/1.0")
+                    .header("Cache-Control", "no-cache")
+                    .header("Pragma", "no-cache")
                     .GET()
                     .build();
             HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return List.of();
+                return new Fetched(List.of(), 0L);
             }
-            return parseResponse(response.body());
+            long now = System.currentTimeMillis();
+            long serverNow = response.headers().firstValue("date").map(BazaarApi::httpDate).orElse(0L);
+            return new Fetched(parseResponse(response.body()), localUpdatedMs(lastUpdatedOf(response.body()), serverNow, now));
         } catch (Exception e) {
-            return List.of();
+            return new Fetched(List.of(), 0L);
         }
+    }
+
+    /** An HTTP {@code Date} header in epoch ms, 0 when it does not parse. */
+    private static long httpDate(String value) {
+        try {
+            return java.time.ZonedDateTime.parse(value, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME)
+                    .toInstant().toEpochMilli();
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    /** The response's {@code lastUpdated} (Hypixel's clock, epoch ms), 0 when absent. */
+    static long lastUpdatedOf(String body) {
+        try {
+            JsonObject root = JsonParser.parseString(body).getAsJsonObject();
+            return root.has("lastUpdated") ? root.get("lastUpdated").getAsLong() : 0L;
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
+
+    /**
+     * {@code lastUpdated} on this machine's clock: its age by the server's own clock ({@code serverNowMs}, the Date
+     * header) taken back from {@code localNowMs}; without a Date header, {@code lastUpdated} as it is. Never in the
+     * future. Without {@code lastUpdated}, the fetch time (the snapshot is at least that fresh as far as anyone can say).
+     */
+    static long localUpdatedMs(long lastUpdatedMs, long serverNowMs, long localNowMs) {
+        if (lastUpdatedMs <= 0) {
+            return localNowMs;
+        }
+        long t = serverNowMs > 0 ? localNowMs - Math.max(0, serverNowMs - lastUpdatedMs) : lastUpdatedMs;
+        return Math.min(t, localNowMs);
     }
 
     /** Levels of each side of the order book kept per product: what the browser's detail view shows. */
@@ -272,12 +330,15 @@ public final class BazaarApi {
         return out;
     }
 
-    /** Replaces the product list with {@code body}'s, as if it had just been fetched. Returns the product count. */
+    /** Replaces the product list with {@code body}'s, as if it had just been fetched (its {@code lastUpdated} is the
+     *  snapshot's age, as for a live fetch with no Date header). Returns the product count. */
     public static int applyResponseForTest(String body) {
         List<BazaarProduct> parsed = parseResponse(body);
         if (!parsed.isEmpty()) {
+            long now = System.currentTimeMillis();
             products = parsed;
-            lastFetchedMs = System.currentTimeMillis();
+            productsUpdatedMs = localUpdatedMs(lastUpdatedOf(body), 0L, now);
+            lastFetchedMs = now;
             lastError = null;
         }
         return parsed.size();
