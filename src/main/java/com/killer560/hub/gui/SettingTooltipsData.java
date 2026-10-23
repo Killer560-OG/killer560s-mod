@@ -129,6 +129,8 @@ final class SettingTooltipsData {
         d.put("menu theme/extras for", "The theme the rows below set up. It starts on the menu's own theme. Left click goes to the next, right click back.");
         d.put("menu theme/theme music", "Plays the main menu theme's music while the main menu is open; it stops when you join a world or a server. Minecraft's own menu music waits while it plays.");
         d.put("menu theme/music", "This theme's track: its own loop, Off, any of the bundled loops, or music you imported. Left click goes to the next, right click back.");
+        d.put("menu theme/play preview", "Plays this theme's chosen track once, at Music Volume, so you can hear it here. Press again to stop it; closing the menu stops it too.");
+        d.put("menu theme/stop preview", "Stops the track Play Preview started.");
         d.put("menu theme/music volume", "How loud theme music plays, 0% to 100%. This is its own volume, not Minecraft's Music slider.");
         d.put("menu theme/import music", "Imports the sound or video whose path is on the clipboard (Shift + right click the file, Copy as path) and sets it as this theme's music. An .ogg is used as it is; anything else needs ffmpeg and keeps its first 10 minutes.");
         d.put("menu theme/open music folder", "Opens the folder imported theme music lives in. An .ogg dropped there can be picked with Music.");

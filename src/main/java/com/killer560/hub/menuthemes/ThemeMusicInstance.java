@@ -29,8 +29,13 @@ class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundI
     }
 
     ThemeMusicInstance(Identifier event, boolean imported) {
+        this(event, imported, true);
+    }
+
+    /** {@code looping} false plays the track once (Play Preview). */
+    ThemeMusicInstance(Identifier event, boolean imported, boolean looping) {
         super(event, SoundSource.MASTER, SoundInstance.createUnseededRandom());
-        this.looping = true;
+        this.looping = looping;
         this.delay = 0;
         this.relative = true;
         this.attenuation = SoundInstance.Attenuation.NONE;

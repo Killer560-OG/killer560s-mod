@@ -27,7 +27,8 @@ import java.util.List;
  * stops it at once. The menus opened from the title screen (Options, Singleplayer, Multiplayer, this mod's menu) keep it
  * going, so stepping into Options does not restart the song; a connecting or loading screen ends it.
  * <p>While a theme track plays, vanilla's own menu music is held off ({@code MusicManagerThemeMixin}); with Theme Music
- * off, or the theme's track set to Off, the game's music plays exactly as before. Default OFF.
+ * off, or the theme's track set to Off, the game's music plays exactly as before. Default ON (killer560, 2026-10-22: on by default, each theme
+ * its own track); a config that saved OFF keeps OFF.
  * <p>Bundled tracks: one original loop per preset theme, made for this mod by its owner (see
  * {@code assets/killer560smod/sounds/music/readme.txt}; lower case, as a resource path must be). Custom has no track of its own; it can pick any of them.
  * <p>Ticked at END_CLIENT_TICK; nothing here waits: a change of theme or track is heard on the next tick.
@@ -212,6 +213,15 @@ public final class ThemeMusic {
         if (mc == null) {
             return;
         }
+        if (preview != null) {
+            // Play Preview: until it ends (the track ran out, a second press, the mod menu closed) the menu track waits.
+            if (!(McCompat.screen(mc) instanceof com.killer560.hub.gui.ModScreen) || !mc.getSoundManager().isActive(preview)) {
+                stopPreview();
+            } else {
+                onMainMenu(mc); // keeps titleSeen right while the preview plays
+                return;
+            }
+        }
         ThemeExtrasConfig cfg = ThemeExtrasConfig.getInstance();
         Track want = null;
         String key = null;
@@ -292,9 +302,95 @@ public final class ThemeMusic {
         resolvedVersion = Integer.MIN_VALUE;
     }
 
-    /** True while a theme track is playing: vanilla's MusicManager stays quiet. */
+    /** True while a theme track or a preview is playing: vanilla's MusicManager stays quiet. */
     public static boolean playing() {
-        return current != null;
+        return current != null || preview != null;
+    }
+
+    // ---------------------------------------------------------------- Play Preview
+
+    /** The preview playing now (Menu Theme's Play Preview, killer560 2026-10-22), or null. */
+    private static ThemeMusicInstance preview;
+    private static String previewKey;
+    /** Run on the render thread when a preview ends by itself, so the button's label follows. */
+    private static Runnable previewEnded;
+    private static volatile int previewStarts;
+    private static volatile String lastPreviewResult = "";
+
+    /** Play Preview's press: starts {@code theme}'s chosen track once, at Music Volume, through the same sound path as
+     *  the menu music; a press while one plays stops it. Nothing waits: the sound starts in this call. Returns whether a
+     *  preview is playing afterwards (false too when the theme's choice is Off or its file is gone). */
+    public static boolean togglePreview(MenuTheme theme) {
+        Minecraft mc = Minecraft.getInstance();
+        if (preview != null) {
+            stopPreview();
+            return false;
+        }
+        Track t = resolve(theme, ThemeExtrasConfig.getInstance().getMusic(theme));
+        if (t == null) {
+            return false;
+        }
+        SoundManager sounds = mc.getSoundManager();
+        stopCurrent(sounds); // the menu's own track waits for the preview, so the two never overlap
+        mc.getMusicManager().stopPlaying();
+        ThemeMusicInstance p = new ThemeMusicInstance(t.id(), t.imported(), false);
+        Object result = sounds.play(p);
+        lastPreviewResult = String.valueOf(result);
+        preview = p;
+        previewKey = t.id().toString();
+        previewStarts++;
+        LOGGER.info("[ThemeMusic] preview {} ({})", previewKey, result);
+        return true;
+    }
+
+    /** Ends the preview, if one plays. */
+    public static void stopPreview() {
+        ThemeMusicInstance old = preview;
+        preview = null;
+        previewKey = null;
+        if (old != null) {
+            old.finish();
+            Minecraft.getInstance().getSoundManager().stop(old);
+            Runnable r = previewEnded;
+            if (r != null) {
+                r.run();
+            }
+        }
+    }
+
+    public static boolean previewing() {
+        return preview != null;
+    }
+
+    /** What the Play Preview button runs when a preview ends (its label); replaced by each rebuild of the tab. */
+    public static void onPreviewEnded(Runnable r) {
+        previewEnded = r;
+    }
+
+    /** The event (or imported key) the preview plays, or null. */
+    public static String previewKey() {
+        return previewKey;
+    }
+
+    /** Whether the sound engine holds the preview as a live channel. */
+    public static boolean previewEngineActive() {
+        ThemeMusicInstance p = preview;
+        return p != null && Minecraft.getInstance().getSoundManager().isActive(p);
+    }
+
+    public static int previewStarts() {
+        return previewStarts;
+    }
+
+    /** The engine's answer to the last preview's play. */
+    public static String lastPreviewResult() {
+        return lastPreviewResult;
+    }
+
+    /** Whether the preview plays once (not looping); for the testkit. */
+    public static boolean previewLooping() {
+        ThemeMusicInstance p = preview;
+        return p != null && p.isLooping();
     }
 
     // ---------------------------------------------------------------- testkit evidence

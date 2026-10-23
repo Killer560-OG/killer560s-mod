@@ -2923,22 +2923,56 @@ public class ModScreen extends Screen {
 
         private static final String CUSTOMISE = "Customise...";
 
+        /** The theme chips' row, and under it the two editing buttons on a row of their own (killer560, 2026-10-22: the
+         *  two squeezed in beside the themes were cut off). Each editing button is half the theme row's width; when
+         *  the window is too narrow for "Main Menu: Simple" at half width they stack, each the row's full width. */
         @Override
         public int height(int width) {
-            return 40;
+            return stacked(width) ? 80 : 60;
         }
 
+        private int themeWidth(int w) {
+            int n = MenuTheme.values().length;
+            return Math.min(90, (w - 20 - (n - 1) * 6) / n);
+        }
+
+        private int rowWidth(int w) {
+            int n = MenuTheme.values().length;
+            return n * themeWidth(w) + (n - 1) * 6;
+        }
+
+        /** True when either editing label would be cut at half the row's width. */
+        private boolean stacked(int w) {
+            int half = (rowWidth(w) - 6) / 2;
+            int widest = font.width(CUSTOMISE);
+            for (var m : com.killer560.hub.mainmenu.MainMenuThemeConfig.SceneMode.values()) {
+                widest = Math.max(widest, font.width("Main Menu: " + m.label));
+            }
+            return widest + 6 > half;
+        }
+
+        /** Chip {@code i}: a theme (MenuTheme order), then Customise... ({@code values().length}), then the main menu
+         *  scene ({@code values().length + 1}). */
         private int[] chip(int i, int x, int y, int w) {
-            int n = MenuTheme.values().length + 2;
-            int cw = Math.min(90, (w - 20 - (n - 1) * 6) / n);
-            return new int[]{x + 10 + i * (cw + 6), y + 20, cw, 14};
+            int n = MenuTheme.values().length;
+            if (i < n) {
+                int cw = themeWidth(w);
+                return new int[]{x + 10 + i * (cw + 6), y + 20, cw, 14};
+            }
+            int rw = rowWidth(w);
+            if (stacked(w)) {
+                return new int[]{x + 10, y + 40 + (i - n) * 20, rw, 14};
+            }
+            int half = (rw - 6) / 2;
+            return new int[]{x + 10 + (i - n) * (rw - half), y + 40, half, 14};
         }
 
         @Override
         public void render(GuiGraphicsExtractor g, int x, int y, int w, int mouseX, int mouseY) {
             GuiRects r = GuiRects.begin(g);
-            MenuStyle.dropShadow(r, x, y, w, 40, 3);
-            MenuStyle.bevel(r, x, y, w, 40, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
+            int h = height(w);
+            MenuStyle.dropShadow(r, x, y, w, h, 3);
+            MenuStyle.bevel(r, x, y, w, h, MenuStyle.BOX_TOP, MenuStyle.BOX_BOTTOM);
             r.gradient(x + 1, y + 1, x + w - 1, y + 15, MenuStyle.TITLE_TOP, MenuStyle.TITLE_BOTTOM);
             r.fill(x + 1, y + 15, x + w - 1, y + 16, MenuStyle.BLACK);
             MenuTheme active = MenuConfig.getInstance().getTheme();

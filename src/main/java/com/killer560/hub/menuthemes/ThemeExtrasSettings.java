@@ -62,10 +62,22 @@ public final class ThemeExtrasSettings {
                     btn.setMessage(musicOnText());
                 }).bounds(x, y, w, 20).build());
         y += 24;
+        // Play Preview (killer560, 2026-10-22), under the Music row: the chosen track once, at Music Volume; a second
+        // press, the track ending, a new Music choice or the mod menu closing stops it.
+        SettingsButtonWidget[] preview = new SettingsButtonWidget[1];
         widgets.add(SettingsButtonWidget.cycling(musicText(), (btn, dir) -> {
                     stepMusic(dir);
                     btn.setMessage(musicText());
+                    refreshPreview(preview[0]);
                 }).bounds(x, y, w, 20).build());
+        y += 24;
+        preview[0] = SettingsButtonWidget.builder(previewText(), btn -> {
+                    ThemeMusic.togglePreview(editing());
+                    refreshPreview(btn);
+                }).bounds(x, y, w, 20).build();
+        refreshPreview(preview[0]);
+        ThemeMusic.onPreviewEnded(() -> refreshPreview(preview[0]));
+        widgets.add(preview[0]);
         y += 24;
         int stops = (ThemeExtrasConfig.MAX_VOLUME - ThemeExtrasConfig.MIN_VOLUME) / ThemeExtrasConfig.VOLUME_STEP;
         widgets.add(new ThemedSliderButton(x, y, w, 20, volumeText(),
@@ -187,6 +199,34 @@ public final class ThemeExtrasSettings {
         MenuTheme t = editing();
         c.setMusic(t, ThemeMusic.step(c.getMusic(t), dir));
         c.save();
+        ThemeMusic.stopPreview(); // a preview of the old choice ends with it
+    }
+
+    /** What Play Preview would play for the theme being edited, or null (Off, or an imported file that is gone). */
+    static ThemeMusic.Track previewTrack() {
+        MenuTheme t = editing();
+        return ThemeMusic.resolve(t, ThemeExtrasConfig.getInstance().getMusic(t));
+    }
+
+    static Component previewText() {
+        if (ThemeMusic.previewing()) {
+            return Component.literal("Stop Preview");
+        }
+        if (previewTrack() == null) {
+            return Component.literal("Play Preview: §7no track");
+        }
+        MenuTheme t = editing();
+        String choice = ThemeExtrasConfig.getInstance().getMusic(t);
+        ThemeMusic.Bundled own = ThemeExtrasConfig.MUSIC_THEME.equals(choice) ? ThemeMusic.themeTrack(t) : null;
+        return Component.literal("Play Preview: " + (own != null ? own.label() : ThemeMusic.label(t, choice)));
+    }
+
+    /** The Play Preview button's label and whether it can be pressed (not when the choice plays nothing). */
+    static void refreshPreview(net.minecraft.client.gui.components.AbstractWidget btn) {
+        if (btn != null) {
+            btn.setMessage(previewText());
+            btn.active = ThemeMusic.previewing() || previewTrack() != null;
+        }
     }
 
     static Component editingText() {
