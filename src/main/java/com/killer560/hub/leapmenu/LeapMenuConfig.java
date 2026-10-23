@@ -70,6 +70,11 @@ public final class LeapMenuConfig {
     /** The teammates of the last dungeon run that started, in leap-menu order ({@link LeapRunMemory}); persisted so the
      *  next run is compared with it across a restart. Empty until a run has started. */
     private final List<String> lastRunParty = new ArrayList<>();
+    /** Lower-case names given a class pick or a pin by hand outside a run (in the Hub, or in the dungeon before Mort's
+     *  line) since the last run start: that is a choice made FOR the coming run, so its start keeps them for anyone in it
+     *  ({@link LeapRunMemory}; killer560, 2026-10-22: picks set in the Hub were reset when the run started). Persisted,
+     *  so a restart in the Hub keeps them; emptied at every run start. */
+    private final List<String> setBeforeRun = new ArrayList<>();
 
     // ---- class picks (formerly the separate Class Overrides file; one store with the Leap Order, 2026-10-15) ------------
 
@@ -137,6 +142,14 @@ public final class LeapMenuConfig {
                     for (var el : root.getAsJsonArray("lastRunParty")) {
                         if (el.isJsonPrimitive() && !el.getAsString().isBlank()) {
                             cfg.lastRunParty.add(el.getAsString());
+                        }
+                    }
+                }
+                if (root.has("setBeforeRun") && root.get("setBeforeRun").isJsonArray()) {
+                    for (var el : root.getAsJsonArray("setBeforeRun")) {
+                        String n = el.isJsonPrimitive() ? cleanIgn(el.getAsString()) : null;
+                        if (n != null && cfg.setBeforeRun.size() < MAX_PICKS) {
+                            cfg.setBeforeRun.add(n.toLowerCase(Locale.ROOT));
                         }
                     }
                 }
@@ -309,6 +322,9 @@ public final class LeapMenuConfig {
             JsonArray runParty = new JsonArray();
             lastRunParty.forEach(runParty::add);
             root.add("lastRunParty", runParty);
+            JsonArray beforeRun = new JsonArray();
+            setBeforeRun.forEach(beforeRun::add);
+            root.add("setBeforeRun", beforeRun);
             if (lastEditedClass != null) {
                 root.addProperty("lastEditedClass", lastEditedClass);
             }
@@ -390,6 +406,36 @@ public final class LeapMenuConfig {
         slots.set(b, nameA == null ? "" : nameA);
         slots.set(a, nameB == null ? "" : nameB);
         setClassOrder(playing, slots);
+        noteSetByHand(nameA);
+        noteSetByHand(nameB);
+    }
+
+    /** Remembers that {@code name} was given a pick or a pin by hand, when that happens outside a run (see
+     *  {@link #setBeforeRun}). */
+    private void noteSetByHand(String name) {
+        String clean = cleanIgn(name);
+        if (clean == null || LeapRunMemory.inRun()) {
+            return;
+        }
+        String key = clean.toLowerCase(Locale.ROOT);
+        if (!setBeforeRun.contains(key) && setBeforeRun.size() < MAX_PICKS) {
+            setBeforeRun.add(key);
+        }
+    }
+
+    /** True when {@code name} was given a pick or a pin by hand outside a run since the last run start. */
+    public boolean wasSetBeforeRun(String name) {
+        String clean = cleanIgn(name);
+        return clean != null && setBeforeRun.contains(clean.toLowerCase(Locale.ROOT));
+    }
+
+    /** Lower-case names set by hand outside a run since the last run start (a copy). */
+    public List<String> getSetBeforeRun() {
+        return new ArrayList<>(setBeforeRun);
+    }
+
+    public void clearSetBeforeRun() {
+        setBeforeRun.clear();
     }
 
     /** @return the 4 saved spots for this class, as names ("" = auto-fill; never null) - the CURRENT name for
@@ -600,6 +646,7 @@ public final class LeapMenuConfig {
         }
         Pick fresh = new Pick(clean, uuid, cls);
         classPicks.put(keyOf(fresh), fresh);
+        noteSetByHand(clean);
         save();
         if (uuid == null) {
             resolvePickAsync(this, clean);

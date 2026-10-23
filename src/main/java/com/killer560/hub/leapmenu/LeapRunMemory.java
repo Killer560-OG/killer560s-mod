@@ -34,6 +34,11 @@ import java.util.regex.Pattern;
  *       you had already set for the newcomer yourself stays). Extra newcomers follow the Default Order.</li>
  *   <li>more than two left: every class override and every pin is cleared, so the Default Order applies fresh.</li>
  * </ol>
+ * A pick or pin set by hand OUTSIDE a run since the last run start (in the Hub, or in the dungeon before Mort's line) was
+ * set for the coming run, so for anyone in it rules 2 and 3 leave it alone: rule 3 keeps it, rule 2 places no newcomer
+ * who is already pinned and into no spot someone was pinned into (killer560, 2026-10-22: picks set in the Hub were reset
+ * when the run started, because the Hub party was compared with the run before it). Rule 1 still clears it for anyone
+ * who did not come.
  * <b>Run start</b> is Mort's opening line, the same anchored pattern the Split Timers use, so nobody's chat can fake it
  * (a player's line starts with their rank or name, a party line with "Party &gt;"); the party is read from the dungeon tab
  * list a second later, once the tab list has been read at least twice. Never in the room sim or the {@code /killer560 sim}
@@ -61,6 +66,9 @@ public final class LeapRunMemory {
     private static final int REREAD_TICKS = 10;
     private static volatile String lastOutcome = "";
     private static volatile int runsProcessed = 0;
+    /** From a processed run start until the dungeon is left: a pick or pin set meanwhile belongs to this run, one set
+     *  outside it (the Hub, or the dungeon before Mort's line) to the next ({@link LeapMenuConfig#wasSetBeforeRun}). */
+    private static boolean inRun = false;
 
     private LeapRunMemory() {
     }
@@ -79,7 +87,15 @@ public final class LeapRunMemory {
         }
     }
 
+    /** True from a processed run start until the dungeon is left. */
+    public static boolean inRun() {
+        return inRun;
+    }
+
     private static void tick() {
+        if (inRun && !DungeonState.isInDungeon()) {
+            inRun = false;
+        }
         if (pendingTicks < 0) {
             return;
         }
@@ -134,12 +150,35 @@ public final class LeapRunMemory {
         List<String> departed = minus(previous, party);
         List<String> joined = minus(party, previous);
         String self = selfName();
+        // Picks and pins set by hand outside a run (the Hub, or the dungeon before Mort's line) since the last run start
+        // were set FOR this run: compared with an older party they read as departures and joins, and rules 3 and 2 used
+        // to wipe or move them (killer560, 2026-10-22: "picks set in the Hub are reset when the run starts").
+        List<String> setBefore = new ArrayList<>();
+        for (String n : party) {
+            if (cfg.wasSetBeforeRun(n)) {
+                setBefore.add(n);
+            }
+        }
         String outcome;
         if (departed.size() > 2) {
-            // Rule 3: a new party - nothing of the old layout means anything any more.
-            ClassOverrides.clearAll();
-            cfg.clearAllPins();
-            outcome = departed.size() + " left " + departed + ": every class pick and pin reset";
+            // Rule 3: a new party - nothing of the old layout means anything any more, except what was set for this one.
+            List<String> cleared = new ArrayList<>();
+            for (String name : ClassOverrides.all().keySet()) {
+                if (!containsIgnoreCase(setBefore, name)) {
+                    ClassOverrides.clear(name);
+                    cleared.add(name);
+                }
+            }
+            for (String name : cfg.allPinnedNames()) {
+                if (!containsIgnoreCase(setBefore, name)) {
+                    cfg.unpinEverywhere(name);
+                    if (!containsIgnoreCase(cleared, name)) {
+                        cleared.add(name);
+                    }
+                }
+            }
+            outcome = departed.size() + " left " + departed + ": every class pick and pin reset " + cleared
+                    + ", kept (set before the run) " + setBefore;
         } else {
             // Where the departed stood last run, before anything of theirs is cleared.
             String[] before = LeapMenuFeature.layout(previous, playing);
@@ -166,21 +205,38 @@ public final class LeapRunMemory {
                     }
                 }
             }
-            // Rule 2: newcomers take the vacated spots, spot order against leap-menu order.
+            // Rule 2: newcomers take the vacated spots, spot order against leap-menu order - except a newcomer already
+            // pinned by hand, and a vacated spot someone was pinned into by hand since (both set before this run).
             List<String> placed = new ArrayList<>();
-            for (int i = 0; i < joined.size() && i < vacated.size(); i++) {
-                cfg.pinAt(playing, joined.get(i), vacated.get(i));
-                placed.add(joined.get(i) + "->" + vacated.get(i));
+            List<String> pinsNow = cfg.getClassOrder(playing);
+            List<String> placeable = new ArrayList<>();
+            for (String n : joined) {
+                if (!cfg.isPinned(playing, n)) {
+                    placeable.add(n);
+                }
             }
-            outcome = previous.isEmpty() ? "first run " + party + ", cleared " + cleared
+            List<Integer> free = new ArrayList<>();
+            for (int spot : vacated) {
+                if (pinsNow.get(spot).isEmpty()) {
+                    free.add(spot);
+                }
+            }
+            for (int i = 0; i < placeable.size() && i < free.size(); i++) {
+                cfg.pinAt(playing, placeable.get(i), free.get(i));
+                placed.add(placeable.get(i) + "->" + free.get(i));
+            }
+            String kept = setBefore.isEmpty() ? "" : ", set before the run " + setBefore;
+            outcome = (previous.isEmpty() ? "first run " + party + ", cleared " + cleared
                     : departed.isEmpty() && joined.isEmpty() ? "same party " + party + ", picks kept, cleared " + cleared
-                    : "left " + departed + ", joined " + joined + ", cleared " + cleared + ", placed " + placed;
+                    : "left " + departed + ", joined " + joined + ", cleared " + cleared + ", placed " + placed) + kept;
         }
+        cfg.clearSetBeforeRun();
         cfg.setLastRunParty(party);
         cfg.save();
+        inRun = true;
         lastOutcome = outcome;
         runsProcessed++;
-        LOGGER.info("[LeapRunMemory] run start: {}", outcome);
+        LOGGER.info("[LeapRunMemory] run start: previous {}, party {}: {}", previous, party, outcome);
     }
 
     private static String selfName() {
