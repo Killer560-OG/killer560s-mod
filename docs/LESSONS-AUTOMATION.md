@@ -831,3 +831,6 @@ and AOTV) and the `[AutoClear] room time:` / `trip time:` lines (`autoclear/Room
   put you".
 - In the sim a wither-door click with an ability item in hand went to `SimAbilities` (a Wither Impact into the door) before
   `SimDoors`; the door now takes the click in an earlier phase and the ability skips door blocks.
+- ActionGate's fixed settles (6 ticks after a >4-block jump, 3 after any screen change) held Breaker Aura's first dig after
+  every etherwarp and leap (2026-10-22). An actor that re-picks its target each tick from his current position
+  (`Actor.freshEachTick`, only BREAKER_AURA) waives both; the WORLD container rule still applies. Testkit 1022-ap3-breaker-*.
