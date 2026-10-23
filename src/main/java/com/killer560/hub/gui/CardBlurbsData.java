@@ -22,7 +22,7 @@ final class CardBlurbsData {
         d.put("BlessingsTab", "Lists the blessings you hold.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
-        d.put("ClassColorsTab", "Colours teammates by class.");
+        d.put("ClassColorsTab", "Class-coloured teammates.");
         d.put("ClassOverridesTab", "Set teammates' classes.");
         d.put("CroesusTab", "Croesus chest profit and logging.");
         d.put("CustomMageBeamTab", "One clean Mage beam.");
@@ -130,7 +130,7 @@ final class CardBlurbsData {
         d.put("PartyCommandsTab", "Party command switches.");
         d.put("PeekChatTab", "Read chat without typing.");
         d.put("ScreenshotCopyTab", "Copies screenshots.");
-        d.put("SpotifyTab", "Shares your Spotify song in chat or on a HUD.");
+        d.put("SpotifyTab", "Spotify song in chat or HUD.");
         d.put("TranslateTab", "Sends your messages translated.");
         d.put("VoiceToTextTab", "Speech to party chat.");
         d.put("AuctionHouseTab", "Custom Auction House.");
@@ -166,7 +166,7 @@ final class CardBlurbsData {
         d.put("AbilityKeybindsTab", "Class ability keys.");
         d.put("ChocolateFactoryTab", "Chocolate Factory helper.");
         d.put("DisplayOptionsTab", "Borderless, main menu, Fullbright.");
-        d.put("PackDisablerTab", "SkyBlock items drawn with their pre-resource-pack look.");
+        d.put("PackDisablerTab", "Items without pack textures.");
         d.put("EtherwarpOverlayTab", "Etherwarp landing box.");
         d.put("ExperimentsTab", "Solves Experiments, tracks profit.");
         d.put("PathfindingTab", "Waypoints and a route to missing souls.");
@@ -174,7 +174,7 @@ final class CardBlurbsData {
         d.put("MotionBlurTab", "Blends frames for motion blur.");
         d.put("FreelookTab", "F5 rear view; hold a key to pan.");
         d.put("SmoothTeleportTab", "Glides the camera.");
-        d.put("SessionRecorderTab", "Records what features do to a file.");
+        d.put("SessionRecorderTab", "Logs what features do.");
         d.put("TrajectoriesTab", "Bow, shortbow and pearl flight paths.");
         d.put("ShortsTab", "Shorts in a window.");
         d.put("WaypointRoutesTab", "Ordered area waypoints.");
@@ -183,5 +183,10 @@ final class CardBlurbsData {
         d.put("AutoExperimentsTab", "Plays Experiments.");
         d.put("AutoFairySoulsTab", "Walks to and clicks every soul.");
         d.put("ProfilesTab", "Save, switch and share settings.");
+        // Two-line card names leave two short lines (testkit 1060, 2026-10-22: these four were cut mid-sentence).
+        d.put("StreamerModeTab", "/streamer hides cheat parts.");
+        d.put("BazaarAdvisorTab", "Bazaar buy tips in chat.");
+        d.put("HeldItemTab", "Moves and sizes held items.");
+        d.put("ModTagTab", "Marks other mod users.");
     }
 }
