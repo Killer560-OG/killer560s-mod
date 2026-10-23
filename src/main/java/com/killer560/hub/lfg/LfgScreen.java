@@ -1,6 +1,7 @@
 package com.killer560.hub.lfg;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.DropdownWidget;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
@@ -11,6 +12,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -55,6 +58,8 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     /** The player's own stats, which fill the Create form's requirements; statsPending while they have not arrived yet. */
     private PartyFinderStatsApi.PlayerStats ownStats;
     private boolean statsPending = false;
+    /** The header's top-right text as last drawn (null before the first frame); read by the testkit. */
+    private String lastHeaderRight;
 
     /** The start screen. */
     public LfgScreen(Screen parent) {
@@ -76,6 +81,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         panelY = (this.height - panelH) / 2;
         LfgFeature.setScreen(true, tab);
         seenVersion = LfgFeature.version();
+        DropdownWidget.closeAll(); // a rebuilt screen never keeps the old widgets' list open
         rowWidgets.clear();
         searchBox = null;
 
@@ -192,58 +198,52 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         int n = floors ? 4 : 3;
         int x = listX + searchW + 4;
         int w = (listX + listW - x - (n - 1) * 4) / n;
+        // Drop-downs he picks from, not buttons that step (killer560, 2026-10-22); the same LfgConfig fields as before.
         if (floors) {
-            List<String> options = new ArrayList<>();
-            options.add("");
-            options.addAll(tab.activities);
-            addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(activityLabel(cfg.getActivityFilter(tab))), (btn, dir) -> {
-                int at = Math.max(0, options.indexOf(cfg.getActivityFilter(tab)));
-                String next = options.get(SettingsButtonWidget.step(at, dir, options.size()));
+            List<DropdownWidget.Option<String>> options = new ArrayList<>();
+            options.add(new DropdownWidget.Option<>("", "Any floor", "Floor: any"));
+            for (String a : tab.activities) {
+                options.add(new DropdownWidget.Option<>(a, a, "Floor: " + a));
+            }
+            addRenderableWidget(DropdownWidget.of(x, y, w, 18, options, cfg.getActivityFilter(tab), next -> {
                 cfg.setActivityFilter(tab, next);
                 cfg.save();
-                btn.setMessage(Component.literal(activityLabel(next)));
-                page = 0;
-                refreshList();
-            }).bounds(x, y, w, 18).build());
+                filtersChanged();
+            }).within(this.width, this.height));
             x += w + 4;
         }
-        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(meetsLabel(cfg.isMeetsOnly())), (btn, dir) -> {
-            cfg.setMeetsOnly(!cfg.isMeetsOnly());
-            cfg.save();
-            btn.setMessage(Component.literal(meetsLabel(cfg.isMeetsOnly())));
-            page = 0;
-            refreshList();
-        }).bounds(x, y, w, 18).build());
+        addRenderableWidget(DropdownWidget.of(x, y, w, 18, List.of(
+                new DropdownWidget.Option<>(false, "Show: all parties", "All parties"),
+                new DropdownWidget.Option<>(true, "Show: only parties that meet my requirements", "Reqs I meet")),
+                cfg.isMeetsOnly(), next -> {
+                    cfg.setMeetsOnly(next);
+                    cfg.save();
+                    filtersChanged();
+                }).within(this.width, this.height));
         x += w + 4;
-        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(fullLabel(cfg.isHideFull())), (btn, dir) -> {
-            cfg.setHideFull(!cfg.isHideFull());
-            cfg.save();
-            btn.setMessage(Component.literal(fullLabel(cfg.isHideFull())));
-            page = 0;
-            refreshList();
-        }).bounds(x, y, w, 18).build());
+        addRenderableWidget(DropdownWidget.of(x, y, w, 18, List.of(
+                new DropdownWidget.Option<>(false, "Show: full parties too", "Full: shown"),
+                new DropdownWidget.Option<>(true, "Show: hide full parties", "Full: hidden")),
+                cfg.isHideFull(), next -> {
+                    cfg.setHideFull(next);
+                    cfg.save();
+                    filtersChanged();
+                }).within(this.width, this.height));
         x += w + 4;
-        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(cfg.getSort().label), (btn, dir) -> {
-            LfgFilter.Sort[] all = LfgFilter.Sort.values();
-            LfgFilter.Sort next = all[SettingsButtonWidget.step(cfg.getSort().ordinal(), dir, all.length)];
+        List<DropdownWidget.Option<LfgFilter.Sort>> sorts = new ArrayList<>();
+        for (LfgFilter.Sort s : LfgFilter.Sort.values()) {
+            sorts.add(new DropdownWidget.Option<>(s, "Sort: " + s.label, "Sort: " + s.label));
+        }
+        addRenderableWidget(DropdownWidget.of(x, y, listX + listW - x, 18, sorts, cfg.getSort(), next -> {
             cfg.setSort(next);
             cfg.save();
-            btn.setMessage(Component.literal(next.label));
-            page = 0;
-            refreshList();
-        }).bounds(x, y, listX + listW - x, 18).build());
+            filtersChanged();
+        }).within(this.width, this.height));
     }
 
-    private static String meetsLabel(boolean meetsOnly) {
-        return meetsOnly ? "§6I meet" : "Any reqs";
-    }
-
-    private static String fullLabel(boolean hideFull) {
-        return hideFull ? "Full: hide" : "Full: show";
-    }
-
-    private static String activityLabel(String a) {
-        return a == null || a.isEmpty() ? "Any floor" : "§6" + a;
+    private void filtersChanged() {
+        page = 0;
+        refreshList();
     }
 
     private int rowsPerPage() {
@@ -365,20 +365,24 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
             activityBox.setValue(d.activity);
             addRenderableWidget(activityBox);
         } else {
-            addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Activity: §6" + d.activity), (btn, dir) -> {
-                int at = Math.max(0, tab.activities.indexOf(d.activity));
-                d.activity = tab.activities.get(SettingsButtonWidget.step(at, dir, tab.activities.size()));
+            List<DropdownWidget.Option<String>> acts = new ArrayList<>();
+            for (String a : tab.activities) {
+                acts.add(new DropdownWidget.Option<>(a, a, "Activity: " + a));
+            }
+            addRenderableWidget(DropdownWidget.of(listX, y, colW, 18, acts, d.activity, next -> {
+                d.activity = next;
                 cfg.save();
-                btn.setMessage(Component.literal("Activity: §6" + d.activity));
                 refillPb();
-            }).bounds(listX, y, colW, 18).build());
+            }).within(this.width, this.height));
         }
-        addRenderableWidget(SettingsButtonWidget.cycling(Component.literal("Party Size: §6" + d.max), (btn, dir) -> {
-            int sizes = tab.maxParty - 1; // 2..max
-            d.max = 2 + SettingsButtonWidget.step(d.max - 2, dir, sizes);
+        List<DropdownWidget.Option<Integer>> sizes = new ArrayList<>();
+        for (int n = 2; n <= tab.maxParty; n++) {
+            sizes.add(new DropdownWidget.Option<>(n, n + " players", "Party Size: " + n));
+        }
+        addRenderableWidget(DropdownWidget.of(listX + colW + 8, y, colW, 18, sizes, d.max, next -> {
+            d.max = next;
             cfg.save();
-            btn.setMessage(Component.literal("Party Size: §6" + d.max));
-        }).bounds(listX + colW + 8, y, colW, 18).build());
+        }).within(this.width, this.height));
         y += 30;
         reqBoxes.clear();
         int i = 0;
@@ -462,11 +466,12 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     @Override
     public void tick() {
         super.tick();
-        if (creating && statsPending && selfName() != null && PartyFinderStatsApi.get(selfName()) != null) {
+        boolean listOpen = DropdownWidget.openOne() != null; // a rebuild would shut the list he is picking from
+        if (creating && statsPending && !listOpen && selfName() != null && PartyFinderStatsApi.get(selfName()) != null) {
             rebuildWidgets(); // his stats arrived after the form opened: fill it now
         }
         if (!creating && LfgFeature.version() != seenVersion) {
-            if (searchBox != null && searchBox.isFocused()) {
+            if (listOpen || (searchBox != null && searchBox.isFocused())) {
                 seenVersion = LfgFeature.version();
                 refreshList(); // keep his typing; the rest catches up when he leaves the box
             } else {
@@ -482,8 +487,11 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.header(graphics, panelX, panelY, panelW, tab == null ? "Custom Party Finder" : "Custom Party Finder - " + tab.label);
         LfgListing mine = LfgFeature.myListing();
         String right = mine != null ? "Listed: " + mine.category().label + " " + mine.activity() + " " + mine.size() + "/" + mine.max()
-                : LfgFeature.isListed() ? "Listing..." : "/pf";
-        ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+                : LfgFeature.isListed() ? "Listing..." : "";
+        if (!right.isEmpty()) {
+            ScreenChrome.headerRight(graphics, panelX, panelY, panelW, right, MenuStyle.DIM);
+        }
+        lastHeaderRight = right;
 
         if (tab == null) {
             ScreenChrome.text(graphics, "Pick an activity to see its parties.", listX + 4, panelY + 34, MenuStyle.DIM);
@@ -500,7 +508,34 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
         if (!status.isEmpty()) {
             ScreenChrome.text(graphics, this.font.plainSubstrByWidth(status, listW), listX, panelY + panelH - 13, MenuStyle.DIM);
         }
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        // Under an open drop-down list nothing else shows as hovered; the list itself draws last, over everything.
+        boolean covered = DropdownWidget.coversMouse(mouseX, mouseY);
+        super.extractRenderState(graphics, covered ? -1 : mouseX, covered ? -1 : mouseY, partialTick);
+        DropdownWidget.extractOpen(graphics, mouseX, mouseY);
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (DropdownWidget.clickOpen(event)) {
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (DropdownWidget.keyOpen(event)) {
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (DropdownWidget.scrollOpen(mouseX, mouseY, scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     private void drawList(GuiGraphicsExtractor g) {
@@ -561,6 +596,7 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public void removed() {
+        DropdownWidget.closeAll();
         LfgFeature.setScreen(false, tab);
         super.removed();
     }
@@ -584,6 +620,11 @@ public class LfgScreen extends Screen implements MenuThemedScreen {
     /** Test hook: the activity shown, or null on the start screen. */
     public LfgCategory tabForTest() {
         return tab;
+    }
+
+    /** Test hook: the text the header's top-right drew last frame ("" when it drew nothing). */
+    public String headerRightForTest() {
+        return lastHeaderRight;
     }
 
     /** Test hook: the inbox rows drawn. */
