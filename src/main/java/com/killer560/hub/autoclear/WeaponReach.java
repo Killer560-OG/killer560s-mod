@@ -101,7 +101,7 @@ public final class WeaponReach {
                 double s = hyperionShortfall(land, mob);
                 if (s < bestShort) {
                     bestShort = s;
-                    best = new Aim(yaw, pitch, land, s <= 0 ? "Wither Impact hop onto the mob" : "Wither Impact hop toward it");
+                    best = new Aim(yaw, pitch, land, s <= 0 ? "Wither Impact hop onto the mob" : "Wither Impact hop towards it");
                 }
                 if (s <= 0 && dy == 0f) {
                     return best;   // the straight line lands in range: no need to look further

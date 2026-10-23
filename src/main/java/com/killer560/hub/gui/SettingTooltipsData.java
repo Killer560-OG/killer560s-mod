@@ -152,7 +152,7 @@ final class SettingTooltipsData {
         d.put("auto clear/key base range", "Pickup range for dungeon keys, in blocks. The range used (shown after the arrow) adds 5 to this.");
         d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot runs Auto Secret, Auto Clear and Auto Puzzles under one planner; any movement key takes over.");
         d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Esc clears it). Works only in a dungeon, outside the boss.");
-        d.put("auto clear/run mode", "Solo plays for the best score per second toward 300 with the blood door last; Party does your routes first and never opens the blood door.");
+        d.put("auto clear/run mode", "Solo plays for the best score per second towards 300 with the blood door last; Party does your routes first and never opens the blood door.");
         d.put("auto clear/blood first", "First clear the Blood Rush Split path and open its doors (wither doors with a key, then the blood door), then the rest of the floor by the Run Mode. Without the key it does the rest meanwhile.");
         d.put("auto clear/do puzzles", "Treat puzzles like rooms: go to one and let Auto Puzzles solve it. Only puzzles whose auto is switched on.");
         d.put("auto clear/status hud", "One small HUD showing what Auto Clear, Auto Secret and Dungeon Autopilot are doing, hidden while nothing runs; move it in the HUD editor.");
@@ -707,7 +707,7 @@ final class SettingTooltipsData {
         d.put("real ign", "Type the real Minecraft username of the player to rename.");
         d.put("shown as", "Type the name to show for that player; the swatch picks its colour.");
         d.put("chest profit", "Shows value, cost and profit next to dungeon reward chests and in Croesus.");
-        d.put("include essence", "Counts essence rewards toward a chest's value.");
+        d.put("include essence", "Counts essence rewards towards a chest's value.");
         d.put("croesus profit logger", "Logs every chest you claim and keeps session and all-time profit totals.");
         d.put("chat summary", "Posts a chat line with the profit and totals after each logged claim.");
         d.put("reset totals", "Clears the session and all-time profit totals.");
@@ -800,7 +800,7 @@ final class SettingTooltipsData {
         d.put("recolour by class", "Colours teammate arrows by their class, and puts a faint ring of their class colour around a teammate's Player Heads face; off, arrows are white and heads have no ring.");
         d.put("cell size", "Size of each map grid cell in pixels (4-16).");
         d.put("room labels", "What each room shows on the map: Off, Checkmarks, Secrets, Room Name, or Room Name + Secrets. One setting for both maps - the Dungeon Map and the Interactive Map always match.");
-        d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognized.");
+        d.put("secret waypoints", "Draws a coloured box on every secret in rooms the mod has recognised.");
         d.put("proximity voice", "Voice chat with party members who also run the mod, louder the closer they are.");
         d.put("push to talk", "ON sends your mic only while the key is held; OFF sends it all the time.");
         d.put("muted", "Stops sending your microphone to teammates.");
@@ -963,7 +963,7 @@ final class SettingTooltipsData {
         d.put("inventory search", "Press Ctrl+F in any inventory to search; matching slots are filled red. Type a sum (5k*3, 2s+10) to use it as a calculator.");
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");
         d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory. It filters by the Inventory Search bar at the bottom middle of the screen.");
-        d.put("refresh item catalog", "Downloads the Skyblock item list again from Hypixel.");
+        d.put("refresh item catalogue","Downloads the Skyblock item list again from Hypixel.");
         d.put("auto quiz", "Talks to Oruo, then clicks the correct answer in the Quiz room the moment its cooldown ends (cheat build only).");
         d.put("quiz first", "Auto Secret, Dungeon Autopilot and Auto Clear go to the Quiz first (opening a wither door on the way), Auto Secret doing Ice Fill and rooms that fit between the answers and back for each one (needs Auto Quiz).");
         d.put("quiz click delay", "Delay before Auto Quiz clicks the answer, 0-2000 ms.");
@@ -1033,7 +1033,7 @@ final class SettingTooltipsData {
         d.put("mod & hud/element centres", "Snap a box's centre to other boxes' centres.");
         d.put("mod & hud/screen edges", "Snap a box to the edges of the screen.");
         d.put("mod & hud/screen centre", "Snap a box's centre to the middle of the screen.");
-        d.put("mod & hud/equal spacing", "Snap a box so the gap to its neighbor matches a gap already between two others.");
+        d.put("mod & hud/equal spacing", "Snap a box so the gap to its neighbour matches a gap already between two others.");
         d.put("auto scale (monitor)", "Keeps this mod's HUD elements and menus the same size relative to your window on any monitor and GUI Scale (on by default).");
         d.put("borderless fullscreen", "Stretches the window over the whole monitor without borders.");
         d.put("fullbright", "Renders the world at full brightness in any light.");
@@ -1329,7 +1329,7 @@ final class SettingTooltipsData {
         d.put("cache on island switch", "Keeps the previous board on screen briefly while a new island loads.");
         d.put("clickable lines", "Lets you click scoreboard lines that have a command to run it.");
         d.put("show number changes", "Briefly appends the change (+1200, -50) next to a number when it moves.");
-        d.put("unknown line warning", "Off by default. Prints a chat note, once per kind of line, when the server shows a sidebar line this mod does not recognize. Every such line is always written to the log once.");
+        d.put("unknown line warning", "Off by default. Prints a chat note, once per kind of line, when the server shows a sidebar line this mod does not recognise. Every such line is always written to the log once.");
         d.put("date in lobby code", "Puts today's date in front of the lobby code line.");
         d.put("date format", "Which date format the lobby code line uses.");
         d.put("mayor perks", "Lists the current mayor's perks under the Mayor line.");
@@ -1483,7 +1483,7 @@ final class SettingTooltipsData {
         d.put("overlay colours", "Colours the terminal solver uses for its highlights.");
         d.put("active profile", "Shows which saved settings profile is loaded right now.");
         d.put("currently", "Shows the language currently selected; pick another below.");
-        d.put("real item catalog", "Shows how many real SkyBlock items are loaded; press Refresh Item Catalog if none.");
+        d.put("real item catalogue", "Shows how many real SkyBlock items are loaded; press Refresh Item Catalogue if none.");
         d.put("leaps", "Sets which teammates Fast Leap targets and which fire automatically (cheat build only).");
         d.put("< back", "Returns to the previous page.");
         d.put("session", "Croesus profit claimed since the game started.");
@@ -1730,7 +1730,7 @@ final class SettingTooltipsData {
         d.put("held item transform/scale", "Size of your first-person held item, 0.1x to 2.0x.");
         d.put("held item transform/x offset", "Moves the held item sideways, -1.0 to 1.0.");
         d.put("held item transform/y offset", "Moves the held item up or down, -1.0 to 1.0.");
-        d.put("held item transform/z offset", "Moves the held item toward or away from the camera, -1.0 to 1.0.");
+        d.put("held item transform/z offset", "Moves the held item towards or away from the camera, -1.0 to 1.0.");
         d.put("held item transform/x rotation", "Tilts the held item forward or back, -180 to 180 degrees.");
         d.put("held item transform/y rotation", "Turns the held item left or right, -180 to 180 degrees.");
         d.put("held item transform/z rotation", "Rolls the held item sideways, -180 to 180 degrees.");
@@ -1752,7 +1752,7 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/backup", "Who to leap to if no Melody player is known yet. Left click cycles forward, right click back.");
         d.put("inventory hud/background", "What is drawn behind the panel: None, Panel, or Slots.");
         d.put("inventory hud/background opacity", "How solid the panel background, its outline and the slot backdrops are, 0-100%. At 0% the whole panel is hidden, items included.");
-        d.put("inventory hud/item opacity", "How solid the items are, 0-100%. Lower fades each item toward its slot colour; 100% leaves them untouched.");
+        d.put("inventory hud/item opacity", "How solid the items are, 0-100%. Lower fades each item towards its slot colour; 100% leaves them untouched.");
         d.put("inventory hud/key", "Key used by Show. Click, then press a key; Esc clears it.");
         d.put("inventory hud/show", "When the panel shows: Always, while you hold the key, or toggled with the key.");
         d.put("inventory hud/vertical", "Lays the panel out as 3 columns by 9 rows instead of 9 by 3.");
@@ -1761,7 +1761,7 @@ final class SettingTooltipsData {
         d.put("item browser/scale", "Resizes the whole panel.");
         d.put("item browser/orientation", "Whether items fill rows left to right or columns top to bottom.");
         d.put("item browser/centred", "Which side of the screen the panel sits on.");
-        d.put("item browser/refresh item catalog", "Re-downloads the item list right now instead of waiting for the automatic refresh.");
+        d.put("item browser/refresh item catalogue","Re-downloads the item list right now instead of waiting for the automatic refresh.");
         d.put("inventory search/search lore", "Also matches an item's lore text, not just its name.");
         d.put("inventory search/ignore case", "Matches regardless of upper or lower case.");
         d.put("inventory search/search bar scale", "Resizes the floating search bar.");
@@ -2250,7 +2250,7 @@ final class SettingTooltipsData {
         d.put("trail/length", "How many squares the trail keeps, from 1 to 100.");
         d.put("trail/square size", "How big each trail square is, in blocks.");
         d.put("trail/opacity", "How visible the squares are.");
-        d.put("trail/fade toward tail", "Squares fade out the older they get.");
+        d.put("trail/fade towards tail","Squares fade out the older they get.");
         d.put("trail/on teleport", "What the squares do when you teleport: Break leaves a gap, Connect lays a line between the two spots, Arc lays a rising curve.");
         d.put("trail/show in first person", "Whether the squares are drawn while you are in first person. Third person always shows them.");
         d.put("ribbon trail/ribbon trail", "Draws one smooth upright band streaming behind you, like a Roblox trail, coloured from you to its tail and fading out at the end. Works alongside the squares Trail. Supporters can share it.");
@@ -2310,9 +2310,9 @@ final class SettingTooltipsData {
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
         d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (bevelled panel, sunken slots) in the colours of the Theme. Also hides the potion effects panel beside them.");
-        d.put("inventory theme/theme", "The colours: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own grays), or to Custom, which shows a Customise row.");
+        d.put("inventory theme/theme", "The colours: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own greys), or to Custom, which shows a Customise row.");
         d.put("inventory theme/customise", "Opens a menu for the Custom look: its Base colours, slot colour and accent colour.");
-        d.put("inventory theme/base", "The colours the Custom look starts from: Amber, Dark (neutral grays) or Light. The Storage Overlay has the same three.");
+        d.put("inventory theme/base", "The colours the Custom look starts from: Amber, Dark (neutral greys) or Light. The Storage Overlay has the same three.");
         d.put("inventory theme/theme hotbar", "Also draws your hotbar in the theme. Items, counts, durability and cooldowns stay vanilla's.");
         d.put("inventory theme/hotbar scale", "Resizes the themed hotbar from its bottom centre. It can cover the bars above it when raised.");
         d.put("inventory theme/slot colour source", "Slot squares in the Base's colour, or one you pick.");
@@ -2481,7 +2481,7 @@ final class SettingTooltipsData {
         d.put("custom items", "Recolours and reskins items on your screen only; nothing is sent to the server.");
         d.put("custom items/open custom items", "Opens the Custom Items menu (/customitems): pick an item, then set its colour, skin or look.");
         d.put("custom items/reset all", "Removes every saved look; press twice.");
-        d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalog; pick one to use its head texture as this item's look.");
+        d.put("hypixel skin...", "Opens the list of Hypixel item skins from the item catalogue; pick one to use its head texture as this item's look.");
         d.put("show with look", "Previews the item with its saved skin, colour, trim and look drawn on it.");
         d.put("show clear item", "Previews the item as it really is, with no custom skin, colour, trim or look drawn on it.");
         d.put("open layouts folder", "Opens the folder holding your saved inventory layouts.");

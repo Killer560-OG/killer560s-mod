@@ -189,7 +189,7 @@ final class AutoIceFill {
             if (!optimizedWarned) {
                 optimizedWarned = true;
                 ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Ice Fill needs the solver's "),
-                        ModChat.value("Optimized Path"), ModChat.text(" turned off."));
+                        ModChat.value("Alternate Path"), ModChat.text(" turned off."));
             }
             note("optimized", "refused: the solver's Optimized Path is on - Auto Ice Fill needs it off");
             return;

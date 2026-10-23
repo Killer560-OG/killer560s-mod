@@ -108,7 +108,7 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Refresh Item Catalog"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Refresh Item Catalogue"), btn -> {
                     SkyblockItemRepository.refreshAsync();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;

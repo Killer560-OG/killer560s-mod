@@ -253,7 +253,7 @@ public final class BazaarFlipScanner {
         List<SkyblockItemEntry> catalog = SkyblockItemRepository.getItems();
         if (catalog.isEmpty()) {
             return new ScanResult(System.currentTimeMillis(), 0, 0, List.of(),
-                    "the Skyblock item catalog has not loaded yet - open the Item Browser once, or wait a moment");
+                    "the Skyblock item catalogue has not loaded yet - open the Item Browser once, or wait a moment");
         }
         int withNpcPrice = 0;
         int profitable = 0;
