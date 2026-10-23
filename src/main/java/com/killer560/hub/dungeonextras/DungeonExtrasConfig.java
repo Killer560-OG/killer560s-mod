@@ -105,8 +105,11 @@ public final class DungeonExtrasConfig {
       */
      private boolean breakerAuraMultiBreak = true;
 
-     /** Whether the Multi Break default has already been applied to this config. One-time, like Interop's. */
-     private boolean breakerAuraMultiBreakDefaulted = false;
+     /** Whether the Multi Break default has already been applied to this config. One-time, like Interop's. A new
+      * install starts with it applied (Multi Break is already on): with false here, a fresh client's first save wrote
+      * "false" and the next load switched Multi Break back on over his "off" (testkit 310, 2026-10-22). Only a file
+      * with no such key, written before 2026-09-29, gets the one-time switch. */
+     private boolean breakerAuraMultiBreakDefaulted = true;
      /**
       * Edit Mode: show the picked blocks and let him change them, but break NOTHING.
       *
@@ -236,7 +239,7 @@ public final class DungeonExtrasConfig {
                 // and would otherwise never see the change; after this it is his setting again and is never
                 // touched, so turning it back off sticks.
                 cfg.breakerAuraMultiBreakDefaulted =
-                        bool(o, "breakerAuraMultiBreakDefaulted", cfg.breakerAuraMultiBreakDefaulted);
+                        bool(o, "breakerAuraMultiBreakDefaulted", false);
                 if (!cfg.breakerAuraMultiBreakDefaulted) {
                     cfg.breakerAuraMultiBreakDefaulted = true;
                     cfg.breakerAuraMultiBreak = true;
