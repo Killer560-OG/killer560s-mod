@@ -3,7 +3,9 @@ package com.killer560.hub.leapmenu;
 import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -30,10 +32,29 @@ import java.util.regex.Pattern;
  *   <li>teammates who joined take the leap spots the departed held in the previous run's layout (for the class you are
  *       playing): the vacated spots in spot order (top-left, top-right, bottom-left, bottom-right), given to the
  *       newcomers in leap-menu order (the order Hypixel's own Spirit Leap menu shows them, else the tab list's). A
- *       newcomer is pinned there; their class is the tab list's (nothing is carried over from the departed; an override
- *       you had already set for the newcomer yourself stays). Extra newcomers follow the Default Order.</li>
+ *       newcomer is pinned there. Extra newcomers follow the Default Order.</li>
  *   <li>more than two left: every class override and every pin is cleared, so the Default Order applies fresh.</li>
  * </ol>
+ * <b>One-for-one swap</b> (killer560, 2026-10-23: "if 1 person leaves a party and a new person joins give them that old
+ * person's role, assuming no other classes change. If other classes change, have a popup saying the leap order was reset
+ * and that the owner needs to update it"). The class the mod had for each teammate at the last run's start (their pick,
+ * else the tab list's; a pick set or cleared during that run counts) is kept in {@link LeapMenuConfig#getLastRunClasses}.
+ * A run start is a <b>swap</b> when all of these hold:
+ * <ul>
+ *   <li>there was a previous run, exactly one of its teammates is missing and exactly one teammate is new;</li>
+ *   <li>the leaver's class is known: their pick if they still have one, else the class recorded for them last run;</li>
+ *   <li>no other class changed: for every teammate in both runs, the class now ({@link PartyTracker#classOf}) equals the
+ *       one recorded last run. A teammate counts as unchanged when either class is unknown (not recorded, or the tab list
+ *       has not shown it), and when their pick was set by hand outside a run since the last start (you set it for this
+ *       run, so it is not a change you need telling about).</li>
+ * </ul>
+ * On a swap, rules 1 and 2 run as above and the newcomer is also given the leaver's class as a pick, so both the leap spot
+ * and the class follow (a pick you already gave the newcomer yourself stays). Any other run whose party differs from the
+ * previous one (more than one left or joined, someone left with nobody new, someone joined with nobody gone, a stayer's
+ * class changed, or the leaver's class is unknown) runs rules 1-3 exactly as above and shows the <b>reset notice</b>: a
+ * title on screen and a chat line saying the Leap Order was reset and needs updating with /leaporder. The same party as
+ * last run, and a first run, show nothing. The notice never waits and never holds the run start up.
+ * <p>
  * A pick or pin set by hand OUTSIDE a run since the last run start (in the Hub, or in the dungeon before Mort's line) was
  * set for the coming run, so for anyone in it rules 2 and 3 leave it alone: rule 3 keeps it, rule 2 places no newcomer
  * who is already pinned and into no spot someone was pinned into (killer560, 2026-10-22: picks set in the Hub were reset
@@ -159,6 +180,27 @@ public final class LeapRunMemory {
                 setBefore.add(n);
             }
         }
+        // The one-for-one swap (see the class javadoc), decided before rule 1 clears the leaver's pick.
+        Map<String, DungeonClass> lastClasses = cfg.getLastRunClasses();
+        List<String> classChanges = new ArrayList<>();
+        for (String n : party) {
+            if (!containsIgnoreCase(previous, n) || containsIgnoreCase(setBefore, n)) {
+                continue;
+            }
+            DungeonClass was = lastClasses.get(n.toLowerCase(Locale.ROOT));
+            DungeonClass now = PartyTracker.classOf(n);
+            if (was != null && now != null && was != now) {
+                classChanges.add(n + " " + was + "->" + now);
+            }
+        }
+        DungeonClass leaverClass = null;
+        if (departed.size() == 1) {
+            DungeonClass pick = cfg.pickOf(departed.get(0));
+            leaverClass = pick != null ? pick : lastClasses.get(departed.get(0).toLowerCase(Locale.ROOT));
+        }
+        boolean partyChanged = !previous.isEmpty() && (!departed.isEmpty() || !joined.isEmpty());
+        boolean swap = partyChanged && departed.size() == 1 && joined.size() == 1 && leaverClass != null
+                && classChanges.isEmpty();
         String outcome;
         if (departed.size() > 2) {
             // Rule 3: a new party - nothing of the old layout means anything any more, except what was set for this one.
@@ -225,11 +267,34 @@ public final class LeapRunMemory {
                 cfg.pinAt(playing, placeable.get(i), free.get(i));
                 placed.add(placeable.get(i) + "->" + free.get(i));
             }
+            // The swap: the newcomer takes the leaver's class too, unless you already picked one for them.
+            String took = "";
+            if (swap) {
+                String newcomer = joined.get(0);
+                if (cfg.pickOf(newcomer) == null) {
+                    cfg.setPick(newcomer, leaverClass);
+                    took = ", swap: " + newcomer + " takes " + departed.get(0) + "'s " + leaverClass;
+                } else {
+                    took = ", swap: " + newcomer + " keeps their pick " + cfg.pickOf(newcomer);
+                }
+            }
             String kept = setBefore.isEmpty() ? "" : ", set before the run " + setBefore;
             outcome = (previous.isEmpty() ? "first run " + party + ", cleared " + cleared
                     : departed.isEmpty() && joined.isEmpty() ? "same party " + party + ", picks kept, cleared " + cleared
-                    : "left " + departed + ", joined " + joined + ", cleared " + cleared + ", placed " + placed) + kept;
+                    : "left " + departed + ", joined " + joined + ", cleared " + cleared + ", placed " + placed) + took + kept;
         }
+        if (partyChanged && !swap) {
+            String why = !classChanges.isEmpty() ? "class changed: " + classChanges
+                    : departed.size() == 1 && joined.size() == 1 ? departed.get(0) + "'s class is not known"
+                    : departed.size() + " left, " + joined.size() + " joined";
+            outcome += ", reset notice (" + why + ")";
+            showResetNotice();
+        }
+        Map<String, DungeonClass> classesNow = new java.util.LinkedHashMap<>();
+        for (String n : party) {
+            classesNow.put(n, PartyTracker.classOf(n));
+        }
+        cfg.setLastRunClasses(classesNow);
         cfg.clearSetBeforeRun();
         cfg.setLastRunParty(party);
         cfg.save();
@@ -237,6 +302,32 @@ public final class LeapRunMemory {
         lastOutcome = outcome;
         runsProcessed++;
         LOGGER.info("[LeapRunMemory] run start: previous {}, party {}: {}", previous, party, outcome);
+    }
+
+    /** The chat line of the reset notice (testkit finds it in the chat window). */
+    public static final String RESET_NOTICE = "The Leap Order was reset because the party changed. Update it with /leaporder.";
+    private static volatile int noticesShown = 0;
+
+    /** How many reset notices have been shown this session (testkit). */
+    public static int noticesShown() {
+        return noticesShown;
+    }
+
+    /** The reset notice: a title on screen and a chat line, at once (nothing waits on it). */
+    private static void showResetNotice() {
+        noticesShown++;
+        Minecraft client = Minecraft.getInstance();
+        Runnable show = () -> {
+            McCompat.setTimes(client, 5, 60, 15);
+            McCompat.setTitle(client, ModChat.colored("Leap Order reset", ModChat.ORANGE));
+            McCompat.setSubtitle(client, ModChat.text("Update it with /leaporder"));
+            ModChat.send("Leap Order", ModChat.text(RESET_NOTICE));
+        };
+        if (client.isSameThread()) {
+            show.run();
+        } else {
+            client.execute(show);
+        }
     }
 
     private static String selfName() {
