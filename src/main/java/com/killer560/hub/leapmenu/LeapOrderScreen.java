@@ -52,8 +52,9 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * 2026-10-21, the chat panel (killer560: players type their class in chat, and he reads it and answers himself - no
  * auto-fill from chat, because of misspellings): a Chat button in the header's top-right corner on every stage opens
- * {@link LeapChatPanel} down the right side, from under the header to just above the bottom row. The stage's own content
- * (class cards, wizard rows, the four spots) shrinks into the space left of it; the bottom rows keep the full width.
+ * {@link LeapChatPanel} down the left side (moved from the right, killer560 2026-10-22), from under the header to just above
+ * the bottom row. The stage's own content (class cards, wizard rows, the four spots) shrinks into the space right of it;
+ * the bottom rows keep the full width.
  * While its input has the keyboard every key goes to it (Enter sends, Escape leaves the box, Up/Down recall).
  */
 public class LeapOrderScreen extends Screen implements MenuThemedScreen {
@@ -224,11 +225,11 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     }
 
     /** {x, y, w, h} of the row of class cards on page 1: from under the header's subtitle to above the Done button, and
-     *  from edge to edge of the panel (inside its 12 unit margin). */
+     *  from edge to edge of the panel (inside its 12 unit margin), or from the chat panel's right edge when it is open. */
     private int[] classArea() {
-        int x = 18;
+        int x = contentLeft() + 18;
         int y = 76;
-        int w = Math.max(50, contentRight() - 2 * x);
+        int w = Math.max(50, contentWidth() - 2 * 18);
         int room = Math.max(40, height - 40 - y);
         // Tall enough to fill a normal window, but not a long empty strip on a big one: past 280 units the row is centred.
         int h = Math.min(room, 280);
@@ -345,7 +346,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         String name = wizard.get(wizardIndex);
         DungeonClass now = PartyTracker.classOf(name);
         // The page's own rows sit in the part of the panel the chat leaves; the bottom row stays across the whole width.
-        int ccx = contentRight() / 2;
+        int ccx = contentCx();
         addRenderableWidget(SettingsButtonWidget.cycling(wizardClassText(now), (btn, dir) -> {
             int at = 0;
             for (int i = 0; i < WIZARD_CYCLE.length; i++) {
@@ -357,7 +358,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             rebuild();
         }).bounds(ccx - 80, wizardY() + 64, 160, 18).build());
         DungeonClass[] classes = DungeonClass.values();
-        int bw = Math.min(70, (contentRight() - 20 - (classes.length - 1) * 4) / classes.length);
+        int bw = Math.min(70, (contentWidth() - 20 - (classes.length - 1) * 4) / classes.length);
         int x = ccx - (classes.length * (bw + 4) - 4) / 2;
         for (DungeonClass c : classes) {
             String label = c == now ? "> " + c.displayName() + " <" : c.displayName();
@@ -397,10 +398,16 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     private void renderWizard(GuiGraphicsExtractor graphics) {
         String name = wizard.get(wizardIndex);
-        int cx = contentRight() / 2;
+        int cx = contentCx();
         int y = wizardY();
-        ScreenChrome.titleCentred(graphics, "Teammate " + (wizardIndex + 1) + " of " + wizard.size()
-                + " - what class are they?", chat.open ? cx : width / 2, 16, false);
+        String title = "Teammate " + (wizardIndex + 1) + " of " + wizard.size() + " - what class are they?";
+        int titleCx = width / 2;
+        if (chat.open) {
+            // Over the page's own rows, but never under the Chat button in the header's top-right corner.
+            int half = font.width(title) / 2;
+            titleCx = Math.max(12 + half, Math.min(cx, chatButtonX() - 4 - half));
+        }
+        ScreenChrome.titleCentred(graphics, title, titleCx, 16, false);
         int face = 32;
         GuiRects r = GuiRects.begin(graphics);
         ScreenChrome.card(r, cx - face / 2 - 4, y - 4, face + 8, face + 8, false, false);
@@ -441,7 +448,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
     /** The four spots keep the leap menu's proportions but grow to fill the panel (2026-10-15; before, they stopped at the
      *  Custom Leap Menu's own scale and sat as a small block in the middle of a big screen). */
     private float boxScale() {
-        float fitW = (contentRight() - 40) / (float) (BOX_W * 2 + GAP * 2);
+        float fitW = (contentWidth() - 40) / (float) (BOX_W * 2 + GAP * 2);
         float fitH = (height - 90) / (float) (BOX_H * 2 + GAP * 2);
         return Math.max(0.4f, Math.min(2.5f, Math.min(fitW, fitH)));
     }
@@ -451,7 +458,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         float s = boxScale();
         int w = (int) (BOX_W * s);
         int h = (int) (BOX_H * s);
-        int cx = contentRight() / 2;
+        int cx = contentCx();
         int cy = height / 2;
         int x0 = spot % 2 == 0 ? cx - GAP - w : cx + GAP;
         int y0 = spot < 2 ? cy - GAP - h : cy + GAP;
@@ -529,7 +536,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 }
             }
             if (!any) {
-                ScreenChrome.centered(graphics, "No party members found", contentRight() / 2, height / 2 - 4, MenuStyle.DIM);
+                ScreenChrome.centered(graphics, "No party members found", contentCx(), height / 2 - 4, MenuStyle.DIM);
             }
         }
         chat.draw(graphics, font, mouseX, mouseY);
@@ -538,13 +545,29 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     // ---- the chat panel ------------------------------------------------------------------------------------------------
 
-    /** The right edge of what the stage may use: the whole width, or up to the chat panel when it is open. */
-    private int contentRight() {
-        return chat.open ? chat.left(width) - 6 : width;
+    /** The left edge of what the stage may use: 0 (the whole width), or a little right of the chat panel when it is open
+     *  (killer560, 2026-10-22: the panel moved from the right side to the left). The stage runs from here to the right edge. */
+    private int contentLeft() {
+        return chat.open ? chat.right() + 6 : 0;
+    }
+
+    /** The width the stage may use, from {@link #contentLeft()} to the screen's right edge. */
+    private int contentWidth() {
+        return width - contentLeft();
+    }
+
+    /** The centre line of what the stage may use (the screen's centre when the chat is closed). */
+    private int contentCx() {
+        return contentLeft() + contentWidth() / 2;
+    }
+
+    /** The Chat button's left edge. */
+    private int chatButtonX() {
+        return width - 12 - 60;
     }
 
     /** The Chat toggle in the header's top-right corner (clear of every stage's bottom row and of the Default Order pill),
-     *  and, when open, the panel down the right from under the header to just above the bottom row - so it never covers
+     *  and, when open, the panel down the left from under the header to just above the bottom row - so it never covers
      *  a bottom button; a narrow window shrinks the panel, not the buttons. */
     private void addChat(boolean typing) {
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal(chat.open ? "Hide Chat" : "Chat"), btn -> {
@@ -557,7 +580,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 setFocused(chat.input);
                 focusChatAfterClick = true;
             }
-        }).bounds(width - 12 - 60, 11, 60, 14).build());
+        }).bounds(chatButtonX(), 11, 60, 14).build());
         if (!chat.open) {
             return;
         }

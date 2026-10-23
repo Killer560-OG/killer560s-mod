@@ -28,7 +28,7 @@ import java.util.List;
  */
 final class LeapChatPanel {
 
-    /** The panel's width range; the stage keeps at least {@link #CONTENT_MIN} to its left (it shrinks, never the stage). */
+    /** The panel's width range; the stage keeps at least {@link #CONTENT_MIN} to its right (it shrinks, never the stage). */
     private static final int MIN_W = 90;
     private static final int MAX_W = 240;
     private static final int CONTENT_MIN = 200;
@@ -60,11 +60,14 @@ final class LeapChatPanel {
         return Math.max(MIN_W, Math.min(want, screenW - 24 - CONTENT_MIN));
     }
 
-    /** Lays the panel out on the right of the screen, from {@code top} down to just above the bottom button row, and
+    /** The panel's left edge: inside the editor's 12 unit margin, on the left of the screen (killer560, 2026-10-22). */
+    private static final int X = 12;
+
+    /** Lays the panel out on the left of the screen, from {@code top} down to just above the bottom button row, and
      *  makes a fresh input there carrying the old one's text and focus. @return the new input (the screen adds it). */
     ThemedEditBox layout(Font font, int screenW, int screenH, int top) {
         int w = width(screenW);
-        int x = screenW - 12 - w;
+        int x = X;
         int bottom = screenH - 36;
         int h = Math.max(INPUT_H + 24, bottom - top);
         bounds = new int[]{x, top, w, h};
@@ -78,9 +81,9 @@ final class LeapChatPanel {
         return box;
     }
 
-    /** The x where the panel starts (the stage's right edge is a little left of it), or the screen width when closed. */
-    int left(int screenW) {
-        return open ? bounds[0] : screenW;
+    /** The x where the panel ends (the stage's left edge is a little right of it), or 0 when closed. */
+    int right() {
+        return open ? bounds[0] + bounds[2] : 0;
     }
 
     boolean over(double mx, double my) {
