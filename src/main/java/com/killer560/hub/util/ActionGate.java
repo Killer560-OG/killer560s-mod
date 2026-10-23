@@ -191,8 +191,11 @@ public final class ActionGate {
         SECRET_AURA(Kind.WORLD),
         /** Secret Triggerbot. */
         SECRET_TRIGGER(Kind.WORLD),
-        /** Breaker Aura. */
-        BREAKER_AURA(Kind.WORLD),
+        /** Breaker Aura. Waives the teleport settle: it picks its blocks afresh every tick from where he stands, and a
+         *  landing is already confirmed to the server before the next tick starts (killer560, 2026-10-22: it "must
+         *  break the very next tick after the teleport"; the settle held it six). The screen settle too (a leap's menu
+         *  closing held it three). */
+        BREAKER_AURA(Kind.WORLD, null, true),
         /** Auto Fairy Souls (cheat build): the click on a soul and an escape's Ender Pearl throw, one a tick. Wired in
          *  {@code pathfinding.AutoSoulRunner#tickCollect} and {@code pathfinding.EnderPearlHopper#tick}. Islands only,
          *  never in a run, so it sits below the dungeon auras. */
@@ -256,14 +259,27 @@ public final class ActionGate {
         /** Actors that are steps of one sequence (one item use opening the menu its next step clicks) share a flow,
          *  and the cross-class wait does not apply between them. Null: its own. */
         private final String flow;
+        /**
+         * True for an actor that is never held by {@link #TELEPORT_SETTLE_TICKS}. The settle exists because a target
+         * chosen BEFORE a jump is stale after it; an actor that re-reads the world and his position on the tick it acts
+         * has nothing stale to send. Nor is the position in doubt: the client answers the server's position packet (the
+         * accept and a movement packet) while handling it, before the next tick's START, so the server already holds the
+         * landing the action is aimed from.
+         */
+        private final boolean freshEachTick;
 
         Actor(Kind kind) {
             this(kind, null);
         }
 
         Actor(Kind kind, String flow) {
+            this(kind, flow, false);
+        }
+
+        Actor(Kind kind, String flow, boolean freshEachTick) {
             this.kind = kind;
             this.flow = flow;
+            this.freshEachTick = freshEachTick;
         }
 
         public Kind kind() {
@@ -299,6 +315,8 @@ public final class ActionGate {
     private static Actor lastScreenActor = null;
     private static long settleUntilTick = Long.MIN_VALUE;
     private static long teleportSettleUntilTick = Long.MIN_VALUE;
+    /** The screen-transition settle, kept apart from {@link #settleUntilTick} so a fresh-each-tick world actor can waive it. */
+    private static long screenSettleUntilTick = Long.MIN_VALUE;
     private static Actor selfTeleportActor = null;
     private static long selfTeleportUntilTick = Long.MIN_VALUE;
 
@@ -397,7 +415,10 @@ public final class ActionGate {
             // The tick a terminal opens and the tick it closes are the two moments a world aura must not fire in:
             // the client still has the old screen state, the server already has the new one.
             prevScreen = new WeakReference<>(screen);
-            settle(SCREEN_SETTLE_TICKS);
+            long until = tick + SCREEN_SETTLE_TICKS;
+            if (until > screenSettleUntilTick) {
+                screenSettleUntilTick = until;
+            }
         }
         ClientLevel level = client.level;
         if (level != prevLevel.get()) {
@@ -591,9 +612,16 @@ public final class ActionGate {
             }
         }
         if (armed && tick < settleUntilTick) {
-            return deny(actor, "settling after a screen/world transition");
+            return deny(actor, "settling after a world transition");
         }
-        if (armed && tick < teleportSettleUntilTick && actor.kind != Kind.HOTBAR
+        // A fresh-each-tick WORLD actor waives the screen settle: the WORLD rule above already refuses while any container
+        // is open, client-side or headless, and once none is, the server has it closed too - it closed it (a Spirit Leap's
+        // menu closes as he is teleported), or the client's close packet went out before anything this tick sends. The
+        // settle held Breaker Aura 3 ticks after every leap landing (testkit 1022-ap3-breaker-leap-menu, 2026-10-22).
+        if (armed && tick < screenSettleUntilTick && !(actor.freshEachTick && actor.kind == Kind.WORLD)) {
+            return deny(actor, "settling after a screen transition");
+        }
+        if (armed && tick < teleportSettleUntilTick && actor.kind != Kind.HOTBAR && !actor.freshEachTick
                 && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
