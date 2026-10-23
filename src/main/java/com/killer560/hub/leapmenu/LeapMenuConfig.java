@@ -70,6 +70,11 @@ public final class LeapMenuConfig {
     /** The teammates of the last dungeon run that started, in leap-menu order ({@link LeapRunMemory}); persisted so the
      *  next run is compared with it across a restart. Empty until a run has started. */
     private final List<String> lastRunParty = new ArrayList<>();
+    /** Lower-case name -&gt; the class the mod had for each of {@link #lastRunParty} at that run's start (their pick, else
+     *  the tab list's), kept up to date by a pick set or cleared during that run. {@link LeapRunMemory} compares it with
+     *  the next run to tell a one-for-one swap from a party whose classes changed (killer560, 2026-10-23). Persisted;
+     *  empty in a file from before then (every class then reads as unknown). */
+    private final Map<String, DungeonClass> lastRunClasses = new LinkedHashMap<>();
     /** Lower-case names given a class pick or a pin by hand outside a run (in the Hub, or in the dungeon before Mort's
      *  line) since the last run start: that is a choice made FOR the coming run, so its start keeps them for anyone in it
      *  ({@link LeapRunMemory}; killer560, 2026-10-22: picks set in the Hub were reset when the run started). Persisted,
@@ -142,6 +147,16 @@ public final class LeapMenuConfig {
                     for (var el : root.getAsJsonArray("lastRunParty")) {
                         if (el.isJsonPrimitive() && !el.getAsString().isBlank()) {
                             cfg.lastRunParty.add(el.getAsString());
+                        }
+                    }
+                }
+                if (root.has("lastRunClasses") && root.get("lastRunClasses").isJsonObject()) {
+                    JsonObject classes = root.getAsJsonObject("lastRunClasses");
+                    for (String key : classes.keySet()) {
+                        String n = cleanIgn(key);
+                        DungeonClass cls = DungeonClass.byName(ConfigJson.getString(classes, key, null));
+                        if (n != null && cls != null && cfg.lastRunClasses.size() < MAX_PICKS) {
+                            cfg.lastRunClasses.put(n.toLowerCase(Locale.ROOT), cls);
                         }
                     }
                 }
@@ -322,6 +337,9 @@ public final class LeapMenuConfig {
             JsonArray runParty = new JsonArray();
             lastRunParty.forEach(runParty::add);
             root.add("lastRunParty", runParty);
+            JsonObject runClasses = new JsonObject();
+            lastRunClasses.forEach((n, cls) -> runClasses.addProperty(n, cls.name()));
+            root.add("lastRunClasses", runClasses);
             JsonArray beforeRun = new JsonArray();
             setBeforeRun.forEach(beforeRun::add);
             root.add("setBeforeRun", beforeRun);
@@ -498,6 +516,40 @@ public final class LeapMenuConfig {
         }
     }
 
+    /** @return lower-case name -&gt; class of the last started run's teammates (a copy; see {@link #lastRunClasses}). */
+    public Map<String, DungeonClass> getLastRunClasses() {
+        return new LinkedHashMap<>(lastRunClasses);
+    }
+
+    /** Replaces the last run's classes: {@code classes} name -&gt; class, a null class (not known) left out. */
+    public void setLastRunClasses(Map<String, DungeonClass> classes) {
+        lastRunClasses.clear();
+        if (classes != null) {
+            classes.forEach((n, cls) -> {
+                String clean = cleanIgn(n);
+                if (clean != null && cls != null && lastRunClasses.size() < MAX_PICKS) {
+                    lastRunClasses.put(clean.toLowerCase(Locale.ROOT), cls);
+                }
+            });
+        }
+    }
+
+    /** A pick set or cleared during a run is that run's class for the player, so the next run compares with it: without
+     *  this, a pick made mid-run reads as the player's class having changed. Outside a run it changes nothing (a pick set
+     *  then is for the coming run, {@link #setBeforeRun}). */
+    private void noteRunClass(String name, DungeonClass cls) {
+        String clean = cleanIgn(name);
+        if (clean == null || !LeapRunMemory.inRun() || lastRunParty.stream().noneMatch(clean::equalsIgnoreCase)) {
+            return;
+        }
+        String key = clean.toLowerCase(Locale.ROOT);
+        if (cls != null) {
+            lastRunClasses.put(key, cls);
+        } else {
+            lastRunClasses.remove(key);
+        }
+    }
+
     /** Removes {@code name}'s pin from every class's layout. @return true when one was removed. */
     public boolean unpinEverywhere(String name) {
         boolean changed = false;
@@ -647,6 +699,7 @@ public final class LeapMenuConfig {
         Pick fresh = new Pick(clean, uuid, cls);
         classPicks.put(keyOf(fresh), fresh);
         noteSetByHand(clean);
+        noteRunClass(clean, cls);
         save();
         if (uuid == null) {
             resolvePickAsync(this, clean);
@@ -662,6 +715,7 @@ public final class LeapMenuConfig {
         Pick existing = findPick(ign);
         boolean removed = existing != null && classPicks.remove(keyOf(existing)) != null;
         if (removed) {
+            noteRunClass(ign, PartyTracker.detectedClassOf(ign));
             save();
         }
         return removed;
@@ -670,6 +724,9 @@ public final class LeapMenuConfig {
     public void clearAllPicks() {
         if (!classPicks.isEmpty()) {
             classPicks.clear();
+            for (String n : lastRunParty) {
+                noteRunClass(n, PartyTracker.detectedClassOf(n));
+            }
             save();
         }
     }
