@@ -6,6 +6,7 @@ import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
@@ -76,6 +77,11 @@ public final class PartyTracker {
 
     public static void register() {
         ChatObserver.subscribe(PartyTracker::onChat);
+        // A new connection starts with nobody known. Hypixel's leave, kick and disband lines cannot reach a player who
+        // is offline, so names kept from before a rejoin were never taken out, and a solo player's Custom Party Finder
+        // listing went up as 5/5 and came straight down as "your party is full" (killer560, 2026-10-22; testkit
+        // 1022-hx-pf-solo-queue). JOIN runs on the render thread (handleLogin), before any chat of the new connection.
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> clearParty());
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("PartyTracker", client -> {
             if (++tickCounter < 10) {
                 return;
@@ -193,6 +199,15 @@ public final class PartyTracker {
             MEMBERS.clear();
             MEMBERS.addAll(fromTab);
         }
+    }
+
+    /** Forgets the party: a new connection, where nothing said before it can be trusted. */
+    static void clearParty() {
+        MEMBERS.clear();
+        CLASSES.clear();
+        DEAD.clear();
+        readingList = false;
+        wasInDungeon = false;
     }
 
     private static DungeonClass parseClass(String raw) {
