@@ -249,7 +249,12 @@ public final class MobEspFeature {
                 continue;
             }
             if (wantBlood && bloodIds.contains(entity.getId())) {
-                if (accept(client, eye, entity, Double.MAX_VALUE, null, throughWalls, glow, filled, throughWalls,
+                // A Floor VII giant is 12 blocks tall: its eye sits in or above the Blood Room's ceiling while its body
+                // stands in plain view (killer560, 2026-10-22), so without ESP a blood mob also counts as seen when the
+                // middle of its box is.
+                boolean seen = throughWalls || hasLineOfSight(client, eye, entity)
+                        || hasLineOfSightTo(client, eye, entity, entity.getBoundingBox().getCenter(), BODY_LOS_KEY);
+                if (seen && accept(client, eye, entity, Double.MAX_VALUE, null, true, glow, filled, throughWalls,
                         foundBoxes, foundGlows, cfg.getBloodColor())) {
                     bloodDrawn++;
                 }
@@ -588,13 +593,21 @@ public final class MobEspFeature {
     /** A real block raycast from the camera to the target's eyes, refreshed at most every
      *  {@link #LOS_REFRESH_TICKS} ticks per entity and staggered by entity id (see {@link #losCache}). */
     private static boolean hasLineOfSight(Minecraft client, Vec3 eye, Entity target) {
-        int id = target.getId();
+        return hasLineOfSightTo(client, eye, target, target.getEyePosition(), 0);
+    }
+
+    /** Cache key salt for the ray to a blood mob's box centre: entity ids are positive, so the salted key never meets one. */
+    private static final int BODY_LOS_KEY = Integer.MIN_VALUE;
+
+    /** {@link #hasLineOfSight} to {@code point}, cached under {@code target.getId() ^ keySalt}. */
+    private static boolean hasLineOfSightTo(Minecraft client, Vec3 eye, Entity target, Vec3 point, int keySalt) {
+        int id = target.getId() ^ keySalt;
         Long cached = losCache.get(id);
-        if (cached != null && (tickCounter + id) % LOS_REFRESH_TICKS != 0) {
+        if (cached != null && (tickCounter + target.getId()) % LOS_REFRESH_TICKS != 0) {
             return (cached & 1L) != 0L;
         }
         BlockHitResult result = client.level.clip(new ClipContext(
-                eye, target.getEyePosition(), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
+                eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, target));
         boolean visible = result.getType() == HitResult.Type.MISS;
         losCache.put(id, (tickCounter << 1) | (visible ? 1L : 0L));
         return visible;

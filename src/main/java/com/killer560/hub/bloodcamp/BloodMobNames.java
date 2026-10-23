@@ -31,14 +31,19 @@ final class BloodMobNames {
             "Freak", "Leech", "Mute", "Ooze", "Parasite", "Psycho", "Wandering Soul", "Doze", "Fels", "Watchful Eye",
             // reincarnated bosses (Floor III on)
             "Bonzo", "Scarf", "Spirit Bear", "Livid",
-            // Floor VII: Sadan's giants
-            "Bigfoot", "Jolly Pink Giant", "L.A.S.R.", "The Diamond Giant");
+            // Floor VII: Sadan's giants. The reanimated one's tag reads just "Giant" after its affix ("Boomer Giant 25.3M❤",
+            // killer560's F7 Blood Room screenshot, 2026-10-22), not the wiki's names.
+            "Bigfoot", "Jolly Pink Giant", "L.A.S.R.", "The Diamond Giant", "Giant");
 
     private static final Set<String> NAME_SET = Set.copyOf(NAMES);
 
     // Hypixel puts an affix word before some blood mobs' names ("Stormy Doze", "Stormy Mr. Dead", "Army Walker", killer560
-    // 2026-10-18 screenshots), so one optional capitalised word may come before the name.
-    static final Pattern TAG = Pattern.compile("^(?:\\[Lv\\d{1,4}] )?(?:[A-Z][a-z]+ )?(" + String.join("|",
+    // 2026-10-18 screenshots), so one optional capitalised word may come before the name. Before that, mob-type icons:
+    // one after the level ("[Lv79] <icon> Parasite") and two side by side on the giant ("<icon><icon> Boomer Giant"),
+    // killer560's 2026-10-22 screenshot. Up to two runs of at most four symbol characters (no letter, digit or space,
+    // so a chat-style "[VIP] Name:" still fails), each followed by a space.
+    static final Pattern TAG = Pattern.compile("^(?:\\[Lv\\d{1,4}] )?(?:[^\\sA-Za-z0-9\\[\\]:]{1,4} ){0,2}(?:[A-Z][a-z]+ )?("
+            + String.join("|",
             NAMES.stream().map(Pattern::quote).toList())
             + ")(?: \\d{1,4}(?:[.,]\\d{1,3})?[kMB]?(?:/\\d{1,4}(?:[.,]\\d{1,3})?[kMB]?)?)?❤$");
 
