@@ -147,12 +147,39 @@ public final class StatElements {
         }
     }
 
-    /** {@code text} at the current pose's origin with the one-unit outline all round it. */
+    /**
+     * {@code text} at the current pose's origin with the one-unit outline all round it. A string with a non-ASCII
+     * character (Show Symbols' ❈, ✎, ♨) also gets a half-unit ring inside that one: those can come from Unifont, whose
+     * pixels are half a unit, and the one-unit ring steps over a half-unit gap between two strokes, so the bar's fill
+     * showed between the ❈'s arms right against its white (1.1:1 on green, testkit 895, 2026-10-22). For whole-unit
+     * glyphs the half ring lies under the whole one and changes nothing.
+     */
     static void outlined(GuiGraphicsExtractor g, Font font, String text, int color) {
         for (int k = 0; k < OUT_DX.length; k++) {
             g.text(font, text, OUT_DX[k], OUT_DY[k], OUTLINE, false);
         }
+        if (!isAscii(text)) {
+            var pose = g.pose();
+            for (int k = 0; k < OUT_DX.length; k++) {
+                pose.pushMatrix();
+                try {
+                    pose.translate(OUT_DX[k] * 0.5f, OUT_DY[k] * 0.5f);
+                    g.text(font, text, 0, 0, OUTLINE, false);
+                } finally {
+                    pose.popMatrix();
+                }
+            }
+        }
         g.text(font, text, 0, 0, color, false);
+    }
+
+    private static boolean isAscii(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) > 0x7F) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
