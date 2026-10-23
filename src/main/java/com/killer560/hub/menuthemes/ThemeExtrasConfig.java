@@ -19,11 +19,11 @@ import java.util.Map;
  * What each menu theme brings besides its colours (killer560, 2026-10-21: "Can you add an option for menu themes to have
  * their own background music as well for all themes"). Saved in {@code killer560smod-menu-themeextras.json} (the
  * {@code menu} row of ModPaths, so {@code config/killer560/interface/menu/}); re-read by
- * {@code ProfileManager.reloadAllConfigs}. Everything here is off or "none" until he picks it, so a theme with nothing set
- * looks and sounds exactly as it did before.
+ * {@code ProfileManager.reloadAllConfigs}. Everything here except the music switch is off or "none" until he picks it, so a theme with nothing set
+ * looks exactly as it did before; with the switch on by default, each theme plays its own track.
  * <p>Per theme ({@link MenuTheme}, Custom included): the music track ({@link ThemeMusic}) and the font
  * ({@link ThemeFonts}) and the main menu background ({@link ThemeBackgrounds}). Shared: the Theme Music switch
- * (default OFF) and its volume.
+ * (default ON since 2026-10-22; a file that saved OFF keeps it) and its volume.
  */
 public final class ThemeExtrasConfig {
 
@@ -55,7 +55,7 @@ public final class ThemeExtrasConfig {
         String background = ThemeBackgrounds.NONE;
     }
 
-    private boolean musicOn = false;
+    private boolean musicOn = true;
     /** Percent, 0..100. */
     private int musicVolume = 50;
     private final Map<MenuTheme, Entry> themes = new EnumMap<>(MenuTheme.class);

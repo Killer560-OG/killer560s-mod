@@ -27,7 +27,8 @@ import java.util.List;
  * stops it at once. The menus opened from the title screen (Options, Singleplayer, Multiplayer, this mod's menu) keep it
  * going, so stepping into Options does not restart the song; a connecting or loading screen ends it.
  * <p>While a theme track plays, vanilla's own menu music is held off ({@code MusicManagerThemeMixin}); with Theme Music
- * off, or the theme's track set to Off, the game's music plays exactly as before. Default OFF.
+ * off, or the theme's track set to Off, the game's music plays exactly as before. Default ON (killer560, 2026-10-22: on by default, each theme
+ * its own track); a config that saved OFF keeps OFF.
  * <p>Bundled tracks: one original loop per preset theme, made for this mod by its owner (see
  * {@code assets/killer560smod/sounds/music/readme.txt}; lower case, as a resource path must be). Custom has no track of its own; it can pick any of them.
  * <p>Ticked at END_CLIENT_TICK; nothing here waits: a change of theme or track is heard on the next tick.
