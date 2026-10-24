@@ -80,8 +80,9 @@ final class CroesusRunMemory {
         }
     }
 
-    /** One list entry: its place (overall index across pages), who it is and when it expires. */
-    record Entry(int slot, int order, String sig, long expiresAt, long tolMs) {
+    /** One list entry: its place (overall index across pages), who it is, when it expires, and whether its head says
+     *  "No chests opened yet!". */
+    record Entry(int slot, int order, String sig, long expiresAt, long tolMs, boolean unopened) {
     }
 
     private static final List<Run> RUNS = new ArrayList<>();
@@ -125,6 +126,7 @@ final class CroesusRunMemory {
 
     /** An entry from a list head's lore. {@code order} is the run's overall place: (page - 1) * 28 + its index. */
     static Entry entry(int slot, int order, String sig, List<String> lore, long now) {
+        boolean unopened = lore.contains(DungeonChestValuer.RUN_UNOPENED_LORE);
         for (String line : lore) {
             Matcher m = EXPIRE.matcher(line.trim());
             if (m.matches()) {
@@ -137,7 +139,7 @@ final class CroesusRunMemory {
                     unit = Math.min(unit, u);
                 }
                 if (unit != Long.MAX_VALUE) {
-                    return new Entry(slot, order, sig, now + total, unit);
+                    return new Entry(slot, order, sig, now + total, unit, unopened);
                 }
             }
         }
@@ -145,10 +147,10 @@ final class CroesusRunMemory {
             Matcher m = COMPLETED.matcher(line.trim());
             if (m.matches()) {
                 long unit = unitMs(m.group(2).charAt(0));
-                return new Entry(slot, order, sig, now - Long.parseLong(m.group(1)) * unit + RUN_LIFETIME_MS, unit);
+                return new Entry(slot, order, sig, now - Long.parseLong(m.group(1)) * unit + RUN_LIFETIME_MS, unit, unopened);
             }
         }
-        return new Entry(slot, order, sig, 0L, RUN_LIFETIME_MS); // no time on it: identity by order alone
+        return new Entry(slot, order, sig, 0L, RUN_LIFETIME_MS, unopened); // no time on it: identity by order alone
     }
 
     private static long unitMs(char c) {
@@ -190,6 +192,21 @@ final class CroesusRunMemory {
         return order >= pageFirst && order < pageFirst + per;
     }
 
+    /**
+     * The head says {@code e} cannot be {@code r}: a claim of {@code r} seen over {@link ChestProfitFeature#CLAIM_TRUST_MS}
+     * ago (so not a head lagging it) under a head that still says "No chests opened yet!", or {@code e} expiring later than
+     * any run already in the list when {@code r} was last seen could (it finished after that read). Used to break a tie
+     * between shifts: one party's new run at the front ties shift 0 against shift -1, and shift 0 hands it the remembered
+     * run before it.
+     */
+    private static boolean contradicts(Run r, Entry e, long now) {
+        if (r.claimType != null && e.unopened() && now - r.claimAtMs >= ChestProfitFeature.CLAIM_TRUST_MS) {
+            return true;
+        }
+        return r.seenAtMs > 0 && e.expiresAt() > 0
+                && e.expiresAt() - e.tolMs() - READ_SLACK_MS > r.seenAtMs + RUN_LIFETIME_MS;
+    }
+
     private static boolean inWindow(Run r, Entry e) {
         return r.sig.equals(e.sig()) && Math.abs(r.expiresAt - e.expiresAt()) <= r.tolMs + e.tolMs() + READ_SLACK_MS;
     }
@@ -200,18 +217,26 @@ final class CroesusRunMemory {
         long now = System.currentTimeMillis();
         Run[] out = new Run[entries.size()];
         java.util.Set<Run> used = new java.util.HashSet<>();
-        // 1. Every in-window pair votes for the list's shift; the most common shift (then the smallest) assigns them.
+        // 1. Every in-window pair votes for the list's shift; the most common shift assigns them. A tie goes to the shift
+        // whose pairs the heads contradict least ({@link #contradicts}), then to the smallest.
         Map<Integer, Integer> votes = new HashMap<>();
+        Map<Integer, Integer> against = new HashMap<>();
         for (Entry e : entries) {
             for (Run r : RUNS) {
                 if (inWindow(r, e) && reachable(r, e, now)) {
                     votes.merge(r.order - e.order(), 1, Integer::sum);
+                    if (contradicts(r, e, now)) {
+                        against.merge(r.order - e.order(), 1, Integer::sum);
+                    }
                 }
             }
         }
         List<Integer> deltas = new ArrayList<>(votes.keySet());
-        deltas.sort((a, b) -> votes.get(b).equals(votes.get(a)) ? Integer.compare(Math.abs(a), Math.abs(b))
-                : Integer.compare(votes.get(b), votes.get(a)));
+        deltas.sort((a, b) -> {
+            int byVotes = Integer.compare(votes.get(b), votes.get(a));
+            int byAgainst = Integer.compare(against.getOrDefault(a, 0), against.getOrDefault(b, 0));
+            return byVotes != 0 ? byVotes : byAgainst != 0 ? byAgainst : Integer.compare(Math.abs(a), Math.abs(b));
+        });
         // A page read sees one page of the list, so every run whose head is on another page looks free here. Only the
         // winning shift may bring a run in from another page; the weaker shifts and the leftovers below take only a run
         // that the winning shift puts on this page. Before, an unseen head at a page's edge took the next page's

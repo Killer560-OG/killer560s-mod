@@ -92,7 +92,8 @@ public final class ChestProfitFeature {
      *  opened this session. Session only: a run not looked at since the game started is RUN_UNKNOWN. */
     // Each run's chests and claims live in CroesusRunMemory (kept with the run when it moves, and across restarts).
     private static final java.util.regex.Pattern OPENED_CHEST = java.util.regex.Pattern.compile("^Opened [cC]hests?: (.{1,24})$");
-    /** The run whose view is open (or about to be): the head last clicked, by him or by Auto Croesus. */
+    /** The run whose view is open (or about to be): the head last clicked, by him or by Auto Croesus. Cleared on a world
+     *  change, so a dungeon's own reward chest is never claimed on it. */
     private static volatile CroesusRunMemory.Run openRun = null;
     /** The remembered run of each slot of the Croesus page read last ({@link #readRunHeads}). */
     private static Map<Integer, CroesusRunMemory.Run> runBySlot = Map.of();
@@ -103,7 +104,7 @@ public final class ChestProfitFeature {
      * "No chests opened yet!" (or not yet "No more chests to open!") for a refresh after a claim; for
      * {@link #CLAIM_TRUST_MS} the claim seen here wins over a head that has not caught up.
      */
-    private static final long CLAIM_TRUST_MS = 60_000L;
+    static final long CLAIM_TRUST_MS = 60_000L;
     /** Last state logged per run key, and the rate limit on those INFO lines (his next log shows any flip). */
     private static final Map<String, Byte> LOGGED_STATE = new java.util.concurrent.ConcurrentHashMap<>();
     private static long logWindowStartMs = 0L;
@@ -167,6 +168,10 @@ public final class ChestProfitFeature {
             runHeadState = new byte[0];
             runHeadContainerId = Integer.MIN_VALUE;
             runHeadScreen = null;
+            // The run clicked in Croesus is only the one being claimed while he stays in that world. The reward chest at
+            // the end of a dungeon run is in the dungeon's world, reached by a world change, and its claim used to be
+            // recorded on whichever Croesus run he had opened last.
+            openRun = null;
         });
         ChatObserver.subscribe(message -> {
             if (pending == null) {
