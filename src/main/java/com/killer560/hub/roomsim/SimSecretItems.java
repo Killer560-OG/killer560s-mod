@@ -462,6 +462,9 @@ public final class SimSecretItems {
         for (Map.Entry<UUID, BlockPos> entry : LIVE.entrySet()) {
             UUID id = entry.getKey();
             var entity = level.getEntity(id);
+            if (entity == null && !level.isPositionEntityTicking(entry.getValue())) {
+                continue;   // not reachable in a section the server is not ticking: unknown, not collected
+            }
             if (entity == null || entity.isRemoved()) {
                 LIVE.remove(id);
                 SimScore.secretFound(entry.getValue());

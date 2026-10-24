@@ -108,6 +108,9 @@ public final class SimMiniboss {
     /** Placed minibosses, so their tab-list profile entry can be withdrawn once the entity is gone. */
     private static final List<UUID> PLACED = new CopyOnWriteArrayList<>();
 
+    /** Where each placed miniboss stands (nothing moves one), to tell "gone" from "in a section not ticking". */
+    private static final java.util.Map<UUID, BlockPos> PLACED_AT = new java.util.concurrent.ConcurrentHashMap<>();
+
     private SimMiniboss() {
     }
 
@@ -180,6 +183,7 @@ public final class SimMiniboss {
             return null;
         }
         PLACED.add(boss.getUUID());
+        PLACED_AT.put(boss.getUUID(), pos.immutable());
         LOGGER.info("Placed miniboss \"{}\" uuid={} (v{}) id={} tagId={} at {}",
                 name.text(), boss.getUUID(), boss.getUUID().version(), boss.getId(), tag.getId(), pos);
         return new Placed(boss, tag);
@@ -209,12 +213,21 @@ public final class SimMiniboss {
         List<UUID> gone = new ArrayList<>();
         for (UUID id : PLACED) {
             Entity entity = level.getEntity(id);
-            if (entity == null || entity.isRemoved()) {
+            if (entity == null) {
+                // Missing is gone only where the server ticks entities; elsewhere it may just be unreachable, and
+                // withdrawing its profile then would make it invisible when he comes back.
+                BlockPos at = PLACED_AT.get(id);
+                if (at != null && !level.isPositionEntityTicking(at)) {
+                    continue;
+                }
+                gone.add(id);
+            } else if (entity.isRemoved()) {
                 gone.add(id);
             }
         }
         if (!gone.isEmpty()) {
             PLACED.removeAll(gone);
+            gone.forEach(PLACED_AT::remove);
             forget(level.getServer(), gone);
         }
     }

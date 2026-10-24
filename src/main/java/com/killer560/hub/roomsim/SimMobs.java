@@ -652,6 +652,9 @@ public final class SimMobs {
     /** Crypt undead alive in the world, id to whether it is the prince that scores. */
     private static final java.util.Map<UUID, Boolean> CRYPT_MOBS = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Where each crypt undead was spawned, so a null read-back counts as killed only where entities tick. */
+    private static final java.util.Map<UUID, BlockPos> CRYPT_AT = new java.util.concurrent.ConcurrentHashMap<>();
+
     /**
      * A crypt's undead (or the prince's), spawned when its crypt is blown. Its crypt point is counted when it DIES,
      * as on Hypixel, where "Crypts: N" in the tab list rises on the kill and the prince's kill says
@@ -697,6 +700,7 @@ public final class SimMobs {
                 feetY = at.getY();
             }
             spawnDummy(level, undead, at, feetY, false, ONE_HP);
+            CRYPT_AT.put(undead.getUUID(), at.immutable());
             CRYPT_MOBS.put(undead.getUUID(), scoringPrince);
         });
     }
@@ -709,9 +713,15 @@ public final class SimMobs {
             var e = it.next();
             Entity mob = level.getEntity(e.getKey());
             if (mob != null && mob.isAlive()) {
+                CRYPT_AT.put(e.getKey(), mob.blockPosition());
                 continue;
             }
+            BlockPos at = CRYPT_AT.get(e.getKey());
+            if (mob == null && (at == null || !level.isPositionEntityTicking(at))) {
+                continue;   // missing in a section the server is not ticking: unknown, not killed
+            }
             it.remove();
+            CRYPT_AT.remove(e.getKey());
             SimScore.cryptBlown();
             if (e.getValue()) {
                 for (ServerPlayer p : level.players()) {
@@ -1048,6 +1058,7 @@ public final class SimMobs {
         STARRED_AT.clear();
         STARRED_DEAD.clear();
         CRYPT_MOBS.clear();
+        CRYPT_AT.clear();
         SimMimic.forgetMob();
         STARRED.clear();
         STAR_TAGS.clear();

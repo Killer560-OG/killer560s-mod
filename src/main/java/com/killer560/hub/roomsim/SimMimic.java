@@ -58,6 +58,8 @@ public final class SimMimic {
     private static volatile boolean found;
     /** The mimic itself once its chest is opened - a baby zombie, as on Hypixel. Server thread. */
     private static volatile java.util.UUID mimicMob;
+    /** Where the mimic mob was last seen (server thread), to tell "dead" from "in a section not ticking". */
+    private static volatile BlockPos mimicAt;
 
     /** Chests already counted, so re-opening one does not count twice. */
     // Added to on the render thread (the chest-open hook below), cleared on the server thread by a build's reset.
@@ -284,6 +286,7 @@ public final class SimMimic {
         BlockPos at = pos.immutable();
         level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
         mimicMob = SimMobs.spawnMimic(level, at);
+        mimicAt = at;
         // Logged, never said: Hypixel sends no chat line for a mimic (killer560, 2026-10-16: "in sim remove the mimic line").
         LOGGER.info("Sim mimic: chest at {} opened, mimic {} spawned", at.toShortString(), mimicMob);
         return true;
@@ -296,6 +299,12 @@ public final class SimMimic {
             return;
         }
         var e = level.getEntity(id);
+        if (e == null && (mimicAt == null || !level.isPositionEntityTicking(mimicAt))) {
+            return;   // missing in a section the server is not ticking: unknown, not killed
+        }
+        if (e != null) {
+            mimicAt = e.blockPosition();
+        }
         if (e == null || !e.isAlive()) {
             mimicMob = null;
             SimScore.mimicKilled();
