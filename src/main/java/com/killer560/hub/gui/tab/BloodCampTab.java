@@ -93,10 +93,10 @@ public class BloodCampTab extends BaseTab {
 
             // killer560, 2026-10-18: a colour for Blood Camp's text - the countdown on each box. White by default.
             widgets.add(SettingsButtonWidget.builder(
-                    com.killer560.hub.gui.ColorSwatch.label("Timer Text Colour", cfg.getTimerTextColor()), btn -> {
+                    com.killer560.hub.gui.ColorSwatch.label("Timer Text Color", cfg.getTimerTextColor()), btn -> {
                         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
                         com.killer560.hub.compat.McCompat.setScreen(mc, new com.killer560.hub.gui.ColorPickerScreen(
-                                com.killer560.hub.compat.McCompat.screen(mc), "Timer Text Colour", cfg.getTimerTextColor(),
+                                com.killer560.hub.compat.McCompat.screen(mc), "Timer Text Color", cfg.getTimerTextColor(),
                                 BloodCampConfig.DEFAULT_TIMER_TEXT_COLOR, argb -> {
                             cfg.setTimerTextColor(argb);
                             cfg.save();

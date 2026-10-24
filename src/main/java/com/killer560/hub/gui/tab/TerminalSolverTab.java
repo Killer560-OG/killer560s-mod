@@ -362,7 +362,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         Minecraft mc = Minecraft.getInstance();
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                SectionHeaders.header("Overlay Colours", false), mc.font));
+                SectionHeaders.header("Overlay Colors", false), mc.font));
         y += 14;
 
         TerminalSolverConfig.OverlayColor[] order = {
@@ -423,7 +423,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
      *  label at the first ':', so the tooltip key stays "reset colours" in both states instead of
      *  changing out from under {@code SettingTooltipsData} whenever the colours are stock. */
     private static Component resetText() {
-        return Component.literal("Reset Colours"
+        return Component.literal("Reset Colors"
                 + (TerminalSolverConfig.getInstance().isOverlayColorsDefault() ? ": §7default" : ""));
     }
 

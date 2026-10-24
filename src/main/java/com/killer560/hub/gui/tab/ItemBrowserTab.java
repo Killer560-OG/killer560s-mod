@@ -108,7 +108,7 @@ public class ItemBrowserTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Refresh Item Catalogue"), btn -> {
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Refresh Item Catalog"), btn -> {
                     SkyblockItemRepository.refreshAsync();
                 }).bounds(contentX, y, contentWidth, 18).build());
         y += 26;
@@ -136,6 +136,6 @@ public class ItemBrowserTab extends BaseTab {
     }
 
     private static Component alignText(ItemBrowserConfig cfg) {
-        return Component.literal("Centred: " + cfg.getAlign().label());
+        return Component.literal("Centered: " + cfg.getAlign().label());
     }
 }

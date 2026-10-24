@@ -313,7 +313,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
                 rows.add(cycle(() -> "Arrow Amount: §6" + cfg.getArrowDisplay().label,
                         () -> cfg.setArrowDisplay(cfg.getArrowDisplay().next()),
                         () -> cfg.setArrowDisplay(cfg.getArrowDisplay().previous()), x, 0, w));
-                rows.add(toggle("Colour Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, x, 0, w));
+                rows.add(toggle("Color Arrow Amount", cfg::isColorArrowAmount, cfg::setColorArrowAmount, x, 0, w));
             }
             case PLAYER_AMOUNT -> rows.add(toggle("Max Island Players", cfg::isShowMaxIslandPlayers,
                     cfg::setShowMaxIslandPlayers, x, 0, w));
@@ -471,7 +471,7 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         y += 16;
         y = subHeading(out, x, y, width, "Background");
         out.add(toggle("Background", cfg::isBackgroundEnabled, cfg::setBackgroundEnabled, x, y, colW));
-        out.add(colorButton("Background Colour", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
+        out.add(colorButton("Background Color", cfg::getBackgroundColor, CustomScoreboardConfig.DEFAULT_BACKGROUND_COLOR,
                 cfg::setBackgroundColor, colBX, y, colW));
         y += STEP;
         // Background opacity: the alpha of the background colour, shown as a percentage (killer560, 2026-10-18).
@@ -504,11 +504,11 @@ public class ScoreboardEditorScreen extends Screen implements MenuThemedScreen {
         out.add(slider(colBX, y, colW, cfg.getBorderSoftness(), 0, 10, v -> "Border Softness: " + v, cfg::setBorderSoftness));
         y += STEP;
         if (cfg.getBorderStyle() == CustomScoreboardConfig.BorderStyle.CUSTOM) {
-            out.add(colorButton("Border Colour", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
+            out.add(colorButton("Border Color", cfg::getBorderColor, CustomScoreboardConfig.DEFAULT_BORDER_COLOR,
                     cfg::setBorderColor, x, y, colW));
             out.add(toggle("Gradient Border", cfg::isBorderGradient, cfg::setBorderGradient, colBX, y, colW));
             y += STEP;
-            out.add(colorButton("Bottom Colour", cfg::getBorderColorBottom,
+            out.add(colorButton("Bottom Color", cfg::getBorderColorBottom,
                     CustomScoreboardConfig.DEFAULT_BORDER_BOTTOM_COLOR, cfg::setBorderColorBottom, x, y, colW));
             y += STEP;
         }

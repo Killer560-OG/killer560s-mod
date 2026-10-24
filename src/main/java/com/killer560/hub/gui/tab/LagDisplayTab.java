@@ -52,22 +52,22 @@ public class LagDisplayTab extends BaseTab {
         // slider), and tooltips are looked up by lower-cased label, so a bare "CPS" would show that text.
         toggle(w, colB, y[0], half, "CPS Counter", cfg::isShowCps, cfg::setShowCps, cfg);
         y[0] += 22;
-        toggle(w, contentX, y[0], contentWidth, "Colour By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
+        toggle(w, contentX, y[0], contentWidth, "Color By Value", cfg::isColorByValue, cfg::setColorByValue, cfg);
         y[0] += 24;
 
         // Custom colours (killer560, 2026-10-18). The four value colours only matter with Color By Value on.
-        header(w, contentX, y, contentWidth, "Colours");
-        color(w, contentX, y[0], half, "Good Colour", cfg::getColorGood, cfg::setColorGood,
+        header(w, contentX, y, contentWidth, "Colors");
+        color(w, contentX, y[0], half, "Good Color", cfg::getColorGood, cfg::setColorGood,
                 LagDisplayConfig.DEFAULT_GOOD, cfg);
-        color(w, colB, y[0], half, "Okay Colour", cfg::getColorOk, cfg::setColorOk,
+        color(w, colB, y[0], half, "Okay Color", cfg::getColorOk, cfg::setColorOk,
                 LagDisplayConfig.DEFAULT_OK, cfg);
         y[0] += 22;
-        color(w, contentX, y[0], half, "Bad Colour", cfg::getColorBad, cfg::setColorBad,
+        color(w, contentX, y[0], half, "Bad Color", cfg::getColorBad, cfg::setColorBad,
                 LagDisplayConfig.DEFAULT_BAD, cfg);
-        color(w, colB, y[0], half, "Awful Colour", cfg::getColorAwful, cfg::setColorAwful,
+        color(w, colB, y[0], half, "Awful Color", cfg::getColorAwful, cfg::setColorAwful,
                 LagDisplayConfig.DEFAULT_AWFUL, cfg);
         y[0] += 22;
-        color(w, contentX, y[0], contentWidth, "Text Colour", cfg::getColorText, cfg::setColorText,
+        color(w, contentX, y[0], contentWidth, "Text Color", cfg::getColorText, cfg::setColorText,
                 LagDisplayConfig.DEFAULT_TEXT, cfg);
         y[0] += 24;
         return w;

@@ -90,24 +90,24 @@ public class SecretWaypointsTab extends BaseTab {
         int gap = 8;
         int colW = (contentWidth - gap) / 2;
         int col2X = contentX + colW + gap;
-        widgets.add(colorButton(contentX, y, colW, "Chest Colour", cfg.getChestColor(),
+        widgets.add(colorButton(contentX, y, colW, "Chest Color", cfg.getChestColor(),
                 SecretWaypointsConfig.DEFAULT_CHEST_COLOR, cfg::setChestColor));
-        widgets.add(colorButton(col2X, y, colW, "Item Colour", cfg.getItemColor(),
+        widgets.add(colorButton(col2X, y, colW, "Item Color", cfg.getItemColor(),
                 SecretWaypointsConfig.DEFAULT_ITEM_COLOR, cfg::setItemColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Wither Essence Colour", cfg.getWitherColor(),
+        widgets.add(colorButton(contentX, y, colW, "Wither Essence Color", cfg.getWitherColor(),
                 SecretWaypointsConfig.DEFAULT_WITHER_COLOR, cfg::setWitherColor));
-        widgets.add(colorButton(col2X, y, colW, "Bat Colour", cfg.getBatColor(),
+        widgets.add(colorButton(col2X, y, colW, "Bat Color", cfg.getBatColor(),
                 SecretWaypointsConfig.DEFAULT_BAT_COLOR, cfg::setBatColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Redstone Key Colour", cfg.getRedstoneKeyColor(),
+        widgets.add(colorButton(contentX, y, colW, "Redstone Key Color", cfg.getRedstoneKeyColor(),
                 SecretWaypointsConfig.DEFAULT_REDSTONE_KEY_COLOR, cfg::setRedstoneKeyColor));
-        widgets.add(colorButton(col2X, y, colW, "Lever Colour", cfg.getLeverColor(),
+        widgets.add(colorButton(col2X, y, colW, "Lever Color", cfg.getLeverColor(),
                 SecretWaypointsConfig.DEFAULT_LEVER_COLOR, cfg::setLeverColor));
         y += 22;
-        widgets.add(colorButton(contentX, y, colW, "Crypt Colour", cfg.getCryptColor(),
+        widgets.add(colorButton(contentX, y, colW, "Crypt Color", cfg.getCryptColor(),
                 SecretWaypointsConfig.DEFAULT_CRYPT_COLOR, cfg::setCryptColor));
-        widgets.add(colorButton(col2X, y, colW, "Prince Colour", cfg.getPrinceColor(),
+        widgets.add(colorButton(col2X, y, colW, "Prince Color", cfg.getPrinceColor(),
                 SecretWaypointsConfig.DEFAULT_PRINCE_COLOR, cfg::setPrinceColor));
 
         return widgets;

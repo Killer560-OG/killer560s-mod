@@ -106,7 +106,7 @@ public final class RouteCodec {
             }
             return routes.isEmpty() ? Result.fail("No waypoints found in clipboard.") : new Result(routes, null, truncated[0]);
         } catch (Exception | StackOverflowError e) {
-            return Result.fail("Clipboard isn't a recognised waypoint list.");
+            return Result.fail("Clipboard isn't a recognized waypoint list.");
         }
     }
 

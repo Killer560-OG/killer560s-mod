@@ -435,7 +435,7 @@ public final class BatLog {
             s.closestToTarget = Math.min(s.closestToTarget, toTarget);
         }
         LOGGER.info(String.format(Locale.US, "[Bat] #%d fly tick %d (+%d) at %s%s (drawn %s) step %.2f flown %.2f | off"
-                        + " launch look %.2f | off look now %.2f (%.1f/%.1f) | to target centre %s", s.no, now, since, fmt(at),
+                        + " launch look %.2f | off look now %.2f (%.1f/%.1f) | to target center %s", s.no, now, since, fmt(at),
                 update ? " update" : " (no update)", fmt(drawn), step, s.flown, offLaunch, offNow, player.getYRot(),
                 player.getXRot(),
                 toTarget < 0 ? "-" : String.format(Locale.US, "%.2f", toTarget)));
@@ -527,7 +527,7 @@ public final class BatLog {
         }
         s.bowBlocks = bow;
         boolean toward = s.targetId >= 0 && s.closestToTarget < s.rayMissBlocks - STRAIGHT_BLOCKS;
-        String towardText = toward ? String.format(Locale.US, ", toward the target (passed its centre at %.2f, a straight"
+        String towardText = toward ? String.format(Locale.US, ", toward the target (passed its center at %.2f, a straight"
                 + " bat along the look %.2f)", s.closestToTarget, s.rayMissBlocks) : "";
         if (bow > STRAIGHT_BLOCKS) {
             return String.format(Locale.US, "curved (bowed %.2f blocks off its line)%s", bow, towardText);

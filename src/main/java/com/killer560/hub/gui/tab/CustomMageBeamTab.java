@@ -52,9 +52,9 @@ public class CustomMageBeamTab extends BaseTab {
                 }).bounds(col2bX, y, col2W, 18).build());
         y += 20;
 
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Beam Colour", cfg.getMageBeamColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Beam Color", cfg.getMageBeamColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Beam Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Beam Color",
                             cfg.getMageBeamColor(), DungeonExtrasConfig.DEFAULT_BEAM_COLOR, argb -> {
                         cfg.setMageBeamColor(argb);
                         cfg.save();

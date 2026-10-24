@@ -22,7 +22,7 @@ final class CardBlurbsData {
         d.put("BlessingsTab", "Lists the blessings you hold.");
         d.put("BloodCampTab", "Predicts where blood mobs land.");
         d.put("ChunkCacheTab", "Remembers chunks you have left.");
-        d.put("ClassColorsTab", "Class-coloured teammates.");
+        d.put("ClassColorsTab", "Class-colored teammates.");
         d.put("ClassOverridesTab", "Set teammates' classes.");
         d.put("CroesusTab", "Croesus chest profit and logging.");
         d.put("CustomMageBeamTab", "One clean Mage beam.");
@@ -67,7 +67,7 @@ final class CardBlurbsData {
         d.put("SimonSaysTab", "Marks the Simon Says buttons.");
         d.put("SplitTimersTab", "A HUD timing each run part.");
         d.put("TeamMelodyTab", "Teammates' Melody progress.");
-        d.put("TeammatesTab", "Class-coloured party boxes.");
+        d.put("TeammatesTab", "Class-colored party boxes.");
         d.put("TerminalSolverTab", "Shows slots to click.");
         d.put("TerminalTimersTab", "Terminal times in chat.");
         d.put("TermismTab", "Practice terminals anywhere.");
@@ -135,7 +135,7 @@ final class CardBlurbsData {
         d.put("VoiceToTextTab", "Speech to party chat.");
         d.put("AuctionHouseTab", "Custom Auction House.");
         d.put("BazaarTab", "Custom Bazaar and themed menus.");
-        d.put("EnchantColorsTab", "Colours enchant names.");
+        d.put("EnchantColorsTab", "Colors enchant names.");
         d.put("InventoryHudTab", "Inventory as a HUD.");
         d.put("InventorySearchTab", "Ctrl+F finds slots.");
         d.put("InventoryThemeTab", "Menu-themed inventory.");
@@ -157,7 +157,7 @@ final class CardBlurbsData {
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");
         d.put("ProfileViewerTab", "/pv shows any Skyblock profile.");
-        d.put("CustomItemsTab", "Client-side item recolours.");
+        d.put("CustomItemsTab", "Client-side item recolors.");
         d.put("HeldOutlineTab", "Outlines your held item.");
         d.put("NickhiderTab", "Fake names for other players.");
         d.put("CosmeticsTab", "Name, size and held look.");

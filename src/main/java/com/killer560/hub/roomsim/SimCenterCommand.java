@@ -40,7 +40,7 @@ public final class SimCenterCommand {
                     double z = under.getZ() + 0.5;
                     // Relative rotation of zero, as the sim's own ability teleports use: the camera he has stays his.
                     sp.teleportTo((ServerLevel) sp.level(), x, feetY, z, Set.of(Relative.Y_ROT, Relative.X_ROT), 0f, 0f, false);
-                    ModChat.send("Sim", ModChat.text("Centred on "), ModChat.value(under.toShortString()));
+                    ModChat.send("Sim", ModChat.text("Centered on "), ModChat.value(under.toShortString()));
                     return 1;
                 })));
     }

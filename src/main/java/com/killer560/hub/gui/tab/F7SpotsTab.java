@@ -82,7 +82,7 @@ public class F7SpotsTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Walk-To Waypoints", false), mc.font));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Walk Waypoints", cfg::getWalkWaypointsRaw, cfg::setWalkWaypoints));
-        widgets.add(colorButton(col2X, y, colW, "Waypoint Colour", cfg.getWalkColor(), F7SpotsConfig.DEFAULT_WALK_COLOR,
+        widgets.add(colorButton(col2X, y, colW, "Waypoint Color", cfg.getWalkColor(), F7SpotsConfig.DEFAULT_WALK_COLOR,
                 argb -> cfg.setWalkColor(argb)));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Waypoint Labels", cfg::isWalkLabels, cfg::setWalkLabels));
@@ -129,7 +129,7 @@ public class F7SpotsTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Last Breath Aim Spots", false), mc.font));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Aim Spots", cfg::getAimSpotsRaw, cfg::setAimSpots));
-        widgets.add(colorButton(col2X, y, colW, "Aim Spot Colour", cfg.getAimColor(), F7SpotsConfig.DEFAULT_AIM_COLOR,
+        widgets.add(colorButton(col2X, y, colW, "Aim Spot Color", cfg.getAimColor(), F7SpotsConfig.DEFAULT_AIM_COLOR,
                 argb -> cfg.setAimColor(argb)));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Aim Spot Labels", cfg::isAimLabels, cfg::setAimLabels));

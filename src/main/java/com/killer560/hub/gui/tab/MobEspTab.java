@@ -205,9 +205,9 @@ public class MobEspTab extends BaseTab {
                     MobEspConfig.getInstance().save();
                     btn.setMessage(onOff(name, getter.getAsBoolean()));
                 }).bounds(x, y, width, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Colour", colorGetter.getAsInt()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",
                             colorGetter.getAsInt(), defaultColor, argb -> {
                         colorSetter.accept(argb);
                         MobEspConfig.getInstance().save();

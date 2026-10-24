@@ -667,7 +667,7 @@ final class AutoTeleportMaze {
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         BlockPos pad = cr == null ? null
                 : PuzzleCoords.real(END_PAD_RELATIVE[0], END_PAD_RELATIVE[1], END_PAD_RELATIVE[2], cr);
-        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to the only pad in the centre cell, the end pad at {}",
+        LOGGER.info("[AutoPuzzles] TeleportMaze: walking to the only pad in the center cell, the end pad at {}",
                 pad == null ? "(room rotation not known)" : AutoPuzzleUtil.fmt(pad));
         finishStage = FinishStage.STEP_ON_END_PAD;
         finishLastPos = null;
@@ -691,7 +691,7 @@ final class AutoTeleportMaze {
      */
     private static void tickChest(Minecraft client, LocalPlayer player) {
         if (com.killer560.hub.util.ServerLag.serverMsSince(finishStageStartMs, finishStageLag) > CHEST_TIMEOUT_MS) {
-            String why = finishChest == null ? "no chest was found in the centre cell"
+            String why = finishChest == null ? "no chest was found in the center cell"
                     : chestClicks == 0 ? "the chest at " + AutoPuzzleUtil.fmt(finishChest) + " never came in reach"
                     : "the server never answered " + chestClicks + " click(s) on the chest at "
                     + AutoPuzzleUtil.fmt(finishChest);
@@ -721,7 +721,7 @@ final class AutoTeleportMaze {
                 }
                 finishChest = nearest;
                 LOGGER.info("[AutoPuzzles] TeleportMaze: walking toward the chest at {} until a click is confirmed"
-                                + " ({} chest(s) in the centre cell, nearest picked) from {} tick={}",
+                                + " ({} chest(s) in the center cell, nearest picked) from {} tick={}",
                         AutoPuzzleUtil.fmt(finishChest), chests.size(), AutoPuzzleUtil.fmt(player.blockPosition()),
                         nowTick());
             }
@@ -729,7 +729,7 @@ final class AutoTeleportMaze {
         if (finishChest == null) {
             if (!chestMissingLogged) {
                 chestMissingLogged = true;
-                LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the centre cell yet - waiting ({}) tick={}",
+                LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the center cell yet - waiting ({}) tick={}",
                         cr == null ? "room rotation not known" : "scan found none or chunks not loaded", nowTick());
             }
             client.options.keyUp.setDown(false);
@@ -746,7 +746,7 @@ final class AutoTeleportMaze {
                     : chestClicks >= MAX_CHEST_CLICKS ? "clicksUsed" : null;
             String hold = holdKey == null ? null : switch (holdKey) {
                 case "rotation" -> "room rotation not known";
-                case "outsideCell" -> "not inside the centre cell yet (rel "
+                case "outsideCell" -> "not inside the center cell yet (rel "
                         + AutoPuzzleUtil.fmt(PuzzleCoords.relative(player.blockPosition(), cr)) + ")";
                 case "reach" -> "out of reach";
                 case "sneaking" -> "sneaking";

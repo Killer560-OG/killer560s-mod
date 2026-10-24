@@ -654,7 +654,7 @@ public final class PartyCommandsFeature {
         if (cancelled.isEmpty()) {
             return;
         }
-        ModChat.send("Party Commands", ModChat.bad("Re-invite cancelled"), ModChat.text(" for "),
+        ModChat.send("Party Commands", ModChat.bad("Re-invite canceled"), ModChat.text(" for "),
                 ModChat.value(String.join(", ", cancelled)), ModChat.dim(" - " + reason + "."));
         LOGGER.info("[PartyCommands] Canceled queued re-invite(s) {} - {}", cancelled, reason);
     }

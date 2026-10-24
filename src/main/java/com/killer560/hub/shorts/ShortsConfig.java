@@ -29,10 +29,10 @@ public final class ShortsConfig {
 
     /** Where the 9:16 window sits over Minecraft's client area. */
     public enum Anchor {
-        RIGHT_CENTER("Right Centre"),
+        RIGHT_CENTER("Right Center"),
         RIGHT_TOP("Right Top"),
         RIGHT_BOTTOM("Right Bottom"),
-        LEFT_CENTER("Left Centre"),
+        LEFT_CENTER("Left Center"),
         LEFT_TOP("Left Top"),
         LEFT_BOTTOM("Left Bottom");
 

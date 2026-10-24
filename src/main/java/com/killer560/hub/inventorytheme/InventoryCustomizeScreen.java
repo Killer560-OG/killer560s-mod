@@ -25,7 +25,7 @@ public final class InventoryCustomizeScreen extends Screen implements MenuThemed
     private int[] themedBounds = new int[4];
 
     public InventoryCustomizeScreen(Screen parent) {
-        super(Component.literal("Customise Inventory Theme"));
+        super(Component.literal("Customize Inventory Theme"));
         this.parent = parent;
     }
 
@@ -55,8 +55,8 @@ public final class InventoryCustomizeScreen extends Screen implements MenuThemed
                 }).bounds(x, y, width, 20).build());
         y += 24;
         if (cfg.isUseCustomSlotColor()) {
-            this.addRenderableWidget(SettingsButtonWidget.builder(ColorSwatch.label("Slot Colour", cfg.getSlotColor()), btn ->
-                            McCompat.setScreen(Minecraft.getInstance(), new ColorPickerScreen(this, "Slot Colour",
+            this.addRenderableWidget(SettingsButtonWidget.builder(ColorSwatch.label("Slot Color", cfg.getSlotColor()), btn ->
+                            McCompat.setScreen(Minecraft.getInstance(), new ColorPickerScreen(this, "Slot Color",
                                     cfg.getSlotColor(), cfg.getTheme().invSlotBg, argb -> {
                                 cfg.setCustomSlotColor(argb);
                                 cfg.save();
@@ -71,8 +71,8 @@ public final class InventoryCustomizeScreen extends Screen implements MenuThemed
                 }).bounds(x, y, width, 20).build());
         y += 24;
         if (cfg.isUseCustomAccent()) {
-            this.addRenderableWidget(SettingsButtonWidget.builder(ColorSwatch.label("Accent Colour", cfg.getAccentColor()), btn ->
-                            McCompat.setScreen(Minecraft.getInstance(), new ColorPickerScreen(this, "Accent Colour",
+            this.addRenderableWidget(SettingsButtonWidget.builder(ColorSwatch.label("Accent Color", cfg.getAccentColor()), btn ->
+                            McCompat.setScreen(Minecraft.getInstance(), new ColorPickerScreen(this, "Accent Color",
                                     cfg.getAccentColor(), cfg.getTheme().invAccent, argb -> {
                                 cfg.setCustomAccentColor(argb);
                                 cfg.save();
@@ -93,7 +93,7 @@ public final class InventoryCustomizeScreen extends Screen implements MenuThemed
         themedBounds = new int[]{px, py, 260, 214};
         ScreenChrome.frame(graphics, px, py, 260, 214);
         ScreenChrome.headerBar(graphics, px, py, 260);
-        ScreenChrome.titleCentred(graphics, "Customise Inventory Theme", this.width / 2, py + 10, false);
+        ScreenChrome.titleCentred(graphics, "Customize Inventory Theme", this.width / 2, py + 10, false);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -115,7 +115,7 @@ public final class InventoryCustomizeScreen extends Screen implements MenuThemed
 
     private static Component slotModeText(InventoryThemeConfig cfg) {
         // Not "Slot Color:" - that is the picker's key below (the tooltip key is the label cut at the first ':').
-        return Component.literal("Slot Colour Source: " + (cfg.isUseCustomSlotColor() ? "Custom" : "Base"));
+        return Component.literal("Slot Color Source: " + (cfg.isUseCustomSlotColor() ? "Custom" : "Base"));
     }
 
     private static Component accentModeText(InventoryThemeConfig cfg) {

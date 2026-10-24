@@ -96,7 +96,7 @@ public class CrosshairTab extends BaseTab {
         Style style = cfg.getStyle();
         header(w, sx, y, sw, "Shape");
         if (style != Style.DOT) {
-            toggle(w, sx, y[0], sw, "Centre Dot", cfg::isDot, cfg::setDot, cfg, requestRebuild);
+            toggle(w, sx, y[0], sw, "Center Dot", cfg::isDot, cfg::setDot, cfg, requestRebuild);
             y[0] += STEP;
         }
         if (style.hasArms()) {
@@ -128,8 +128,8 @@ public class CrosshairTab extends BaseTab {
         slider(w, sx, y, sw, "Rotation", "°", CustomCrosshairConfig.MIN_ROTATION, CustomCrosshairConfig.MAX_ROTATION,
                 1f, cfg::getRotation, cfg::setRotation, cfg);
 
-        header(w, sx, y, sw, "Colour");
-        color(w, sx, y[0], sw, "Colour", cfg::getColor, cfg::setColor, 0xFFFFFFFF, cfg);
+        header(w, sx, y, sw, "Color");
+        color(w, sx, y[0], sw, "Color", cfg::getColor, cfg::setColor, 0xFFFFFFFF, cfg);
         y[0] += STEP;
         toggle(w, sx, y[0], half, "Chroma", cfg::isChroma, cfg::setChroma, cfg, requestRebuild);
         toggle(w, sx + half + COL_GAP, y[0], half, "Invert Blend", cfg::isInvertBlend, cfg::setInvertBlend, cfg, null);
@@ -139,11 +139,11 @@ public class CrosshairTab extends BaseTab {
                     0.1f, cfg::getChromaSpeed, cfg::setChromaSpeed, cfg);
         }
         if (style == Style.DOT || cfg.isDot()) {
-            toggle(w, sx, y[0], sw, "Separate Dot Colour", cfg::isSeparateDotColor, cfg::setSeparateDotColor, cfg,
+            toggle(w, sx, y[0], sw, "Separate Dot Color", cfg::isSeparateDotColor, cfg::setSeparateDotColor, cfg,
                     requestRebuild);
             y[0] += STEP;
             if (cfg.isSeparateDotColor()) {
-                color(w, sx, y[0], sw, "Dot Colour", cfg::getDotColor, cfg::setDotColor, 0xFFFF3030, cfg);
+                color(w, sx, y[0], sw, "Dot Color", cfg::getDotColor, cfg::setDotColor, 0xFFFF3030, cfg);
                 y[0] += STEP;
             }
         }
@@ -154,7 +154,7 @@ public class CrosshairTab extends BaseTab {
         if (cfg.isOutline()) {
             slider(w, sx, y, sw, "Outline Thickness", "", CustomCrosshairConfig.MIN_OUTLINE,
                     CustomCrosshairConfig.MAX_OUTLINE, 0.5f, cfg::getOutlineThickness, cfg::setOutlineThickness, cfg);
-            color(w, sx, y[0], sw, "Outline Colour", cfg::getOutlineColor, cfg::setOutlineColor, 0xFF000000, cfg);
+            color(w, sx, y[0], sw, "Outline Color", cfg::getOutlineColor, cfg::setOutlineColor, 0xFF000000, cfg);
             y[0] += STEP;
         }
 
@@ -177,16 +177,16 @@ public class CrosshairTab extends BaseTab {
             slider(w, sx, y, sw, "Recoil Amount", "", CustomCrosshairConfig.MIN_SPREAD,
                     CustomCrosshairConfig.MAX_SPREAD, 0.5f, cfg::getRecoilAmount, cfg::setRecoilAmount, cfg);
         }
-        toggle(w, sx, y[0], sw, "Colour On Entity", cfg::isColorOnEntity, cfg::setColorOnEntity, cfg, requestRebuild);
+        toggle(w, sx, y[0], sw, "Color On Entity", cfg::isColorOnEntity, cfg::setColorOnEntity, cfg, requestRebuild);
         y[0] += STEP;
         if (cfg.isColorOnEntity()) {
-            color(w, sx, y[0], sw, "Entity Colour", cfg::getEntityColor, cfg::setEntityColor, 0xFFFF3030, cfg);
+            color(w, sx, y[0], sw, "Entity Color", cfg::getEntityColor, cfg::setEntityColor, 0xFFFF3030, cfg);
             y[0] += STEP;
         }
-        toggle(w, sx, y[0], sw, "Colour On Block", cfg::isColorOnBlock, cfg::setColorOnBlock, cfg, requestRebuild);
+        toggle(w, sx, y[0], sw, "Color On Block", cfg::isColorOnBlock, cfg::setColorOnBlock, cfg, requestRebuild);
         y[0] += STEP;
         if (cfg.isColorOnBlock()) {
-            color(w, sx, y[0], sw, "Block Colour", cfg::getBlockColor, cfg::setBlockColor, 0xFF40B0FF, cfg);
+            color(w, sx, y[0], sw, "Block Color", cfg::getBlockColor, cfg::setBlockColor, 0xFF40B0FF, cfg);
             y[0] += STEP;
         }
 

@@ -121,8 +121,8 @@ public class DoorKeysTab extends BaseTab {
             });
         }
         y += 22;
-        widgets.add(colorButton("Circle Colour", cfg::getCircleColor, cfg::setCircleColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2aX, y, col2W));
-        widgets.add(colorButton("Tracer Colour", cfg::getTracerColor, cfg::setTracerColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2bX, y, col2W));
+        widgets.add(colorButton("Circle Color", cfg::getCircleColor, cfg::setCircleColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2aX, y, col2W));
+        widgets.add(colorButton("Tracer Color", cfg::getTracerColor, cfg::setTracerColor, 0xFFCC0D0D, 0xFFCC0D0D, cfg, col2bX, y, col2W));
         y += 22;
         if (sphere) {
             widgets.add(colorButton("Sphere Fill", cfg::getFillColor, cfg::setFillColor, 0x38BFBFCC, 0x38BFBFCC, cfg, contentX, y, contentWidth));

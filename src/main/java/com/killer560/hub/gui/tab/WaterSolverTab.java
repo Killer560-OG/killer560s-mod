@@ -45,10 +45,10 @@ public class WaterSolverTab extends BaseTab {
 
         // Renamed from "Alt. Timing" (killer560, 2026-09-20: "rename alt timing to optimized solutions") -
         // same setting, same data (Odin's alternate lever-timing set), clearer label.
-        widgets.add(SettingsButtonWidget.builder(onOff("Optimised Solutions", cfg.isOptimizedPath()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Optimized Solutions", cfg.isOptimizedPath()), btn -> {
                     cfg.setOptimizedPath(!cfg.isOptimizedPath());
                     cfg.save();
-                    btn.setMessage(onOff("Optimised Solutions", cfg.isOptimizedPath()));
+                    btn.setMessage(onOff("Optimized Solutions", cfg.isOptimizedPath()));
                 }).bounds(col2bX, y, col2W, 18).build());
 
         SolverEspRows.append(widgets, com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, contentX, contentWidth, y, true);

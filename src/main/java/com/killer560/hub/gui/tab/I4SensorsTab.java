@@ -46,9 +46,9 @@ public class I4SensorsTab extends BaseTab {
                     btn.setMessage(onOff("Solver", cfg.isSolverEnabled()));
                 }).bounds(col2aX, y, col2W, 18).build());
 
-        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Aim Marker Colour", cfg.getSolverColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Aim Marker Color", cfg.getSolverColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(McCompat.screen(client), "Aim Marker Colour",
+                    McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(McCompat.screen(client), "Aim Marker Color",
                             cfg.getSolverColor(), I4SensorsConfig.DEFAULT_SOLVER_COLOR, argb -> {
                         cfg.setSolverColor(argb);
                         cfg.save();

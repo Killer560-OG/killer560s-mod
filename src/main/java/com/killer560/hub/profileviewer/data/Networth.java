@@ -46,7 +46,7 @@ public final class Networth {
         if (inv != null) {
             cats.add(items("Inventory", inv.inventory(), bins));
             List<ItemStack> armor = new ArrayList<>(inv.armor());
-            cats.add(items("Armour", armor, bins));
+            cats.add(items("Armor", armor, bins));
             cats.add(items("Equipment", inv.equipment(), bins));
             cats.add(items("Wardrobe", flatten(inv.wardrobe()), bins));
             cats.add(items("Ender Chest", flatten(inv.enderChest()), bins));

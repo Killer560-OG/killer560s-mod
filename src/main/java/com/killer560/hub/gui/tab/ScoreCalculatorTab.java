@@ -64,13 +64,13 @@ public class ScoreCalculatorTab extends BaseTab {
         widgets.add(toggle("Bonus Kills", cfg.isShowMimicPrince(), v -> cfg.setShowMimicPrince(v), cfg, contentX, y, colW));
         widgets.add(toggle("Score Text Shadow", cfg.isTextShadow(), v -> cfg.setTextShadow(v), cfg, col2X, y, colW));
         y += 22;
-        widgets.add(colorButton("Label Colour", cfg::getLabelColor, cfg::setLabelColor, ModChat.ORANGE, cfg, contentX, y, colW));
-        widgets.add(colorButton("Sub-label Colour", cfg::getSubLabelColor, cfg::setSubLabelColor, ModChat.LIGHT_ORANGE, cfg, col2X, y, colW));
+        widgets.add(colorButton("Label Color", cfg::getLabelColor, cfg::setLabelColor, ModChat.ORANGE, cfg, contentX, y, colW));
+        widgets.add(colorButton("Sub-label Color", cfg::getSubLabelColor, cfg::setSubLabelColor, ModChat.LIGHT_ORANGE, cfg, col2X, y, colW));
         y += 22;
-        widgets.add(colorButton("Value Colour", cfg::getValueColor, cfg::setValueColor, ModChat.TEXT, cfg, contentX, y, colW));
-        widgets.add(colorButton("Good Colour", cfg::getGoodColor, cfg::setGoodColor, ModChat.GOOD, cfg, col2X, y, colW));
+        widgets.add(colorButton("Value Color", cfg::getValueColor, cfg::setValueColor, ModChat.TEXT, cfg, contentX, y, colW));
+        widgets.add(colorButton("Good Color", cfg::getGoodColor, cfg::setGoodColor, ModChat.GOOD, cfg, col2X, y, colW));
         y += 22;
-        widgets.add(colorButton("Bad Colour", cfg::getBadColor, cfg::setBadColor, ModChat.BAD, cfg, contentX, y, colW));
+        widgets.add(colorButton("Bad Color", cfg::getBadColor, cfg::setBadColor, ModChat.BAD, cfg, contentX, y, colW));
         y += 28;
 
         // ---- Formula ----

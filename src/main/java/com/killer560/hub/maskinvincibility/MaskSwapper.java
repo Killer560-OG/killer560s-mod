@@ -322,7 +322,7 @@ public final class MaskSwapper {
             if (blockedSinceMs == 0L) {
                 blockedSinceMs = now;
             } else if (now - blockedSinceMs > SCREEN_WAIT_MS) {
-                ModChat.send(CHAT, ModChat.bad("Swap to " + target.label() + " cancelled - a screen stayed open."));
+                ModChat.send(CHAT, ModChat.bad("Swap to " + target.label() + " canceled - a screen stayed open."));
                 abort("screen open");
             }
             return;

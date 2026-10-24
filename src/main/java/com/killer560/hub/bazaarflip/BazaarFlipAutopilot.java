@@ -948,7 +948,7 @@ final class BazaarFlipAutopilot {
         }
         ordersReadAtMs = 0L;
         closeMenu(client);
-        done((action instanceof FlipAction.Relist ? "cancelled for a relist: " : "cancelled: ") + o.key());
+        done((action instanceof FlipAction.Relist ? "canceled for a relist: " : "canceled: ") + o.key());
     }
 
     // ---- product pages: Insta Buy, Insta Sell, buy orders, sell offers --------------------------------------------------

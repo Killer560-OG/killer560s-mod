@@ -514,7 +514,7 @@ public final class AutoRoutesCommands {
             case CRYPT -> ModChat.dim(" - place it at the crypt; uses the Crypt Weapon straight down until a crypt or prince dies (a Spirit Sceptre then aims at each crypt mob, two uses each).");
             case BAT -> ModChat.dim(" - place it where the bat flies; uses the Bat Weapon straight down until a secret bat dies.");
             case JUMP -> ModChat.dim(" - presses jump that many times when it fires.");
-            case ALIGN -> ModChat.dim(" - walking into its box lines you up on the block centre, as an AP3 align does.");
+            case ALIGN -> ModChat.dim(" - walking into its box lines you up on the block center, as an AP3 align does.");
             default -> ModChat.text("");
         };
         ModChat.send(FEATURE, ModChat.text(status), tail);

@@ -406,7 +406,7 @@ final class DungeonMapScanner {
             String why = "entrance run length " + foundLength + " at pixel " + foundStart;
             if (!why.equals(lastCalibrationFailure)) {
                 lastCalibrationFailure = why;
-                LOGGER.info("[MapScan] calibration refused: {} (needs a run of colour 30 that is 16 or 18 long), retry in 1 s",
+                LOGGER.info("[MapScan] calibration refused: {} (needs a run of color 30 that is 16 or 18 long), retry in 1 s",
                         why);
             }
             return false;

@@ -116,7 +116,7 @@ public final class BazaarAdvisorSetupScreen extends Screen implements MenuThemed
                 MenuStyle.ellipsize("Bazaar Advisor - question " + (step + 1) + " of 4", panelW - 70));
         String[] questions = {
                 "Where do you sell?",
-                "What should it optimise?",
+                "What should it optimize?",
                 "How do you buy?",
                 "How do you sell on the Bazaar?"
         };

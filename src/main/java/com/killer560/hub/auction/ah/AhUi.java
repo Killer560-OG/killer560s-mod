@@ -61,7 +61,7 @@ public final class AhUi {
 
     /** The API browser's six tabs plus All: label, Hypixel's {@code category} value ("" = all, "*misc" = the rest). */
     public static final String[][] API_TABS = {
-            {"All", ""}, {"Weapons", "weapon"}, {"Armour", "armor"}, {"Accessories", "accessories"},
+            {"All", ""}, {"Weapons", "weapon"}, {"Armor", "armor"}, {"Accessories", "accessories"},
             {"Consumables", "consumables"}, {"Blocks", "blocks"}, {"Tools & Misc", "*misc"}};
 
     public static final int HEADER_H = 16;

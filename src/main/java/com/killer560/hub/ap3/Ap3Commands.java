@@ -464,10 +464,10 @@ public final class Ap3Commands {
             {"/ap3 replace <n> [pos|look]", "Re-place node n where you stand / look"},
             {"/ap3 set <n> width|length <v>", "Trigger box in blocks (any node)"},
             {"/ap3 set <n> wait <ms>", "Wait after the node, 0 = none (any node)"},
-            {"/ap3 set <n> precise on|off", "Align: exact coordinates instead of the block centre"},
+            {"/ap3 set <n> precise on|off", "Align: exact coordinates instead of the block center"},
             {"/ap3 set <n> count <k>", "Leap Counter: teammates that must leap"},
             {"/ap3 set <n> leap default|class <c>|ign <name>", "Leap node target"},
-            {"/ap3 set <n> color <hex>|reset", "Per-node marker colour"},
+            {"/ap3 set <n> color <hex>|reset", "Per-node marker color"},
     };
 
     private static int exec(Action action) {
@@ -945,13 +945,13 @@ public final class Ap3Commands {
                 long v = Long.parseLong(t, 16);
                 argb = (int) (t.length() == 6 ? v | 0xFF000000L : v);
             } catch (NumberFormatException e) {
-                ModChat.send(FEATURE, ModChat.bad("Bad colour "), ModChat.value(hex),
+                ModChat.send(FEATURE, ModChat.bad("Bad color "), ModChat.value(hex),
                         ModChat.text(" - use RRGGBB hex (e.g. FFA040) or \"reset\"."));
                 return false;
             }
         }
         Integer picked = argb;
-        return edit(index, picked == null ? "colour reset" : String.format(Locale.ROOT, "colour #%06X", picked & 0xFFFFFF),
+        return edit(index, picked == null ? "color reset" : String.format(Locale.ROOT, "color #%06X", picked & 0xFFFFFF),
                 n -> true, "", n -> n.colour = picked);
     }
 

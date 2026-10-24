@@ -188,10 +188,10 @@ public class DvdTab extends BaseTab {
         y += ROW_H + 4;
 
         // The colour picker (hex box, Copy / Paste, Recent) instead of a bare 6-digit hex field (2026-10-13).
-        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Text Colour", e.textColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label("Text Color", e.textColor()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     com.killer560.hub.compat.McCompat.setScreen(client, new com.killer560.hub.gui.ColorPickerScreen(
-                            com.killer560.hub.compat.McCompat.screen(client), "DVD Text Colour", e.textColor(), 0xFFFFFFFF,
+                            com.killer560.hub.compat.McCompat.screen(client), "DVD Text Color", e.textColor(), 0xFFFFFFFF,
                             argb -> {
                                 e.textColorHex = String.format(Locale.US, "%06X", argb & 0xFFFFFF);
                                 DvdConfig.getInstance().save();
@@ -206,7 +206,7 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, ROW_H).build());
         y += ROW_H + 4;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Change colour on corner hit: "
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Change color on corner hit: "
                         + (e.changeColorOnCornerHit ? "§aON" : "§cOFF")), btn -> {
                     e.changeColorOnCornerHit = !e.changeColorOnCornerHit;
                     DvdConfig.getInstance().save();
@@ -214,7 +214,7 @@ public class DvdTab extends BaseTab {
                 }).bounds(contentX, y, contentWidth, ROW_H).build());
         y += ROW_H + 4;
 
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Change colour on any wall hit: "
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Change color on any wall hit: "
                         + (e.changeColorOnWallHit ? "§aON" : "§cOFF")), btn -> {
                     e.changeColorOnWallHit = !e.changeColorOnWallHit;
                     DvdConfig.getInstance().save();

@@ -77,8 +77,8 @@ public class PathfindingTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Dim Path", cfg.isDimPath()));
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Colour", cfg.getPathColor()), btn ->
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Path Colour", cfg.getPathColor(),
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Path Color", cfg.getPathColor()), btn ->
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Path Color", cfg.getPathColor(),
                                 PathfindingConfig.DEFAULT_PATH_COLOR, argb -> {
                                     cfg.setPathColor(argb);
                                     cfg.save();
@@ -158,8 +158,8 @@ public class PathfindingTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(onOff("Target Label", cfg.isShowTargetLabel()));
                 }).bounds(contentX, y, col2W, 18).build());
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Colour", cfg.getTargetColor()), btn ->
-                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Colour", cfg.getTargetColor(),
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Target Color", cfg.getTargetColor()), btn ->
+                        McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Target Color", cfg.getTargetColor(),
                                 PathfindingConfig.DEFAULT_TARGET_COLOR, argb -> {
                                     cfg.setTargetColor(argb);
                                     cfg.save();

@@ -45,10 +45,10 @@ public class DungeonInfoTab extends BaseTab {
         y += 24;
 
         // killer560, 2026-10-15: "make it so you can edit the text colour of your secret hud".
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Secrets Text Colour", cfg.getTextColor()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Secrets Text Color", cfg.getTextColor()), btn -> {
                     Minecraft mc = Minecraft.getInstance();
                     com.killer560.hub.compat.McCompat.setScreen(mc, new ColorPickerScreen(
-                            com.killer560.hub.compat.McCompat.screen(mc), "Secrets Text Colour", cfg.getTextColor(),
+                            com.killer560.hub.compat.McCompat.screen(mc), "Secrets Text Color", cfg.getTextColor(),
                             DungeonInfoConfig.DEFAULT_TEXT_COLOR, argb -> {
                         cfg.setTextColor(argb);
                         cfg.save();

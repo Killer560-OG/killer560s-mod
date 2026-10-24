@@ -104,7 +104,7 @@ public final class FastLeapSection {
         y += ROW + GAP + GROUP_GAP - GAP;
 
         // --- Click Behavior: what happens while a leap is actually clicking the menu. ---
-        widgets.add(sectionHeader(x, y, width, "Click Behaviour"));
+        widgets.add(sectionHeader(x, y, width, "Click Behavior"));
         y += SECTION_HEADER_H;
 
         int cols = fitCols(width, 2, MIN_TOGGLE_W);

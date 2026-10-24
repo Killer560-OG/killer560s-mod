@@ -79,7 +79,7 @@ public final class DungeonBreakerFeature {
         boolean blocked = BreakerGuard.protects(client.level, pos);
         if (blocked) {
             logOnce("guard " + pos.toShortString(),
-                    "[Breaker] click cancelled at startDestroyBlock HEAD: pos={} block={} charges={} fairyRoom={} tick={}"
+                    "[Breaker] click canceled at startDestroyBlock HEAD: pos={} block={} charges={} fairyRoom={} tick={}"
                             + " - BreakerGuard protects it, nothing sent", pos.toShortString(),
                     client.level.getBlockState(pos).getBlock().getName().getString(), charges,
                     BreakerGuard.inFairyRoom(pos), com.killer560.hub.util.SessionRecorderSink.tick());

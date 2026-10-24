@@ -79,7 +79,7 @@ public class NameChangerTab extends BaseTab {
             preview.setMessage(previewLine());
         });
         widgets.add(ownField);
-        widgets.add(colorButton(contentX + contentWidth - colorW, y, colorW, "My Name Colour", cfg.getOwnColor(),
+        widgets.add(colorButton(contentX + contentWidth - colorW, y, colorW, "My Name Color", cfg.getOwnColor(),
                 argb -> {
                     cfg.setOwnColor(argb);
                     cfg.save();
@@ -96,11 +96,11 @@ public class NameChangerTab extends BaseTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, rankW, 18).build());
         if (cfg.getOwnRank() != NameRank.Preset.DEFAULT && cfg.getOwnRank() != NameRank.Preset.NONE) {
-            widgets.add(SettingsButtonWidget.cycling(rankColorText("Rank Colour", cfg.getOwnRankColor()), (btn, dir) -> {
+            widgets.add(SettingsButtonWidget.cycling(rankColorText("Rank Color", cfg.getOwnRankColor()), (btn, dir) -> {
                         cfg.setOwnRankColor(stepColor(cfg.getOwnRankColor(), dir));
                         cfg.save();
                         preview.setMessage(previewLine());
-                        btn.setMessage(rankColorText("Rank Colour", cfg.getOwnRankColor()));
+                        btn.setMessage(rankColorText("Rank Color", cfg.getOwnRankColor()));
                     }).bounds(contentX + rankW + gap, y, contentWidth - rankW - gap, 18).build());
         }
         y += 24;
@@ -117,11 +117,11 @@ public class NameChangerTab extends BaseTab {
             });
             widgets.add(rankField);
             y += 24;
-            widgets.add(SettingsButtonWidget.cycling(rankColorText("Plus Colour", cfg.getOwnRankPlusColor()), (btn, dir) -> {
+            widgets.add(SettingsButtonWidget.cycling(rankColorText("Plus Color", cfg.getOwnRankPlusColor()), (btn, dir) -> {
                         cfg.setOwnRankPlusColor(stepColor(cfg.getOwnRankPlusColor(), dir));
                         cfg.save();
                         preview.setMessage(previewLine());
-                        btn.setMessage(rankColorText("Plus Colour", cfg.getOwnRankPlusColor()));
+                        btn.setMessage(rankColorText("Plus Color", cfg.getOwnRankPlusColor()));
                     }).bounds(contentX, y, contentWidth, 18).build());
             y += 24;
         }
@@ -141,14 +141,14 @@ public class NameChangerTab extends BaseTab {
         // Only the local render sees the gradient - SupportersAutoShare only ever shares the FROM colour
         // (My Name Color above), since the relay's own contract has no true-colour field to carry it.
         int fadeToggleW = cfg.isOwnColorFadeEnabled() ? Math.min(100, (contentWidth - gap) / 2) : contentWidth;
-        widgets.add(SettingsButtonWidget.builder(onOff("Fade Colour", cfg.isOwnColorFadeEnabled()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Fade Color", cfg.isOwnColorFadeEnabled()), btn -> {
                     cfg.setOwnColorFadeEnabled(!cfg.isOwnColorFadeEnabled());
                     cfg.save();
                     requestRebuild.run();
                 }).bounds(contentX, y, fadeToggleW, 18).build());
         if (cfg.isOwnColorFadeEnabled()) {
             widgets.add(colorButton(contentX + fadeToggleW + gap, y, contentWidth - fadeToggleW - gap,
-                    "Fade To Colour", cfg.getOwnColorFadeTo(), argb -> {
+                    "Fade To Color", cfg.getOwnColorFadeTo(), argb -> {
                         cfg.setOwnColorFadeTo(argb);
                         cfg.save();
                     }));
@@ -222,7 +222,7 @@ public class NameChangerTab extends BaseTab {
             widgets.add(displayField);
             x += fieldW + gap;
 
-            widgets.add(colorButton(x, y, swatchW, "Rename Colour", m.color, argb -> {
+            widgets.add(colorButton(x, y, swatchW, "Rename Color", m.color, argb -> {
                 m.color = argb;
                 cfg.save();
             }));
@@ -287,7 +287,7 @@ public class NameChangerTab extends BaseTab {
      */
     private int buildLetterColours(List<AbstractWidget> widgets, NameChangerConfig cfg, int contentX, int y,
                                    int contentWidth, net.minecraft.client.gui.Font font, Runnable requestRebuild) {
-        y = CollapsibleSection.header(widgets, contentX, y - 4, contentWidth, "Letter Colours", false,
+        y = CollapsibleSection.header(widgets, contentX, y - 4, contentWidth, "Letter Colors", false,
                 letterColoursOpen, () -> {
                     letterColoursOpen = !letterColoursOpen;
                     requestRebuild.run();
@@ -305,8 +305,8 @@ public class NameChangerTab extends BaseTab {
         }
         int clearW = 130;
         widgets.add(new StringWidget(contentX, y + 3, contentWidth - clearW - 8, 12,
-                Component.literal("§7Click a letter to colour it"), font));
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Letter Colours"), btn -> {
+                Component.literal("§7Click a letter to color it"), font));
+        widgets.add(SettingsButtonWidget.builder(Component.literal("Clear Letter Colors"), btn -> {
                     cfg.clearOwnCharColors();
                     cfg.save();
                     requestRebuild.run();
@@ -379,7 +379,7 @@ public class NameChangerTab extends BaseTab {
         Component block = Component.literal("■").withStyle(
                 Style.EMPTY.withColor(TextColor.fromRgb(shown & 0xFFFFFF)));
         return width >= 40
-                ? Component.literal("Colour: ").append(block)
+                ? Component.literal("Color: ").append(block)
                 : Component.empty().append(block);
     }
 

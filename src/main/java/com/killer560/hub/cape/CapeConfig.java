@@ -24,7 +24,7 @@ public final class CapeConfig {
 
     /** Layouts for the Make Your Own cape. */
     public enum Pattern {
-        SOLID("Solid"), STRIPES("Stripes"), GRADIENT("Gradient"), CENTRE_BAND("Centre Band");
+        SOLID("Solid"), STRIPES("Stripes"), GRADIENT("Gradient"), CENTRE_BAND("Center Band");
 
         public final String label;
 

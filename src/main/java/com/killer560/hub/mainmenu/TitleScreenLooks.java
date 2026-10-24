@@ -93,7 +93,7 @@ public final class TitleScreenLooks {
         l.add(simple(MenuTheme.GREEN, "Fireflies wandering and blinking, spores drifting down (Viridian's Simple scene)."));
         // killer560 (2026-10-16): "for custom on fancy or plain have it do the colors of their custom theme" - Custom's one
         // scene, Fancy and Simple alike, is the embers in its own colors, so it has one look.
-        l.add(simple(MenuTheme.CUSTOM, "Custom's scene (Fancy and Simple): the Simple embers in the Custom colours."));
+        l.add(simple(MenuTheme.CUSTOM, "Custom's scene (Fancy and Simple): the Simple embers in the Custom colors."));
         LOOKS = Collections.unmodifiableList(l);
     }
 

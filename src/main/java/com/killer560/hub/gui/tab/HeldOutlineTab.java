@@ -60,7 +60,7 @@ public class HeldOutlineTab extends BaseTab {
                         btn.setMessage(Component.literal("Outline Side: " + cfg.getSide().label));
                     }).bounds(contentX, y[0], contentWidth, 18).build());
             y[0] += 22;
-            color(w, contentX, y[0], contentWidth, "Outline Colour", cfg::getOutlineColor, cfg::setOutlineColor,
+            color(w, contentX, y[0], contentWidth, "Outline Color", cfg::getOutlineColor, cfg::setOutlineColor,
                     HeldOutlineConfig.DEFAULT_OUTLINE_COLOR, cfg);
             y[0] += 22;
             w.add(new ThemedSliderButton(contentX, y[0], contentWidth, 18, widthLabel(cfg),
@@ -85,7 +85,7 @@ public class HeldOutlineTab extends BaseTab {
             y[0] += 22;
         }
         if (style.fill) {
-            color(w, contentX, y[0], contentWidth, "Fill Colour", cfg::getFillColor, cfg::setFillColor,
+            color(w, contentX, y[0], contentWidth, "Fill Color", cfg::getFillColor, cfg::setFillColor,
                     HeldOutlineConfig.DEFAULT_FILL_COLOR, cfg);
             y[0] += 22;
         }

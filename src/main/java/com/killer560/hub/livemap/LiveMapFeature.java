@@ -735,11 +735,11 @@ public final class LiveMapFeature {
             }
             if (!anchored || nearEntrance) {
                 logConnector(idx, nearEntrance ? "no join: next to the Entrance (an entrance door)"
-                        : "no join: unconfirmed (no map separator, no identified neighbour tile)");
+                        : "no join: unconfirmed (no map separator, no identified neighbor tile)");
                 continue;
             }
             logConnector(idx, mapKind == DungeonMapScanner.KIND_SEPARATOR ? "joins: the map shows a separator"
-                    : "joins: an identified neighbour tile confirms it (world=" + grid[idx] + ")");
+                    : "joins: an identified neighbor tile confirms it (world=" + grid[idx] + ")");
             if (gx > 0 && roomish[idx - 1] && !union(parent, tileCount, rootEntry, idx, idx - 1)) refused++;
             if (gx < GRID - 1 && roomish[idx + 1] && !union(parent, tileCount, rootEntry, idx, idx + 1)) refused++;
             if (gz > 0 && roomish[idx - GRID] && !union(parent, tileCount, rootEntry, idx, idx - GRID)) refused++;

@@ -87,7 +87,7 @@ public final class DungeonQueueFeature {
                     disableRequeue = true;
                     if (pendingTicks >= 0) {
                         pendingTicks = -1;
-                        ModChat.send(FEATURE, ModChat.text("Cancelled - a party member left."));
+                        ModChat.send(FEATURE, ModChat.text("Canceled - a party member left."));
                     }
                     return;
                 }

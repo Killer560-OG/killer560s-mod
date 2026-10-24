@@ -126,7 +126,7 @@ public class TickTimersTab extends BaseTab {
         widgets.add(toggle(col2X, y, colW, "Purple Pad Highlight", cfg::isCrushPadHighlightEnabled, cfg::setCrushPadHighlight));
         y += 22;
         widgets.add(toggle(contentX, y, colW, "Show All Pads", cfg::isCrushAllPads, cfg::setCrushAllPads));
-        widgets.add(colorButton(col2X, y, colW, "Pad Colour", cfg.getCrushPadColor(), TickTimersConfig.DEFAULT_PAD_COLOR,
+        widgets.add(colorButton(col2X, y, colW, "Pad Color", cfg.getCrushPadColor(), TickTimersConfig.DEFAULT_PAD_COLOR,
                 argb -> cfg.setCrushPadColor(argb)));
         y += 22;
         widgets.add(new ThemedSliderButton(contentX, y, colW, 18, intervalText(cfg),

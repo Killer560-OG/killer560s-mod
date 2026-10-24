@@ -64,12 +64,12 @@ public class BlessingsTab extends BaseTab {
         }
         y += 6;
 
-        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Colours", false), mc.font));
+        widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Colors", false), mc.font));
         y += 16;
         left = true;
         for (Blessing blessing : Blessing.values()) {
             int x = left ? contentX : col2X;
-            widgets.add(colorButton(x, y, colW, blessing.displayName() + " Colour", cfg.getColor(blessing),
+            widgets.add(colorButton(x, y, colW, blessing.displayName() + " Color", cfg.getColor(blessing),
                     blessing.defaultColor(), argb -> cfg.setColor(blessing, argb)));
             if (!left) {
                 y += 22;

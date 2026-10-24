@@ -11,7 +11,7 @@ Each track was written from scratch in a Python/numpy script from sine, triangle
 noise sources, with envelopes, a lowpass and an echo. No samples, sample packs or downloaded audio, and no melody or
 chord progression taken from an existing song. Each is a 64-second seamless loop, mono, 44.1 kHz Ogg Vorbis.
 
-Licence: owned by killer560 and shipped with this mod at his request; any wider licence is his to grant. Music a player imports stays in their
+License: owned by killer560 and shipped with this mod at his request; any wider license is his to grant. Music a player imports stays in their
 own config folder and is never part of a release jar.
 
 A sixth loop (edgerunners.ogg) exists for the planned Edgerunners theme. It is deliberately NOT in the mod: it ships

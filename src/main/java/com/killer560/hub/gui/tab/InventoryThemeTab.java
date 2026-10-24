@@ -67,7 +67,7 @@ public class InventoryThemeTab extends BaseTab {
         y += 26;
 
         if (cfg.isCustom()) {
-            widgets.add(SettingsButtonWidget.builder(Component.literal("Customise"), btn -> {
+            widgets.add(SettingsButtonWidget.builder(Component.literal("Customize"), btn -> {
                         Minecraft client = Minecraft.getInstance();
                         McCompat.setScreen(client, new InventoryCustomizeScreen(McCompat.screen(client)));
                     }).bounds(contentX, y, contentWidth, 20).build());

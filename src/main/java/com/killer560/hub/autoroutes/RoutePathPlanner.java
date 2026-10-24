@@ -289,7 +289,7 @@ public final class RoutePathPlanner {
                 PROVERS.remove(src);
                 PROVING.remove(src);
                 if (!prover.proven()) {
-                    LOGGER.info("[RoutePlan] proof of path #{} -> #{} cancelled after {} ms (pair moved, or world change)",
+                    LOGGER.info("[RoutePlan] proof of path #{} -> #{} canceled after {} ms (pair moved, or world change)",
                             a, b, took);
                     return;   // cancelled: the pair moved or went
                 }
@@ -326,7 +326,7 @@ public final class RoutePathPlanner {
     /** Stops every running proof (a world change); their pairs plan again when they are next needed. */
     public static void cancelProofs() {
         if (!PROVERS.isEmpty()) {
-            LOGGER.info("[RoutePlan] cancelling {} running path proof(s)", PROVERS.size());
+            LOGGER.info("[RoutePlan] canceling {} running path proof(s)", PROVERS.size());
         }
         for (EtherwarpPathfinder.Prover p : PROVERS.values()) {
             p.cancel();

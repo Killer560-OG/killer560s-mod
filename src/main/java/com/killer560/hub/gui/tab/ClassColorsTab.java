@@ -16,7 +16,7 @@ import java.util.List;
 public class ClassColorsTab extends BaseTab {
 
     public ClassColorsTab() {
-        super("Class Colours");
+        super("Class Colors");
     }
 
     @Override
@@ -28,7 +28,7 @@ public class ClassColorsTab extends BaseTab {
         int colB = contentX + half + gap;
         int y = contentY;
 
-        w.add(SettingsButtonWidget.builder(onOff("Class Colours", cfg.classColorsEnabled), btn -> {
+        w.add(SettingsButtonWidget.builder(onOff("Class Colors", cfg.classColorsEnabled), btn -> {
                     cfg.classColorsEnabled = !cfg.classColorsEnabled;
                     cfg.save();
                     requestRebuild.run();

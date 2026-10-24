@@ -167,9 +167,9 @@ public class PosmsgTab extends BaseTab {
                     btn.setMessage(onOff("Only Send Once Per Run", e.onceOnlyPerRun));
                 }).bounds(col2, y, colW, ROW).build());
 
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Colour", e.color()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", e.color()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Waypoint Colour", e.color(),
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), "Waypoint Color", e.color(),
                             0xFFCC6600, argb -> {
                                 e.colorHex = String.format("%06X", argb & 0xFFFFFF);
                                 PosmsgConfig.getInstance().save();

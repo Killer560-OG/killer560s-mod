@@ -104,8 +104,8 @@ public class ThornTab extends BaseTab {
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, SectionHeaders.header("Stun Spots", false), mc.font));
         y += 16;
         widgets.add(toggle(contentX, y, colW, "Stun Spot Waypoints", cfg::getStunSpotsRaw, cfg::setStunSpots));
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Stun Spot Colour", cfg.getStunSpotColor()), btn ->
-                McCompat.setScreen(mc, new ColorPickerScreen(McCompat.screen(mc), "Stun Spot Colour", cfg.getStunSpotColor(),
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Stun Spot Color", cfg.getStunSpotColor()), btn ->
+                McCompat.setScreen(mc, new ColorPickerScreen(McCompat.screen(mc), "Stun Spot Color", cfg.getStunSpotColor(),
                         ThornConfig.DEFAULT_STUN_SPOT_COLOR, argb -> {
                     cfg.setStunSpotColor(argb);
                     cfg.save();
@@ -161,9 +161,9 @@ public class ThornTab extends BaseTab {
                                   BooleanSupplier getter, Consumer<Boolean> setter, String colorName,
                                   IntSupplier colorGetter, IntConsumer colorSetter, int defaultColor) {
         widgets.add(toggle(x, y, width, name, getter, setter));
-        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label(colorName + " Colour", colorGetter.getAsInt()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(ColorSwatch.label(colorName + " Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
-                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Colour",
+                    McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",
                             colorGetter.getAsInt(), defaultColor, argb -> {
                         colorSetter.accept(argb);
                         ThornConfig.getInstance().save();

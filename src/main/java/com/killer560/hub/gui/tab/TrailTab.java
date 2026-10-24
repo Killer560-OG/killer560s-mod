@@ -96,7 +96,7 @@ public class TrailTab extends BaseTab {
         });
         y[0] += 22;
 
-        toggle(w, contentX, y[0], contentWidth, "Fade Towards Tail", cfg::isFadeOut, v -> {
+        toggle(w, contentX, y[0], contentWidth, "Fade Toward Tail", cfg::isFadeOut, v -> {
             cfg.setFadeOut(v);
             cfg.save();
         });

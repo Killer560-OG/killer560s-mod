@@ -141,7 +141,7 @@ public class ObjectHiderTab extends BaseTab {
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Smoke Particles", cfg::getHideSmokeParticlesRaw, cfg::setHideSmokeParticles);
 
-        header(widgets, contentX, contentWidth, y, "Render Optimiser");
+        header(widgets, contentX, contentWidth, y, "Render Optimizer");
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Disable Text Shadow", cfg::getDisableTextShadowRaw, cfg::setDisableTextShadow);

@@ -26,7 +26,7 @@ public final class SupporterNameValidator {
             char c = name.charAt(i);
             if (c == '&') {
                 if (i + 1 >= name.length() || VALID_CODES.indexOf(name.charAt(i + 1)) < 0) {
-                    return "Unknown colour code - only &0-9, &a-f, &k-o and &r are allowed.";
+                    return "Unknown color code - only &0-9, &a-f, &k-o and &r are allowed.";
                 }
                 i++; // the code letter itself isn't a visible character either
                 continue;

@@ -64,7 +64,7 @@ public final class SpecialRoomGuess {
             return noted(tile, out, "its only door is the blood door and no Blood Room is opened");
         }
         if (!oneTile(tile)) {
-            return noted(tile, out, "not known to be one tile (a neighbour is unopened or joined)");
+            return noted(tile, out, "not known to be one tile (a neighbor is unopened or joined)");
         }
         int puzzles = 0;
         boolean trap = false;

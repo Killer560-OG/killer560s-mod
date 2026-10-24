@@ -356,7 +356,7 @@ public final class StorageSearchIndex {
         }
         if (eq != null) {
             String n = eq.getName();
-            return "Armour · " + (n.isEmpty() ? n : Character.toUpperCase(n.charAt(0)) + n.substring(1));
+            return "Armor · " + (n.isEmpty() ? n : Character.toUpperCase(n.charAt(0)) + n.substring(1));
         }
         return "Inventory · slot " + slot;
     }

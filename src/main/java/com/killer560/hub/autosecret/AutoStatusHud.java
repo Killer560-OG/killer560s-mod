@@ -316,9 +316,9 @@ public final class AutoStatusHud {
             return "finding mobs";
         }
         if (a.startsWith("etherwarp to ") || a.startsWith("waiting to land")) {
-            return failures > 0 ? "stuck - retrying" : "travelling";
+            return failures > 0 ? "stuck - retrying" : "traveling";
         }
-        if (a.startsWith("etherwarp towards")) {
+        if (a.startsWith("etherwarp toward")) {
             return "warping to mob";
         }
         if (a.contains(" -> ")) {
@@ -342,7 +342,7 @@ public final class AutoStatusHud {
                 case KEY -> "getting key";
                 case PUZZLE, ICE_FILL -> "to the puzzle";
                 case EXPLORE -> "exploring";
-                default -> "travelling";
+                default -> "traveling";
             };
             case AWAIT_ROUTE -> "starting route";
             case ROUTE -> "running route";

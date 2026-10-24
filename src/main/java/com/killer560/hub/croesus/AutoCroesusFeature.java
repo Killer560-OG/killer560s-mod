@@ -217,7 +217,7 @@ public final class AutoCroesusFeature {
         }
         if (armed) {
             armed = false;
-            ModChat.send("Auto Croesus", ModChat.text("Cancelled - press "), ModChat.value("Start Croesus"),
+            ModChat.send("Auto Croesus", ModChat.text("Canceled - press "), ModChat.value("Start Croesus"),
                     ModChat.text(" again to run it."));
             return true;
         }

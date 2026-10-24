@@ -384,7 +384,7 @@ public final class SecretAuraFeature {
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
                     if (distSq <= capSq * 2.0) {
-                        logCand(key, "outOfRange", kind, pos, distSq, "skull centre limit=" + fmt(cfg.getAuraSkullRange())
+                        logCand(key, "outOfRange", kind, pos, distSq, "skull center limit=" + fmt(cfg.getAuraSkullRange())
                                 + " boxCap=" + fmt(CheatUtilsConfig.MEASURED_MAX_REACH));
                     }
                     continue;

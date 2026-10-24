@@ -26,7 +26,7 @@ import java.util.Locale;
 public final class CustomScoreboardConfig {
 
     public enum Align {
-        LEFT("Left"), CENTER("Centre"), RIGHT("Right");
+        LEFT("Left"), CENTER("Center"), RIGHT("Right");
 
         public final String label;
 
@@ -44,7 +44,7 @@ public final class CustomScoreboardConfig {
     }
 
     public enum HorizontalSnap {
-        NONE("Free"), LEFT("Left"), CENTER("Centre"), RIGHT("Right");
+        NONE("Free"), LEFT("Left"), CENTER("Center"), RIGHT("Right");
 
         public final String label;
 
@@ -62,7 +62,7 @@ public final class CustomScoreboardConfig {
     }
 
     public enum VerticalSnap {
-        NONE("Free"), TOP("Top"), CENTER("Centre"), BOTTOM("Bottom");
+        NONE("Free"), TOP("Top"), CENTER("Center"), BOTTOM("Bottom");
 
         public final String label;
 
