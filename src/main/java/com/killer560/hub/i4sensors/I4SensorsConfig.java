@@ -1,5 +1,6 @@
 package com.killer560.hub.i4sensors;
 
+import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -129,43 +130,42 @@ public final class I4SensorsConfig {
             instance = new I4SensorsConfig();
             return;
         }
+        JsonObject obj;
         try {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            I4SensorsConfig cfg = new I4SensorsConfig();
-            cfg.legacyVerboseEnabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.solverEnabled = obj.has("solverEnabled") && obj.get("solverEnabled").getAsBoolean();
-            cfg.solverColor = obj.has("solverColor") ? obj.get("solverColor").getAsInt() : DEFAULT_SOLVER_COLOR;
-            if (cfg.solverColor == PREVIOUS_DEFAULT_SOLVER_COLOR) {
-                cfg.solverColor = DEFAULT_SOLVER_COLOR; // saved only because it was the old default, not a real pick
-            }
-            cfg.autoI4Enabled = obj.has("autoI4Enabled") && obj.get("autoI4Enabled").getAsBoolean();
-            cfg.autoI4Rotate = !obj.has("autoI4Rotate") || obj.get("autoI4Rotate").getAsBoolean();
-            cfg.setAutoI4RotationTimeMs(obj.has("autoI4RotationTimeMs") ? obj.get("autoI4RotationTimeMs").getAsInt() : 170);
-            cfg.setAutoI4PrefireLeadMs(obj.has("autoI4PrefireLeadMs") ? obj.get("autoI4PrefireLeadMs").getAsInt() : 1000);
-            cfg.autoI4Predictions = !obj.has("autoI4Predictions") || obj.get("autoI4Predictions").getAsBoolean();
-            if (obj.has("autoI4Weapon")) {
-                try {
-                    cfg.autoI4Weapon = Weapon.valueOf(obj.get("autoI4Weapon").getAsString());
-                } catch (IllegalArgumentException ignored) {
-                    cfg.autoI4Weapon = Weapon.TERMINATOR;
-                }
-            }
-            cfg.autoSwapToBow = obj.has("autoSwapToBow") && obj.get("autoSwapToBow").getAsBoolean();
-            cfg.autoMask = obj.has("autoMask") && obj.get("autoMask").getAsBoolean();
-            cfg.setMaskOrderIndex(readMaskOrderIndex(obj));
-            cfg.setShotAccuracyPercent(obj.has("shotAccuracyPercent") ? obj.get("shotAccuracyPercent").getAsInt() : 100);
-            cfg.setCpsRange(obj.has("cpsMin") ? obj.get("cpsMin").getAsInt() : 4, obj.has("cpsMax") ? obj.get("cpsMax").getAsInt() : 6);
-            instance = cfg;
+            obj = JsonParser.parseString(json).getAsJsonObject();
         } catch (Exception e) {
+            // Only a file that does not parse at all lands here: keep a copy before a save writes defaults over it.
+            ConfigJson.backupBroken(CONFIG_PATH);
             instance = new I4SensorsConfig();
+            return;
         }
+        // Each key on its own (ConfigJson): one malformed value falls back to its own default, the rest still load.
+        I4SensorsConfig cfg = new I4SensorsConfig();
+        cfg.legacyVerboseEnabled = ConfigJson.getBool(obj, "enabled", false);
+        cfg.solverEnabled = ConfigJson.getBool(obj, "solverEnabled", false);
+        cfg.solverColor = ConfigJson.getInt(obj, "solverColor", DEFAULT_SOLVER_COLOR);
+        if (cfg.solverColor == PREVIOUS_DEFAULT_SOLVER_COLOR) {
+            cfg.solverColor = DEFAULT_SOLVER_COLOR; // saved only because it was the old default, not a real pick
+        }
+        cfg.autoI4Enabled = ConfigJson.getBool(obj, "autoI4Enabled", false);
+        cfg.autoI4Rotate = ConfigJson.getBool(obj, "autoI4Rotate", true);
+        cfg.setAutoI4RotationTimeMs(ConfigJson.getInt(obj, "autoI4RotationTimeMs", 170));
+        cfg.setAutoI4PrefireLeadMs(ConfigJson.getInt(obj, "autoI4PrefireLeadMs", 1000));
+        cfg.autoI4Predictions = ConfigJson.getBool(obj, "autoI4Predictions", true);
+        cfg.autoI4Weapon = ConfigJson.getEnum(obj, "autoI4Weapon", Weapon.class, Weapon.TERMINATOR);
+        cfg.autoSwapToBow = ConfigJson.getBool(obj, "autoSwapToBow", false);
+        cfg.autoMask = ConfigJson.getBool(obj, "autoMask", false);
+        cfg.setMaskOrderIndex(readMaskOrderIndex(obj));
+        cfg.setShotAccuracyPercent(ConfigJson.getInt(obj, "shotAccuracyPercent", 100));
+        cfg.setCpsRange(ConfigJson.getInt(obj, "cpsMin", 4), ConfigJson.getInt(obj, "cpsMax", 6));
+        instance = cfg;
     }
 
     /** Reads {@code maskOrderIndex} against whichever {@link #ORDERS} table it was written for. */
     private static int readMaskOrderIndex(JsonObject obj) {
-        int saved = obj.has("maskOrderIndex") ? obj.get("maskOrderIndex").getAsInt() : 0;
-        int version = obj.has("maskOrderVersion") ? obj.get("maskOrderVersion").getAsInt() : 1;
+        int saved = ConfigJson.getInt(obj, "maskOrderIndex", 0);
+        int version = ConfigJson.getInt(obj, "maskOrderVersion", 1);
         if (version >= MASK_ORDER_VERSION) {
             return saved;
         }

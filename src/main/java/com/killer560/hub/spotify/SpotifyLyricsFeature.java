@@ -144,20 +144,40 @@ public final class SpotifyLyricsFeature {
 
     // ---- Party detection ----
 
+    // Hypixel's own party lines, whole-line and with a name group no chat prefix can fill: the old contains() checks
+    // let any player's message ("... joined the party", "... disbanded the party") flip where lyrics went. The same
+    // shapes leapmenu/PartyTracker reads.
+    private static final String PARTY_NAME = "(?:\\[[^]]+] )?[A-Za-z0-9_]{1,16}";
+    private static final java.util.regex.Pattern PARTY_JOINED = java.util.regex.Pattern.compile(
+            "^(?:" + PARTY_NAME + " joined the party\\.|You have joined " + PARTY_NAME + "'s? party!"
+                    + "|You'll be partying with: .+)$");
+    private static final java.util.regex.Pattern PARTY_LEFT = java.util.regex.Pattern.compile(
+            "^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by "
+                    + PARTY_NAME + "|" + PARTY_NAME + " has disbanded the party!|The party was disbanded because .+)$");
+
     private static void registerChatListeners() {
-        ClientReceiveMessageEvents.CHAT.register(
-                (message, signedMessage, sender, params, receptionTimestamp) ->
-                        updatePartyStatus(com.killer560.hub.util.ChatObserver.raw(message)));
-        ClientReceiveMessageEvents.GAME.register(
-                (message, overlay) -> updatePartyStatus(com.killer560.hub.util.ChatObserver.raw(message)));
+        // Party lines are server (GAME) lines, never signed player chat, so only GAME is read, and never the action
+        // bar. Caught: a throw in a raw listener disconnects him from Hypixel.
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (overlay) {
+                return;
+            }
+            try {
+                updatePartyStatus(com.killer560.hub.util.ChatObserver.strip(message));
+            } catch (RuntimeException e) {
+                LOGGER.warn("Spotify Lyrics party check failed: {}", e.toString());
+            }
+        });
     }
 
     private static void updatePartyStatus(String text) {
-        if (text.contains("joined the party") || text.contains("You have joined")
-                || text.contains("You'll be partied with") || text.contains("created a party")) {
+        if (text == null) {
+            return;
+        }
+        String line = text.trim();
+        if (PARTY_JOINED.matcher(line).matches()) {
             inParty = true;
-        } else if (text.contains("You left the party") || text.contains("The party was disbanded")
-                || text.contains("You have been kicked from the party") || text.contains("disbanded the party")) {
+        } else if (PARTY_LEFT.matcher(line).matches()) {
             inParty = false;
         }
     }

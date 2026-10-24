@@ -61,12 +61,26 @@ public final class SelfDerivation {
         // ChatObserver deliberately drops overlay (action bar) lines, so the secrets counter needs its own
         // subscription. Overlay lines arrive several times a second - onActionBar does nothing until the
         // numbers actually change.
+        // This raw listener runs on the packet path, where a throw disconnects him from Hypixel ("Failed to handle
+        // packet"), so it catches everything, as ChatObserver does per listener. Logged once: the action bar
+        // arrives several times a second and a fault here would repeat on every line.
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) {
+            if (!overlay) {
+                return;
+            }
+            try {
                 onActionBar(message);
+            } catch (RuntimeException t) {
+                if (!actionBarFailureLogged) {
+                    actionBarFailureLogged = true;
+                    LOGGER.error("[Interop] action bar read threw; ignoring that line (logged once)", t);
+                }
             }
         });
     }
+
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-interop");
+    private static boolean actionBarFailureLogged;
 
     static void onRunReset() {
         lastRoomReported = "";

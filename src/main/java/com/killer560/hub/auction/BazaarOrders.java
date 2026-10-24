@@ -49,6 +49,8 @@ public final class BazaarOrders {
     }
 
     private static final Map<String, Snapshot> BY_PROFILE = new LinkedHashMap<>();
+    /** Stored profiles that failed to parse, as stored: written back untouched so a save never drops them. */
+    private static final Map<String, JsonElement> UNREADABLE = new LinkedHashMap<>();
     private static boolean loaded;
     private static int ticks;
     private static String lastSignature = "";
@@ -175,24 +177,47 @@ public final class BazaarOrders {
             return;
         }
         loaded = true;
+        JsonObject profiles;
         try {
             if (!Files.exists(PATH)) {
                 return;
             }
             JsonObject root = JsonParser.parseString(Files.readString(PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("profiles").entrySet()) {
+            profiles = root.getAsJsonObject("profiles");
+            if (profiles == null) {
+                throw new IllegalStateException("no \"profiles\" object");
+            }
+        } catch (Exception e) {
+            Path backup = com.killer560.hub.util.ConfigJson.backupBroken(PATH);
+            LOGGER.warn("[Bazaar] stored orders unreadable; starting empty (copy kept at {})", backup, e);
+            return;
+        }
+        // Each profile on its own: one bad entry used to stop the loop, and the next save then wrote only the
+        // profiles read before it, deleting the rest's orders from disk.
+        boolean backedUp = false;
+        for (Map.Entry<String, JsonElement> e : profiles.entrySet()) {
+            try {
                 JsonObject p = e.getValue().getAsJsonObject();
                 List<BazaarOrderParser.Order> orders = new ArrayList<>();
                 for (JsonElement el : p.getAsJsonArray("orders")) {
-                    BazaarOrderParser.Order o = fromJson(el.getAsJsonObject());
+                    BazaarOrderParser.Order o = el != null && el.isJsonObject() ? fromJson(el.getAsJsonObject()) : null;
                     if (o != null) {
                         orders.add(o);
                     }
                 }
                 BY_PROFILE.put(e.getKey(), new Snapshot(e.getKey(), p.get("seenAtMs").getAsLong(), List.copyOf(orders)));
+            } catch (Exception ex) {
+                // Kept exactly as stored and written back by every save, until the menu is read on that profile.
+                UNREADABLE.put(e.getKey(), e.getValue());
+                if (!backedUp) {
+                    backedUp = true;
+                    Path backup = com.killer560.hub.util.ConfigJson.backupBroken(PATH);
+                    LOGGER.warn("[Bazaar] stored orders for profile {} unreadable; kept as stored (file copied to {})",
+                            e.getKey(), backup, ex);
+                } else {
+                    LOGGER.warn("[Bazaar] stored orders for profile {} unreadable; kept as stored", e.getKey());
+                }
             }
-        } catch (Exception e) {
-            LOGGER.warn("[Bazaar] stored orders unreadable; starting empty", e);
         }
     }
 
@@ -200,6 +225,11 @@ public final class BazaarOrders {
         try {
             JsonObject root = new JsonObject();
             JsonObject profiles = new JsonObject();
+            for (Map.Entry<String, JsonElement> e : UNREADABLE.entrySet()) {
+                if (!BY_PROFILE.containsKey(e.getKey())) {
+                    profiles.add(e.getKey(), e.getValue());
+                }
+            }
             for (Snapshot s : BY_PROFILE.values()) {
                 JsonObject p = new JsonObject();
                 p.addProperty("seenAtMs", s.seenAtMs());
@@ -258,6 +288,7 @@ public final class BazaarOrders {
     /** For tests: forget everything in memory (the file stays). */
     public static synchronized void clearForTest() {
         BY_PROFILE.clear();
+        UNREADABLE.clear();
         lastSignature = "";
         loaded = true;
     }

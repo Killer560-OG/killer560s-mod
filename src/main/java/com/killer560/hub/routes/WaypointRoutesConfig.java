@@ -1,5 +1,6 @@
 package com.killer560.hub.routes;
 
+import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -71,28 +72,37 @@ public final class WaypointRoutesConfig {
         if (!Files.exists(CONFIG_PATH)) {
             return;
         }
+        JsonObject obj;
         try {
-            JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-            cfg.enabled = getBool(obj, "enabled", false);
-            for (int i = 0; i < KEY_JSON.length; i++) {
-                cfg.keyCodes[i] = obj.has(KEY_JSON[i]) ? com.killer560.hub.util.KeyUtil.sanitize(obj.get(KEY_JSON[i]).getAsInt()) : -1;
-            }
-            cfg.lineToNext = getBool(obj, "lineToNext", true);
-            cfg.routeLines = getBool(obj, "routeLines", true);
-            cfg.showNumbers = getBool(obj, "showNumbers", true);
-            cfg.showDistance = getBool(obj, "showDistance", true);
-            cfg.startAtNearest = getBool(obj, "startAtNearest", true);
-            cfg.setTextScale(obj.has("textScale") ? obj.get("textScale").getAsFloat() : 1.0f);
-            cfg.setLineThickness(obj.has("lineThickness") ? obj.get("lineThickness").getAsFloat() : 2.0f);
-            cfg.targetColor = obj.has("targetColor") ? obj.get("targetColor").getAsInt() : DEFAULT_TARGET_COLOR;
-            cfg.selectedRouteId = obj.has("selectedRouteId") ? obj.get("selectedRouteId").getAsString() : null;
-            if (obj.has("activeByArea")) {
-                for (Map.Entry<String, com.google.gson.JsonElement> e : obj.getAsJsonObject("activeByArea").entrySet()) {
-                    cfg.activeByArea.put(e.getKey(), e.getValue().getAsString());
+            obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (Exception e) {
+            // Only a file that does not parse at all lands here: keep a copy before a save writes defaults over it.
+            ConfigJson.backupBroken(CONFIG_PATH);
+            return; // instance is already the defaults
+        }
+        // Each key on its own (ConfigJson): one malformed value falls back to its own default, the rest still load.
+        cfg.enabled = getBool(obj, "enabled", false);
+        for (int i = 0; i < KEY_JSON.length; i++) {
+            cfg.keyCodes[i] = obj.has(KEY_JSON[i])
+                    ? com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, KEY_JSON[i], -1)) : -1;
+        }
+        cfg.lineToNext = getBool(obj, "lineToNext", true);
+        cfg.routeLines = getBool(obj, "routeLines", true);
+        cfg.showNumbers = getBool(obj, "showNumbers", true);
+        cfg.showDistance = getBool(obj, "showDistance", true);
+        cfg.startAtNearest = getBool(obj, "startAtNearest", true);
+        cfg.setTextScale(ConfigJson.getFloat(obj, "textScale", 1.0f));
+        cfg.setLineThickness(ConfigJson.getFloat(obj, "lineThickness", 2.0f));
+        cfg.targetColor = ConfigJson.getInt(obj, "targetColor", DEFAULT_TARGET_COLOR);
+        cfg.selectedRouteId = ConfigJson.getString(obj, "selectedRouteId", null);
+        JsonObject active = ConfigJson.getObject(obj, "activeByArea");
+        if (active != null) {
+            for (Map.Entry<String, com.google.gson.JsonElement> e : active.entrySet()) {
+                String routeId = ConfigJson.getString(active, e.getKey(), null);
+                if (routeId != null) {
+                    cfg.activeByArea.put(e.getKey(), routeId); // a bad entry drops alone
                 }
             }
-        } catch (Exception e) {
-            instance = new WaypointRoutesConfig();
         }
     }
 
@@ -123,7 +133,7 @@ public final class WaypointRoutesConfig {
     }
 
     private static boolean getBool(JsonObject obj, String key, boolean def) {
-        return obj.has(key) ? obj.get(key).getAsBoolean() : def;
+        return ConfigJson.getBool(obj, key, def);
     }
 
     public boolean isEnabled() {

@@ -58,8 +58,9 @@ import java.util.regex.Pattern;
  * <p>
  * Loading is defensive because this file is meant to be handed around: chain/node counts and string lengths are
  * capped, NaN/infinite/absurd coordinates are dropped, a malformed node is skipped (the rest of the chain loads),
- * and a file whose parse fails is copied aside ONCE as {@code killer560smod-ap3.broken.json} and never saved over -
- * the same rule {@code autoroutes/RouteStore} follows after its 2026-09-16 review.
+ * and a file whose parse fails is copied aside as {@code <name>.broken.json} (a later, different corruption as
+ * {@code <name>.<millis>.broken.json}) and never saved over - the same rule {@code autoroutes/RouteStore} follows
+ * after its 2026-09-16 review.
  */
 public final class Ap3Store {
 
@@ -338,6 +339,13 @@ public final class Ap3Store {
                     Path backup = file.resolveSibling(brokenName(fileName));
                     if (!Files.exists(backup)) {
                         Files.copy(file, backup);
+                    } else if (Files.mismatch(file, backup) != -1L) {
+                        // A DIFFERENT corruption than the one already kept. Skipping it meant the next edit cleared
+                        // parseFailed and saved straight over it, losing the file with no backup (RouteStore's
+                        // 2026-09-16 fix). Still ends in .broken.json, so the chooser keeps hiding it.
+                        String stem = brokenName(fileName);
+                        stem = stem.substring(0, stem.length() - BROKEN_SUFFIX.length());
+                        Files.copy(file, file.resolveSibling(stem + "." + System.currentTimeMillis() + BROKEN_SUFFIX));
                     }
                 } catch (Exception backupError) {
                     LOGGER.warn("[AP3] Could not back up the unreadable chains file", backupError);

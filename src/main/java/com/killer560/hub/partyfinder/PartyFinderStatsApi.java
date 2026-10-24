@@ -545,7 +545,7 @@ public final class PartyFinderStatsApi {
                         throttled(w, display, r);
                     } else if (shown.get() == null && cause instanceof ProfileViewerApi.ApiException) {
                         // Mojang answered: no such account. Final.
-                        finalFailure(w, display, "Mojang name lookup: " + ProfileViewerApi.messageFor(t), CACHE_MS);
+                        finalFailure(w, display, "Mojang name lookup: " + ProfileViewerApi.messageFor(t), FAILURE_RETRY_MS);
                     } else {
                         String why = ProfileViewerApi.messageFor(t);
                         transientFailure(w, display, shown.get() != null ? why : "Mojang name lookup: " + why);
@@ -597,11 +597,11 @@ public final class PartyFinderStatsApi {
         SbProfile chosen = SbProfile.dungeonProfile(profiles);
         String source = result.source() == null ? "SkyBlockPV backend" : result.source();
         if (chosen == null) {
-            finalFailure(w, display, source + ": no SkyBlock profile", CACHE_MS);
+            finalFailure(w, display, source + ": no SkyBlock profile", FAILURE_RETRY_MS);
             return;
         }
         if (chosen.dungeons.catacombsXp() <= 0 && chosen.dungeons.totalRuns() <= 0) {
-            finalFailure(w, display, source + ": no Catacombs data on any of " + profiles.size() + " profile(s)", CACHE_MS);
+            finalFailure(w, display, source + ": no Catacombs data on any of " + profiles.size() + " profile(s)", FAILURE_RETRY_MS);
             return;
         }
         PlayerStats stats = toStats(profiles, System.currentTimeMillis());
@@ -817,7 +817,7 @@ public final class PartyFinderStatsApi {
                     }
                     case "missing" -> {
                         missing++;
-                        finalFailure(w, name, clean(r.get("reason")), CACHE_MS);
+                        finalFailure(w, name, clean(r.get("reason")), FAILURE_RETRY_MS);
                     }
                     default -> {
                         error++;

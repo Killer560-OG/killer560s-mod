@@ -1,5 +1,6 @@
 package com.killer560.hub.inventoryhud;
 
+import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -103,19 +104,21 @@ public final class InventoryHudConfig {
                 cfg.vertical = bool(obj, "vertical", cfg.vertical);
                 cfg.miniMode = bool(obj, "miniMode", cfg.miniMode);
                 cfg.background = enumValue(obj, "background", Background.class, cfg.background);
-                cfg.backgroundOpacity = obj.has("backgroundOpacity")
-                        ? clampOpacity(obj.get("backgroundOpacity").getAsInt()) : cfg.backgroundOpacity;
-                cfg.itemOpacity = obj.has("itemOpacity")
-                        ? clampOpacity(obj.get("itemOpacity").getAsInt()) : cfg.itemOpacity;
+                cfg.backgroundOpacity = clampOpacity(ConfigJson.getInt(obj, "backgroundOpacity", cfg.backgroundOpacity));
+                cfg.itemOpacity = clampOpacity(ConfigJson.getInt(obj, "itemOpacity", cfg.itemOpacity));
                 cfg.showCounts = bool(obj, "showCounts", cfg.showCounts);
                 cfg.showDurability = bool(obj, "showDurability", cfg.showDurability);
                 cfg.pickupAnimation = bool(obj, "pickupAnimation", cfg.pickupAnimation);
                 cfg.hideWhenEmpty = bool(obj, "hideWhenEmpty", cfg.hideWhenEmpty);
                 cfg.hideInScreens = bool(obj, "hideInScreens", cfg.hideInScreens);
                 cfg.visibility = enumValue(obj, "visibility", Visibility.class, cfg.visibility);
-                cfg.keyCode = obj.has("keyCode") ? com.killer560.hub.util.KeyUtil.sanitize(obj.get("keyCode").getAsInt()) : cfg.keyCode;
+                cfg.keyCode = obj.has("keyCode")
+                        ? com.killer560.hub.util.KeyUtil.sanitize(ConfigJson.getInt(obj, "keyCode", cfg.keyCode)) : cfg.keyCode;
                 cfg.toggledVisible = bool(obj, "toggledVisible", cfg.toggledVisible);
             } catch (Exception e) {
+                // Only a file that does not parse at all gets here (each key reads on its own): keep a copy before
+                // the next save writes the defaults over it.
+                ConfigJson.backupBroken(CONFIG_PATH);
                 cfg = new InventoryHudConfig();
             }
         }
@@ -145,19 +148,13 @@ public final class InventoryHudConfig {
         }
     }
 
+    /** Per key and never throwing: one bad value falls back to its own default and the rest still load. */
     private static boolean bool(JsonObject obj, String key, boolean def) {
-        return obj.has(key) ? obj.get(key).getAsBoolean() : def;
+        return ConfigJson.getBool(obj, key, def);
     }
 
     private static <E extends Enum<E>> E enumValue(JsonObject obj, String key, Class<E> type, E def) {
-        if (!obj.has(key)) {
-            return def;
-        }
-        try {
-            return Enum.valueOf(type, obj.get(key).getAsString());
-        } catch (IllegalArgumentException e) {
-            return def;
-        }
+        return ConfigJson.getEnum(obj, key, type, def);
     }
 
     private static int clampOpacity(int value) {
