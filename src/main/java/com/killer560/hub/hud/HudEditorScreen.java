@@ -380,7 +380,7 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
                 }
                 continue;
             }
-            String label = element.displayName() + (anchored ? String.format(" (%.1fx)", own) : sizeNote(element, own));
+            String label = element.displayName() + (anchored ? String.format(java.util.Locale.ROOT, " (%.1fx)", own) : sizeNote(element, own));
             int labelRoom = Math.max(scaledW + 2 * BOX_PAD, 24);
             if (!dragging && element != hover && this.font.width(label) > labelRoom) {
                 label = this.font.plainSubstrByWidth(label, labelRoom - this.font.width("...")) + "...";
@@ -460,12 +460,12 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
     private static String sizeNote(HudElement element, float own) {
         if (element instanceof ResizableHudElement r) {
             try {
-                return String.format(" (%.1fx, %dx%d)", own, r.resizeWidth(), r.resizeHeight());
+                return String.format(java.util.Locale.ROOT, " (%.1fx, %dx%d)", own, r.resizeWidth(), r.resizeHeight());
             } catch (RuntimeException e) {
                 // fall through to the plain scale
             }
         }
-        return String.format(" (%.1fx)", own);
+        return String.format(java.util.Locale.ROOT, " (%.1fx)", own);
     }
 
     /** The cursor for a handle: the matching resize arrow, or the 4-way move arrow inside a box. */
