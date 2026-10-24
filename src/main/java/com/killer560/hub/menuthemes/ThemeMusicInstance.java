@@ -23,6 +23,10 @@ class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundI
     private volatile boolean stopped;
     /** True for an imported file: {@link #resolve} makes its Sound instead of looking up an event. */
     private final boolean imported;
+    /** Ticks since a menu track started; its volume ramps up over {@link #FADE_IN_TICKS} so it does not start abruptly. */
+    private int ticksPlaying;
+    /** Two seconds of ticks. Play Preview is not faded: he asked for the menu track to ease in as the menu boots. */
+    private static final int FADE_IN_TICKS = 40;
 
     ThemeMusicInstance(Identifier event) {
         this(event, false);
@@ -42,7 +46,7 @@ class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundI
         this.x = 0;
         this.y = 0;
         this.z = 0;
-        this.volume = ThemeMusic.gain();
+        this.volume = looping ? 0f : ThemeMusic.gain();
         this.imported = imported;
     }
 
@@ -72,7 +76,11 @@ class ThemeMusicInstance extends AbstractSoundInstance implements TickableSoundI
 
     @Override
     public void tick() {
-        this.volume = ThemeMusic.gain();
+        float fade = 1f;
+        if (looping && ticksPlaying < FADE_IN_TICKS) {
+            fade = ++ticksPlaying / (float) FADE_IN_TICKS;
+        }
+        this.volume = ThemeMusic.gain() * fade;
     }
 
     /** The volume this instance asks for, before the engine's own scaling ({@code getVolume} needs a resolved sound). */

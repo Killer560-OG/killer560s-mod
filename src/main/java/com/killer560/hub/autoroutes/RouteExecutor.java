@@ -1403,6 +1403,10 @@ public final class RouteExecutor {
         }
         RouteRunMemory.noteProgress(route.roomName(), nextNode, ordered.size());
         checkCorrections(client, player);
+        if (!AutoRoutesFeature.screenBlocks(client) && containerMenuOpen(player)) {
+            // A chest's menu is open on the server before its screen is drawn: no sneak goes out under it.
+            wantSneak = false;
+        }
         if (AutoRoutesFeature.screenBlocks(client)) {
             if (activeNode != null && (awaitHeld || (activeNode.awaitEnabled && !nodeActed))) {
                 // Waiting on secrets: the screen is almost always the secret itself - a chest's own window
@@ -3386,6 +3390,11 @@ public final class RouteExecutor {
     /** How far (blocks) from the spot a warp's look belongs to still counts as standing on it. */
     private static final double REAIM_EPSILON = 0.01;
 
+    /** A container's menu is open on the server (a chest the route or he clicked), whether or not its screen is drawn yet. */
+    private static boolean containerMenuOpen(LocalPlayer player) {
+        return player.containerMenu != player.inventoryMenu;
+    }
+
     /**
      * One etherwarp, from {@link #warpYaw}/{@link #warpPitch} onto {@link #warpLanding}: an ew node's own, or one hop
      * of a path. Fire tick: slot, sneak and aim are all asked for at once. The use goes out as soon as the server has
@@ -3399,6 +3408,11 @@ public final class RouteExecutor {
      * @return true on the tick the server-confirmed landing is seen
      */
     private static boolean tickWarp(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (containerMenuOpen(player)) {
+            // Held until the container's menu is closed: a sneak through its close is MultiActionsD.
+            wantSneak = false;
+            return false;
+        }
         if (step == Step.PREP) {
             warpPacedTicks = 0;
             warpTurnFirstTicks = 0;
