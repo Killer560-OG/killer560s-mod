@@ -908,6 +908,12 @@ public final class SimItems {
             // Silent. killer560 (2026-10-04) asked for this chat line to go; the refusal itself stays.
             return false;
         }
+        // Nothing to break (air, or a negative destroy speed: barrier, bedrock): no charge spent, since the swing
+        // breaks nothing. Before this check a swing at Boulder's barrier ceiling cost a charge.
+        BlockState before = level.getBlockState(target);
+        if (before.isAir() || before.getDestroySpeed(level, target) < 0) {
+            return false;
+        }
         if (!SimBreakerState.trySpend()) {
             // Hypixel's own line, word for word, and at Hypixel's pace: his 2026-10-07 log has it once a second
             // (23:50:28 to :37, one each second) while the pickaxe was held on a block with no charges - never one
