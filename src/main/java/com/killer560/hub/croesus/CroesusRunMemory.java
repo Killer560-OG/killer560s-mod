@@ -167,17 +167,28 @@ final class CroesusRunMemory {
      * when the head only gives hours), voted for a shift of one whole page and gave page 2's runs page 1's states - the
      * highlights that "completely bug out and won't update" after Auto Croesus had been through page 1 (killer560,
      * 2026-10-18). Allowed: 2 places, plus one for every {@link #MIN_RUN_GAP_MS} since the run was last seen.
+     * <p>
+     * Later in the list only as many places as runs could have been added since (no slack): only a new run pushes a run
+     * later. With the 2 free places, page 1's last run, read a second before, was "reachable" from page 2's first slot,
+     * voted for a shift of one there and was handed page 2's first head, so every run on page 2 took its neighbor's
+     * memory and the run left over read "not looked at" (killer560, 2026-10-24: "randomly marks a run as not seen
+     * before", most of all off page 1). Earlier keeps the slack: a run ahead expiring needs no time (testkit 888).
      */
     static boolean reachable(Run r, Entry e, long now) {
         if (r.seenAtMs <= 0) {
             return true;
         }
         long gaps = Math.max(0L, now - r.seenAtMs) / MIN_RUN_GAP_MS;
-        return Math.abs(r.order - e.order()) <= 2 + gaps;
+        int later = e.order() - r.order;
+        return later > 0 ? later <= gaps : -later <= 2 + gaps;
     }
 
     /** The fastest a party can start another run into the list: no dungeon run is shorter than this. */
     private static final long MIN_RUN_GAP_MS = 180_000L;
+
+    private static boolean onPage(int order, int pageFirst, int per) {
+        return order >= pageFirst && order < pageFirst + per;
+    }
 
     private static boolean inWindow(Run r, Entry e) {
         return r.sig.equals(e.sig()) && Math.abs(r.expiresAt - e.expiresAt()) <= r.tolMs + e.tolMs() + READ_SLACK_MS;
@@ -201,6 +212,13 @@ final class CroesusRunMemory {
         List<Integer> deltas = new ArrayList<>(votes.keySet());
         deltas.sort((a, b) -> votes.get(b).equals(votes.get(a)) ? Integer.compare(Math.abs(a), Math.abs(b))
                 : Integer.compare(votes.get(b), votes.get(a)));
+        // A page read sees one page of the list, so every run whose head is on another page looks free here. Only the
+        // winning shift may bring a run in from another page; the weaker shifts and the leftovers below take only a run
+        // that the winning shift puts on this page. Before, an unseen head at a page's edge took the next page's
+        // first run (or the run the shift had just pushed off this page), and that page then read its own run as new.
+        int win = deltas.isEmpty() ? 0 : deltas.get(0);
+        int per = DungeonChestValuer.RUN_HEAD_SLOTS.length;
+        int pageFirst = entries.isEmpty() ? 0 : Math.floorDiv(entries.get(0).order(), per) * per;
         for (int d : deltas) {
             for (int i = 0; i < entries.size(); i++) {
                 if (out[i] != null) {
@@ -208,7 +226,8 @@ final class CroesusRunMemory {
                 }
                 Entry e = entries.get(i);
                 for (Run r : RUNS) {
-                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e) && reachable(r, e, now)) {
+                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e) && reachable(r, e, now)
+                            && (d == win || onPage(r.order - win, pageFirst, per))) {
                         out[i] = r;
                         used.add(r);
                         break;
@@ -228,7 +247,7 @@ final class CroesusRunMemory {
             List<Run> fit = new ArrayList<>();
             for (Run r : RUNS) {
                 if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
-                        && reachable(r, e, now)) {
+                        && reachable(r, e, now) && onPage(r.order - win, pageFirst, per)) {
                     fit.add(r);
                 }
             }
