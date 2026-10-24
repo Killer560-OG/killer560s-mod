@@ -119,6 +119,11 @@ public class ModScreen extends Screen {
         void render(GuiGraphicsExtractor g, int x, int y, int w, int mouseX, int mouseY);
 
         boolean click(int x, int y, int w, double mx, double my);
+
+        /** A press of mouse {@code button}; a block that has no right-click meaning ignores every button but the left. */
+        default boolean click(int x, int y, int w, double mx, double my, int button) {
+            return button == 0 && click(x, y, w, mx, my);
+        }
     }
 
     private final List<Item> items = new ArrayList<>();
@@ -1259,8 +1264,9 @@ public class ModScreen extends Screen {
         }
         if (!pageMode() && inside(mx, my, gridX, gridY, gridW, gridH)) {
             unfocusSearch();
-            if (button == 0) {
-                gridClick(mx, my);
+            if (button == 0 || button == 1) {
+                // A right click reaches the Home blocks too, so the Main Menu: Fancy/Simple chip steps back on it.
+                gridClick(mx, my, button);
             }
             return true;
         }
@@ -1445,7 +1451,7 @@ public class ModScreen extends Screen {
         rebuild();
     }
 
-    private void gridClick(double mx, double my) {
+    private void gridClick(double mx, double my, int button) {
         double gy = my + gridScroll;
         if (my < gridY + 2 || my > gridY + gridH - 2) {
             return;
@@ -1455,10 +1461,10 @@ public class ModScreen extends Screen {
                 continue;
             }
             if (it.kind == ItemKind.BLOCK) {
-                it.block.click(it.x, it.y - gridScroll, it.w, mx, my);
+                it.block.click(it.x, it.y - gridScroll, it.w, mx, my, button);
                 return;
             }
-            if (it.kind != ItemKind.CARD) {
+            if (it.kind != ItemKind.CARD || button != 0) {
                 return;
             }
             clickSound();
@@ -3014,12 +3020,16 @@ public class ModScreen extends Screen {
             return click(x, y, w, mx, my, 0);
         }
 
-        boolean click(int x, int y, int w, double mx, double my, int button) {
+        @Override
+        public boolean click(int x, int y, int w, double mx, double my, int button) {
             MenuTheme[] all = MenuTheme.values();
             for (int i = 0; i <= all.length + 1; i++) {
                 int[] b = chip(i, x, y, w);
                 if (!inside(mx, my, b[0], b[1], b[2], b[3])) {
                     continue;
+                }
+                if (button != 0 && i != all.length + 1) {
+                    return false; // only the scene chip steps back on a right click; the other chips take the left
                 }
                 clickSound();
                 if (i == all.length + 1) {
