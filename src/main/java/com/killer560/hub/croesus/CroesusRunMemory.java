@@ -175,14 +175,22 @@ final class CroesusRunMemory {
      * voted for a shift of one there and was handed page 2's first head, so every run on page 2 took its neighbor's
      * memory and the run left over read "not looked at" (killer560, 2026-10-24: "randomly marks a run as not seen
      * before", most of all off page 1). Earlier keeps the slack: a run ahead expiring needs no time (testkit 888).
+     * <p>
+     * Runs finish at least {@link #MIN_RUN_GAP_MS} apart, but the first can finish a moment after the read, so up to
+     * 1 + (time since seen) / gap runs can have joined. That one extra join is allowed only to a run that was on the page
+     * now read: those runs vote for both "no join" and "one join", so the page's own heads decide between them and a tie
+     * goes to no join. A run from another page carried here by it would add a vote the "no join" shift cannot have (the
+     * run it would pair with is off the page), so a join nothing shows would win by that one vote, which is the leak
+     * above. Across a page edge only the joins the time allows count (testkit 906, 1018-croesus-page-match).
      */
-    static boolean reachable(Run r, Entry e, long now) {
+    static boolean reachable(Run r, Entry e, long now, int pageFirst, int per) {
         if (r.seenAtMs <= 0) {
             return true;
         }
         long gaps = Math.max(0L, now - r.seenAtMs) / MIN_RUN_GAP_MS;
         int later = e.order() - r.order;
-        return later > 0 ? later <= gaps : -later <= 2 + gaps;
+        long joins = gaps + (onPage(r.order, pageFirst, per) ? 1 : 0);
+        return later > 0 ? later <= joins : -later <= 2 + gaps;
     }
 
     /** The fastest a party can start another run into the list: no dungeon run is shorter than this. */
@@ -217,13 +225,15 @@ final class CroesusRunMemory {
         long now = System.currentTimeMillis();
         Run[] out = new Run[entries.size()];
         java.util.Set<Run> used = new java.util.HashSet<>();
+        int per = DungeonChestValuer.RUN_HEAD_SLOTS.length;
+        int pageFirst = entries.isEmpty() ? 0 : Math.floorDiv(entries.get(0).order(), per) * per;
         // 1. Every in-window pair votes for the list's shift; the most common shift assigns them. A tie goes to the shift
         // whose pairs the heads contradict least ({@link #contradicts}), then to the smallest.
         Map<Integer, Integer> votes = new HashMap<>();
         Map<Integer, Integer> against = new HashMap<>();
         for (Entry e : entries) {
             for (Run r : RUNS) {
-                if (inWindow(r, e) && reachable(r, e, now)) {
+                if (inWindow(r, e) && reachable(r, e, now, pageFirst, per)) {
                     votes.merge(r.order - e.order(), 1, Integer::sum);
                     if (contradicts(r, e, now)) {
                         against.merge(r.order - e.order(), 1, Integer::sum);
@@ -242,8 +252,6 @@ final class CroesusRunMemory {
         // that the winning shift puts on this page. Before, an unseen head at a page's edge took the next page's
         // first run (or the run the shift had just pushed off this page), and that page then read its own run as new.
         int win = deltas.isEmpty() ? 0 : deltas.get(0);
-        int per = DungeonChestValuer.RUN_HEAD_SLOTS.length;
-        int pageFirst = entries.isEmpty() ? 0 : Math.floorDiv(entries.get(0).order(), per) * per;
         for (int d : deltas) {
             for (int i = 0; i < entries.size(); i++) {
                 if (out[i] != null) {
@@ -251,8 +259,8 @@ final class CroesusRunMemory {
                 }
                 Entry e = entries.get(i);
                 for (Run r : RUNS) {
-                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e) && reachable(r, e, now)
-                            && (d == win || onPage(r.order - win, pageFirst, per))) {
+                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e)
+                            && reachable(r, e, now, pageFirst, per) && (d == win || onPage(r.order - win, pageFirst, per))) {
                         out[i] = r;
                         used.add(r);
                         break;
@@ -272,7 +280,7 @@ final class CroesusRunMemory {
             List<Run> fit = new ArrayList<>();
             for (Run r : RUNS) {
                 if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
-                        && reachable(r, e, now) && onPage(r.order - win, pageFirst, per)) {
+                        && reachable(r, e, now, pageFirst, per) && onPage(r.order - win, pageFirst, per)) {
                     fit.add(r);
                 }
             }
