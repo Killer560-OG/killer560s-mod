@@ -87,7 +87,7 @@ public final class SimTeleportCommands {
                                     DoubleArgumentType.getDouble(ctx, "blocks"))))
                     .executes(ctx -> {
                         ModChat.send("Sim", ModChat.dim("/c <blocks> - clip along your look vector, "
-                                + "negative goes backwards"));
+                                + "negative goes backward"));
                         return 1;
                     }));
         });

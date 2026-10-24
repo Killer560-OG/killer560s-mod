@@ -774,8 +774,8 @@ final class SettingTooltipsData {
         d.put("rank name colors", "Colors member names by Hypixel rank instead of dungeon class.");
         d.put("custom style", "Type the member line format for Custom style, using placeholders and & color codes.");
         d.put("motion blur", "Blends each frame with the previous ones for a motion blur effect.");
-        d.put("freelook", "F5 cycles to the backwards view and back in one press; hold the Pan Key to swing the camera without turning you.");
-        d.put("freelook/mode", "Hold: the backwards view lasts while F5 is held. Toggle: each F5 press switches it on or off. F5 is whatever key is bound to Toggle Perspective in Controls.");
+        d.put("freelook", "F5 cycles to the backward view and back in one press; hold the Pan Key to swing the camera without turning you.");
+        d.put("freelook/mode", "Hold: the backward view lasts while F5 is held. Toggle: each F5 press switches it on or off. F5 is whatever key is bound to Toggle Perspective in Controls.");
         d.put("freelook/pan key", "Key or mouse button to hold to pan the camera around you with the mouse. Works in any view; from first person it shows the normal third-person view while held. Esc while binding clears it.");
         d.put("strength", "How much of the previous frame is kept (0-100%); higher means longer trails.");
         d.put("blur gui", "Also blurs the HUD and open menus.");
@@ -2311,7 +2311,7 @@ final class SettingTooltipsData {
         d.put("posmsg/set to my position", "Saves where you are standing as this waypoint's center.");
         d.put("wither dragons/normal power", "Power 0 always splits this dragon by class instead. 22 is a common value for Normal.");
         d.put("wither dragons/easy power", "Power 0 always splits this dragon by class instead. 19 is a common value for Easy.");
-        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (bevelled panel, sunken slots) in the colors of the Theme. Also hides the potion effects panel beside them.");
+        d.put("inventory theme/inventory theme", "Re-skins the chest and inventory screens, and the hotbar: vanilla's own shapes (beveled panel, sunken slots) in the colors of the Theme. Also hides the potion effects panel beside them.");
         d.put("inventory theme/theme", "The colors: Default matches whatever theme the mod menu is on. Scroll to one of the menu's themes (or one you saved), to Vanilla (vanilla's own grays), or to Custom, which shows a Customize row.");
         d.put("inventory theme/customize", "Opens a menu for the Custom look: its Base colors, slot color and accent color.");
         d.put("inventory theme/base", "The colors the Custom look starts from: Amber, Dark (neutral grays) or Light. The Storage Overlay has the same three.");

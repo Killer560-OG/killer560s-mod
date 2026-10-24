@@ -233,7 +233,7 @@ public final class TeleportMazeSolverFeature {
                 correctPortals.size() == 1 ? " " + correctPortals.iterator().next().toShortString() : "");
         LOGGER.info("[TeleportMaze] after teleport {}: visited={}/{} links={} best next pad={}{}", teleportSeq,
                 visited.size(), tpPads.size(), links.size(), best == null ? "none" : best.toShortString(),
-                from == null || to == null ? " (link not learnt: " + (from == null ? "no pad under the old position" : "")
+                from == null || to == null ? " (link not learned: " + (from == null ? "no pad under the old position" : "")
                         + (from == null && to == null ? ", " : "") + (to == null ? "no pad under the landing" : "") + ")" : "");
     }
 

@@ -1655,7 +1655,7 @@ final class AutoBlaze {
             // with an item in hand does not open it, so wait rather than burn an attempt.
             if (com.killer560.hub.util.ServerLag.serverMsSince(auraWaitStartMs, auraWaitLag) > CHEST_WAIT_MS) {
                 secretAuraAttempts++;
-                LOGGER.info("[AutoPuzzles] Blaze: still sneaking at the chest after {} ms - attempt {}/{} burnt",
+                LOGGER.info("[AutoPuzzles] Blaze: still sneaking at the chest after {} ms - attempt {}/{} burned",
                         CHEST_WAIT_MS, secretAuraAttempts, MAX_AURA_ATTEMPTS);
             } else {
                 held("secretsneak", "at the chest - waiting for the landing's sneak to let go");
@@ -1667,7 +1667,7 @@ final class AutoBlaze {
         double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), target);
         if (distSq > AURA_REACH_SQ) {
             secretAuraAttempts++;
-            LOGGER.info("[AutoPuzzles] Blaze: chest at {} out of reach ({} > {}) from {} - attempt {}/{} burnt",
+            LOGGER.info("[AutoPuzzles] Blaze: chest at {} out of reach ({} > {}) from {} - attempt {}/{} burned",
                     AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
                     String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(AURA_REACH_SQ)), fmt(player.position()),
                     secretAuraAttempts, MAX_AURA_ATTEMPTS);

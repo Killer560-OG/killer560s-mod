@@ -546,7 +546,7 @@ final class Autopilot {
             actionsDone++;
         }
         if (failed) {
-            LOGGER.info("[Autopilot] (that trip failed - not learnt from)");
+            LOGGER.info("[Autopilot] (that trip failed - not learned from)");
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
