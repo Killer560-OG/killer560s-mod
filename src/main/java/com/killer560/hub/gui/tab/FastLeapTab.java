@@ -85,18 +85,33 @@ public class FastLeapTab extends BaseTab {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return false;
         }
-        List<AbstractWidget> scan = new ArrayList<>();
-        FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
-        scan.add(header(0, 0, 200, "Leaps"));
-        FastLeapSection.buildLeapList(scan, 0, 0, 400, () -> {});
         String q = query.toLowerCase(Locale.US);
-        for (AbstractWidget widget : scan) {
+        for (AbstractWidget widget : searchScan()) {
             String text = ChatFormatting.stripFormatting(widget.getMessage().getString());
             if (text != null && text.toLowerCase(Locale.US).contains(q)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** The setting hits come from the same off-screen scan as {@link #matchesSearch}, so a row the switch hides is
+     *  listed too, not just the tab. */
+    @Override
+    public List<String> searchHits(String query) {
+        if (!BuildVariant.CHEAT_FEATURES_ENABLED || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        return searchHitsIn(searchScan(), query);
+    }
+
+    /** Every row of the tab, including the ones the master switch or Block Inputs hide. */
+    private static List<AbstractWidget> searchScan() {
+        List<AbstractWidget> scan = new ArrayList<>();
+        FastLeapSection.buildGeneral(scan, 0, 0, 200, () -> {}, true);
+        scan.add(header(0, 0, 200, "Leaps"));
+        FastLeapSection.buildLeapList(scan, 0, 0, 400, () -> {});
+        return scan;
     }
 
     private static StringWidget header(int x, int y, int width, String title) {

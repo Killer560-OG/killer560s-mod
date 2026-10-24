@@ -153,8 +153,8 @@ public class PosmsgTab extends BaseTab {
                 PosmsgEntry.MIN_RADIUS, PosmsgEntry.MAX_RADIUS, e.radius, 0.5, v -> e.radius = v, () -> radiusText(e)));
         y += ROW + GAP;
 
-        widgets.add(SettingsButtonWidget.builder(thicknessText(e), btn -> {
-                    e.thickness = e.thickness >= 6.0 ? 1.0 : e.thickness + 0.5;
+        widgets.add(SettingsButtonWidget.cycling(thicknessText(e), (btn, dir) -> {
+                    e.thickness = SettingsButtonWidget.step(e.thickness, 0.5, 1.0, 6.0, dir);
                     PosmsgConfig.getInstance().save();
                     btn.setMessage(thicknessText(e));
                 }).bounds(col1, y, colW, ROW).build());

@@ -381,6 +381,17 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
     /** Search has to see the settings inside a collapsed section without opening it on screen, so the scan builds
      *  with both laid out open (Ap3Tab's approach). Only ever run from the search field's responder. */
     @Override
+    public List<String> searchHits(String query) {
+        // The setting hits are listed from the same scan as matchesSearch, so a row in a closed section is listed too.
+        scanningForSearch = true;
+        try {
+            return super.searchHits(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
+    @Override
     public boolean matchesSearch(String query) {
         if (query.isBlank() || nameMatches(query)) {
             return true;

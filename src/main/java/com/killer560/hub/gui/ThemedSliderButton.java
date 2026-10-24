@@ -203,11 +203,34 @@ public abstract class ThemedSliderButton extends AbstractSliderButton implements
         String before = getMessage().getString();
         double nudge = 1.0 / Math.max(1, getWidth() - 8);
         double target = this.value;
-        for (int i = 0; i < 4000 && target > 0.0 && target < 1.0; i++) {
-            target += right ? nudge : -nudge;
-            setValue(Math.max(0.0, Math.min(1.0, target)));
-            if (!getMessage().getString().equals(before)) {
-                break;
+        // Each nudge below is its own setValue, so each would write the file; collect the saves here instead and write
+        // only the last nudge's once, so one key press is one save.
+        boolean outer = stepSaves == null;
+        java.util.List<Runnable> latest = null;
+        try {
+            for (int i = 0; i < 4000 && target > 0.0 && target < 1.0; i++) {
+                target += right ? nudge : -nudge;
+                if (outer) {
+                    stepSaves = new java.util.ArrayList<>();
+                }
+                setValue(Math.max(0.0, Math.min(1.0, target)));
+                if (outer) {
+                    latest = stepSaves;
+                }
+                if (!getMessage().getString().equals(before)) {
+                    break;
+                }
+            }
+        } finally {
+            if (outer) {
+                stepSaves = null;
+                if (latest != null && !latest.isEmpty()) {
+                    if (pressHeld) {
+                        pendingSaves = latest;
+                    } else {
+                        runAll(latest);
+                    }
+                }
             }
         }
         return true;

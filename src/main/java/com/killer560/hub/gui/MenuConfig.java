@@ -78,71 +78,132 @@ public final class MenuConfig {
         return instance;
     }
 
+    /**
+     * Each field is read on its own, so one bad value (a malformed color, a non-number {@code activeSaved}) keeps only
+     * that field's default and the favorites and saved themes beside it survive. A file that does not parse at all is
+     * copied to {@code killer560smod-menu.json.broken} first, so the next save cannot write the defaults over the only
+     * copy.
+     */
     public static void load() {
         MenuConfig cfg = new MenuConfig();
         if (Files.exists(CONFIG_PATH)) {
+            JsonObject obj = null;
             try {
-                JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
-                        .getAsJsonObject();
-                if (obj.has("theme")) {
-                    cfg.theme = MenuTheme.parse(obj.get("theme").getAsString());
-                }
-                if (obj.has("animations")) {
-                    cfg.animations = MenuAnim.Mode.parse(obj.get("animations").getAsString());
-                }
-                if (obj.has("animationSpeed")) {
-                    cfg.animationSpeed = MenuAnim.Speed.parse(obj.get("animationSpeed").getAsString());
-                }
-                if (obj.has("customBase")) {
-                    MenuTheme b = MenuTheme.parse(obj.get("customBase").getAsString());
-                    cfg.customBase = b == MenuTheme.CUSTOM ? MenuTheme.AMBER : b;
-                }
-                System.arraycopy(cfg.customBase.base(), 0, cfg.custom, 0, cfg.custom.length);
-                if (obj.has("custom") && obj.get("custom").isJsonObject()) {
-                    readColours(obj.getAsJsonObject("custom"), cfg.custom);
-                }
-                if (obj.has("savedThemes") && obj.get("savedThemes").isJsonArray()) {
-                    for (JsonElement e : obj.getAsJsonArray("savedThemes")) {
-                        if (!e.isJsonObject()) {
-                            continue;
-                        }
-                        JsonObject t = e.getAsJsonObject();
-                        MenuTheme base = t.has("base") ? MenuTheme.parse(t.get("base").getAsString()) : MenuTheme.AMBER;
-                        base = base == MenuTheme.CUSTOM ? MenuTheme.AMBER : base;
-                        int[] cols = base.base();
-                        if (t.has("colours") && t.get("colours").isJsonObject()) {
-                            readColours(t.getAsJsonObject("colours"), cols);
-                        }
-                        String name = t.has("name") ? t.get("name").getAsString() : "";
-                        String id = t.has("id") && t.get("id").isJsonPrimitive() ? t.get("id").getAsString().trim() : "";
-                        cfg.savedThemes.add(new SavedTheme(id, cleanName(name), base, cols));
-                    }
-                }
-                cfg.assignMissingIds();
-                if (obj.has("activeSaved")) {
-                    int a = obj.get("activeSaved").getAsInt();
-                    cfg.activeSaved = a >= 0 && a < cfg.savedThemes.size() ? a : -1;
-                }
-                if (obj.has("favourites") && obj.get("favourites").isJsonArray()) {
-                    for (JsonElement e : obj.getAsJsonArray("favourites")) {
-                        if (e.isJsonPrimitive() && !e.getAsString().isBlank()) {
-                            cfg.favourites.add(e.getAsString().trim());
-                        }
-                    }
-                }
-            } catch (Exception ignored) {
-                // A broken file reads as the defaults, like every other config.
+                obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
+            } catch (Exception e) {
+                backUpBroken();
+            }
+            if (obj != null) {
+                cfg.readFrom(obj);
             }
         }
         instance = cfg;
         version++;
     }
 
+    private static void backUpBroken() {
+        try {
+            Files.copy(CONFIG_PATH, CONFIG_PATH.resolveSibling(CONFIG_PATH.getFileName() + ".broken"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (Exception ignored) {
+            // Nothing more to do: the defaults still load.
+        }
+    }
+
+    private void readFrom(JsonObject obj) {
+        try {
+            if (obj.has("theme")) {
+                theme = MenuTheme.parse(obj.get("theme").getAsString());
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (obj.has("animations")) {
+                animations = MenuAnim.Mode.parse(obj.get("animations").getAsString());
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (obj.has("animationSpeed")) {
+                animationSpeed = MenuAnim.Speed.parse(obj.get("animationSpeed").getAsString());
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (obj.has("customBase")) {
+                MenuTheme b = MenuTheme.parse(obj.get("customBase").getAsString());
+                customBase = b == MenuTheme.CUSTOM ? MenuTheme.AMBER : b;
+            }
+        } catch (Exception ignored) {
+        }
+        System.arraycopy(customBase.base(), 0, custom, 0, custom.length);
+        if (obj.has("custom") && obj.get("custom").isJsonObject()) {
+            readColours(obj.getAsJsonObject("custom"), custom);
+        }
+        if (obj.has("savedThemes") && obj.get("savedThemes").isJsonArray()) {
+            for (JsonElement e : obj.getAsJsonArray("savedThemes")) {
+                if (!e.isJsonObject()) {
+                    continue;
+                }
+                JsonObject t = e.getAsJsonObject();
+                MenuTheme base = MenuTheme.AMBER;
+                try {
+                    if (t.has("base")) {
+                        base = MenuTheme.parse(t.get("base").getAsString());
+                    }
+                } catch (Exception ignored) {
+                }
+                base = base == null || base == MenuTheme.CUSTOM ? MenuTheme.AMBER : base;
+                int[] cols = base.base();
+                if (t.has("colours") && t.get("colours").isJsonObject()) {
+                    readColours(t.getAsJsonObject("colours"), cols);
+                }
+                String name = "";
+                try {
+                    if (t.has("name")) {
+                        name = t.get("name").getAsString();
+                    }
+                } catch (Exception ignored) {
+                }
+                String id = "";
+                try {
+                    if (t.has("id") && t.get("id").isJsonPrimitive()) {
+                        id = t.get("id").getAsString().trim();
+                    }
+                } catch (Exception ignored) {
+                }
+                savedThemes.add(new SavedTheme(id, cleanName(name), base, cols));
+            }
+        }
+        assignMissingIds();
+        try {
+            if (obj.has("activeSaved")) {
+                int a = obj.get("activeSaved").getAsInt();
+                activeSaved = a >= 0 && a < savedThemes.size() ? a : -1;
+            }
+        } catch (Exception ignored) {
+        }
+        if (obj.has("favourites") && obj.get("favourites").isJsonArray()) {
+            for (JsonElement e : obj.getAsJsonArray("favourites")) {
+                try {
+                    if (e.isJsonPrimitive() && !e.getAsString().isBlank()) {
+                        favourites.add(e.getAsString().trim());
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    /** Reads each color on its own: a malformed one keeps the color already in {@code into}. */
     private static void readColours(JsonObject c, int[] into) {
         for (MenuTheme.Slot slot : MenuTheme.Slot.values()) {
             String k = slot.name().toLowerCase(java.util.Locale.ROOT);
-            if (c.has(k)) {
-                into[slot.ordinal()] = 0xFF000000 | (int) Long.parseLong(c.get(k).getAsString().replace("#", ""), 16);
+            try {
+                if (c.has(k)) {
+                    into[slot.ordinal()] = 0xFF000000 | (int) Long.parseLong(c.get(k).getAsString().replace("#", ""), 16);
+                }
+            } catch (Exception ignored) {
             }
         }
     }

@@ -121,7 +121,7 @@ public class LeapMenuTab extends BaseTab {
             y += ROW + GAP;
 
             // 2026-10-11: each box shows the teammate's face; and the map style for the clear (boxes again in boss).
-            widgets.add(SettingsButtonWidget.cycling(onOff("Show Player Heads", cfg.isShowHeads()), (btn, dir) -> {
+            widgets.add(SettingsButtonWidget.builder(onOff("Show Player Heads", cfg.isShowHeads()), btn -> {
                         cfg.setShowHeads(!cfg.isShowHeads());
                         cfg.save();
                         btn.setMessage(onOff("Show Player Heads", cfg.isShowHeads()));

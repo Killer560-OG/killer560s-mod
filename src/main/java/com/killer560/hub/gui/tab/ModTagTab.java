@@ -20,6 +20,13 @@ public class ModTagTab extends BaseTab {
         super("Mod User Tag");
     }
 
+    /** Two independent switches (seeing other users' tags, and sharing your own), so the card is ON while either is on
+     *  (CLAUDE.md's masterToggles rule); with both off it turns on only the first, never the sharing one. */
+    @Override
+    public List<SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "See Other Mod Users", "Show Me As A Mod User");
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> widgets = new ArrayList<>();
