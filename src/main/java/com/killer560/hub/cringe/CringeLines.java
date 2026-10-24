@@ -187,7 +187,29 @@ public final class CringeLines {
             "I don't get intimidated. I get curious about how this ends for you.",
             "The world tried to break me once. It's still apologizing.",
             "I don't chase power. I just let it catch up when it's ready.",
-            "You're about to become the reason my legend gets a new chapter."
+            "You're about to become the reason my legend gets a new chapter.",
+
+            // Third batch, same voice - self-written, none of them repeat a line above.
+            "I don't walk into rooms. Rooms rearrange themselves around me.",
+            "My shadow keeps training even while I rest.",
+            "You heard thunder. I heard my power clearing its throat.",
+            "I don't have weaknesses. I have plot armor with a warranty.",
+            "Fate tried to write my ending. I took the pen.",
+            "The wind only blows dramatically when I'm about to speak.",
+            "I've been the chosen one so long the prophecy asks me for advice.",
+            "You're not facing me. You're facing the consequences of meeting me.",
+            "Every flashback I have is somebody else's worst day.",
+            "I don't level up. The levels come to me.",
+            "The ground cracks when I stand still. Imagine when I move.",
+            "I keep my power sealed in my left arm. For your sake, not mine.",
+            "Some people have a dark past. Mine has a sequel.",
+            "I don't take damage. I take notes.",
+            "You blinked. In that time I won twice.",
+            "My theme song starts playing the second a fight begins.",
+            "I've read the last page of this story. You're not in it.",
+            "Mercy is a gift. Unfortunately, I'm out of stock.",
+            "They told me to go find myself. I found a legend instead.",
+            "My training arc lasted three years. Your fight lasts three seconds."
     );
 
     static {
