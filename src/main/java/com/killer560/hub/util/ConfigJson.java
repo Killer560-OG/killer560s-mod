@@ -118,6 +118,39 @@ public final class ConfigJson {
         return el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
     }
 
+    /**
+     * Copies a config file that failed to parse aside, before anything saves over it: {@code killer560smod-x.json}
+     * goes to {@code killer560smod-x.broken.json}, and when that backup already holds a DIFFERENT corruption, to
+     * {@code killer560smod-x.broken-<millis>.json} beside it, so a second break never loses the first or itself
+     * (RouteStore's rule from 2026-09-16). The same broken file read again is not copied twice. Never throws.
+     * Profiles and the share list leave {@code .broken} names out ({@code ProfileData}).
+     *
+     * @return the backup the file now has, or {@code null} when there was nothing to copy or the copy failed.
+     */
+    public static java.nio.file.Path backupBroken(java.nio.file.Path file) {
+        try {
+            if (file == null || !java.nio.file.Files.isRegularFile(file)) {
+                return null;
+            }
+            String name = file.getFileName().toString();
+            String stem = name.endsWith(".json") ? name.substring(0, name.length() - 5) : name;
+            java.nio.file.Path backup = file.resolveSibling(stem + ".broken.json");
+            if (!java.nio.file.Files.exists(backup)) {
+                java.nio.file.Files.copy(file, backup);
+                return backup;
+            }
+            if (java.nio.file.Files.mismatch(file, backup) == -1L) {
+                return backup;
+            }
+            java.nio.file.Path second = file.resolveSibling(stem + ".broken-" + System.currentTimeMillis() + ".json");
+            java.nio.file.Files.copy(file, second);
+            return second;
+        } catch (Exception e) {
+            ModLog.get("killer560smod-config").warn("[Config] could not back up unreadable {}", file, e);
+            return null;
+        }
+    }
+
     /** @return the nested array at {@code key}, or {@code null} if missing / not an array. */
     public static JsonArray getArray(JsonObject obj, String key) {
         if (obj == null || key == null || !obj.has(key)) {
