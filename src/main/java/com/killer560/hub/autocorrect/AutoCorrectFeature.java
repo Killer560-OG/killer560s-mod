@@ -418,6 +418,23 @@ public final class AutoCorrectFeature {
         put(m, "tankj", "tank");
         put(m, "damnnnn", "damn");
 
+        // Typos killer560 made in his own requests (October 2026), plus the forms around them. "ther" is
+        // safe only because the table matches whole words, so "there", "other" and "father" are untouched.
+        put(m, "dissapoint", "disappoint");
+        put(m, "dissapointed", "disappointed");
+        put(m, "dissapointing", "disappointing");
+        put(m, "disapointed", "disappointed");
+        put(m, "disapointing", "disappointing");
+        put(m, "newley", "newly");
+        put(m, "thigns", "things");
+        put(m, "thign", "thing");
+        put(m, "ther", "there");
+        put(m, "wworking", "working");
+        put(m, "mispelled", "misspelled");
+        put(m, "mispelling", "misspelling");
+        put(m, "lenght", "length");
+        put(m, "lenghts", "lengths");
+
         return Map.copyOf(m);
     }
 
