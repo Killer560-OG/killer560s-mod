@@ -4,16 +4,22 @@ import com.killer560.hub.util.ModPaths;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Cringe lines for {@code /cringe} to pick from at random - anime-protagonist monologues, edgy
  *  one-liners, and internet-trend energy. Lives in a plain-text file in the config folder (one
- *  line per line, "#" for comments) so anyone can add/remove/edit lines themselves; the built-in
- *  {@link #DEFAULTS} are only used to seed that file the first time and as a fallback if it's ever
- *  emptied out or deleted. */
+ *  line per line, "#" for comments) so anyone can add/remove/edit lines themselves. The built-in
+ *  {@link #DEFAULTS} seed that file the first time, are the fallback if it's ever emptied out or
+ *  deleted, and any built-in line added in a mod update is added to the file on the next load (see
+ *  {@link #load()}). */
 public final class CringeLines {
 
     private static final Path FILE = ModPaths.config("killer560smod-cringe").resolve("cringe-lines.txt");
@@ -33,16 +39,98 @@ public final class CringeLines {
         return FILE;
     }
 
+    /* Keeping the file up to date with the built-in list.
+     *
+     * The file carries a few lines of its own bookkeeping, all starting with BOOK_PREFIX ("#k560 "),
+     * which are comments as far as /cringe is concerned:
+     *   "#k560 built-in <stamp>"    the stamp of the built-in list the file was last brought up to;
+     *   "#k560 offered <h> <h> ..." the hash of every built-in line the file has ever been given.
+     *
+     * The stamp is a content hash of DEFAULTS (builtInStamp()), so it changes by itself whenever a
+     * built-in line is added, removed or reworded; there is no counter to remember to bump. When the
+     * file's stamp differs from the current one, load() adds every built-in line that is neither in the
+     * file already nor in the "offered" set, keeps every other line exactly as it was and in the same
+     * order (the player's own, edited and commented lines included), appends the new lines at the end,
+     * and rewrites the bookkeeping with the new stamp and every current built-in hash added to the set.
+     * So a built-in line the player deleted stays deleted: it was offered once and is never offered
+     * again. A file from before the bookkeeping existed has no "offered" set, so on its first update it
+     * gets every built-in line it lacks, which can bring back lines deleted before then, once.
+     *
+     * A line's hash is String.hashCode() in hex: specified by the Java language, so stable across runs
+     * and versions, and with a couple of hundred lines a collision is not a practical concern. */
+    private static final String BOOK_PREFIX = "#k560 ";
+    private static final String STAMP_KEY = BOOK_PREFIX + "built-in ";
+    private static final String OFFERED_KEY = BOOK_PREFIX + "offered ";
+    private static final String BOOK_NOTE = BOOK_PREFIX
+            + "These #k560 lines let the mod add new built-in lines when it updates without bringing back ones you deleted. Leave them be.";
+    /** Hashes per "offered" line, so no single line gets unreadably long. */
+    private static final int HASHES_PER_LINE = 16;
+
+    private static String lineHash(String line) {
+        return Integer.toHexString(line.strip().hashCode());
+    }
+
+    /** Content hash of the whole built-in list, in order. */
+    private static String builtInStamp() {
+        return Integer.toHexString(String.join("\n", DEFAULTS).hashCode());
+    }
+
     /** (Re)reads the lines file from disk, creating it from {@link #DEFAULTS} if it doesn't exist
-     *  yet. Safe to call again later to pick up manual edits without restarting the game. */
+     *  yet, and first bringing it up to the current built-in list if the mod's list has changed since
+     *  the file was last stamped (see the comment above). Safe to call again later to pick up manual
+     *  edits without restarting the game. */
     public static void load() {
         try {
+            String stamp = builtInStamp();
             if (!Files.exists(FILE)) {
                 Files.createDirectories(FILE.getParent());
-                Files.write(FILE, DEFAULTS, StandardCharsets.UTF_8);
+                Set<String> offered = new LinkedHashSet<>();
+                for (String d : DEFAULTS) {
+                    offered.add(lineHash(d));
+                }
+                writeFile(new ArrayList<>(DEFAULTS), stamp, offered);
             }
+            List<String> raw = Files.readAllLines(FILE, StandardCharsets.UTF_8);
+            if (!raw.isEmpty() && !raw.get(0).isEmpty() && raw.get(0).charAt(0) == 0xFEFF) {
+                raw.set(0, raw.get(0).substring(1));
+            }
+
+            String fileStamp = null;
+            Set<String> offered = new LinkedHashSet<>();
+            List<String> body = new ArrayList<>();
+            for (String line : raw) {
+                String trimmed = line.strip();
+                if (trimmed.startsWith(STAMP_KEY)) {
+                    fileStamp = trimmed.substring(STAMP_KEY.length()).strip();
+                } else if (trimmed.startsWith(OFFERED_KEY)) {
+                    for (String h : trimmed.substring(OFFERED_KEY.length()).strip().split("\\s+")) {
+                        if (!h.isEmpty()) {
+                            offered.add(h);
+                        }
+                    }
+                } else if (!trimmed.startsWith(BOOK_PREFIX.strip())) {
+                    body.add(line);
+                }
+            }
+
+            if (!stamp.equals(fileStamp)) {
+                Set<String> present = new HashSet<>();
+                for (String line : body) {
+                    present.add(line.strip());
+                }
+                for (String d : DEFAULTS) {
+                    String h = lineHash(d);
+                    if (!present.contains(d) && !offered.contains(h)) {
+                        body.add(d);
+                        present.add(d);
+                    }
+                    offered.add(h);
+                }
+                writeFile(body, stamp, offered);
+            }
+
             List<String> lines = new ArrayList<>();
-            for (String line : Files.readAllLines(FILE, StandardCharsets.UTF_8)) {
+            for (String line : body) {
                 String trimmed = line.strip();
                 if (!trimmed.isEmpty() && !trimmed.startsWith("#")) {
                     lines.add(trimmed);
@@ -51,8 +139,41 @@ public final class CringeLines {
             current = lines.isEmpty() ? DEFAULTS : lines;
         } catch (IOException | RuntimeException e) {
             // RuntimeException too: this runs from the static initializer, where an escaping throw would
-            // turn into ExceptionInInitializerError and break /cringe for the session.
+            // turn into ExceptionInInitializerError and break /cringe for the session. A file that could
+            // not be read is never rewritten, so nothing the player wrote is lost.
             current = DEFAULTS;
+        }
+    }
+
+    /** Writes the bookkeeping lines, then the body, through a temporary file so a failed write can
+     *  never leave the player's file half written. */
+    private static void writeFile(List<String> body, String stamp, Set<String> offered) throws IOException {
+        List<String> out = new ArrayList<>();
+        out.add(BOOK_NOTE);
+        out.add(STAMP_KEY + stamp);
+        StringBuilder row = new StringBuilder();
+        int n = 0;
+        for (String h : offered) {
+            if (n > 0 && n % HASHES_PER_LINE == 0) {
+                out.add(OFFERED_KEY + row);
+                row.setLength(0);
+            }
+            if (row.length() > 0) {
+                row.append(' ');
+            }
+            row.append(h);
+            n++;
+        }
+        if (row.length() > 0) {
+            out.add(OFFERED_KEY + row);
+        }
+        out.addAll(body);
+        Path tmp = FILE.resolveSibling(FILE.getFileName() + ".tmp");
+        Files.write(tmp, out, StandardCharsets.UTF_8);
+        try {
+            Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tmp, FILE, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
