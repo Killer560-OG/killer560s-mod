@@ -195,6 +195,10 @@ public final class SimBuildAudit {
                     // stair that came out facing the wrong way is a different fault from a room that is not
                     // there at all. This one is about identity.
                     String want = room.palette.get(paletteIdx);
+                    int bracket = want.indexOf('[');
+                    if (bracket >= 0) {
+                        want = want.substring(0, bracket);   // the palette holds the full state
+                    }
                     String got = BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
                     if (want.equals(got) || sameAir(want, got)) {
                         matched++;
