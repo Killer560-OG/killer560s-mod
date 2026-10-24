@@ -1283,8 +1283,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     slot(g, mainX + i * 18, hotbarY, get(items, i), mx, my, false);
                 }
                 int bagY = hotbarY + 26;
-                if (!inv.quiver().isEmpty() || !inv.fishingBag().isEmpty()) {
-                    tx(g, "Arrows in quiver: " + countItems(inv.quiver()), mainX, bagY, DIM);
+                // The quiver's own count only: the fishing bag is drawn in the bags view, and gating on it here
+                // showed "Arrows in quiver: 0" for a profile with fish but no arrows.
+                int arrows = countItems(inv.quiver());
+                if (arrows > 0) {
+                    tx(g, "Arrows in quiver: " + arrows, mainX, bagY, DIM);
                 }
             }
             // killer560: "for the enderchest and backpacks, make that fit a similar style to our custom
