@@ -124,7 +124,7 @@ final class WitherDoorScanner {
                 continue;
             }
             int base = client.level.getSectionYFromSectionIndex(i) << 4;
-            // Hypixel's 0..255 band, moved with the sim's floor.
+            // Hypixel's 1..255 band (y 0 never held a roof), moved with the sim's floor - DoorScanner's band.
             for (int y = Math.min(base + 15, 255 + off); y >= Math.max(base, 1 + off); y--) {
                 if (!section.getBlockState(x & 15, y & 15, z & 15).isAir()) {
                     return y;
