@@ -116,6 +116,7 @@ final class Autopilot {
         lastBloodFirstWait = null;
         clearedFirst = null;
         current = null;
+        currentFailed = false;
         actionsDone = 0;
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
         hudAction = "Starting";
@@ -454,6 +455,8 @@ final class Autopilot {
             }
         }
         current = p;
+        // A failure noted while no action was open (after closeAction, say) belongs to no action, not to this one.
+        currentFailed = false;
         currentStartMs = System.currentTimeMillis();
         if (p.kind() == AutopilotPlanner.Kind.KEY) {
             int id = Integer.parseInt(p.room().substring(p.room().indexOf('#') + 1));
