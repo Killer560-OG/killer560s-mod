@@ -1,5 +1,6 @@
 package com.killer560.hub.spiritleap;
 
+import com.killer560.hub.util.ConfigJson;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -66,25 +67,24 @@ public final class SpiritLeapOverlayConfig {
             instance = new SpiritLeapOverlayConfig();
             return;
         }
+        JsonObject obj;
         try {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            SpiritLeapOverlayConfig cfg = new SpiritLeapOverlayConfig();
-            cfg.enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-            cfg.useClassColors = !obj.has("useClassColors") || obj.get("useClassColors").getAsBoolean();
-            cfg.setScale(obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f);
-            cfg.showHeads = !obj.has("showHeads") || obj.get("showHeads").getAsBoolean();
-            if (obj.has("style")) {
-                for (LeapStyle st : LeapStyle.values()) {
-                    if (st.name().equalsIgnoreCase(obj.get("style").getAsString())) {
-                        cfg.style = st;
-                    }
-                }
-            }
-            instance = cfg;
+            obj = JsonParser.parseString(json).getAsJsonObject();
         } catch (Exception e) {
+            // Only a file that does not parse at all lands here: keep a copy before a save writes defaults over it.
+            ConfigJson.backupBroken(CONFIG_PATH);
             instance = new SpiritLeapOverlayConfig();
+            return;
         }
+        // Each key on its own (ConfigJson): one malformed value falls back to its own default, the rest still load.
+        SpiritLeapOverlayConfig cfg = new SpiritLeapOverlayConfig();
+        cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+        cfg.useClassColors = ConfigJson.getBool(obj, "useClassColors", true);
+        cfg.setScale(ConfigJson.getFloat(obj, "scale", 1.0f));
+        cfg.showHeads = ConfigJson.getBool(obj, "showHeads", true);
+        cfg.style = ConfigJson.getEnum(obj, "style", LeapStyle.class, cfg.style);
+        instance = cfg;
     }
 
     public void save() {
