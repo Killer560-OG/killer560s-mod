@@ -175,7 +175,7 @@ public final class SimLoadout {
 
     private static void setSlot(int index, String id) {
         load();
-        slots[index] = "none".equalsIgnoreCase(id) || "empty".equalsIgnoreCase(id) ? null : id.toUpperCase();
+        slots[index] = "none".equalsIgnoreCase(id) || "empty".equalsIgnoreCase(id) ? null : id.toUpperCase(java.util.Locale.ROOT);
         persist();
         ModChat.send("Sim", ModChat.text("Slot " + index + " = "),
                 ModChat.value(slots[index] == null ? "empty" : slots[index]));
