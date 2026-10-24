@@ -220,7 +220,8 @@ public final class SimTabList {
                 state = 0;
             } else if (SimRoomState.isFailed(name)) {
                 state = 1;
-            } else if (com.killer560.hub.roomsim.puzzles.SimPuzzles.isComplete(key)) {
+            } else if (com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(name)) {
+                // By the ROOM, not the class key: Quiz and Three Weirdos share "quiz", and solving one is not both.
                 state = 2;
             } else {
                 state = 3;
@@ -299,7 +300,7 @@ public final class SimTabList {
             String shown = displayName(placed.name());
             if (SimRoomState.isFailed(placed.name())) {
                 rows.add(" " + shown + ": [✖] (" + self + ")");
-            } else if (com.killer560.hub.roomsim.puzzles.SimPuzzles.isComplete(key)) {
+            } else if (com.killer560.hub.roomsim.puzzles.SimPuzzles.isRoomComplete(placed.name())) {
                 rows.add(" " + shown + ": [✔]");
             } else {
                 rows.add(" " + shown + ": [✦]");
