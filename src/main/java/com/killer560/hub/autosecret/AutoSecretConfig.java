@@ -213,9 +213,8 @@ public final class AutoSecretConfig {
                 cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
                 // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
                 cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
-                if (o.has("keyBaseRange")) {
-                    cfg.setKeyBaseRange(o.get("keyBaseRange").getAsDouble());
-                }
+                // getDouble drops a non-finite value (a hand-edited NaN made key pickup never reach).
+                cfg.setKeyBaseRange(ConfigJson.getDouble(o, "keyBaseRange", cfg.keyBaseRange));
             } catch (Exception e) {
                 // unreadable file - keep defaults
             }
@@ -307,7 +306,12 @@ public final class AutoSecretConfig {
     public void setStatusHud(boolean v) { statusHud = v; }
 
     public double getKeyBaseRange() { return keyBaseRange; }
-    public void setKeyBaseRange(double v) { keyBaseRange = Math.max(MIN_KEY_BASE, Math.min(MAX_KEY_BASE, v)); }
+    public void setKeyBaseRange(double v) {
+        if (Double.isNaN(v)) {
+            return;   // Math.max/min pass NaN straight through
+        }
+        keyBaseRange = Math.max(MIN_KEY_BASE, Math.min(MAX_KEY_BASE, v));
+    }
 
     /** The key pickup range these settings give (DungeonKeys.pickupRange). */
     public double keyPickupRange() {
