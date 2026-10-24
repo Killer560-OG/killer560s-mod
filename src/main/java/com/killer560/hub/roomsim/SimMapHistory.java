@@ -83,6 +83,8 @@ public final class SimMapHistory {
     private static boolean loaded;
     /** Whether the old saved designs have been brought in (persisted, so it happens once). */
     private static boolean migrated;
+    /** The file exists but could not be read or moved aside, so nothing may overwrite it until a read succeeds. */
+    private static boolean readFailed;
 
     private SimMapHistory() {
     }
@@ -154,6 +156,7 @@ public final class SimMapHistory {
         }
         loaded = true;
         migrated = false;
+        readFailed = false;
         if (Files.exists(FILE)) {
             try {
                 JsonElement root = JsonParser.parseString(Files.readString(FILE, StandardCharsets.UTF_8));
@@ -173,8 +176,20 @@ public final class SimMapHistory {
                 LOGGER.info("Sim map history: {} floor(s)", ENTRIES.size());
             } catch (Exception e) {
                 ENTRIES.clear();
-                LOGGER.warn("Could not read the sim map history ({}) - starting with none",
-                        e.getClass().getSimpleName());
+                // Never overwrite a file that could not be read: move it aside first, and if even that fails, write
+                // nothing until a later read succeeds (a save here used to replace the whole history).
+                Path aside = FILE.resolveSibling(FILE.getFileName() + ".broken-" + System.currentTimeMillis());
+                try {
+                    Files.move(FILE, aside);
+                    LOGGER.warn("Could not read the sim map history ({}) - kept it as {} and starting with none",
+                            e.getClass().getSimpleName(), aside.getFileName());
+                } catch (Exception moveFailed) {
+                    readFailed = true;
+                    LOGGER.warn("Could not read the sim map history ({}) and could not move it aside ({}) - "
+                                    + "not writing it this session",
+                            e.getClass().getSimpleName(), moveFailed.getClass().getSimpleName());
+                    return;
+                }
             }
         }
         if (!migrated) {
@@ -256,6 +271,9 @@ public final class SimMapHistory {
     }
 
     private static void save() {
+        if (readFailed) {
+            return;
+        }
         try {
             Files.createDirectories(FILE.getParent());
             JsonArray arr = new JsonArray();
