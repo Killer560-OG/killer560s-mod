@@ -109,7 +109,9 @@ public final class BazaarApi {
         return CompletableFuture.supplyAsync(BazaarApi::fetchAndParse).<Void>handle((fetched, error) -> {
             refreshing.set(false);
             if (error != null) {
-                lastError = error.getMessage() != null ? error.getMessage() : error.toString();
+                Throwable cause = error instanceof java.util.concurrent.CompletionException && error.getCause() != null
+                        ? error.getCause() : error;
+                lastError = cause.getMessage() != null ? cause.getMessage() : cause.toString();
                 LOGGER.warn("[Bazaar] Refresh failed", error);
                 lastFetchedMs = System.currentTimeMillis();
                 return null;
@@ -218,9 +220,11 @@ public final class BazaarApi {
                         continue;
                     }
                     JsonObject lvl = el.getAsJsonObject();
-                    double ppu = lvl.has("pricePerUnit") ? lvl.get("pricePerUnit").getAsDouble() : 0;
-                    long amount = lvl.has("amount") ? lvl.get("amount").getAsLong() : 0;
-                    int orders = lvl.has("orders") ? lvl.get("orders").getAsInt() : 0;
+                    // Never-throwing reads: a JSON null in one level used to throw out of the whole parse and
+                    // empty every product's book. Now that level reads 0 and is skipped below; the rest stay.
+                    double ppu = com.killer560.hub.util.ConfigJson.getDouble(lvl, "pricePerUnit", 0);
+                    long amount = com.killer560.hub.util.ConfigJson.getLong(lvl, "amount", 0);
+                    int orders = com.killer560.hub.util.ConfigJson.getInt(lvl, "orders", 0);
                     if (ppu > 0 && amount > 0) {
                         levels.add(new BazaarOrderLevel(ppu, amount, orders));
                     }
@@ -256,13 +260,17 @@ public final class BazaarApi {
                     .build();
             HttpResponse<String> response = ModNet.send(HTTP, request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                return new Fetched(List.of(), 0L);
+                // Thrown, not swallowed: refreshAsync's error branch logs it and puts the status in getLastError.
+                throw new IllegalStateException("Bazaar API returned HTTP " + response.statusCode());
             }
             long now = System.currentTimeMillis();
             long serverNow = response.headers().firstValue("date").map(BazaarApi::httpDate).orElse(0L);
             return new Fetched(parseResponse(response.body()), localUpdatedMs(lastUpdatedOf(response.body()), serverNow, now));
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            return new Fetched(List.of(), 0L);
+            // A network failure or timeout: handed to refreshAsync, which logs the real reason.
+            throw new java.util.concurrent.CompletionException(e);
         }
     }
 
