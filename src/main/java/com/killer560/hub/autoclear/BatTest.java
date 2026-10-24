@@ -50,8 +50,9 @@ import java.util.Locale;
  * shot that cannot be set up (no such block, a failed trip, a use that never left) is logged and skipped, never repeated:
  * at most {@code SHOTS.length} uses ever.
  * <p>
- * Ends after the set, or at once on: a movement or jump key he presses, a screen opening, a server correction (said in
- * chat with the alarm, as every correction is; it ends the test because this is a measurement, not a route), his death,
+ * A server correction is said in chat with the alarm, as every correction is, and the test carries on from where the
+ * server put him: nothing in this mod stops on a correction. Ends after the set, or at once on: a movement or jump key
+ * he presses, a screen opening, his death,
  * leaving the dungeon or the world, another automation starting, or {@link #RUN_TIMEOUT_TICKS}. Every line goes to
  * {@code killer560smod-bats} with the prefix {@code [BatTest]}.
  */
@@ -251,10 +252,7 @@ public final class BatTest {
                 || com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
             return "another automation started";
         }
-        String correction = correction(player);
-        if (correction != null) {
-            return correction;
-        }
+        correction(player);   // reported, never a reason to end
         if (runTicks >= RUN_TIMEOUT_TICKS) {
             return "the test's time limit (" + RUN_TIMEOUT_TICKS + " ticks)";
         }
@@ -770,14 +768,18 @@ public final class BatTest {
         positionPackets++;
     }
 
-    /** A server correction since the last tick, said the way every correction is; the reason the test ends, or null. */
+    /**
+     * A server correction since the last tick, said the way every correction is. Never a reason to end: the test carries
+     * on from where the server put him (CLAUDE.md, nothing stops on a correction). Always returns null.
+     */
     private static String correction(LocalPlayer player) {
         int executor = ClearExecutor.serverCorrections();
         if (executor != executorCorrectionsSeen) {
             executorCorrectionsSeen = executor;
             positionPacketsSeen = positionPackets;
-            // The map's trip has said it in chat with the alarm already.
-            return "a server correction during the trip";
+            // The map's trip has said it in chat with the alarm already, and carries on itself.
+            BatLog.LOGGER.info("[BatTest] a server correction during the trip - carrying on");
+            return null;
         }
         int packets = positionPackets;
         if (packets == positionPacketsSeen) {
@@ -792,7 +794,9 @@ public final class BatTest {
         if (moved < 0.3) {
             return null;   // a rotation-only answer
         }
-        ServerCorrections.report(CHAT, "- the bat test ends", moved);
-        return String.format(Locale.US, "a server correction (moved %.2f blocks)", moved);
+        ServerCorrections.report(CHAT, "- carrying on", moved);
+        BatLog.LOGGER.info(String.format(Locale.US, "[BatTest] a server correction (moved %.2f blocks) - carrying on",
+                moved));
+        return null;
     }
 }
