@@ -18,11 +18,11 @@ Open the menu in game with `/killer560`: every feature is a card with its own on
 
 **Social & Supporters** - Best Friends, Friends List, Profile Viewer
 
-**Cosmetics** - Custom Items, Held Item Outline, Nickhider, Player Cosmetics (name changer, name colour/fade/letter colours, name animation, player size, play as mob, held item transform, supporter sharing), Ribbon Trail (shareable by supporters), Trail (squares)
+**Cosmetics** - Custom Items, Held Item Outline, Nickhider, Player Cosmetics (name changer, name color/fade/letter colors, name animation, player size, play as mob, held item transform, supporter sharing), Ribbon Trail (shareable by supporters), Trail (squares)
 
 **Party Data & Cross-Mod** - Cross-Mod Bridge, Mod conflict warnings, Party Dungeon Data, Party Interop, Team Melody HUD, Teammate Highlight †, Teammate rooms on the map
 
-**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Compactor Preview, Custom Enchant Colours, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Listing Helper, Loadout Keybinds, Pet Wheel, Price Tooltip, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Slot Text, Storage Item Search, Storage Overlay
+**Items, Inventory & Trading** - Auction House Browser, Auto Inventory Sorter, Bazaar Browser, Compactor Preview, Custom Enchant Colors, Experimentation Table Profit Tracker, Experimentation Table Solver †, Inventory HUD, Inventory Search, Inventory Theme, Item Browser, Item Protection, Item Rarity Backgrounds, Listing Helper, Loadout Keybinds, Pet Wheel, Price Tooltip, Profit Trackers (/profit), Reskin Real Auction House, Reskin Real Bazaar, Revert Master Stars, Scrollable Tooltips, Slot Binds, Slot Text, Storage Item Search, Storage Overlay
 
 **HUDs & Helpers** - Ability Cooldowns, Ability Keybinds, Advanced Position, Auto Join Skyblock, Chocolate Factory Helper, Custom Scoreboard, Discord Rich Presence, DVD, Etherwarp Overlay, Etherwarp Waypoints, Fairy Souls †, GIF Player, Health and Mana Bars, Map Logger, No Fire, Object Hider, Performance HUD, Quiver Display, Real Time, Screenshot Copy, Session Recorder, Smooth Teleport, Trajectories, Waypoint Routes, Video Browser
 
@@ -36,7 +36,7 @@ Open the menu in game with `/killer560`: every feature is a card with its own on
 
 **Display & Menus** - Borderless Fullscreen, Custom Crosshair, Freelook, Fullbright, Motion Blur, Pack Disabler, Skyblock Only, Sound Effects (arrow hits, attacks, block hits, mob deaths, block breaks), Sweat Mode, Themed Main Menu, Window Layout
 
-**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Blank Profile, Bug Report, Click Sounds (presets, import your own, Minecraft's screens too), Colour Copy / Paste (every colour picker), Descriptions (show / hide card and HUD editor descriptions), Edit Bars, Favourites, HUD Editor, HUD Scale, Auto Update, Menu Memory, Menu Search (Ctrl F), Menu Theme (Amber, Dark, Light, Ocean, Green, Custom colours, Saved Themes), Fonts (bundled and imported, Mod Menu Only or Everything), Theme Extras (each theme's own music - bundled or imported - font, and imported video or GIF main menu background), Reboot (/reboot), Profiles, Proxy Client, Update Notice
+**Accounts, Home & Profiles** - Account Switcher, Auto Scale (monitor), Blank Profile, Bug Report, Click Sounds (presets, import your own, Minecraft's screens too), Color Copy / Paste (every color picker), Descriptions (show / hide card and HUD editor descriptions), Edit Bars, Favorites, HUD Editor, HUD Scale, Auto Update, Menu Memory, Menu Search (Ctrl F), Menu Theme (Amber, Dark, Light, Ocean, Green, Custom colors, Saved Themes), Fonts (bundled and imported, Mod Menu Only or Everything), Theme Extras (each theme's own music - bundled or imported - font, and imported video or GIF main menu background), Reboot (/reboot), Profiles, Proxy Client, Update Notice
 
 **Cheat Build Only** - 0 Ping Dungeon Breaker, AP3 (F7/M7 P3 automation), Auto Anvil, Auto Blood Camp, Auto Clear, Auto Clear Status HUD, Auto Close Chest, Correction Alarm, Auto Croesus, Auto Debuff (M7 dragons), Dungeon Autopilot, Dungeon Sim (WIP), Dungeon Sim Room Filters, Dungeon Sim Teleports (/goto, /tpto, /c), Dungeon Sim Room Capture (/mage, dev builds), Map Designer, Auto Dialogue / Breaker Aura, Auto Door Opener, Auto Puzzles (QUOI port), Auto Quiz / Auto Three Weirdos, Auto Routes (with its Progress HUD), Auto Secret, Auto Sell, Auto Trap, Bazaar Flipper, Cheat Utilities, Fast/Auto Leap, Freeze State, Full Block, Goldor Triggerbot, I Hate Diorite, i4 Leap Out, Interactive Map, Lights Device, Secret Triggerbot, Terminal Aura, Terminal Triggerbot
 
@@ -64,6 +64,6 @@ Config is created automatically on first launch - nothing else to set up.
 
 Output jar lands in `build/libs/`.
 
-## Licence
+## License
 
 MIT — see [LICENSE](LICENSE). Third-party notices in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
