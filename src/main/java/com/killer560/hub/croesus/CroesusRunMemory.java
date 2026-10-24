@@ -182,6 +182,11 @@ final class CroesusRunMemory {
      * goes to no join. A run from another page carried here by it would add a vote the "no join" shift cannot have (the
      * run it would pair with is off the page), so a join nothing shows would win by that one vote, which is the leak
      * above. Across a page edge only the joins the time allows count (testkit 906, 1018-croesus-page-match).
+     * <p>
+     * Time alone is not enough across a page edge: once 3 minutes have passed, page 1's last run is "reachable" from page
+     * 2's first head again, adds the vote above, and the leak is back (page 1, a 4-minute pause, page 2: 10 votes for a
+     * join against 9 for none). So a run from an earlier page never votes, and {@link #crossOk} lets it in only behind a
+     * join the page's own runs show (testkit 907).
      */
     static boolean reachable(Run r, Entry e, long now, int pageFirst, int per) {
         if (r.seenAtMs <= 0) {
@@ -198,6 +203,27 @@ final class CroesusRunMemory {
 
     private static boolean onPage(int order, int pageFirst, int per) {
         return order >= pageFirst && order < pageFirst + per;
+    }
+
+    /** {@code r} was last seen on a page before the one read and {@code e} would move it later, across the page edge. */
+    private static boolean fromEarlierPage(Run r, Entry e, int pageFirst) {
+        return r.order < pageFirst && e.order() > r.order;
+    }
+
+    /**
+     * A run may cross into this page from an earlier one only behind a run that has really been added in front of it since
+     * it was seen. The evidence is this page's own remembered runs: the shift they voted for, without any run from another
+     * page voting, puts them later in the list ({@code win < 0}), and every one of them was last seen no earlier than
+     * {@code r} was, so the joins they show happened after {@code r}'s sighting. Then {@code r} moves by exactly that shift.
+     * Anything less is ambiguous and {@code r} stays where it was: the head it would take reads "not looked at" (never
+     * hidden) rather than another run's state. A head that matches no remembered run is no evidence of a join on its own:
+     * every run he never opened looks like that (906's last head).
+     */
+    private static boolean crossOk(Run r, Entry e, int pageFirst, int win, long winSeenMs) {
+        if (!fromEarlierPage(r, e, pageFirst)) {
+            return true;
+        }
+        return win < 0 && e.order() - r.order == -win && r.seenAtMs <= winSeenMs;
     }
 
     /**
@@ -228,13 +254,16 @@ final class CroesusRunMemory {
         int per = DungeonChestValuer.RUN_HEAD_SLOTS.length;
         int pageFirst = entries.isEmpty() ? 0 : Math.floorDiv(entries.get(0).order(), per) * per;
         // 1. Every in-window pair votes for the list's shift; the most common shift assigns them. A tie goes to the shift
-        // whose pairs the heads contradict least ({@link #contradicts}), then to the smallest.
+        // whose pairs the heads contradict least ({@link #contradicts}), then to the smallest. A run from an earlier page
+        // does not vote ({@link #crossOk}); each shift keeps the earliest sighting among its voters.
         Map<Integer, Integer> votes = new HashMap<>();
         Map<Integer, Integer> against = new HashMap<>();
+        Map<Integer, Long> voterSeen = new HashMap<>();
         for (Entry e : entries) {
             for (Run r : RUNS) {
-                if (inWindow(r, e) && reachable(r, e, now, pageFirst, per)) {
+                if (inWindow(r, e) && reachable(r, e, now, pageFirst, per) && !fromEarlierPage(r, e, pageFirst)) {
                     votes.merge(r.order - e.order(), 1, Integer::sum);
+                    voterSeen.merge(r.order - e.order(), Math.max(0L, r.seenAtMs), Math::min);
                     if (contradicts(r, e, now)) {
                         against.merge(r.order - e.order(), 1, Integer::sum);
                     }
@@ -252,6 +281,7 @@ final class CroesusRunMemory {
         // that the winning shift puts on this page. Before, an unseen head at a page's edge took the next page's
         // first run (or the run the shift had just pushed off this page), and that page then read its own run as new.
         int win = deltas.isEmpty() ? 0 : deltas.get(0);
+        long winSeen = voterSeen.getOrDefault(win, 0L);
         for (int d : deltas) {
             for (int i = 0; i < entries.size(); i++) {
                 if (out[i] != null) {
@@ -260,7 +290,8 @@ final class CroesusRunMemory {
                 Entry e = entries.get(i);
                 for (Run r : RUNS) {
                     if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e)
-                            && reachable(r, e, now, pageFirst, per) && (d == win || onPage(r.order - win, pageFirst, per))) {
+                            && reachable(r, e, now, pageFirst, per) && (d == win || onPage(r.order - win, pageFirst, per))
+                            && crossOk(r, e, pageFirst, win, winSeen)) {
                         out[i] = r;
                         used.add(r);
                         break;
@@ -280,7 +311,8 @@ final class CroesusRunMemory {
             List<Run> fit = new ArrayList<>();
             for (Run r : RUNS) {
                 if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
-                        && reachable(r, e, now, pageFirst, per) && onPage(r.order - win, pageFirst, per)) {
+                        && reachable(r, e, now, pageFirst, per) && onPage(r.order - win, pageFirst, per)
+                        && crossOk(r, e, pageFirst, win, winSeen)) {
                     fit.add(r);
                 }
             }
