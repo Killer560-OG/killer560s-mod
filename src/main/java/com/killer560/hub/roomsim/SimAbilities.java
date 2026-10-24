@@ -379,7 +379,10 @@ public final class SimAbilities {
         }
         String room = SimState.roomNameAt(sp.getBlockX(), sp.getBlockZ());
         if (trapLocked(id, room)) {
-            sayTrapLocked(sp, room);
+            // The line only for an item that HAS an ability: Hypixel does not say it for a plain item or a pearl.
+            if (ours) {
+                sayTrapLocked(sp, room);
+            }
             // FAIL, not PASS: PASS would let the item's VANILLA behavior through, and an ender pearl is vanilla
             // all the way down - it would still throw and still teleport him out of the trap.
             return InteractionResult.FAIL;
