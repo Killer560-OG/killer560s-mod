@@ -12,6 +12,21 @@ public abstract class BaseTab {
         this.name = name;
     }
 
+    /** True only while the menu builds the open tab's rows to show them; false for every off-screen build (the search
+     *  scan, a card's switch state, a slider's twin). A tab that does network work in {@link #buildWidgets} checks it. */
+    private static boolean onScreenBuild;
+
+    public static boolean isOnScreenBuild() {
+        return onScreenBuild;
+    }
+
+    /** Set by ModScreen around the open tab's real build; returns the previous value to restore. */
+    public static boolean setOnScreenBuild(boolean value) {
+        boolean was = onScreenBuild;
+        onScreenBuild = value;
+        return was;
+    }
+
     /**
      * Called each time this tab becomes active (or needs rebuilding) so it can build its widget
      * list. {@code requestRebuild} lets a widget's callback ask for the whole tab to be rebuilt

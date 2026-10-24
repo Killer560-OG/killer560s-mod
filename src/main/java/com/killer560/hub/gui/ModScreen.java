@@ -748,7 +748,13 @@ public class ModScreen extends Screen {
             widgets.add(com.killer560.hub.testing.TestingMenu.markButton(tab, contentX, startY, contentW));
             startY += com.killer560.hub.testing.TestingMenu.MARK_ROW_HEIGHT;
         }
-        List<AbstractWidget> built = tab.buildWidgets(contentX, startY, contentW, this::rebuild);
+        List<AbstractWidget> built;
+        boolean wasOnScreen = BaseTab.setOnScreenBuild(true);
+        try {
+            built = tab.buildWidgets(contentX, startY, contentW, this::rebuild);
+        } finally {
+            BaseTab.setOnScreenBuild(wasOnScreen);
+        }
         for (AbstractWidget w : built) {
             SettingTooltips.scope(w, tab.name);
         }

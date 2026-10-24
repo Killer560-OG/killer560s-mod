@@ -155,12 +155,16 @@ public class CosmeticsTab extends BaseTab {
             y += 14;
         }
 
-        // Fetched here rather than on a constructor hook - see the class doc. widgetsMatchSearch never reaches
-        // this, so typing in the search box never fires a live GET.
-        boolean neverFetched = lastFetchAtMs < 0;
-        boolean stale = !neverFetched && System.currentTimeMillis() - lastFetchAtMs > REFRESH_COOLDOWN_MS;
-        if (!fetchInFlight && (neverFetched || stale)) {
-            startFetch(requestRebuild);
+        // Fetched here rather than on a constructor hook - see the class doc. Only when the tab is really being shown:
+        // the search's setting hits, a card's switch state and a slider's twin all build this tab off screen too, and
+        // none of them may fire a live GET. (The share below stays: it sends nothing unless a setting changed, and a
+        // card's switch changes settings through an off-screen build.)
+        if (isOnScreenBuild()) {
+            boolean neverFetched = lastFetchAtMs < 0;
+            boolean stale = !neverFetched && System.currentTimeMillis() - lastFetchAtMs > REFRESH_COOLDOWN_MS;
+            if (!fetchInFlight && (neverFetched || stale)) {
+                startFetch(requestRebuild);
+            }
         }
         SupportersAutoShare.shareCurrent(err -> shareError = err);
 
