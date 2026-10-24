@@ -98,12 +98,21 @@ public abstract class BaseTab {
      *  search's setting hits. Built off-screen like {@link #widgetsMatchSearch}; a tab that scans with hidden sections
      *  laid open overrides this the same way. */
     public List<String> searchHits(String query) {
+        if (query.trim().isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+        return searchHitsIn(buildWidgets(0, 0, 200, () -> {}), query);
+    }
+
+    /** {@link #searchHits}' label matching over a widget list the caller built, for a tab whose search scan is not a
+     *  plain {@link #buildWidgets} call (Fast/Auto Leap builds its hidden rows through {@code FastLeapSection}). */
+    protected static List<String> searchHitsIn(List<AbstractWidget> widgets, String query) {
         String q = query.toLowerCase(Locale.US).trim();
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
         if (q.isEmpty()) {
             return new java.util.ArrayList<>();
         }
-        for (AbstractWidget widget : buildWidgets(0, 0, 200, () -> {})) {
+        for (AbstractWidget widget : widgets) {
             String text = net.minecraft.ChatFormatting.stripFormatting(widget.getMessage().getString());
             if (text == null) {
                 continue;

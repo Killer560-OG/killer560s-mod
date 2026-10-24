@@ -300,6 +300,17 @@ public class Ap3Tab extends BaseTab implements KeyCaptureTab {
      *  (ModScreen's rule: a match never force-expands a section), so the scan builds with both laid out open.
      *  Only ever run from the search field's responder, never per frame. */
     @Override
+    public List<String> searchHits(String query) {
+        // The setting hits are listed from the same scan as matchesSearch, so a row in a closed section is listed too.
+        scanningForSearch = true;
+        try {
+            return super.searchHits(query);
+        } finally {
+            scanningForSearch = false;
+        }
+    }
+
+    @Override
     public boolean matchesSearch(String query) {
         if (query.isBlank() || nameMatches(query)) {
             return true;
