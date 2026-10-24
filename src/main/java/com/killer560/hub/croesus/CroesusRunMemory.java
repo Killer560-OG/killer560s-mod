@@ -229,9 +229,9 @@ final class CroesusRunMemory {
     /**
      * The head says {@code e} cannot be {@code r}: a claim of {@code r} seen over {@link ChestProfitFeature#CLAIM_TRUST_MS}
      * ago (so not a head lagging it) under a head that still says "No chests opened yet!", or {@code e} expiring later than
-     * any run already in the list when {@code r} was last seen could (it finished after that read). Used to break a tie
-     * between shifts: one party's new run at the front ties shift 0 against shift -1, and shift 0 hands it the remembered
-     * run before it.
+     * any run already in the list when {@code r} was last seen could (it finished after that read). Such a pair does not
+     * vote and counts against its shift in a tie: one party's new run at the front ties shift 0 against shift -1, and
+     * shift 0 hands it the remembered run before it.
      */
     private static boolean contradicts(Run r, Entry e, long now) {
         if (r.claimType != null && e.unopened() && now - r.claimAtMs >= ChestProfitFeature.CLAIM_TRUST_MS) {
@@ -243,6 +243,47 @@ final class CroesusRunMemory {
 
     private static boolean inWindow(Run r, Entry e) {
         return r.sig.equals(e.sig()) && Math.abs(r.expiresAt - e.expiresAt()) <= r.tolMs + e.tolMs() + READ_SLACK_MS;
+    }
+
+    /** Some remembered run could be the run under {@code e}: in its window, reachable, and the head does not contradict it. */
+    private static boolean fitsAny(Entry e, long now, int pageFirst, int per) {
+        for (Run r : RUNS) {
+            if (inWindow(r, e) && reachable(r, e, now, pageFirst, per) && !contradicts(r, e, now)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * How many heads at the front of page 1 are runs that joined the list since it was last read, from the heads alone.
+     * Croesus lists the newest run first, so a run joins at place 0 and pushes every run one place later. Let {@code front}
+     * be the place of the first remembered run on page 1. The heads before it were not remembered at the last read either
+     * (runs he never opened), so a head there that fits nothing is no evidence of a join (906's last head, crossOk). But
+     * when the head at {@code front} itself fits no remembered run, the first remembered run is no longer there, and it
+     * cannot have moved earlier: the runs ahead of it are newer, and the newest run expires last. So runs joined in front
+     * of it. Returns {lead, joins}: the first {@code lead} heads (consecutive from place 0) fit no remembered run, and
+     * {@code joins} = lead - front of them are new; {0, 0} when the heads show no join.
+     * <p>
+     * One party all day, 28 remembered runs at places 0..27 and a new run N at place 0: before this, the page 1 read gave
+     * shift 0 28 votes (N paired with run 0, in window, its claim only breaking ties) against 27 for shift -1, so every run
+     * took its successor's state and N took run 0's memory (testkit 908).
+     */
+    private static int[] frontJoins(List<Entry> entries, long now, int pageFirst, int per) {
+        if (pageFirst != 0) {
+            return new int[]{0, 0};
+        }
+        int front = Integer.MAX_VALUE;
+        for (Run r : RUNS) {
+            if (r.order >= 0 && r.order < per) {
+                front = Math.min(front, r.order);
+            }
+        }
+        int lead = 0;
+        while (lead < entries.size() && entries.get(lead).order() == lead && !fitsAny(entries.get(lead), now, pageFirst, per)) {
+            lead++;
+        }
+        return front == Integer.MAX_VALUE || lead <= front ? new int[]{0, 0} : new int[]{lead, lead - front};
     }
 
     /** The remembered run of each entry (same order), or null for one not remembered or truly ambiguous. */
@@ -259,16 +300,27 @@ final class CroesusRunMemory {
         Map<Integer, Integer> votes = new HashMap<>();
         Map<Integer, Integer> against = new HashMap<>();
         Map<Integer, Long> voterSeen = new HashMap<>();
-        for (Entry e : entries) {
+        // 0. Runs that joined at the front of page 1 ({@link #frontJoins}): those heads take no memory and no part in the
+        // vote, and each new run is one more head that only the shift leaving room for them explains.
+        int[] fj = frontJoins(entries, now, pageFirst, per);
+        int lead = fj[0];
+        for (int i = lead; i < entries.size(); i++) {
+            Entry e = entries.get(i);
             for (Run r : RUNS) {
                 if (inWindow(r, e) && reachable(r, e, now, pageFirst, per) && !fromEarlierPage(r, e, pageFirst)) {
-                    votes.merge(r.order - e.order(), 1, Integer::sum);
-                    voterSeen.merge(r.order - e.order(), Math.max(0L, r.seenAtMs), Math::min);
+                    // A pair the head contradicts is not a vote: the head says it is not that run. It still counts against
+                    // its shift in a tie. Own pairs never contradict, so only a wrong shift loses votes here.
                     if (contradicts(r, e, now)) {
                         against.merge(r.order - e.order(), 1, Integer::sum);
+                    } else {
+                        votes.merge(r.order - e.order(), 1, Integer::sum);
+                        voterSeen.merge(r.order - e.order(), Math.max(0L, r.seenAtMs), Math::min);
                     }
                 }
             }
+        }
+        if (fj[1] > 0) {
+            votes.computeIfPresent(-fj[1], (d, v) -> v + fj[1]);
         }
         List<Integer> deltas = new ArrayList<>(votes.keySet());
         deltas.sort((a, b) -> {
@@ -283,7 +335,7 @@ final class CroesusRunMemory {
         int win = deltas.isEmpty() ? 0 : deltas.get(0);
         long winSeen = voterSeen.getOrDefault(win, 0L);
         for (int d : deltas) {
-            for (int i = 0; i < entries.size(); i++) {
+            for (int i = lead; i < entries.size(); i++) {
                 if (out[i] != null) {
                     continue;
                 }
@@ -303,7 +355,7 @@ final class CroesusRunMemory {
             }
         }
         // 2. Leftovers: exactly one free run that fits, within a few places.
-        for (int i = 0; i < entries.size(); i++) {
+        for (int i = lead; i < entries.size(); i++) {
             if (out[i] != null) {
                 continue;
             }
@@ -341,6 +393,16 @@ final class CroesusRunMemory {
                 r.expiresAt = e.expiresAt();
                 r.tolMs = e.tolMs();
                 changed = true;
+            }
+        }
+        // The runs the new ones pushed off page 1 are on page 2 now, by exactly the joins the heads show. Left at their old
+        // place, page 2 read them as runs from an earlier page (crossOk) and its first heads read "not looked at".
+        if (fj[1] > 0 && win == -fj[1]) {
+            for (Run r : RUNS) {
+                if (!used.contains(r) && r.order >= per - fj[1] && r.order < per) {
+                    r.order += fj[1];
+                    changed = true;
+                }
             }
         }
         if (changed) {
