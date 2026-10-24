@@ -140,14 +140,18 @@ public final class SkyblockGate {
         }
         // "loaded" is only published after "enabled" holds the file's value, so an unsynchronized isEnabled()
         // on another thread either blocks here (loaded still false) or sees the finished value.
+        // Starts from the default (off) every time, so a reload of a missing or unreadable file (a profile without it)
+        // goes back to the default instead of keeping the previous value.
+        boolean value = false;
         try {
             if (Files.exists(CONFIG_PATH)) {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
-                enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+                value = obj.has("enabled") && obj.get("enabled").getAsBoolean();
             }
         } catch (Exception e) {
             LOGGER.warn("[SkyblockGate] Couldn't read {}: {}", CONFIG_PATH.getFileName(), e.toString());
         } finally {
+            enabled = value;
             loaded = true;
         }
     }
